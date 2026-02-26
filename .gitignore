@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.next/
+out/
+build/
+target/
+
+# Anchor/Solana
+.anchor/
+test-ledger/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Testing
+coverage/
+.nyc_output/
+
+# Turbo
+.turbo/
+
+# Database
+*.db
+*.sqlite
+
+# Secrets - NEVER commit these
+*.pem
+*.key
+keypair.json
+*-keypair.json
+
+# Claude Code
+.claude/
+
+# OS
+Thumbs.db

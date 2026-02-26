@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PoolStatus {
+  UPCOMING
+  JOINING
+  ACTIVE
+  RESOLVED
+  CLAIMABLE
+}
+
+enum Side {
+  UP
+  DOWN
+}
+
+model Pool {
+  id           String     @id @default(uuid())
+  poolId       String     @unique @map("pool_id")
+  asset        String
+  status       PoolStatus @default(UPCOMING)
+  startTime    DateTime   @map("start_time")
+  endTime      DateTime   @map("end_time")
+  lockTime     DateTime   @map("lock_time")
+  strikePrice  BigInt?    @map("strike_price")
+  finalPrice   BigInt?    @map("final_price")
+  totalUp      BigInt     @default(0) @map("total_up")
+  totalDown    BigInt     @default(0) @map("total_down")
+  winner       Side?
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  bets           Bet[]
+  priceSnapshots PriceSnapshot[]
+
+  @@map("pools")
+}
+
+model Bet {
+  id            String   @id @default(uuid())
+  poolId        String   @map("pool_id")
+  walletAddress String   @map("wallet_address")
+  side          Side
+  amount        BigInt
+  depositTx     String?  @map("deposit_tx")
+  claimed       Boolean  @default(false)
+  claimTx       String?  @map("claim_tx")
+  payoutAmount  BigInt?  @map("payout_amount")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  pool Pool @relation(fields: [poolId], references: [id])
+
+  @@unique([poolId, walletAddress])
+  @@map("bets")
+}
+
+model PriceSnapshot {
+  id        String   @id @default(uuid())
+  poolId    String   @map("pool_id")
+  type      String   // 'STRIKE' or 'FINAL'
+  price     BigInt
+  timestamp DateTime
+  source    String
+  rawHash   String   @map("raw_hash")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  pool Pool @relation(fields: [poolId], references: [id])
+
+  @@map("price_snapshots")
+}
+
+model EventLog {
+  id         String   @id @default(uuid())
+  eventType  String   @map("event_type")
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  payload    Json
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([entityType, entityId])
+  @@index([eventType])
+  @@map("event_log")
+}

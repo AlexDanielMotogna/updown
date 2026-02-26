@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "Pacifica": {
+      "url": "https://docs.pacifica.fi/~gitbook/mcp",
+      "type": "http"
+    }
+  }
+}

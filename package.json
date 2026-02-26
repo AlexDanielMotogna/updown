@@ -1,0 +1,42 @@
+{
+  "name": "parimutuel-pools",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Solana parimutuel pool betting platform",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "build:program": "anchor build && pnpm run copy-idl",
+    "copy-idl": "mkdir -p packages/solana-client/src/idl && cp target/idl/parimutuel_pools.json packages/solana-client/src/idl/",
+    "test": "turbo test",
+    "test:program": "anchor test",
+    "lint": "turbo lint",
+    "lint:program": "cargo clippy --manifest-path programs/parimutuel_pools/Cargo.toml -- -D warnings",
+    "typecheck": "turbo typecheck",
+    "clean": "turbo clean && rm -rf target",
+    "db:migrate": "pnpm --filter api db:migrate",
+    "db:generate": "pnpm --filter api db:generate",
+    "deploy:devnet": "anchor deploy --provider.cluster devnet",
+    "deploy:localnet": "anchor deploy --provider.cluster localnet"
+  },
+  "devDependencies": {
+    "@coral-xyz/anchor": "^0.31.1",
+    "@solana/spl-token": "^0.3.9",
+    "@solana/web3.js": "^1.87.0",
+    "@types/chai": "^4.3.0",
+    "@types/mocha": "^10.0.0",
+    "@types/node": "^20.10.0",
+    "chai": "^4.3.0",
+    "eslint": "^8.55.0",
+    "mocha": "^10.2.0",
+    "prettier": "^3.1.0",
+    "ts-mocha": "^10.0.0",
+    "tsx": "^4.6.0",
+    "turbo": "^1.11.0",
+    "typescript": "^5.3.0"
+  },
+  "packageManager": "pnpm@8.10.0",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
