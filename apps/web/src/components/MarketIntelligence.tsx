@@ -47,7 +47,7 @@ export function MarketIntelligence({ asset, priceData }: MarketIntelligenceProps
             <Grid item xs={6} key={label} sx={{ display: 'flex' }}>
               <Box
                 sx={{
-                  p: 2,
+                  p: { xs: 1.5, sm: 2 },
                   borderRadius: 1,
                   background: 'rgba(255, 255, 255, 0.04)',
                   border: '1px solid rgba(255, 255, 255, 0.08)',
@@ -57,7 +57,7 @@ export function MarketIntelligence({ asset, priceData }: MarketIntelligenceProps
                 <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontWeight: 500, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
                   {label}
                 </Typography>
-                <Typography sx={{ fontSize: '1.1rem', fontWeight: 300, color: 'rgba(255,255,255,0.2)', mt: 0.5 }}>
+                <Typography sx={{ fontSize: { xs: '0.85rem', sm: '1.1rem' }, fontWeight: 300, color: 'rgba(255,255,255,0.2)', mt: 0.5 }}>
                   ---
                 </Typography>
               </Box>
@@ -114,7 +114,7 @@ export function MarketIntelligence({ asset, priceData }: MarketIntelligenceProps
           <Grid item xs={6} key={card.label} sx={{ display: 'flex' }}>
             <Box
               sx={{
-                p: 2,
+                p: { xs: 1.5, sm: 2 },
                 borderRadius: 1,
                 background: 'rgba(255, 255, 255, 0.04)',
                 border: '1px solid rgba(255, 255, 255, 0.08)',
@@ -124,7 +124,7 @@ export function MarketIntelligence({ asset, priceData }: MarketIntelligenceProps
               <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontWeight: 500, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
                 {card.label}
               </Typography>
-              <Typography sx={{ fontSize: '1.1rem', fontWeight: 300, color: card.color, mt: 0.5, fontVariantNumeric: 'tabular-nums' }}>
+              <Typography sx={{ fontSize: { xs: '0.85rem', sm: '1rem' }, fontWeight: 300, color: card.color, mt: 0.5, fontVariantNumeric: 'tabular-nums' }}>
                 {card.value}
               </Typography>
               {card.subtext && (

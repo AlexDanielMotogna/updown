@@ -77,7 +77,7 @@ export default function MarketsPage() {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: { xs: '72px', md: 0 } }}>
       <Header />
 
       {/* Hero Section */}
@@ -121,7 +121,7 @@ export default function MarketsPage() {
         {/* Filters Section */}
         <Box sx={{ mb: 6 }}>
           {/* Asset Filter - Pill Style */}
-          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4, overflowX: 'auto' }}>
             <ToggleButtonGroup
               value={assetFilter}
               exclusive
@@ -135,7 +135,7 @@ export default function MarketsPage() {
                   border: 'none',
                   borderRadius: '50px !important',
                   mx: 0.5,
-                  px: 3,
+                  px: { xs: 1.5, sm: 3 },
                   py: 1,
                   color: 'text.secondary',
                   fontWeight: 400,

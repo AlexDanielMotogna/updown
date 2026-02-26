@@ -125,12 +125,12 @@ export function Countdown({ targetDate, label, onComplete, compact = false }: Co
           Expired
         </Typography>
       ) : (
-        <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'center' }}>
+        <Box sx={{ display: 'flex', gap: { xs: 1, sm: 1.5 }, justifyContent: 'center' }}>
           {timeUnits.map((unit) => (
             <Box
               key={unit.label}
               sx={{
-                minWidth: 56,
+                minWidth: { xs: 48, sm: 56 },
                 p: 1.5,
                 borderRadius: 1,
                 background: 'rgba(255, 255, 255, 0.04)',
@@ -141,7 +141,7 @@ export function Countdown({ targetDate, label, onComplete, compact = false }: Co
               <Typography
                 sx={{
                   fontVariantNumeric: 'tabular-nums',
-                  fontSize: '1.5rem',
+                  fontSize: { xs: '1.2rem', sm: '1.5rem' },
                   fontWeight: 400,
                   color: isUrgent ? '#F59E0B' : 'text.primary',
                   lineHeight: 1,

@@ -64,7 +64,7 @@ export function PoolDistribution({ totalUp, totalDown, totalPool, betCount }: Po
         />
       </Box>
 
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: { xs: 2, md: 3 } }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', flex: 1 }}>
           <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 300 }}>
             Total Pool

@@ -27,7 +27,7 @@ export function PoolTimeline({ status, createdAt, lockTime, startTime, endTime }
         sx={{
           display: 'flex',
           flexDirection: 'column',
-          gap: 1.5,
+          gap: { xs: 1, sm: 1.5 },
           p: 2,
           borderRadius: 1,
           background: 'rgba(255, 255, 255, 0.02)',

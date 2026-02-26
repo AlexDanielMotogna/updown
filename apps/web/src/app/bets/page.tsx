@@ -103,13 +103,13 @@ export default function MyBetsPage() {
   );
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <Header showBackButton />
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: { xs: '72px', md: 0 } }}>
+      <Header />
 
-      <Container maxWidth="lg" sx={{ py: 6 }}>
+      <Container maxWidth="lg" sx={{ py: { xs: 3, md: 6 } }}>
         <Typography
           variant="h3"
-          sx={{ fontWeight: 400, mb: 5 }}
+          sx={{ fontWeight: 400, mb: { xs: 3, md: 5 }, fontSize: { xs: '1.75rem', md: undefined } }}
         >
           Portfolio
         </Typography>
@@ -143,7 +143,7 @@ export default function MyBetsPage() {
                 }}
               >
                 <CardContent sx={{ py: 3 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 2, sm: 0 } }}>
                     <Box>
                       <Typography
                         variant="h5"

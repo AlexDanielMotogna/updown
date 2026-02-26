@@ -27,7 +27,7 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
         border: '1px solid rgba(255, 255, 255, 0.08)',
       }}
     >
-      <CardContent sx={{ p: 3 }}>
+      <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -37,7 +37,7 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
               </Typography>
             </Link>
           </Box>
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
             <Chip
               label={bet.pool.status}
               size="small"

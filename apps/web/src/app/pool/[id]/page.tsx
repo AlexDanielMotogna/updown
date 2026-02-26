@@ -82,10 +82,10 @@ export default function PoolDetailPage() {
 
   if (isLoading) {
     return (
-      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-        <Header showBackButton />
-        <Container maxWidth="lg" sx={{ py: 6 }}>
-          <Grid container spacing={5}>
+      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: { xs: '72px', md: 0 } }}>
+        <Header />
+        <Container maxWidth="lg" sx={{ py: { xs: 3, md: 6 } }}>
+          <Grid container spacing={{ xs: 3, md: 5 }}>
             <Grid item xs={12} lg={7}>
               <PoolDetailSkeleton />
             </Grid>
@@ -100,9 +100,9 @@ export default function PoolDetailPage() {
 
   if (error || !pool) {
     return (
-      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-        <Header showBackButton />
-        <Container maxWidth="lg" sx={{ py: 6 }}>
+      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: { xs: '72px', md: 0 } }}>
+        <Header />
+        <Container maxWidth="lg" sx={{ py: { xs: 3, md: 6 } }}>
           <Alert
             severity="error"
             sx={{
@@ -121,11 +121,11 @@ export default function PoolDetailPage() {
   const statusStyle = statusStyles[pool.status] || statusStyles.UPCOMING;
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <Header showBackButton />
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: { xs: '72px', md: 0 } }}>
+      <Header />
 
-      <Container maxWidth="lg" sx={{ py: 6 }}>
-        <Grid container spacing={5}>
+      <Container maxWidth="lg" sx={{ py: { xs: 3, md: 6 } }}>
+        <Grid container spacing={{ xs: 3, md: 5 }}>
           {/* Pool Info */}
           <Grid item xs={12} lg={7}>
             <Card
@@ -134,10 +134,10 @@ export default function PoolDetailPage() {
                 border: '1px solid rgba(255, 255, 255, 0.08)',
               }}
             >
-              <CardContent sx={{ p: 4 }}>
+              <CardContent sx={{ p: { xs: 2.5, md: 4 } }}>
                 {/* Title & Status */}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-                  <Typography variant="h3" sx={{ fontWeight: 400 }}>
+                  <Typography variant="h3" sx={{ fontWeight: 400, fontSize: { xs: '1.75rem', md: undefined } }}>
                     {pool.asset}/USD
                   </Typography>
                   <Chip
@@ -211,6 +211,7 @@ export default function PoolDetailPage() {
                       fontWeight: 300,
                       fontVariantNumeric: 'tabular-nums',
                       color: livePrice ? 'text.primary' : 'text.secondary',
+                      fontSize: { xs: '2rem', md: undefined },
                     }}
                   >
                     {livePrice ? `$${livePrice}` : '---'}
@@ -237,7 +238,7 @@ export default function PoolDetailPage() {
                     >
                       STRIKE PRICE (LOCKED)
                     </Typography>
-                    <Typography variant="h3" sx={{ color: '#FFFFFF', fontWeight: 300 }}>
+                    <Typography variant="h3" sx={{ color: '#FFFFFF', fontWeight: 300, fontSize: { xs: '1.75rem', md: undefined } }}>
                       {formatPrice(pool.strikePrice)}
                     </Typography>
                     <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
@@ -337,14 +338,14 @@ export default function PoolDetailPage() {
 
           {/* Prediction Form */}
           <Grid item xs={12} lg={5}>
-            <Box sx={{ position: 'sticky', top: 100 }}>
+            <Box sx={{ position: { xs: 'static', lg: 'sticky' }, top: { lg: 100 } }}>
               <Card
                 sx={{
                   background: '#141414',
                   border: '1px solid rgba(255, 255, 255, 0.08)',
                 }}
               >
-                <CardContent sx={{ p: 4 }}>
+                <CardContent sx={{ p: { xs: 2.5, md: 4 } }}>
                   <Typography
                     variant="h5"
                     sx={{ fontWeight: 500, mb: 4 }}

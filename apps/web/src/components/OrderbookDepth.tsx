@@ -57,9 +57,10 @@ export function OrderbookDepth({ asset }: OrderbookDepthProps) {
           border: '1px solid rgba(255, 255, 255, 0.08)',
           display: 'flex',
           justifyContent: 'center',
+          overflow: 'hidden',
         }}
       >
-        <svg width={svgWidth} height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`}>
+        <svg width="100%" height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`} preserveAspectRatio="xMidYMid meet">
           {/* Spread label */}
           <text
             x={centerX}

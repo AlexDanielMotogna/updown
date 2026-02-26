@@ -106,7 +106,7 @@ export function BetForm({ pool, onSubmit, isSubmitting, error }: BetFormProps) {
         <ToggleButton
           value="UP"
           sx={{
-            py: 3,
+            py: { xs: 2, sm: 3 },
             flexDirection: 'column',
             gap: 0.5,
             transition: 'all 0.3s ease',
@@ -131,7 +131,7 @@ export function BetForm({ pool, onSubmit, isSubmitting, error }: BetFormProps) {
         <ToggleButton
           value="DOWN"
           sx={{
-            py: 3,
+            py: { xs: 2, sm: 3 },
             flexDirection: 'column',
             gap: 0.5,
             transition: 'all 0.3s ease',
@@ -207,7 +207,7 @@ export function BetForm({ pool, onSubmit, isSubmitting, error }: BetFormProps) {
             disabled={!canInteract}
             sx={{
               flex: 1,
-              py: 1,
+              py: { xs: 0.75, sm: 1 },
               borderColor: 'rgba(255, 255, 255, 0.1)',
               color: 'text.secondary',
               fontWeight: 400,
@@ -228,7 +228,7 @@ export function BetForm({ pool, onSubmit, isSubmitting, error }: BetFormProps) {
       {amountNum > 0 && (
         <Box
           sx={{
-            p: 2.5,
+            p: { xs: 2, sm: 2.5 },
             mb: 3,
             borderRadius: 1,
             background: 'rgba(255, 255, 255, 0.03)',

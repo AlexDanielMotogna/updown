@@ -18,7 +18,7 @@ export function OddsDisplay({ oddsUp, oddsDown }: OddsDisplayProps) {
         <Grid item xs={6}>
           <Box
             sx={{
-              p: 3,
+              p: { xs: 2, md: 3 },
               borderRadius: 1,
               background: 'rgba(255, 255, 255, 0.04)',
               border: '1px solid rgba(255, 255, 255, 0.08)',
@@ -33,7 +33,7 @@ export function OddsDisplay({ oddsUp, oddsDown }: OddsDisplayProps) {
             </Typography>
             <Typography
               variant="h3"
-              sx={{ color: UP_COLOR, fontWeight: 300, mt: 0.5 }}
+              sx={{ color: UP_COLOR, fontWeight: 300, mt: 0.5, fontSize: { xs: '1.75rem', md: undefined } }}
             >
               {oddsUp}x
             </Typography>
@@ -42,7 +42,7 @@ export function OddsDisplay({ oddsUp, oddsDown }: OddsDisplayProps) {
         <Grid item xs={6}>
           <Box
             sx={{
-              p: 3,
+              p: { xs: 2, md: 3 },
               borderRadius: 1,
               background: 'rgba(255, 255, 255, 0.04)',
               border: '1px solid rgba(255, 255, 255, 0.08)',
@@ -57,7 +57,7 @@ export function OddsDisplay({ oddsUp, oddsDown }: OddsDisplayProps) {
             </Typography>
             <Typography
               variant="h3"
-              sx={{ color: DOWN_COLOR, fontWeight: 300, mt: 0.5 }}
+              sx={{ color: DOWN_COLOR, fontWeight: 300, mt: 0.5, fontSize: { xs: '1.75rem', md: undefined } }}
             >
               {oddsDown}x
             </Typography>

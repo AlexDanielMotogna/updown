@@ -8,25 +8,21 @@ import {
 } from '@mui/material';
 import {
   AccountBalanceWallet,
+  ShowChart,
+  WorkOutline,
 } from '@mui/icons-material';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { ConnectWalletButton } from './ConnectWalletButton';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 
-interface HeaderProps {
-  showBackButton?: boolean;
-}
-
 const NAV_ITEMS = [
-  { label: 'Markets', href: '/' },
-  { label: 'Portfolio', href: '/bets' },
+  { label: 'Markets', href: '/', icon: ShowChart },
+  { label: 'Portfolio', href: '/bets', icon: WorkOutline },
 ];
 
-export function Header({ showBackButton = false }: HeaderProps) {
-  const router = useRouter();
+export function Header() {
   const pathname = usePathname();
   const { connected } = useWalletBridge();
   const { data: balance } = useUsdcBalance();
@@ -56,55 +52,25 @@ export function Header({ showBackButton = false }: HeaderProps) {
           px: { xs: 2, sm: 3, md: 4 },
         }}
       >
-        {/* Left: Logo (always first) + optional back arrow */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          {showBackButton && (
-            <Box
-              component="button"
-              onClick={() => router.back()}
-              aria-label="Go back"
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                background: 'transparent',
-                color: 'text.secondary',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  color: 'text.primary',
-                  borderColor: 'rgba(255, 255, 255, 0.3)',
-                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                },
-              }}
-            >
-              <ArrowBackIcon sx={{ fontSize: 18 }} />
+        {/* Left: Logo */}
+        <Link href="/" style={{ textDecoration: 'none' }}>
+          <Typography
+            variant="h5"
+            sx={{
+              fontWeight: 600,
+              letterSpacing: '-0.02em',
+              cursor: 'pointer',
+              display: 'flex',
+            }}
+          >
+            <Box component="span" sx={{ color: '#FFFFFF' }}>
+              Up
             </Box>
-          )}
-
-          <Link href="/" style={{ textDecoration: 'none' }}>
-            <Typography
-              variant="h5"
-              sx={{
-                fontWeight: 600,
-                letterSpacing: '-0.02em',
-                cursor: 'pointer',
-                display: 'flex',
-              }}
-            >
-              <Box component="span" sx={{ color: '#FFFFFF' }}>
-                Up
-              </Box>
-              <Box component="span" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                Down
-              </Box>
-            </Typography>
-          </Link>
-        </Box>
+            <Box component="span" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+              Down
+            </Box>
+          </Typography>
+        </Link>
 
         {/* Desktop nav — centered */}
         <Box
@@ -162,42 +128,53 @@ export function Header({ showBackButton = false }: HeaderProps) {
         </Box>
       </Box>
 
-      {/* Mobile nav — centered tabs */}
+      {/* Mobile bottom nav — fixed bar */}
       <Box
         sx={{
           display: { xs: 'flex', md: 'none' },
-          justifyContent: 'center',
-          gap: 1,
-          px: 2,
-          pb: 1,
-          borderTop: '1px solid rgba(255, 255, 255, 0.04)',
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 100,
+          backgroundColor: '#0A0A0A',
+          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+          justifyContent: 'space-around',
+          px: 1,
+          pb: 'env(safe-area-inset-bottom)',
         }}
       >
         {NAV_ITEMS.map((item) => {
           const active = isActive(item.href);
+          const Icon = item.icon;
           return (
             <Link key={item.href} href={item.href} style={{ textDecoration: 'none', flex: 1 }}>
               <Button
                 fullWidth
                 sx={{
+                  flexDirection: 'column',
+                  gap: 0.25,
                   color: active ? '#FFFFFF' : 'text.secondary',
                   fontWeight: active ? 500 : 400,
-                  fontSize: '0.85rem',
+                  fontSize: '0.7rem',
                   py: 1,
-                  borderBottom: active ? '2px solid #FFFFFF' : '2px solid transparent',
+                  minWidth: 0,
                   borderRadius: 0,
+                  textTransform: 'none',
                   '&:hover': {
                     color: '#FFFFFF',
                     backgroundColor: 'transparent',
                   },
                 }}
               >
+                <Icon sx={{ fontSize: 22 }} />
                 {item.label}
               </Button>
             </Link>
           );
         })}
       </Box>
+
     </Box>
   );
 }

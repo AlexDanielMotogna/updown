@@ -31,7 +31,7 @@ interface TransactionModalProps {
 }
 
 function StatusIcon({ status }: { status: TransactionStatus }) {
-  const iconSx = { fontSize: 72 };
+  const iconSx = { fontSize: { xs: 56, sm: 72 } };
 
   switch (status) {
     case 'preparing':
@@ -39,7 +39,7 @@ function StatusIcon({ status }: { status: TransactionStatus }) {
     case 'signing':
       return <Edit sx={{ ...iconSx, color: '#FFFFFF' }} />;
     case 'confirming':
-      return <CircularProgress size={72} sx={{ color: '#FFFFFF' }} />;
+      return <CircularProgress size={56} sx={{ color: '#FFFFFF' }} />;
     case 'success':
       return <CheckCircle sx={{ ...iconSx, color: '#4CAF50' }} />;
     case 'error':
@@ -89,7 +89,7 @@ export function TransactionModal({
           background: '#141414',
           border: '1px solid rgba(255, 255, 255, 0.08)',
           borderRadius: 1,
-          maxWidth: 440,
+          maxWidth: { xs: '95vw', sm: 440 },
         },
       }}
     >

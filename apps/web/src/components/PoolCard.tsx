@@ -51,7 +51,7 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
           },
         }}
       >
-        <CardContent sx={{ p: 3, display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+        <CardContent sx={{ p: { xs: 2, sm: 3 }, display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
           {/* Header */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Box>
@@ -72,6 +72,7 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
                   fontVariantNumeric: 'tabular-nums',
                   color: livePrice ? 'text.primary' : 'text.secondary',
                   mt: 0.5,
+                  fontSize: { xs: '1.5rem', md: undefined },
                 }}
               >
                 {livePrice ? `$${Number(livePrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '---'}
