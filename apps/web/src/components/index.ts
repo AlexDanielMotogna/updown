@@ -9,3 +9,4 @@ export { TransactionModal } from './TransactionModal';
 export { Header } from './Header';
 export { ConnectWalletButton } from './ConnectWalletButton';
 export { PriceChartDialog } from './PriceChartDialog';
+export { AiAnalyzerBot } from './AiAnalyzerBot';

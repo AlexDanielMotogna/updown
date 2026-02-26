@@ -29,7 +29,7 @@ import {
   ShowChart,
 } from '@mui/icons-material';
 import { usePool, useDeposit, usePriceStream } from '@/hooks';
-import { Countdown, BetForm, TransactionModal, Header, PoolDetailSkeleton, BetFormSkeleton, PriceChartDialog } from '@/components';
+import { Countdown, BetForm, TransactionModal, Header, PoolDetailSkeleton, BetFormSkeleton, PriceChartDialog, AiAnalyzerBot } from '@/components';
 import { formatUSDC, formatPrice, formatDateTime, statusStyles, USDC_DIVISOR } from '@/lib/format';
 
 export default function PoolDetailPage() {
@@ -540,7 +540,7 @@ export default function PoolDetailPage() {
                     variant="h5"
                     sx={{ fontWeight: 500, mb: 4 }}
                   >
-                    Place Your Bet
+                    Make Your Prediction
                   </Typography>
                   <BetForm
                     pool={pool}
@@ -607,6 +607,17 @@ export default function PoolDetailPage() {
           open={chartOpen}
           onClose={() => setChartOpen(false)}
           asset={pool.asset}
+        />
+      )}
+
+      {/* AI Analyzer Bot */}
+      {pool && (
+        <AiAnalyzerBot
+          asset={pool.asset}
+          poolStatus={pool.status}
+          startTime={pool.startTime}
+          endTime={pool.endTime}
+          winner={pool.winner}
         />
       )}
 

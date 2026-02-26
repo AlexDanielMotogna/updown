@@ -6,3 +6,4 @@ export * from './useWalletBridge';
 export * from './useUsdcBalance';
 export * from './useIntersectionObserver';
 export * from './usePacificaCandles';
+export * from './useMarketAnalysis';
