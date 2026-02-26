@@ -38,6 +38,7 @@ export default function MarketsPage() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isPlaceholderData,
   } = useInfinitePools(filters);
 
   // Fetch user bets to filter RESOLVED tab to only pools user participated in
@@ -252,7 +253,15 @@ export default function MarketsPage() {
                 </Typography>
               </Box>
             ) : (
-              <Grid container spacing={4} alignItems="stretch">
+              <Grid
+                container
+                spacing={4}
+                alignItems="stretch"
+                sx={{
+                  opacity: isPlaceholderData ? 0.5 : 1,
+                  transition: 'opacity 0.2s ease',
+                }}
+              >
                 {pools.map((pool) => (
                   <Grid item xs={12} sm={6} lg={4} key={pool.id} sx={{ display: 'flex' }}>
                     <PoolCard pool={pool} livePrice={getPrice(pool.asset)} userBet={userBetByPoolId.get(pool.id)} />

@@ -5,6 +5,8 @@ import { Box, Typography, IconButton, InputBase, CircularProgress, useMediaQuery
 import { VolumeUp, VolumeOff, Close, Send } from '@mui/icons-material';
 import { useMarketAnalysis } from '@/hooks/useMarketAnalysis';
 import type { AnalysisResult, Signal } from '@/lib/technical-analysis';
+import type { PacificaPriceData } from '@/hooks/usePacificaPrices';
+import { UP_COLOR, DOWN_COLOR } from '@/lib/constants';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -19,6 +21,7 @@ interface AiAnalyzerBotProps {
   startTime: string;
   endTime: string;
   winner?: string | null;
+  priceData?: PacificaPriceData | null;
 }
 
 interface ChatMessage {
@@ -31,8 +34,8 @@ interface ChatMessage {
 // Colors
 // ---------------------------------------------------------------------------
 
-const CYAN = '#00E5FF';
-const RED = '#FF5252';
+const CYAN = UP_COLOR;
+const RED = DOWN_COLOR;
 const colorForSignal = (s: Signal) => (s === 'UP' ? CYAN : RED);
 
 // ---------------------------------------------------------------------------
@@ -232,6 +235,7 @@ async function fetchAiReply(
   poolStatus: PoolStatus,
   timeframe: string,
   chatHistory: ChatMessage[],
+  priceData?: PacificaPriceData | null,
 ): Promise<string> {
   // Build history in Claude format (last 10 messages)
   const history = chatHistory.slice(-10).map((m) => ({
@@ -242,7 +246,7 @@ async function fetchAiReply(
   const res = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, asset, poolStatus, analysis, timeframe, history }),
+    body: JSON.stringify({ message, asset, poolStatus, analysis, timeframe, history, priceData }),
   });
 
   const data = await res.json();
@@ -253,7 +257,7 @@ async function fetchAiReply(
 // Main Component
 // ---------------------------------------------------------------------------
 
-export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner }: AiAnalyzerBotProps) {
+export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, priceData }: AiAnalyzerBotProps) {
   const isMobile = useMediaQuery('(max-width:600px)');
   const [botState, setBotState] = useState<BotState>('MINIMIZED');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -357,7 +361,7 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner }:
     setIsTyping(true);
 
     try {
-      const reply = await fetchAiReply(text, analysis, asset, poolStatus, timeframe, messagesRef.current);
+      const reply = await fetchAiReply(text, analysis, asset, poolStatus, timeframe, messagesRef.current, priceData);
       addBotMessage(reply);
       speakIfEnabled(reply);
     } catch {
@@ -365,7 +369,7 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner }:
     } finally {
       setIsTyping(false);
     }
-  }, [userInput, isTyping, analysis, asset, poolStatus, timeframe, addUserMessage, addBotMessage, speakIfEnabled]);
+  }, [userInput, isTyping, analysis, asset, poolStatus, timeframe, addUserMessage, addBotMessage, speakIfEnabled, priceData]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -552,6 +556,7 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner }:
           <IconButton
             size="small"
             onClick={() => setVoiceEnabled((v) => !v)}
+            aria-label="Toggle voice"
             sx={{
               color: voiceEnabled ? CYAN : 'rgba(255,255,255,0.3)',
               '&:hover': { backgroundColor: 'rgba(255,255,255,0.04)' },
@@ -563,6 +568,7 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner }:
         <IconButton
           size="small"
           onClick={handleClose}
+          aria-label="Close analyzer"
           sx={{
             color: 'rgba(255,255,255,0.4)',
             '&:hover': { backgroundColor: 'rgba(255,255,255,0.04)' },
@@ -731,6 +737,7 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner }:
           size="small"
           onClick={handleSend}
           disabled={!userInput.trim() || isTyping}
+          aria-label="Send message"
           sx={{
             color: userInput.trim() && !isTyping ? CYAN : 'rgba(255,255,255,0.15)',
             '&:hover': { backgroundColor: 'rgba(0, 229, 255, 0.08)' },

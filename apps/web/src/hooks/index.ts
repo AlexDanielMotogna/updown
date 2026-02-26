@@ -7,3 +7,5 @@ export * from './useUsdcBalance';
 export * from './useIntersectionObserver';
 export * from './usePacificaCandles';
 export * from './useMarketAnalysis';
+export * from './usePacificaPrices';
+export * from './useOrderbook';

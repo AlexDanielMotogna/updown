@@ -4,6 +4,17 @@ import { NextRequest, NextResponse } from 'next/server';
 // POST /api/chat — Proxy user messages to Claude with TA context
 // ---------------------------------------------------------------------------
 
+interface PriceData {
+  funding: number;
+  nextFunding: number;
+  openInterest: number;
+  volume24h: number;
+  mark: number;
+  oracle: number;
+  spreadPct: number;
+  priceChange24hPct: number;
+}
+
 interface ChatRequestBody {
   message: string;
   asset: string;
@@ -16,12 +27,13 @@ interface ChatRequestBody {
   } | null;
   timeframe: string;
   history: { role: 'user' | 'assistant'; content: string }[];
+  priceData?: PriceData | null;
 }
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 
 function buildSystemPrompt(body: ChatRequestBody): string {
-  const { asset, poolStatus, analysis, timeframe } = body;
+  const { asset, poolStatus, analysis, timeframe, priceData } = body;
 
   const statusDescriptions: Record<string, string> = {
     JOINING: 'Betting is currently OPEN — users can still place bets.',
@@ -64,6 +76,15 @@ FORMATTING (CRITICAL):
 - Use CAPS for emphasis instead of bold/italic (e.g., "STRONG signal" not "**strong** signal")
 - Use dashes and parentheses for structure, not markdown
 
+MARKET INTELLIGENCE (from Pacifica):
+${priceData ? `- Funding Rate: ${(priceData.funding * 100).toFixed(4)}% (${priceData.funding >= 0 ? 'longs pay shorts' : 'shorts pay longs'})
+- Open Interest: $${priceData.openInterest.toLocaleString()}
+- 24h Volume: $${priceData.volume24h.toLocaleString()}
+- Mark Price: $${priceData.mark.toFixed(2)}
+- Oracle Price: $${priceData.oracle.toFixed(2)}
+- Mark/Oracle Spread: ${priceData.spreadPct.toFixed(4)}%${Math.abs(priceData.spreadPct) > 0.05 ? ' (DIVERGENT — notable spread)' : ''}
+- 24h Price Change: ${priceData.priceChange24hPct >= 0 ? '+' : ''}${priceData.priceChange24hPct.toFixed(2)}%` : 'Market intelligence data not available yet.'}
+
 CONTEXT:
 - Asset: ${asset}
 - Pool Status: ${statusDescriptions[poolStatus] || poolStatus}
@@ -74,7 +95,8 @@ RULES:
 - If signals are mixed (confidence < 55%), emphasize that and suggest caution
 - If signals are strong (confidence > 70%), you can be more assertive about the direction
 - Keep the robotic persona consistent — every message should feel like it comes from a bot
-- Reference specific numbers from the analysis — don't be vague`;
+- Reference specific numbers from the analysis — don't be vague
+- When market intelligence is available, weave it into your analysis: mention funding direction, OI trends, volume context, and mark/oracle spread when relevant`;
 }
 
 export async function POST(request: NextRequest) {

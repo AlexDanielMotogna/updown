@@ -62,6 +62,7 @@ export function Header({ showBackButton = false }: HeaderProps) {
             <Button
               onClick={() => router.back()}
               startIcon={<ArrowBackIcon />}
+              aria-label="Go back"
               sx={{
                 color: 'text.secondary',
                 '&:hover': {

@@ -1,4 +1,4 @@
-import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { fetchPools, fetchPool } from '@/lib/api';
 import { getSocket, connectSocket } from '@/lib/socket';
@@ -89,6 +89,7 @@ export function useInfinitePools(filters?: Omit<PoolFilters, 'page' | 'limit'>) 
         ? lastPage.meta.page + 1
         : undefined;
     },
+    placeholderData: keepPreviousData,
     refetchInterval: 10000,
   });
 }

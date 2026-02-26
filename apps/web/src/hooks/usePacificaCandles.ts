@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { subscribe, addListener } from '@/lib/pacifica-ws';
+import { PACIFICA_API_URL } from '@/lib/constants';
 
-const PACIFICA_API = 'https://api.pacifica.fi';
+const PACIFICA_API = PACIFICA_API_URL;
 
 export interface Candle {
   t: number;  // start time ms

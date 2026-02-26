@@ -1,8 +1,7 @@
+import { EXPLORER_URL, SOLANA_CLUSTER } from '@/lib/constants';
+
 export const USDC_DECIMALS = 6;
 export const USDC_DIVISOR = 1_000_000;
-
-const EXPLORER_URL = 'https://explorer.solana.com';
-const CLUSTER = 'devnet';
 
 export function formatUSDC(amount: string, fractionDigits?: { min?: number; max?: number }): string {
   const value = Number(amount) / USDC_DIVISOR;
@@ -53,7 +52,7 @@ export function formatDate(dateString: string): string {
 }
 
 export function getExplorerTxUrl(signature: string): string {
-  return `${EXPLORER_URL}/tx/${signature}?cluster=${CLUSTER}`;
+  return `${EXPLORER_URL}/tx/${signature}?cluster=${SOLANA_CLUSTER}`;
 }
 
 export const statusStyles: Record<string, { bgcolor: string; color: string }> = {

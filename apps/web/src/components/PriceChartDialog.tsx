@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import { Close, ShowChart, CandlestickChart } from '@mui/icons-material';
 import { usePacificaCandles, type Candle } from '@/hooks';
+import { UP_COLOR, DOWN_COLOR } from '@/lib/constants';
 
 type ChartType = 'line' | 'candles';
 
@@ -49,8 +50,6 @@ function formatTime(ts: number, duration: number): string {
 }
 
 const PADDING = { top: 20, right: 70, bottom: 30, left: 16 };
-const UP_COLOR = '#00E5FF';
-const DOWN_COLOR = '#FF5252';
 
 // --- Shared hook for chart dimensions & hover ---
 
@@ -387,7 +386,7 @@ export function PriceChartDialog({ open, onClose, asset }: PriceChartDialogProps
             </Typography>
           )}
         </Box>
-        <IconButton onClick={onClose} size="small" sx={{ color: 'text.secondary' }}>
+        <IconButton onClick={onClose} size="small" aria-label="Close chart" sx={{ color: 'text.secondary' }}>
           <Close fontSize="small" />
         </IconButton>
       </DialogTitle>

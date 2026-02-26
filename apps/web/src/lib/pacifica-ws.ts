@@ -9,7 +9,9 @@
  * Messages arrive as: { "channel": "mark_price_candle", "data": { ... } }
  */
 
-const WS_URL = 'wss://ws.pacifica.fi/ws';
+import { PACIFICA_WS_URL } from '@/lib/constants';
+
+const WS_URL = PACIFICA_WS_URL;
 const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 30000;
 

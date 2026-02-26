@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PrivyProvider } from '@privy-io/react-auth';
 import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
 import { Connection, clusterApiUrl } from '@solana/web3.js';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 // Minimalist dark theme
 const darkTheme = createTheme({
@@ -279,7 +280,9 @@ export function Providers({ children }: { children: ReactNode }) {
         <QueryClientProvider client={queryClient}>
           <ThemeProvider theme={darkTheme}>
             <CssBaseline />
-            {children}
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
           </ThemeProvider>
         </QueryClientProvider>
       </SolanaConnectionContext.Provider>

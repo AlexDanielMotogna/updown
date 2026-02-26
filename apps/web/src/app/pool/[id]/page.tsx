@@ -19,17 +19,26 @@ import {
 import {
   TrendingUp,
   TrendingDown,
-  AccessTime,
-  Lock,
-  Flag,
   Circle,
-  Visibility,
-  CheckCircle,
   ExpandMore,
   ShowChart,
 } from '@mui/icons-material';
-import { usePool, useDeposit, usePriceStream } from '@/hooks';
-import { Countdown, BetForm, TransactionModal, Header, PoolDetailSkeleton, BetFormSkeleton, PriceChartDialog, AiAnalyzerBot } from '@/components';
+import { usePool, useDeposit, usePriceStream, usePacificaPrices } from '@/hooks';
+import {
+  Countdown,
+  BetForm,
+  TransactionModal,
+  Header,
+  PoolDetailSkeleton,
+  BetFormSkeleton,
+  PriceChartDialog,
+  AiAnalyzerBot,
+  MarketIntelligence,
+  PoolTimeline,
+  PoolDistribution,
+  OddsDisplay,
+  OrderbookDepth,
+} from '@/components';
 import { formatUSDC, formatPrice, formatDateTime, statusStyles, USDC_DIVISOR } from '@/lib/format';
 
 export default function PoolDetailPage() {
@@ -49,6 +58,13 @@ export default function PoolDetailPage() {
     { enabled: !!pool?.asset }
   );
   const livePrice = pool?.asset ? getPrice(pool.asset) : null;
+
+  // Subscribe to Pacifica market intelligence
+  const { getPriceData } = usePacificaPrices(
+    pool?.asset ? [pool.asset] : [],
+    !!pool?.asset,
+  );
+  const priceData = pool?.asset ? getPriceData(pool.asset) : null;
 
   const handleBet = async (side: 'UP' | 'DOWN', amount: number) => {
     setShowModal(true);
@@ -102,10 +118,6 @@ export default function PoolDetailPage() {
     );
   }
 
-  const totalUp = Number(pool.totalUp);
-  const totalDown = Number(pool.totalDown);
-  const total = totalUp + totalDown;
-  const upPercentage = total > 0 ? (totalUp / total) * 100 : 50;
   const statusStyle = statusStyles[pool.status] || statusStyles.UPCOMING;
 
   return (
@@ -205,6 +217,9 @@ export default function PoolDetailPage() {
                   </Typography>
                 </Box>
 
+                {/* Market Intelligence */}
+                <MarketIntelligence asset={pool.asset} priceData={priceData} />
+
                 {/* Strike Price (when ACTIVE or RESOLVED) */}
                 {pool.strikePrice && (pool.status === 'ACTIVE' || pool.status === 'RESOLVED' || pool.status === 'CLAIMABLE') && (
                   <Box
@@ -255,233 +270,27 @@ export default function PoolDetailPage() {
                 )}
 
                 {/* Pool Timeline */}
-                <Box sx={{ mb: 5 }}>
-                  <Typography
-                    variant="caption"
-                    sx={{ color: 'text.secondary', mb: 2, display: 'block' }}
-                  >
-                    POOL TIMELINE
-                  </Typography>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 1.5,
-                      p: 2,
-                      borderRadius: 1,
-                      background: 'rgba(255, 255, 255, 0.02)',
-                      border: '1px solid rgba(255, 255, 255, 0.06)',
-                    }}
-                  >
-                    {/* Betting Open - when pool was created and betting started */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <AccessTime sx={{ fontSize: 18, color: pool.status === 'JOINING' ? '#FFFFFF' : 'text.secondary' }} />
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                          Bets Open
-                        </Typography>
-                      </Box>
-                      <Typography variant="body2" sx={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
-                        {formatDateTime(pool.createdAt)}
-                      </Typography>
-                      {pool.status === 'JOINING' && (
-                        <Chip label="OPEN" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.1)', color: '#FFFFFF', height: 20, fontSize: '0.65rem' }} />
-                      )}
-                      {(pool.status === 'ACTIVE' || pool.status === 'RESOLVED' || pool.status === 'CLAIMABLE') && (
-                        <CheckCircle sx={{ fontSize: 16, color: 'text.secondary' }} />
-                      )}
-                    </Box>
-                    {/* Betting Closes - lockTime */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Lock sx={{ fontSize: 18, color: pool.status === 'ACTIVE' ? '#FFFFFF' : 'text.secondary' }} />
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                          Bets Close
-                        </Typography>
-                      </Box>
-                      <Typography variant="body2" sx={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
-                        {formatDateTime(pool.lockTime)}
-                      </Typography>
-                      {pool.status === 'JOINING' && (
-                        <Chip label="PENDING" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', color: 'text.secondary', height: 20, fontSize: '0.65rem' }} />
-                      )}
-                      {pool.status === 'ACTIVE' && (
-                        <Chip label="CLOSED" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.08)', color: 'rgba(255, 255, 255, 0.7)', height: 20, fontSize: '0.65rem' }} />
-                      )}
-                      {(pool.status === 'RESOLVED' || pool.status === 'CLAIMABLE') && (
-                        <CheckCircle sx={{ fontSize: 16, color: 'text.secondary' }} />
-                      )}
-                    </Box>
-                    {/* Pool Monitoring - startTime */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Visibility sx={{ fontSize: 18, color: pool.status === 'ACTIVE' ? '#FFFFFF' : 'text.secondary' }} />
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                          Monitoring
-                        </Typography>
-                      </Box>
-                      <Typography variant="body2" sx={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
-                        {formatDateTime(pool.startTime)}
-                      </Typography>
-                      {pool.status === 'JOINING' && (
-                        <Chip label="PENDING" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', color: 'text.secondary', height: 20, fontSize: '0.65rem' }} />
-                      )}
-                      {pool.status === 'ACTIVE' && (
-                        <Chip label="LIVE" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.1)', color: '#FFFFFF', height: 20, fontSize: '0.65rem' }} />
-                      )}
-                      {(pool.status === 'RESOLVED' || pool.status === 'CLAIMABLE') && (
-                        <CheckCircle sx={{ fontSize: 16, color: 'text.secondary' }} />
-                      )}
-                    </Box>
-                    {/* Pool Resolution - endTime */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Flag sx={{ fontSize: 18, color: (pool.status === 'RESOLVED' || pool.status === 'CLAIMABLE') ? '#00E5FF' : 'text.secondary' }} />
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                          Result
-                        </Typography>
-                      </Box>
-                      <Typography variant="body2" sx={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
-                        {formatDateTime(pool.endTime)}
-                      </Typography>
-                      {(pool.status === 'JOINING' || pool.status === 'ACTIVE') && (
-                        <Chip label="PENDING" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', color: 'text.secondary', height: 20, fontSize: '0.65rem' }} />
-                      )}
-                      {(pool.status === 'RESOLVED' || pool.status === 'CLAIMABLE') && (
-                        <Chip label="DONE" size="small" sx={{ bgcolor: 'rgba(0, 229, 255, 0.1)', color: '#00E5FF', height: 20, fontSize: '0.65rem' }} />
-                      )}
-                    </Box>
-                  </Box>
-                </Box>
+                <PoolTimeline
+                  status={pool.status as 'UPCOMING' | 'JOINING' | 'ACTIVE' | 'RESOLVED' | 'CLAIMABLE'}
+                  createdAt={pool.createdAt}
+                  lockTime={pool.lockTime}
+                  startTime={pool.startTime}
+                  endTime={pool.endTime}
+                />
 
                 {/* Pool Distribution */}
-                <Box sx={{ mb: 5 }}>
-                  <Typography
-                    variant="caption"
-                    sx={{ color: 'text.secondary', mb: 2, display: 'block' }}
-                  >
-                    POOL DISTRIBUTION
-                  </Typography>
-
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <TrendingUp sx={{ color: '#00E5FF', fontSize: 20 }} />
-                      <Typography sx={{ color: '#00E5FF', fontWeight: 500 }}>
-                        UP {formatUSDC(pool.totalUp)}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography sx={{ color: '#FF5252', fontWeight: 500 }}>
-                        DOWN {formatUSDC(pool.totalDown)}
-                      </Typography>
-                      <TrendingDown sx={{ color: '#FF5252', fontSize: 20 }} />
-                    </Box>
-                  </Box>
-
-                  {/* Progress bar */}
-                  <Box
-                    sx={{
-                      position: 'relative',
-                      height: 10,
-                      borderRadius: 1,
-                      overflow: 'hidden',
-                      backgroundColor: 'rgba(255, 82, 82, 0.3)',
-                      mb: 3,
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        height: '100%',
-                        width: `${upPercentage}%`,
-                        background: '#00E5FF',
-                        borderRadius: 1,
-                        transition: 'width 0.5s ease',
-                      }}
-                    />
-                  </Box>
-
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 3 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', flex: 1 }}>
-                      <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 300 }}>
-                        Total Pool
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {formatUSDC(pool.totalPool)}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', flex: 1 }}>
-                      <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 300 }}>
-                        Participants
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {pool.betCount}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Box>
+                <PoolDistribution
+                  totalUp={pool.totalUp}
+                  totalDown={pool.totalDown}
+                  totalPool={pool.totalPool}
+                  betCount={pool.betCount}
+                />
 
                 {/* Odds */}
-                <Box sx={{ mb: 4 }}>
-                  <Typography
-                    variant="caption"
-                    sx={{ color: 'text.secondary', mb: 2, display: 'block' }}
-                  >
-                    CURRENT ODDS
-                  </Typography>
-                  <Grid container spacing={2}>
-                    <Grid item xs={6}>
-                      <Box
-                        sx={{
-                          p: 3,
-                          borderRadius: 1,
-                          background: 'rgba(255, 255, 255, 0.04)',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
-                          textAlign: 'center',
-                        }}
-                      >
-                        <Typography
-                          variant="caption"
-                          sx={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.65rem' }}
-                        >
-                          UP MULTIPLIER
-                        </Typography>
-                        <Typography
-                          variant="h3"
-                          sx={{ color: '#00E5FF', fontWeight: 300, mt: 0.5 }}
-                        >
-                          {pool.odds.up}x
-                        </Typography>
-                      </Box>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Box
-                        sx={{
-                          p: 3,
-                          borderRadius: 1,
-                          background: 'rgba(255, 255, 255, 0.04)',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
-                          textAlign: 'center',
-                        }}
-                      >
-                        <Typography
-                          variant="caption"
-                          sx={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.65rem' }}
-                        >
-                          DOWN MULTIPLIER
-                        </Typography>
-                        <Typography
-                          variant="h3"
-                          sx={{ color: '#FF5252', fontWeight: 300, mt: 0.5 }}
-                        >
-                          {pool.odds.down}x
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  </Grid>
-                </Box>
+                <OddsDisplay oddsUp={pool.odds.up} oddsDown={pool.odds.down} />
+
+                {/* Orderbook Depth */}
+                <OrderbookDepth asset={pool.asset} />
 
                 {/* Winner (if resolved) */}
                 {pool.winner && (
@@ -618,6 +427,7 @@ export default function PoolDetailPage() {
           startTime={pool.startTime}
           endTime={pool.endTime}
           winner={pool.winner}
+          priceData={priceData}
         />
       )}
 
