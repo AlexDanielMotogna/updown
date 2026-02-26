@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Transaction, PublicKey, SystemProgram, Connection } from '@solana/web3.js';
+import { Transaction, PublicKey, Connection } from '@solana/web3.js';
 import { useWalletBridge } from './useWalletBridge';
 import { useSolanaConnection } from '@/app/providers';
 import {
@@ -12,8 +12,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   prepareDeposit,
   confirmDeposit,
-  prepareClaim,
-  confirmClaim,
+  executeClaim,
 } from '@/lib/api';
 
 // USDC mint on devnet (same as backend)
@@ -201,13 +200,12 @@ export function useDeposit() {
 }
 
 export function useClaim() {
-  const connection = useSolanaConnection();
-  const { publicKey, sendTransaction } = useWalletBridge();
+  const { publicKey } = useWalletBridge();
   const queryClient = useQueryClient();
   const [state, setState] = useState<TransactionState>({ status: 'idle' });
 
   const claim = useCallback(
-    async (poolId: string, betId: string) => {
+    async (poolId: string, _betId: string) => {
       if (!publicKey) {
         setState({ status: 'error', error: 'Wallet not connected' });
         return;
@@ -216,70 +214,35 @@ export function useClaim() {
       try {
         setState({ status: 'preparing' });
 
-        // Get accounts from API
-        const response = await prepareClaim({
+        // Server handles the entire claim: validate, transfer USDC, update DB
+        setState({ status: 'confirming' });
+
+        const response = await executeClaim({
           poolId,
           walletAddress: publicKey.toBase58(),
         });
 
         if (!response.success || !response.data) {
-          throw new Error(response.error?.message || 'Failed to prepare claim');
+          throw new Error(response.error?.message || 'Failed to claim payout');
         }
 
-        setState({ status: 'signing' });
+        const { txSignature } = response.data;
 
-        // Create placeholder transaction (in production, use actual program instruction)
-        const transaction = new Transaction();
-
-        transaction.add(
-          SystemProgram.transfer({
-            fromPubkey: publicKey,
-            toPubkey: new PublicKey(response.data.accounts.vault),
-            lamports: 0, // Placeholder
-          })
-        );
-
-        const { blockhash } = await connection.getLatestBlockhash();
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = publicKey;
-
-        const signature = await sendTransaction(transaction);
-
-        setState({ status: 'confirming', txSignature: signature });
-
-        // Wait for confirmation with retry logic (devnet can be slow)
-        const confirmed = await confirmTransactionWithRetry(connection, signature);
-
-        if (!confirmed) {
-          throw new Error('Transaction confirmation failed. Please check the explorer.');
-        }
-
-        // Confirm with backend
-        await confirmClaim({
-          betId,
-          txSignature: signature,
-        });
-
-        setState({ status: 'success', txSignature: signature });
+        setState({ status: 'success', txSignature });
 
         // Invalidate queries
         queryClient.invalidateQueries({ queryKey: ['bets'] });
         queryClient.invalidateQueries({ queryKey: ['claimableBets'] });
+        queryClient.invalidateQueries({ queryKey: ['usdcBalance'] });
 
-        return signature;
+        return txSignature;
       } catch (error) {
-        let message = error instanceof Error ? error.message : 'Transaction failed';
-
-        // Improve timeout error message
-        if (message.includes('not confirmed') || message.includes('timeout')) {
-          message = 'Transaction is taking longer than expected. It may still succeed - check the explorer.';
-        }
-
+        const message = error instanceof Error ? error.message : 'Claim failed';
         setState({ status: 'error', error: message, txSignature: state.txSignature });
         throw error;
       }
     },
-    [publicKey, connection, sendTransaction, queryClient, state.txSignature]
+    [publicKey, queryClient, state.txSignature]
   );
 
   const reset = useCallback(() => {

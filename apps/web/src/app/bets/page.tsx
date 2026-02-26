@@ -126,7 +126,7 @@ export default function MyBetsPage() {
                 variant="h6"
                 sx={{ color: 'text.secondary', fontWeight: 400, mb: 3 }}
               >
-                Connect your wallet to view your bets
+                Connect your wallet to view your predictions
               </Typography>
               <ConnectWalletButton variant="page" />
             </CardContent>
@@ -149,7 +149,7 @@ export default function MyBetsPage() {
                         variant="h5"
                         sx={{ color: '#FFFFFF', fontWeight: 500, mb: 0.5 }}
                       >
-                        {claimable.summary.count} Winning Bet{claimable.summary.count > 1 ? 's' : ''} to Claim
+                        {claimable.summary.count} Winning Prediction{claimable.summary.count > 1 ? 's' : ''} to Claim
                       </Typography>
                       <Typography variant="body1" sx={{ color: 'text.secondary' }}>
                         Total claimable:{' '}
@@ -231,7 +231,7 @@ export default function MyBetsPage() {
                   borderRadius: 1,
                 }}
               >
-                Failed to load bets
+                Failed to load predictions
               </Alert>
             )}
 
@@ -246,7 +246,7 @@ export default function MyBetsPage() {
               </Grid>
             )}
 
-            {/* Bets List */}
+            {/* Predictions List */}
             {!betsLoading && displayBets.length === 0 ? (
               <Box
                 sx={{
@@ -258,7 +258,7 @@ export default function MyBetsPage() {
                 }}
               >
                 <Typography sx={{ color: 'text.secondary', fontSize: '1.1rem' }}>
-                  No bets found in this category
+                  No predictions found in this category
                 </Typography>
               </Box>
             ) : (

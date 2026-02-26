@@ -56,23 +56,34 @@ export function Header({ showBackButton = false }: HeaderProps) {
           px: { xs: 2, sm: 3, md: 4 },
         }}
       >
-        {/* Left: Back button or Logo + Nav (desktop) */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+        {/* Left: Logo (always first) + optional back arrow */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           {showBackButton && (
-            <Button
+            <Box
+              component="button"
               onClick={() => router.back()}
-              startIcon={<ArrowBackIcon />}
               aria-label="Go back"
               sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                background: 'transparent',
                 color: 'text.secondary',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
                 '&:hover': {
                   color: 'text.primary',
-                  backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                  borderColor: 'rgba(255, 255, 255, 0.3)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
                 },
               }}
             >
-              Back
-            </Button>
+              <ArrowBackIcon sx={{ fontSize: 18 }} />
+            </Box>
           )}
 
           <Link href="/" style={{ textDecoration: 'none' }}>
@@ -93,7 +104,6 @@ export function Header({ showBackButton = false }: HeaderProps) {
               </Box>
             </Typography>
           </Link>
-
         </Box>
 
         {/* Desktop nav — centered */}

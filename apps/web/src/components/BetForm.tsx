@@ -315,7 +315,7 @@ export function BetForm({ pool, onSubmit, isSubmitting, error }: BetFormProps) {
             {pool.status === 'ACTIVE' && (
               <>
                 <Lock sx={{ fontSize: 18 }} />
-                <Typography variant="body2" sx={{ fontWeight: 500 }}>Betting closed - Waiting for result</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>Predictions closed - Waiting for result</Typography>
               </>
             )}
             {pool.status === 'RESOLVED' && (
@@ -362,12 +362,12 @@ export function BetForm({ pool, onSubmit, isSubmitting, error }: BetFormProps) {
           : pool.status === 'UPCOMING'
           ? 'Pool Not Open Yet'
           : pool.status === 'ACTIVE'
-          ? 'Betting Closed'
+          ? 'Predictions Closed'
           : pool.status === 'RESOLVED' || pool.status === 'CLAIMABLE'
           ? 'Pool Ended'
           : isSubmitting
           ? 'Processing...'
-          : `Place ${side} Bet`}
+          : `Place ${side} Prediction`}
       </Button>
     </Box>
   );

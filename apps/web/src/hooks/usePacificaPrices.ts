@@ -34,38 +34,46 @@ export function usePacificaPrices(symbols: string[], enabled = true) {
   const handleMessage = useCallback((channel: string, data: unknown) => {
     if (channel !== 'prices') return;
 
-    const d = data as Record<string, unknown>;
-    const symbol = d.symbol as string;
-    if (!symbolsRef.current.includes(symbol)) return;
+    // Pacifica prices channel sends an array of all symbols
+    const items = data as Record<string, unknown>[];
+    if (!Array.isArray(items)) return;
 
-    const mark = Number(d.mark ?? 0);
-    const oracle = Number(d.oracle ?? 0);
-    const yesterdayPrice = Number(d.yesterday_price ?? 0);
+    const updates: Record<string, PacificaPriceData> = {};
 
-    const entry: PacificaPriceData = {
-      symbol,
-      funding: Number(d.funding ?? 0),
-      nextFunding: Number(d.next_funding ?? 0),
-      openInterest: Number(d.open_interest ?? 0),
-      volume24h: Number(d.volume_24h ?? 0),
-      mark,
-      oracle,
-      yesterdayPrice,
-      spreadPct: oracle !== 0 ? ((mark - oracle) / oracle) * 100 : 0,
-      priceChange24hPct: yesterdayPrice !== 0 ? ((mark - yesterdayPrice) / yesterdayPrice) * 100 : 0,
-      timestamp: Date.now(),
-    };
+    for (const d of items) {
+      const symbol = d.symbol as string;
+      if (!symbolsRef.current.includes(symbol)) continue;
 
-    setPriceMap((prev) => ({ ...prev, [symbol]: entry }));
-    setLoading(false);
+      const mark = Number(d.mark ?? 0);
+      const oracle = Number(d.oracle ?? 0);
+      const yesterdayPrice = Number(d.yesterday_price ?? 0);
+
+      updates[symbol] = {
+        symbol,
+        funding: Number(d.funding ?? 0),
+        nextFunding: Number(d.next_funding ?? 0),
+        openInterest: Number(d.open_interest ?? 0),
+        volume24h: Number(d.volume_24h ?? 0),
+        mark,
+        oracle,
+        yesterdayPrice,
+        spreadPct: oracle !== 0 ? ((mark - oracle) / oracle) * 100 : 0,
+        priceChange24hPct: yesterdayPrice !== 0 ? ((mark - yesterdayPrice) / yesterdayPrice) * 100 : 0,
+        timestamp: Number(d.timestamp ?? Date.now()),
+      };
+    }
+
+    if (Object.keys(updates).length > 0) {
+      setPriceMap((prev) => ({ ...prev, ...updates }));
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     if (!enabled || symbols.length === 0) return;
 
-    const unsubs = symbols.map((symbol) =>
-      subscribe({ source: 'prices', symbol }),
-    );
+    // prices channel is a global broadcast — single subscription, no symbol param
+    const unsub = subscribe({ source: 'prices' });
     const removeListener = addListener(handleMessage);
 
     // Stop showing loading after 5s even if no data arrives
@@ -74,7 +82,7 @@ export function usePacificaPrices(symbols: string[], enabled = true) {
     return () => {
       clearTimeout(timeout);
       removeListener();
-      unsubs.forEach((unsub) => unsub());
+      unsub();
     };
   }, [symbols.join(','), enabled, handleMessage]);
 

@@ -34,11 +34,11 @@ export function PoolTimeline({ status, createdAt, lockTime, startTime, endTime }
           border: '1px solid rgba(255, 255, 255, 0.06)',
         }}
       >
-        {/* Betting Open */}
+        {/* Predictions Open */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <AccessTime sx={{ fontSize: 18, color: status === 'JOINING' ? '#FFFFFF' : 'text.secondary' }} />
           <Box sx={{ flex: 1 }}>
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>Bets Open</Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>Predictions Open</Typography>
           </Box>
           <Typography variant="body2" sx={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
             {formatDateTime(createdAt)}
@@ -51,11 +51,11 @@ export function PoolTimeline({ status, createdAt, lockTime, startTime, endTime }
           )}
         </Box>
 
-        {/* Betting Closes */}
+        {/* Predictions Close */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Lock sx={{ fontSize: 18, color: status === 'ACTIVE' ? '#FFFFFF' : 'text.secondary' }} />
           <Box sx={{ flex: 1 }}>
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>Bets Close</Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>Predictions Close</Typography>
           </Box>
           <Typography variant="body2" sx={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
             {formatDateTime(lockTime)}

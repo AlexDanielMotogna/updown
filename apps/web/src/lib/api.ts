@@ -226,3 +226,13 @@ export async function confirmClaim(params: {
     body: JSON.stringify(params),
   });
 }
+
+export async function executeClaim(params: {
+  poolId: string;
+  walletAddress: string;
+}): Promise<ApiResponse<{ betId: string; payoutAmount: string; txSignature: string; status: string }>> {
+  return fetchApi('/api/transactions/execute-claim', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}

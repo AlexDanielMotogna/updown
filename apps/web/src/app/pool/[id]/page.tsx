@@ -242,7 +242,7 @@ export default function PoolDetailPage() {
                     </Typography>
                     <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
                       {pool.status === 'ACTIVE'
-                        ? 'Price must be above this at end time for UP to win'
+                        ? 'Above = UP wins, Below = DOWN wins'
                         : pool.finalPrice
                           ? `Final: ${formatPrice(pool.finalPrice)}`
                           : ''
@@ -264,7 +264,7 @@ export default function PoolDetailPage() {
                   >
                     <Countdown
                       targetDate={pool.status === 'JOINING' ? pool.lockTime : pool.endTime}
-                      label={pool.status === 'JOINING' ? 'BETTING CLOSES IN' : 'POOL ENDS IN'}
+                      label={pool.status === 'JOINING' ? 'PREDICTIONS CLOSE IN' : 'RESULT IN'}
                     />
                   </Box>
                 )}
@@ -335,7 +335,7 @@ export default function PoolDetailPage() {
             </Card>
           </Grid>
 
-          {/* Bet Form */}
+          {/* Prediction Form */}
           <Grid item xs={12} lg={5}>
             <Box sx={{ position: 'sticky', top: 100 }}>
               <Card
@@ -399,7 +399,7 @@ export default function PoolDetailPage() {
                     <Box>
                       <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>4. Claim your winnings</Typography>
                       <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                        Winners split the entire pool proportionally. For example, if you bet $100 on UP and the UP side totals $400 out of a $1,000 pool, you'd win $250 (your $100/$400 share of the $1,000 pool).
+                        Winners split the entire pool proportionally. For example, if you predict $100 on UP and the UP side totals $400 out of a $1,000 pool, you'd win $250 (your $100/$400 share of the $1,000 pool).
                       </Typography>
                     </Box>
                   </Box>
@@ -435,7 +435,7 @@ export default function PoolDetailPage() {
       <TransactionModal
         open={showModal}
         status={txState.status}
-        title="Placing Bet"
+        title="Placing Prediction"
         txSignature={txState.txSignature}
         error={txState.error}
         onClose={handleCloseModal}

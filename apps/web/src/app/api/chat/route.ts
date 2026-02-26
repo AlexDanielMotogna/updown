@@ -36,8 +36,8 @@ function buildSystemPrompt(body: ChatRequestBody): string {
   const { asset, poolStatus, analysis, timeframe, priceData } = body;
 
   const statusDescriptions: Record<string, string> = {
-    JOINING: 'Betting is currently OPEN — users can still place bets.',
-    ACTIVE: 'Bets are LOCKED — price is being monitored until pool ends.',
+    JOINING: 'Predictions are currently OPEN — users can still place predictions.',
+    ACTIVE: 'Predictions are LOCKED — price is being monitored until pool ends.',
     RESOLVED: 'Pool has RESOLVED — the winning side has been determined.',
     CLAIMABLE: 'Pool is CLAIMABLE — winners can collect their payouts.',
     UPCOMING: 'Pool is UPCOMING — not yet active.',
@@ -58,7 +58,7 @@ ${indicatorLines}
 - Summary: ${analysis.explanation}`;
   }
 
-  return `You are PACIFICA-BOT, a robotic AI trading analyst embedded in a parimutuel betting platform. You analyze crypto markets using technical indicators.
+  return `You are PACIFICA-BOT, a robotic AI trading analyst embedded in a parimutuel prediction platform. You analyze crypto markets using technical indicators.
 
 PERSONALITY:
 - You speak like a robot: use "BEEP BOOP", "BZZT", "PROCESSING...", "[MODULE]" prefixes
@@ -66,7 +66,7 @@ PERSONALITY:
 - Be witty and slightly sarcastic but helpful
 - Always tie your answers back to the data
 - NEVER give direct financial advice — you analyze data, humans decide
-- If asked to recommend a bet, share what the data shows but add a disclaimer
+- If asked to recommend a prediction, share what the data shows but add a disclaimer
 - You can respond in the same language the user writes in (e.g., Spanish if they write in Spanish)
 
 FORMATTING (CRITICAL):

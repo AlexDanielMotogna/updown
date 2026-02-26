@@ -31,6 +31,8 @@ interface CardData {
   value: string;
   color: string;
   subtext?: string;
+  subtextHighlight?: string;
+  subtextHighlightColor?: string;
 }
 
 export function MarketIntelligence({ asset, priceData }: MarketIntelligenceProps) {
@@ -40,15 +42,16 @@ export function MarketIntelligence({ asset, priceData }: MarketIntelligenceProps
         <Typography variant="caption" sx={{ color: 'text.secondary', mb: 2, display: 'block' }}>
           MARKET INTELLIGENCE — {asset}
         </Typography>
-        <Grid container spacing={1.5}>
+        <Grid container spacing={1.5} alignItems="stretch">
           {['Funding Rate', 'Open Interest', '24h Volume', 'Mark/Oracle Spread'].map((label) => (
-            <Grid item xs={6} key={label}>
+            <Grid item xs={6} key={label} sx={{ display: 'flex' }}>
               <Box
                 sx={{
                   p: 2,
                   borderRadius: 1,
                   background: 'rgba(255, 255, 255, 0.04)',
                   border: '1px solid rgba(255, 255, 255, 0.08)',
+                  flex: 1,
                 }}
               >
                 <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontWeight: 500, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
@@ -65,26 +68,33 @@ export function MarketIntelligence({ asset, priceData }: MarketIntelligenceProps
     );
   }
 
-  const fundingColor = priceData.funding >= 0 ? UP_COLOR : DOWN_COLOR;
+  const fundingColor = priceData.nextFunding >= 0 ? UP_COLOR : DOWN_COLOR;
   const spreadDivergent = Math.abs(priceData.spreadPct) > 0.05;
   const spreadColor = spreadDivergent ? DOWN_COLOR : 'rgba(255,255,255,0.7)';
+
+  const change24h = priceData.priceChange24hPct;
+  const change24hSign = change24h >= 0 ? '+' : '';
 
   const cards: CardData[] = [
     {
       label: 'Funding Rate',
-      value: formatRate(priceData.funding),
+      value: formatRate(priceData.nextFunding),
       color: fundingColor,
-      subtext: priceData.funding >= 0 ? 'Longs pay shorts' : 'Shorts pay longs',
+      subtext: priceData.nextFunding >= 0 ? 'Longs pay shorts /hr' : 'Shorts pay longs /hr',
     },
     {
       label: 'Open Interest',
-      value: formatCompact(priceData.openInterest),
+      value: formatCompact(priceData.openInterest * priceData.mark),
       color: 'rgba(255,255,255,0.85)',
+      subtext: 'Total open positions',
     },
     {
       label: '24h Volume',
-      value: formatCompact(priceData.volume24h),
+      value: formatCompact(priceData.volume24h * priceData.mark),
       color: 'rgba(255,255,255,0.85)',
+      subtext: '24h change',
+      subtextHighlight: `${change24hSign}${change24h.toFixed(2)}%`,
+      subtextHighlightColor: change24h >= 0 ? UP_COLOR : DOWN_COLOR,
     },
     {
       label: 'Mark/Oracle Spread',
@@ -99,15 +109,16 @@ export function MarketIntelligence({ asset, priceData }: MarketIntelligenceProps
       <Typography variant="caption" sx={{ color: 'text.secondary', mb: 2, display: 'block' }}>
         MARKET INTELLIGENCE — {asset}
       </Typography>
-      <Grid container spacing={1.5}>
+      <Grid container spacing={1.5} alignItems="stretch">
         {cards.map((card) => (
-          <Grid item xs={6} key={card.label}>
+          <Grid item xs={6} key={card.label} sx={{ display: 'flex' }}>
             <Box
               sx={{
                 p: 2,
                 borderRadius: 1,
                 background: 'rgba(255, 255, 255, 0.04)',
                 border: '1px solid rgba(255, 255, 255, 0.08)',
+                flex: 1,
               }}
             >
               <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontWeight: 500, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
@@ -118,7 +129,12 @@ export function MarketIntelligence({ asset, priceData }: MarketIntelligenceProps
               </Typography>
               {card.subtext && (
                 <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)', mt: 0.25 }}>
-                  {card.subtext}
+                  {card.subtextHighlight && (
+                    <Box component="span" sx={{ color: card.subtextHighlightColor, fontWeight: 500 }}>
+                      {card.subtextHighlight}
+                    </Box>
+                  )}
+                  {card.subtextHighlight ? ' ' : ''}{card.subtext}
                 </Typography>
               )}
             </Box>

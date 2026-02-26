@@ -1,9 +1,14 @@
 import { Router, type Router as RouterType } from 'express';
 import { z } from 'zod';
-import { PublicKey, Connection } from '@solana/web3.js';
+import { PublicKey, Connection, Keypair, Transaction, ComputeBudgetProgram } from '@solana/web3.js';
 import { prisma } from '../db';
 import { getPoolPDA, getVaultPDA, getUserBetPDA, PROGRAM_ID } from 'solana-client';
-import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import {
+  getAssociatedTokenAddress,
+  createTransferInstruction,
+  createAssociatedTokenAccountInstruction,
+  TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
 
 export const transactionsRouter: RouterType = Router();
 
@@ -13,6 +18,29 @@ const connection = new Connection(RPC_URL, 'confirmed');
 
 // USDC mint on devnet (use devnet USDC or create test token)
 const USDC_MINT = new PublicKey(process.env.USDC_MINT || 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr');
+
+// Load authority keypair for server-signed transactions (claims)
+function getAuthorityKeypair(): Keypair {
+  // Try direct secret key first
+  const secretKey = process.env.AUTHORITY_SECRET_KEY;
+  if (secretKey) {
+    return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(secretKey)));
+  }
+
+  // Try loading from file path
+  const keypairPath = process.env.AUTHORITY_KEYPAIR_PATH;
+  if (keypairPath) {
+    const fs = require('fs');
+    const path = require('path');
+    const resolvedPath = keypairPath.startsWith('~')
+      ? path.join(process.env.HOME || '', keypairPath.slice(1))
+      : keypairPath;
+    const fileContent = fs.readFileSync(resolvedPath, 'utf-8');
+    return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fileContent)));
+  }
+
+  throw new Error('AUTHORITY_SECRET_KEY or AUTHORITY_KEYPAIR_PATH not configured');
+}
 
 // Validation schemas
 const depositRequestSchema = z.object({
@@ -38,6 +66,11 @@ const claimRequestSchema = z.object({
 const confirmClaimSchema = z.object({
   betId: z.string().uuid(),
   txSignature: z.string().min(64).max(128),
+});
+
+const executeClaimSchema = z.object({
+  poolId: z.string().uuid(),
+  walletAddress: z.string().min(32).max(44),
 });
 
 /**
@@ -646,6 +679,217 @@ transactionsRouter.post('/confirm-claim', async (req, res) => {
       error: {
         code: 'INTERNAL_ERROR',
         message: 'Failed to confirm claim',
+      },
+    });
+  }
+});
+
+/**
+ * POST /api/transactions/execute-claim
+ * Server-side claim: validates winner, transfers USDC from authority to user, updates DB
+ */
+transactionsRouter.post('/execute-claim', async (req, res) => {
+  try {
+    const parsed = executeClaimSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid request body',
+          details: parsed.error.flatten(),
+        },
+      });
+    }
+
+    const { poolId, walletAddress } = parsed.data;
+
+    // Get pool from database
+    const pool = await prisma.pool.findUnique({
+      where: { id: poolId },
+    });
+
+    if (!pool) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'POOL_NOT_FOUND', message: 'Pool not found' },
+      });
+    }
+
+    // Get user's bet
+    const bet = await prisma.bet.findUnique({
+      where: {
+        poolId_walletAddress: { poolId: pool.id, walletAddress },
+      },
+    });
+
+    if (!bet) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'BET_NOT_FOUND', message: 'No prediction found for this wallet in this pool' },
+      });
+    }
+
+    // Verify pool is resolved/claimable
+    if (pool.status !== 'CLAIMABLE' && pool.status !== 'RESOLVED') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'POOL_NOT_CLAIMABLE',
+          message: `Pool is in ${pool.status} status, claims only allowed after resolution`,
+        },
+      });
+    }
+
+    // Verify bet is a winner
+    if (pool.winner !== bet.side) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'NOT_WINNER', message: 'Your prediction did not win' },
+      });
+    }
+
+    // Verify not already claimed
+    if (bet.claimed) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'ALREADY_CLAIMED', message: 'Payout already claimed' },
+      });
+    }
+
+    // Calculate payout
+    const totalPool = pool.totalUp + pool.totalDown;
+    const winnerPool = bet.side === 'UP' ? pool.totalUp : pool.totalDown;
+    const payout = winnerPool > 0n ? (bet.amount * totalPool) / winnerPool : 0n;
+
+    if (payout === 0n) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'ZERO_PAYOUT', message: 'Payout amount is zero' },
+      });
+    }
+
+    // Load authority keypair
+    let authority: Keypair;
+    try {
+      authority = getAuthorityKeypair();
+    } catch {
+      console.error('[execute-claim] Authority keypair not configured');
+      return res.status(500).json({
+        success: false,
+        error: { code: 'CONFIG_ERROR', message: 'Payout system not configured' },
+      });
+    }
+
+    // Build USDC transfer: authority → user
+    const userPubkey = new PublicKey(walletAddress);
+    const authorityATA = await getAssociatedTokenAddress(USDC_MINT, authority.publicKey);
+    const userATA = await getAssociatedTokenAddress(USDC_MINT, userPubkey);
+
+    const transaction = new Transaction();
+
+    // Set compute budget
+    transaction.add(
+      ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 }),
+      ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }),
+    );
+
+    // Create user's ATA if it doesn't exist
+    const userATAInfo = await connection.getAccountInfo(userATA);
+    if (!userATAInfo) {
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          authority.publicKey, // payer
+          userATA,             // ata
+          userPubkey,          // owner
+          USDC_MINT,           // mint
+        ),
+      );
+    }
+
+    // Transfer USDC from authority to user
+    transaction.add(
+      createTransferInstruction(
+        authorityATA,         // from
+        userATA,              // to
+        authority.publicKey,  // owner (signer)
+        BigInt(payout),       // amount in base units
+        [],                   // multiSigners
+        TOKEN_PROGRAM_ID,
+      ),
+    );
+
+    // Sign and send
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = authority.publicKey;
+    transaction.sign(authority);
+
+    const signature = await connection.sendRawTransaction(transaction.serialize(), {
+      skipPreflight: false,
+      preflightCommitment: 'confirmed',
+    });
+
+    console.log(`[execute-claim] Sent payout tx: ${signature}, amount: ${payout}, to: ${walletAddress}`);
+
+    // Wait for confirmation
+    const confirmation = await connection.confirmTransaction(
+      { signature, blockhash, lastValidBlockHeight },
+      'confirmed',
+    );
+
+    if (confirmation.value.err) {
+      console.error(`[execute-claim] Transaction failed on-chain:`, confirmation.value.err);
+      return res.status(500).json({
+        success: false,
+        error: { code: 'TX_FAILED', message: 'Payout transaction failed on-chain' },
+      });
+    }
+
+    // Update bet as claimed
+    await prisma.bet.update({
+      where: { id: bet.id },
+      data: {
+        claimed: true,
+        claimTx: signature,
+        payoutAmount: payout,
+      },
+    });
+
+    // Log event
+    await prisma.eventLog.create({
+      data: {
+        eventType: 'CLAIM_CONFIRMED',
+        entityType: 'bet',
+        entityId: bet.id,
+        payload: {
+          poolId: pool.id,
+          walletAddress,
+          payoutAmount: payout.toString(),
+          txSignature: signature,
+        },
+      },
+    });
+
+    console.log(`[execute-claim] Payout confirmed: ${signature}, bet: ${bet.id}`);
+
+    res.json({
+      success: true,
+      data: {
+        betId: bet.id,
+        payoutAmount: payout.toString(),
+        txSignature: signature,
+        status: 'confirmed',
+      },
+    });
+  } catch (error) {
+    console.error('Error executing claim:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to execute claim',
       },
     });
   }

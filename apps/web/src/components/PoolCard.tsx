@@ -1,10 +1,10 @@
 'use client';
 
-import { Card, CardContent, Box, Typography, Chip } from '@mui/material';
+import { Card, CardContent, Box, Typography, Chip, Button } from '@mui/material';
 import { TrendingUp, TrendingDown } from '@mui/icons-material';
 import Link from 'next/link';
 import type { Pool } from '@/lib/api';
-import { formatUSDC, formatPrice, formatDateTime, statusStyles, USDC_DIVISOR } from '@/lib/format';
+import { formatUSDC, formatPrice, formatDateTime, formatTime, statusStyles, USDC_DIVISOR } from '@/lib/format';
 import { Countdown } from './Countdown';
 
 interface PoolCardProps {
@@ -26,8 +26,8 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
     null;
 
   const countdownLabel =
-    pool.status === 'JOINING' ? 'Deposits close in' :
-    pool.status === 'ACTIVE' ? 'Ends in' :
+    pool.status === 'JOINING' ? 'Predictions close in' :
+    pool.status === 'ACTIVE' ? 'Result in' :
     pool.status === 'UPCOMING' ? 'Opens in' :
     null;
 
@@ -91,10 +91,42 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
 
           {/* Countdown or Resolved Info */}
           {countdownTarget && countdownLabel ? (
-            <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Box sx={{ width: '100%' }}>
-                <Countdown targetDate={countdownTarget} label={countdownLabel} />
+            <Box sx={{ mb: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Box sx={{ width: '100%' }}>
+                  <Countdown targetDate={countdownTarget} label={countdownLabel} />
+                </Box>
               </Box>
+
+              {/* Timeline hint */}
+              {pool.status === 'JOINING' && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    display: 'block',
+                    textAlign: 'center',
+                    color: 'text.secondary',
+                    mt: 1.5,
+                    fontSize: '0.7rem',
+                  }}
+                >
+                  Result at {formatTime(pool.endTime)}
+                </Typography>
+              )}
+              {pool.status === 'ACTIVE' && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    display: 'block',
+                    textAlign: 'center',
+                    color: 'text.secondary',
+                    mt: 1.5,
+                    fontSize: '0.7rem',
+                  }}
+                >
+                  Monitoring price — predictions locked
+                </Typography>
+              )}
             </Box>
           ) : (pool.status === 'RESOLVED' || pool.status === 'CLAIMABLE') && pool.strikePrice ? (
             <Box sx={{ mb: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -236,7 +268,28 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
             </Box>
           )}
 
-          {/* User bet result */}
+          {/* Join CTA */}
+          {pool.status === 'JOINING' && !userBet && (
+            <Button
+              fullWidth
+              variant="contained"
+              sx={{
+                mt: 3,
+                py: 1.25,
+                bgcolor: '#FFFFFF',
+                color: '#0A0A0A',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                '&:hover': {
+                  bgcolor: 'rgba(255, 255, 255, 0.9)',
+                },
+              }}
+            >
+              Place Prediction
+            </Button>
+          )}
+
+          {/* User prediction result */}
           {userBet && (
             <Box
               sx={{
@@ -257,7 +310,7 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
                   <TrendingDown sx={{ fontSize: 16, color: '#FF5252' }} />
                 )}
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                  You bet {userBet.side}
+                  You predicted {userBet.side}
                 </Typography>
               </Box>
               {userBet.isWinner === true && (

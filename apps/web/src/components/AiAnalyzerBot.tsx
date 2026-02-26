@@ -311,9 +311,9 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
   const getGreeting = useCallback(() => {
     switch (poolStatus) {
       case 'JOINING':
-        return `BEEP BOOP. Betting is open. Initializing market scan for ${asset}...`;
+        return `BEEP BOOP. Predictions are open. Initializing market scan for ${asset}...`;
       case 'ACTIVE':
-        return `BZZT. Bets are locked. Scanning ${asset} indicators now...`;
+        return `BZZT. Predictions are locked. Scanning ${asset} indicators now...`;
       case 'RESOLVED':
       case 'CLAIMABLE':
         return `BIP. Pool resolved${winner ? ` \u2014 ${winner} won` : ''}. Loading post-mortem analysis for ${asset}...`;
