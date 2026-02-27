@@ -1,5 +1,6 @@
 FROM node:18-alpine AS base
 
+RUN apk add --no-cache openssl
 RUN corepack enable && corepack prepare pnpm@8.10.0 --activate
 
 WORKDIR /app
@@ -30,6 +31,7 @@ RUN pnpm run build
 
 FROM node:18-alpine AS runner
 
+RUN apk add --no-cache openssl
 RUN corepack enable && corepack prepare pnpm@8.10.0 --activate
 
 WORKDIR /app
