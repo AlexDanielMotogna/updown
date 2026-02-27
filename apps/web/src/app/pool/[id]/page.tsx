@@ -41,6 +41,20 @@ import {
 } from '@/components';
 import { formatUSDC, formatPrice, formatDateTime, statusStyles, USDC_DIVISOR } from '@/lib/format';
 
+const INTERVAL_BADGE_COLORS: Record<string, { bg: string; color: string }> = {
+  '1m': { bg: 'rgba(255, 152, 0, 0.15)', color: '#FFB74D' },
+  '5m': { bg: 'rgba(33, 150, 243, 0.15)', color: '#64B5F6' },
+  '15m': { bg: 'rgba(76, 175, 80, 0.15)', color: '#81C784' },
+  '1h': { bg: 'rgba(255, 255, 255, 0.06)', color: 'rgba(255, 255, 255, 0.5)' },
+};
+
+const INTERVAL_LABELS: Record<string, string> = {
+  '1m': 'Turbo 1m',
+  '5m': 'Rapid 5m',
+  '15m': 'Short 15m',
+  '1h': 'Hourly',
+};
+
 export default function PoolDetailPage() {
   const params = useParams();
   const poolId = params.id as string;
@@ -137,9 +151,24 @@ export default function PoolDetailPage() {
               <CardContent sx={{ p: { xs: 2.5, md: 4 } }}>
                 {/* Title & Status */}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-                  <Typography variant="h3" sx={{ fontWeight: 400, fontSize: { xs: '1.75rem', md: undefined } }}>
-                    {pool.asset}/USD
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Typography variant="h3" sx={{ fontWeight: 400, fontSize: { xs: '1.75rem', md: undefined } }}>
+                      {pool.asset}/USD
+                    </Typography>
+                    {pool.interval && (
+                      <Chip
+                        label={INTERVAL_LABELS[pool.interval] || pool.interval}
+                        size="small"
+                        sx={{
+                          fontSize: '0.7rem',
+                          fontWeight: 500,
+                          backgroundColor: (INTERVAL_BADGE_COLORS[pool.interval] || INTERVAL_BADGE_COLORS['1h']).bg,
+                          color: (INTERVAL_BADGE_COLORS[pool.interval] || INTERVAL_BADGE_COLORS['1h']).color,
+                          border: 'none',
+                        }}
+                      />
+                    )}
+                  </Box>
                   <Chip
                     label={pool.status}
                     sx={{

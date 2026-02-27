@@ -11,6 +11,9 @@ vi.mock('../db', () => ({
       findFirst: vi.fn(),
       count: vi.fn(),
     },
+    bet: {
+      groupBy: vi.fn().mockResolvedValue([]),
+    },
   },
 }));
 
@@ -43,6 +46,8 @@ describe('Pools API', () => {
         id: 'pool-uuid-1',
         poolId: 'btc-hourly-123',
         asset: 'BTC',
+        interval: '1h',
+        durationSeconds: 3600,
         status: 'JOINING' as const,
         startTime: new Date('2024-01-01T12:00:00Z'),
         endTime: new Date('2024-01-01T13:00:00Z'),
@@ -54,6 +59,7 @@ describe('Pools API', () => {
         winner: null,
         createdAt: new Date('2024-01-01T11:00:00Z'),
         updatedAt: new Date('2024-01-01T12:00:00Z'),
+        _count: { bets: 5 },
       };
 
       vi.mocked(prisma.pool.findMany).mockResolvedValue([mockPool]);
@@ -131,6 +137,8 @@ describe('Pools API', () => {
         id: 'pool-uuid-1',
         poolId: 'btc-hourly-123',
         asset: 'BTC',
+        interval: '1h',
+        durationSeconds: 3600,
         status: 'ACTIVE' as const,
         startTime: new Date('2024-01-01T12:00:00Z'),
         endTime: new Date('2024-01-01T13:00:00Z'),

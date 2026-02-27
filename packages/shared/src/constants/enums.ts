@@ -1,16 +1,25 @@
-export const INTERVALS = ['15m', '1h', '24h'] as const;
+export const INTERVALS = ['1m', '5m', '15m', '1h'] as const;
 export type Interval = (typeof INTERVALS)[number];
 
 export const INTERVAL_MS: Record<Interval, number> = {
+  '1m': 60 * 1000,
+  '5m': 5 * 60 * 1000,
   '15m': 15 * 60 * 1000,
   '1h': 60 * 60 * 1000,
-  '24h': 24 * 60 * 60 * 1000,
+};
+
+export const INTERVAL_SECONDS: Record<Interval, number> = {
+  '1m': 60,
+  '5m': 300,
+  '15m': 900,
+  '1h': 3600,
 };
 
 export const INTERVAL_LABELS: Record<Interval, string> = {
-  '15m': '15 Minutes',
-  '1h': '1 Hour',
-  '24h': '24 Hours',
+  '1m': 'Turbo 1m',
+  '5m': 'Rapid 5m',
+  '15m': 'Short 15m',
+  '1h': 'Hourly',
 };
 
 export const USDC_DECIMALS = 6;

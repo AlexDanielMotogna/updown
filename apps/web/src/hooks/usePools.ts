@@ -5,6 +5,7 @@ import { getSocket, connectSocket } from '@/lib/socket';
 
 export interface PoolFilters {
   asset?: string;
+  interval?: string;
   status?: string;
   page?: number;
   limit?: number;

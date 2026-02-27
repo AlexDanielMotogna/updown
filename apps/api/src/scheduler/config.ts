@@ -5,9 +5,11 @@
 
 export interface PoolTemplate {
   asset: string;
+  intervalKey: string; // Interval identifier: '1m', '5m', '15m', '1h'
   interval: number; // Duration in seconds
   cronExpression: string; // When to create new pools
   joinWindowSeconds: number; // How long users can deposit before lock
+  lockBufferSeconds: number; // Buffer between lock and start
 }
 
 export interface SchedulerConfig {
@@ -30,21 +32,42 @@ export function getSchedulerConfig(): SchedulerConfig {
   if (templatesJson) {
     templates = JSON.parse(templatesJson);
   } else {
-    // Default: hourly pools for BTC and ETH
-    templates = [
+    // Default: 4 intervals x 3 assets = 12 templates
+    const ASSETS = ['BTC', 'ETH', 'SOL'];
+    const INTERVAL_CONFIGS: Omit<PoolTemplate, 'asset'>[] = [
       {
-        asset: 'BTC',
-        interval: 3600, // 1 hour
-        cronExpression: '0 * * * *', // Every hour at :00
-        joinWindowSeconds: 3000, // 50 minutes to join (10 min buffer before lock)
+        intervalKey: '1m',
+        interval: 60,
+        cronExpression: '* * * * *',
+        joinWindowSeconds: 40,
+        lockBufferSeconds: 5,
       },
       {
-        asset: 'ETH',
-        interval: 3600, // 1 hour
-        cronExpression: '0 * * * *', // Every hour at :00
-        joinWindowSeconds: 3000, // 50 minutes to join
+        intervalKey: '5m',
+        interval: 300,
+        cronExpression: '*/5 * * * *',
+        joinWindowSeconds: 180,
+        lockBufferSeconds: 15,
+      },
+      {
+        intervalKey: '15m',
+        interval: 900,
+        cronExpression: '*/15 * * * *',
+        joinWindowSeconds: 600,
+        lockBufferSeconds: 30,
+      },
+      {
+        intervalKey: '1h',
+        interval: 3600,
+        cronExpression: '0 * * * *',
+        joinWindowSeconds: 3000,
+        lockBufferSeconds: 60,
       },
     ];
+
+    templates = ASSETS.flatMap((asset) =>
+      INTERVAL_CONFIGS.map((cfg) => ({ asset, ...cfg }))
+    );
   }
 
   return {

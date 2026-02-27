@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum PoolStatus {
@@ -21,24 +22,27 @@ enum Side {
 }
 
 model Pool {
-  id           String     @id @default(uuid())
-  poolId       String     @unique @map("pool_id")
-  asset        String
-  status       PoolStatus @default(UPCOMING)
-  startTime    DateTime   @map("start_time")
-  endTime      DateTime   @map("end_time")
-  lockTime     DateTime   @map("lock_time")
-  strikePrice  BigInt?    @map("strike_price")
-  finalPrice   BigInt?    @map("final_price")
-  totalUp      BigInt     @default(0) @map("total_up")
-  totalDown    BigInt     @default(0) @map("total_down")
-  winner       Side?
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
+  id              String     @id @default(uuid())
+  poolId          String     @unique @map("pool_id")
+  asset           String
+  interval        String     @default("1h")
+  durationSeconds Int        @default(3600) @map("duration_seconds")
+  status          PoolStatus @default(UPCOMING)
+  startTime       DateTime   @map("start_time")
+  endTime         DateTime   @map("end_time")
+  lockTime        DateTime   @map("lock_time")
+  strikePrice     BigInt?    @map("strike_price")
+  finalPrice      BigInt?    @map("final_price")
+  totalUp         BigInt     @default(0) @map("total_up")
+  totalDown       BigInt     @default(0) @map("total_down")
+  winner          Side?
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
 
   bets           Bet[]
   priceSnapshots PriceSnapshot[]
 
+  @@index([asset, interval, status])
   @@map("pools")
 }
 

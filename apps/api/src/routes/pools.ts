@@ -9,6 +9,7 @@ export const poolsRouter: RouterType = Router();
 // Filter schema with pagination
 const poolFilterSchema = z.object({
   asset: z.string().optional(),
+  interval: z.string().optional(),
   status: z.enum(['UPCOMING', 'JOINING', 'ACTIVE', 'RESOLVED', 'CLAIMABLE']).optional(),
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(100).default(20),
@@ -19,6 +20,8 @@ function serializePool(pool: {
   id: string;
   poolId: string;
   asset: string;
+  interval: string;
+  durationSeconds: number;
   status: PoolStatus;
   startTime: Date;
   endTime: Date;
@@ -35,6 +38,8 @@ function serializePool(pool: {
     id: pool.id,
     poolId: pool.poolId,
     asset: pool.asset,
+    interval: pool.interval,
+    durationSeconds: pool.durationSeconds,
     status: pool.status,
     startTime: pool.startTime.toISOString(),
     endTime: pool.endTime.toISOString(),
@@ -66,13 +71,16 @@ poolsRouter.get('/', async (req, res) => {
       });
     }
 
-    const { asset, status, page, limit } = parsed.data;
+    const { asset, interval, status, page, limit } = parsed.data;
     const skip = (page - 1) * limit;
 
     // Build where clause
     const where: Prisma.PoolWhereInput = {};
     if (asset) {
       where.asset = asset.toUpperCase();
+    }
+    if (interval) {
+      where.interval = interval;
     }
     if (status) {
       where.status = status;
@@ -218,8 +226,10 @@ poolsRouter.get('/:id', async (req, res) => {
 // POST /api/pools/test - Create a test pool (dev only)
 const createTestPoolSchema = z.object({
   asset: z.enum(['BTC', 'ETH', 'SOL']).default('BTC'),
+  intervalKey: z.enum(['1m', '5m', '15m', '1h']).default('5m'),
   intervalSeconds: z.number().min(60).default(300), // 5 min default
   joinWindowSeconds: z.number().min(30).default(120), // 2 min default
+  lockBufferSeconds: z.number().min(5).default(15),
 });
 
 poolsRouter.post('/test', async (req, res) => {
@@ -237,10 +247,10 @@ poolsRouter.post('/test', async (req, res) => {
       });
     }
 
-    const { asset, intervalSeconds, joinWindowSeconds } = parsed.data;
+    const { asset, intervalKey, intervalSeconds, joinWindowSeconds, lockBufferSeconds } = parsed.data;
     const scheduler = getScheduler();
 
-    const poolId = await scheduler.createPoolManual(asset, intervalSeconds, joinWindowSeconds);
+    const poolId = await scheduler.createPoolManual(asset, intervalSeconds, joinWindowSeconds, intervalKey, lockBufferSeconds);
 
     if (!poolId) {
       return res.status(500).json({

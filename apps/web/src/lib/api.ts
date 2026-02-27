@@ -20,6 +20,8 @@ export interface Pool {
   id: string;
   poolId: string;
   asset: string;
+  interval: string;
+  durationSeconds: number;
   status: 'UPCOMING' | 'JOINING' | 'ACTIVE' | 'RESOLVED' | 'CLAIMABLE';
   startTime: string;
   endTime: string;
@@ -146,12 +148,14 @@ async function fetchApi<T>(
 // Pool endpoints
 export async function fetchPools(params?: {
   asset?: string;
+  interval?: string;
   status?: string;
   page?: number;
   limit?: number;
 }): Promise<ApiResponse<Pool[]>> {
   const searchParams = new URLSearchParams();
   if (params?.asset) searchParams.set('asset', params.asset);
+  if (params?.interval) searchParams.set('interval', params.interval);
   if (params?.status) searchParams.set('status', params.status);
   if (params?.page) searchParams.set('page', params.page.toString());
   if (params?.limit) searchParams.set('limit', params.limit.toString());

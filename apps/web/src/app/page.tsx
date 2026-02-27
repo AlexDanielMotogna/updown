@@ -17,10 +17,19 @@ import { useInfinitePools, useBets, usePriceStream, useIntersectionObserver, typ
 import { PoolCard, PoolCardSkeleton, Header } from '@/components';
 
 const ASSETS = ['ALL', 'BTC', 'ETH', 'SOL'];
+const INTERVAL_OPTIONS = ['ALL', '1m', '5m', '15m', '1h'];
+const INTERVAL_LABELS: Record<string, string> = {
+  ALL: 'ALL',
+  '1m': 'Turbo 1m',
+  '5m': 'Rapid 5m',
+  '15m': 'Short 15m',
+  '1h': 'Hourly',
+};
 const STATUSES = ['ALL', 'UPCOMING', 'JOINING', 'ACTIVE', 'RESOLVED'];
 
 export default function MarketsPage() {
   const [assetFilter, setAssetFilter] = useState('ALL');
+  const [intervalFilter, setIntervalFilter] = useState('ALL');
   const [statusTab, setStatusTab] = useState(0);
 
   const selectedStatus = statusTab === 0 ? undefined : STATUSES[statusTab];
@@ -28,6 +37,7 @@ export default function MarketsPage() {
 
   const filters: Omit<PoolFilters, 'page' | 'limit'> = {
     asset: assetFilter === 'ALL' ? undefined : assetFilter,
+    interval: intervalFilter === 'ALL' ? undefined : intervalFilter,
     status: isResolvedTab ? undefined : selectedStatus,
   };
 
@@ -69,6 +79,12 @@ export default function MarketsPage() {
   const handleAssetChange = (_: React.MouseEvent, newAsset: string | null) => {
     if (newAsset) {
       setAssetFilter(newAsset);
+    }
+  };
+
+  const handleIntervalChange = (_: React.MouseEvent, newInterval: string | null) => {
+    if (newInterval) {
+      setIntervalFilter(newInterval);
     }
   };
 
@@ -121,7 +137,7 @@ export default function MarketsPage() {
         {/* Filters Section */}
         <Box sx={{ mb: 6 }}>
           {/* Asset Filter - Pill Style */}
-          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4, overflowX: 'auto' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2, overflowX: 'auto' }}>
             <ToggleButtonGroup
               value={assetFilter}
               exclusive
@@ -153,6 +169,45 @@ export default function MarketsPage() {
               {ASSETS.map((asset) => (
                 <ToggleButton key={asset} value={asset}>
                   {asset}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+          </Box>
+
+          {/* Interval Filter - Pill Style */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4, overflowX: 'auto' }}>
+            <ToggleButtonGroup
+              value={intervalFilter}
+              exclusive
+              onChange={handleIntervalChange}
+              sx={{
+                backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: 50,
+                padding: '4px',
+                '& .MuiToggleButtonGroup-grouped': {
+                  border: 'none',
+                  borderRadius: '50px !important',
+                  mx: 0.5,
+                  px: { xs: 1.5, sm: 2.5 },
+                  py: 0.75,
+                  color: 'text.secondary',
+                  fontWeight: 400,
+                  fontSize: '0.85rem',
+                  transition: 'all 0.3s ease',
+                  '&.Mui-selected': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                    color: '#FFFFFF',
+                  },
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                  },
+                },
+              }}
+            >
+              {INTERVAL_OPTIONS.map((interval) => (
+                <ToggleButton key={interval} value={interval}>
+                  {INTERVAL_LABELS[interval]}
                 </ToggleButton>
               ))}
             </ToggleButtonGroup>
