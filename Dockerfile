@@ -8,6 +8,7 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 
 # Copy all package.json files
+COPY apps/web/package.json apps/web/package.json
 COPY apps/api/package.json apps/api/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/market-data/package.json packages/market-data/package.json
@@ -22,10 +23,10 @@ RUN pnpm --filter api db:generate
 
 # Copy source code
 COPY packages/ packages/
-COPY apps/api/ apps/api/
+COPY apps/ apps/
 
-# Build
-RUN pnpm --filter api... build
+# Build everything
+RUN pnpm run build
 
 FROM node:18-alpine AS runner
 
@@ -37,4 +38,5 @@ COPY --from=base /app ./
 
 EXPOSE 3000
 
-CMD ["pnpm", "--filter", "api", "start"]
+# SERVICE env var controls which app starts: "web" or "api"
+CMD sh -c "pnpm --filter ${SERVICE:-api} start"
