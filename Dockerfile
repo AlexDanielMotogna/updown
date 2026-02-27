@@ -4,7 +4,7 @@ RUN corepack enable && corepack prepare pnpm@8.10.0 --activate
 
 WORKDIR /app
 
-# Copy workspace config
+# Copy workspace and TypeScript config
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.json ./
 
 # Copy all package.json files
