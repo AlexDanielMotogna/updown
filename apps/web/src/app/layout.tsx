@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import { Providers } from './providers';
 
+export const dynamic = 'force-dynamic';
+
 const satoshi = localFont({
   src: '../../public/fonts/Satoshi-Variable.woff2',
   variable: '--font-satoshi',

@@ -25,15 +25,6 @@ RUN pnpm --filter api db:generate
 COPY packages/ packages/
 COPY apps/ apps/
 
-# Accept NEXT_PUBLIC env vars at build time for Next.js static generation
-ARG NEXT_PUBLIC_PRIVY_APP_ID
-ARG NEXT_PUBLIC_PRIVY_CLIENT_ID
-ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_SOLANA_RPC_URL
-ARG NEXT_PUBLIC_SOLANA_NETWORK
-ARG NEXT_PUBLIC_USDC_MINT
-ARG NEXT_PUBLIC_PROGRAM_ID
-
 # Build everything
 RUN pnpm run build
 
