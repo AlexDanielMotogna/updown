@@ -1,4 +1,5 @@
 [phases.setup]
+nixPkgs = ["nodejs_18"]
 cmds = ["corepack enable && corepack prepare pnpm@8.10.0 --activate"]
 
 [phases.install]
@@ -6,3 +7,6 @@ cmds = ["pnpm install --frozen-lockfile"]
 
 [phases.build]
 cmds = ["pnpm run build"]
+
+[start]
+cmd = "echo 'Set start command per service in Railway dashboard'"
