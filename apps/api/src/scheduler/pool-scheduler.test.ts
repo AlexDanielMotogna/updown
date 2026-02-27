@@ -16,6 +16,7 @@ const mockPrisma = {
   },
   eventLog: {
     create: vi.fn(),
+    deleteMany: vi.fn(),
   },
 };
 
@@ -152,10 +153,11 @@ describe('PoolScheduler', () => {
       expect(mockPrisma.pool.deleteMany).not.toHaveBeenCalled();
     });
 
-    it('should delete empty pools and their price snapshots', async () => {
+    it('should delete empty pools and their related data', async () => {
       const emptyPools = [{ id: 'pool-1' }, { id: 'pool-2' }];
       mockPrisma.pool.findMany.mockResolvedValue(emptyPools);
       mockPrisma.priceSnapshot.deleteMany.mockResolvedValue({ count: 4 });
+      mockPrisma.eventLog.deleteMany.mockResolvedValue({ count: 3 });
       mockPrisma.pool.deleteMany.mockResolvedValue({ count: 2 });
       mockPrisma.eventLog.create.mockResolvedValue({});
 
@@ -166,6 +168,9 @@ describe('PoolScheduler', () => {
       expect(count).toBe(2);
       expect(mockPrisma.priceSnapshot.deleteMany).toHaveBeenCalledWith({
         where: { poolId: { in: ['pool-1', 'pool-2'] } },
+      });
+      expect(mockPrisma.eventLog.deleteMany).toHaveBeenCalledWith({
+        where: { entityType: 'pool', entityId: { in: ['pool-1', 'pool-2'] } },
       });
       expect(mockPrisma.pool.deleteMany).toHaveBeenCalledWith({
         where: { id: { in: ['pool-1', 'pool-2'] } },

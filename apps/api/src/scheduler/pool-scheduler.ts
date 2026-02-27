@@ -383,6 +383,11 @@ export class PoolScheduler {
         where: { poolId: { in: ids } },
       });
 
+      // Delete related event logs
+      await prisma.eventLog.deleteMany({
+        where: { entityType: 'pool', entityId: { in: ids } },
+      });
+
       // Delete the empty pools
       await prisma.pool.deleteMany({
         where: { id: { in: ids } },
