@@ -56,7 +56,9 @@ describe('Transactions API', () => {
       id: VALID_POOL_ID,
       poolId: 'btc-hourly-123',
       asset: 'BTC',
-      status: 'JOINING',
+      interval: '1h',
+      durationSeconds: 3600,
+      status: 'JOINING' as const,
       startTime: new Date(Date.now() + 3600000),
       endTime: new Date(Date.now() + 7200000),
       lockTime: new Date(Date.now() + 3000000),
@@ -171,7 +173,9 @@ describe('Transactions API', () => {
       id: VALID_POOL_ID,
       poolId: 'btc-hourly-123',
       asset: 'BTC',
-      status: 'JOINING',
+      interval: '1h',
+      durationSeconds: 3600,
+      status: 'JOINING' as const,
       startTime: new Date(),
       endTime: new Date(),
       lockTime: new Date(),
@@ -202,6 +206,7 @@ describe('Transactions API', () => {
           poolId: VALID_POOL_ID,
           walletAddress: VALID_WALLET,
           txSignature: VALID_TX_SIG,
+          side: 'UP',
         });
 
       expect(res.status).toBe(404);
@@ -230,6 +235,7 @@ describe('Transactions API', () => {
           poolId: VALID_POOL_ID,
           walletAddress: VALID_WALLET,
           txSignature: VALID_TX_SIG,
+          side: 'UP',
         });
 
       expect(res.status).toBe(200);
@@ -242,7 +248,9 @@ describe('Transactions API', () => {
       id: VALID_POOL_ID,
       poolId: 'btc-hourly-123',
       asset: 'BTC',
-      status: 'CLAIMABLE',
+      interval: '1h',
+      durationSeconds: 3600,
+      status: 'CLAIMABLE' as const,
       startTime: new Date(),
       endTime: new Date(),
       lockTime: new Date(),
@@ -250,7 +258,7 @@ describe('Transactions API', () => {
       finalPrice: BigInt(51000_000000),
       totalUp: BigInt(1000_000000),
       totalDown: BigInt(500_000000),
-      winner: 'UP',
+      winner: 'UP' as const,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
