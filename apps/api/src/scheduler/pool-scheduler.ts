@@ -76,19 +76,26 @@ export class PoolScheduler {
       console.log(`[Scheduler] Scheduled ${template.asset} pool creation: ${template.cronExpression}`);
     }
 
-    // Schedule status transition job (runs every 15 seconds for faster transitions)
-    const transitionJob = cron.schedule('*/15 * * * * *', async () => {
+    // Schedule status transition job (runs every 5 seconds for 1m turbo pools)
+    const transitionJob = cron.schedule('*/5 * * * * *', async () => {
       await this.processStatusTransitions();
     });
     this.jobs.push(transitionJob);
-    console.log('[Scheduler] Scheduled status transition job: every 15 seconds');
+    console.log('[Scheduler] Scheduled status transition job: every 5 seconds');
 
-    // Schedule resolution job (runs every 15 seconds)
-    const resolveJob = cron.schedule('*/15 * * * * *', async () => {
+    // Schedule resolution job (runs every 5 seconds for 1m turbo pools)
+    const resolveJob = cron.schedule('*/5 * * * * *', async () => {
       await this.processResolutions();
     });
     this.jobs.push(resolveJob);
-    console.log('[Scheduler] Scheduled resolution job: every 15 seconds');
+    console.log('[Scheduler] Scheduled resolution job: every 5 seconds');
+
+    // Schedule cleanup job for empty pools (every hour at :30)
+    const cleanupJob = cron.schedule('30 * * * *', async () => {
+      await this.cleanupEmptyPools();
+    });
+    this.jobs.push(cleanupJob);
+    console.log('[Scheduler] Scheduled empty pool cleanup job: every hour at :30');
 
     this.isRunning = true;
     console.log('[Scheduler] Pool scheduler started successfully');
@@ -116,7 +123,7 @@ export class PoolScheduler {
 
     // Calculate timestamps
     const lockTime = now + template.joinWindowSeconds;
-    const startTime = lockTime + 60; // Start 1 minute after lock
+    const startTime = lockTime + template.lockBufferSeconds;
     const endTime = startTime + template.interval;
 
     console.log(`[Scheduler] Creating ${template.asset} pool...`);
@@ -156,6 +163,8 @@ export class PoolScheduler {
         data: {
           poolId: poolPda.toBase58(),
           asset: template.asset,
+          interval: template.intervalKey,
+          durationSeconds: template.interval,
           status: PoolStatus.UPCOMING,
           lockTime: new Date(lockTime * 1000),
           startTime: new Date(startTime * 1000),
@@ -181,6 +190,8 @@ export class PoolScheduler {
         id: pool.id,
         poolId: pool.poolId,
         asset: pool.asset,
+        interval: pool.interval,
+        durationSeconds: pool.durationSeconds,
         status: pool.status,
         startTime: pool.startTime.toISOString(),
         endTime: pool.endTime.toISOString(),
@@ -344,6 +355,53 @@ export class PoolScheduler {
   }
 
   /**
+   * Delete resolved/claimable pools that had zero participants.
+   * Removes related PriceSnapshots first, then the pool rows.
+   */
+  async cleanupEmptyPools(): Promise<number> {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+    try {
+      const emptyPools = await prisma.pool.findMany({
+        where: {
+          status: { in: [PoolStatus.RESOLVED, PoolStatus.CLAIMABLE] },
+          totalUp: BigInt(0),
+          totalDown: BigInt(0),
+          endTime: { lt: oneHourAgo },
+        },
+        select: { id: true },
+      });
+
+      if (emptyPools.length === 0) {
+        return 0;
+      }
+
+      const ids = emptyPools.map(p => p.id);
+
+      // Delete related price snapshots first (FK constraint)
+      await prisma.priceSnapshot.deleteMany({
+        where: { poolId: { in: ids } },
+      });
+
+      // Delete the empty pools
+      await prisma.pool.deleteMany({
+        where: { id: { in: ids } },
+      });
+
+      await this.logEvent('POOLS_CLEANUP', 'system', 'scheduler', {
+        deletedCount: ids.length.toString(),
+        poolIds: JSON.stringify(ids),
+      });
+
+      console.log(`[Scheduler] Cleaned up ${ids.length} empty pool(s)`);
+      return ids.length;
+    } catch (error) {
+      console.error('[Scheduler] Failed to cleanup empty pools:', error);
+      return 0;
+    }
+  }
+
+  /**
    * Resolve a pool: capture final price, determine winner, call program
    */
   private async resolvePool(pool: {
@@ -492,13 +550,17 @@ export class PoolScheduler {
   async createPoolManual(
     asset: string,
     intervalSeconds: number,
-    joinWindowSeconds: number
+    joinWindowSeconds: number,
+    intervalKey: string = '1h',
+    lockBufferSeconds: number = 60
   ): Promise<string | null> {
     return this.createPool({
       asset,
+      intervalKey,
       interval: intervalSeconds,
       cronExpression: '', // Not used for manual creation
       joinWindowSeconds,
+      lockBufferSeconds,
     });
   }
 
