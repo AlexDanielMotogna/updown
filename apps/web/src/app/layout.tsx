@@ -9,7 +9,7 @@ const satoshi = localFont({
 });
 
 export const metadata: Metadata = {
-  title: 'UpDown - Parimutuel Pools',
+  title: 'UpDown',
   description: 'Stake USDC on UP/DOWN price predictions',
 };
 
