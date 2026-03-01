@@ -46,7 +46,7 @@ export function PoolDistribution({ totalUp, totalDown, totalPool, betCount }: Po
           height: 10,
           borderRadius: 1,
           overflow: 'hidden',
-          backgroundColor: 'rgba(255, 82, 82, 0.3)',
+          backgroundColor: `${DOWN_COLOR}40`,
           mb: 3,
         }}
       >

@@ -462,7 +462,7 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
           width: isMobile ? 48 : 56,
           height: isMobile ? 48 : 56,
           borderRadius: '50%',
-          backgroundColor: '#141414',
+          backgroundColor: '#111820',
           border: `1px solid ${CYAN}33`,
           display: 'flex',
           alignItems: 'center',
@@ -494,7 +494,7 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
               height: 10,
               borderRadius: '50%',
               backgroundColor: CYAN,
-              border: '2px solid #141414',
+              border: '2px solid #111820',
             }}
           />
         )}
@@ -522,7 +522,7 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
         display: 'flex',
         flexDirection: 'column',
         borderRadius: isMobile ? '16px 16px 0 0' : 2,
-        backgroundColor: '#141414',
+        backgroundColor: '#111820',
         border: '1px solid rgba(255, 255, 255, 0.1)',
         boxShadow: `0 8px 32px rgba(0,0,0,0.6), 0 0 20px ${CYAN}11`,
         overflow: 'hidden',

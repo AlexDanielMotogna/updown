@@ -21,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={satoshi.variable} style={{ overflowY: 'scroll', background: '#0A0A0A' }}>
+    <html lang="en" className={satoshi.variable} style={{ overflowY: 'scroll', background: '#0B0F14' }}>
       <body style={{ margin: 0 }}>
         <Providers>{children}</Providers>
       </body>

@@ -5,6 +5,8 @@ import type { Side, PoolStatus } from '@prisma/client';
 
 export const betsRouter: RouterType = Router();
 
+const PLATFORM_FEE_BPS = 500; // 5% = 500 basis points
+
 // Query schema for bets listing
 const betsQuerySchema = z.object({
   wallet: z.string().min(32).max(44),
@@ -48,7 +50,9 @@ function serializeBet(bet: {
     const winnerPool = bet.side === 'UP' ? bet.pool.totalUp : bet.pool.totalDown;
     if (winnerPool > 0n) {
       const share = Number(bet.amount) / Number(winnerPool);
-      payout = Math.floor(share * Number(totalPool)).toString();
+      const grossPayout = Math.floor(share * Number(totalPool));
+      const fee = Math.floor((grossPayout * PLATFORM_FEE_BPS) / 10000);
+      payout = (grossPayout - fee).toString();
     }
   }
 
@@ -203,7 +207,9 @@ betsRouter.get('/claimable', async (req, res) => {
       const winnerPool = bet.side === 'UP' ? bet.pool.totalUp : bet.pool.totalDown;
       if (winnerPool > 0n) {
         const share = Number(bet.amount) / Number(winnerPool);
-        return sum + BigInt(Math.floor(share * Number(totalPool)));
+        const grossPayout = BigInt(Math.floor(share * Number(totalPool)));
+        const fee = (grossPayout * BigInt(PLATFORM_FEE_BPS)) / 10000n;
+        return sum + (grossPayout - fee);
       }
       return sum;
     }, 0n);

@@ -16,3 +16,6 @@ export { PoolTimeline } from './PoolTimeline';
 export { PoolDistribution } from './PoolDistribution';
 export { OddsDisplay } from './OddsDisplay';
 export { OrderbookDepth } from './OrderbookDepth';
+export { PoolTable } from './PoolTable';
+export { LiveResultsSidebar } from './LiveResultsSidebar';
+export { AssetIcon } from './AssetIcon';

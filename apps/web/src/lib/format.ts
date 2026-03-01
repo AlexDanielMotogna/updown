@@ -61,19 +61,19 @@ export const statusStyles: Record<string, { bgcolor: string; color: string }> = 
     color: 'rgba(255, 255, 255, 0.4)',
   },
   JOINING: {
-    bgcolor: 'rgba(255, 255, 255, 0.08)',
-    color: 'rgba(255, 255, 255, 0.7)',
+    bgcolor: 'rgba(74, 222, 128, 0.10)',
+    color: '#4ADE80',
   },
   ACTIVE: {
-    bgcolor: 'rgba(255, 255, 255, 0.1)',
-    color: '#FFFFFF',
+    bgcolor: 'rgba(245, 158, 11, 0.10)',
+    color: '#FBBF24',
   },
   RESOLVED: {
     bgcolor: 'rgba(255, 255, 255, 0.05)',
     color: 'rgba(255, 255, 255, 0.4)',
   },
   CLAIMABLE: {
-    bgcolor: 'rgba(0, 229, 255, 0.1)',
-    color: '#00E5FF',
+    bgcolor: 'rgba(34, 197, 94, 0.12)',
+    color: '#22C55E',
   },
 };

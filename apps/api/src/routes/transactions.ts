@@ -12,6 +12,8 @@ import {
 
 export const transactionsRouter: RouterType = Router();
 
+const PLATFORM_FEE_BPS = 500; // 5% = 500 basis points
+
 // Solana connection
 const RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 const connection = new Connection(RPC_URL, 'confirmed');
@@ -512,9 +514,11 @@ transactionsRouter.post('/claim', async (req, res) => {
     // Calculate expected payout
     const totalPool = pool.totalUp + pool.totalDown;
     const winnerPool = bet.side === 'UP' ? pool.totalUp : pool.totalDown;
-    const payout = winnerPool > 0n
+    const grossPayout = winnerPool > 0n
       ? (bet.amount * totalPool) / winnerPool
       : 0n;
+    const fee = (grossPayout * BigInt(PLATFORM_FEE_BPS)) / 10000n;
+    const payout = grossPayout - fee;
 
     res.json({
       success: true,
@@ -635,9 +639,11 @@ transactionsRouter.post('/confirm-claim', async (req, res) => {
     const pool = bet.pool;
     const totalPool = pool.totalUp + pool.totalDown;
     const winnerPool = bet.side === 'UP' ? pool.totalUp : pool.totalDown;
-    const payout = winnerPool > 0n
+    const grossPayout = winnerPool > 0n
       ? (bet.amount * totalPool) / winnerPool
       : 0n;
+    const fee = (grossPayout * BigInt(PLATFORM_FEE_BPS)) / 10000n;
+    const payout = grossPayout - fee;
 
     // Update bet as claimed
     await prisma.bet.update({
@@ -761,7 +767,9 @@ transactionsRouter.post('/execute-claim', async (req, res) => {
     // Calculate payout
     const totalPool = pool.totalUp + pool.totalDown;
     const winnerPool = bet.side === 'UP' ? pool.totalUp : pool.totalDown;
-    const payout = winnerPool > 0n ? (bet.amount * totalPool) / winnerPool : 0n;
+    const grossPayout = winnerPool > 0n ? (bet.amount * totalPool) / winnerPool : 0n;
+    const fee = (grossPayout * BigInt(PLATFORM_FEE_BPS)) / 10000n;
+    const payout = grossPayout - fee;
 
     if (payout === 0n) {
       return res.status(400).json({

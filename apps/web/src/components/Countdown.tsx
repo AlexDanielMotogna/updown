@@ -64,6 +64,7 @@ export function Countdown({ targetDate, label, onComplete, compact = false }: Co
 
   const isExpired = timeLeft.total <= 0;
   const isUrgent = timeLeft.total > 0 && timeLeft.total < 5 * 60 * 1000;
+  const isCritical = timeLeft.total > 0 && timeLeft.total < 60 * 1000;
 
   const timeUnits = [
     { value: timeLeft.days, label: 'DAYS', show: timeLeft.days > 0 },
@@ -88,7 +89,7 @@ export function Countdown({ targetDate, label, onComplete, compact = false }: Co
             fontVariantNumeric: 'tabular-nums',
             fontSize: '1.1rem',
             fontWeight: 500,
-            color: isExpired ? 'text.disabled' : isUrgent ? '#F59E0B' : 'text.primary',
+            color: isExpired ? 'text.disabled' : isCritical ? '#EF4444' : isUrgent ? '#F59E0B' : 'text.primary',
           }}
         >
           {isExpired ? (
@@ -139,12 +140,20 @@ export function Countdown({ targetDate, label, onComplete, compact = false }: Co
               }}
             >
               <Typography
+                key={unit.value}
                 sx={{
                   fontVariantNumeric: 'tabular-nums',
                   fontSize: { xs: '1.2rem', sm: '1.5rem' },
                   fontWeight: 400,
-                  color: isUrgent ? '#F59E0B' : 'text.primary',
+                  color: isCritical ? '#EF4444' : isUrgent ? '#F59E0B' : 'text.primary',
                   lineHeight: 1,
+                  ...(isCritical && {
+                    animation: 'countdownPulse 1s infinite',
+                    '@keyframes countdownPulse': {
+                      '0%, 100%': { transform: 'scale(1)' },
+                      '50%': { transform: 'scale(1.02)' },
+                    },
+                  }),
                 }}
               >
                 {unit.value.toString().padStart(2, '0')}

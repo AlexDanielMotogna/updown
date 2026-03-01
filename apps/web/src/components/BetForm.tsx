@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -23,21 +23,27 @@ import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import type { PoolDetail } from '@/lib/api';
 import { USDC_DIVISOR } from '@/lib/format';
+import { UP_COLOR, DOWN_COLOR, GAIN_COLOR } from '@/lib/constants';
 
 interface BetFormProps {
   pool: PoolDetail;
   onSubmit: (side: 'UP' | 'DOWN', amount: number) => void;
   isSubmitting?: boolean;
   error?: string;
+  initialSide?: 'UP' | 'DOWN';
 }
 
 const PRESET_AMOUNTS = [10, 50, 100, 500];
 
-export function BetForm({ pool, onSubmit, isSubmitting, error }: BetFormProps) {
+export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide }: BetFormProps) {
   const { connected } = useWalletBridge();
   const { data: balance } = useUsdcBalance();
-  const [side, setSide] = useState<'UP' | 'DOWN'>('UP');
+  const [side, setSide] = useState<'UP' | 'DOWN'>(initialSide || 'UP');
   const [amount, setAmount] = useState<string>('');
+
+  useEffect(() => {
+    if (initialSide) setSide(initialSide);
+  }, [initialSide]);
 
   const handleSideChange = (_: React.MouseEvent, newSide: 'UP' | 'DOWN' | null) => {
     if (newSide) {
@@ -73,11 +79,14 @@ export function BetForm({ pool, onSubmit, isSubmitting, error }: BetFormProps) {
   const totalDown = Number(pool.totalDown) / USDC_DIVISOR;
   const newTotalSide = side === 'UP' ? totalUp + amountNum : totalDown + amountNum;
   const newTotal = totalUp + totalDown + amountNum;
-  const potentialPayout = newTotalSide > 0 ? (amountNum / newTotalSide) * newTotal : 0;
+  const grossPayout = newTotalSide > 0 ? (amountNum / newTotalSide) * newTotal : 0;
+  const potentialPayout = grossPayout * 0.95;
   const potentialOdds = amountNum > 0 ? potentialPayout / amountNum : 0;
 
   const currentOddsUp = totalUp + totalDown > 0 ? (totalUp + totalDown) / (totalUp || 1) : 2;
   const currentOddsDown = totalUp + totalDown > 0 ? (totalUp + totalDown) / (totalDown || 1) : 2;
+
+  const sideColor = side === 'UP' ? UP_COLOR : DOWN_COLOR;
 
   return (
     <Box component="form" onSubmit={handleSubmit}>
@@ -111,16 +120,17 @@ export function BetForm({ pool, onSubmit, isSubmitting, error }: BetFormProps) {
             gap: 0.5,
             transition: 'all 0.3s ease',
             '&.Mui-selected': {
-              background: 'rgba(0, 229, 255, 0.08)',
-              borderColor: '#00E5FF !important',
+              background: `${UP_COLOR}14`,
+              borderColor: `${UP_COLOR} !important`,
+              boxShadow: `0 0 20px ${UP_COLOR}20`,
               '&:hover': {
-                background: 'rgba(0, 229, 255, 0.12)',
+                background: `${UP_COLOR}1F`,
               },
             },
           }}
         >
-          <TrendingUp sx={{ fontSize: 28, color: side === 'UP' ? '#00E5FF' : 'text.secondary' }} />
-          <Typography variant="h6" sx={{ color: side === 'UP' ? '#00E5FF' : 'text.primary' }}>
+          <TrendingUp sx={{ fontSize: 28, color: side === 'UP' ? UP_COLOR : 'text.secondary' }} />
+          <Typography variant="h6" sx={{ color: side === 'UP' ? UP_COLOR : 'text.primary' }}>
             UP
           </Typography>
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -136,16 +146,17 @@ export function BetForm({ pool, onSubmit, isSubmitting, error }: BetFormProps) {
             gap: 0.5,
             transition: 'all 0.3s ease',
             '&.Mui-selected': {
-              background: 'rgba(255, 82, 82, 0.08)',
-              borderColor: '#FF5252 !important',
+              background: `${DOWN_COLOR}14`,
+              borderColor: `${DOWN_COLOR} !important`,
+              boxShadow: `0 0 20px ${DOWN_COLOR}20`,
               '&:hover': {
-                background: 'rgba(255, 82, 82, 0.12)',
+                background: `${DOWN_COLOR}1F`,
               },
             },
           }}
         >
-          <TrendingDown sx={{ fontSize: 28, color: side === 'DOWN' ? '#FF5252' : 'text.secondary' }} />
-          <Typography variant="h6" sx={{ color: side === 'DOWN' ? '#FF5252' : 'text.primary' }}>
+          <TrendingDown sx={{ fontSize: 28, color: side === 'DOWN' ? DOWN_COLOR : 'text.secondary' }} />
+          <Typography variant="h6" sx={{ color: side === 'DOWN' ? DOWN_COLOR : 'text.primary' }}>
             DOWN
           </Typography>
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -213,9 +224,9 @@ export function BetForm({ pool, onSubmit, isSubmitting, error }: BetFormProps) {
               fontWeight: 400,
               transition: 'all 0.2s ease',
               '&:hover': {
-                borderColor: 'rgba(255, 255, 255, 0.3)',
-                color: '#FFFFFF',
-                backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                borderColor: `${UP_COLOR}60`,
+                color: UP_COLOR,
+                backgroundColor: `${UP_COLOR}08`,
               },
             }}
           >
@@ -231,8 +242,8 @@ export function BetForm({ pool, onSubmit, isSubmitting, error }: BetFormProps) {
             p: { xs: 2, sm: 2.5 },
             mb: 3,
             borderRadius: 1,
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
+            background: `${GAIN_COLOR}08`,
+            border: `1px solid ${GAIN_COLOR}20`,
           }}
         >
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
@@ -247,7 +258,7 @@ export function BetForm({ pool, onSubmit, isSubmitting, error }: BetFormProps) {
             <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 300 }}>
               Potential Odds
             </Typography>
-            <Typography variant="body2" sx={{ color: side === 'UP' ? '#00E5FF' : '#FF5252', fontWeight: 500 }}>
+            <Typography variant="body2" sx={{ color: sideColor, fontWeight: 500 }}>
               {potentialOdds.toFixed(2)}x
             </Typography>
           </Box>
@@ -255,10 +266,13 @@ export function BetForm({ pool, onSubmit, isSubmitting, error }: BetFormProps) {
             <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 300 }}>
               Potential Payout
             </Typography>
-            <Typography variant="body2" sx={{ fontWeight: 600, color: '#00E5FF' }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: GAIN_COLOR }}>
               ${potentialPayout.toFixed(2)} USDC
             </Typography>
           </Box>
+          <Typography variant="caption" sx={{ color: 'text.secondary', mt: 1.5, display: 'block', textAlign: 'right', fontWeight: 300 }}>
+            Includes 5% platform fee
+          </Typography>
         </Box>
       )}
 
@@ -268,8 +282,8 @@ export function BetForm({ pool, onSubmit, isSubmitting, error }: BetFormProps) {
           severity="error"
           sx={{
             mb: 3,
-            backgroundColor: 'rgba(255, 82, 82, 0.1)',
-            border: '1px solid rgba(255, 82, 82, 0.3)',
+            backgroundColor: `${DOWN_COLOR}15`,
+            border: `1px solid ${DOWN_COLOR}40`,
             borderRadius: 1,
           }}
         >
@@ -284,16 +298,8 @@ export function BetForm({ pool, onSubmit, isSubmitting, error }: BetFormProps) {
             p: 2,
             mb: 3,
             borderRadius: 1,
-            background: pool.status === 'UPCOMING'
-              ? 'rgba(255, 255, 255, 0.03)'
-              : pool.status === 'ACTIVE'
-              ? 'rgba(255, 255, 255, 0.05)'
-              : 'rgba(255, 255, 255, 0.05)',
-            border: pool.status === 'UPCOMING'
-              ? '1px solid rgba(255, 255, 255, 0.1)'
-              : pool.status === 'ACTIVE'
-              ? '1px solid rgba(255, 255, 255, 0.1)'
-              : '1px solid rgba(255, 255, 255, 0.1)',
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
             textAlign: 'center',
           }}
         >
@@ -326,8 +332,8 @@ export function BetForm({ pool, onSubmit, isSubmitting, error }: BetFormProps) {
             )}
             {pool.status === 'CLAIMABLE' && (
               <>
-                <AccountBalanceWallet sx={{ fontSize: 18 }} />
-                <Typography variant="body2" sx={{ fontWeight: 500 }}>Check Portfolio to claim winnings</Typography>
+                <AccountBalanceWallet sx={{ fontSize: 18, color: GAIN_COLOR }} />
+                <Typography variant="body2" sx={{ fontWeight: 500, color: GAIN_COLOR }}>Check Portfolio to claim winnings</Typography>
               </>
             )}
           </Box>
@@ -346,15 +352,30 @@ export function BetForm({ pool, onSubmit, isSubmitting, error }: BetFormProps) {
           fontSize: '1rem',
           fontWeight: 600,
           letterSpacing: '0.02em',
-          background: side === 'UP' ? '#00E5FF' : '#FF5252',
-          color: side === 'UP' ? '#000' : '#FFF',
+          background: side === 'UP'
+            ? `linear-gradient(135deg, ${UP_COLOR}, #16A34A)`
+            : `linear-gradient(135deg, ${DOWN_COLOR}, #DC2626)`,
+          color: '#000',
           '&:hover': {
-            background: side === 'UP' ? 'rgba(0, 229, 255, 0.85)' : 'rgba(255, 82, 82, 0.85)',
+            background: side === 'UP'
+              ? `linear-gradient(135deg, ${UP_COLOR}DD, #16A34ADD)`
+              : `linear-gradient(135deg, ${DOWN_COLOR}DD, #DC2626DD)`,
           },
           '&:disabled': {
             background: 'rgba(255, 255, 255, 0.1)',
             color: 'rgba(255, 255, 255, 0.3)',
           },
+          ...(canBet && {
+            animation: 'submitPulse 2s infinite',
+            '@keyframes submitPulse': {
+              '0%, 100%': {
+                boxShadow: `0 0 0 0 ${sideColor}40`,
+              },
+              '50%': {
+                boxShadow: `0 0 0 8px ${sideColor}00`,
+              },
+            },
+          }),
         }}
       >
         {!connected

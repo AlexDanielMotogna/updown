@@ -18,6 +18,7 @@ import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useInfiniteBets, useClaimableBets, useClaim, useIntersectionObserver } from '@/hooks';
 import { BetCard, BetCardSkeleton, TransactionModal, Header, ConnectWalletButton } from '@/components';
 import { formatUSDC } from '@/lib/format';
+import { GAIN_COLOR, UP_COLOR } from '@/lib/constants';
 
 export default function MyBetsPage() {
   const { connected } = useWalletBridge();
@@ -117,7 +118,7 @@ export default function MyBetsPage() {
         {!connected ? (
           <Card
             sx={{
-              background: '#141414',
+              background: '#111820',
               border: '1px solid rgba(255, 255, 255, 0.08)',
             }}
           >
@@ -138,8 +139,8 @@ export default function MyBetsPage() {
               <Card
                 sx={{
                   mb: 5,
-                  background: 'rgba(0, 229, 255, 0.06)',
-                  border: '1px solid rgba(0, 229, 255, 0.15)',
+                  background: `${GAIN_COLOR}0F`,
+                  border: `1px solid ${GAIN_COLOR}30`,
                 }}
               >
                 <CardContent sx={{ py: 3 }}>
@@ -163,13 +164,13 @@ export default function MyBetsPage() {
                       onClick={handleClaimAll}
                       disabled={claimAllProgress !== null}
                       sx={{
-                        background: '#FFFFFF',
-                        color: '#0A0A0A',
+                        background: `linear-gradient(135deg, ${GAIN_COLOR}, #16A34A)`,
+                        color: '#000',
                         fontWeight: 600,
                         px: 4,
                         py: 1.5,
                         '&:hover': {
-                          background: 'rgba(255, 255, 255, 0.9)',
+                          background: `linear-gradient(135deg, ${GAIN_COLOR}DD, #16A34ADD)`,
                         },
                         '&:disabled': {
                           background: 'rgba(255, 255, 255, 0.2)',
@@ -198,7 +199,7 @@ export default function MyBetsPage() {
                 onChange={handleTabChange}
                 sx={{
                   '& .MuiTabs-indicator': {
-                    backgroundColor: '#FFFFFF',
+                    backgroundColor: UP_COLOR,
                     height: 2,
                   },
                   '& .MuiTab-root': {

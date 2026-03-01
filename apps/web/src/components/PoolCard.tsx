@@ -5,7 +5,9 @@ import { TrendingUp, TrendingDown } from '@mui/icons-material';
 import Link from 'next/link';
 import type { Pool } from '@/lib/api';
 import { formatUSDC, formatPrice, formatDateTime, formatTime, statusStyles, USDC_DIVISOR } from '@/lib/format';
+import { UP_COLOR, DOWN_COLOR } from '@/lib/constants';
 import { Countdown } from './Countdown';
+import { AssetIcon } from './AssetIcon';
 
 const INTERVAL_BADGE_COLORS: Record<string, { bg: string; color: string }> = {
   '1m': { bg: 'rgba(255, 152, 0, 0.15)', color: '#FFB74D' },
@@ -54,7 +56,7 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
           cursor: 'pointer',
           position: 'relative',
           overflow: 'hidden',
-          background: '#141414',
+          background: '#111820',
           border: '1px solid rgba(255, 255, 255, 0.08)',
           transition: 'all 0.2s ease',
           height: '100%',
@@ -70,6 +72,7 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <AssetIcon asset={pool.asset} size={24} />
                 <Typography
                   variant="h5"
                   sx={{
@@ -196,8 +199,8 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
           <Box sx={{ mb: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <TrendingUp sx={{ fontSize: 18, color: '#00E5FF' }} />
-                <Typography variant="body2" sx={{ color: '#00E5FF', fontWeight: 500 }}>
+                <TrendingUp sx={{ fontSize: 18, color: UP_COLOR }} />
+                <Typography variant="body2" sx={{ color: UP_COLOR, fontWeight: 500 }}>
                   {formatUSDC(pool.totalUp)}
                 </Typography>
                 <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
@@ -208,10 +211,10 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
                 <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
                   ({pool.downCount})
                 </Typography>
-                <Typography variant="body2" sx={{ color: '#FF5252', fontWeight: 500 }}>
+                <Typography variant="body2" sx={{ color: DOWN_COLOR, fontWeight: 500 }}>
                   {formatUSDC(pool.totalDown)}
                 </Typography>
-                <TrendingDown sx={{ fontSize: 18, color: '#FF5252' }} />
+                <TrendingDown sx={{ fontSize: 18, color: DOWN_COLOR }} />
               </Box>
             </Box>
 
@@ -222,7 +225,7 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
                 height: 6,
                 borderRadius: 1,
                 overflow: 'hidden',
-                backgroundColor: 'rgba(255, 82, 82, 0.3)',
+                backgroundColor: `${DOWN_COLOR}40`,
               }}
             >
               <Box
@@ -232,7 +235,7 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
                   left: 0,
                   height: '100%',
                   width: `${upPercentage}%`,
-                  background: '#00E5FF',
+                  background: UP_COLOR,
                   borderRadius: 1,
                   transition: 'width 0.5s ease',
                 }}
@@ -270,11 +273,11 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
                 p: 1.5,
                 borderRadius: 1,
                 background: pool.winner === 'UP'
-                  ? 'rgba(0, 229, 255, 0.08)'
-                  : 'rgba(255, 82, 82, 0.08)',
+                  ? `${UP_COLOR}14`
+                  : `${DOWN_COLOR}14`,
                 border: pool.winner === 'UP'
-                  ? '1px solid rgba(0, 229, 255, 0.2)'
-                  : '1px solid rgba(255, 82, 82, 0.2)',
+                  ? `1px solid ${UP_COLOR}33`
+                  : `1px solid ${DOWN_COLOR}33`,
                 textAlign: 'center',
                 display: 'flex',
                 alignItems: 'center',
@@ -283,15 +286,15 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
               }}
             >
               {pool.winner === 'UP' ? (
-                <TrendingUp sx={{ fontSize: 18, color: '#00E5FF' }} />
+                <TrendingUp sx={{ fontSize: 18, color: UP_COLOR }} />
               ) : (
-                <TrendingDown sx={{ fontSize: 18, color: '#FF5252' }} />
+                <TrendingDown sx={{ fontSize: 18, color: DOWN_COLOR }} />
               )}
               <Typography
                 variant="body2"
                 sx={{
                   fontWeight: 600,
-                  color: pool.winner === 'UP' ? '#00E5FF' : '#FF5252',
+                  color: pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR,
                 }}
               >
                 {pool.winner} WINS
@@ -336,21 +339,21 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 {userBet.side === 'UP' ? (
-                  <TrendingUp sx={{ fontSize: 16, color: '#00E5FF' }} />
+                  <TrendingUp sx={{ fontSize: 16, color: UP_COLOR }} />
                 ) : (
-                  <TrendingDown sx={{ fontSize: 16, color: '#FF5252' }} />
+                  <TrendingDown sx={{ fontSize: 16, color: DOWN_COLOR }} />
                 )}
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                   You predicted {userBet.side}
                 </Typography>
               </Box>
               {userBet.isWinner === true && (
-                <Typography variant="body2" sx={{ fontWeight: 600, color: '#00E5FF' }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: UP_COLOR }}>
                   WON
                 </Typography>
               )}
               {userBet.isWinner === false && (
-                <Typography variant="body2" sx={{ fontWeight: 600, color: '#FF5252' }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: DOWN_COLOR }}>
                   LOST
                 </Typography>
               )}

@@ -5,6 +5,8 @@ import { TrendingUp, TrendingDown, OpenInNew } from '@mui/icons-material';
 import Link from 'next/link';
 import type { Bet } from '@/lib/api';
 import { formatUSDC, formatDate, formatPrice, formatDateTime, getExplorerTxUrl, statusStyles, USDC_DIVISOR } from '@/lib/format';
+import { UP_COLOR, DOWN_COLOR, GAIN_COLOR } from '@/lib/constants';
+import { AssetIcon } from './AssetIcon';
 
 interface BetCardProps {
   bet: Bet;
@@ -23,14 +25,15 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
     <Card
       sx={{
         overflow: 'hidden',
-        background: '#141414',
+        background: '#111820',
         border: '1px solid rgba(255, 255, 255, 0.08)',
       }}
     >
       <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <AssetIcon asset={bet.pool.asset} size={22} />
             <Link href={`/pool/${bet.pool.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
               <Typography variant="h6" sx={{ fontWeight: 500, '&:hover': { color: 'rgba(255, 255, 255, 0.7)' }, transition: 'color 0.2s ease' }}>
                 {bet.pool.asset}/USD
@@ -53,8 +56,8 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
               label={bet.side}
               size="small"
               sx={{
-                bgcolor: bet.side === 'UP' ? 'rgba(0, 229, 255, 0.1)' : 'rgba(255, 82, 82, 0.1)',
-                color: bet.side === 'UP' ? '#00E5FF' : '#FF5252',
+                bgcolor: bet.side === 'UP' ? `${UP_COLOR}18` : `${DOWN_COLOR}18`,
+                color: bet.side === 'UP' ? UP_COLOR : DOWN_COLOR,
                 fontWeight: 500,
                 fontSize: '0.7rem',
                 '& .MuiChip-icon': { color: 'inherit' },
@@ -65,8 +68,8 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
                 label="Won"
                 size="small"
                 sx={{
-                  bgcolor: 'rgba(0, 229, 255, 0.1)',
-                  color: '#00E5FF',
+                  bgcolor: `${GAIN_COLOR}18`,
+                  color: GAIN_COLOR,
                   fontWeight: 500,
                   fontSize: '0.7rem',
                 }}
@@ -115,13 +118,12 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 Payout
               </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#00E5FF' }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: GAIN_COLOR }}>
                 {formatUSDC(bet.payoutAmount!, { min: 2 })}
               </Typography>
             </Box>
           )}
 
-          {/* Strike price — shown for active pools once available */}
           {bet.pool.strikePrice && !bet.pool.finalPrice && (
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
@@ -133,7 +135,6 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
             </Box>
           )}
 
-          {/* Strike → Final price — shown for resolved pools */}
           {bet.pool.strikePrice && bet.pool.finalPrice && (
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
@@ -143,7 +144,7 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
                 variant="body2"
                 sx={{
                   fontWeight: 500,
-                  color: bet.pool.winner === 'UP' ? '#00E5FF' : '#FF5252',
+                  color: bet.pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR,
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
@@ -230,10 +231,10 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
               mt: 2.5,
               py: 1.5,
               fontWeight: 600,
-              background: '#FFFFFF',
-              color: '#0A0A0A',
+              background: `linear-gradient(135deg, ${GAIN_COLOR}, #16A34A)`,
+              color: '#000',
               '&:hover': {
-                background: 'rgba(255, 255, 255, 0.9)',
+                background: `linear-gradient(135deg, ${GAIN_COLOR}DD, #16A34ADD)`,
               },
               '&:disabled': {
                 background: 'rgba(255, 255, 255, 0.2)',

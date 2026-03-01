@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { ConnectWalletButton } from './ConnectWalletButton';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
+import { UP_COLOR, GAIN_COLOR } from '@/lib/constants';
 
 const NAV_ITEMS = [
   { label: 'Markets', href: '/', icon: ShowChart },
@@ -37,7 +38,7 @@ export function Header() {
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        backgroundColor: '#0A0A0A',
+        backgroundColor: '#0B0F14',
         borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
       }}
     >
@@ -63,10 +64,10 @@ export function Header() {
               display: 'flex',
             }}
           >
-            <Box component="span" sx={{ color: '#FFFFFF' }}>
+            <Box component="span" sx={{ color: UP_COLOR }}>
               Up
             </Box>
-            <Box component="span" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+            <Box component="span" sx={{ color: 'rgba(255, 255, 255, 0.4)' }}>
               Down
             </Box>
           </Typography>
@@ -91,7 +92,7 @@ export function Header() {
                   sx={{
                     color: active ? '#FFFFFF' : 'text.secondary',
                     px: 2,
-                    borderBottom: active ? '2px solid #FFFFFF' : '2px solid transparent',
+                    borderBottom: active ? `2px solid ${UP_COLOR}` : '2px solid transparent',
                     borderRadius: 0,
                     '&:hover': {
                       color: '#FFFFFF',
@@ -115,12 +116,12 @@ export function Header() {
               size="small"
               sx={{
                 display: { xs: 'none', sm: 'flex' },
-                bgcolor: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                color: 'text.primary',
-                fontWeight: 400,
+                bgcolor: `${GAIN_COLOR}12`,
+                border: `1px solid ${GAIN_COLOR}30`,
+                color: GAIN_COLOR,
+                fontWeight: 500,
                 fontSize: '0.8rem',
-                '& .MuiChip-icon': { color: '#FFFFFF' },
+                '& .MuiChip-icon': { color: GAIN_COLOR },
               }}
             />
           )}
@@ -137,7 +138,7 @@ export function Header() {
           left: 0,
           right: 0,
           zIndex: 100,
-          backgroundColor: '#0A0A0A',
+          backgroundColor: '#0B0F14',
           borderTop: '1px solid rgba(255, 255, 255, 0.08)',
           justifyContent: 'space-around',
           px: 1,

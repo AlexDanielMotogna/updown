@@ -5,7 +5,7 @@ export function PoolCardSkeleton() {
     <Card
       sx={{
         overflow: 'hidden',
-        background: '#141414',
+        background: '#111820',
         border: '1px solid rgba(255, 255, 255, 0.08)',
         height: '100%',
         display: 'flex',

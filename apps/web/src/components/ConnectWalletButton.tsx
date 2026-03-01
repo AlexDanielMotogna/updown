@@ -2,6 +2,7 @@
 
 import { Avatar, Button } from '@mui/material';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
+import { UP_COLOR } from '@/lib/constants';
 
 interface ConnectWalletButtonProps {
   variant?: 'header' | 'page';
@@ -30,14 +31,14 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
           px: isPage ? 3 : 2.5,
           fontSize: '0.875rem',
           fontWeight: 500,
-          backgroundColor: 'rgba(255, 255, 255, 0.05)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
+          backgroundColor: `${UP_COLOR}10`,
+          border: `1px solid ${UP_COLOR}30`,
           borderRadius: '8px',
-          color: 'text.primary',
+          color: UP_COLOR,
           transition: 'all 0.2s ease',
           '&:hover': {
-            backgroundColor: 'rgba(255, 255, 255, 0.08)',
-            borderColor: 'rgba(255, 255, 255, 0.2)',
+            backgroundColor: `${UP_COLOR}1A`,
+            borderColor: `${UP_COLOR}50`,
           },
         }}
       >

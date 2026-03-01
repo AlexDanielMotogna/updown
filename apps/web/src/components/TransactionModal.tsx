@@ -41,9 +41,22 @@ function StatusIcon({ status }: { status: TransactionStatus }) {
     case 'confirming':
       return <CircularProgress size={56} sx={{ color: '#FFFFFF' }} />;
     case 'success':
-      return <CheckCircle sx={{ ...iconSx, color: '#4CAF50' }} />;
+      return (
+        <CheckCircle
+          sx={{
+            ...iconSx,
+            color: '#22C55E',
+            animation: 'successPop 0.4s ease-out',
+            '@keyframes successPop': {
+              '0%': { transform: 'scale(0.5)', opacity: 0 },
+              '70%': { transform: 'scale(1.2)' },
+              '100%': { transform: 'scale(1)', opacity: 1 },
+            },
+          }}
+        />
+      );
     case 'error':
-      return <ErrorIcon sx={{ ...iconSx, color: '#FF5252' }} />;
+      return <ErrorIcon sx={{ ...iconSx, color: '#F87171' }} />;
     default:
       return null;
   }
@@ -86,7 +99,7 @@ export function TransactionModal({
       fullWidth
       PaperProps={{
         sx: {
-          background: '#141414',
+          background: '#111820',
           border: '1px solid rgba(255, 255, 255, 0.08)',
           borderRadius: 1,
           maxWidth: { xs: '95vw', sm: 440 },
@@ -191,12 +204,12 @@ export function TransactionModal({
             sx={{
               px: 4,
               background: status === 'success'
-                ? '#4CAF50'
+                ? 'linear-gradient(135deg, #22C55E, #16A34A)'
                 : 'rgba(255, 255, 255, 0.1)',
-              color: status === 'success' ? '#fff' : 'text.primary',
+              color: status === 'success' ? '#000' : 'text.primary',
               '&:hover': {
                 background: status === 'success'
-                  ? 'rgba(76, 175, 80, 0.85)'
+                  ? 'linear-gradient(135deg, #22C55EDD, #16A34ADD)'
                   : 'rgba(255, 255, 255, 0.15)',
               },
             }}

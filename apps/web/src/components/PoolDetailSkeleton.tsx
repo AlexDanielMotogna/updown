@@ -6,7 +6,7 @@ export function PoolDetailSkeleton() {
       {/* Pool info card */}
       <Card
         sx={{
-          background: '#141414',
+          background: '#111820',
           border: '1px solid rgba(255, 255, 255, 0.08)',
         }}
       >
@@ -77,7 +77,7 @@ export function BetFormSkeleton() {
   return (
     <Card
       sx={{
-        background: '#141414',
+        background: '#111820',
         border: '1px solid rgba(255, 255, 255, 0.08)',
       }}
     >

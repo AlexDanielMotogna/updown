@@ -84,6 +84,10 @@ poolsRouter.get('/', async (req, res) => {
     }
     if (status) {
       where.status = status;
+      // Hide expired UPCOMING pools whose start time has already passed
+      if (status === 'UPCOMING') {
+        where.startTime = { gt: new Date() };
+      }
     }
 
     // Execute queries in parallel

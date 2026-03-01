@@ -219,7 +219,7 @@ function LineChart({ candles, duration }: ChartProps) {
         {hoverData && (
           <>
             <line x1={hoverData.x} x2={hoverData.x} y1={PADDING.top} y2={PADDING.top + chartH} stroke="rgba(255,255,255,0.2)" strokeWidth={1} strokeDasharray="3,3" />
-            <circle cx={hoverData.x} cy={hoverData.y} r={4} fill={lineColor} stroke="#141414" strokeWidth={2} />
+            <circle cx={hoverData.x} cy={hoverData.y} r={4} fill={lineColor} stroke="#111820" strokeWidth={2} />
           </>
         )}
       </svg>
@@ -355,7 +355,7 @@ export function PriceChartDialog({ open, onClose, asset }: PriceChartDialogProps
       }}
       PaperProps={{
         sx: {
-          bgcolor: '#141414',
+          bgcolor: '#111820',
           border: { xs: 'none', sm: '1px solid rgba(255, 255, 255, 0.08)' },
           borderRadius: { xs: 0, sm: 1 },
           p: { xs: 0, sm: 1 },

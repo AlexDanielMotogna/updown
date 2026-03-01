@@ -25,8 +25,8 @@ const darkTheme = createTheme({
       contrastText: '#0A0A0A',
     },
     background: {
-      default: '#0A0A0A',
-      paper: '#141414',
+      default: '#0B0F14',
+      paper: '#111820',
     },
     text: {
       primary: '#FFFFFF',
@@ -35,14 +35,14 @@ const darkTheme = createTheme({
     },
     divider: 'rgba(255, 255, 255, 0.08)',
     success: {
-      main: '#4CAF50',
+      main: '#22C55E',
       dark: '#16A34A',
     },
     warning: {
       main: '#F59E0B',
     },
     error: {
-      main: '#FF5252',
+      main: '#F87171',
     },
   },
   typography: {
@@ -109,12 +109,12 @@ const darkTheme = createTheme({
       styleOverrides: {
         html: {
           scrollbarWidth: 'thin',
-          scrollbarColor: 'rgba(255,255,255,0.1) #0A0A0A',
+          scrollbarColor: 'rgba(255,255,255,0.1) #0B0F14',
           '&::-webkit-scrollbar': {
             width: '8px',
           },
           '&::-webkit-scrollbar-track': {
-            background: '#0A0A0A',
+            background: '#0B0F14',
           },
           '&::-webkit-scrollbar-thumb': {
             background: 'rgba(255,255,255,0.1)',
@@ -127,7 +127,7 @@ const darkTheme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 8,
-          background: '#141414',
+          background: '#111820',
           border: '1px solid rgba(255, 255, 255, 0.08)',
           transition: 'all 0.2s ease',
         },
@@ -214,7 +214,7 @@ const darkTheme = createTheme({
     MuiDialog: {
       styleOverrides: {
         paper: {
-          background: '#141414',
+          background: '#111820',
           border: '1px solid rgba(255, 255, 255, 0.1)',
           borderRadius: 8,
         },
@@ -224,7 +224,7 @@ const darkTheme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 4,
-          backgroundColor: 'rgba(255, 82, 82, 0.3)',
+          backgroundColor: 'rgba(248, 113, 113, 0.3)',
         },
         bar: {
           borderRadius: 4,
