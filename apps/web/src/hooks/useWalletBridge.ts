@@ -21,15 +21,22 @@ export function useWalletBridge() {
   const standardWalletsRef = useRef(standardWallets);
   standardWalletsRef.current = standardWallets;
 
-  // Prefer external wallet (has funds), fall back to embedded
+  // Prefer external wallet ONLY if its standard adapter is connected,
+  // otherwise fall back to embedded (avoids building transactions for a
+  // wallet that can't actually sign — e.g. deployed env without extension)
   const activeWallet = useMemo(() => {
     if (!wallets.length) return null;
+
+    const external = wallets.find((w) => w.connectorType !== 'embedded');
+    const hasAdapter = external && standardWallets.some((sw) => sw.address === external.address);
+
+    if (external && hasAdapter) return external;
+
     return (
-      wallets.find((w) => w.connectorType !== 'embedded') ??
       wallets.find((w) => w.connectorType === 'embedded') ??
       wallets[0]
     );
-  }, [wallets]);
+  }, [wallets, standardWallets]);
 
   const isEmbedded = activeWallet?.connectorType === 'embedded';
   const connected = ready && authenticated;
@@ -76,10 +83,9 @@ export function useWalletBridge() {
         return await connection.sendRawTransaction(signedTransaction);
       }
 
-      // Fallback: use Privy's embedded send which can route to the active wallet
-      console.warn('[WalletBridge] Standard wallet not found, trying Privy send');
-      const receipt = await embeddedSend({ transaction, connection });
-      return receipt.signature;
+      throw new Error(
+        'Wallet not available for signing. Please reconnect your wallet or refresh the page.',
+      );
     },
     [
       isEmbedded,
