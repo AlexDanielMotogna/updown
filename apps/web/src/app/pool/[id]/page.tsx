@@ -15,7 +15,6 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  LinearProgress,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -25,6 +24,7 @@ import {
   ShowChart,
   ArrowBack,
   Person,
+  Whatshot,
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { usePool, useDeposit, usePriceStream, usePacificaPrices } from '@/hooks';
@@ -32,7 +32,7 @@ import {
   Countdown,
   BetForm,
   TransactionModal,
-  Header,
+  AppShell,
   PoolDetailSkeleton,
   BetFormSkeleton,
   PriceChartDialog,
@@ -123,9 +123,8 @@ export default function PoolDetailPage() {
 
   if (isLoading) {
     return (
-      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: { xs: '72px', md: 0 } }}>
-        <Header />
-        <Container maxWidth="lg" sx={{ py: { xs: 3, md: 6 } }}>
+      <AppShell>
+        <Container maxWidth="xl" sx={{ py: { xs: 3, md: 6 } }}>
           <Grid container spacing={{ xs: 3, md: 5 }}>
             <Grid item xs={12} lg={7}>
               <PoolDetailSkeleton />
@@ -135,15 +134,14 @@ export default function PoolDetailPage() {
             </Grid>
           </Grid>
         </Container>
-      </Box>
+      </AppShell>
     );
   }
 
   if (error || !pool) {
     return (
-      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: { xs: '72px', md: 0 } }}>
-        <Header />
-        <Container maxWidth="lg" sx={{ py: { xs: 3, md: 6 } }}>
+      <AppShell>
+        <Container maxWidth="xl" sx={{ py: { xs: 3, md: 6 } }}>
           <Alert
             severity="error"
             sx={{
@@ -155,7 +153,7 @@ export default function PoolDetailPage() {
             Failed to load pool details
           </Alert>
         </Container>
-      </Box>
+      </AppShell>
     );
   }
 
@@ -167,10 +165,8 @@ export default function PoolDetailPage() {
   const isResolved = pool.status === 'RESOLVED' || pool.status === 'CLAIMABLE';
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: { xs: '72px', md: 0 } }}>
-      <Header />
-
-      <Container maxWidth="lg" sx={{ py: { xs: 2, md: 4 } }}>
+    <AppShell>
+      <Container maxWidth="xl" sx={{ py: { xs: 2, md: 4 } }}>
         {/* Top bar: Back + Asset + Status */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -182,7 +178,7 @@ export default function PoolDetailPage() {
                 Markets
               </Button>
             </Link>
-            <AssetIcon asset={pool.asset} size={28} />
+            <AssetIcon asset={pool.asset} size={36} />
             <Typography variant="h5" sx={{ fontWeight: 500 }}>
               {pool.asset}/USD
             </Typography>
@@ -305,35 +301,160 @@ export default function PoolDetailPage() {
                   </Box>
                 )}
 
-                {/* Distribution bar */}
+                {/* Energy Bar — animated distribution */}
                 <Box sx={{ mb: 3 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, alignItems: 'center' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                       <TrendingUp sx={{ color: UP_COLOR, fontSize: 18 }} />
-                      <Typography sx={{ color: UP_COLOR, fontWeight: 500, fontSize: '0.85rem' }}>
+                      <Typography
+                        sx={{
+                          color: UP_COLOR,
+                          fontWeight: 500,
+                          fontSize: '0.85rem',
+                          transition: 'all 0.6s ease',
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
+                      >
                         UP {formatUSDC(pool.totalUp)}
                       </Typography>
+                      {upPct > 65 && (
+                        <Whatshot
+                          sx={{
+                            fontSize: 16,
+                            color: '#FF6B35',
+                            animation: 'hotWobble 0.6s infinite',
+                            '@keyframes hotWobble': {
+                              '0%, 100%': { transform: 'rotate(-5deg)' },
+                              '50%': { transform: 'rotate(5deg)' },
+                            },
+                          }}
+                        />
+                      )}
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <Typography sx={{ color: DOWN_COLOR, fontWeight: 500, fontSize: '0.85rem' }}>
+                      {(100 - upPct) > 65 && (
+                        <Whatshot
+                          sx={{
+                            fontSize: 16,
+                            color: '#FF6B35',
+                            animation: 'hotWobble 0.6s infinite',
+                            '@keyframes hotWobble': {
+                              '0%, 100%': { transform: 'rotate(-5deg)' },
+                              '50%': { transform: 'rotate(5deg)' },
+                            },
+                          }}
+                        />
+                      )}
+                      <Typography
+                        sx={{
+                          color: DOWN_COLOR,
+                          fontWeight: 500,
+                          fontSize: '0.85rem',
+                          transition: 'all 0.6s ease',
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
+                      >
                         DOWN {formatUSDC(pool.totalDown)}
                       </Typography>
                       <TrendingDown sx={{ color: DOWN_COLOR, fontSize: 18 }} />
                     </Box>
                   </Box>
-                  <LinearProgress
-                    variant="determinate"
-                    value={upPct}
+
+                  {/* Animated energy bar */}
+                  <Box
                     sx={{
-                      height: 8,
-                      borderRadius: 1,
-                      bgcolor: `${DOWN_COLOR}40`,
-                      '& .MuiLinearProgress-bar': { bgcolor: UP_COLOR, borderRadius: 1 },
+                      height: 10,
+                      borderRadius: 5,
+                      overflow: 'hidden',
+                      position: 'relative',
+                      background: `${DOWN_COLOR}30`,
                     }}
-                  />
-                  <Typography sx={{ textAlign: 'center', mt: 0.5, fontSize: '0.75rem', color: 'text.secondary' }}>
-                    {upPct}% / {100 - upPct}%
-                  </Typography>
+                  >
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        height: '100%',
+                        width: `${upPct}%`,
+                        borderRadius: 5,
+                        background: `linear-gradient(90deg, ${UP_COLOR}80, ${UP_COLOR})`,
+                        transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
+                        boxShadow: upPct > 50
+                          ? `0 0 10px ${UP_COLOR}50, 0 0 20px ${UP_COLOR}20`
+                          : 'none',
+                        // Animated shimmer overlay
+                        '&::after': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 50%, transparent 100%)',
+                          backgroundSize: '200% 100%',
+                          animation: 'energyFlow 2s infinite linear',
+                          '@keyframes energyFlow': {
+                            '0%': { backgroundPosition: '-200% 0' },
+                            '100%': { backgroundPosition: '200% 0' },
+                          },
+                        },
+                      }}
+                    />
+                    {/* Down side glow (right edge) */}
+                    {(100 - upPct) > 50 && (
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 0,
+                          right: 0,
+                          height: '100%',
+                          width: '30%',
+                          background: `linear-gradient(270deg, ${DOWN_COLOR}40, transparent)`,
+                          animation: 'downGlow 2s infinite',
+                          '@keyframes downGlow': {
+                            '0%, 100%': { opacity: 0.5 },
+                            '50%': { opacity: 1 },
+                          },
+                        }}
+                      />
+                    )}
+                  </Box>
+
+                  {/* Percentage display */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                    <Typography
+                      sx={{
+                        fontSize: '0.75rem',
+                        color: UP_COLOR,
+                        fontWeight: upPct > 50 ? 600 : 400,
+                        transition: 'all 0.6s ease',
+                      }}
+                    >
+                      {upPct}%
+                    </Typography>
+                    <Typography
+                      sx={{
+                        fontSize: '0.75rem',
+                        color: 'text.secondary',
+                        fontWeight: 500,
+                        transition: 'all 0.6s ease',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    >
+                      {formatUSDC(pool.totalPool)} total
+                    </Typography>
+                    <Typography
+                      sx={{
+                        fontSize: '0.75rem',
+                        color: DOWN_COLOR,
+                        fontWeight: (100 - upPct) > 50 ? 600 : 400,
+                        transition: 'all 0.6s ease',
+                      }}
+                    >
+                      {100 - upPct}%
+                    </Typography>
+                  </Box>
                 </Box>
 
                 {/* Stats grid */}
@@ -494,6 +615,6 @@ export default function PoolDetailPage() {
           resetTx();
         }}
       />
-    </Box>
+    </AppShell>
   );
 }

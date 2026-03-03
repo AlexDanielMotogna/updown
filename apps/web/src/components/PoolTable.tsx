@@ -67,11 +67,13 @@ function PoolRow({
   userBet,
   getPrice,
   index,
+  isNew,
 }: {
   pool: Pool;
   userBet?: { side: 'UP' | 'DOWN'; isWinner: boolean | null };
   getPrice: (a: string) => string | null;
   index: number;
+  isNew?: boolean;
 }) {
   const totalUp = Number(pool.totalUp);
   const totalDown = Number(pool.totalDown);
@@ -145,11 +147,13 @@ function PoolRow({
         py: 0,
         bgcolor: '#0D1219',
         transition: 'background 0.15s ease',
-        animation: 'fadeSlideUp 2.6s cubic-bezier(0.16, 1, 0.3, 1) both',
-        '@keyframes fadeSlideUp': {
-          from: { opacity: 0, transform: 'translateY(10px)' },
-          to: { opacity: 1, transform: 'translateY(0)' },
-        },
+        ...(isNew && {
+          animation: 'fadeSlideUp 2.6s cubic-bezier(0.16, 1, 0.3, 1) both',
+          '@keyframes fadeSlideUp': {
+            from: { opacity: 0, transform: 'translateY(10px)' },
+            to: { opacity: 1, transform: 'translateY(0)' },
+          },
+        }),
         '&:hover': {
           background: 'rgba(255,255,255,0.04)',
           '& .box-img': {
@@ -374,7 +378,7 @@ function PoolRow({
 
       {/* Desktop layout */}
       {/* Asset */}
-      <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', alignSelf: 'center', gap: 0.75, flexWrap: 'wrap', overflow: 'hidden', pl: 1.5 }}>
+      <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', alignSelf: 'center', justifyContent: 'flex-start', gap: 0.75, flexWrap: 'nowrap', overflow: 'hidden', pl: 1.5, height: '100%' }}>
         <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
           <Typography sx={{ fontWeight: 600, fontSize: '0.85rem', '&:hover': { color: 'rgba(255,255,255,0.7)' } }}>
             {pool.asset}/USD
@@ -552,6 +556,26 @@ function PoolRow({
 }
 
 export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData }: PoolTableProps) {
+  const knownIdsRef = useRef<Set<string>>(new Set());
+  const [newIds, setNewIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const freshIds = new Set<string>();
+    for (const pool of pools) {
+      if (!knownIdsRef.current.has(pool.id)) {
+        freshIds.add(pool.id);
+        knownIdsRef.current.add(pool.id);
+      }
+    }
+    // Only animate if 1-3 new pools trickle in (WebSocket),
+    // not bulk loads (page load, tab switch)
+    if (freshIds.size > 0 && freshIds.size <= 3) {
+      setNewIds(freshIds);
+      const t = setTimeout(() => setNewIds(new Set()), 2800);
+      return () => clearTimeout(t);
+    }
+  }, [pools]);
+
   return (
     <Box
       sx={{
@@ -589,6 +613,7 @@ export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData 
           userBet={userBetByPoolId.get(pool.id)}
           getPrice={getPrice}
           index={i}
+          isNew={newIds.has(pool.id)}
         />
       ))}
 

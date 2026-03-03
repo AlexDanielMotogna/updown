@@ -72,7 +72,7 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <AssetIcon asset={pool.asset} size={24} />
+                <AssetIcon asset={pool.asset} size={32} />
                 <Typography
                   variant="h5"
                   sx={{

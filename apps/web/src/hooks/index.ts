@@ -9,3 +9,4 @@ export * from './usePacificaCandles';
 export * from './useMarketAnalysis';
 export * from './usePacificaPrices';
 export * from './useOrderbook';
+export * from './useNotifications';

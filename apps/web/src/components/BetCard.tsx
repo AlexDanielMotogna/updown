@@ -36,7 +36,7 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <AssetIcon asset={bet.pool.asset} size={22} />
+            <AssetIcon asset={bet.pool.asset} size={28} />
             <Link href={`/pool/${bet.pool.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
               <Typography variant="h6" sx={{ fontWeight: 500, '&:hover': { color: 'rgba(255, 255, 255, 0.7)' }, transition: 'color 0.2s ease' }}>
                 {bet.pool.asset}/USD

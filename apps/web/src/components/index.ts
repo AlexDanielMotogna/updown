@@ -19,3 +19,5 @@ export { OrderbookDepth } from './OrderbookDepth';
 export { PoolTable } from './PoolTable';
 export { LiveResultsSidebar } from './LiveResultsSidebar';
 export { AssetIcon } from './AssetIcon';
+export { AppShell } from './AppShell';
+export { NotificationToasts } from './NotificationToasts';

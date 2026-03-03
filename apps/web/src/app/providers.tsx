@@ -7,6 +7,18 @@ import { PrivyProvider } from '@privy-io/react-auth';
 import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
 import { Connection, clusterApiUrl } from '@solana/web3.js';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { NotificationToasts } from '@/components/NotificationToasts';
+import { useNotifications } from '@/hooks/useNotifications';
+
+function NotificationLayer({ children }: { children: ReactNode }) {
+  useNotifications();
+  return (
+    <>
+      {children}
+      <NotificationToasts />
+    </>
+  );
+}
 
 // Minimalist dark theme
 const darkTheme = createTheme({
@@ -280,7 +292,9 @@ export function Providers({ children }: { children: ReactNode }) {
           <ThemeProvider theme={darkTheme}>
             <CssBaseline />
             <ErrorBoundary>
-              {children}
+              <NotificationLayer>
+                {children}
+              </NotificationLayer>
             </ErrorBoundary>
           </ThemeProvider>
         </QueryClientProvider>

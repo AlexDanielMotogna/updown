@@ -14,6 +14,8 @@ import {
   confirmDeposit,
   executeClaim,
 } from '@/lib/api';
+import { useNotificationStore } from '@/stores/notificationStore';
+import { buildNotification } from '@/lib/notifications';
 
 // USDC mint on devnet (same as backend)
 const USDC_MINT = new PublicKey(
@@ -171,6 +173,11 @@ export function useDeposit() {
 
         setState({ status: 'success', txSignature: signature });
 
+        // Register pool for notifications + push success toast
+        const notifStore = useNotificationStore.getState();
+        notifStore.addUserPoolId(poolId);
+        notifStore.push(buildNotification('DEPOSIT_SUCCESS', { poolId, side }));
+
         // Invalidate queries
         queryClient.invalidateQueries({ queryKey: ['pools'] });
         queryClient.invalidateQueries({ queryKey: ['pool', poolId] });
@@ -184,6 +191,10 @@ export function useDeposit() {
         if (message.includes('not confirmed') || message.includes('timeout')) {
           message = 'Transaction is taking longer than expected. It may still succeed - check the explorer.';
         }
+
+        useNotificationStore.getState().push(
+          buildNotification('DEPOSIT_FAILED', { poolId, error: message }),
+        );
 
         setState({ status: 'error', error: message, txSignature: state.txSignature });
         throw error;
@@ -230,6 +241,10 @@ export function useClaim() {
 
         setState({ status: 'success', txSignature });
 
+        useNotificationStore.getState().push(
+          buildNotification('CLAIM_SUCCESS', { poolId }),
+        );
+
         // Invalidate queries
         queryClient.invalidateQueries({ queryKey: ['bets'] });
         queryClient.invalidateQueries({ queryKey: ['claimableBets'] });
@@ -238,6 +253,11 @@ export function useClaim() {
         return txSignature;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Claim failed';
+
+        useNotificationStore.getState().push(
+          buildNotification('CLAIM_FAILED', { poolId, error: message }),
+        );
+
         setState({ status: 'error', error: message, txSignature: state.txSignature });
         throw error;
       }

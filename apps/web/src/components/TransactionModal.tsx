@@ -8,15 +8,8 @@ import {
   Button,
   Box,
   Typography,
-  CircularProgress,
   Link,
 } from '@mui/material';
-import {
-  CheckCircle,
-  Error as ErrorIcon,
-  HourglassEmpty,
-  Edit,
-} from '@mui/icons-material';
 import type { TransactionStatus } from '@/hooks/useTransactions';
 import { getExplorerTxUrl } from '@/lib/format';
 
@@ -30,48 +23,215 @@ interface TransactionModalProps {
   onRetry?: () => void;
 }
 
-function StatusIcon({ status }: { status: TransactionStatus }) {
-  const iconSx = { fontSize: { xs: 56, sm: 72 } };
+/* ─── CSS-only Loot Box ─── */
 
-  switch (status) {
-    case 'preparing':
-      return <HourglassEmpty sx={{ ...iconSx, color: '#FFFFFF' }} />;
-    case 'signing':
-      return <Edit sx={{ ...iconSx, color: '#FFFFFF' }} />;
-    case 'confirming':
-      return <CircularProgress size={56} sx={{ color: '#FFFFFF' }} />;
-    case 'success':
-      return (
-        <CheckCircle
+function LootBox({ status }: { status: TransactionStatus }) {
+  const isShaking = status === 'confirming';
+  const isOpen = status === 'success';
+  const isCracked = status === 'error';
+
+  return (
+    <Box
+      sx={{
+        position: 'relative',
+        width: 100,
+        height: 100,
+        mx: 'auto',
+        ...(isShaking && {
+          animation: 'boxShake 0.4s infinite',
+          '@keyframes boxShake': {
+            '0%, 100%': { transform: 'translateX(0)' },
+            '10%': { transform: 'translateX(-3px) rotate(-1deg)' },
+            '20%': { transform: 'translateX(3px) rotate(1deg)' },
+            '30%': { transform: 'translateX(-4px) rotate(-1.5deg)' },
+            '40%': { transform: 'translateX(4px) rotate(1.5deg)' },
+            '50%': { transform: 'translateX(-5px) rotate(-2deg)' },
+            '60%': { transform: 'translateX(5px) rotate(2deg)' },
+            '70%': { transform: 'translateX(-3px) rotate(-1deg)' },
+            '80%': { transform: 'translateX(3px) rotate(1deg)' },
+            '90%': { transform: 'translateX(-1px)' },
+          },
+        }),
+      }}
+    >
+      {/* Golden glow behind (visible on success) */}
+      {isOpen && (
+        <Box
           sx={{
-            ...iconSx,
-            color: '#22C55E',
-            animation: 'successPop 0.4s ease-out',
-            '@keyframes successPop': {
-              '0%': { transform: 'scale(0.5)', opacity: 0 },
-              '70%': { transform: 'scale(1.2)' },
-              '100%': { transform: 'scale(1)', opacity: 1 },
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            width: 120,
+            height: 120,
+            transform: 'translate(-50%, -50%)',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(255,215,0,0.4) 0%, rgba(255,215,0,0) 70%)',
+            animation: 'glowPulse 1.5s infinite',
+            '@keyframes glowPulse': {
+              '0%, 100%': { opacity: 0.6, transform: 'translate(-50%, -50%) scale(1)' },
+              '50%': { opacity: 1, transform: 'translate(-50%, -50%) scale(1.15)' },
             },
           }}
         />
-      );
-    case 'error':
-      return <ErrorIcon sx={{ ...iconSx, color: '#F87171' }} />;
-    default:
-      return null;
-  }
+      )}
+
+      {/* Red glow behind (visible on error) */}
+      {isCracked && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            width: 120,
+            height: 120,
+            transform: 'translate(-50%, -50%)',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(248,113,113,0.3) 0%, rgba(248,113,113,0) 70%)',
+          }}
+        />
+      )}
+
+      {/* Box lid */}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 5,
+          right: 5,
+          height: 35,
+          background: isCracked
+            ? 'linear-gradient(180deg, #8B3A3A, #6B2A2A)'
+            : 'linear-gradient(180deg, #D4A843, #B8922E)',
+          borderRadius: '4px 4px 0 0',
+          border: isCracked ? '1px solid #F8717140' : '1px solid #E8C55280',
+          borderBottom: 'none',
+          transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+          transformOrigin: 'top center',
+          ...(isOpen && {
+            transform: 'translateY(-22px) rotate(-8deg)',
+            opacity: 0.8,
+          }),
+          ...(isCracked && {
+            animation: 'lidCrack 0.3s ease-out forwards',
+            '@keyframes lidCrack': {
+              '0%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-4px) rotate(2deg)' },
+              '100%': { transform: 'translateY(-2px) skewX(5deg)' },
+            },
+          }),
+          // Lid highlight
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            top: 4,
+            left: '20%',
+            right: '20%',
+            height: 3,
+            borderRadius: 2,
+            background: isCracked ? 'rgba(255,100,100,0.3)' : 'rgba(255,255,255,0.25)',
+          },
+        }}
+      />
+
+      {/* Box body */}
+      <Box
+        sx={{
+          position: 'absolute',
+          bottom: 5,
+          left: 10,
+          right: 10,
+          height: 55,
+          background: isCracked
+            ? 'linear-gradient(180deg, #7A3030, #5A2020)'
+            : 'linear-gradient(180deg, #C49A38, #A07D25)',
+          borderRadius: '0 0 4px 4px',
+          border: isCracked ? '1px solid #F8717130' : '1px solid #D4AA4080',
+          borderTop: 'none',
+          // Lock/clasp detail
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: -4,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 16,
+            height: 8,
+            borderRadius: '8px 8px 0 0',
+            background: isCracked ? '#F8717150' : 'rgba(255,255,255,0.2)',
+            border: isCracked ? '1px solid #F8717140' : '1px solid rgba(255,255,255,0.15)',
+            borderBottom: 'none',
+          },
+          // Horizontal band detail
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            top: '45%',
+            left: 0,
+            right: 0,
+            height: 3,
+            background: isCracked ? 'rgba(255,100,100,0.15)' : 'rgba(255,255,255,0.1)',
+          },
+        }}
+      />
+
+      {/* Success particles */}
+      {isOpen && (
+        <>
+          {Array.from({ length: 10 }).map((_, i) => {
+            const angle = (i / 10) * 360;
+            const rad = (angle * Math.PI) / 180;
+            const tx = Math.cos(rad) * 60;
+            const ty = Math.sin(rad) * 60;
+            const colors = ['#FFD700', '#FFA500', '#22C55E', '#FFFFFF', '#FFD700'];
+            const color = colors[i % colors.length];
+            const size = 4 + (i % 3) * 2;
+            return (
+              <Box
+                key={i}
+                sx={{
+                  position: 'absolute',
+                  top: '40%',
+                  left: '50%',
+                  width: size,
+                  height: size,
+                  borderRadius: i % 2 === 0 ? '50%' : '1px',
+                  background: color,
+                  animation: `particle${i} 0.8s ease-out forwards`,
+                  animationDelay: `${i * 0.04}s`,
+                  opacity: 0,
+                  [`@keyframes particle${i}`]: {
+                    '0%': {
+                      transform: 'translate(-50%, -50%) scale(0)',
+                      opacity: 1,
+                    },
+                    '60%': {
+                      opacity: 1,
+                    },
+                    '100%': {
+                      transform: `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(0.5)`,
+                      opacity: 0,
+                    },
+                  },
+                }}
+              />
+            );
+          })}
+        </>
+      )}
+    </Box>
+  );
 }
 
 function StatusMessage({ status }: { status: TransactionStatus }) {
   switch (status) {
     case 'preparing':
-      return 'Preparing transaction...';
+      return 'Preparing your prediction...';
     case 'signing':
-      return 'Please sign the transaction in your wallet';
+      return 'Sign to open...';
     case 'confirming':
-      return 'Confirming transaction on Solana...';
+      return 'Opening...';
     case 'success':
-      return 'Transaction successful!';
+      return 'Prediction placed!';
     case 'error':
       return 'Transaction failed';
     default:
@@ -99,10 +259,11 @@ export function TransactionModal({
       fullWidth
       PaperProps={{
         sx: {
-          background: '#111820',
+          background: '#0D1219',
           border: 'none',
           borderRadius: 0,
           maxWidth: { xs: '95vw', sm: 440 },
+          overflow: 'hidden',
         },
       }}
     >
@@ -125,15 +286,15 @@ export function TransactionModal({
             py: 5,
           }}
         >
-          <StatusIcon status={status} />
+          <LootBox status={status} />
 
           <Typography
             variant="h6"
             sx={{
-              mt: 3,
+              mt: 4,
               textAlign: 'center',
               fontWeight: 400,
-              color: status === 'error' ? 'error.main' : 'text.primary',
+              color: status === 'error' ? 'error.main' : status === 'success' ? '#FFD700' : 'text.primary',
             }}
           >
             <StatusMessage status={status} />

@@ -48,9 +48,9 @@ export function LiveResultsSidebar() {
         knownIdsRef.current.add(pool.id);
       }
     }
-    if (freshIds.size > 0) {
+    // Only animate if 1-3 new results trickle in (not bulk load/refresh)
+    if (freshIds.size > 0 && freshIds.size <= 3) {
       setNewIds(freshIds);
-      // Clear after animation completes so it never replays
       const t = setTimeout(() => setNewIds(new Set()), 2800);
       return () => clearTimeout(t);
     }
@@ -121,7 +121,7 @@ export function LiveResultsSidebar() {
             >
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                  <AssetIcon asset={pool.asset} size={16} />
+                  <AssetIcon asset={pool.asset} size={22} />
                   <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
                     {pool.asset}/USD
                   </Typography>

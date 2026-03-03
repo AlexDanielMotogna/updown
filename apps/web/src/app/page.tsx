@@ -21,7 +21,7 @@ import {
   ViewList,
 } from '@mui/icons-material';
 import { useInfinitePools, useBets, usePriceStream, useIntersectionObserver, type PoolFilters } from '@/hooks';
-import { PoolTable, Header, LiveResultsSidebar } from '@/components';
+import { PoolTable, AppShell } from '@/components';
 import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR } from '@/lib/constants';
 
 const ASSETS = ['ALL', 'BTC', 'ETH', 'SOL'];
@@ -134,16 +134,8 @@ export default function MarketsPage() {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: { xs: '72px', md: 0 } }}>
-      <Header />
-
-      <Box sx={{ display: 'flex', bgcolor: '#0B0F14' }}>
-        {/* Left Sidebar */}
-        <LiveResultsSidebar />
-
-        {/* Main Content */}
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Container maxWidth="lg">
+    <AppShell>
+      <Container maxWidth="xl">
             {/* How to Play — 3 cards */}
             <Box
               sx={{
@@ -380,9 +372,7 @@ export default function MarketsPage() {
                 )}
               </>
             )}
-          </Container>
-        </Box>
-      </Box>
-    </Box>
+      </Container>
+    </AppShell>
   );
 }

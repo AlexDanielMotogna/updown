@@ -88,14 +88,19 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide }: Be
 
   const sideColor = side === 'UP' ? UP_COLOR : DOWN_COLOR;
 
+  // Tug-of-war percentages
+  const tugTotal = totalUp + totalDown;
+  const upPct = tugTotal > 0 ? (totalUp / tugTotal) * 100 : 50;
+  const downPct = 100 - upPct;
+
   return (
     <Box component="form" onSubmit={handleSubmit}>
-      {/* Side Selection */}
+      {/* Side Selection — Battle Style */}
       <Typography
         variant="caption"
-        sx={{ color: 'text.secondary', mb: 1.5, display: 'block' }}
+        sx={{ color: 'text.secondary', mb: 1.5, display: 'block', textAlign: 'center', letterSpacing: '0.15em' }}
       >
-        CHOOSE SIDE
+        CHOOSE YOUR SIDE
       </Typography>
       <ToggleButtonGroup
         value={side}
@@ -103,67 +108,227 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide }: Be
         onChange={handleSideChange}
         fullWidth
         sx={{
-          mb: 4,
-          gap: 2,
+          mb: 1.5,
+          gap: 0,
+          display: 'grid',
+          gridTemplateColumns: '1fr auto 1fr',
           '& .MuiToggleButtonGroup-grouped': {
             border: 'none',
             borderRadius: '4px !important',
-            flex: 1,
           },
         }}
       >
+        {/* UP Panel */}
         <ToggleButton
           value="UP"
           sx={{
-            py: { xs: 2, sm: 3 },
+            py: { xs: 2.5, sm: 3.5 },
+            px: { xs: 1.5, sm: 2 },
             flexDirection: 'column',
             gap: 0.5,
-            transition: 'all 0.3s ease',
+            transition: 'all 0.4s ease',
+            position: 'relative',
+            overflow: 'hidden',
+            ...(side === 'UP'
+              ? {
+                  background: `${UP_COLOR}18`,
+                  boxShadow: `0 0 30px ${UP_COLOR}30, inset 0 0 30px ${UP_COLOR}08`,
+                  border: `1px solid ${UP_COLOR}60 !important`,
+                  animation: 'selectedPulse 2s infinite',
+                  '@keyframes selectedPulse': {
+                    '0%, 100%': { borderColor: `${UP_COLOR}60` },
+                    '50%': { borderColor: `${UP_COLOR}A0` },
+                  },
+                  '&:hover': { background: `${UP_COLOR}22` },
+                }
+              : {
+                  opacity: 0.45,
+                  filter: 'grayscale(0.4)',
+                  background: 'rgba(255,255,255,0.02)',
+                  '&:hover': { opacity: 0.7, background: 'rgba(255,255,255,0.04)' },
+                }),
             '&.Mui-selected': {
-              background: `${UP_COLOR}14`,
-              borderColor: `${UP_COLOR} !important`,
-              boxShadow: `0 0 20px ${UP_COLOR}20`,
-              '&:hover': {
-                background: `${UP_COLOR}1F`,
-              },
+              background: `${UP_COLOR}18`,
+              '&:hover': { background: `${UP_COLOR}22` },
             },
           }}
         >
-          <TrendingUp sx={{ fontSize: 28, color: side === 'UP' ? UP_COLOR : 'text.secondary' }} />
-          <Typography variant="h6" sx={{ color: side === 'UP' ? UP_COLOR : 'text.primary' }}>
+          <TrendingUp sx={{ fontSize: 40, color: side === 'UP' ? UP_COLOR : 'text.secondary' }} />
+          <Typography
+            variant="h5"
+            sx={{ color: side === 'UP' ? UP_COLOR : 'text.primary', fontWeight: 700, letterSpacing: '0.05em' }}
+          >
             UP
           </Typography>
-          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            {currentOddsUp.toFixed(2)}x
+          <Box
+            sx={{
+              px: 1.5,
+              py: 0.25,
+              borderRadius: '2px',
+              bgcolor: side === 'UP' ? `${UP_COLOR}20` : 'rgba(255,255,255,0.06)',
+            }}
+          >
+            <Typography variant="body2" sx={{ color: side === 'UP' ? UP_COLOR : 'text.secondary', fontWeight: 600 }}>
+              {currentOddsUp.toFixed(2)}x
+            </Typography>
+          </Box>
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
+            {tugTotal > 0 ? `$${totalUp.toFixed(0)} pooled` : 'No predictions yet'}
           </Typography>
         </ToggleButton>
 
+        {/* VS Divider */}
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
+            width: { xs: 40, sm: 48 },
+            pointerEvents: 'none',
+          }}
+        >
+          {/* Vertical glowing line */}
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 8,
+              bottom: 8,
+              width: '2px',
+              background: `linear-gradient(to bottom, transparent, ${UP_COLOR}60, #FFFFFF80, ${DOWN_COLOR}60, transparent)`,
+              filter: 'blur(0.5px)',
+            }}
+          />
+          {/* Lightning VS badge */}
+          <Box
+            sx={{
+              position: 'relative',
+              zIndex: 1,
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              boxShadow: '0 0 12px rgba(255,255,255,0.1)',
+            }}
+          >
+            <Typography sx={{ fontSize: '1rem', lineHeight: 1 }}>⚡</Typography>
+          </Box>
+        </Box>
+
+        {/* DOWN Panel */}
         <ToggleButton
           value="DOWN"
           sx={{
-            py: { xs: 2, sm: 3 },
+            py: { xs: 2.5, sm: 3.5 },
+            px: { xs: 1.5, sm: 2 },
             flexDirection: 'column',
             gap: 0.5,
-            transition: 'all 0.3s ease',
+            transition: 'all 0.4s ease',
+            position: 'relative',
+            overflow: 'hidden',
+            ...(side === 'DOWN'
+              ? {
+                  background: `${DOWN_COLOR}18`,
+                  boxShadow: `0 0 30px ${DOWN_COLOR}30, inset 0 0 30px ${DOWN_COLOR}08`,
+                  border: `1px solid ${DOWN_COLOR}60 !important`,
+                  animation: 'selectedPulseDown 2s infinite',
+                  '@keyframes selectedPulseDown': {
+                    '0%, 100%': { borderColor: `${DOWN_COLOR}60` },
+                    '50%': { borderColor: `${DOWN_COLOR}A0` },
+                  },
+                  '&:hover': { background: `${DOWN_COLOR}22` },
+                }
+              : {
+                  opacity: 0.45,
+                  filter: 'grayscale(0.4)',
+                  background: 'rgba(255,255,255,0.02)',
+                  '&:hover': { opacity: 0.7, background: 'rgba(255,255,255,0.04)' },
+                }),
             '&.Mui-selected': {
-              background: `${DOWN_COLOR}14`,
-              borderColor: `${DOWN_COLOR} !important`,
-              boxShadow: `0 0 20px ${DOWN_COLOR}20`,
-              '&:hover': {
-                background: `${DOWN_COLOR}1F`,
-              },
+              background: `${DOWN_COLOR}18`,
+              '&:hover': { background: `${DOWN_COLOR}22` },
             },
           }}
         >
-          <TrendingDown sx={{ fontSize: 28, color: side === 'DOWN' ? DOWN_COLOR : 'text.secondary' }} />
-          <Typography variant="h6" sx={{ color: side === 'DOWN' ? DOWN_COLOR : 'text.primary' }}>
+          <TrendingDown sx={{ fontSize: 40, color: side === 'DOWN' ? DOWN_COLOR : 'text.secondary' }} />
+          <Typography
+            variant="h5"
+            sx={{ color: side === 'DOWN' ? DOWN_COLOR : 'text.primary', fontWeight: 700, letterSpacing: '0.05em' }}
+          >
             DOWN
           </Typography>
-          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            {currentOddsDown.toFixed(2)}x
+          <Box
+            sx={{
+              px: 1.5,
+              py: 0.25,
+              borderRadius: '2px',
+              bgcolor: side === 'DOWN' ? `${DOWN_COLOR}20` : 'rgba(255,255,255,0.06)',
+            }}
+          >
+            <Typography variant="body2" sx={{ color: side === 'DOWN' ? DOWN_COLOR : 'text.secondary', fontWeight: 600 }}>
+              {currentOddsDown.toFixed(2)}x
+            </Typography>
+          </Box>
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
+            {tugTotal > 0 ? `$${totalDown.toFixed(0)} pooled` : 'No predictions yet'}
           </Typography>
         </ToggleButton>
       </ToggleButtonGroup>
+
+      {/* Tug-of-War Bar */}
+      <Box sx={{ mb: 4, px: 0.5 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+          <Typography variant="caption" sx={{ color: UP_COLOR, fontWeight: 600, fontSize: '0.7rem' }}>
+            {upPct.toFixed(0)}%
+          </Typography>
+          <Typography variant="caption" sx={{ color: DOWN_COLOR, fontWeight: 600, fontSize: '0.7rem' }}>
+            {downPct.toFixed(0)}%
+          </Typography>
+        </Box>
+        <Box
+          sx={{
+            height: 6,
+            borderRadius: 3,
+            overflow: 'hidden',
+            position: 'relative',
+            background: `${DOWN_COLOR}30`,
+          }}
+        >
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              height: '100%',
+              width: `${upPct}%`,
+              borderRadius: 3,
+              background: `linear-gradient(90deg, ${UP_COLOR}90, ${UP_COLOR})`,
+              transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: upPct > 50 ? `0 0 8px ${UP_COLOR}50` : 'none',
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)',
+                backgroundSize: '200% 100%',
+                animation: 'tugShimmer 2s infinite linear',
+                '@keyframes tugShimmer': {
+                  '0%': { backgroundPosition: '-200% 0' },
+                  '100%': { backgroundPosition: '200% 0' },
+                },
+              },
+            }}
+          />
+        </Box>
+      </Box>
 
       {/* Amount Input */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>

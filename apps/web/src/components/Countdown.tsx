@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Box, Typography } from '@mui/material';
+import { ACCENT_COLOR, DOWN_COLOR } from '@/lib/constants';
 
 interface CountdownProps {
   targetDate: string | Date;
@@ -17,6 +18,8 @@ interface TimeLeft {
   seconds: number;
   total: number;
 }
+
+type Phase = 'calm' | 'heating' | 'critical' | 'final';
 
 function calculateTimeLeft(targetMs: number): TimeLeft {
   const difference = targetMs - Date.now();
@@ -34,8 +37,15 @@ function calculateTimeLeft(targetMs: number): TimeLeft {
   };
 }
 
+function getPhase(totalMs: number): Phase {
+  if (totalMs <= 0) return 'calm';
+  if (totalMs <= 10 * 1000) return 'final';
+  if (totalMs <= 60 * 1000) return 'critical';
+  if (totalMs <= 5 * 60 * 1000) return 'heating';
+  return 'calm';
+}
+
 export function Countdown({ targetDate, label, onComplete, compact = false }: CountdownProps) {
-  // Memoize the target timestamp to avoid recreating on each render
   const targetMs = useMemo(() => {
     const date = typeof targetDate === 'string' ? new Date(targetDate) : targetDate;
     return date.getTime();
@@ -44,14 +54,12 @@ export function Countdown({ targetDate, label, onComplete, compact = false }: Co
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(() => calculateTimeLeft(targetMs));
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
+  const [tickFlash, setTickFlash] = useState(false);
+  const prevSeconds = useRef(timeLeft.seconds);
 
   useEffect(() => {
-    // Update immediately
     setTimeLeft(calculateTimeLeft(targetMs));
 
-    // Align ticks to wall-clock second boundaries so ALL Countdown
-    // instances on the page update at the exact same moment,
-    // regardless of when each component mounted.
     let intervalId: ReturnType<typeof setInterval> | null = null;
 
     const tick = () => {
@@ -75,9 +83,19 @@ export function Countdown({ targetDate, label, onComplete, compact = false }: Co
     };
   }, [targetMs]);
 
+  // Tick flash for final phase
+  const phase = getPhase(timeLeft.total);
+  useEffect(() => {
+    if (phase === 'final' && timeLeft.seconds !== prevSeconds.current) {
+      setTickFlash(true);
+      const t = setTimeout(() => setTickFlash(false), 200);
+      prevSeconds.current = timeLeft.seconds;
+      return () => clearTimeout(t);
+    }
+    prevSeconds.current = timeLeft.seconds;
+  }, [timeLeft.seconds, phase]);
+
   const isExpired = timeLeft.total <= 0;
-  const isUrgent = timeLeft.total > 0 && timeLeft.total < 5 * 60 * 1000;
-  const isCritical = timeLeft.total > 0 && timeLeft.total < 60 * 1000;
 
   const timeUnits = [
     { value: timeLeft.days, label: 'DAYS', show: timeLeft.days > 0 },
@@ -86,23 +104,41 @@ export function Countdown({ targetDate, label, onComplete, compact = false }: Co
     { value: timeLeft.seconds, label: 'SEC', show: true },
   ].filter(unit => unit.show);
 
+  // Phase-specific label suffix
+  const phaseLabel = (() => {
+    if (!label) return label;
+    if (phase === 'heating') return `${label} — CLOSING SOON`;
+    if (phase === 'critical') return `${label} — CLOSING SOON`;
+    if (phase === 'final') return 'LAST SECONDS';
+    return label;
+  })();
+
+  // Phase-specific number color
+  const numberColor = (() => {
+    if (phase === 'final') return DOWN_COLOR;
+    if (phase === 'critical') return '#EF4444';
+    if (phase === 'heating') return '#F59E0B';
+    return 'text.primary';
+  })();
+
   if (compact) {
     return (
       <Box>
-        {label && (
+        {phaseLabel && (
           <Typography
             variant="caption"
             sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}
           >
-            {label}
+            {phaseLabel}
           </Typography>
         )}
         <Typography
           sx={{
             fontVariantNumeric: 'tabular-nums',
-            fontSize: '1.1rem',
-            fontWeight: 500,
-            color: isExpired ? 'text.disabled' : isCritical ? '#EF4444' : isUrgent ? '#F59E0B' : 'text.primary',
+            fontSize: phase === 'final' ? '1.3rem' : '1.1rem',
+            fontWeight: phase === 'critical' || phase === 'final' ? 700 : 500,
+            color: isExpired ? 'text.disabled' : numberColor,
+            transition: 'all 0.3s ease',
           }}
         >
           {isExpired ? (
@@ -120,14 +156,51 @@ export function Countdown({ targetDate, label, onComplete, compact = false }: Co
     );
   }
 
+  // Container styles per phase
+  const containerSx = (() => {
+    if (phase === 'critical' || phase === 'final') {
+      return {
+        animation: 'heartbeat 1s infinite',
+        '@keyframes heartbeat': {
+          '0%, 100%': { transform: 'scale(1)' },
+          '50%': { transform: 'scale(1.03)' },
+        },
+      };
+    }
+    return {};
+  })();
+
+  // Box background per phase
+  const boxBg = (() => {
+    if (phase === 'final') return `${DOWN_COLOR}30`;
+    if (phase === 'critical') return `${DOWN_COLOR}20`;
+    if (phase === 'heating') return `${ACCENT_COLOR}15`;
+    return 'rgba(255, 255, 255, 0.04)';
+  })();
+
+  // Box shadow per phase
+  const boxShadow = (() => {
+    if (phase === 'final') return `0 0 12px ${DOWN_COLOR}40, inset 0 0 8px ${DOWN_COLOR}15`;
+    if (phase === 'critical') return `0 0 8px ${DOWN_COLOR}25`;
+    return 'none';
+  })();
+
   return (
-    <Box>
-      {label && (
+    <Box sx={containerSx}>
+      {phaseLabel && (
         <Typography
           variant="caption"
-          sx={{ color: 'text.secondary', display: 'block', mb: 1.5, textAlign: 'center' }}
+          sx={{
+            color: phase === 'final' ? DOWN_COLOR : phase === 'critical' ? '#EF4444' : phase === 'heating' ? ACCENT_COLOR : 'text.secondary',
+            display: 'block',
+            mb: 1.5,
+            textAlign: 'center',
+            fontWeight: phase !== 'calm' ? 600 : 400,
+            letterSpacing: phase !== 'calm' ? '0.15em' : '0.1em',
+            transition: 'all 0.3s ease',
+          }}
         >
-          {label}
+          {phaseLabel}
         </Typography>
       )}
 
@@ -147,24 +220,30 @@ export function Countdown({ targetDate, label, onComplete, compact = false }: Co
                 minWidth: { xs: 48, sm: 56 },
                 p: 1.5,
                 borderRadius: 0,
-                background: 'rgba(255, 255, 255, 0.04)',
+                background: boxBg,
                 border: 'none',
                 textAlign: 'center',
+                boxShadow,
+                transition: 'background 0.4s ease, box-shadow 0.4s ease',
               }}
             >
               <Typography
-                key={unit.value}
                 sx={{
                   fontVariantNumeric: 'tabular-nums',
-                  fontSize: { xs: '1.2rem', sm: '1.5rem' },
-                  fontWeight: 400,
-                  color: isCritical ? '#EF4444' : isUrgent ? '#F59E0B' : 'text.primary',
+                  fontSize: phase === 'final'
+                    ? { xs: '1.6rem', sm: '2rem' }
+                    : phase === 'heating'
+                    ? { xs: '1.3rem', sm: '1.6rem' }
+                    : { xs: '1.2rem', sm: '1.5rem' },
+                  fontWeight: phase === 'critical' || phase === 'final' ? 700 : 400,
+                  color: numberColor,
                   lineHeight: 1,
-                  ...(isCritical && {
-                    animation: 'countdownPulse 1s infinite',
-                    '@keyframes countdownPulse': {
-                      '0%, 100%': { transform: 'scale(1)' },
-                      '50%': { transform: 'scale(1.02)' },
+                  transition: 'all 0.3s ease',
+                  ...(tickFlash && phase === 'final' && {
+                    animation: 'tickFlash 0.3s ease-out',
+                    '@keyframes tickFlash': {
+                      '0%': { background: 'rgba(255,255,255,0.3)', borderRadius: '2px' },
+                      '100%': { background: 'transparent' },
                     },
                   }),
                 }}
@@ -174,9 +253,10 @@ export function Countdown({ targetDate, label, onComplete, compact = false }: Co
               <Typography
                 variant="caption"
                 sx={{
-                  color: 'text.secondary',
+                  color: phase !== 'calm' ? numberColor : 'text.secondary',
                   fontSize: '0.65rem',
                   letterSpacing: '0.1em',
+                  opacity: phase !== 'calm' ? 0.8 : 1,
                 }}
               >
                 {unit.label}
