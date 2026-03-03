@@ -108,9 +108,13 @@ export class PoolScheduler {
     }
 
     // Schedule status transition job (every 2 seconds for responsive transitions)
+    // Multi-instance safety: activatePool and resolvePool use atomic claims
+    // (updateMany WHERE status=X) so duplicate processing is impossible even
+    // if multiple instances run this cron concurrently.
     const transitionJob = cron.schedule('*/2 * * * * *', async () => {
       await this.processStatusTransitions();
       await this.processResolutions();
+      await this.processClaimableTransitions();
     });
     this.jobs.push(transitionJob);
     console.log('[Scheduler] Scheduled transition & resolution job: every 2 seconds');
@@ -382,18 +386,22 @@ export class PoolScheduler {
    * then immediately create the successor JOINING pool for the same asset+interval.
    */
   private async activatePool(poolId: string, asset: string, interval: string | null): Promise<void> {
+    // Atomic claim: prevent duplicate activation from overlapping scheduler ticks
+    const claimed = await prisma.pool.updateMany({
+      where: { id: poolId, status: PoolStatus.JOINING },
+      data: { status: PoolStatus.ACTIVE },
+    });
+    if (claimed.count === 0) return;
+
     try {
       // Get strike price from market data
       const priceTick = await this.priceProvider.getSpotPrice(asset);
       const strikePrice = priceTick.price;
 
-      // Update pool status and strike price
+      // Store strike price (status already ACTIVE from atomic claim)
       await prisma.pool.update({
         where: { id: poolId },
-        data: {
-          status: PoolStatus.ACTIVE,
-          strikePrice,
-        },
+        data: { strikePrice },
       });
 
       // Store price snapshot for audit
@@ -510,6 +518,9 @@ export class PoolScheduler {
 
   /**
    * Resolve a pool: capture final price, determine winner, call program
+   *
+   * Uses an atomic status claim (updateMany WHERE status=ACTIVE) to prevent
+   * race conditions when the scheduler fires faster than the API call returns.
    */
   private async resolvePool(pool: {
     id: string;
@@ -524,28 +535,74 @@ export class PoolScheduler {
       return;
     }
 
+    // ── Atomic claim: only one scheduler tick can resolve this pool ──
+    // updateMany with a status guard returns { count: 0 } if another tick
+    // already moved it past ACTIVE, preventing duplicate resolution.
+    const claimed = await prisma.pool.updateMany({
+      where: { id: pool.id, status: PoolStatus.ACTIVE },
+      data: { status: PoolStatus.RESOLVED },
+    });
+    if (claimed.count === 0) {
+      // Another tick already claimed this pool
+      return;
+    }
+
     try {
-      // Check if pool has only 1 bettor — direct refund without win/loss
+      // ALWAYS fetch real final price from market data, regardless of bet count
+      const priceTick = await this.priceProvider.getSpotPrice(pool.asset);
+      const finalPrice = priceTick.price;
+      const strikePrice = pool.strikePrice;
+
+      // Store price snapshot for audit
+      await prisma.priceSnapshot.create({
+        data: {
+          poolId: pool.id,
+          type: 'FINAL',
+          price: finalPrice,
+          timestamp: priceTick.timestamp,
+          source: priceTick.source,
+          rawHash: priceTick.rawHash || '',
+        },
+      });
+
+      console.log(
+        `[Scheduler] Pool ${pool.id} resolution: strike=${strikePrice} final=${finalPrice} ` +
+        `diff=${finalPrice - strikePrice}`,
+      );
+
+      // Check bet count to determine resolution path
       const betCount = await prisma.bet.count({ where: { poolId: pool.id } });
-      if (betCount <= 1) {
+
+      if (betCount === 0) {
+        // Empty pool — no winner, just mark with real final price and go to CLAIMABLE
+        await prisma.pool.update({
+          where: { id: pool.id },
+          data: { status: PoolStatus.CLAIMABLE, finalPrice },
+        });
+
+        await this.logEvent('POOL_RESOLVED', 'pool', pool.id, {
+          reason: 'empty_pool',
+          strikePrice: strikePrice.toString(),
+          finalPrice: finalPrice.toString(),
+        });
+
+        console.log(`[Scheduler] Pool ${pool.id} → CLAIMABLE (empty, no bets)`);
+        return; // Don't emit pool:status for empty pools
+      }
+
+      if (betCount === 1) {
+        // Single bettor — refund without win/loss
         const soleBet = await prisma.bet.findFirst({ where: { poolId: pool.id } });
 
         if (soleBet && !soleBet.claimed) {
-          // Attempt direct on-chain refund
           const refundTx = await this.refundBet(soleBet);
 
           if (refundTx) {
-            // Mark bet as claimed with the refund tx
             await prisma.bet.update({
               where: { id: soleBet.id },
-              data: {
-                claimed: true,
-                claimTx: refundTx,
-                payoutAmount: soleBet.amount,
-              },
+              data: { claimed: true, claimTx: refundTx, payoutAmount: soleBet.amount },
             });
 
-            // Notify frontend via WebSocket
             emitRefund(soleBet.walletAddress, {
               poolId: pool.id,
               amount: soleBet.amount.toString(),
@@ -558,38 +615,27 @@ export class PoolScheduler {
           }
         }
 
-        // Mark pool as resolved regardless
         const winner = soleBet ? soleBet.side : Side.UP;
         await prisma.pool.update({
           where: { id: pool.id },
-          data: {
-            status: PoolStatus.CLAIMABLE,
-            finalPrice: pool.strikePrice,
-            winner,
-          },
+          data: { status: PoolStatus.CLAIMABLE, finalPrice, winner },
         });
 
         await this.logEvent('POOL_REFUND', 'pool', pool.id, {
           reason: 'single_bettor',
+          strikePrice: strikePrice.toString(),
+          finalPrice: finalPrice.toString(),
           betCount: betCount.toString(),
           refunded: (soleBet?.claimed || !!soleBet).toString(),
         });
 
-        emitPoolStatus(pool.id, {
-          id: pool.id,
-          status: 'CLAIMABLE',
-        });
+        emitPoolStatus(pool.id, { id: pool.id, status: 'CLAIMABLE' });
 
         console.log(`[Scheduler] Pool ${pool.id} → CLAIMABLE (single bettor)`);
         return;
       }
 
-      // Get final price from market data
-      const priceTick = await this.priceProvider.getSpotPrice(pool.asset);
-      const finalPrice = priceTick.price;
-      const strikePrice = pool.strikePrice;
-
-      // Determine winner
+      // Normal resolution with 2+ bettors
       let winner: Side;
       if (finalPrice > strikePrice) {
         winner = Side.UP;
@@ -606,30 +652,13 @@ export class PoolScheduler {
           await this.resolvePoolOnChain(pool.poolId, strikePrice, finalPrice);
         } catch (error) {
           console.error(`[Scheduler] Failed to resolve pool on-chain:`, error);
-          // Continue to update database
         }
       }
 
-      // Update pool in database
+      // Update pool with real final price and winner (status already RESOLVED from atomic claim)
       await prisma.pool.update({
         where: { id: pool.id },
-        data: {
-          status: PoolStatus.RESOLVED,
-          finalPrice,
-          winner,
-        },
-      });
-
-      // Store price snapshot for audit
-      await prisma.priceSnapshot.create({
-        data: {
-          poolId: pool.id,
-          type: 'FINAL',
-          price: finalPrice,
-          timestamp: priceTick.timestamp,
-          source: priceTick.source,
-          rawHash: priceTick.rawHash || '',
-        },
+        data: { finalPrice, winner },
       });
 
       await this.logEvent('POOL_RESOLVED', 'pool', pool.id, {
@@ -640,7 +669,7 @@ export class PoolScheduler {
         totalDown: pool.totalDown.toString(),
       });
 
-      // Emit WebSocket event for RESOLVED
+      // Emit WebSocket event for RESOLVED (CLAIMABLE transition handled by processClaimableTransitions)
       emitPoolStatus(pool.id, {
         id: pool.id,
         status: 'RESOLVED',
@@ -649,25 +678,45 @@ export class PoolScheduler {
         winner,
       });
 
-      console.log(`[Scheduler] Pool ${pool.id} → RESOLVED: winner=${winner}, final=${finalPrice}`);
-
-      // Transition to CLAIMABLE after short delay
-      setTimeout(async () => {
-        await prisma.pool.update({
-          where: { id: pool.id },
-          data: { status: PoolStatus.CLAIMABLE },
-        });
-
-        // Emit WebSocket event for CLAIMABLE
-        emitPoolStatus(pool.id, {
-          id: pool.id,
-          status: 'CLAIMABLE',
-        });
-
-        console.log(`[Scheduler] Pool ${pool.id} → CLAIMABLE`);
-      }, 5000);
+      console.log(`[Scheduler] Pool ${pool.id} → RESOLVED: winner=${winner}, strike=${strikePrice}, final=${finalPrice}`);
     } catch (error) {
-      console.error(`[Scheduler] Failed to resolve pool ${pool.id}:`, error);
+      // If resolution fails after claiming, revert to ACTIVE so it can retry
+      console.error(`[Scheduler] Failed to resolve pool ${pool.id}, reverting to ACTIVE:`, error);
+      await prisma.pool.update({
+        where: { id: pool.id },
+        data: { status: PoolStatus.ACTIVE },
+      }).catch(() => {});
+    }
+  }
+
+  /**
+   * Transition RESOLVED pools to CLAIMABLE after a short delay.
+   * This replaces the fragile setTimeout approach — if the server restarts,
+   * the next scheduler tick will pick up any stale RESOLVED pools.
+   */
+  async processClaimableTransitions(): Promise<void> {
+    const fiveSecondsAgo = new Date(Date.now() - 5000);
+
+    const staleResolved = await prisma.pool.findMany({
+      where: {
+        status: PoolStatus.RESOLVED,
+        updatedAt: { lte: fiveSecondsAgo },
+      },
+      select: { id: true },
+    });
+
+    for (const pool of staleResolved) {
+      await prisma.pool.update({
+        where: { id: pool.id },
+        data: { status: PoolStatus.CLAIMABLE },
+      });
+
+      emitPoolStatus(pool.id, {
+        id: pool.id,
+        status: 'CLAIMABLE',
+      });
+
+      console.log(`[Scheduler] Pool ${pool.id} → CLAIMABLE`);
     }
   }
 

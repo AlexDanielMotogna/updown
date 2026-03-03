@@ -85,7 +85,7 @@ export interface TransactionState {
 
 export function useDeposit() {
   const connection = useSolanaConnection();
-  const { publicKey, sendTransaction } = useWalletBridge();
+  const { publicKey, sendTransaction, login } = useWalletBridge();
   const queryClient = useQueryClient();
   const [state, setState] = useState<TransactionState>({ status: 'idle' });
 
@@ -176,7 +176,11 @@ export function useDeposit() {
         // Register pool for notifications + push success toast
         const notifStore = useNotificationStore.getState();
         notifStore.addUserPoolId(poolId);
-        notifStore.push(buildNotification('DEPOSIT_SUCCESS', { poolId, side }));
+        notifStore.push(buildNotification('DEPOSIT_SUCCESS', {
+          poolId,
+          side,
+          asset: response.data.pool.asset,
+        }));
 
         // Invalidate queries
         queryClient.invalidateQueries({ queryKey: ['pools'] });
@@ -186,6 +190,12 @@ export function useDeposit() {
         return signature;
       } catch (error) {
         let message = error instanceof Error ? error.message : 'Transaction failed';
+
+        // Session expired — trigger re-authentication automatically
+        if (message.includes('SESSION_EXPIRED')) {
+          message = 'Session expired — please log in and try again.';
+          login();
+        }
 
         // Improve timeout error message
         if (message.includes('not confirmed') || message.includes('timeout')) {
@@ -200,7 +210,7 @@ export function useDeposit() {
         throw error;
       }
     },
-    [publicKey, connection, sendTransaction, queryClient, state.txSignature]
+    [publicKey, connection, sendTransaction, login, queryClient, state.txSignature]
   );
 
   const reset = useCallback(() => {

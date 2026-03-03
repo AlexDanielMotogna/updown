@@ -177,9 +177,8 @@ export function emitPoolStatus(poolId: string, data: {
   winner?: string;
 }): void {
   if (io) {
-    // Broadcast to pool-specific room (detail page subscribers)
-    io.to(`pool:${poolId}`).emit('pool:status', data);
-    // Also broadcast globally so the markets page can react to transitions
+    // Broadcast globally — the frontend filters by poolId where needed.
+    // Using a single emit avoids duplicate delivery to clients in the pool room.
     io.emit('pool:status', data);
   }
 }

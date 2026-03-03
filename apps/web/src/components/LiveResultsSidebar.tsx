@@ -33,7 +33,8 @@ export function LiveResultsSidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { data } = usePools({ limit: 50 });
   const pools = (data?.data ?? []).filter(
-    (p) => p.status === 'RESOLVED' || p.status === 'CLAIMABLE'
+    (p) => (p.status === 'RESOLVED' || p.status === 'CLAIMABLE') &&
+           p.totalPool !== '0' // BUG-13: Hide empty pools with no bets
   ).slice(0, MAX_VISIBLE);
 
   // Track known pool IDs to detect genuinely new arrivals

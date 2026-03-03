@@ -52,10 +52,13 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
     // Deduplicate: ignore if same type + poolId was pushed within the last few seconds
     const now = Date.now();
     const existing = get().notifications;
+    // BUG-16: Include message in dedup check so distinct notifications
+    // of the same type (e.g. two different DEPOSIT_FAILED) aren't dropped
     const isDupe = existing.some(
       (n) =>
         n.type === input.type &&
         n.poolId === input.poolId &&
+        n.message === input.message &&
         now - n.createdAt < DEDUP_WINDOW_MS,
     );
     if (isDupe) return;

@@ -9,7 +9,7 @@ import { Transaction, PublicKey } from '@solana/web3.js';
 import { useSolanaConnection } from '@/app/providers';
 
 export function useWalletBridge() {
-  const { ready, authenticated, user, login, logout } = usePrivy();
+  const { ready, authenticated, user, login, logout, getAccessToken } = usePrivy();
   const { wallets } = useWallets();
   const { wallets: standardWallets } = useConnectedStandardWallets();
   const connection = useSolanaConnection();
@@ -51,6 +51,15 @@ export function useWalletBridge() {
 
   const sendTransaction = useCallback(
     async (transaction: Transaction): Promise<string> => {
+      // Validate wallet session is still active before attempting to sign.
+      // getAccessToken() checks the actual token — returns null if expired.
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error(
+          'SESSION_EXPIRED: Your wallet session has expired. Please log in again.',
+        );
+      }
+
       // Embedded wallet → use Privy's built-in send
       if (isEmbedded) {
         const receipt = await embeddedSend({ transaction, connection });
@@ -93,6 +102,7 @@ export function useWalletBridge() {
       standardSign,
       walletAddress,
       connection,
+      getAccessToken,
     ],
   );
 

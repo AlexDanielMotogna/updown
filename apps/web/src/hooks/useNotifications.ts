@@ -3,6 +3,7 @@ import { getSocket, connectSocket } from '@/lib/socket';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { buildNotification } from '@/lib/notifications';
 import { useBets } from './useBets';
+import { useWalletBridge } from './useWalletBridge';
 
 /**
  * Subscribe to WebSocket events and push notifications to the store.
@@ -10,6 +11,7 @@ import { useBets } from './useBets';
  */
 export function useNotifications() {
   const { push, addUserPoolId, setUserPoolIds, userPoolIds } = useNotificationStore();
+  const { walletAddress } = useWalletBridge();
   const betsQuery = useBets({ limit: 50 });
   const initializedRef = useRef(false);
 
@@ -62,7 +64,10 @@ export function useNotifications() {
       }
     };
 
-    const onRefund = (payload: { poolId?: string; amount?: string; message?: string }) => {
+    const onRefund = (payload: { walletAddress?: string; poolId?: string; amount?: string; message?: string }) => {
+      // BUG-04: Only show refund if it's for the connected wallet
+      if (!walletAddress || payload.walletAddress !== walletAddress) return;
+
       push(
         buildNotification('REFUND_RECEIVED', {
           poolId: payload.poolId,
@@ -80,5 +85,5 @@ export function useNotifications() {
     };
   // betsQuery.data is intentionally in deps so the listener closure
   // picks up the latest bets for win/loss determination
-  }, [push, addUserPoolId, betsQuery.data]);
+  }, [push, addUserPoolId, betsQuery.data, walletAddress]);
 }

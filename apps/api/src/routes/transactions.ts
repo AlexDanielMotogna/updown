@@ -2,6 +2,7 @@ import { Router, type Router as RouterType } from 'express';
 import { z } from 'zod';
 import { PublicKey, Connection, Keypair, Transaction, ComputeBudgetProgram } from '@solana/web3.js';
 import { prisma } from '../db';
+import { emitPoolUpdate } from '../websocket';
 import { getPoolPDA, getVaultPDA, getUserBetPDA, PROGRAM_ID } from 'solana-client';
 import {
   getAssociatedTokenAddress,
@@ -18,8 +19,8 @@ const PLATFORM_FEE_BPS = 500; // 5% = 500 basis points
 const RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 const connection = new Connection(RPC_URL, 'confirmed');
 
-// USDC mint on devnet (use devnet USDC or create test token)
-const USDC_MINT = new PublicKey(process.env.USDC_MINT || 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr');
+// USDC mint — must match the scheduler's USDC_MINT so vault PDAs are consistent
+const USDC_MINT = new PublicKey(process.env.USDC_MINT || 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
 
 // Load authority keypair for server-signed transactions (claims)
 function getAuthorityKeypair(): Keypair {
@@ -239,6 +240,17 @@ transactionsRouter.post('/confirm-deposit', async (req, res) => {
       });
     }
 
+    // BUG-05: Verify pool is still in JOINING status (not ACTIVE/RESOLVED/CLAIMABLE)
+    if (pool.status !== 'JOINING') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_POOL_STATUS',
+          message: `Pool is in ${pool.status} status, deposits only allowed during JOINING`,
+        },
+      });
+    }
+
     // Check if bet already exists
     const existingBet = await prisma.bet.findUnique({
       where: {
@@ -292,6 +304,28 @@ transactionsRouter.post('/confirm-deposit', async (req, res) => {
           code: 'TX_FAILED',
           message: 'Transaction failed on-chain',
           details: tx.meta.err,
+        },
+      });
+    }
+
+    // BUG-17: Verify walletAddress is a signer of the transaction.
+    // Prevents an attacker from submitting someone else's txSignature.
+    const allAccountKeys = tx.transaction.message.getAccountKeys();
+    const numSigners = tx.transaction.message.header.numRequiredSignatures;
+    let walletIsSigner = false;
+    for (let i = 0; i < numSigners; i++) {
+      const key = allAccountKeys.get(i);
+      if (key && key.toBase58() === walletAddress) {
+        walletIsSigner = true;
+        break;
+      }
+    }
+    if (!walletIsSigner) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_SIGNER',
+          message: 'Wallet address is not a signer of this transaction',
         },
       });
     }
@@ -350,44 +384,53 @@ transactionsRouter.post('/confirm-deposit', async (req, res) => {
 
     console.log(`[Deposit] Verified on-chain: pool=${poolId}, wallet=${walletAddress}, side=${side}, amount=${betAmount}`);
 
-    // Create bet in database
-    const bet = await prisma.bet.create({
-      data: {
-        poolId: pool.id,
-        walletAddress,
-        side,
-        amount: betAmount,
-        depositTx: txSignature,
-      },
-    });
-
-    // Update pool totals
-    await prisma.pool.update({
-      where: { id: pool.id },
-      data: {
-        totalUp: side === 'UP'
-          ? { increment: betAmount }
-          : undefined,
-        totalDown: side === 'DOWN'
-          ? { increment: betAmount }
-          : undefined,
-      },
-    });
-
-    // Log event
-    await prisma.eventLog.create({
-      data: {
-        eventType: 'DEPOSIT_CONFIRMED',
-        entityType: 'bet',
-        entityId: bet.id,
-        payload: {
+    // BUG-06: Atomic transaction — bet.create + pool.update together
+    const [bet, updatedPool] = await prisma.$transaction(async (tx) => {
+      const newBet = await tx.bet.create({
+        data: {
           poolId: pool.id,
           walletAddress,
           side,
-          amount: betAmount.toString(),
-          txSignature,
+          amount: betAmount,
+          depositTx: txSignature,
         },
-      },
+      });
+
+      const newPool = await tx.pool.update({
+        where: { id: pool.id },
+        data: {
+          totalUp: side === 'UP'
+            ? { increment: betAmount }
+            : undefined,
+          totalDown: side === 'DOWN'
+            ? { increment: betAmount }
+            : undefined,
+        },
+      });
+
+      await tx.eventLog.create({
+        data: {
+          eventType: 'DEPOSIT_CONFIRMED',
+          entityType: 'bet',
+          entityId: newBet.id,
+          payload: {
+            poolId: pool.id,
+            walletAddress,
+            side,
+            amount: betAmount.toString(),
+            txSignature,
+          },
+        },
+      });
+
+      return [newBet, newPool] as const;
+    });
+
+    // BUG-07: Emit pool update so other clients see updated totals in real-time
+    emitPoolUpdate(pool.id, {
+      id: pool.id,
+      totalUp: updatedPool.totalUp.toString(),
+      totalDown: updatedPool.totalDown.toString(),
     });
 
     res.json({
