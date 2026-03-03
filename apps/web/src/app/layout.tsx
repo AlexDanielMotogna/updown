@@ -13,6 +13,7 @@ const satoshi = localFont({
 export const metadata: Metadata = {
   title: 'UpDown',
   description: 'Stake USDC on UP/DOWN price predictions',
+  icons: { icon: '/favicon.png' },
 };
 
 export default function RootLayout({

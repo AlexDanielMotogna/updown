@@ -71,11 +71,12 @@ export default function MarketsPage() {
   // "ALL" tab shows JOINING + ACTIVE pools; other tabs filter to a single status
   const selectedStatus = statusTab === 0 ? 'JOINING,ACTIVE' : STATUSES[statusTab];
 
-  const filters: Omit<PoolFilters, 'page' | 'limit'> = {
+  // Memoize filters to prevent unnecessary re-renders and WebSocket re-subscriptions
+  const filters = useMemo(() => ({
     asset: assetFilter === 'ALL' ? undefined : assetFilter,
     interval: intervalFilter === 'ALL' ? undefined : intervalFilter,
     status: selectedStatus,
-  };
+  }), [assetFilter, intervalFilter, selectedStatus]);
 
   const {
     data,

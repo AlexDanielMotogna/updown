@@ -1,5 +1,5 @@
 import { useQuery, useInfiniteQuery, useQueryClient, keepPreviousData, type InfiniteData } from '@tanstack/react-query';
-import { useEffect, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import { fetchPools, fetchPool, type Pool, type ApiResponse } from '@/lib/api';
 import { getSocket, connectSocket } from '@/lib/socket';
 
@@ -14,22 +14,17 @@ export interface PoolFilters {
 export function usePools(filters?: PoolFilters) {
   const queryClient = useQueryClient();
 
-  // Subscribe to WebSocket events for pool updates
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const socket = getSocket();
     connectSocket();
 
-    // When a new pool is created, refetch the pools list
     const onNewPool = () => {
-      console.log('[usePools] New pool created, invalidating cache');
       queryClient.invalidateQueries({ queryKey: ['pools'] });
     };
 
-    // When any pool status changes, refetch the pools list
     const onPoolStatus = (data: { id: string; status: string }) => {
-      console.log('[usePools] Pool status changed:', data.id, '→', data.status);
       queryClient.invalidateQueries({ queryKey: ['pools'] });
       queryClient.invalidateQueries({ queryKey: ['pool', data.id] });
     };
@@ -46,7 +41,7 @@ export function usePools(filters?: PoolFilters) {
   return useQuery({
     queryKey: ['pools', filters],
     queryFn: () => fetchPools(filters),
-    refetchInterval: 10000, // Fallback refetch every 10 seconds
+    refetchInterval: 10_000,
   });
 }
 
@@ -58,30 +53,28 @@ export function useInfinitePools(filters?: Omit<PoolFilters, 'page' | 'limit'>) 
   const queryClient = useQueryClient();
   const queryKey = ['infinitePools', filters];
 
-  // Check if a pool matches the current filters
-  const matchesFilters = useCallback(
-    (pool: Pool) => {
-      if (filters?.asset && pool.asset !== filters.asset) return false;
-      if (filters?.interval && pool.interval !== filters.interval) return false;
-      if (filters?.status && pool.status !== filters.status) return false;
-      return true;
-    },
-    [filters],
-  );
+  // Store latest values in a ref so the WebSocket effect doesn't need
+  // to re-subscribe every time filters/queryKey change.
+  const stableRef = useRef({ filters, queryKey });
+  stableRef.current = { filters, queryKey };
 
-  // WebSocket: direct cache insertion/removal (no invalidateQueries)
+  // WebSocket: attach listeners ONCE (stable effect)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const socket = getSocket();
     connectSocket();
 
-    // New pool created → prepend to first page if it matches filters
     const onNewPool = (payload: { pool: Pool }) => {
       const pool = payload.pool;
       if (!pool?.id) return;
 
-      // Fill fields the WS payload may omit
+      const { filters: f, queryKey: qk } = stableRef.current;
+
+      // Quick filter check
+      if (f?.asset && pool.asset !== f.asset) return;
+      if (f?.interval && pool.interval !== f.interval) return;
+
       const normalized: Pool = {
         ...pool,
         betCount: pool.betCount ?? 0,
@@ -95,15 +88,10 @@ export function useInfinitePools(filters?: Omit<PoolFilters, 'page' | 'limit'>) 
         winner: pool.winner ?? null,
       };
 
-      if (!matchesFilters(normalized)) return;
-
-      console.log('[useInfinitePools] Inserting new pool via WS:', normalized.id);
-      queryClient.setQueryData<InfinitePoolsData>(queryKey, (old) => {
+      queryClient.setQueryData<InfinitePoolsData>(qk, (old) => {
         if (!old) return old;
         const firstPage = old.pages[0];
         if (!firstPage?.data) return old;
-
-        // Avoid duplicates
         if (firstPage.data.some((p) => p.id === normalized.id)) return old;
 
         return {
@@ -116,20 +104,19 @@ export function useInfinitePools(filters?: Omit<PoolFilters, 'page' | 'limit'>) 
       });
     };
 
-    // Pool status changed → remove from cache if no longer belongs
     const onPoolStatus = (data: { id: string; status: string }) => {
       if (!data?.id) return;
 
+      const { filters: f, queryKey: qk } = stableRef.current;
+
       const removedStatuses = ['RESOLVED', 'CLAIMABLE'];
-      // If the markets page filters by a specific status and the pool no longer matches, remove it
       const shouldRemove =
-        (filters?.status && data.status !== filters.status) ||
-        (!filters?.status && removedStatuses.includes(data.status));
+        (f?.status && !f.status.split(',').includes(data.status)) ||
+        (!f?.status && removedStatuses.includes(data.status));
 
       if (!shouldRemove) return;
 
-      console.log('[useInfinitePools] Removing pool via WS:', data.id, '→', data.status);
-      queryClient.setQueryData<InfinitePoolsData>(queryKey, (old) => {
+      queryClient.setQueryData<InfinitePoolsData>(qk, (old) => {
         if (!old) return old;
         return {
           ...old,
@@ -148,7 +135,7 @@ export function useInfinitePools(filters?: Omit<PoolFilters, 'page' | 'limit'>) 
       socket.off('pools:new', onNewPool);
       socket.off('pool:status', onPoolStatus);
     };
-  }, [queryClient, queryKey, matchesFilters, filters]);
+  }, [queryClient]); // Only depend on queryClient (stable singleton)
 
   return useInfiniteQuery({
     queryKey,
@@ -162,36 +149,30 @@ export function useInfinitePools(filters?: Omit<PoolFilters, 'page' | 'limit'>) 
         : undefined;
     },
     placeholderData: keepPreviousData,
-    staleTime: 15_000,
-    refetchInterval: 30_000,
+    staleTime: 5_000,
+    refetchInterval: 10_000,
   });
 }
 
 export function usePool(id: string | null) {
   const queryClient = useQueryClient();
 
-  // Subscribe to WebSocket events for this specific pool
   useEffect(() => {
     if (typeof window === 'undefined' || !id) return;
 
     const socket = getSocket();
     connectSocket();
 
-    // Subscribe to this pool's room
     socket.emit('subscribe:pool', { poolId: id });
 
-    // When pool is updated (totals change)
     const onPoolUpdated = (data: { id: string }) => {
       if (data.id === id) {
-        console.log('[usePool] Pool updated:', id);
         queryClient.invalidateQueries({ queryKey: ['pool', id] });
       }
     };
 
-    // When pool status changes
     const onPoolStatus = (data: { id: string; status: string }) => {
       if (data.id === id) {
-        console.log('[usePool] Pool status changed:', id, '→', data.status);
         queryClient.invalidateQueries({ queryKey: ['pool', id] });
       }
     };
@@ -210,6 +191,6 @@ export function usePool(id: string | null) {
     queryKey: ['pool', id],
     queryFn: () => fetchPool(id!),
     enabled: !!id,
-    refetchInterval: 5000, // Fallback refetch every 5 seconds
+    refetchInterval: 5_000,
   });
 }

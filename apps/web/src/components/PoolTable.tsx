@@ -3,7 +3,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { Box, Typography, Chip, Button, LinearProgress } from '@mui/material';
 import { TrendingUp, TrendingDown, Person, LocalFireDepartment } from '@mui/icons-material';
-import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import type { Pool } from '@/lib/api';
 import { formatUSDC, statusStyles, USDC_DIVISOR } from '@/lib/format';
@@ -87,16 +86,17 @@ function PoolRow({
   const oddsUp = totalUpUsd > 0 && totalUsd > 0 ? (totalUsd / totalUpUsd).toFixed(1) : '—';
   const oddsDown = totalDownUsd > 0 && totalUsd > 0 ? (totalUsd / totalDownUsd).toFixed(1) : '—';
 
-  const queryClient = useQueryClient();
-
   // --- Optimistic status transitions ---
   const [optimisticStatus, setOptimisticStatus] = useState<string>(pool.status);
   const [hidden, setHidden] = useState(false);
 
-  // Reset optimistic state when real server data arrives
+  // Sync optimistic state with server, but never un-hide a resolved pool
   useEffect(() => {
     setOptimisticStatus(pool.status);
-    setHidden(false);
+    // Only un-hide if pool moved to a genuinely new state (e.g., new JOINING pool reusing slot)
+    if (pool.status === 'JOINING' || pool.status === 'UPCOMING') {
+      setHidden(false);
+    }
   }, [pool.status]);
 
   // Use optimistic status for all rendering decisions
@@ -110,17 +110,18 @@ function PoolRow({
 
   const handleCountdownComplete = useCallback(() => {
     if (optimisticStatus === 'JOINING') {
-      // Instantly show as ACTIVE — countdown switches to endTime
       setOptimisticStatus('ACTIVE');
     } else if (optimisticStatus === 'ACTIVE') {
-      // Instantly hide the row — pool is resolving
       setHidden(true);
     }
-    // Safety net: still refetch after delay so cache stays consistent
-    setTimeout(() => {
-      queryClient.invalidateQueries({ queryKey: ['infinitePools'] });
-    }, 3000);
-  }, [queryClient, optimisticStatus]);
+  }, [optimisticStatus]);
+
+  // Hide immediately if endTime already passed on mount (e.g., page refresh)
+  useEffect(() => {
+    if (optimisticStatus === 'ACTIVE' && new Date(pool.endTime).getTime() <= Date.now()) {
+      setHidden(true);
+    }
+  }, [optimisticStatus, pool.endTime]);
 
   const countdownTarget =
     status === 'JOINING' ? pool.lockTime :
