@@ -52,9 +52,9 @@ export function OrderbookDepth({ asset }: OrderbookDepthProps) {
       <Box
         sx={{
           p: 2,
-          borderRadius: 1,
+          borderRadius: 0,
           background: 'rgba(255, 255, 255, 0.04)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
+          border: 'none',
           display: 'flex',
           justifyContent: 'center',
           overflow: 'hidden',

@@ -106,8 +106,8 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide }: Be
           mb: 4,
           gap: 2,
           '& .MuiToggleButtonGroup-grouped': {
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: '8px !important',
+            border: 'none',
+            borderRadius: '4px !important',
             flex: 1,
           },
         }}
@@ -194,7 +194,7 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide }: Be
             fontWeight: 300,
             backgroundColor: 'rgba(255, 255, 255, 0.02)',
             '& fieldset': {
-              borderColor: 'rgba(255, 255, 255, 0.1)',
+              borderColor: 'rgba(255, 255, 255, 0.05)',
             },
             '&:hover fieldset': {
               borderColor: 'rgba(255, 255, 255, 0.2)',
@@ -219,7 +219,7 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide }: Be
             sx={{
               flex: 1,
               py: { xs: 0.75, sm: 1 },
-              borderColor: 'rgba(255, 255, 255, 0.1)',
+              borderColor: 'rgba(255, 255, 255, 0.05)',
               color: 'text.secondary',
               fontWeight: 400,
               transition: 'all 0.2s ease',
@@ -241,9 +241,9 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide }: Be
           sx={{
             p: { xs: 2, sm: 2.5 },
             mb: 3,
-            borderRadius: 1,
+            borderRadius: 0,
             background: `${GAIN_COLOR}08`,
-            border: `1px solid ${GAIN_COLOR}20`,
+            border: 'none',
           }}
         >
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
@@ -283,8 +283,8 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide }: Be
           sx={{
             mb: 3,
             backgroundColor: `${DOWN_COLOR}15`,
-            border: `1px solid ${DOWN_COLOR}40`,
-            borderRadius: 1,
+            border: 'none',
+            borderRadius: 0,
           }}
         >
           {error}
@@ -297,9 +297,9 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide }: Be
           sx={{
             p: 2,
             mb: 3,
-            borderRadius: 1,
+            borderRadius: 0,
             background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
+            border: 'none',
             textAlign: 'center',
           }}
         >

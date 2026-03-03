@@ -48,13 +48,13 @@ export function MarketIntelligence({ asset, priceData }: MarketIntelligenceProps
               <Box
                 sx={{
                   p: { xs: 1.5, sm: 2 },
-                  borderRadius: 1,
+                  borderRadius: 0,
                   background: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  border: 'none',
                   flex: 1,
                 }}
               >
-                <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontWeight: 500, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontWeight: 500, letterSpacing: '0.05em', textTransform: 'none' }}>
                   {label}
                 </Typography>
                 <Typography sx={{ fontSize: { xs: '0.85rem', sm: '1.1rem' }, fontWeight: 300, color: 'rgba(255,255,255,0.2)', mt: 0.5 }}>
@@ -115,13 +115,13 @@ export function MarketIntelligence({ asset, priceData }: MarketIntelligenceProps
             <Box
               sx={{
                 p: { xs: 1.5, sm: 2 },
-                borderRadius: 1,
+                borderRadius: 0,
                 background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                border: 'none',
                 flex: 1,
               }}
             >
-              <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontWeight: 500, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+              <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontWeight: 500, letterSpacing: '0.05em', textTransform: 'none' }}>
                 {card.label}
               </Typography>
               <Typography sx={{ fontSize: { xs: '0.85rem', sm: '1rem' }, fontWeight: 300, color: card.color, mt: 0.5, fontVariantNumeric: 'tabular-nums' }}>

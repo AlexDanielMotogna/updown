@@ -11,10 +11,18 @@ import {
   Tabs,
   Tab,
   CircularProgress,
+  Button,
+  Collapse,
 } from '@mui/material';
+import {
+  FilterList,
+  Bolt,
+  HourglassTop,
+  ViewList,
+} from '@mui/icons-material';
 import { useInfinitePools, useBets, usePriceStream, useIntersectionObserver, type PoolFilters } from '@/hooks';
 import { PoolTable, Header, LiveResultsSidebar } from '@/components';
-import { UP_COLOR } from '@/lib/constants';
+import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR } from '@/lib/constants';
 
 const ASSETS = ['ALL', 'BTC', 'ETH', 'SOL'];
 const INTERVAL_OPTIONS = ['ALL', '1m', '5m', '15m', '1h'];
@@ -25,20 +33,48 @@ const INTERVAL_LABELS: Record<string, string> = {
   '15m': 'Short 15m',
   '1h': 'Hourly',
 };
-const STATUSES = ['ALL', 'UPCOMING', 'JOINING', 'ACTIVE', 'RESOLVED'];
+const STATUSES = ['ALL', 'JOINING', 'ACTIVE'];
+
+const STATUS_ICONS = [
+  <ViewList key="all" sx={{ fontSize: 18 }} />,
+  <HourglassTop key="joining" sx={{ fontSize: 18 }} />,
+  <Bolt key="active" sx={{ fontSize: 18 }} />,
+];
+
+const HOW_TO_PLAY = [
+  {
+    image: '/info-cards/info-1.webp',
+    title: 'Pick a Pool',
+    desc: 'Choose your asset & timeframe. BTC, ETH, SOL from 1min turbo to 1hr rounds.',
+    gradient: `linear-gradient(135deg, ${ACCENT_COLOR}15, ${ACCENT_COLOR}05)`,
+  },
+  {
+    image: '/info-cards/info-2.webp',
+    title: 'Go UP or DOWN',
+    desc: 'Stake USDC on your prediction. All bets go into the pool  winner takes all.',
+    gradient: `linear-gradient(135deg, ${UP_COLOR}15, ${UP_COLOR}05)`,
+  },
+  {
+    image: '/info-cards/info-3.png',
+    title: 'Collect Winnings',
+    desc: 'Price moves your way? Claim your share of the entire pool. Instant payout.',
+    gradient: `linear-gradient(135deg, ${GAIN_COLOR}15, ${GAIN_COLOR}05)`,
+  },
+];
 
 export default function MarketsPage() {
   const [assetFilter, setAssetFilter] = useState('ALL');
   const [intervalFilter, setIntervalFilter] = useState('ALL');
   const [statusTab, setStatusTab] = useState(0);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const selectedStatus = statusTab === 0 ? undefined : STATUSES[statusTab];
-  const isResolvedTab = selectedStatus === 'RESOLVED';
+  // "ALL" tab shows JOINING + ACTIVE pools; other tabs filter to a single status
+  const selectedStatus = statusTab === 0 ? 'JOINING,ACTIVE' : STATUSES[statusTab];
 
   const filters: Omit<PoolFilters, 'page' | 'limit'> = {
     asset: assetFilter === 'ALL' ? undefined : assetFilter,
     interval: intervalFilter === 'ALL' ? undefined : intervalFilter,
-    status: isResolvedTab ? undefined : selectedStatus,
+    status: selectedStatus,
   };
 
   const {
@@ -54,10 +90,15 @@ export default function MarketsPage() {
   const { data: betsData } = useBets();
   const { getPrice } = usePriceStream(['BTC', 'ETH', 'SOL']);
 
-  const allPools = useMemo(
-    () => data?.pages.flatMap((p) => p.data ?? []) ?? [],
-    [data]
-  );
+  const allPools = useMemo(() => {
+    const flat = data?.pages.flatMap((p) => p.data ?? []) ?? [];
+    const seen = new Set<string>();
+    return flat.filter((pool) => {
+      if (seen.has(pool.id)) return false;
+      seen.add(pool.id);
+      return true;
+    });
+  }, [data]);
 
   const userBetByPoolId = useMemo(() => {
     const map = new Map<string, { side: 'UP' | 'DOWN'; isWinner: boolean | null }>();
@@ -84,16 +125,8 @@ export default function MarketsPage() {
     setStatusTab(newValue);
   };
 
-  // Filter pools for resolved tab
-  let pools = allPools;
-  if (isResolvedTab) {
-    const userPoolIds = new Set((betsData?.data || []).map((bet) => bet.pool.id));
-    pools = pools.filter(
-      (pool) =>
-        (pool.status === 'RESOLVED' || pool.status === 'CLAIMABLE') &&
-        userPoolIds.has(pool.id)
-    );
-  }
+  // Filters are now fully handled server-side; just use the deduped list
+  const pools = allPools;
 
   const selectedPillSx = {
     backgroundColor: `${UP_COLOR}18`,
@@ -104,127 +137,192 @@ export default function MarketsPage() {
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: { xs: '72px', md: 0 } }}>
       <Header />
 
-      <Box sx={{ display: 'flex' }}>
+      <Box sx={{ display: 'flex', bgcolor: '#0B0F14' }}>
         {/* Left Sidebar */}
         <LiveResultsSidebar />
 
         {/* Main Content */}
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          {/* Hero - Compact */}
-          <Box sx={{ pt: { xs: 4, md: 5 }, pb: { xs: 2, md: 3 }, textAlign: 'center' }}>
-            <Typography
-              variant="h4"
+          <Container maxWidth="lg">
+            {/* How to Play — 3 cards */}
+            <Box
               sx={{
-                fontWeight: 600,
-                letterSpacing: '-0.02em',
-                fontSize: { xs: '1.3rem', md: '1.5rem' },
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
+                gap: '3px',
+                mt: { xs: 2, md: 3 },
+                mb: 3,
               }}
             >
-              Predict. Stake.{' '}
-              <Box component="span" sx={{ color: UP_COLOR }}>
-                Win.
-              </Box>
-            </Typography>
-          </Box>
+              {HOW_TO_PLAY.map((card) => (
+                <Box
+                  key={card.title}
+                  sx={{
+                    position: 'relative',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    alignItems: 'center',
+                    minHeight: 110,
+                    px: 2.5,
+                    py: 2,
+                    background: card.gradient,
+                    transition: 'background 0.2s ease',
+                    '&:hover': { background: 'rgba(255,255,255,0.03)' },
+                  }}
+                >
+                  <Box sx={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
+                    <Typography sx={{ fontWeight: 800, fontSize: '1rem', mb: 0.5 }}>
+                      {card.title}
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.82rem', fontWeight: 500, color: 'text.secondary', lineHeight: 1.5, maxWidth: '70%' }}>
+                      {card.desc}
+                    </Typography>
+                  </Box>
+                  <Box
+                    component="img"
+                    src={card.image}
+                    alt={card.title}
+                    sx={{
+                      position: 'absolute',
+                      right: -10,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      height: '120%',
+                      width: 'auto',
+                      objectFit: 'contain',
+                      opacity: 0.9,
+                    }}
+                  />
+                </Box>
+              ))}
+            </Box>
 
-          <Container maxWidth="lg">
-            {/* Filters - Single compact row */}
+            {/* Status tabs + Filters — Hellcase style */}
             <Box sx={{ mb: 3 }}>
-              {/* Asset + Interval filters in one row */}
-              <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-                <ToggleButtonGroup
-                  value={assetFilter}
-                  exclusive
-                  onChange={handleAssetChange}
-                  sx={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                    borderRadius: 50,
-                    padding: '3px',
-                    '& .MuiToggleButtonGroup-grouped': {
-                      border: 'none',
-                      borderRadius: '50px !important',
-                      mx: 0.25,
-                      px: { xs: 1.5, sm: 2.5 },
-                      py: 0.75,
-                      color: 'text.secondary',
-                      fontWeight: 400,
-                      fontSize: '0.8rem',
-                      transition: 'all 0.3s ease',
-                      '&.Mui-selected': selectedPillSx,
-                      '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.04)' },
-                    },
-                  }}
-                >
-                  {ASSETS.map((asset) => (
-                    <ToggleButton key={asset} value={asset}>{asset}</ToggleButton>
-                  ))}
-                </ToggleButtonGroup>
-
-                <ToggleButtonGroup
-                  value={intervalFilter}
-                  exclusive
-                  onChange={handleIntervalChange}
-                  sx={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                    borderRadius: 50,
-                    padding: '3px',
-                    '& .MuiToggleButtonGroup-grouped': {
-                      border: 'none',
-                      borderRadius: '50px !important',
-                      mx: 0.25,
-                      px: { xs: 1.25, sm: 2 },
-                      py: 0.75,
-                      color: 'text.secondary',
-                      fontWeight: 400,
-                      fontSize: '0.8rem',
-                      transition: 'all 0.3s ease',
-                      '&.Mui-selected': selectedPillSx,
-                      '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.04)' },
-                    },
-                  }}
-                >
-                  {INTERVAL_OPTIONS.map((interval) => (
-                    <ToggleButton key={interval} value={interval}>
-                      {INTERVAL_LABELS[interval]}
-                    </ToggleButton>
-                  ))}
-                </ToggleButtonGroup>
-              </Box>
-
-              {/* Status Tabs */}
               <Box
                 sx={{
-                  borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
                   display: 'flex',
-                  justifyContent: 'center',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
                 }}
               >
                 <Tabs
                   value={statusTab}
                   onChange={handleStatusChange}
                   sx={{
+                    minHeight: 44,
                     '& .MuiTabs-indicator': {
-                      backgroundColor: UP_COLOR,
+                      backgroundColor: ACCENT_COLOR,
                       height: 2,
                     },
                     '& .MuiTab-root': {
                       color: 'text.secondary',
-                      fontWeight: 400,
+                      fontWeight: 500,
                       textTransform: 'none',
-                      fontSize: '0.9rem',
+                      fontSize: '0.85rem',
                       px: 2.5,
+                      minHeight: 44,
                       minWidth: 'auto',
+                      gap: 0.75,
                       '&.Mui-selected': { color: '#FFFFFF' },
                     },
                   }}
                 >
-                  {STATUSES.map((status) => (
-                    <Tab key={status} label={status} />
+                  {STATUSES.map((status, i) => (
+                    <Tab
+                      key={status}
+                      icon={STATUS_ICONS[i]}
+                      iconPosition="start"
+                      label={status}
+                    />
                   ))}
                 </Tabs>
+
+                <Button
+                  variant="text"
+                  size="small"
+                  startIcon={<FilterList />}
+                  onClick={() => setFiltersOpen((prev) => !prev)}
+                  sx={{
+                    borderRadius: '4px',
+                    color: filtersOpen ? ACCENT_COLOR : 'text.secondary',
+                    textTransform: 'none',
+                    fontWeight: 500,
+                    fontSize: '0.85rem',
+                    px: 2,
+                    '&:hover': {
+                      bgcolor: `${ACCENT_COLOR}10`,
+                    },
+                  }}
+                >
+                  Filters
+                </Button>
               </Box>
+
+              {/* Collapsible filter panel */}
+              <Collapse in={filtersOpen}>
+                <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, py: 2, flexWrap: 'wrap' }}>
+                  <ToggleButtonGroup
+                    value={assetFilter}
+                    exclusive
+                    onChange={handleAssetChange}
+                    sx={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '3px',
+                      '& .MuiToggleButtonGroup-grouped': {
+                        border: 'none',
+                        borderRadius: '4px !important',
+                        mx: 0.25,
+                        px: { xs: 1.5, sm: 2.5 },
+                        py: 0.75,
+                        color: 'text.secondary',
+                        fontWeight: 400,
+                        fontSize: '0.8rem',
+                        transition: 'all 0.3s ease',
+                        '&.Mui-selected': selectedPillSx,
+                        '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.04)' },
+                      },
+                    }}
+                  >
+                    {ASSETS.map((asset) => (
+                      <ToggleButton key={asset} value={asset}>{asset}</ToggleButton>
+                    ))}
+                  </ToggleButtonGroup>
+
+                  <ToggleButtonGroup
+                    value={intervalFilter}
+                    exclusive
+                    onChange={handleIntervalChange}
+                    sx={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '3px',
+                      '& .MuiToggleButtonGroup-grouped': {
+                        border: 'none',
+                        borderRadius: '4px !important',
+                        mx: 0.25,
+                        px: { xs: 1.25, sm: 2 },
+                        py: 0.75,
+                        color: 'text.secondary',
+                        fontWeight: 400,
+                        fontSize: '0.8rem',
+                        transition: 'all 0.3s ease',
+                        '&.Mui-selected': selectedPillSx,
+                        '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.04)' },
+                      },
+                    }}
+                  >
+                    {INTERVAL_OPTIONS.map((interval) => (
+                      <ToggleButton key={interval} value={interval}>
+                        {INTERVAL_LABELS[interval]}
+                      </ToggleButton>
+                    ))}
+                  </ToggleButtonGroup>
+                </Box>
+              </Collapse>
             </Box>
 
             {/* Error State */}
@@ -234,8 +332,8 @@ export default function MarketsPage() {
                 sx={{
                   mb: 4,
                   backgroundColor: 'rgba(248, 113, 113, 0.1)',
-                  border: '1px solid rgba(248, 113, 113, 0.3)',
-                  borderRadius: 1,
+                  border: 'none',
+                  borderRadius: 0,
                 }}
               >
                 Failed to load pools. Please try again.

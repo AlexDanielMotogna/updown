@@ -177,7 +177,10 @@ export function emitPoolStatus(poolId: string, data: {
   winner?: string;
 }): void {
   if (io) {
+    // Broadcast to pool-specific room (detail page subscribers)
     io.to(`pool:${poolId}`).emit('pool:status', data);
+    // Also broadcast globally so the markets page can react to transitions
+    io.emit('pool:status', data);
   }
 }
 
@@ -187,6 +190,19 @@ export function emitPoolStatus(poolId: string, data: {
 export function emitNewPool(pool: object): void {
   if (io) {
     io.emit('pools:new', { pool });
+  }
+}
+
+/**
+ * Emit a refund notification to a specific wallet address
+ */
+export function emitRefund(walletAddress: string, data: {
+  poolId: string;
+  amount: string;
+  txSignature: string;
+}): void {
+  if (io) {
+    io.emit('wallet:refund', { walletAddress, ...data });
   }
 }
 

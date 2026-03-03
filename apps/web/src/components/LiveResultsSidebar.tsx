@@ -1,13 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Box, Typography, Chip, Fab } from '@mui/material';
-import { TrendingUp, TrendingDown, FiberManualRecord } from '@mui/icons-material';
+import { TrendingUp, TrendingDown } from '@mui/icons-material';
+import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 import Link from 'next/link';
 import { usePools } from '@/hooks/usePools';
 import { formatUSDC } from '@/lib/format';
 import { UP_COLOR, DOWN_COLOR, GAIN_COLOR } from '@/lib/constants';
 import { AssetIcon } from './AssetIcon';
+
+const MAX_VISIBLE = 12;
 
 const INTERVAL_LABELS: Record<string, string> = {
   '1m': 'Turbo 1m',
@@ -28,8 +31,30 @@ function timeAgo(dateStr: string): string {
 
 export function LiveResultsSidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { data } = usePools({ status: 'RESOLVED', limit: 20 });
-  const pools = data?.data ?? [];
+  const { data } = usePools({ limit: 50 });
+  const pools = (data?.data ?? []).filter(
+    (p) => p.status === 'RESOLVED' || p.status === 'CLAIMABLE'
+  ).slice(0, MAX_VISIBLE);
+
+  // Track known pool IDs to detect genuinely new arrivals
+  const knownIdsRef = useRef<Set<string>>(new Set());
+  const [newIds, setNewIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const freshIds = new Set<string>();
+    for (const pool of pools) {
+      if (!knownIdsRef.current.has(pool.id)) {
+        freshIds.add(pool.id);
+        knownIdsRef.current.add(pool.id);
+      }
+    }
+    if (freshIds.size > 0) {
+      setNewIds(freshIds);
+      // Clear after animation completes so it never replays
+      const t = setTimeout(() => setNewIds(new Set()), 2800);
+      return () => clearTimeout(t);
+    }
+  }, [pools]);
 
   const sidebarContent = (
     <Box
@@ -39,18 +64,12 @@ export function LiveResultsSidebar() {
         flexDirection: 'column',
       }}
     >
-      <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <Box sx={{ px: 2, py: 1.5 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <FiberManualRecord
+          <LeaderboardIcon
             sx={{
-              fontSize: 8,
+              fontSize: 16,
               color: GAIN_COLOR,
-              animation: 'pulse 2s infinite',
-              '@keyframes pulse': {
-                '0%': { opacity: 1 },
-                '50%': { opacity: 0.4 },
-                '100%': { opacity: 1 },
-              },
             }}
           />
           <Typography variant="caption" sx={{ fontWeight: 600, letterSpacing: '0.08em' }}>
@@ -62,14 +81,10 @@ export function LiveResultsSidebar() {
       <Box
         sx={{
           flex: 1,
-          overflowY: 'auto',
-          scrollbarWidth: 'thin',
-          scrollbarColor: 'rgba(255,255,255,0.08) transparent',
-          '&::-webkit-scrollbar': { width: 4 },
-          '&::-webkit-scrollbar-thumb': {
-            background: 'rgba(255,255,255,0.08)',
-            borderRadius: 2,
-          },
+          overflow: 'hidden',
+          position: 'relative',
+          maskImage: 'linear-gradient(to bottom, black 85%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, black 85%, transparent 100%)',
         }}
       >
         {pools.length === 0 && (
@@ -79,23 +94,28 @@ export function LiveResultsSidebar() {
             </Typography>
           </Box>
         )}
-        {pools.map((pool, i) => (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+        {pools.map((pool) => {
+          const isNew = newIds.has(pool.id);
+          return (
           <Link key={pool.id} href={`/pool/${pool.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
             <Box
               sx={{
                 px: 2,
                 py: 1.5,
-                borderBottom: '1px solid rgba(255,255,255,0.04)',
-                borderLeft: `3px solid ${pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR}`,
+                bgcolor: '#0D1219',
                 cursor: 'pointer',
                 transition: 'background 0.15s ease',
-                animation: `slideDown 0.3s ease ${i * 50}ms both`,
-                '@keyframes slideDown': {
-                  from: { opacity: 0, transform: 'translateY(-8px)' },
-                  to: { opacity: 1, transform: 'translateY(0)' },
-                },
+                ...(isNew && {
+                  animation: 'newResult 2.6s cubic-bezier(0.22, 1, 0.36, 1) both',
+                  '@keyframes newResult': {
+                    '0%': { opacity: 0, transform: 'scale(0.96) translateY(-10px)' },
+                    '60%': { opacity: 1 },
+                    '100%': { opacity: 1, transform: 'scale(1) translateY(0)' },
+                  },
+                }),
                 '&:hover': {
-                  background: 'rgba(255,255,255,0.03)',
+                  background: 'rgba(255,255,255,0.04)',
                 },
               }}
             >
@@ -115,6 +135,7 @@ export function LiveResultsSidebar() {
                     fontWeight: 500,
                     bgcolor: 'rgba(255,255,255,0.06)',
                     color: 'text.secondary',
+                    borderRadius: '2px',
                   }}
                 />
               </Box>
@@ -149,7 +170,9 @@ export function LiveResultsSidebar() {
               </Typography>
             </Box>
           </Link>
-        ))}
+          );
+        })}
+        </Box>
       </Box>
     </Box>
   );
@@ -165,8 +188,7 @@ export function LiveResultsSidebar() {
           position: 'sticky',
           top: 64,
           height: 'calc(100vh - 64px)',
-          borderRight: '1px solid rgba(255,255,255,0.06)',
-          background: '#0D1218',
+          background:'#0B0F14',
         }}
       >
         {sidebarContent}
@@ -183,7 +205,7 @@ export function LiveResultsSidebar() {
           left: 16,
           zIndex: 99,
           bgcolor: '#111820',
-          border: '1px solid rgba(255,255,255,0.1)',
+          border: 'none',
           color: 'text.primary',
           fontSize: '0.7rem',
           fontWeight: 600,
@@ -193,7 +215,7 @@ export function LiveResultsSidebar() {
         }}
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.25 }}>
-          <FiberManualRecord sx={{ fontSize: 8, color: GAIN_COLOR, animation: 'pulse 2s infinite' }} />
+          <LeaderboardIcon sx={{ fontSize: 14, color: GAIN_COLOR }} />
           <Typography sx={{ fontSize: '0.55rem', fontWeight: 600, lineHeight: 1 }}>LIVE</Typography>
         </Box>
       </Fab>
@@ -218,9 +240,9 @@ export function LiveResultsSidebar() {
               left: 0,
               right: 0,
               maxHeight: '60vh',
-              bgcolor: '#0D1218',
+              bgcolor: '#080C11',
               borderTop: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '12px 12px 0 0',
+              borderRadius: 0,
             }}
           >
             {sidebarContent}

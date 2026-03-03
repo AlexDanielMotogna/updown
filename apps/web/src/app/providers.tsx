@@ -97,12 +97,11 @@ const darkTheme = createTheme({
     caption: {
       fontSize: '0.75rem',
       fontWeight: 500,
-      letterSpacing: '0.05em',
-      textTransform: 'uppercase' as const,
+      letterSpacing: '0.02em',
     },
   },
   shape: {
-    borderRadius: 8,
+    borderRadius: 0,
   },
   components: {
     MuiCssBaseline: {
@@ -126,9 +125,9 @@ const darkTheme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
+          borderRadius: 0,
           background: '#111820',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
+          border: 'none',
           transition: 'all 0.2s ease',
         },
       },
@@ -136,7 +135,7 @@ const darkTheme = createTheme({
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
+          borderRadius: 4,
           textTransform: 'none',
           fontWeight: 500,
           letterSpacing: '0.02em',
@@ -151,7 +150,7 @@ const darkTheme = createTheme({
         },
         outlined: {
           borderWidth: 1,
-          borderColor: 'rgba(255, 255, 255, 0.15)',
+          borderColor: 'rgba(255, 255, 255, 0.1)',
           '&:hover': {
             borderWidth: 1,
             backgroundColor: 'rgba(255, 255, 255, 0.04)',
@@ -163,16 +162,16 @@ const darkTheme = createTheme({
       styleOverrides: {
         root: {
           '& .MuiOutlinedInput-root': {
-            borderRadius: 8,
+            borderRadius: 0,
             backgroundColor: 'rgba(255, 255, 255, 0.02)',
             '& fieldset': {
-              borderColor: 'rgba(255, 255, 255, 0.1)',
+              borderColor: 'rgba(255, 255, 255, 0.06)',
             },
             '&:hover fieldset': {
-              borderColor: 'rgba(255, 255, 255, 0.2)',
+              borderColor: 'rgba(255, 255, 255, 0.12)',
             },
             '&.Mui-focused fieldset': {
-              borderColor: 'rgba(255, 255, 255, 0.3)',
+              borderColor: 'rgba(255, 255, 255, 0.2)',
               borderWidth: 1,
             },
           },
@@ -182,12 +181,12 @@ const darkTheme = createTheme({
     MuiChip: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
+          borderRadius: 2,
           fontWeight: 500,
           letterSpacing: '0.02em',
         },
         outlined: {
-          borderColor: 'rgba(255, 255, 255, 0.2)',
+          borderColor: 'rgba(255, 255, 255, 0.1)',
         },
       },
     },
@@ -215,19 +214,19 @@ const darkTheme = createTheme({
       styleOverrides: {
         paper: {
           background: '#111820',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          borderRadius: 8,
+          border: 'none',
+          borderRadius: 0,
         },
       },
     },
     MuiLinearProgress: {
       styleOverrides: {
         root: {
-          borderRadius: 4,
+          borderRadius: 0,
           backgroundColor: 'rgba(248, 113, 113, 0.3)',
         },
         bar: {
-          borderRadius: 4,
+          borderRadius: 0,
         },
       },
     },

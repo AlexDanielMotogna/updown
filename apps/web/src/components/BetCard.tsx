@@ -1,12 +1,13 @@
 'use client';
 
-import { Card, CardContent, Box, Typography, Chip, Button } from '@mui/material';
+import { Card, CardContent, Box, Typography, Chip, Button, CircularProgress } from '@mui/material';
 import { TrendingUp, TrendingDown, OpenInNew } from '@mui/icons-material';
 import Link from 'next/link';
 import type { Bet } from '@/lib/api';
 import { formatUSDC, formatDate, formatPrice, formatDateTime, getExplorerTxUrl, statusStyles, USDC_DIVISOR } from '@/lib/format';
 import { UP_COLOR, DOWN_COLOR, GAIN_COLOR } from '@/lib/constants';
 import { AssetIcon } from './AssetIcon';
+import { Countdown } from './Countdown';
 
 interface BetCardProps {
   bet: Bet;
@@ -15,10 +16,12 @@ interface BetCardProps {
 }
 
 export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
-  const isWinner = bet.isWinner === true;
+  const isRefund = bet.claimed && bet.payoutAmount != null && bet.payoutAmount === bet.amount;
+  const isWinner = bet.isWinner === true && !isRefund;
   const isLoser = bet.isWinner === false;
   const isClaimable = isWinner && !bet.claimed && bet.pool.status === 'CLAIMABLE';
   const isActive = bet.pool.status === 'JOINING' || bet.pool.status === 'ACTIVE';
+  const isResolving = bet.pool.status === 'ACTIVE' && new Date(bet.pool.endTime).getTime() <= Date.now();
   const statusStyle = statusStyles[bet.pool.status] || statusStyles.UPCOMING;
 
   return (
@@ -26,7 +29,7 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
       sx={{
         overflow: 'hidden',
         background: '#111820',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
+        border: 'none',
       }}
     >
       <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
@@ -42,13 +45,17 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
           </Box>
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
             <Chip
-              label={bet.pool.status}
+              icon={isResolving ? <CircularProgress size={10} sx={{ color: 'inherit' }} /> : undefined}
+              label={isResolving ? 'Resolving...' : bet.pool.status}
               size="small"
               sx={{
-                ...statusStyle,
+                ...(isResolving
+                  ? { bgcolor: 'rgba(251, 191, 36, 0.12)', color: '#FBBF24' }
+                  : statusStyle),
                 fontWeight: 500,
                 fontSize: '0.7rem',
                 letterSpacing: '0.03em',
+                borderRadius: '2px',
               }}
             />
             <Chip
@@ -60,6 +67,7 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
                 color: bet.side === 'UP' ? UP_COLOR : DOWN_COLOR,
                 fontWeight: 500,
                 fontSize: '0.7rem',
+                borderRadius: '2px',
                 '& .MuiChip-icon': { color: 'inherit' },
               }}
             />
@@ -72,6 +80,7 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
                   color: GAIN_COLOR,
                   fontWeight: 500,
                   fontSize: '0.7rem',
+                  borderRadius: '2px',
                 }}
               />
             )}
@@ -84,18 +93,20 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
                   color: 'rgba(255, 255, 255, 0.4)',
                   fontWeight: 500,
                   fontSize: '0.7rem',
+                  borderRadius: '2px',
                 }}
               />
             )}
             {bet.claimed && (
               <Chip
-                label="Claimed"
+                label={isRefund ? 'Refunded' : 'Claimed'}
                 size="small"
                 sx={{
-                  bgcolor: 'rgba(255, 255, 255, 0.05)',
-                  color: 'rgba(255, 255, 255, 0.5)',
+                  bgcolor: isRefund ? 'rgba(59, 130, 246, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                  color: isRefund ? '#60A5FA' : 'rgba(255, 255, 255, 0.5)',
                   fontWeight: 500,
                   fontSize: '0.7rem',
+                  borderRadius: '2px',
                 }}
               />
             )}
@@ -116,9 +127,9 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
           {bet.payoutAmount && (
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                Payout
+                {isRefund ? 'Refund' : 'Payout'}
               </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: GAIN_COLOR }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: isRefund ? '#60A5FA' : GAIN_COLOR }}>
                 {formatUSDC(bet.payoutAmount!, { min: 2 })}
               </Typography>
             </Box>
@@ -153,13 +164,24 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
             </Box>
           )}
 
-          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              {isActive ? 'Ends' : 'Ended'}
+              {isActive ? (isResolving ? 'Result' : 'Result in') : 'Ended'}
             </Typography>
-            <Typography variant="body2" sx={{ fontWeight: 400 }}>
-              {isActive ? formatDateTime(bet.pool.endTime) : formatDate(bet.pool.endTime)}
-            </Typography>
+            {isResolving ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                <CircularProgress size={12} sx={{ color: '#FBBF24' }} />
+                <Typography variant="body2" sx={{ fontWeight: 500, color: '#FBBF24' }}>
+                  Resolving...
+                </Typography>
+              </Box>
+            ) : isActive ? (
+              <Countdown targetDate={bet.pool.endTime} compact />
+            ) : (
+              <Typography variant="body2" sx={{ fontWeight: 400 }}>
+                {formatDate(bet.pool.endTime)}
+              </Typography>
+            )}
           </Box>
 
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -186,7 +208,7 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
                 sx={{
                   fontSize: '0.7rem',
                   color: 'text.secondary',
-                  borderColor: 'rgba(255, 255, 255, 0.1)',
+                  borderColor: 'transparent',
                   px: 1.5,
                   py: 0.5,
                   '&:hover': { color: '#FFFFFF', borderColor: 'rgba(255, 255, 255, 0.3)' },
@@ -207,7 +229,7 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
                 sx={{
                   fontSize: '0.7rem',
                   color: 'text.secondary',
-                  borderColor: 'rgba(255, 255, 255, 0.1)',
+                  borderColor: 'transparent',
                   px: 1.5,
                   py: 0.5,
                   '&:hover': { color: '#FFFFFF', borderColor: 'rgba(255, 255, 255, 0.3)' },

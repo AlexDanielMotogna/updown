@@ -28,6 +28,7 @@ function serializeBet(bet: {
   createdAt: Date;
   updatedAt: Date;
   pool: {
+    _count: { bets: number };
     id: string;
     poolId: string;
     asset: string;
@@ -51,7 +52,8 @@ function serializeBet(bet: {
     if (winnerPool > 0n) {
       const share = Number(bet.amount) / Number(winnerPool);
       const grossPayout = Math.floor(share * Number(totalPool));
-      const fee = Math.floor((grossPayout * PLATFORM_FEE_BPS) / 10000);
+      // No fee if only one bettor in the pool (no counterparty)
+      const fee = bet.pool._count.bets <= 1 ? 0 : Math.floor((grossPayout * PLATFORM_FEE_BPS) / 10000);
       payout = (grossPayout - fee).toString();
     }
   }
@@ -118,6 +120,7 @@ betsRouter.get('/', async (req, res) => {
               totalUp: true,
               totalDown: true,
               winner: true,
+              _count: { select: { bets: true } },
             },
           },
         },
@@ -192,6 +195,7 @@ betsRouter.get('/claimable', async (req, res) => {
             totalUp: true,
             totalDown: true,
             winner: true,
+            _count: { select: { bets: true } },
           },
         },
       },
@@ -208,7 +212,8 @@ betsRouter.get('/claimable', async (req, res) => {
       if (winnerPool > 0n) {
         const share = Number(bet.amount) / Number(winnerPool);
         const grossPayout = BigInt(Math.floor(share * Number(totalPool)));
-        const fee = (grossPayout * BigInt(PLATFORM_FEE_BPS)) / 10000n;
+        // No fee if only one bettor in the pool (no counterparty)
+        const fee = bet.pool._count.bets <= 1 ? 0n : (grossPayout * BigInt(PLATFORM_FEE_BPS)) / 10000n;
         return sum + (grossPayout - fee);
       }
       return sum;

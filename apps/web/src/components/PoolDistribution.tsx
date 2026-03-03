@@ -44,7 +44,7 @@ export function PoolDistribution({ totalUp, totalDown, totalPool, betCount }: Po
         sx={{
           position: 'relative',
           height: 10,
-          borderRadius: 1,
+          borderRadius: 0,
           overflow: 'hidden',
           backgroundColor: `${DOWN_COLOR}40`,
           mb: 3,
@@ -58,7 +58,7 @@ export function PoolDistribution({ totalUp, totalDown, totalPool, betCount }: Po
             height: '100%',
             width: `${upPercentage}%`,
             background: UP_COLOR,
-            borderRadius: 1,
+            borderRadius: 0,
             transition: 'width 0.5s ease',
           }}
         />

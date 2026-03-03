@@ -32,8 +32,8 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
           fontSize: '0.875rem',
           fontWeight: 500,
           backgroundColor: `${UP_COLOR}10`,
-          border: `1px solid ${UP_COLOR}30`,
-          borderRadius: '8px',
+          border: 'none',
+          borderRadius: '4px',
           color: UP_COLOR,
           transition: 'all 0.2s ease',
           '&:hover': {
@@ -64,8 +64,8 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
         fontSize: '0.875rem',
         fontWeight: 500,
         backgroundColor: 'rgba(255, 255, 255, 0.05)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        borderRadius: '8px',
+        border: 'none',
+        borderRadius: '4px',
         color: 'text.primary',
         transition: 'all 0.2s ease',
         '&:hover': {

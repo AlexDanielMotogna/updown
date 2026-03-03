@@ -34,34 +34,37 @@ export function getSchedulerConfig(): SchedulerConfig {
   } else {
     // Default: 4 intervals x 3 assets = 12 templates
     const ASSETS = ['BTC', 'ETH', 'SOL'];
+    // joinWindowSeconds = interval so the JOINING countdown matches the pool duration
+    // lockBufferSeconds = 0 so lock and start happen simultaneously
+    // This gives clean transitions: JOINING(1m) → ACTIVE(1m) → RESOLVED
     const INTERVAL_CONFIGS: Omit<PoolTemplate, 'asset'>[] = [
       {
         intervalKey: '1m',
         interval: 60,
         cronExpression: '* * * * *',
-        joinWindowSeconds: 40,
-        lockBufferSeconds: 5,
+        joinWindowSeconds: 60,
+        lockBufferSeconds: 0,
       },
       {
         intervalKey: '5m',
         interval: 300,
         cronExpression: '*/5 * * * *',
-        joinWindowSeconds: 180,
-        lockBufferSeconds: 15,
+        joinWindowSeconds: 300,
+        lockBufferSeconds: 0,
       },
       {
         intervalKey: '15m',
         interval: 900,
         cronExpression: '*/15 * * * *',
-        joinWindowSeconds: 600,
-        lockBufferSeconds: 30,
+        joinWindowSeconds: 900,
+        lockBufferSeconds: 0,
       },
       {
         intervalKey: '1h',
         interval: 3600,
         cronExpression: '0 * * * *',
-        joinWindowSeconds: 3000,
-        lockBufferSeconds: 60,
+        joinWindowSeconds: 3600,
+        lockBufferSeconds: 0,
       },
     ];
 

@@ -14,6 +14,7 @@ vi.mock('../db', () => ({
       findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      count: vi.fn(),
     },
     eventLog: {
       create: vi.fn(),
@@ -370,6 +371,7 @@ describe('Transactions API', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
+      vi.mocked(prisma.bet.count).mockResolvedValue(3);
 
       const res = await request(app)
         .post('/api/transactions/claim')

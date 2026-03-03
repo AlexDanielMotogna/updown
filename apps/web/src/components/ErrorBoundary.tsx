@@ -51,8 +51,8 @@ export class ErrorBoundary extends Component<Props, State> {
             onClick={this.handleRetry}
             style={{
               padding: '10px 24px',
-              borderRadius: 8,
-              border: '1px solid rgba(255,255,255,0.15)',
+              borderRadius: 0,
+              border: 'none',
               backgroundColor: 'transparent',
               color: '#FFFFFF',
               fontSize: '0.875rem',

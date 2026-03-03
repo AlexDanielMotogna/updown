@@ -29,9 +29,9 @@ export function PoolTimeline({ status, createdAt, lockTime, startTime, endTime }
           flexDirection: 'column',
           gap: { xs: 1, sm: 1.5 },
           p: 2,
-          borderRadius: 1,
+          borderRadius: 0,
           background: 'rgba(255, 255, 255, 0.02)',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
+          border: 'none',
         }}
       >
         {/* Predictions Open */}
@@ -44,7 +44,7 @@ export function PoolTimeline({ status, createdAt, lockTime, startTime, endTime }
             {formatDateTime(createdAt)}
           </Typography>
           {status === 'JOINING' && (
-            <Chip label="OPEN" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.1)', color: '#FFFFFF', height: 20, fontSize: '0.65rem' }} />
+            <Chip label="OPEN" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.1)', color: '#FFFFFF', height: 20, fontSize: '0.65rem', borderRadius: '2px' }} />
           )}
           {(status === 'ACTIVE' || isResolved) && (
             <CheckCircle sx={{ fontSize: 16, color: 'text.secondary' }} />
@@ -61,10 +61,10 @@ export function PoolTimeline({ status, createdAt, lockTime, startTime, endTime }
             {formatDateTime(lockTime)}
           </Typography>
           {status === 'JOINING' && (
-            <Chip label="PENDING" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', color: 'text.secondary', height: 20, fontSize: '0.65rem' }} />
+            <Chip label="PENDING" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', color: 'text.secondary', height: 20, fontSize: '0.65rem', borderRadius: '2px' }} />
           )}
           {status === 'ACTIVE' && (
-            <Chip label="CLOSED" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.08)', color: 'rgba(255, 255, 255, 0.7)', height: 20, fontSize: '0.65rem' }} />
+            <Chip label="CLOSED" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.08)', color: 'rgba(255, 255, 255, 0.7)', height: 20, fontSize: '0.65rem', borderRadius: '2px' }} />
           )}
           {isResolved && (
             <CheckCircle sx={{ fontSize: 16, color: 'text.secondary' }} />
@@ -81,10 +81,10 @@ export function PoolTimeline({ status, createdAt, lockTime, startTime, endTime }
             {formatDateTime(startTime)}
           </Typography>
           {status === 'JOINING' && (
-            <Chip label="PENDING" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', color: 'text.secondary', height: 20, fontSize: '0.65rem' }} />
+            <Chip label="PENDING" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', color: 'text.secondary', height: 20, fontSize: '0.65rem', borderRadius: '2px' }} />
           )}
           {status === 'ACTIVE' && (
-            <Chip label="LIVE" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.1)', color: '#FFFFFF', height: 20, fontSize: '0.65rem' }} />
+            <Chip label="LIVE" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.1)', color: '#FFFFFF', height: 20, fontSize: '0.65rem', borderRadius: '2px' }} />
           )}
           {isResolved && (
             <CheckCircle sx={{ fontSize: 16, color: 'text.secondary' }} />
@@ -101,10 +101,10 @@ export function PoolTimeline({ status, createdAt, lockTime, startTime, endTime }
             {formatDateTime(endTime)}
           </Typography>
           {(status === 'JOINING' || status === 'ACTIVE') && (
-            <Chip label="PENDING" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', color: 'text.secondary', height: 20, fontSize: '0.65rem' }} />
+            <Chip label="PENDING" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', color: 'text.secondary', height: 20, fontSize: '0.65rem', borderRadius: '2px' }} />
           )}
           {isResolved && (
-            <Chip label="DONE" size="small" sx={{ bgcolor: `rgba(0, 229, 255, 0.1)`, color: UP_COLOR, height: 20, fontSize: '0.65rem' }} />
+            <Chip label="DONE" size="small" sx={{ bgcolor: `rgba(0, 229, 255, 0.1)`, color: UP_COLOR, height: 20, fontSize: '0.65rem', borderRadius: '2px' }} />
           )}
         </Box>
       </Box>

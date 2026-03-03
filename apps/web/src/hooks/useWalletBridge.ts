@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import {
   useSendTransaction,
@@ -15,6 +15,11 @@ export function useWalletBridge() {
   const connection = useSolanaConnection();
   const { sendTransaction: embeddedSend } = useSendTransaction();
   const { signTransaction: standardSign } = useStandardSignTransaction();
+
+  // Keep a ref to standardWallets so the sendTransaction callback
+  // always sees the latest value (avoids stale closure)
+  const standardWalletsRef = useRef(standardWallets);
+  standardWalletsRef.current = standardWallets;
 
   // Prefer external wallet (has funds), fall back to embedded
   const activeWallet = useMemo(() => {
@@ -45,27 +50,41 @@ export function useWalletBridge() {
         return receipt.signature;
       }
 
-      // External wallet → sign via standard interface, send via RPC
-      const stdWallet = standardWallets.find(
-        (w) => w.address === walletAddress,
-      );
-      if (!stdWallet) throw new Error('Wallet not ready for signing');
+      // External wallet → try standard wallet adapter first
+      const findStdWallet = () =>
+        standardWalletsRef.current.find((w) => w.address === walletAddress);
 
-      const serialized = transaction.serialize({
-        requireAllSignatures: false,
-      });
-      const { signedTransaction } = await standardSign({
-        transaction: serialized,
-        wallet: stdWallet,
-      });
+      let stdWallet = findStdWallet();
 
-      return await connection.sendRawTransaction(signedTransaction);
+      // Standard wallet adapter may still be auto-connecting — wait briefly
+      if (!stdWallet) {
+        for (let i = 0; i < 5; i++) {
+          await new Promise((r) => setTimeout(r, 500));
+          stdWallet = findStdWallet();
+          if (stdWallet) break;
+        }
+      }
+
+      if (stdWallet) {
+        const serialized = transaction.serialize({
+          requireAllSignatures: false,
+        });
+        const { signedTransaction } = await standardSign({
+          transaction: serialized,
+          wallet: stdWallet,
+        });
+        return await connection.sendRawTransaction(signedTransaction);
+      }
+
+      // Fallback: use Privy's embedded send which can route to the active wallet
+      console.warn('[WalletBridge] Standard wallet not found, trying Privy send');
+      const receipt = await embeddedSend({ transaction, connection });
+      return receipt.signature;
     },
     [
       isEmbedded,
       embeddedSend,
       standardSign,
-      standardWallets,
       walletAddress,
       connection,
     ],

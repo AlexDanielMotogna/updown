@@ -100,8 +100,8 @@ export function TransactionModal({
       PaperProps={{
         sx: {
           background: '#111820',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: 1,
+          border: 'none',
+          borderRadius: 0,
           maxWidth: { xs: '95vw', sm: 440 },
         },
       }}
@@ -144,9 +144,9 @@ export function TransactionModal({
               sx={{
                 mt: 2,
                 p: 2,
-                borderRadius: 1,
+                borderRadius: 0,
                 background: 'rgba(255, 82, 82, 0.1)',
-                border: '1px solid rgba(255, 82, 82, 0.2)',
+                border: 'none',
                 maxWidth: '100%',
               }}
             >

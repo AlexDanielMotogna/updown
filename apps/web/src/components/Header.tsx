@@ -38,8 +38,7 @@ export function Header() {
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        backgroundColor: '#0B0F14',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        backgroundColor: '#080B10',
       }}
     >
       {/* Main bar */}
@@ -117,11 +116,12 @@ export function Header() {
               sx={{
                 display: { xs: 'none', sm: 'flex' },
                 bgcolor: `${GAIN_COLOR}12`,
-                border: `1px solid ${GAIN_COLOR}30`,
+                border: 'none',
                 color: GAIN_COLOR,
                 fontWeight: 500,
                 fontSize: '0.8rem',
                 '& .MuiChip-icon': { color: GAIN_COLOR },
+                borderRadius: '2px',
               }}
             />
           )}
@@ -138,8 +138,7 @@ export function Header() {
           left: 0,
           right: 0,
           zIndex: 100,
-          backgroundColor: '#0B0F14',
-          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+          backgroundColor: '#080B10',
           justifyContent: 'space-around',
           px: 1,
           pb: 'env(safe-area-inset-bottom)',

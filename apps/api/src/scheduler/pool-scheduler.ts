@@ -3,7 +3,12 @@ import crypto from 'crypto';
 import { PrismaClient, PoolStatus, Side, Prisma } from '@prisma/client';
 import { Connection, Keypair, PublicKey, Transaction, sendAndConfirmTransaction, SystemProgram, SYSVAR_RENT_PUBKEY } from '@solana/web3.js';
 import { AnchorProvider, Wallet, BN } from '@coral-xyz/anchor';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import {
+  TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddress,
+  createTransferInstruction,
+  createAssociatedTokenAccountInstruction,
+} from '@solana/spl-token';
 import { PacificaProvider } from 'market-data';
 import {
   getPoolPDA,
@@ -11,7 +16,11 @@ import {
   PROGRAM_ID,
 } from 'solana-client';
 import { getSchedulerConfig, PoolTemplate } from './config';
-import { emitNewPool, emitPoolStatus } from '../websocket';
+import { emitNewPool, emitPoolStatus, emitRefund } from '../websocket';
+
+const USDC_MINT = new PublicKey(
+  process.env.USDC_MINT || 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+);
 
 const prisma = new PrismaClient();
 
@@ -25,6 +34,8 @@ export class PoolScheduler {
   private wallet: Keypair;
   private jobs: cron.ScheduledTask[] = [];
   private isRunning = false;
+  /** Per-template mutex to prevent concurrent pool creation races */
+  private creationLocks = new Map<string, Promise<void>>();
 
   constructor() {
     this.priceProvider = new PacificaProvider();
@@ -35,13 +46,25 @@ export class PoolScheduler {
 
     // Load authority keypair from environment
     const secretKey = process.env.AUTHORITY_SECRET_KEY;
+    const keypairPath = process.env.AUTHORITY_KEYPAIR_PATH;
     if (secretKey) {
       this.wallet = Keypair.fromSecretKey(
         Uint8Array.from(JSON.parse(secretKey))
       );
+    } else if (keypairPath) {
+      const fs = require('fs');
+      const path = require('path');
+      const resolvedPath = keypairPath.startsWith('~')
+        ? path.join(process.env.HOME || '', keypairPath.slice(1))
+        : keypairPath;
+      const fileContent = fs.readFileSync(resolvedPath, 'utf-8');
+      this.wallet = Keypair.fromSecretKey(
+        Uint8Array.from(JSON.parse(fileContent))
+      );
+      console.log(`[Scheduler] Loaded authority keypair from ${keypairPath}`);
     } else {
       // Development fallback - generate random keypair
-      console.warn('[Scheduler] No AUTHORITY_SECRET_KEY found, using random keypair');
+      console.warn('[Scheduler] No AUTHORITY_SECRET_KEY or AUTHORITY_KEYPAIR_PATH found, using random keypair');
       this.wallet = Keypair.generate();
     }
   }
@@ -67,38 +90,116 @@ export class PoolScheduler {
       throw new Error('Price provider health check failed');
     }
 
-    // Schedule pool creation jobs for each template
+    // ── Startup: clean up duplicate JOINING pools ──
+    await this.cleanupDuplicateJoiningPools(config.templates);
+
+    // ── Startup: bootstrap one JOINING pool per template if missing ──
     for (const template of config.templates) {
-      const job = cron.schedule(template.cronExpression, async () => {
-        await this.createPool(template);
-      });
-      this.jobs.push(job);
-      console.log(`[Scheduler] Scheduled ${template.asset} pool creation: ${template.cronExpression}`);
+      await this.ensureJoiningPool(template);
     }
 
-    // Schedule status transition job (runs every 5 seconds for 1m turbo pools)
-    const transitionJob = cron.schedule('*/5 * * * * *', async () => {
-      await this.processStatusTransitions();
-    });
-    this.jobs.push(transitionJob);
-    console.log('[Scheduler] Scheduled status transition job: every 5 seconds');
+    // ── Cron: safety-net guard — only creates if no JOINING pool exists ──
+    for (const template of config.templates) {
+      const job = cron.schedule(template.cronExpression, async () => {
+        await this.ensureJoiningPool(template);
+      });
+      this.jobs.push(job);
+      console.log(`[Scheduler] Guard for ${template.asset}/${template.intervalKey}: ${template.cronExpression}`);
+    }
 
-    // Schedule resolution job (runs every 5 seconds for 1m turbo pools)
-    const resolveJob = cron.schedule('*/5 * * * * *', async () => {
+    // Schedule status transition job (every 2 seconds for responsive transitions)
+    const transitionJob = cron.schedule('*/2 * * * * *', async () => {
+      await this.processStatusTransitions();
       await this.processResolutions();
     });
-    this.jobs.push(resolveJob);
-    console.log('[Scheduler] Scheduled resolution job: every 5 seconds');
+    this.jobs.push(transitionJob);
+    console.log('[Scheduler] Scheduled transition & resolution job: every 2 seconds');
+
+    // Schedule periodic dedup cleanup (every 30 seconds) as safety net
+    const dedupJob = cron.schedule('*/30 * * * * *', async () => {
+      await this.cleanupDuplicateJoiningPools(config.templates);
+    });
+    this.jobs.push(dedupJob);
 
     // Schedule cleanup job for empty pools (every hour at :30)
     const cleanupJob = cron.schedule('30 * * * *', async () => {
       await this.cleanupEmptyPools();
     });
     this.jobs.push(cleanupJob);
-    console.log('[Scheduler] Scheduled empty pool cleanup job: every hour at :30');
+    console.log('[Scheduler] Scheduled cleanup jobs');
 
     this.isRunning = true;
     console.log('[Scheduler] Pool scheduler started successfully');
+  }
+
+  /**
+   * Ensure exactly one JOINING pool exists for a given template.
+   * Uses an in-process mutex + database check inside createPool for safety.
+   */
+  private async ensureJoiningPool(template: PoolTemplate): Promise<void> {
+    const key = `${template.asset}/${template.intervalKey}`;
+
+    // If another call is already creating for this template, skip
+    const pending = this.creationLocks.get(key);
+    if (pending) {
+      return;
+    }
+
+    const work = (async () => {
+      const existing = await prisma.pool.findFirst({
+        where: {
+          asset: template.asset,
+          interval: template.intervalKey,
+          status: PoolStatus.JOINING,
+        },
+      });
+
+      if (existing) return;
+
+      console.log(`[Scheduler] No JOINING pool for ${key}, creating one`);
+      await this.createPool(template);
+    })();
+
+    this.creationLocks.set(key, work);
+    try {
+      await work;
+    } finally {
+      if (this.creationLocks.get(key) === work) {
+        this.creationLocks.delete(key);
+      }
+    }
+  }
+
+  /**
+   * On startup, remove duplicate JOINING pools per asset+interval.
+   * Keeps the one with the latest lockTime, removes the rest.
+   */
+  private async cleanupDuplicateJoiningPools(templates: PoolTemplate[]): Promise<void> {
+    for (const template of templates) {
+      const joiningPools = await prisma.pool.findMany({
+        where: {
+          asset: template.asset,
+          interval: template.intervalKey,
+          status: PoolStatus.JOINING,
+        },
+        orderBy: { lockTime: 'desc' },
+      });
+
+      if (joiningPools.length <= 1) continue;
+
+      // Keep the first (latest lockTime), delete the rest
+      const toDelete = joiningPools.slice(1);
+      for (const pool of toDelete) {
+        // Only delete if no bets placed
+        const betCount = await prisma.bet.count({ where: { poolId: pool.id } });
+        if (betCount === 0) {
+          await prisma.priceSnapshot.deleteMany({ where: { poolId: pool.id } });
+          await prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: pool.id } });
+          await prisma.pool.delete({ where: { id: pool.id } });
+          console.log(`[Scheduler] Removed duplicate JOINING pool ${pool.id} (${pool.asset}/${pool.interval})`);
+        }
+      }
+    }
   }
 
   /**
@@ -114,19 +215,38 @@ export class PoolScheduler {
   }
 
   /**
-   * Create a new pool based on template
+   * Create a new pool based on template.
+   * Includes a final database-level dedup check to prevent duplicates
+   * even across process restarts.
    */
   async createPool(template: PoolTemplate): Promise<string | null> {
+    // Final dedup guard: if a JOINING pool was created between the caller's
+    // check and this point (e.g., by a concurrent process), bail out.
+    const duplicate = await prisma.pool.findFirst({
+      where: {
+        asset: template.asset,
+        interval: template.intervalKey,
+        status: PoolStatus.JOINING,
+      },
+    });
+    if (duplicate) {
+      console.log(`[Scheduler] Skipping ${template.asset}/${template.intervalKey} — JOINING pool already exists`);
+      return null;
+    }
+
     const now = Math.floor(Date.now() / 1000);
     const poolId = crypto.randomBytes(32);
     const poolIdArray = Array.from(poolId);
 
-    // Calculate timestamps
-    const lockTime = now + template.joinWindowSeconds;
-    const startTime = lockTime + template.lockBufferSeconds;
-    const endTime = startTime + template.interval;
+    // Align lockTime to the next clean clock boundary for this interval.
+    // e.g., 1m pools always lock at :00, 5m pools at :00/:05/:10, etc.
+    // This ensures all pools of the same interval are perfectly synchronized.
+    const interval = template.interval;
+    const lockTime = Math.floor(now / interval) * interval + interval;
+    const startTime = lockTime;
+    const endTime = lockTime + interval;
 
-    console.log(`[Scheduler] Creating ${template.asset} pool...`);
+    console.log(`[Scheduler] Creating ${template.asset}/${template.intervalKey} pool...`);
     console.log(`[Scheduler]   Lock: ${new Date(lockTime * 1000).toISOString()}`);
     console.log(`[Scheduler]   Start: ${new Date(startTime * 1000).toISOString()}`);
     console.log(`[Scheduler]   End: ${new Date(endTime * 1000).toISOString()}`);
@@ -158,14 +278,14 @@ export class PoolScheduler {
         }
       }
 
-      // Create pool in database
+      // Create pool directly as JOINING (lockTime is always in the future)
       const pool = await prisma.pool.create({
         data: {
           poolId: poolPda.toBase58(),
           asset: template.asset,
           interval: template.intervalKey,
           durationSeconds: template.interval,
-          status: PoolStatus.UPCOMING,
+          status: PoolStatus.JOINING,
           lockTime: new Date(lockTime * 1000),
           startTime: new Date(startTime * 1000),
           endTime: new Date(endTime * 1000),
@@ -185,14 +305,14 @@ export class PoolScheduler {
 
       console.log(`[Scheduler] Pool created: ${pool.id} (${poolPda.toBase58()})`);
 
-      // Emit WebSocket event for new pool
+      // Emit WebSocket event for new pool (already JOINING)
       emitNewPool({
         id: pool.id,
         poolId: pool.poolId,
         asset: pool.asset,
         interval: pool.interval,
         durationSeconds: pool.durationSeconds,
-        status: pool.status,
+        status: 'JOINING',
         startTime: pool.startTime.toISOString(),
         endTime: pool.endTime.toISOString(),
         lockTime: pool.lockTime.toISOString(),
@@ -239,40 +359,10 @@ export class PoolScheduler {
 
   /**
    * Process pool status transitions
-   * UPCOMING → JOINING (when deposit window opens)
    * JOINING → ACTIVE (at lock_time, capture strike price)
    */
   async processStatusTransitions(): Promise<void> {
     const now = new Date();
-
-    // Find pools to transition UPCOMING → JOINING
-    const poolsToJoin = await prisma.pool.findMany({
-      where: {
-        status: PoolStatus.UPCOMING,
-        lockTime: { gt: now }, // Still time to join
-      },
-    });
-
-    // Transition UPCOMING → JOINING
-    if (poolsToJoin.length > 0) {
-      await prisma.pool.updateMany({
-        where: {
-          id: { in: poolsToJoin.map(p => p.id) },
-        },
-        data: {
-          status: PoolStatus.JOINING,
-        },
-      });
-
-      // Emit WebSocket events for each pool
-      for (const pool of poolsToJoin) {
-        emitPoolStatus(pool.id, {
-          id: pool.id,
-          status: 'JOINING',
-        });
-        console.log(`[Scheduler] Pool ${pool.id} → JOINING`);
-      }
-    }
 
     // Transition JOINING → ACTIVE (at lock_time, capture strike price)
     const poolsToActivate = await prisma.pool.findMany({
@@ -283,14 +373,15 @@ export class PoolScheduler {
     });
 
     for (const pool of poolsToActivate) {
-      await this.activatePool(pool.id, pool.asset);
+      await this.activatePool(pool.id, pool.asset, pool.interval);
     }
   }
 
   /**
-   * Activate a pool: capture strike price and transition to ACTIVE
+   * Activate a pool: capture strike price, transition to ACTIVE,
+   * then immediately create the successor JOINING pool for the same asset+interval.
    */
-  private async activatePool(poolId: string, asset: string): Promise<void> {
+  private async activatePool(poolId: string, asset: string, interval: string | null): Promise<void> {
     try {
       // Get strike price from market data
       const priceTick = await this.priceProvider.getSpotPrice(asset);
@@ -330,6 +421,17 @@ export class PoolScheduler {
       });
 
       console.log(`[Scheduler] Pool ${poolId} → ACTIVE with strike price: ${strikePrice}`);
+
+      // ── Create successor JOINING pool for the same asset+interval ──
+      if (interval) {
+        const config = getSchedulerConfig();
+        const template = config.templates.find(
+          (t) => t.asset === asset && t.intervalKey === interval
+        );
+        if (template) {
+          await this.ensureJoiningPool(template);
+        }
+      }
     } catch (error) {
       console.error(`[Scheduler] Failed to activate pool ${poolId}:`, error);
     }
@@ -423,6 +525,65 @@ export class PoolScheduler {
     }
 
     try {
+      // Check if pool has only 1 bettor — direct refund without win/loss
+      const betCount = await prisma.bet.count({ where: { poolId: pool.id } });
+      if (betCount <= 1) {
+        const soleBet = await prisma.bet.findFirst({ where: { poolId: pool.id } });
+
+        if (soleBet && !soleBet.claimed) {
+          // Attempt direct on-chain refund
+          const refundTx = await this.refundBet(soleBet);
+
+          if (refundTx) {
+            // Mark bet as claimed with the refund tx
+            await prisma.bet.update({
+              where: { id: soleBet.id },
+              data: {
+                claimed: true,
+                claimTx: refundTx,
+                payoutAmount: soleBet.amount,
+              },
+            });
+
+            // Notify frontend via WebSocket
+            emitRefund(soleBet.walletAddress, {
+              poolId: pool.id,
+              amount: soleBet.amount.toString(),
+              txSignature: refundTx,
+            });
+
+            console.log(`[Scheduler] Pool ${pool.id}: refunded ${soleBet.amount} to ${soleBet.walletAddress} (tx: ${refundTx})`);
+          } else {
+            console.warn(`[Scheduler] Pool ${pool.id}: on-chain refund failed, falling back to claimable`);
+          }
+        }
+
+        // Mark pool as resolved regardless
+        const winner = soleBet ? soleBet.side : Side.UP;
+        await prisma.pool.update({
+          where: { id: pool.id },
+          data: {
+            status: PoolStatus.CLAIMABLE,
+            finalPrice: pool.strikePrice,
+            winner,
+          },
+        });
+
+        await this.logEvent('POOL_REFUND', 'pool', pool.id, {
+          reason: 'single_bettor',
+          betCount: betCount.toString(),
+          refunded: (soleBet?.claimed || !!soleBet).toString(),
+        });
+
+        emitPoolStatus(pool.id, {
+          id: pool.id,
+          status: 'CLAIMABLE',
+        });
+
+        console.log(`[Scheduler] Pool ${pool.id} → CLAIMABLE (single bettor)`);
+        return;
+      }
+
       // Get final price from market data
       const priceTick = await this.priceProvider.getSpotPrice(pool.asset);
       const finalPrice = priceTick.price;
@@ -528,6 +689,74 @@ export class PoolScheduler {
     // TODO: Implement full Anchor program call when deployed
     // This requires proper IDL loading compatible with Anchor 0.31.x
     return 'pending-onchain-integration';
+  }
+
+  /**
+   * Refund a single bet by transferring USDC back to the user
+   * Returns the tx signature on success, null on failure
+   */
+  private async refundBet(bet: {
+    id: string;
+    walletAddress: string;
+    amount: bigint;
+  }): Promise<string | null> {
+    try {
+      const userPubkey = new PublicKey(bet.walletAddress);
+      const authorityATA = await getAssociatedTokenAddress(USDC_MINT, this.wallet.publicKey);
+      const userATA = await getAssociatedTokenAddress(USDC_MINT, userPubkey);
+
+      const transaction = new Transaction();
+
+      // Create user's ATA if it doesn't exist
+      const userATAInfo = await this.connection.getAccountInfo(userATA);
+      if (!userATAInfo) {
+        transaction.add(
+          createAssociatedTokenAccountInstruction(
+            this.wallet.publicKey,
+            userATA,
+            userPubkey,
+            USDC_MINT,
+          ),
+        );
+      }
+
+      // Transfer USDC from authority back to user
+      transaction.add(
+        createTransferInstruction(
+          authorityATA,
+          userATA,
+          this.wallet.publicKey,
+          BigInt(bet.amount),
+          [],
+          TOKEN_PROGRAM_ID,
+        ),
+      );
+
+      const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = this.wallet.publicKey;
+      transaction.sign(this.wallet);
+
+      const signature = await this.connection.sendRawTransaction(transaction.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      });
+
+      const confirmation = await this.connection.confirmTransaction(
+        { signature, blockhash, lastValidBlockHeight },
+        'confirmed',
+      );
+
+      if (confirmation.value.err) {
+        console.error(`[Scheduler] Refund tx failed on-chain:`, confirmation.value.err);
+        return null;
+      }
+
+      return signature;
+    } catch (error) {
+      console.error(`[Scheduler] Failed to refund bet ${bet.id}:`, error);
+      return null;
+    }
   }
 
   /**

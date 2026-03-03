@@ -148,8 +148,8 @@ export default function PoolDetailPage() {
             severity="error"
             sx={{
               backgroundColor: 'rgba(248, 113, 113, 0.1)',
-              border: '1px solid rgba(248, 113, 113, 0.3)',
-              borderRadius: 1,
+              border: 'none',
+              borderRadius: 0,
             }}
           >
             Failed to load pool details
@@ -196,13 +196,14 @@ export default function PoolDetailPage() {
                   backgroundColor: (INTERVAL_BADGE_COLORS[pool.interval] || INTERVAL_BADGE_COLORS['1h']).bg,
                   color: (INTERVAL_BADGE_COLORS[pool.interval] || INTERVAL_BADGE_COLORS['1h']).color,
                   border: 'none',
+                  borderRadius: '2px',
                 }}
               />
             )}
           </Box>
           <Chip
             label={pool.status}
-            sx={{ ...statusStyle, fontWeight: 600, fontSize: '0.75rem', letterSpacing: '0.05em', px: 1 }}
+            sx={{ ...statusStyle, fontWeight: 600, fontSize: '0.75rem', letterSpacing: '0.05em', px: 1, borderRadius: '2px' }}
           />
         </Box>
 
@@ -212,9 +213,9 @@ export default function PoolDetailPage() {
             mb: 3,
             px: 3,
             py: 2,
-            borderRadius: 1,
+            borderRadius: 0,
             background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
+            border: 'none',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -271,7 +272,7 @@ export default function PoolDetailPage() {
         <Grid container spacing={{ xs: 3, md: 4 }}>
           {/* Left column: Condensed pool info */}
           <Grid item xs={12} lg={6}>
-            <Card sx={{ background: '#111820', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            <Card sx={{ background: '#111820', border: 'none' }}>
               <CardContent sx={{ p: { xs: 2.5, md: 3 } }}>
                 {/* Countdown */}
                 {(pool.status === 'JOINING' || pool.status === 'ACTIVE') && (
@@ -289,9 +290,9 @@ export default function PoolDetailPage() {
                     sx={{
                       mb: 3,
                       p: 2,
-                      borderRadius: 1,
+                      borderRadius: 0,
                       background: 'rgba(255, 255, 255, 0.03)',
-                      border: '1px solid rgba(255, 255, 255, 0.06)',
+                      border: 'none',
                       textAlign: 'center',
                     }}
                   >
@@ -337,24 +338,24 @@ export default function PoolDetailPage() {
 
                 {/* Stats grid */}
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
-                  <Box sx={{ p: 2, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
+                  <Box sx={{ p: 2, borderRadius: 0, bgcolor: 'rgba(255,255,255,0.03)', border: 'none', textAlign: 'center' }}>
                     <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem' }}>POOL SIZE</Typography>
                     <Typography sx={{ fontWeight: 600, color: GAIN_COLOR, fontSize: '1.1rem' }}>
                       {formatUSDC(pool.totalPool)}
                     </Typography>
                   </Box>
-                  <Box sx={{ p: 2, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
+                  <Box sx={{ p: 2, borderRadius: 0, bgcolor: 'rgba(255,255,255,0.03)', border: 'none', textAlign: 'center' }}>
                     <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem' }}>PLAYERS</Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
                       <Person sx={{ fontSize: 18, color: 'text.secondary' }} />
                       <Typography sx={{ fontWeight: 500, fontSize: '1.1rem' }}>{pool.betCount}</Typography>
                     </Box>
                   </Box>
-                  <Box sx={{ p: 2, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
+                  <Box sx={{ p: 2, borderRadius: 0, bgcolor: 'rgba(255,255,255,0.03)', border: 'none', textAlign: 'center' }}>
                     <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem' }}>UP ODDS</Typography>
                     <Typography sx={{ fontWeight: 500, color: UP_COLOR, fontSize: '1.1rem' }}>{pool.odds.up}x</Typography>
                   </Box>
-                  <Box sx={{ p: 2, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
+                  <Box sx={{ p: 2, borderRadius: 0, bgcolor: 'rgba(255,255,255,0.03)', border: 'none', textAlign: 'center' }}>
                     <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem' }}>DOWN ODDS</Typography>
                     <Typography sx={{ fontWeight: 500, color: DOWN_COLOR, fontSize: '1.1rem' }}>{pool.odds.down}x</Typography>
                   </Box>
@@ -365,9 +366,9 @@ export default function PoolDetailPage() {
                   <Box
                     sx={{
                       p: 3,
-                      borderRadius: 1,
+                      borderRadius: 0,
                       background: pool.winner === 'UP' ? `${UP_COLOR}12` : `${DOWN_COLOR}12`,
-                      border: `1px solid ${pool.winner === 'UP' ? `${UP_COLOR}30` : `${DOWN_COLOR}30`}`,
+                      border: 'none',
                       textAlign: 'center',
                     }}
                   >
@@ -395,7 +396,7 @@ export default function PoolDetailPage() {
           {/* Right column: Bet Form */}
           <Grid item xs={12} lg={6}>
             <Box ref={betFormRef} sx={{ position: { xs: 'static', lg: 'sticky' }, top: { lg: 80 } }}>
-              <Card sx={{ background: '#111820', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              <Card sx={{ background: '#111820', border: 'none' }}>
                 <CardContent sx={{ p: { xs: 2.5, md: 3 } }}>
                   <Typography variant="h5" sx={{ fontWeight: 600, mb: 3 }}>
                     Make Your Prediction
@@ -416,7 +417,7 @@ export default function PoolDetailPage() {
                 sx={{
                   mt: 2,
                   background: '#111820',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  border: 'none',
                   '&:before': { display: 'none' },
                   '&.Mui-expanded': { margin: 0, mt: 2 },
                 }}

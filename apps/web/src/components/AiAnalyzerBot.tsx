@@ -83,9 +83,9 @@ function SignalCard({ analysis }: { analysis: AnalysisResult }) {
     <Box
       sx={{
         p: 2,
-        borderRadius: 1,
+        borderRadius: 0,
         background: analysis.signal === 'UP' ? 'rgba(0, 229, 255, 0.06)' : 'rgba(255, 82, 82, 0.06)',
-        border: `1px solid ${analysis.signal === 'UP' ? 'rgba(0, 229, 255, 0.2)' : 'rgba(255, 82, 82, 0.2)'}`,
+        border: 'none',
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
@@ -96,12 +96,12 @@ function SignalCard({ analysis }: { analysis: AnalysisResult }) {
           {analysis.confidence}%
         </Typography>
       </Box>
-      <Box sx={{ height: 4, borderRadius: 2, backgroundColor: 'rgba(255, 255, 255, 0.08)', mb: 1.5, overflow: 'hidden' }}>
+      <Box sx={{ height: 4, borderRadius: 0, backgroundColor: 'rgba(255, 255, 255, 0.08)', mb: 1.5, overflow: 'hidden' }}>
         <Box
           sx={{
             height: '100%',
             width: `${analysis.confidence}%`,
-            borderRadius: 2,
+            borderRadius: 0,
             background: `linear-gradient(90deg, ${color}88, ${color})`,
             transition: 'width 0.5s ease',
           }}
@@ -119,9 +119,9 @@ function SignalCard({ analysis }: { analysis: AnalysisResult }) {
                 gap: 0.5,
                 px: 1,
                 py: 0.25,
-                borderRadius: 0.5,
+                borderRadius: '2px',
                 backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.06)',
+                border: 'none',
               }}
             >
               <Typography sx={{ fontSize: '0.6rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.03em' }}>
@@ -463,7 +463,7 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
           height: isMobile ? 48 : 56,
           borderRadius: '50%',
           backgroundColor: '#111820',
-          border: `1px solid ${CYAN}33`,
+          border: 'none',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -521,9 +521,9 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
         zIndex: 1200,
         display: 'flex',
         flexDirection: 'column',
-        borderRadius: isMobile ? '16px 16px 0 0' : 2,
+        borderRadius: 0,
         backgroundColor: '#111820',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
+        border: 'none',
         boxShadow: `0 8px 32px rgba(0,0,0,0.6), 0 0 20px ${CYAN}11`,
         overflow: 'hidden',
         animation: 'panelExpand 0.3s ease-out',
@@ -637,9 +637,9 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
                   maxWidth: '80%',
                   px: 1.5,
                   py: 0.75,
-                  borderRadius: '12px 12px 2px 12px',
+                  borderRadius: '2px',
                   backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                  border: '1px solid rgba(0, 229, 255, 0.15)',
+                  border: 'none',
                 }}
               >
                 <Typography
@@ -724,9 +724,9 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
             color: 'rgba(255,255,255,0.85)',
             px: 1.5,
             py: 0.5,
-            borderRadius: 1,
+            borderRadius: 0,
             backgroundColor: 'rgba(255, 255, 255, 0.04)',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
+            border: 'none',
             '& input::placeholder': {
               color: 'rgba(255,255,255,0.3)',
               opacity: 1,

@@ -517,7 +517,9 @@ transactionsRouter.post('/claim', async (req, res) => {
     const grossPayout = winnerPool > 0n
       ? (bet.amount * totalPool) / winnerPool
       : 0n;
-    const fee = (grossPayout * BigInt(PLATFORM_FEE_BPS)) / 10000n;
+    // No fee if only one bettor in the pool (no counterparty)
+    const betCount = await prisma.bet.count({ where: { poolId: pool.id } });
+    const fee = betCount <= 1 ? 0n : (grossPayout * BigInt(PLATFORM_FEE_BPS)) / 10000n;
     const payout = grossPayout - fee;
 
     res.json({
@@ -642,7 +644,9 @@ transactionsRouter.post('/confirm-claim', async (req, res) => {
     const grossPayout = winnerPool > 0n
       ? (bet.amount * totalPool) / winnerPool
       : 0n;
-    const fee = (grossPayout * BigInt(PLATFORM_FEE_BPS)) / 10000n;
+    // No fee if only one bettor in the pool (no counterparty)
+    const betCount = await prisma.bet.count({ where: { poolId: pool.id } });
+    const fee = betCount <= 1 ? 0n : (grossPayout * BigInt(PLATFORM_FEE_BPS)) / 10000n;
     const payout = grossPayout - fee;
 
     // Update bet as claimed
@@ -768,7 +772,9 @@ transactionsRouter.post('/execute-claim', async (req, res) => {
     const totalPool = pool.totalUp + pool.totalDown;
     const winnerPool = bet.side === 'UP' ? pool.totalUp : pool.totalDown;
     const grossPayout = winnerPool > 0n ? (bet.amount * totalPool) / winnerPool : 0n;
-    const fee = (grossPayout * BigInt(PLATFORM_FEE_BPS)) / 10000n;
+    // No fee if only one bettor in the pool (no counterparty)
+    const betCount = await prisma.bet.count({ where: { poolId: pool.id } });
+    const fee = betCount <= 1 ? 0n : (grossPayout * BigInt(PLATFORM_FEE_BPS)) / 10000n;
     const payout = grossPayout - fee;
 
     if (payout === 0n) {

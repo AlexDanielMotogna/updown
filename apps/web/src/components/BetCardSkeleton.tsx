@@ -6,7 +6,7 @@ export function BetCardSkeleton() {
       sx={{
         overflow: 'hidden',
         background: '#111820',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
+        border: 'none',
       }}
     >
       <CardContent sx={{ p: 3 }}>
@@ -14,8 +14,8 @@ export function BetCardSkeleton() {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5 }}>
           <Skeleton variant="text" width={90} height={26} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)' }} />
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <Skeleton variant="rounded" width={56} height={24} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)', borderRadius: 4 }} />
-            <Skeleton variant="rounded" width={44} height={24} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)', borderRadius: 4 }} />
+            <Skeleton variant="rounded" width={56} height={24} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)', borderRadius: '2px' }} />
+            <Skeleton variant="rounded" width={44} height={24} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)', borderRadius: '2px' }} />
           </Box>
         </Box>
 
@@ -31,7 +31,7 @@ export function BetCardSkeleton() {
 
         {/* Tx links area */}
         <Box sx={{ display: 'flex', gap: 1, mt: 2.5 }}>
-          <Skeleton variant="rounded" width={90} height={30} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)', borderRadius: 1 }} />
+          <Skeleton variant="rounded" width={90} height={30} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)', borderRadius: 0 }} />
         </Box>
       </CardContent>
     </Card>

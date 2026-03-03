@@ -49,17 +49,30 @@ export function Countdown({ targetDate, label, onComplete, compact = false }: Co
     // Update immediately
     setTimeLeft(calculateTimeLeft(targetMs));
 
-    const timer = setInterval(() => {
+    // Align ticks to wall-clock second boundaries so ALL Countdown
+    // instances on the page update at the exact same moment,
+    // regardless of when each component mounted.
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const tick = () => {
       const newTimeLeft = calculateTimeLeft(targetMs);
       setTimeLeft(newTimeLeft);
-
       if (newTimeLeft.total <= 0) {
-        clearInterval(timer);
+        if (intervalId) clearInterval(intervalId);
         onCompleteRef.current?.();
       }
-    }, 1000);
+    };
 
-    return () => clearInterval(timer);
+    const msToNextSecond = 1000 - (Date.now() % 1000);
+    const alignTimeout = setTimeout(() => {
+      tick();
+      intervalId = setInterval(tick, 1000);
+    }, msToNextSecond);
+
+    return () => {
+      clearTimeout(alignTimeout);
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [targetMs]);
 
   const isExpired = timeLeft.total <= 0;
@@ -133,9 +146,9 @@ export function Countdown({ targetDate, label, onComplete, compact = false }: Co
               sx={{
                 minWidth: { xs: 48, sm: 56 },
                 p: 1.5,
-                borderRadius: 1,
+                borderRadius: 0,
                 background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.06)',
+                border: 'none',
                 textAlign: 'center',
               }}
             >

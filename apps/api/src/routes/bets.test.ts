@@ -72,6 +72,7 @@ describe('Bets API', () => {
           totalUp: BigInt(1000_000000),
           totalDown: BigInt(500_000000),
           winner: null,
+          _count: { bets: 3 },
         },
       };
 
@@ -113,6 +114,7 @@ describe('Bets API', () => {
           totalUp: BigInt(1000_000000),
           totalDown: BigInt(500_000000),
           winner: 'UP' as const,
+          _count: { bets: 3 },
         },
       };
 
@@ -122,7 +124,7 @@ describe('Bets API', () => {
       const res = await request(app).get(`/api/bets?wallet=${VALID_WALLET}`);
 
       expect(res.body.data[0].isWinner).toBe(true);
-      expect(res.body.data[0].payoutAmount).toBe('150000000'); // 100/1000 * 1500
+      expect(res.body.data[0].payoutAmount).toBe('142500000'); // 100/1000 * 1500 - 5% fee
     });
   });
 
@@ -160,6 +162,7 @@ describe('Bets API', () => {
           totalUp: BigInt(1000_000000),
           totalDown: BigInt(500_000000),
           winner: 'UP' as const,
+          _count: { bets: 3 },
         },
       };
 
@@ -171,7 +174,7 @@ describe('Bets API', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.data.bets).toHaveLength(1);
       expect(res.body.data.summary.count).toBe(1);
-      expect(res.body.data.summary.totalClaimable).toBe('150000000');
+      expect(res.body.data.summary.totalClaimable).toBe('142500000');
     });
 
     it('should exclude losing bets from claimable', async () => {
@@ -199,6 +202,7 @@ describe('Bets API', () => {
           totalUp: BigInt(1000_000000),
           totalDown: BigInt(500_000000),
           winner: 'UP' as const,
+          _count: { bets: 3 },
         },
       };
 

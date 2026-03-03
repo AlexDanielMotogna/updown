@@ -10,7 +10,7 @@ export const poolsRouter: RouterType = Router();
 const poolFilterSchema = z.object({
   asset: z.string().optional(),
   interval: z.string().optional(),
-  status: z.enum(['UPCOMING', 'JOINING', 'ACTIVE', 'RESOLVED', 'CLAIMABLE']).optional(),
+  status: z.string().optional(), // Single status or comma-separated list (e.g. "JOINING,ACTIVE")
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(100).default(20),
 });
@@ -83,10 +83,17 @@ poolsRouter.get('/', async (req, res) => {
       where.interval = interval;
     }
     if (status) {
-      where.status = status;
-      // Hide expired UPCOMING pools whose start time has already passed
-      if (status === 'UPCOMING') {
-        where.startTime = { gt: new Date() };
+      const statuses = status.split(',').map(s => s.trim().toUpperCase()) as PoolStatus[];
+      const validStatuses: PoolStatus[] = ['UPCOMING', 'JOINING', 'ACTIVE', 'RESOLVED', 'CLAIMABLE'];
+      const filtered = statuses.filter(s => validStatuses.includes(s));
+      if (filtered.length === 1) {
+        where.status = filtered[0];
+        // Hide expired UPCOMING pools whose start time has already passed
+        if (filtered[0] === 'UPCOMING') {
+          where.startTime = { gt: new Date() };
+        }
+      } else if (filtered.length > 1) {
+        where.status = { in: filtered };
       }
     }
 
@@ -94,7 +101,7 @@ poolsRouter.get('/', async (req, res) => {
     const [pools, total] = await Promise.all([
       prisma.pool.findMany({
         where,
-        orderBy: { startTime: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip,
         take: limit,
         include: {

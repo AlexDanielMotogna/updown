@@ -356,8 +356,8 @@ export function PriceChartDialog({ open, onClose, asset }: PriceChartDialogProps
       PaperProps={{
         sx: {
           bgcolor: '#111820',
-          border: { xs: 'none', sm: '1px solid rgba(255, 255, 255, 0.08)' },
-          borderRadius: { xs: 0, sm: 1 },
+          border: 'none',
+          borderRadius: 0,
           p: { xs: 0, sm: 1 },
           m: { xs: 0, sm: 4 },
           maxHeight: { xs: '100%', sm: 'calc(100% - 64px)' },

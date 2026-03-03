@@ -19,9 +19,9 @@ export function OddsDisplay({ oddsUp, oddsDown }: OddsDisplayProps) {
           <Box
             sx={{
               p: { xs: 2, md: 3 },
-              borderRadius: 1,
+              borderRadius: 0,
               background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              border: 'none',
               textAlign: 'center',
             }}
           >
@@ -43,9 +43,9 @@ export function OddsDisplay({ oddsUp, oddsDown }: OddsDisplayProps) {
           <Box
             sx={{
               p: { xs: 2, md: 3 },
-              borderRadius: 1,
+              borderRadius: 0,
               background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              border: 'none',
               textAlign: 'center',
             }}
           >

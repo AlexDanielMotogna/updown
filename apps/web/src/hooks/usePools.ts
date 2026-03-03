@@ -1,6 +1,6 @@
-import { useQuery, useInfiniteQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { useEffect } from 'react';
-import { fetchPools, fetchPool } from '@/lib/api';
+import { useQuery, useInfiniteQuery, useQueryClient, keepPreviousData, type InfiniteData } from '@tanstack/react-query';
+import { useEffect, useCallback } from 'react';
+import { fetchPools, fetchPool, type Pool, type ApiResponse } from '@/lib/api';
 import { getSocket, connectSocket } from '@/lib/socket';
 
 export interface PoolFilters {
@@ -52,22 +52,93 @@ export function usePools(filters?: PoolFilters) {
 
 const POOLS_PAGE_SIZE = 12;
 
+type InfinitePoolsData = InfiniteData<ApiResponse<Pool[]>, number>;
+
 export function useInfinitePools(filters?: Omit<PoolFilters, 'page' | 'limit'>) {
   const queryClient = useQueryClient();
+  const queryKey = ['infinitePools', filters];
 
-  // Subscribe to WebSocket events for pool updates
+  // Check if a pool matches the current filters
+  const matchesFilters = useCallback(
+    (pool: Pool) => {
+      if (filters?.asset && pool.asset !== filters.asset) return false;
+      if (filters?.interval && pool.interval !== filters.interval) return false;
+      if (filters?.status && pool.status !== filters.status) return false;
+      return true;
+    },
+    [filters],
+  );
+
+  // WebSocket: direct cache insertion/removal (no invalidateQueries)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const socket = getSocket();
     connectSocket();
 
-    const onNewPool = () => {
-      queryClient.invalidateQueries({ queryKey: ['infinitePools'] });
+    // New pool created → prepend to first page if it matches filters
+    const onNewPool = (payload: { pool: Pool }) => {
+      const pool = payload.pool;
+      if (!pool?.id) return;
+
+      // Fill fields the WS payload may omit
+      const normalized: Pool = {
+        ...pool,
+        betCount: pool.betCount ?? 0,
+        upCount: pool.upCount ?? 0,
+        downCount: pool.downCount ?? 0,
+        totalUp: pool.totalUp ?? '0',
+        totalDown: pool.totalDown ?? '0',
+        totalPool: pool.totalPool ?? '0',
+        strikePrice: pool.strikePrice ?? null,
+        finalPrice: pool.finalPrice ?? null,
+        winner: pool.winner ?? null,
+      };
+
+      if (!matchesFilters(normalized)) return;
+
+      console.log('[useInfinitePools] Inserting new pool via WS:', normalized.id);
+      queryClient.setQueryData<InfinitePoolsData>(queryKey, (old) => {
+        if (!old) return old;
+        const firstPage = old.pages[0];
+        if (!firstPage?.data) return old;
+
+        // Avoid duplicates
+        if (firstPage.data.some((p) => p.id === normalized.id)) return old;
+
+        return {
+          ...old,
+          pages: [
+            { ...firstPage, data: [normalized, ...firstPage.data] },
+            ...old.pages.slice(1),
+          ],
+        };
+      });
     };
 
-    const onPoolStatus = () => {
-      queryClient.invalidateQueries({ queryKey: ['infinitePools'] });
+    // Pool status changed → remove from cache if no longer belongs
+    const onPoolStatus = (data: { id: string; status: string }) => {
+      if (!data?.id) return;
+
+      const removedStatuses = ['RESOLVED', 'CLAIMABLE'];
+      // If the markets page filters by a specific status and the pool no longer matches, remove it
+      const shouldRemove =
+        (filters?.status && data.status !== filters.status) ||
+        (!filters?.status && removedStatuses.includes(data.status));
+
+      if (!shouldRemove) return;
+
+      console.log('[useInfinitePools] Removing pool via WS:', data.id, '→', data.status);
+      queryClient.setQueryData<InfinitePoolsData>(queryKey, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            data: page.data?.filter((p) => p.id !== data.id),
+          })),
+        };
+      });
     };
 
     socket.on('pools:new', onNewPool);
@@ -77,10 +148,10 @@ export function useInfinitePools(filters?: Omit<PoolFilters, 'page' | 'limit'>) 
       socket.off('pools:new', onNewPool);
       socket.off('pool:status', onPoolStatus);
     };
-  }, [queryClient]);
+  }, [queryClient, queryKey, matchesFilters, filters]);
 
   return useInfiniteQuery({
-    queryKey: ['infinitePools', filters],
+    queryKey,
     queryFn: ({ pageParam = 1 }) =>
       fetchPools({ ...filters, page: pageParam, limit: POOLS_PAGE_SIZE }),
     initialPageParam: 1,
@@ -91,7 +162,8 @@ export function useInfinitePools(filters?: Omit<PoolFilters, 'page' | 'limit'>) 
         : undefined;
     },
     placeholderData: keepPreviousData,
-    refetchInterval: 10000,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
   });
 }
 

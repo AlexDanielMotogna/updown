@@ -57,13 +57,13 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
           position: 'relative',
           overflow: 'hidden',
           background: '#111820',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
+          border: 'none',
           transition: 'all 0.2s ease',
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
           '&:hover': {
-            borderColor: 'rgba(255, 255, 255, 0.16)',
+            bgcolor: 'rgba(255,255,255,0.03)',
           },
         }}
       >
@@ -93,6 +93,7 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
                       backgroundColor: (INTERVAL_BADGE_COLORS[pool.interval] || INTERVAL_BADGE_COLORS['1h']).bg,
                       color: (INTERVAL_BADGE_COLORS[pool.interval] || INTERVAL_BADGE_COLORS['1h']).color,
                       border: 'none',
+                      borderRadius: '2px',
                     }}
                   />
                 )}
@@ -119,6 +120,7 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
                 fontWeight: 500,
                 fontSize: '0.7rem',
                 letterSpacing: '0.05em',
+                borderRadius: '2px',
               }}
             />
           </Box>
@@ -223,7 +225,7 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
               sx={{
                 position: 'relative',
                 height: 6,
-                borderRadius: 1,
+                borderRadius: 0,
                 overflow: 'hidden',
                 backgroundColor: `${DOWN_COLOR}40`,
               }}
@@ -236,7 +238,7 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
                   height: '100%',
                   width: `${upPercentage}%`,
                   background: UP_COLOR,
-                  borderRadius: 1,
+                  borderRadius: 0,
                   transition: 'width 0.5s ease',
                 }}
               />
@@ -271,13 +273,11 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
               sx={{
                 mt: 3,
                 p: 1.5,
-                borderRadius: 1,
+                borderRadius: 0,
                 background: pool.winner === 'UP'
                   ? `${UP_COLOR}14`
                   : `${DOWN_COLOR}14`,
-                border: pool.winner === 'UP'
-                  ? `1px solid ${UP_COLOR}33`
-                  : `1px solid ${DOWN_COLOR}33`,
+                border: 'none',
                 textAlign: 'center',
                 display: 'flex',
                 alignItems: 'center',
@@ -329,9 +329,9 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
               sx={{
                 mt: pool.winner ? 1.5 : 3,
                 p: 1.5,
-                borderRadius: 1,
+                borderRadius: 0,
                 background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                border: 'none',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',

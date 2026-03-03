@@ -6,7 +6,7 @@ export function PoolCardSkeleton() {
       sx={{
         overflow: 'hidden',
         background: '#111820',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
+        border: 'none',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
@@ -19,7 +19,7 @@ export function PoolCardSkeleton() {
             <Skeleton variant="text" width={100} height={28} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)' }} />
             <Skeleton variant="text" width={140} height={36} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)', mt: 0.5 }} />
           </Box>
-          <Skeleton variant="rounded" width={64} height={24} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)', borderRadius: 4 }} />
+          <Skeleton variant="rounded" width={64} height={24} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)', borderRadius: '2px' }} />
         </Box>
 
         {/* Countdown / Info area */}
@@ -40,7 +40,7 @@ export function PoolCardSkeleton() {
             <Skeleton variant="text" width={80} height={20} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)' }} />
             <Skeleton variant="text" width={80} height={20} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)' }} />
           </Box>
-          <Skeleton variant="rounded" width="100%" height={6} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)', borderRadius: 1 }} />
+          <Skeleton variant="rounded" width="100%" height={6} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)', borderRadius: 0 }} />
         </Box>
 
         {/* Total pool */}

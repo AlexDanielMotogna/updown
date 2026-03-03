@@ -7,14 +7,14 @@ export function PoolDetailSkeleton() {
       <Card
         sx={{
           background: '#111820',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
+          border: 'none',
         }}
       >
         <CardContent sx={{ p: 4 }}>
           {/* Title + status */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
             <Skeleton variant="text" width={160} height={40} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)' }} />
-            <Skeleton variant="rounded" width={72} height={28} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)', borderRadius: 4 }} />
+            <Skeleton variant="rounded" width={72} height={28} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)', borderRadius: '2px' }} />
           </Box>
 
           {/* Live price box */}
@@ -22,9 +22,9 @@ export function PoolDetailSkeleton() {
             sx={{
               mb: 4,
               p: 3,
-              borderRadius: 1,
+              borderRadius: 0,
               background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              border: 'none',
             }}
           >
             <Skeleton variant="text" width={80} height={16} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)', mb: 1 }} />
@@ -36,7 +36,7 @@ export function PoolDetailSkeleton() {
             <Skeleton variant="text" width={120} height={16} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)', mb: 1.5 }} />
             <Box sx={{ display: 'flex', gap: 1 }}>
               {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} variant="rounded" width={56} height={56} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)', borderRadius: 1 }} />
+                <Skeleton key={i} variant="rounded" width={56} height={56} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)', borderRadius: 0 }} />
               ))}
             </Box>
           </Box>
@@ -47,11 +47,11 @@ export function PoolDetailSkeleton() {
               <Skeleton variant="text" width={80} height={20} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)' }} />
               <Skeleton variant="text" width={80} height={20} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)' }} />
             </Box>
-            <Skeleton variant="rounded" width="100%" height={6} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)', borderRadius: 1, mb: 3 }} />
+            <Skeleton variant="rounded" width="100%" height={6} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)', borderRadius: 0, mb: 3 }} />
             {/* Odds cards */}
             <Box sx={{ display: 'flex', gap: 2 }}>
-              <Skeleton variant="rounded" height={80} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)', borderRadius: 1, flex: 1 }} />
-              <Skeleton variant="rounded" height={80} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)', borderRadius: 1, flex: 1 }} />
+              <Skeleton variant="rounded" height={80} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)', borderRadius: 0, flex: 1 }} />
+              <Skeleton variant="rounded" height={80} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)', borderRadius: 0, flex: 1 }} />
             </Box>
           </Box>
 
@@ -78,7 +78,7 @@ export function BetFormSkeleton() {
     <Card
       sx={{
         background: '#111820',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
+        border: 'none',
       }}
     >
       <CardContent sx={{ p: 4 }}>
@@ -87,22 +87,22 @@ export function BetFormSkeleton() {
 
         {/* UP/DOWN toggle */}
         <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-          <Skeleton variant="rounded" height={48} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)', borderRadius: 1, flex: 1 }} />
-          <Skeleton variant="rounded" height={48} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)', borderRadius: 1, flex: 1 }} />
+          <Skeleton variant="rounded" height={48} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)', borderRadius: 0, flex: 1 }} />
+          <Skeleton variant="rounded" height={48} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)', borderRadius: 0, flex: 1 }} />
         </Box>
 
         {/* Amount input */}
-        <Skeleton variant="rounded" height={48} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)', borderRadius: 1, mb: 2 }} />
+        <Skeleton variant="rounded" height={48} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)', borderRadius: 0, mb: 2 }} />
 
         {/* Preset buttons */}
         <Box sx={{ display: 'flex', gap: 1, mb: 3 }}>
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} variant="rounded" height={32} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)', borderRadius: 1, flex: 1 }} />
+            <Skeleton key={i} variant="rounded" height={32} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)', borderRadius: 0, flex: 1 }} />
           ))}
         </Box>
 
         {/* Submit button */}
-        <Skeleton variant="rounded" height={48} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)', borderRadius: 1 }} />
+        <Skeleton variant="rounded" height={48} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)', borderRadius: 0 }} />
       </CardContent>
     </Card>
   );

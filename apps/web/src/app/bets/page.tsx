@@ -82,10 +82,15 @@ export default function MyBetsPage() {
     resetClaim();
   };
 
-  const bets = useMemo(
-    () => betsData?.pages.flatMap((p) => p.data ?? []) ?? [],
-    [betsData]
-  );
+  const bets = useMemo(() => {
+    const flat = betsData?.pages.flatMap((p) => p.data ?? []) ?? [];
+    const seen = new Set<string>();
+    return flat.filter((bet) => {
+      if (seen.has(bet.id)) return false;
+      seen.add(bet.id);
+      return true;
+    });
+  }, [betsData]);
   const claimable = claimableData?.data;
 
   const activeBets = bets.filter(
@@ -119,7 +124,7 @@ export default function MyBetsPage() {
           <Card
             sx={{
               background: '#111820',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              border: 'none',
             }}
           >
             <CardContent sx={{ textAlign: 'center', py: 10 }}>
@@ -140,7 +145,7 @@ export default function MyBetsPage() {
                 sx={{
                   mb: 5,
                   background: `${GAIN_COLOR}0F`,
-                  border: `1px solid ${GAIN_COLOR}30`,
+                  border: 'none',
                 }}
               >
                 <CardContent sx={{ py: 3 }}>
@@ -228,8 +233,8 @@ export default function MyBetsPage() {
                 sx={{
                   mb: 4,
                   backgroundColor: 'rgba(255, 82, 82, 0.1)',
-                  border: '1px solid rgba(255, 82, 82, 0.3)',
-                  borderRadius: 1,
+                  border: 'none',
+                  borderRadius: 0,
                 }}
               >
                 Failed to load predictions
@@ -254,8 +259,8 @@ export default function MyBetsPage() {
                   textAlign: 'center',
                   py: 12,
                   px: 4,
-                  borderRadius: 1,
-                  border: '1px dashed rgba(255, 255, 255, 0.1)',
+                  borderRadius: 0,
+                  border: 'none',
                 }}
               >
                 <Typography sx={{ color: 'text.secondary', fontSize: '1.1rem' }}>
