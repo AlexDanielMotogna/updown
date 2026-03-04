@@ -215,16 +215,16 @@ export class PacificaProvider implements IMarketDataProvider {
 
   /**
    * Normalize Pacifica price data to standard format
-   * Uses oracle price for parimutuel pool resolution
+   * Uses mark price for display and pool resolution
    */
   private normalizePriceData(data: PacificaPriceData): NormalizedPriceTick {
     const rawData = JSON.stringify(data);
-    const oraclePrice = parseFloat(data.oracle);
+    const markPrice = parseFloat(data.mark);
 
     return {
       symbol: data.symbol,
       // Convert to 6 decimal places (USDC precision)
-      price: BigInt(Math.round(oraclePrice * 1_000_000)),
+      price: BigInt(Math.round(markPrice * 1_000_000)),
       timestamp: new Date(data.timestamp),
       source: 'pacifica',
       rawHash: crypto.createHash('sha256').update(rawData).digest('hex'),
