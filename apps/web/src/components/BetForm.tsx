@@ -126,7 +126,7 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide }: Be
             px: { xs: 1.5, sm: 2 },
             flexDirection: 'column',
             gap: 0.5,
-            transition: 'all 0.4s ease',
+            transition: 'background 0.2s ease, opacity 0.2s ease, border-color 0.2s ease',
             position: 'relative',
             overflow: 'hidden',
             ...(side === 'UP'
@@ -134,16 +134,10 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide }: Be
                   background: `${UP_COLOR}18`,
                   boxShadow: `0 0 30px ${UP_COLOR}30, inset 0 0 30px ${UP_COLOR}08`,
                   border: `1px solid ${UP_COLOR}60 !important`,
-                  animation: 'selectedPulse 2s infinite',
-                  '@keyframes selectedPulse': {
-                    '0%, 100%': { borderColor: `${UP_COLOR}60` },
-                    '50%': { borderColor: `${UP_COLOR}A0` },
-                  },
                   '&:hover': { background: `${UP_COLOR}22` },
                 }
               : {
                   opacity: 0.45,
-                  filter: 'grayscale(0.4)',
                   background: 'rgba(255,255,255,0.02)',
                   '&:hover': { opacity: 0.7, background: 'rgba(255,255,255,0.04)' },
                 }),
@@ -228,7 +222,7 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide }: Be
             px: { xs: 1.5, sm: 2 },
             flexDirection: 'column',
             gap: 0.5,
-            transition: 'all 0.4s ease',
+            transition: 'background 0.2s ease, opacity 0.2s ease, border-color 0.2s ease',
             position: 'relative',
             overflow: 'hidden',
             ...(side === 'DOWN'
@@ -236,16 +230,10 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide }: Be
                   background: `${DOWN_COLOR}18`,
                   boxShadow: `0 0 30px ${DOWN_COLOR}30, inset 0 0 30px ${DOWN_COLOR}08`,
                   border: `1px solid ${DOWN_COLOR}60 !important`,
-                  animation: 'selectedPulseDown 2s infinite',
-                  '@keyframes selectedPulseDown': {
-                    '0%, 100%': { borderColor: `${DOWN_COLOR}60` },
-                    '50%': { borderColor: `${DOWN_COLOR}A0` },
-                  },
                   '&:hover': { background: `${DOWN_COLOR}22` },
                 }
               : {
                   opacity: 0.45,
-                  filter: 'grayscale(0.4)',
                   background: 'rgba(255,255,255,0.02)',
                   '&:hover': { opacity: 0.7, background: 'rgba(255,255,255,0.04)' },
                 }),

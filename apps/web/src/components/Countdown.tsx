@@ -107,8 +107,8 @@ export function Countdown({ targetDate, label, onComplete, compact = false }: Co
   // Phase-specific label suffix
   const phaseLabel = (() => {
     if (!label) return label;
-    if (phase === 'heating') return `${label} — CLOSING SOON`;
-    if (phase === 'critical') return `${label} — CLOSING SOON`;
+    if (phase === 'heating') return `${label} CLOSING SOON`;
+    if (phase === 'critical') return `${label} CLOSING SOON`;
     if (phase === 'final') return 'LAST SECONDS';
     return label;
   })();
@@ -135,8 +135,8 @@ export function Countdown({ targetDate, label, onComplete, compact = false }: Co
         <Typography
           sx={{
             fontVariantNumeric: 'tabular-nums',
-            fontSize: phase === 'final' ? '1.3rem' : '1.1rem',
-            fontWeight: phase === 'critical' || phase === 'final' ? 700 : 500,
+            fontSize: '0.85rem',
+            fontWeight: 500,
             color: isExpired ? 'text.disabled' : numberColor,
             transition: 'all 0.3s ease',
           }}
@@ -156,19 +156,7 @@ export function Countdown({ targetDate, label, onComplete, compact = false }: Co
     );
   }
 
-  // Container styles per phase
-  const containerSx = (() => {
-    if (phase === 'critical' || phase === 'final') {
-      return {
-        animation: 'heartbeat 1s infinite',
-        '@keyframes heartbeat': {
-          '0%, 100%': { transform: 'scale(1)' },
-          '50%': { transform: 'scale(1.03)' },
-        },
-      };
-    }
-    return {};
-  })();
+  const containerSx = {};
 
   // Box background per phase
   const boxBg = (() => {
@@ -230,12 +218,8 @@ export function Countdown({ targetDate, label, onComplete, compact = false }: Co
               <Typography
                 sx={{
                   fontVariantNumeric: 'tabular-nums',
-                  fontSize: phase === 'final'
-                    ? { xs: '1.6rem', sm: '2rem' }
-                    : phase === 'heating'
-                    ? { xs: '1.3rem', sm: '1.6rem' }
-                    : { xs: '1.2rem', sm: '1.5rem' },
-                  fontWeight: phase === 'critical' || phase === 'final' ? 700 : 400,
+                  fontSize: { xs: '1.2rem', sm: '1.5rem' },
+                  fontWeight: 400,
                   color: numberColor,
                   lineHeight: 1,
                   transition: 'all 0.3s ease',

@@ -139,11 +139,10 @@ function PoolRow({
       sx={{
         position: 'relative',
         overflow: 'hidden',
-        display: 'grid',
-        gridTemplateColumns: { xs: '80px 1fr', md: '110px minmax(180px, 2fr) 110px 140px 100px 110px 60px 150px' },
-        gap: { xs: 0, md: 0 },
+        display: { xs: 'block', md: 'grid' },
+        gridTemplateColumns: { md: '110px minmax(180px, 2fr) 110px 140px 100px 110px 60px 150px' },
         alignItems: 'stretch',
-        pr: 2,
+        pr: { xs: 0, md: 2 },
         pl: 0,
         py: 0,
         bgcolor: '#0D1219',
@@ -164,13 +163,14 @@ function PoolRow({
         },
       }}
     >
-      {/* Box image — first column, fills entire cell */}
+      {/* Box image — desktop only, first column */}
       <Box
         sx={{
+          display: { xs: 'none', md: 'block' },
           position: 'relative',
           width: '100%',
           height: '100%',
-          minHeight: { xs: 70, md: 80 },
+          minHeight: 80,
           overflow: 'hidden',
         }}
       >
@@ -206,55 +206,80 @@ function PoolRow({
         )}
       </Box>
 
-      {/* Mobile layout */}
-      <Box sx={{ display: { xs: 'block', md: 'none' }, py: 1.5, pl: 1 }}>
-        {/* Row 1: Asset, interval, status, countdown */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+      {/* Mobile card layout */}
+      <Box sx={{ display: { xs: 'block', md: 'none' }, p: 2 }}>
+        {/* Header: asset icon, name, interval, hot badge, status */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-              <Typography sx={{ fontWeight: 600, fontSize: '0.9rem' }}>{pool.asset}/USD</Typography>
-            </Link>
-            <Chip
-              label={INTERVAL_LABELS[pool.interval] || pool.interval}
-              size="small"
-              sx={{ height: 20, fontSize: '0.6rem', bgcolor: 'rgba(255,255,255,0.06)', color: 'text.secondary', borderRadius: '2px' }}
-            />
-            {isHot && (
-              <Chip
-                icon={<LocalFireDepartment sx={{ fontSize: 12 }} />}
-                label="HOT"
-                size="small"
-                sx={{
-                  height: 20,
-                  fontSize: '0.6rem',
-                  fontWeight: 700,
-                  bgcolor: `${ACCENT_COLOR}20`,
-                  color: ACCENT_COLOR,
-                  borderRadius: '2px',
-                  '& .MuiChip-icon': { color: ACCENT_COLOR },
-                  animation: 'hotPulse 2s infinite',
-                  '@keyframes hotPulse': {
-                    '0%, 100%': { boxShadow: `0 0 4px ${ACCENT_COLOR}40` },
-                    '50%': { boxShadow: `0 0 8px ${ACCENT_COLOR}60` },
-                  },
-                }}
+            {boxImageUrl ? (
+              <Box
+                component="img"
+                src={boxImageUrl}
+                alt={`${pool.asset} box`}
+                sx={{ width: 40, height: 40, objectFit: 'contain', flexShrink: 0 }}
               />
+            ) : (
+              <Box sx={{ width: 40, height: 40, bgcolor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px', flexShrink: 0 }}>
+                <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>{pool.asset}</Typography>
+              </Box>
             )}
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <Typography sx={{ fontWeight: 600, fontSize: '0.95rem' }}>{pool.asset}/USD</Typography>
+                </Link>
+                <Chip
+                  label={INTERVAL_LABELS[pool.interval] || pool.interval}
+                  size="small"
+                  sx={{ height: 20, fontSize: '0.6rem', bgcolor: 'rgba(255,255,255,0.06)', color: 'text.secondary', borderRadius: '2px' }}
+                />
+                {isHot && (
+                  <Chip
+                    icon={<LocalFireDepartment sx={{ fontSize: 12 }} />}
+                    label="HOT"
+                    size="small"
+                    sx={{
+                      height: 20,
+                      fontSize: '0.6rem',
+                      fontWeight: 700,
+                      bgcolor: `${ACCENT_COLOR}20`,
+                      color: ACCENT_COLOR,
+                      borderRadius: '2px',
+                      '& .MuiChip-icon': { color: ACCENT_COLOR },
+                      animation: 'hotPulse 2s infinite',
+                      '@keyframes hotPulse': {
+                        '0%, 100%': { boxShadow: `0 0 4px ${ACCENT_COLOR}40` },
+                        '50%': { boxShadow: `0 0 8px ${ACCENT_COLOR}60` },
+                      },
+                    }}
+                  />
+                )}
+              </Box>
+              <Chip label={status} size="small" sx={{ ...statusStyle, height: 20, fontSize: '0.6rem', fontWeight: 600, borderRadius: '2px', mt: 0.5 }} />
+            </Box>
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        </Box>
+
+        {/* Middle: countdown left, pool size right */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
             {lockTimePassed ? (
               <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', fontStyle: 'italic' }}>Locking...</Typography>
             ) : endTimePassed ? (
               <Typography sx={{ fontSize: '0.8rem', color: '#FBBF24', fontStyle: 'italic' }}>Resolving...</Typography>
             ) : countdownTarget ? (
               <Countdown targetDate={countdownTarget} compact onComplete={handleCountdownComplete} />
-            ) : null}
-            <Chip label={status} size="small" sx={{ ...statusStyle, height: 20, fontSize: '0.6rem', fontWeight: 600, borderRadius: '2px' }} />
+            ) : (
+              <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>Ended</Typography>
+            )}
           </Box>
+          <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: GAIN_COLOR }}>
+            Pool: {formatUSDC(pool.totalPool)}
+          </Typography>
         </Box>
 
-        {/* Row 2: Distribution bar, pool size, players */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+        {/* Distribution bar + player count */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: 1 }}>
             <Typography sx={{ fontSize: '0.7rem', color: UP_COLOR, fontWeight: 500 }}>{upPct}%</Typography>
             <LinearProgress
@@ -286,95 +311,96 @@ function PoolRow({
             />
             <Typography sx={{ fontSize: '0.7rem', color: DOWN_COLOR, fontWeight: 500 }}>{downPct}%</Typography>
           </Box>
-          <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: GAIN_COLOR }}>
-            {formatUSDC(pool.totalPool)}
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, flexShrink: 0 }}>
             <Person sx={{ fontSize: 14, color: 'text.secondary' }} />
             <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>{pool.betCount}</Typography>
           </Box>
         </Box>
 
-        {/* Row 3: Action buttons */}
-        {canBet ? (
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Link href={`/pool/${pool.id}`} style={{ flex: 1, textDecoration: 'none' }}>
+        {/* Action button */}
+        <Box sx={{ pt: 1.5 }}>
+          {canBet ? (
+            <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none' }}>
               <Button
                 fullWidth
                 size="small"
                 sx={{
-                  py: 0.75,
-                  fontSize: '0.8rem',
+                  py: 1,
+                  fontSize: '0.85rem',
                   fontWeight: 700,
                   bgcolor: UP_COLOR,
                   color: '#000',
                   borderRadius: '2px',
                   textTransform: 'none',
+                  minHeight: 44,
                   '&:hover': { bgcolor: UP_COLOR, filter: 'brightness(1.15)' },
                 }}
               >
-                Join
+                Join Pool
               </Button>
             </Link>
-          </Box>
-        ) : status === 'ACTIVE' ? (
-          <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none' }}>
-            <Button
-              size="small"
-              sx={{
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                color: 'text.secondary',
-                borderRadius: '2px',
-                bgcolor: 'rgba(255,255,255,0.06)',
-                textTransform: 'none',
-                '&:hover': { bgcolor: 'rgba(255,255,255,0.10)' },
-              }}
-            >
-              View
-            </Button>
-          </Link>
-        ) : pool.winner ? (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Chip
-              icon={pool.winner === 'UP' ? <TrendingUp sx={{ fontSize: 14 }} /> : <TrendingDown sx={{ fontSize: 14 }} />}
-              label={`${pool.winner} WINS`}
-              size="small"
-              sx={{
-                bgcolor: pool.winner === 'UP' ? `${UP_COLOR}15` : `${DOWN_COLOR}15`,
-                color: pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR,
-                fontWeight: 600,
-                fontSize: '0.7rem',
-                borderRadius: '2px',
-                '& .MuiChip-icon': { color: 'inherit' },
-              }}
-            />
-            {userBet && (
-              <Chip
-                label={userBet.isWinner === true ? 'WON' : userBet.isWinner === false ? 'LOST' : 'PENDING'}
+          ) : status === 'ACTIVE' ? (
+            <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none' }}>
+              <Button
+                fullWidth
                 size="small"
                 sx={{
-                  bgcolor: userBet.isWinner === true ? `${GAIN_COLOR}15` : userBet.isWinner === false ? `${DOWN_COLOR}15` : 'rgba(255,255,255,0.06)',
-                  color: userBet.isWinner === true ? GAIN_COLOR : userBet.isWinner === false ? DOWN_COLOR : 'text.secondary',
+                  py: 1,
+                  fontSize: '0.85rem',
                   fontWeight: 600,
-                  fontSize: '0.65rem',
+                  color: 'text.secondary',
                   borderRadius: '2px',
+                  bgcolor: 'rgba(255,255,255,0.06)',
+                  textTransform: 'none',
+                  minHeight: 44,
+                  '&:hover': { bgcolor: 'rgba(255,255,255,0.10)' },
                 }}
-              />
-            )}
-            <Link href={`/pool/${pool.id}`} style={{ marginLeft: 'auto', textDecoration: 'none' }}>
-              <Button size="small" sx={{ fontSize: '0.7rem', color: 'text.secondary', minWidth: 0, px: 1 }}>
+              >
                 View
               </Button>
             </Link>
-          </Box>
-        ) : (
-          <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none' }}>
-            <Button size="small" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
-              View Details
-            </Button>
-          </Link>
-        )}
+          ) : pool.winner ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Chip
+                icon={pool.winner === 'UP' ? <TrendingUp sx={{ fontSize: 14 }} /> : <TrendingDown sx={{ fontSize: 14 }} />}
+                label={`${pool.winner} WINS`}
+                size="small"
+                sx={{
+                  bgcolor: pool.winner === 'UP' ? `${UP_COLOR}15` : `${DOWN_COLOR}15`,
+                  color: pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR,
+                  fontWeight: 600,
+                  fontSize: '0.7rem',
+                  borderRadius: '2px',
+                  '& .MuiChip-icon': { color: 'inherit' },
+                }}
+              />
+              {userBet && (
+                <Chip
+                  label={userBet.isWinner === true ? 'WON' : userBet.isWinner === false ? 'LOST' : 'PENDING'}
+                  size="small"
+                  sx={{
+                    bgcolor: userBet.isWinner === true ? `${GAIN_COLOR}15` : userBet.isWinner === false ? `${DOWN_COLOR}15` : 'rgba(255,255,255,0.06)',
+                    color: userBet.isWinner === true ? GAIN_COLOR : userBet.isWinner === false ? DOWN_COLOR : 'text.secondary',
+                    fontWeight: 600,
+                    fontSize: '0.65rem',
+                    borderRadius: '2px',
+                  }}
+                />
+              )}
+              <Link href={`/pool/${pool.id}`} style={{ marginLeft: 'auto', textDecoration: 'none' }}>
+                <Button size="small" sx={{ fontSize: '0.75rem', color: 'text.secondary', minWidth: 44, minHeight: 44, px: 1 }}>
+                  View
+                </Button>
+              </Link>
+            </Box>
+          ) : (
+            <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none' }}>
+              <Button fullWidth size="small" sx={{ py: 1, fontSize: '0.8rem', color: 'text.secondary', textTransform: 'none', minHeight: 44 }}>
+                View Details
+              </Button>
+            </Link>
+          )}
+        </Box>
       </Box>
 
       {/* Desktop layout */}
@@ -600,7 +626,7 @@ export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData 
         }}
       >
         {['', 'Asset', 'Countdown', 'Distribution', 'Pool Size', 'Odds', 'Players', 'Action'].map((h, i) => (
-          <Typography key={i} variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.08em' }}>
+          <Typography key={i} variant="caption" sx={{ color: 'text.secondary', fontSize: '12px', fontWeight: 600, letterSpacing: '0.08em' }}>
             {h}
           </Typography>
         ))}

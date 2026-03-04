@@ -91,8 +91,8 @@ function BetRow({
       sx={{
         position: 'relative',
         overflow: 'hidden',
-        display: 'grid',
-        gridTemplateColumns: { xs: '60px 1fr', md: '80px 2.5fr 1fr 1fr 1fr 2fr 1fr 1fr 1.2fr' },
+        display: { xs: 'block', md: 'grid' },
+        gridTemplateColumns: { md: '80px 2.5fr 1fr 1fr 1fr 2fr 1fr 1fr 1.2fr' },
         alignItems: 'stretch',
         px: 0,
         py: 0,
@@ -107,13 +107,14 @@ function BetRow({
         },
       }}
     >
-      {/* Box image */}
+      {/* Box image — desktop only */}
       <Box
         sx={{
+          display: { xs: 'none', md: 'block' },
           position: 'relative',
           width: '100%',
           height: '100%',
-          minHeight: { xs: 60, md: 70 },
+          minHeight: 70,
           overflow: 'hidden',
         }}
       >
@@ -149,71 +150,107 @@ function BetRow({
         )}
       </Box>
 
-      {/* Mobile layout */}
-      <Box sx={{ display: { xs: 'block', md: 'none' }, py: 1.5, pl: 1 }}>
-        {/* Row 1: Asset, side, status */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.75 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-            <Link href={`/pool/${bet.pool.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-              <Typography sx={{ fontWeight: 600, fontSize: '0.9rem' }}>{bet.pool.asset}/USD</Typography>
-            </Link>
-            <Chip
-              icon={bet.side === 'UP' ? <TrendingUp sx={{ fontSize: 12 }} /> : <TrendingDown sx={{ fontSize: 12 }} />}
-              label={bet.side}
-              size="small"
-              sx={{
-                height: 20,
-                fontSize: '0.6rem',
-                fontWeight: 600,
-                bgcolor: `${sideColor}18`,
-                color: sideColor,
-                borderRadius: '2px',
-                '& .MuiChip-icon': { color: 'inherit' },
-              }}
-            />
-          </Box>
-          <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-            <Chip
-              label={resultLabel}
-              size="small"
-              sx={{ height: 20, fontSize: '0.6rem', fontWeight: 600, bgcolor: resultBg, color: resultColor, borderRadius: '2px' }}
-            />
-            <Chip
-              label={isResolving ? 'Resolving...' : bet.pool.status}
-              size="small"
-              sx={{ ...(isResolving ? { bgcolor: 'rgba(251,191,36,0.12)', color: '#FBBF24' } : statusStyle), height: 20, fontSize: '0.55rem', fontWeight: 600, borderRadius: '2px' }}
-            />
+      {/* Mobile card layout */}
+      <Box sx={{ display: { xs: 'block', md: 'none' }, p: 2 }}>
+        {/* Header: asset icon, name, side chip, result chip, status */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', pb: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {boxImageUrl ? (
+              <Box
+                component="img"
+                src={boxImageUrl}
+                alt={`${bet.pool.asset} box`}
+                sx={{ width: 40, height: 40, objectFit: 'contain', flexShrink: 0 }}
+              />
+            ) : (
+              <Box sx={{ width: 40, height: 40, bgcolor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px', flexShrink: 0 }}>
+                <AssetIcon asset={bet.pool.asset} size={20} />
+              </Box>
+            )}
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                <Link href={`/pool/${bet.pool.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <Typography sx={{ fontWeight: 600, fontSize: '0.95rem' }}>{bet.pool.asset}/USD</Typography>
+                </Link>
+                <Chip
+                  icon={bet.side === 'UP' ? <TrendingUp sx={{ fontSize: 12 }} /> : <TrendingDown sx={{ fontSize: 12 }} />}
+                  label={bet.side}
+                  size="small"
+                  sx={{
+                    height: 20,
+                    fontSize: '0.6rem',
+                    fontWeight: 600,
+                    bgcolor: `${sideColor}18`,
+                    color: sideColor,
+                    borderRadius: '2px',
+                    '& .MuiChip-icon': { color: 'inherit' },
+                  }}
+                />
+                <Chip
+                  label={resultLabel}
+                  size="small"
+                  sx={{ height: 20, fontSize: '0.6rem', fontWeight: 600, bgcolor: resultBg, color: resultColor, borderRadius: '2px' }}
+                />
+              </Box>
+              <Chip
+                label={isResolving ? 'Resolving...' : bet.pool.status}
+                size="small"
+                sx={{ ...(isResolving ? { bgcolor: 'rgba(251,191,36,0.12)', color: '#FBBF24' } : statusStyle), height: 20, fontSize: '0.55rem', fontWeight: 600, borderRadius: '2px', mt: 0.5 }}
+              />
+            </Box>
           </Box>
         </Box>
 
-        {/* Row 2: Stake, payout, countdown */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 0.75 }}>
+        {/* Stake and payout */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
           <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
             Stake: <Box component="span" sx={{ color: 'text.primary', fontWeight: 500 }}>{formatUSDC(bet.amount, { min: 2 })}</Box>
           </Typography>
-          {bet.payoutAmount && (
-            <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: isRefund ? '#60A5FA' : GAIN_COLOR }}>
+          {bet.payoutAmount ? (
+            <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: isRefund ? '#60A5FA' : GAIN_COLOR }}>
               {isRefund ? 'Refund' : 'Payout'}: {formatUSDC(bet.payoutAmount!, { min: 2 })}
             </Typography>
+          ) : (
+            <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>—</Typography>
           )}
         </Box>
 
-        {/* Row 3: Time + action */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          {isActive && !isResolving ? (
-            <Countdown targetDate={bet.pool.endTime} compact />
-          ) : (
-            <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
-              {formatDate(bet.pool.endTime)}
-            </Typography>
-          )}
+        {/* Price movement + time */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+          <Box>
+            {bet.pool.strikePrice && bet.pool.finalPrice ? (
+              <Typography sx={{ fontSize: '0.8rem', fontVariantNumeric: 'tabular-nums', color: bet.pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR }}>
+                {formatPrice(bet.pool.strikePrice)} → {formatPrice(bet.pool.finalPrice)}
+              </Typography>
+            ) : bet.pool.strikePrice ? (
+              <Typography sx={{ fontSize: '0.8rem', fontVariantNumeric: 'tabular-nums' }}>
+                {formatPrice(bet.pool.strikePrice)}
+              </Typography>
+            ) : (
+              <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>—</Typography>
+            )}
+          </Box>
+          <Box>
+            {isActive && !isResolving ? (
+              <Countdown targetDate={bet.pool.endTime} compact />
+            ) : (
+              <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
+                {formatDate(bet.pool.endTime)}
+              </Typography>
+            )}
+          </Box>
+        </Box>
+
+        {/* Actions row */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pt: 1.5, gap: 1 }}>
           {isClaimable && onClaim ? (
             <Button
+              fullWidth
               size="small"
               onClick={onClaim}
               disabled={isClaiming}
               sx={{
-                px: 2, py: 0.5, fontSize: '0.75rem', fontWeight: 700,
+                py: 1, fontSize: '0.85rem', fontWeight: 700, minHeight: 44,
                 bgcolor: GAIN_COLOR, color: '#000', borderRadius: '2px', textTransform: 'none',
                 '&:hover': { bgcolor: GAIN_COLOR, filter: 'brightness(1.15)' },
               }}
@@ -221,11 +258,35 @@ function BetRow({
               {isClaiming ? 'Claiming...' : 'Claim'}
             </Button>
           ) : (
-            <Link href={`/pool/${bet.pool.id}`} style={{ textDecoration: 'none' }}>
-              <Button size="small" sx={{ fontSize: '0.7rem', color: 'text.secondary', minWidth: 0, px: 1, textTransform: 'none' }}>
+            <Link href={`/pool/${bet.pool.id}`} style={{ flex: 1, textDecoration: 'none' }}>
+              <Button
+                fullWidth
+                size="small"
+                sx={{
+                  py: 1, fontSize: '0.8rem', fontWeight: 600, minHeight: 44,
+                  color: 'text.secondary', borderRadius: '2px', bgcolor: 'rgba(255,255,255,0.06)',
+                  textTransform: 'none', '&:hover': { bgcolor: 'rgba(255,255,255,0.10)' },
+                }}
+              >
                 View
               </Button>
             </Link>
+          )}
+          {bet.depositTx && (
+            <Button
+              component="a"
+              href={getExplorerTxUrl(bet.depositTx)}
+              target="_blank"
+              rel="noopener noreferrer"
+              size="small"
+              sx={{
+                minWidth: 44, minHeight: 44, px: 1.5, fontSize: '0.7rem', color: 'text.secondary',
+                textTransform: 'none', borderRadius: '2px', bgcolor: 'rgba(255,255,255,0.04)',
+                gap: 0.5, '&:hover': { color: '#FFFFFF', bgcolor: 'rgba(255,255,255,0.08)' },
+              }}
+            >
+              Tx <OpenInNew sx={{ fontSize: 12 }} />
+            </Button>
           )}
         </Box>
       </Box>
@@ -400,22 +461,43 @@ function BetRowSkeleton() {
   return (
     <Box
       sx={{
-        display: 'grid',
-        gridTemplateColumns: { xs: '60px 1fr', md: '80px 2.5fr 1fr 1fr 1fr 2fr 1fr 1fr 1.2fr' },
+        display: { xs: 'block', md: 'grid' },
+        gridTemplateColumns: { md: '80px 2.5fr 1fr 1fr 1fr 2fr 1fr 1fr 1.2fr' },
         alignItems: 'center',
         px: 0,
-        py: 1.5,
+        py: 0,
         bgcolor: '#0D1219',
       }}
     >
-      <Skeleton variant="rounded" width={60} height={50} sx={{ bgcolor: 'rgba(255,255,255,0.04)', mx: 'auto' }} />
-      <Box sx={{ display: { xs: 'block', md: 'none' }, pl: 1 }}>
-        <Skeleton variant="text" width={120} height={20} sx={{ bgcolor: 'rgba(255,255,255,0.06)' }} />
-        <Skeleton variant="text" width={80} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+      {/* Desktop: box image column */}
+      <Box sx={{ display: { xs: 'none', md: 'flex' }, justifyContent: 'center', py: 1.5 }}>
+        <Skeleton variant="rounded" width={60} height={50} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
       </Box>
+      {/* Desktop columns */}
       {[110, 50, 70, 80, 70, 80, 60, 90].map((w, i) => (
         <Skeleton key={i} variant="text" width={w} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.06)', display: { xs: 'none', md: 'block' } }} />
       ))}
+      {/* Mobile card skeleton */}
+      <Box sx={{ display: { xs: 'block', md: 'none' }, p: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+          <Skeleton variant="rounded" width={40} height={40} sx={{ bgcolor: 'rgba(255,255,255,0.04)', flexShrink: 0 }} />
+          <Box>
+            <Skeleton variant="text" width={120} height={20} sx={{ bgcolor: 'rgba(255,255,255,0.06)' }} />
+            <Skeleton variant="text" width={80} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+          </Box>
+        </Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+          <Skeleton variant="text" width={100} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+          <Skeleton variant="text" width={90} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+        </Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+          <Skeleton variant="text" width={130} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+          <Skeleton variant="text" width={60} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+        </Box>
+        <Box sx={{ pt: 1.5 }}>
+          <Skeleton variant="rounded" width="100%" height={44} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+        </Box>
+      </Box>
     </Box>
   );
 }
@@ -746,7 +828,7 @@ export default function MyBetsPage() {
                   }}
                 >
                   {['', 'Asset', 'Result', 'Stake', 'Payout', 'Price', 'Time', 'Action', 'Tx'].map((h, i) => (
-                    <Typography key={i} variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.08em' }}>
+                    <Typography key={i} variant="caption" sx={{ color: 'text.secondary', fontSize: '12px', fontWeight: 600, letterSpacing: '0.08em' }}>
                       {h}
                     </Typography>
                   ))}
