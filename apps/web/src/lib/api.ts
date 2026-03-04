@@ -240,3 +240,88 @@ export async function executeClaim(params: {
     body: JSON.stringify(params),
   });
 }
+
+// ─── User / Rewards endpoints ────────────────────────────────────────────────
+
+export interface UserProfile {
+  walletAddress: string;
+  level: number;
+  title: string;
+  totalXp: string;
+  xpForCurrentLevel: string;
+  xpForNextLevel: string;
+  xpToNextLevel: string;
+  xpProgress: number;
+  coinsBalance: string;
+  coinsLifetime: string;
+  coinsRedeemed: string;
+  feeBps: number;
+  feePercent: string;
+  stats: {
+    totalBets: number;
+    totalWins: number;
+    winRate: string;
+    totalWagered: string;
+    currentStreak: number;
+    bestStreak: number;
+  };
+  createdAt: string;
+}
+
+export interface RewardEntry {
+  id: string;
+  type: 'XP' | 'COINS';
+  reason: string;
+  amount: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  walletAddress: string;
+  level: number;
+  title: string;
+  totalXp: string;
+  coinsLifetime: string;
+  totalBets: number;
+  totalWins: number;
+  bestStreak: number;
+}
+
+export async function registerUser(
+  walletAddress: string,
+): Promise<ApiResponse<UserProfile>> {
+  return fetchApi('/api/users/register', {
+    method: 'POST',
+    body: JSON.stringify({ walletAddress }),
+  });
+}
+
+export async function fetchUserProfile(
+  wallet: string,
+): Promise<ApiResponse<UserProfile>> {
+  return fetchApi<UserProfile>(`/api/users/profile?wallet=${wallet}`);
+}
+
+export async function fetchRewardHistory(
+  wallet: string,
+  params?: { type?: 'XP' | 'COINS'; page?: number; limit?: number },
+): Promise<ApiResponse<RewardEntry[]>> {
+  const searchParams = new URLSearchParams({ wallet });
+  if (params?.type) searchParams.set('type', params.type);
+  if (params?.page) searchParams.set('page', params.page.toString());
+  if (params?.limit) searchParams.set('limit', params.limit.toString());
+  return fetchApi<RewardEntry[]>(`/api/users/rewards?${searchParams.toString()}`);
+}
+
+export async function fetchLeaderboard(
+  params?: { sort?: 'xp' | 'coins' | 'level'; page?: number; limit?: number },
+): Promise<ApiResponse<LeaderboardEntry[]>> {
+  const searchParams = new URLSearchParams();
+  if (params?.sort) searchParams.set('sort', params.sort);
+  if (params?.page) searchParams.set('page', params.page.toString());
+  if (params?.limit) searchParams.set('limit', params.limit.toString());
+  const query = searchParams.toString();
+  return fetchApi<LeaderboardEntry[]>(`/api/users/leaderboard${query ? `?${query}` : ''}`);
+}

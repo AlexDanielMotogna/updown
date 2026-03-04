@@ -12,15 +12,11 @@ import {
   Alert,
   Chip,
   Button,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
 } from '@mui/material';
 import {
   TrendingUp,
   TrendingDown,
   Circle,
-  ExpandMore,
   ShowChart,
   ArrowBack,
   Person,
@@ -38,9 +34,11 @@ import {
   PriceChartDialog,
   AiAnalyzerBot,
   AssetIcon,
+  AnimatedValue,
+  SlotPrice,
 } from '@/components';
 import { formatUSDC, formatPrice, statusStyles, USDC_DIVISOR } from '@/lib/format';
-import { UP_COLOR, DOWN_COLOR, GAIN_COLOR } from '@/lib/constants';
+import { UP_COLOR, DOWN_COLOR, GAIN_COLOR, ACCENT_COLOR } from '@/lib/constants';
 
 const INTERVAL_BADGE_COLORS: Record<string, { bg: string; color: string }> = {
   '1m': { bg: 'rgba(255, 152, 0, 0.15)', color: '#FFB74D' },
@@ -210,8 +208,7 @@ export default function PoolDetailPage() {
             px: 3,
             py: 2,
             borderRadius: 0,
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: 'none',
+            background: '#0D1219',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -241,11 +238,13 @@ export default function PoolDetailPage() {
                 fontWeight: 300,
                 fontVariantNumeric: 'tabular-nums',
                 fontSize: { xs: '1.75rem', md: '2.5rem' },
-                color: priceFlash === 'up' ? UP_COLOR : priceFlash === 'down' ? DOWN_COLOR : livePrice ? 'text.primary' : 'text.secondary',
-                transition: 'color 0.15s ease',
+                lineHeight: 1,
               }}
             >
-              {livePrice ? `$${Number(livePrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '---'}
+              <SlotPrice
+                value={livePrice}
+                color={priceFlash === 'up' ? UP_COLOR : priceFlash === 'down' ? DOWN_COLOR : livePrice ? 'inherit' : 'rgba(255,255,255,0.4)'}
+              />
             </Typography>
           </Box>
           <Button
@@ -462,54 +461,81 @@ export default function PoolDetailPage() {
                   <Box sx={{ p: 2, borderRadius: 0, bgcolor: 'rgba(255,255,255,0.03)', border: 'none', textAlign: 'center' }}>
                     <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem' }}>POOL SIZE</Typography>
                     <Typography sx={{ fontWeight: 600, color: GAIN_COLOR, fontSize: '1.1rem' }}>
-                      {formatUSDC(pool.totalPool)}
+                      <AnimatedValue usdcValue={pool.totalPool} prefix="$" />
                     </Typography>
                   </Box>
                   <Box sx={{ p: 2, borderRadius: 0, bgcolor: 'rgba(255,255,255,0.03)', border: 'none', textAlign: 'center' }}>
                     <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem' }}>PLAYERS</Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
                       <Person sx={{ fontSize: 18, color: 'text.secondary' }} />
-                      <Typography sx={{ fontWeight: 500, fontSize: '1.1rem' }}>{pool.betCount}</Typography>
+                      <Typography sx={{ fontWeight: 500, fontSize: '1.1rem' }}>
+                        <AnimatedValue value={pool.betCount} decimals={0} />
+                      </Typography>
                     </Box>
                   </Box>
                   <Box sx={{ p: 2, borderRadius: 0, bgcolor: 'rgba(255,255,255,0.03)', border: 'none', textAlign: 'center' }}>
                     <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem' }}>UP ODDS</Typography>
-                    <Typography sx={{ fontWeight: 500, color: UP_COLOR, fontSize: '1.1rem' }}>{pool.odds.up}x</Typography>
+                    <Typography sx={{ fontWeight: 500, color: UP_COLOR, fontSize: '1.1rem' }}>
+                      {Number.isFinite(Number(pool.odds.up))
+                        ? <AnimatedValue value={Number(pool.odds.up)} suffix="x" decimals={1} />
+                        : `${pool.odds.up}x`}
+                    </Typography>
                   </Box>
                   <Box sx={{ p: 2, borderRadius: 0, bgcolor: 'rgba(255,255,255,0.03)', border: 'none', textAlign: 'center' }}>
                     <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem' }}>DOWN ODDS</Typography>
-                    <Typography sx={{ fontWeight: 500, color: DOWN_COLOR, fontSize: '1.1rem' }}>{pool.odds.down}x</Typography>
+                    <Typography sx={{ fontWeight: 500, color: DOWN_COLOR, fontSize: '1.1rem' }}>
+                      {Number.isFinite(Number(pool.odds.down))
+                        ? <AnimatedValue value={Number(pool.odds.down)} suffix="x" decimals={1} />
+                        : `${pool.odds.down}x`}
+                    </Typography>
                   </Box>
                 </Box>
 
                 {/* Winner (if resolved) */}
-                {pool.winner && (
-                  <Box
-                    sx={{
-                      p: 3,
-                      borderRadius: 0,
-                      background: pool.winner === 'UP' ? `${UP_COLOR}12` : `${DOWN_COLOR}12`,
-                      border: 'none',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
-                      {pool.winner === 'UP' ? (
-                        <TrendingUp sx={{ color: UP_COLOR, fontSize: 28 }} />
-                      ) : (
-                        <TrendingDown sx={{ color: DOWN_COLOR, fontSize: 28 }} />
+                {pool.winner && (() => {
+                  const isRefund = pool.upCount === 0 || pool.downCount === 0;
+                  const winColor = pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR;
+                  return (
+                    <Box
+                      sx={{
+                        p: 3,
+                        borderRadius: 0,
+                        background: isRefund ? 'rgba(255,255,255,0.04)' : `${winColor}12`,
+                        border: 'none',
+                        textAlign: 'center',
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
+                        {pool.winner === 'UP' ? (
+                          <TrendingUp sx={{ color: winColor, fontSize: 28 }} />
+                        ) : (
+                          <TrendingDown sx={{ color: winColor, fontSize: 28 }} />
+                        )}
+                        <Typography variant="h4" sx={{ fontWeight: 700, color: winColor }}>
+                          {pool.winner} WINS
+                        </Typography>
+                      </Box>
+                      {pool.strikePrice && pool.finalPrice && (
+                        <Typography variant="body1" sx={{ color: 'text.secondary' }}>
+                          ${(Number(pool.strikePrice) / USDC_DIVISOR).toFixed(2)} → ${(Number(pool.finalPrice) / USDC_DIVISOR).toFixed(2)}
+                        </Typography>
                       )}
-                      <Typography variant="h4" sx={{ fontWeight: 700, color: pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR }}>
-                        {pool.winner} WINS
-                      </Typography>
+                      {isRefund && (
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            mt: 1,
+                            color: ACCENT_COLOR,
+                            fontWeight: 600,
+                            fontSize: '0.8rem',
+                          }}
+                        >
+                          No opponents — all bets refunded
+                        </Typography>
+                      )}
                     </Box>
-                    {pool.strikePrice && pool.finalPrice && (
-                      <Typography variant="body1" sx={{ color: 'text.secondary' }}>
-                        ${(Number(pool.strikePrice) / USDC_DIVISOR).toFixed(2)} → ${(Number(pool.finalPrice) / USDC_DIVISOR).toFixed(2)}
-                      </Typography>
-                    )}
-                  </Box>
-                )}
+                  );
+                })()}
               </CardContent>
             </Card>
           </Grid>
@@ -532,51 +558,6 @@ export default function PoolDetailPage() {
                 </CardContent>
               </Card>
 
-              {/* How It Works */}
-              <Accordion
-                disableGutters
-                sx={{
-                  mt: 2,
-                  background: '#111820',
-                  border: 'none',
-                  '&:before': { display: 'none' },
-                  '&.Mui-expanded': { margin: 0, mt: 2 },
-                }}
-              >
-                <AccordionSummary expandIcon={<ExpandMore sx={{ color: 'text.secondary' }} />}>
-                  <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-                    How parimutuel pools work
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>1. Choose a side</Typography>
-                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                        Predict whether the price will be higher (UP) or lower (DOWN) than the strike price when the pool ends.
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>2. Deposit USDC</Typography>
-                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                        All deposits go into a shared pool. Your share of the winning side determines your payout.
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>3. Wait for the result</Typography>
-                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                        When the pool ends, the final price is compared to the strike price to determine the winning side.
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>4. Claim your winnings</Typography>
-                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                        Winners split the entire pool proportionally. A 5% platform fee is applied to payouts.
-                      </Typography>
-                    </Box>
-                  </Box>
-                </AccordionDetails>
-              </Accordion>
             </Box>
           </Grid>
         </Grid>

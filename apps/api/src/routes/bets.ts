@@ -3,9 +3,9 @@ import { z } from 'zod';
 import { prisma } from '../db';
 import type { Side, PoolStatus } from '@prisma/client';
 
-export const betsRouter: RouterType = Router();
+import { getFeeBps, DEFAULT_FEE_BPS } from '../utils/fees';
 
-const PLATFORM_FEE_BPS = 500; // 5% = 500 basis points
+export const betsRouter: RouterType = Router();
 
 // Query schema for bets listing
 const betsQuerySchema = z.object({
@@ -41,7 +41,7 @@ function serializeBet(bet: {
     totalDown: bigint;
     winner: Side | null;
   };
-}) {
+}, feeBps: number = DEFAULT_FEE_BPS) {
   const totalPool = bet.pool.totalUp + bet.pool.totalDown;
   const isWinner = bet.pool.winner === bet.side;
 
@@ -53,7 +53,7 @@ function serializeBet(bet: {
       const share = Number(bet.amount) / Number(winnerPool);
       const grossPayout = Math.floor(share * Number(totalPool));
       // No fee if only one bettor in the pool (no counterparty)
-      const fee = bet.pool._count.bets <= 1 ? 0 : Math.floor((grossPayout * PLATFORM_FEE_BPS) / 10000);
+      const fee = bet.pool._count.bets <= 1 ? 0 : Math.floor((grossPayout * feeBps) / 10000);
       payout = (grossPayout - fee).toString();
     }
   }
@@ -103,7 +103,7 @@ betsRouter.get('/', async (req, res) => {
     const { wallet, page, limit } = parsed.data;
     const skip = (page - 1) * limit;
 
-    const [bets, total] = await Promise.all([
+    const [bets, total, userRecord] = await Promise.all([
       prisma.bet.findMany({
         where: { walletAddress: wallet },
         include: {
@@ -129,11 +129,14 @@ betsRouter.get('/', async (req, res) => {
         take: limit,
       }),
       prisma.bet.count({ where: { walletAddress: wallet } }),
+      prisma.user.findUnique({ where: { walletAddress: wallet }, select: { level: true } }),
     ]);
+
+    const feeBps = userRecord ? getFeeBps(userRecord.level) : DEFAULT_FEE_BPS;
 
     res.json({
       success: true,
-      data: bets.map(serializeBet),
+      data: bets.map((b) => serializeBet(b, feeBps)),
       meta: {
         page,
         limit,
@@ -205,6 +208,13 @@ betsRouter.get('/claimable', async (req, res) => {
     // Filter to only winning bets
     const winningBets = bets.filter(bet => bet.pool.winner === bet.side);
 
+    // Look up user level for fee calculation
+    const userRecord = await prisma.user.findUnique({
+      where: { walletAddress },
+      select: { level: true },
+    });
+    const feeBps = userRecord ? getFeeBps(userRecord.level) : DEFAULT_FEE_BPS;
+
     // Calculate total claimable amount
     const totalClaimable = winningBets.reduce((sum, bet) => {
       const totalPool = bet.pool.totalUp + bet.pool.totalDown;
@@ -213,7 +223,7 @@ betsRouter.get('/claimable', async (req, res) => {
         const share = Number(bet.amount) / Number(winnerPool);
         const grossPayout = BigInt(Math.floor(share * Number(totalPool)));
         // No fee if only one bettor in the pool (no counterparty)
-        const fee = bet.pool._count.bets <= 1 ? 0n : (grossPayout * BigInt(PLATFORM_FEE_BPS)) / 10000n;
+        const fee = bet.pool._count.bets <= 1 ? 0n : (grossPayout * BigInt(feeBps)) / 10000n;
         return sum + (grossPayout - fee);
       }
       return sum;
@@ -222,7 +232,7 @@ betsRouter.get('/claimable', async (req, res) => {
     res.json({
       success: true,
       data: {
-        bets: winningBets.map(serializeBet),
+        bets: winningBets.map((b) => serializeBet(b, feeBps)),
         summary: {
           count: winningBets.length,
           totalClaimable: totalClaimable.toString(),

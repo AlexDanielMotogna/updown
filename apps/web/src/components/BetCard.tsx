@@ -7,6 +7,7 @@ import type { Bet } from '@/lib/api';
 import { formatUSDC, formatDate, formatPrice, formatDateTime, getExplorerTxUrl, statusStyles, USDC_DIVISOR } from '@/lib/format';
 import { UP_COLOR, DOWN_COLOR, GAIN_COLOR } from '@/lib/constants';
 import { AssetIcon } from './AssetIcon';
+import { AnimatedValue } from './AnimatedValue';
 import { Countdown } from './Countdown';
 
 interface BetCardProps {
@@ -130,7 +131,7 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
                 {isRefund ? 'Refund' : 'Payout'}
               </Typography>
               <Typography variant="body2" sx={{ fontWeight: 600, color: isRefund ? '#60A5FA' : GAIN_COLOR }}>
-                {formatUSDC(bet.payoutAmount!, { min: 2 })}
+                <AnimatedValue usdcValue={bet.payoutAmount!} prefix="$" />
               </Typography>
             </Box>
           )}

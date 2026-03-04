@@ -80,6 +80,92 @@ model PriceSnapshot {
   @@map("price_snapshots")
 }
 
+// ─── XP & Rewards ──────────────────────────────────────────────────────────
+
+enum RewardType {
+  XP
+  COINS
+}
+
+enum RewardReason {
+  BET_PLACED
+  BET_WON
+  CLAIM_COMPLETED
+  DAILY_BONUS
+  WIN_STREAK
+  LEVEL_UP
+}
+
+model User {
+  id             String   @id @default(uuid())
+  walletAddress  String   @unique @map("wallet_address")
+
+  // XP & Level
+  totalXp        BigInt   @default(0) @map("total_xp")
+  level          Int      @default(1)
+
+  // UP Coins (8-decimal internal currency)
+  coinsBalance   BigInt   @default(0) @map("coins_balance")
+  coinsLifetime  BigInt   @default(0) @map("coins_lifetime")
+  coinsRedeemed  BigInt   @default(0) @map("coins_redeemed")
+
+  // Stats
+  totalBets      Int      @default(0) @map("total_bets")
+  totalWins      Int      @default(0) @map("total_wins")
+  totalWagered   BigInt   @default(0) @map("total_wagered")
+
+  // Streaks
+  currentStreak  Int      @default(0) @map("current_streak")
+  bestStreak     Int      @default(0) @map("best_streak")
+  lastActiveDate DateTime? @map("last_active_date")
+
+  // Daily tracking
+  dailyBetCount  Int      @default(0) @map("daily_bet_count")
+  dailyCoins     BigInt   @default(0) @map("daily_coins")
+  dailyResetDate DateTime? @map("daily_reset_date")
+
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  rewardLogs     RewardLog[]
+
+  @@index([level])
+  @@index([coinsLifetime])
+  @@index([totalXp])
+  @@map("users")
+}
+
+model RewardLog {
+  id            String       @id @default(uuid())
+  walletAddress String       @map("wallet_address")
+  rewardType    RewardType   @map("reward_type")
+  reason        RewardReason
+  amount        BigInt
+  metadata      Json?
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  user User @relation(fields: [walletAddress], references: [walletAddress])
+
+  @@index([walletAddress, createdAt])
+  @@index([rewardType])
+  @@map("reward_logs")
+}
+
+model EmissionConfig {
+  id               String   @id @default(uuid())
+  epoch            Int      @unique
+  coinsPerUsdcBet  BigInt   @map("coins_per_usdc_bet") // coins per $1 bet (8 decimals)
+  winMultiplier    Int      @map("win_multiplier")      // basis points (5000 = 50%)
+  dailyCoinsCap    BigInt   @map("daily_coins_cap")     // global daily cap
+  epochStartDate   DateTime @map("epoch_start_date")
+  epochEndDate     DateTime? @map("epoch_end_date")
+  totalAllocated   BigInt   @default(0) @map("total_allocated")
+  totalDistributed BigInt   @default(0) @map("total_distributed")
+  active           Boolean  @default(false)
+
+  @@map("emission_configs")
+}
+
 model EventLog {
   id         String   @id @default(uuid())
   eventType  String   @map("event_type")

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Box, Typography, Chip, Fab } from '@mui/material';
+import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingUp, TrendingDown } from '@mui/icons-material';
 import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 import Link from 'next/link';
@@ -96,10 +97,19 @@ export function LiveResultsSidebar() {
           </Box>
         )}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-        {pools.map((pool) => {
+        <AnimatePresence>
+        {pools.map((pool, i) => {
           const isNew = newIds.has(pool.id);
           return (
-          <Link key={pool.id} href={`/pool/${pool.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+          <motion.div
+            key={pool.id}
+            initial={isNew ? { opacity: 0, scale: 0.96, y: -10 } : false}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30, delay: isNew ? i * 0.05 : 0 }}
+            layout
+          >
+          <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
             <Box
               sx={{
                 px: 2,
@@ -107,14 +117,6 @@ export function LiveResultsSidebar() {
                 bgcolor: '#0D1219',
                 cursor: 'pointer',
                 transition: 'background 0.15s ease',
-                ...(isNew && {
-                  animation: 'newResult 2.6s cubic-bezier(0.22, 1, 0.36, 1) both',
-                  '@keyframes newResult': {
-                    '0%': { opacity: 0, transform: 'scale(0.96) translateY(-10px)' },
-                    '60%': { opacity: 1 },
-                    '100%': { opacity: 1, transform: 'scale(1) translateY(0)' },
-                  },
-                }),
                 '&:hover': {
                   background: 'rgba(255,255,255,0.04)',
                 },
@@ -171,8 +173,10 @@ export function LiveResultsSidebar() {
               </Typography>
             </Box>
           </Link>
+          </motion.div>
           );
         })}
+        </AnimatePresence>
         </Box>
       </Box>
     </Box>

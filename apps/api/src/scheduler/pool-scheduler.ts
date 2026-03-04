@@ -600,7 +600,7 @@ export class PoolScheduler {
       }
 
       if (betCount === 1) {
-        // Single bettor — refund without win/loss
+        // Single bettor — determine real winner by price, then refund
         const soleBet = await prisma.bet.findFirst({ where: { poolId: pool.id } });
 
         if (soleBet && !soleBet.claimed) {
@@ -624,7 +624,14 @@ export class PoolScheduler {
           }
         }
 
-        const winner = soleBet ? soleBet.side : Side.UP;
+        // Winner is always based on actual price movement, not the bettor's side
+        let winner: Side;
+        if (finalPrice > strikePrice) {
+          winner = Side.UP;
+        } else {
+          winner = Side.DOWN;
+        }
+
         await prisma.pool.update({
           where: { id: pool.id },
           data: { status: PoolStatus.CLAIMABLE, finalPrice, winner },
@@ -640,7 +647,7 @@ export class PoolScheduler {
 
         emitPoolStatus(pool.id, { id: pool.id, status: 'CLAIMABLE' });
 
-        console.log(`[Scheduler] Pool ${pool.id} → CLAIMABLE (single bettor)`);
+        console.log(`[Scheduler] Pool ${pool.id} → CLAIMABLE (single bettor, winner=${winner})`);
         return;
       }
 

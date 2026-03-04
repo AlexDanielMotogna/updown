@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { getSocket, connectSocket } from '@/lib/socket';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { buildNotification } from '@/lib/notifications';
+import { showRewardPopup } from '@/components/RewardPopup';
 import { useBets } from './useBets';
 import { useWalletBridge } from './useWalletBridge';
 
@@ -13,6 +15,7 @@ export function useNotifications() {
   const { push, addUserPoolId, setUserPoolIds, userPoolIds } = useNotificationStore();
   const { walletAddress } = useWalletBridge();
   const betsQuery = useBets({ limit: 50 });
+  const queryClient = useQueryClient();
   const initializedRef = useRef(false);
 
   // Seed userPoolIds from existing bets on mount / when bets data changes
@@ -76,14 +79,39 @@ export function useNotifications() {
       );
     };
 
+    const onUserReward = (data: {
+      walletAddress: string;
+      xp: number;
+      coins: number;
+      level: number;
+      levelUp: boolean;
+      totalXp: number;
+    }) => {
+      // Only handle events for the connected wallet
+      if (!walletAddress || data.walletAddress !== walletAddress) return;
+
+      // Show floating popup
+      showRewardPopup({ xp: data.xp, coins: data.coins, levelUp: data.levelUp, level: data.level });
+
+      // Push level-up notification (fires confetti via NotificationToasts)
+      if (data.levelUp) {
+        push(buildNotification('LEVEL_UP', { level: data.level }));
+      }
+
+      // Invalidate profile query so Header/BetForm update
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+    };
+
     socket.on('pool:status', onPoolStatus);
     socket.on('wallet:refund', onRefund);
+    socket.on('user:reward', onUserReward);
 
     return () => {
       socket.off('pool:status', onPoolStatus);
       socket.off('wallet:refund', onRefund);
+      socket.off('user:reward', onUserReward);
     };
   // betsQuery.data is intentionally in deps so the listener closure
   // picks up the latest bets for win/loss determination
-  }, [push, addUserPoolId, betsQuery.data, walletAddress]);
+  }, [push, addUserPoolId, betsQuery.data, walletAddress, queryClient]);
 }

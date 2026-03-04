@@ -206,6 +206,24 @@ export function emitRefund(walletAddress: string, data: {
 }
 
 /**
+ * Emit a user reward event (XP / coins / level-up).
+ * Broadcasts globally — the frontend filters by wallet address.
+ */
+export function emitUserReward(walletAddress: string, data: {
+  xp: number;
+  coins: number;
+  level: number;
+  levelUp: boolean;
+  totalXp: number;
+  xpToNextLevel: number;
+  streak?: number;
+}): void {
+  if (io) {
+    io.emit('user:reward', { walletAddress, ...data });
+  }
+}
+
+/**
  * Get Socket.io server instance
  */
 export function getIO(): Server | null {
