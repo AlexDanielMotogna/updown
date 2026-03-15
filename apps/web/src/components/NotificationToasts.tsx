@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, memo } from 'react';
 import { Box, Typography, IconButton } from '@mui/material';
+import { motion, AnimatePresence } from 'framer-motion';
 import CloseIcon from '@mui/icons-material/Close';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -17,6 +18,7 @@ import {
 } from '@/stores/notificationStore';
 import { AssetIcon } from './AssetIcon';
 import { GAIN_COLOR, ACCENT_COLOR, DOWN_COLOR } from '@/lib/constants';
+import { fireWinConfetti, fireClaimConfetti } from '@/lib/confetti';
 
 const BORDER_COLORS: Record<NotificationSeverity, string> = {
   success: GAIN_COLOR,
@@ -48,15 +50,14 @@ interface ToastItemProps {
 
 const ToastItem = memo(function ToastItem({ notification, onDismiss }: ToastItemProps) {
   const router = useRouter();
-  const [visible, setVisible] = useState(false);
-  const [exiting, setExiting] = useState(false);
   const [progress, setProgress] = useState(100);
 
-  // Animate in
+  // Fire confetti on win / claim / level-up toasts
   useEffect(() => {
-    const raf = requestAnimationFrame(() => setVisible(true));
-    return () => cancelAnimationFrame(raf);
-  }, []);
+    if (notification.type === 'POOL_WON') fireWinConfetti();
+    else if (notification.type === 'CLAIM_SUCCESS') fireClaimConfetti();
+    else if (notification.type === 'LEVEL_UP') fireWinConfetti();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Progress bar countdown
   useEffect(() => {
@@ -76,18 +77,14 @@ const ToastItem = memo(function ToastItem({ notification, onDismiss }: ToastItem
 
   // Auto-dismiss
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setExiting(true);
-      setTimeout(() => onDismiss(notification.id), 200);
-    }, notification.autoHideDuration);
+    const timer = setTimeout(() => onDismiss(notification.id), notification.autoHideDuration);
     return () => clearTimeout(timer);
   }, [notification.id, notification.autoHideDuration, onDismiss]);
 
   const handleClose = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      setExiting(true);
-      setTimeout(() => onDismiss(notification.id), 200);
+      onDismiss(notification.id);
     },
     [notification.id, onDismiss],
   );
@@ -95,101 +92,102 @@ const ToastItem = memo(function ToastItem({ notification, onDismiss }: ToastItem
   const handleClick = useCallback(() => {
     if (notification.poolId) {
       router.push(`/pool/${notification.poolId}`);
-      setExiting(true);
-      setTimeout(() => onDismiss(notification.id), 200);
+      onDismiss(notification.id);
     }
   }, [notification.poolId, notification.id, onDismiss, router]);
 
   const borderColor = BORDER_COLORS[notification.severity];
 
   return (
-    <Box
-      onClick={notification.poolId ? handleClick : undefined}
-      sx={{
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 1.5,
-        p: 2,
-        pr: 5,
-        bgcolor: '#0D1219',
-        borderLeft: `3px solid ${borderColor}`,
-        borderRadius: '4px',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-        cursor: notification.poolId ? 'pointer' : 'default',
-        overflow: 'hidden',
-        minWidth: 320,
-        maxWidth: 400,
-        transform: visible && !exiting ? 'translateX(0)' : 'translateX(110%)',
-        opacity: visible && !exiting ? 1 : 0,
-        transition: exiting
-          ? 'transform 200ms ease-in, opacity 200ms ease-in'
-          : 'transform 300ms ease-out, opacity 300ms ease-out',
-        '&:hover': notification.poolId
-          ? { bgcolor: '#111820' }
-          : undefined,
-        // Mobile: full width
-        '@media (max-width: 600px)': {
-          minWidth: 'unset',
-          maxWidth: 'unset',
-          width: '100%',
-        },
-      }}
+    <motion.div
+      layout
+      initial={{ x: 400, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: 400, opacity: 0 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
     >
-      {/* Icon */}
-      <Box sx={{ pt: 0.25, flexShrink: 0 }}>
-        {notification.asset ? (
-          <AssetIcon asset={notification.asset} size={22} />
-        ) : (
-          getSeverityIcon(notification.severity, notification.type)
-        )}
-      </Box>
-
-      {/* Content */}
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography
-          variant="body2"
-          sx={{ fontWeight: 600, color: '#fff', lineHeight: 1.3 }}
-        >
-          {notification.title}
-        </Typography>
-        <Typography
-          variant="caption"
-          sx={{ color: 'rgba(255,255,255,0.55)', lineHeight: 1.4, display: 'block', mt: 0.25 }}
-        >
-          {notification.message}
-        </Typography>
-      </Box>
-
-      {/* Close */}
-      <IconButton
-        onClick={handleClose}
-        size="small"
+      <Box
+        onClick={notification.poolId ? handleClick : undefined}
         sx={{
-          position: 'absolute',
-          top: 6,
-          right: 6,
-          color: 'rgba(255,255,255,0.3)',
-          '&:hover': { color: 'rgba(255,255,255,0.7)' },
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 1.5,
+          p: 2,
+          pr: 5,
+          bgcolor: '#0D1219',
+          borderLeft: `3px solid ${borderColor}`,
+          borderRadius: '4px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          cursor: notification.poolId ? 'pointer' : 'default',
+          overflow: 'hidden',
+          minWidth: 320,
+          maxWidth: 400,
+          '&:hover': notification.poolId
+            ? { bgcolor: '#111820' }
+            : undefined,
+          '@media (max-width: 600px)': {
+            minWidth: 'unset',
+            maxWidth: 'unset',
+            width: '100%',
+          },
         }}
       >
-        <CloseIcon sx={{ fontSize: 16 }} />
-      </IconButton>
+        {/* Icon */}
+        <Box sx={{ pt: 0.25, flexShrink: 0 }}>
+          {notification.asset ? (
+            <AssetIcon asset={notification.asset} size={22} />
+          ) : (
+            getSeverityIcon(notification.severity, notification.type)
+          )}
+        </Box>
 
-      {/* Progress bar */}
-      <Box
-        sx={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          height: 2,
-          width: `${progress}%`,
-          bgcolor: borderColor,
-          opacity: 0.5,
-          transition: 'width 100ms linear',
-        }}
-      />
-    </Box>
+        {/* Content */}
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography
+            variant="body2"
+            sx={{ fontWeight: 600, color: '#fff', lineHeight: 1.3 }}
+          >
+            {notification.title}
+          </Typography>
+          <Typography
+            variant="caption"
+            sx={{ color: 'rgba(255,255,255,0.55)', lineHeight: 1.4, display: 'block', mt: 0.25 }}
+          >
+            {notification.message}
+          </Typography>
+        </Box>
+
+        {/* Close */}
+        <IconButton
+          onClick={handleClose}
+          size="small"
+          sx={{
+            position: 'absolute',
+            top: 6,
+            right: 6,
+            color: 'rgba(255,255,255,0.3)',
+            '&:hover': { color: 'rgba(255,255,255,0.7)' },
+          }}
+        >
+          <CloseIcon sx={{ fontSize: 16 }} />
+        </IconButton>
+
+        {/* Progress bar */}
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            height: 2,
+            width: `${progress}%`,
+            bgcolor: borderColor,
+            opacity: 0.5,
+            transition: 'width 100ms linear',
+          }}
+        />
+      </Box>
+    </motion.div>
   );
 });
 
@@ -222,9 +220,11 @@ export function NotificationToasts() {
         },
       }}
     >
-      {visible.map((n) => (
-        <ToastItem key={n.id} notification={n} onDismiss={dismiss} />
-      ))}
+      <AnimatePresence>
+        {visible.map((n) => (
+          <ToastItem key={n.id} notification={n} onDismiss={dismiss} />
+        ))}
+      </AnimatePresence>
     </Box>
   );
 }

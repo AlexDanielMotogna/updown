@@ -11,9 +11,10 @@ import {
   TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 
-export const transactionsRouter: RouterType = Router();
+import { getFeeBps, DEFAULT_FEE_BPS } from '../utils/fees';
+import { awardBetPlacement, awardBetWin, awardClaimCompleted } from '../services/rewards';
 
-const PLATFORM_FEE_BPS = 500; // 5% = 500 basis points
+export const transactionsRouter: RouterType = Router();
 
 // Solana connection
 const RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
@@ -433,6 +434,9 @@ transactionsRouter.post('/confirm-deposit', async (req, res) => {
       totalDown: updatedPool.totalDown.toString(),
     });
 
+    // Award XP + coins (fire-and-forget, non-blocking)
+    awardBetPlacement(walletAddress, betAmount).catch(() => {});
+
     res.json({
       success: true,
       data: {
@@ -554,7 +558,7 @@ transactionsRouter.post('/claim', async (req, res) => {
     const [userBet] = getUserBetPDA(poolPDA, user);
     const userTokenAccount = await getAssociatedTokenAddress(USDC_MINT, user);
 
-    // Calculate expected payout
+    // Calculate expected payout with level-based fee
     const totalPool = pool.totalUp + pool.totalDown;
     const winnerPool = bet.side === 'UP' ? pool.totalUp : pool.totalDown;
     const grossPayout = winnerPool > 0n
@@ -562,7 +566,9 @@ transactionsRouter.post('/claim', async (req, res) => {
       : 0n;
     // No fee if only one bettor in the pool (no counterparty)
     const betCount = await prisma.bet.count({ where: { poolId: pool.id } });
-    const fee = betCount <= 1 ? 0n : (grossPayout * BigInt(PLATFORM_FEE_BPS)) / 10000n;
+    const userRecord = await prisma.user.findUnique({ where: { walletAddress } });
+    const feeBps = userRecord ? getFeeBps(userRecord.level) : DEFAULT_FEE_BPS;
+    const fee = betCount <= 1 ? 0n : (grossPayout * BigInt(feeBps)) / 10000n;
     const payout = grossPayout - fee;
 
     res.json({
@@ -680,7 +686,7 @@ transactionsRouter.post('/confirm-claim', async (req, res) => {
       });
     }
 
-    // Calculate payout
+    // Calculate payout with level-based fee
     const pool = bet.pool;
     const totalPool = pool.totalUp + pool.totalDown;
     const winnerPool = bet.side === 'UP' ? pool.totalUp : pool.totalDown;
@@ -689,7 +695,9 @@ transactionsRouter.post('/confirm-claim', async (req, res) => {
       : 0n;
     // No fee if only one bettor in the pool (no counterparty)
     const betCount = await prisma.bet.count({ where: { poolId: pool.id } });
-    const fee = betCount <= 1 ? 0n : (grossPayout * BigInt(PLATFORM_FEE_BPS)) / 10000n;
+    const userRecord = await prisma.user.findUnique({ where: { walletAddress: bet.walletAddress } });
+    const feeBps = userRecord ? getFeeBps(userRecord.level) : DEFAULT_FEE_BPS;
+    const fee = betCount <= 1 ? 0n : (grossPayout * BigInt(feeBps)) / 10000n;
     const payout = grossPayout - fee;
 
     // Update bet as claimed
@@ -716,6 +724,10 @@ transactionsRouter.post('/confirm-claim', async (req, res) => {
         },
       },
     });
+
+    // Award win + claim rewards (fire-and-forget)
+    awardBetWin(bet.walletAddress, bet.amount).catch(() => {});
+    awardClaimCompleted(bet.walletAddress).catch(() => {});
 
     res.json({
       success: true,
@@ -811,13 +823,15 @@ transactionsRouter.post('/execute-claim', async (req, res) => {
       });
     }
 
-    // Calculate payout
+    // Calculate payout with level-based fee
     const totalPool = pool.totalUp + pool.totalDown;
     const winnerPool = bet.side === 'UP' ? pool.totalUp : pool.totalDown;
     const grossPayout = winnerPool > 0n ? (bet.amount * totalPool) / winnerPool : 0n;
     // No fee if only one bettor in the pool (no counterparty)
     const betCount = await prisma.bet.count({ where: { poolId: pool.id } });
-    const fee = betCount <= 1 ? 0n : (grossPayout * BigInt(PLATFORM_FEE_BPS)) / 10000n;
+    const userRecord = await prisma.user.findUnique({ where: { walletAddress } });
+    const feeBps = userRecord ? getFeeBps(userRecord.level) : DEFAULT_FEE_BPS;
+    const fee = betCount <= 1 ? 0n : (grossPayout * BigInt(feeBps)) / 10000n;
     const payout = grossPayout - fee;
 
     if (payout === 0n) {
@@ -930,6 +944,10 @@ transactionsRouter.post('/execute-claim', async (req, res) => {
     });
 
     console.log(`[execute-claim] Payout confirmed: ${signature}, bet: ${bet.id}`);
+
+    // Award win + claim rewards (fire-and-forget)
+    awardBetWin(walletAddress, bet.amount).catch(() => {});
+    awardClaimCompleted(walletAddress).catch(() => {});
 
     res.json({
       success: true,

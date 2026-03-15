@@ -101,6 +101,21 @@ export default function MarketsPage() {
     });
   }, [data]);
 
+  // Identify top 3 most popular pools (by participant count, min 2 bets)
+  const { sortedPools, popularPoolIds } = useMemo(() => {
+    if (allPools.length === 0) return { sortedPools: allPools, popularPoolIds: new Set<string>() };
+
+    const candidates = [...allPools].filter(p => p.betCount >= 2);
+    candidates.sort((a, b) => b.betCount - a.betCount);
+    const top3Ids = new Set(candidates.slice(0, 3).map(p => p.id));
+
+    // Move popular pools to the top (ordered by betCount desc), rest keep original order
+    const popular = allPools.filter(p => top3Ids.has(p.id)).sort((a, b) => b.betCount - a.betCount);
+    const rest = allPools.filter(p => !top3Ids.has(p.id));
+
+    return { sortedPools: [...popular, ...rest], popularPoolIds: top3Ids };
+  }, [allPools]);
+
   const userBetByPoolId = useMemo(() => {
     const map = new Map<string, { side: 'UP' | 'DOWN'; isWinner: boolean | null }>();
     for (const bet of betsData?.data || []) {
@@ -126,8 +141,8 @@ export default function MarketsPage() {
     setStatusTab(newValue);
   };
 
-  // Filters are now fully handled server-side; just use the deduped list
-  const pools = allPools;
+  // Filters are now fully handled server-side; use sorted list with popular pools first
+  const pools = sortedPools;
 
   const selectedPillSx = {
     backgroundColor: `${UP_COLOR}18`,
@@ -348,6 +363,7 @@ export default function MarketsPage() {
                   userBetByPoolId={userBetByPoolId}
                   getPrice={getPrice}
                   isPlaceholderData={isPlaceholderData}
+                  popularPoolIds={popularPoolIds}
                 />
 
                 {/* Sentinel for infinite scroll */}

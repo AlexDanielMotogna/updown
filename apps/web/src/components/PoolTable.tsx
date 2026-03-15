@@ -2,7 +2,8 @@
 
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { Box, Typography, Chip, Button, LinearProgress } from '@mui/material';
-import { TrendingUp, TrendingDown, Person, LocalFireDepartment } from '@mui/icons-material';
+import { TrendingUp, TrendingDown, Person, LocalFireDepartment, Star } from '@mui/icons-material';
+import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import type { Pool } from '@/lib/api';
 import { formatUSDC, statusStyles, USDC_DIVISOR } from '@/lib/format';
@@ -27,16 +28,19 @@ interface PoolTableProps {
   userBetByPoolId: Map<string, { side: 'UP' | 'DOWN'; isWinner: boolean | null }>;
   getPrice: (asset: string) => string | null;
   isPlaceholderData?: boolean;
+  popularPoolIds?: Set<string>;
 }
 
 function PriceCell({ asset, getPrice }: { asset: string; getPrice: (a: string) => string | null }) {
   const price = getPrice(asset);
   const prevPrice = useRef(price);
   const [flash, setFlash] = useState<'up' | 'down' | null>(null);
+  const [pulseKey, setPulseKey] = useState(0);
 
   useEffect(() => {
     if (price && prevPrice.current && price !== prevPrice.current) {
       setFlash(Number(price) > Number(prevPrice.current) ? 'up' : 'down');
+      setPulseKey((k) => k + 1);
       const t = setTimeout(() => setFlash(null), 300);
       prevPrice.current = price;
       return () => clearTimeout(t);
@@ -47,17 +51,24 @@ function PriceCell({ asset, getPrice }: { asset: string; getPrice: (a: string) =
   if (!price) return <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>---</Typography>;
 
   return (
-    <Typography
-      sx={{
-        fontSize: '0.8rem',
-        fontWeight: 500,
-        fontVariantNumeric: 'tabular-nums',
-        transition: 'color 0.15s ease',
-        color: flash === 'up' ? UP_COLOR : flash === 'down' ? DOWN_COLOR : 'text.primary',
-      }}
+    <motion.span
+      key={pulseKey}
+      animate={{ scale: [1, 1.06, 1] }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
+      style={{ display: 'inline-block' }}
     >
-      ${Number(price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-    </Typography>
+      <Typography
+        sx={{
+          fontSize: '0.8rem',
+          fontWeight: 500,
+          fontVariantNumeric: 'tabular-nums',
+          color: flash === 'up' ? UP_COLOR : flash === 'down' ? DOWN_COLOR : 'text.primary',
+          transition: 'color 0.15s ease',
+        }}
+      >
+        ${Number(price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      </Typography>
+    </motion.span>
   );
 }
 
@@ -67,12 +78,14 @@ function PoolRow({
   getPrice,
   index,
   isNew,
+  isPopular,
 }: {
   pool: Pool;
   userBet?: { side: 'UP' | 'DOWN'; isWinner: boolean | null };
   getPrice: (a: string) => string | null;
   index: number;
   isNew?: boolean;
+  isPopular?: boolean;
 }) {
   const totalUp = Number(pool.totalUp);
   const totalDown = Number(pool.totalDown);
@@ -135,6 +148,13 @@ function PoolRow({
   const boxImageUrl = ASSET_BOX_IMAGE[pool.asset];
 
   return (
+    <motion.div
+      initial={isNew ? { opacity: 0, y: 10 } : false}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 30, delay: isNew ? index * 0.05 : 0 }}
+      layout
+    >
     <Box
       sx={{
         position: 'relative',
@@ -147,13 +167,6 @@ function PoolRow({
         py: 0,
         bgcolor: '#0D1219',
         transition: 'background 0.15s ease',
-        ...(isNew && {
-          animation: 'fadeSlideUp 2.6s cubic-bezier(0.16, 1, 0.3, 1) both',
-          '@keyframes fadeSlideUp': {
-            from: { opacity: 0, transform: 'translateY(10px)' },
-            to: { opacity: 1, transform: 'translateY(0)' },
-          },
-        }),
         '&:hover': {
           background: 'rgba(255,255,255,0.04)',
           '& .box-img': {
@@ -251,6 +264,22 @@ function PoolRow({
                         '0%, 100%': { boxShadow: `0 0 4px ${ACCENT_COLOR}40` },
                         '50%': { boxShadow: `0 0 8px ${ACCENT_COLOR}60` },
                       },
+                    }}
+                  />
+                )}
+                {isPopular && (
+                  <Chip
+                    icon={<Star sx={{ fontSize: 12 }} />}
+                    label="POPULAR"
+                    size="small"
+                    sx={{
+                      height: 20,
+                      fontSize: '0.6rem',
+                      fontWeight: 700,
+                      bgcolor: '#F59E0B20',
+                      color: '#F59E0B',
+                      borderRadius: '2px',
+                      '& .MuiChip-icon': { color: '#F59E0B' },
                     }}
                   />
                 )}
@@ -359,15 +388,17 @@ function PoolRow({
                 View
               </Button>
             </Link>
-          ) : pool.winner ? (
+          ) : pool.winner ? (() => {
+            const isRefund = Number(pool.totalUp) === 0 || Number(pool.totalDown) === 0;
+            return (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Chip
                 icon={pool.winner === 'UP' ? <TrendingUp sx={{ fontSize: 14 }} /> : <TrendingDown sx={{ fontSize: 14 }} />}
-                label={`${pool.winner} WINS`}
+                label={isRefund ? 'REFUNDED' : `${pool.winner} WINS`}
                 size="small"
                 sx={{
-                  bgcolor: pool.winner === 'UP' ? `${UP_COLOR}15` : `${DOWN_COLOR}15`,
-                  color: pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR,
+                  bgcolor: isRefund ? `${ACCENT_COLOR}15` : pool.winner === 'UP' ? `${UP_COLOR}15` : `${DOWN_COLOR}15`,
+                  color: isRefund ? ACCENT_COLOR : pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR,
                   fontWeight: 600,
                   fontSize: '0.7rem',
                   borderRadius: '2px',
@@ -393,7 +424,8 @@ function PoolRow({
                 </Button>
               </Link>
             </Box>
-          ) : (
+            );
+          })() : (
             <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none' }}>
               <Button fullWidth size="small" sx={{ py: 1, fontSize: '0.8rem', color: 'text.secondary', textTransform: 'none', minHeight: 44 }}>
                 View Details
@@ -431,6 +463,22 @@ function PoolRow({
               borderRadius: '2px',
               '& .MuiChip-icon': { color: ACCENT_COLOR },
               animation: 'hotPulse 2s infinite',
+            }}
+          />
+        )}
+        {isPopular && (
+          <Chip
+            icon={<Star sx={{ fontSize: 11 }} />}
+            label="POPULAR"
+            size="small"
+            sx={{
+              height: 18,
+              fontSize: '0.55rem',
+              fontWeight: 700,
+              bgcolor: '#F59E0B20',
+              color: '#F59E0B',
+              borderRadius: '2px',
+              '& .MuiChip-icon': { color: '#F59E0B' },
             }}
           />
         )}
@@ -541,21 +589,23 @@ function PoolRow({
               View
             </Button>
           </Link>
-        ) : pool.winner ? (
+        ) : pool.winner ? (() => {
+          const isRefund = Number(pool.totalUp) === 0 || Number(pool.totalDown) === 0;
+          return (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Chip
-              label={`${pool.winner} WINS`}
+              label={isRefund ? 'REFUNDED' : `${pool.winner} WINS`}
               size="small"
               sx={{
                 height: 20,
                 fontSize: '0.6rem',
                 fontWeight: 600,
                 borderRadius: '2px',
-                bgcolor: pool.winner === 'UP' ? `${UP_COLOR}15` : `${DOWN_COLOR}15`,
-                color: pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR,
+                bgcolor: isRefund ? `${ACCENT_COLOR}15` : pool.winner === 'UP' ? `${UP_COLOR}15` : `${DOWN_COLOR}15`,
+                color: isRefund ? ACCENT_COLOR : pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR,
               }}
             />
-            {userBet && (
+            {userBet && !isRefund && (
               <Chip
                 label={userBet.isWinner === true ? 'WON' : userBet.isWinner === false ? 'LOST' : '...'}
                 size="small"
@@ -570,7 +620,8 @@ function PoolRow({
               />
             )}
           </Box>
-        ) : (
+          );
+        })() : (
           <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none' }}>
             <Button size="small" sx={{ minWidth: 0, px: 1, fontSize: '0.7rem', color: 'text.secondary', borderRadius: '2px' }}>
               View
@@ -579,10 +630,11 @@ function PoolRow({
         )}
       </Box>
     </Box>
+    </motion.div>
   );
 }
 
-export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData }: PoolTableProps) {
+export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData, popularPoolIds }: PoolTableProps) {
   const knownIdsRef = useRef<Set<string>>(new Set());
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
 
@@ -633,16 +685,19 @@ export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData 
       </Box>
 
       {/* Rows */}
-      {pools.map((pool, i) => (
-        <PoolRow
-          key={pool.id}
-          pool={pool}
-          userBet={userBetByPoolId.get(pool.id)}
-          getPrice={getPrice}
-          index={i}
-          isNew={newIds.has(pool.id)}
-        />
-      ))}
+      <AnimatePresence mode="popLayout">
+        {pools.map((pool, i) => (
+          <PoolRow
+            key={pool.id}
+            pool={pool}
+            userBet={userBetByPoolId.get(pool.id)}
+            getPrice={getPrice}
+            index={i}
+            isNew={newIds.has(pool.id)}
+            isPopular={popularPoolIds?.has(pool.id)}
+          />
+        ))}
+      </AnimatePresence>
 
       {pools.length === 0 && (
         <Box sx={{ textAlign: 'center', py: 8, px: 4 }}>

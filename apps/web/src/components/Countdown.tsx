@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Box, Typography } from '@mui/material';
+import { motion } from 'framer-motion';
 import { ACCENT_COLOR, DOWN_COLOR } from '@/lib/constants';
 
 interface CountdownProps {
@@ -202,8 +203,22 @@ export function Countdown({ targetDate, label, onComplete, compact = false }: Co
       ) : (
         <Box sx={{ display: 'flex', gap: { xs: 1, sm: 1.5 }, justifyContent: 'center' }}>
           {timeUnits.map((unit) => (
-            <Box
+            <motion.div
               key={unit.label}
+              animate={
+                phase === 'final' && unit.label === 'SEC'
+                  ? { scale: [1, 1.15, 1] }
+                  : phase === 'critical' && unit.label === 'SEC'
+                  ? { x: [-2, 2, -2, 0] }
+                  : {}
+              }
+              transition={
+                phase === 'final'
+                  ? { duration: 0.3, ease: 'easeOut' }
+                  : { duration: 0.2, ease: 'easeOut' }
+              }
+            >
+            <Box
               sx={{
                 minWidth: { xs: 48, sm: 56 },
                 p: 1.5,
@@ -215,25 +230,26 @@ export function Countdown({ targetDate, label, onComplete, compact = false }: Co
                 transition: 'background 0.4s ease, box-shadow 0.4s ease',
               }}
             >
-              <Typography
-                sx={{
-                  fontVariantNumeric: 'tabular-nums',
-                  fontSize: { xs: '1.2rem', sm: '1.5rem' },
-                  fontWeight: 400,
-                  color: numberColor,
-                  lineHeight: 1,
-                  transition: 'all 0.3s ease',
-                  ...(tickFlash && phase === 'final' && {
-                    animation: 'tickFlash 0.3s ease-out',
-                    '@keyframes tickFlash': {
-                      '0%': { background: 'rgba(255,255,255,0.3)', borderRadius: '2px' },
-                      '100%': { background: 'transparent' },
-                    },
-                  }),
-                }}
+              <motion.div
+                key={`${unit.label}-${timeLeft.seconds}`}
+                initial={tickFlash && phase === 'final' ? { backgroundColor: 'rgba(255,255,255,0.3)' } : false}
+                animate={{ backgroundColor: 'rgba(255,255,255,0)' }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+                style={{ borderRadius: '2px' }}
               >
-                {unit.value.toString().padStart(2, '0')}
-              </Typography>
+                <Typography
+                  sx={{
+                    fontVariantNumeric: 'tabular-nums',
+                    fontSize: { xs: '1.2rem', sm: '1.5rem' },
+                    fontWeight: 400,
+                    color: numberColor,
+                    lineHeight: 1,
+                    transition: 'color 0.3s ease',
+                  }}
+                >
+                  {unit.value.toString().padStart(2, '0')}
+                </Typography>
+              </motion.div>
               <Typography
                 variant="caption"
                 sx={{
@@ -246,6 +262,7 @@ export function Countdown({ targetDate, label, onComplete, compact = false }: Co
                 {unit.label}
               </Typography>
             </Box>
+            </motion.div>
           ))}
         </Box>
       )}

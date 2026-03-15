@@ -79,6 +79,30 @@ export const NOTIFICATION_DEFS: Record<NotificationType, NotificationDef> = {
       message: (ctx.error as string) || 'Could not process the claim',
     }),
   },
+  XP_EARNED: {
+    severity: 'info',
+    autoHideDuration: 4000,
+    build: (ctx) => ({
+      title: `+${ctx.xp} XP`,
+      message: `Total: ${Number(ctx.totalXp).toLocaleString()} XP`,
+    }),
+  },
+  COINS_EARNED: {
+    severity: 'info',
+    autoHideDuration: 4000,
+    build: (ctx) => ({
+      title: `+${ctx.coins} UP Coins`,
+      message: 'Keep betting to earn more!',
+    }),
+  },
+  LEVEL_UP: {
+    severity: 'success',
+    autoHideDuration: 8000,
+    build: (ctx) => ({
+      title: `Level Up! Lv.${ctx.level}`,
+      message: 'You unlocked a new fee discount tier!',
+    }),
+  },
 };
 
 /** Helper to build a full NotificationInput from a type + context */

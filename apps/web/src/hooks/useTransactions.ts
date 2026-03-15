@@ -164,12 +164,19 @@ export function useDeposit() {
         }
 
         // Confirm with backend (side is verified by user signing, amount verified on-chain)
-        await confirmDeposit({
+        const confirmResponse = await confirmDeposit({
           poolId,
           walletAddress: publicKey.toBase58(),
           txSignature: signature,
           side,
         });
+
+        if (!confirmResponse.success) {
+          throw new Error(
+            confirmResponse.error?.message ||
+              'Deposit sent on-chain but server failed to record it. Contact support with tx: ' + signature,
+          );
+        }
 
         setState({ status: 'success', txSignature: signature });
 

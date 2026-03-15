@@ -10,3 +10,5 @@ export * from './useMarketAnalysis';
 export * from './usePacificaPrices';
 export * from './useOrderbook';
 export * from './useNotifications';
+export * from './useUserProfile';
+export * from './useLeaderboard';

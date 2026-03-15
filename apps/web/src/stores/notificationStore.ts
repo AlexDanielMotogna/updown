@@ -11,7 +11,10 @@ export type NotificationType =
   | 'DEPOSIT_SUCCESS'
   | 'DEPOSIT_FAILED'
   | 'CLAIM_SUCCESS'
-  | 'CLAIM_FAILED';
+  | 'CLAIM_FAILED'
+  | 'XP_EARNED'
+  | 'COINS_EARNED'
+  | 'LEVEL_UP';
 
 export interface Notification {
   id: string;

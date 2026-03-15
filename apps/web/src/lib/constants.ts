@@ -12,6 +12,10 @@ export const DOWN_COLOR = '#F87171';
 export const GAIN_COLOR = '#22C55E';
 export const ACCENT_COLOR = '#F59E0B';
 
+// UP Coins: stored as base units, divide by this to get display value
+// e.g. 10 stored = 0.10 UP displayed ($1 bet earns 0.10 UP)
+export const UP_COINS_DIVISOR = 100;
+
 // Solana
 export const USDC_MINT_ADDRESS = 'By87mHK9Meinfv4AEqTx9qyYmGDLUcwiywpkkCWwGUVz';
 export const EXPLORER_URL = 'https://explorer.solana.com';

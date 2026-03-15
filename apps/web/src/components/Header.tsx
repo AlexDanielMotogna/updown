@@ -28,13 +28,17 @@ import Link from 'next/link';
 import { ConnectWalletButton } from './ConnectWalletButton';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
+import { useUserProfile } from '@/hooks/useUserProfile';
 import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR, DOWN_COLOR } from '@/lib/constants';
 import { useNotificationStore, type Notification, type NotificationSeverity } from '@/stores/notificationStore';
 import { AssetIcon } from './AssetIcon';
+import { UserLevelBadge } from './UserLevelBadge';
+import { UpCoinsBalance } from './UpCoinsBalance';
 
 const NAV_ITEMS = [
   { label: 'Markets', href: '/', icon: ShowChart },
   { label: 'Portfolio', href: '/bets', icon: WorkOutline },
+  { label: 'Leaderboard', href: '/leaderboard', icon: EmojiEvents },
 ];
 
 const SEVERITY_COLORS: Record<NotificationSeverity, string> = {
@@ -68,6 +72,7 @@ export function Header() {
   const router = useRouter();
   const { connected } = useWalletBridge();
   const { data: balance } = useUsdcBalance();
+  const { data: userProfile } = useUserProfile();
 
   const notifications = useNotificationStore((s) => s.notifications);
   const dismissAll = useNotificationStore((s) => s.dismissAll);
@@ -117,7 +122,7 @@ export function Header() {
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        backgroundColor: '#080B10',
+        backgroundColor: '#0B0F14',
       }}
     >
       {/* Main bar */}
@@ -206,6 +211,20 @@ export function Header() {
                   {balance ? balance.uiAmount.toFixed(2) : '0.00'}
                 </Typography>
               </Box>
+
+              {/* UP Coins Balance */}
+              {userProfile && (
+                <Box sx={{ display: { xs: 'none', sm: 'flex' } }}>
+                  <UpCoinsBalance balance={userProfile.coinsBalance} />
+                </Box>
+              )}
+
+              {/* Level Badge */}
+              {userProfile && (
+                <Box sx={{ display: { xs: 'none', sm: 'flex' } }}>
+                  <UserLevelBadge level={userProfile.level} title={userProfile.title} size="sm" />
+                </Box>
+              )}
 
               {/* Notifications */}
               <ClickAwayListener onClickAway={handleBellClose}>
@@ -398,7 +417,7 @@ export function Header() {
           left: 0,
           right: 0,
           zIndex: 100,
-          backgroundColor: '#080B10',
+          backgroundColor: '#0B0F14',
           justifyContent: 'space-around',
           px: 1,
           pb: 'env(safe-area-inset-bottom)',

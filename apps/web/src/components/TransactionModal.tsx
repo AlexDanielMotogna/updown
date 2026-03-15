@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -10,8 +11,10 @@ import {
   Typography,
   Link,
 } from '@mui/material';
+import { motion, AnimatePresence, type Easing } from 'framer-motion';
 import type { TransactionStatus } from '@/hooks/useTransactions';
 import { getExplorerTxUrl } from '@/lib/format';
+import { fireWinConfetti } from '@/lib/confetti';
 
 interface TransactionModalProps {
   open: boolean;
@@ -25,66 +28,76 @@ interface TransactionModalProps {
 
 /* ─── CSS-only Loot Box ─── */
 
+const particleVariants = {
+  hidden: { scale: 0, opacity: 0 },
+  visible: (i: number) => {
+    const angle = (i / 10) * 360;
+    const rad = (angle * Math.PI) / 180;
+    const tx = Math.cos(rad) * 60;
+    const ty = Math.sin(rad) * 60;
+    return {
+      scale: [0, 1.2, 0.5],
+      opacity: [0, 1, 0],
+      x: [0, tx],
+      y: [0, ty],
+      transition: { duration: 0.8, ease: 'easeOut' as Easing, delay: i * 0.04 },
+    };
+  },
+};
+
 function LootBox({ status }: { status: TransactionStatus }) {
   const isShaking = status === 'confirming';
   const isOpen = status === 'success';
   const isCracked = status === 'error';
 
   return (
-    <Box
-      sx={{
-        position: 'relative',
-        width: 100,
-        height: 100,
-        mx: 'auto',
-        ...(isShaking && {
-          animation: 'boxShake 0.4s infinite',
-          '@keyframes boxShake': {
-            '0%, 100%': { transform: 'translateX(0)' },
-            '10%': { transform: 'translateX(-3px) rotate(-1deg)' },
-            '20%': { transform: 'translateX(3px) rotate(1deg)' },
-            '30%': { transform: 'translateX(-4px) rotate(-1.5deg)' },
-            '40%': { transform: 'translateX(4px) rotate(1.5deg)' },
-            '50%': { transform: 'translateX(-5px) rotate(-2deg)' },
-            '60%': { transform: 'translateX(5px) rotate(2deg)' },
-            '70%': { transform: 'translateX(-3px) rotate(-1deg)' },
-            '80%': { transform: 'translateX(3px) rotate(1deg)' },
-            '90%': { transform: 'translateX(-1px)' },
-          },
-        }),
-      }}
+    <motion.div
+      animate={
+        isShaking
+          ? {
+              x: [0, -3, 3, -4, 4, -5, 5, -3, 3, -1, 0],
+              rotate: [0, -1, 1, -1.5, 1.5, -2, 2, -1, 1, 0, 0],
+            }
+          : { x: 0, rotate: 0 }
+      }
+      transition={isShaking ? { duration: 0.4, repeat: Infinity } : { type: 'spring' }}
+      style={{ position: 'relative', width: 100, height: 100, margin: '0 auto' }}
     >
       {/* Golden glow behind (visible on success) */}
-      {isOpen && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            width: 120,
-            height: 120,
-            transform: 'translate(-50%, -50%)',
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(255,215,0,0.4) 0%, rgba(255,215,0,0) 70%)',
-            animation: 'glowPulse 1.5s infinite',
-            '@keyframes glowPulse': {
-              '0%, 100%': { opacity: 0.6, transform: 'translate(-50%, -50%) scale(1)' },
-              '50%': { opacity: 1, transform: 'translate(-50%, -50%) scale(1.15)' },
-            },
-          }}
-        />
-      )}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: [0.6, 1, 0.6], scale: [1, 1.15, 1] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              width: 120,
+              height: 120,
+              marginLeft: -60,
+              marginTop: -60,
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(255,215,0,0.4) 0%, rgba(255,215,0,0) 70%)',
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Red glow behind (visible on error) */}
       {isCracked && (
-        <Box
-          sx={{
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          style={{
             position: 'absolute',
             top: '50%',
             left: '50%',
             width: 120,
             height: 120,
-            transform: 'translate(-50%, -50%)',
+            marginLeft: -60,
+            marginTop: -60,
             borderRadius: '50%',
             background: 'radial-gradient(circle, rgba(248,113,113,0.3) 0%, rgba(248,113,113,0) 70%)',
           }}
@@ -92,46 +105,45 @@ function LootBox({ status }: { status: TransactionStatus }) {
       )}
 
       {/* Box lid */}
-      <Box
-        sx={{
-          position: 'absolute',
-          top: 0,
-          left: 5,
-          right: 5,
-          height: 35,
-          background: isCracked
-            ? 'linear-gradient(180deg, #8B3A3A, #6B2A2A)'
-            : 'linear-gradient(180deg, #D4A843, #B8922E)',
-          borderRadius: '4px 4px 0 0',
-          border: isCracked ? '1px solid #F8717140' : '1px solid #E8C55280',
-          borderBottom: 'none',
-          transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-          transformOrigin: 'top center',
-          ...(isOpen && {
-            transform: 'translateY(-22px) rotate(-8deg)',
-            opacity: 0.8,
-          }),
-          ...(isCracked && {
-            animation: 'lidCrack 0.3s ease-out forwards',
-            '@keyframes lidCrack': {
-              '0%': { transform: 'translateY(0)' },
-              '50%': { transform: 'translateY(-4px) rotate(2deg)' },
-              '100%': { transform: 'translateY(-2px) skewX(5deg)' },
+      <motion.div
+        animate={
+          isOpen
+            ? { y: -22, rotate: -8, opacity: 0.8 }
+            : isCracked
+            ? { y: -2, rotate: 2, skewX: 5 }
+            : { y: 0, rotate: 0, opacity: 1, skewX: 0 }
+        }
+        transition={
+          isOpen
+            ? { type: 'spring', stiffness: 200, damping: 15 }
+            : isCracked
+            ? { duration: 0.3, ease: 'easeOut' }
+            : { type: 'spring' }
+        }
+        style={{ position: 'absolute', top: 0, left: 5, right: 5, transformOrigin: 'top center' }}
+      >
+        <Box
+          sx={{
+            height: 35,
+            background: isCracked
+              ? 'linear-gradient(180deg, #8B3A3A, #6B2A2A)'
+              : 'linear-gradient(180deg, #D4A843, #B8922E)',
+            borderRadius: '4px 4px 0 0',
+            border: isCracked ? '1px solid #F8717140' : '1px solid #E8C55280',
+            borderBottom: 'none',
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              top: 4,
+              left: '20%',
+              right: '20%',
+              height: 3,
+              borderRadius: 2,
+              background: isCracked ? 'rgba(255,100,100,0.3)' : 'rgba(255,255,255,0.25)',
             },
-          }),
-          // Lid highlight
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            top: 4,
-            left: '20%',
-            right: '20%',
-            height: 3,
-            borderRadius: 2,
-            background: isCracked ? 'rgba(255,100,100,0.3)' : 'rgba(255,255,255,0.25)',
-          },
-        }}
-      />
+          }}
+        />
+      </motion.div>
 
       {/* Box body */}
       <Box
@@ -147,7 +159,6 @@ function LootBox({ status }: { status: TransactionStatus }) {
           borderRadius: '0 0 4px 4px',
           border: isCracked ? '1px solid #F8717130' : '1px solid #D4AA4080',
           borderTop: 'none',
-          // Lock/clasp detail
           '&::before': {
             content: '""',
             position: 'absolute',
@@ -161,7 +172,6 @@ function LootBox({ status }: { status: TransactionStatus }) {
             border: isCracked ? '1px solid #F8717140' : '1px solid rgba(255,255,255,0.15)',
             borderBottom: 'none',
           },
-          // Horizontal band detail
           '&::after': {
             content: '""',
             position: 'absolute',
@@ -175,20 +185,20 @@ function LootBox({ status }: { status: TransactionStatus }) {
       />
 
       {/* Success particles */}
-      {isOpen && (
-        <>
-          {Array.from({ length: 10 }).map((_, i) => {
-            const angle = (i / 10) * 360;
-            const rad = (angle * Math.PI) / 180;
-            const tx = Math.cos(rad) * 60;
-            const ty = Math.sin(rad) * 60;
+      <AnimatePresence>
+        {isOpen &&
+          Array.from({ length: 10 }).map((_, i) => {
             const colors = ['#FFD700', '#FFA500', '#22C55E', '#FFFFFF', '#FFD700'];
             const color = colors[i % colors.length];
             const size = 4 + (i % 3) * 2;
             return (
-              <Box
+              <motion.div
                 key={i}
-                sx={{
+                custom={i}
+                variants={particleVariants}
+                initial="hidden"
+                animate="visible"
+                style={{
                   position: 'absolute',
                   top: '40%',
                   left: '50%',
@@ -196,29 +206,14 @@ function LootBox({ status }: { status: TransactionStatus }) {
                   height: size,
                   borderRadius: i % 2 === 0 ? '50%' : '1px',
                   background: color,
-                  animation: `particle${i} 0.8s ease-out forwards`,
-                  animationDelay: `${i * 0.04}s`,
-                  opacity: 0,
-                  [`@keyframes particle${i}`]: {
-                    '0%': {
-                      transform: 'translate(-50%, -50%) scale(0)',
-                      opacity: 1,
-                    },
-                    '60%': {
-                      opacity: 1,
-                    },
-                    '100%': {
-                      transform: `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(0.5)`,
-                      opacity: 0,
-                    },
-                  },
+                  marginLeft: -size / 2,
+                  marginTop: -size / 2,
                 }}
               />
             );
           })}
-        </>
-      )}
-    </Box>
+      </AnimatePresence>
+    </motion.div>
   );
 }
 
@@ -250,6 +245,17 @@ export function TransactionModal({
 }: TransactionModalProps) {
   const isComplete = status === 'success' || status === 'error';
   const isPending = status === 'preparing' || status === 'signing' || status === 'confirming';
+
+  const firedRef = useRef(false);
+  useEffect(() => {
+    if (status === 'success' && !firedRef.current) {
+      firedRef.current = true;
+      fireWinConfetti();
+    }
+    if (status !== 'success') {
+      firedRef.current = false;
+    }
+  }, [status]);
 
   return (
     <Dialog
@@ -288,17 +294,27 @@ export function TransactionModal({
         >
           <LootBox status={status} />
 
-          <Typography
-            variant="h6"
-            sx={{
-              mt: 4,
-              textAlign: 'center',
-              fontWeight: 400,
-              color: status === 'error' ? 'error.main' : status === 'success' ? '#FFD700' : 'text.primary',
-            }}
-          >
-            <StatusMessage status={status} />
-          </Typography>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={status}
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            >
+              <Typography
+                variant="h6"
+                sx={{
+                  mt: 4,
+                  textAlign: 'center',
+                  fontWeight: 400,
+                  color: status === 'error' ? 'error.main' : status === 'success' ? '#FFD700' : 'text.primary',
+                }}
+              >
+                <StatusMessage status={status} />
+              </Typography>
+            </motion.div>
+          </AnimatePresence>
 
           {error && (
             <Box
