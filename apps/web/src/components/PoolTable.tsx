@@ -17,11 +17,31 @@ const INTERVAL_LABELS: Record<string, string> = {
   '1h': 'Hourly',
 };
 
+// asset-interval specific boxes take priority, then asset-only fallback
+const ASSET_INTERVAL_BOX_IMAGE: Record<string, string> = {
+  'BTC-1m': '/boxes/Btc-1min.png',
+  'BTC-5m': '/boxes/Btc-5min.png',
+  'BTC-15m': '/boxes/Btc-15min.png',
+  'BTC-1h': '/boxes/Btc-1h.png',
+  'ETH-1m': '/boxes/Eth-1min.png',
+  'ETH-5m': '/boxes/Eth-5min.png',
+  'ETH-15m': '/boxes/Eth-15min.png',
+  'ETH-1h': '/boxes/Eth-1h.png',
+  'SOL-1m': '/boxes/Sol-1min.png',
+  'SOL-5m': '/boxes/Sol-5min.png',
+  'SOL-15m': '/boxes/Sol-15min.png',
+  'SOL-1h': '/boxes/Sol-1h.png',
+};
+
 const ASSET_BOX_IMAGE: Record<string, string> = {
   BTC: '/boxes/Btc-box.png',
   ETH: '/boxes/Eth-box.png',
   SOL: '/boxes/Sol-box.png',
 };
+
+function getBoxImage(asset: string, interval: string): string | undefined {
+  return ASSET_INTERVAL_BOX_IMAGE[`${asset}-${interval}`] ?? ASSET_BOX_IMAGE[asset];
+}
 
 interface PoolTableProps {
   pools: Pool[];
@@ -145,7 +165,7 @@ function PoolRow({
   // If optimistically hidden, don't render
   if (hidden) return null;
 
-  const boxImageUrl = ASSET_BOX_IMAGE[pool.asset];
+  const boxImageUrl = getBoxImage(pool.asset, pool.interval);
 
   return (
     <motion.div

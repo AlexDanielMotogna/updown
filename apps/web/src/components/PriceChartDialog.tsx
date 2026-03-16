@@ -57,6 +57,7 @@ function useChartLayout(candles: Candle[], chartType: ChartType) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ width: 600, height: 340 });
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [hoverY, setHoverY] = useState<number | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -126,18 +127,30 @@ function useChartLayout(candles: Candle[], chartType: ChartType) {
     return ticks;
   }, [parsed, toX]);
 
+  const hoverPrice = useMemo(() => {
+    if (hoverY === null) return null;
+    return maxPrice - ((hoverY - PADDING.top) / chartH) * priceRange;
+  }, [hoverY, maxPrice, priceRange, chartH]);
+
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
       if (parsed.length === 0) return;
       const rect = e.currentTarget.getBoundingClientRect();
       const x = e.clientX - rect.left - PADDING.left;
+      const y = e.clientY - rect.top;
       const idx = Math.round((x / chartW) * (parsed.length - 1));
       if (idx >= 0 && idx < parsed.length) setHoverIndex(idx);
+      if (y >= PADDING.top && y <= PADDING.top + chartH) setHoverY(y);
     },
-    [parsed.length, chartW],
+    [parsed.length, chartW, chartH],
   );
 
-  return { containerRef, dims, parsed, chartW, chartH, toX, toY, yTicks, xTicks, hoverIndex, setHoverIndex, handleMouseMove };
+  const handleMouseLeave = useCallback(() => {
+    setHoverIndex(null);
+    setHoverY(null);
+  }, []);
+
+  return { containerRef, dims, parsed, chartW, chartH, toX, toY, yTicks, xTicks, hoverIndex, hoverY, hoverPrice, setHoverIndex, handleMouseMove, handleMouseLeave };
 }
 
 // --- Shared axes & grid ---
@@ -178,7 +191,7 @@ interface ChartProps {
 
 function LineChart({ candles, duration }: ChartProps) {
   const layout = useChartLayout(candles, 'line');
-  const { containerRef, dims, parsed, chartH, toX, toY, yTicks, xTicks, hoverIndex, setHoverIndex, handleMouseMove } = layout;
+  const { containerRef, dims, parsed, chartH, toX, toY, yTicks, xTicks, hoverIndex, hoverY, hoverPrice, handleMouseMove, handleMouseLeave } = layout;
 
   const closes = useMemo(() => parsed.map((p) => p.c), [parsed]);
   const times = useMemo(() => parsed.map((p) => p.t), [parsed]);
@@ -203,7 +216,7 @@ function LineChart({ candles, duration }: ChartProps) {
 
   return (
     <Box ref={containerRef} sx={{ width: '100%', height: '100%', position: 'relative' }}>
-      <svg width={dims.width} height={dims.height} onMouseMove={handleMouseMove} onMouseLeave={() => setHoverIndex(null)} style={{ display: 'block' }}>
+      <svg width={dims.width} height={dims.height} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} style={{ display: 'block' }}>
         <defs>
           <linearGradient id="line-area-grad" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor={lineColor} stopOpacity={0.2} />
@@ -218,8 +231,21 @@ function LineChart({ candles, duration }: ChartProps) {
 
         {hoverData && (
           <>
+            {/* Vertical crosshair */}
             <line x1={hoverData.x} x2={hoverData.x} y1={PADDING.top} y2={PADDING.top + chartH} stroke="rgba(255,255,255,0.2)" strokeWidth={1} strokeDasharray="3,3" />
             <circle cx={hoverData.x} cy={hoverData.y} r={4} fill={lineColor} stroke="#111820" strokeWidth={2} />
+          </>
+        )}
+
+        {/* Horizontal crosshair following mouse Y */}
+        {hoverY !== null && hoverPrice !== null && (
+          <>
+            <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={hoverY} y2={hoverY} stroke="rgba(255,255,255,0.25)" strokeWidth={1} strokeDasharray="3,3" />
+            {/* Price label on right axis */}
+            <rect x={dims.width - PADDING.right + 1} y={hoverY - 10} width={PADDING.right - 4} height={20} rx={3} fill="rgba(255,255,255,0.12)" />
+            <text x={dims.width - PADDING.right + 8} y={hoverY + 4} fill="#FFFFFF" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={500}>
+              {formatChartPrice(hoverPrice)}
+            </text>
           </>
         )}
       </svg>
@@ -242,7 +268,7 @@ function LineChart({ candles, duration }: ChartProps) {
 
 function CandlesChart({ candles, duration }: ChartProps) {
   const layout = useChartLayout(candles, 'candles');
-  const { containerRef, dims, parsed, chartW, chartH, toX, toY, yTicks, xTicks, hoverIndex, setHoverIndex, handleMouseMove } = layout;
+  const { containerRef, dims, parsed, chartW, chartH, toX, toY, yTicks, xTicks, hoverIndex, hoverY, hoverPrice, handleMouseMove, handleMouseLeave } = layout;
 
   const candleWidth = useMemo(() => {
     if (parsed.length <= 1) return 6;
@@ -253,7 +279,7 @@ function CandlesChart({ candles, duration }: ChartProps) {
 
   return (
     <Box ref={containerRef} sx={{ width: '100%', height: '100%', position: 'relative' }}>
-      <svg width={dims.width} height={dims.height} onMouseMove={handleMouseMove} onMouseLeave={() => setHoverIndex(null)} style={{ display: 'block' }}>
+      <svg width={dims.width} height={dims.height} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} style={{ display: 'block' }}>
         <ChartAxes dims={dims} yTicks={yTicks} xTicks={xTicks} duration={duration} />
 
         {parsed.map((c, i) => {
@@ -286,11 +312,20 @@ function CandlesChart({ candles, duration }: ChartProps) {
           );
         })}
 
-        {/* Hover crosshair */}
+        {/* Vertical crosshair */}
         {hoverCandle && hoverIndex !== null && (
+          <line x1={toX(hoverIndex)} x2={toX(hoverIndex)} y1={PADDING.top} y2={PADDING.top + chartH} stroke="rgba(255,255,255,0.2)" strokeWidth={1} strokeDasharray="3,3" />
+        )}
+
+        {/* Horizontal crosshair following mouse Y */}
+        {hoverY !== null && hoverPrice !== null && (
           <>
-            <line x1={toX(hoverIndex)} x2={toX(hoverIndex)} y1={PADDING.top} y2={PADDING.top + chartH} stroke="rgba(255,255,255,0.2)" strokeWidth={1} strokeDasharray="3,3" />
-            <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={toY(hoverCandle.c)} y2={toY(hoverCandle.c)} stroke="rgba(255,255,255,0.15)" strokeWidth={1} strokeDasharray="3,3" />
+            <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={hoverY} y2={hoverY} stroke="rgba(255,255,255,0.25)" strokeWidth={1} strokeDasharray="3,3" />
+            {/* Price label on right axis */}
+            <rect x={dims.width - PADDING.right + 1} y={hoverY - 10} width={PADDING.right - 4} height={20} rx={3} fill="rgba(255,255,255,0.12)" />
+            <text x={dims.width - PADDING.right + 8} y={hoverY + 4} fill="#FFFFFF" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={500}>
+              {formatChartPrice(hoverPrice)}
+            </text>
           </>
         )}
       </svg>

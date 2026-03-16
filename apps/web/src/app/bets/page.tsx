@@ -28,11 +28,30 @@ import { formatUSDC, formatDate, formatPrice, formatDateTime, getExplorerTxUrl, 
 import { GAIN_COLOR, UP_COLOR, DOWN_COLOR } from '@/lib/constants';
 import type { Bet } from '@/lib/api';
 
+const ASSET_INTERVAL_BOX_IMAGE: Record<string, string> = {
+  'BTC-1m': '/boxes/Btc-1min.png',
+  'BTC-5m': '/boxes/Btc-5min.png',
+  'BTC-15m': '/boxes/Btc-15min.png',
+  'BTC-1h': '/boxes/Btc-1h.png',
+  'ETH-1m': '/boxes/Eth-1min.png',
+  'ETH-5m': '/boxes/Eth-5min.png',
+  'ETH-15m': '/boxes/Eth-15min.png',
+  'ETH-1h': '/boxes/Eth-1h.png',
+  'SOL-1m': '/boxes/Sol-1min.png',
+  'SOL-5m': '/boxes/Sol-5min.png',
+  'SOL-15m': '/boxes/Sol-15min.png',
+  'SOL-1h': '/boxes/Sol-1h.png',
+};
+
 const ASSET_BOX_IMAGE: Record<string, string> = {
   BTC: '/boxes/Btc-box.png',
   ETH: '/boxes/Eth-box.png',
   SOL: '/boxes/Sol-box.png',
 };
+
+function getBoxImage(asset: string, interval: string): string | undefined {
+  return ASSET_INTERVAL_BOX_IMAGE[`${asset}-${interval}`] ?? ASSET_BOX_IMAGE[asset];
+}
 
 /* ─── Table Row for a single prediction ─── */
 
@@ -53,7 +72,7 @@ function BetRow({
   const isResolving = bet.pool.status === 'ACTIVE' && new Date(bet.pool.endTime).getTime() <= Date.now();
   const statusStyle = statusStyles[bet.pool.status] || statusStyles.UPCOMING;
   const sideColor = bet.side === 'UP' ? UP_COLOR : DOWN_COLOR;
-  const boxImageUrl = ASSET_BOX_IMAGE[bet.pool.asset];
+  const boxImageUrl = getBoxImage(bet.pool.asset, bet.pool.interval);
 
   // Result chip
   const resultLabel = bet.claimed
