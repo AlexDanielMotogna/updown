@@ -8264,12 +8264,12 @@ Max 20 subscriptions per channel per connection
 Checking Your Quota
 Note: All credit values are multiplied by 10 to support fractional costs (e.g., r=1200 = 120.0 credits).
 
-REST API — Response headers:
+REST API  Response headers:
 
 Copy
 ratelimit: "credits";r=1200;t=32
 ratelimit-policy: "credits";q=1250;w=60
-WebSocket — rl field in action responses:
+WebSocket  rl field in action responses:
 
 Copy
 {"rl": {"r": 1200, "q": 1250, "t": 32}}

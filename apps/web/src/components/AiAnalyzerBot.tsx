@@ -164,7 +164,7 @@ function cleanTextForSpeech(text: string): string {
 let cachedVoice: SpeechSynthesisVoice | null = null;
 let voiceSearched = false;
 
-// Chrome loads voices asynchronously — reset cache when they arrive
+// Chrome loads voices asynchronously  reset cache when they arrive
 if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
   speechSynthesis.addEventListener?.('voiceschanged', () => {
     voiceSearched = false;
@@ -225,7 +225,7 @@ function speakRobotic(text: string) {
 }
 
 // ---------------------------------------------------------------------------
-// AI Chat — calls /api/chat which proxies to Claude
+// AI Chat  calls /api/chat which proxies to Claude
 // ---------------------------------------------------------------------------
 
 async function fetchAiReply(
@@ -410,7 +410,7 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
       hasPostedAnalysisRef.current = true;
       lastSignalDirRef.current = analysis.signal;
 
-      // Cancel the greeting timer — analysis arrived before it fired
+      // Cancel the greeting timer  analysis arrived before it fired
       if (greetingTimerRef.current) {
         clearTimeout(greetingTimerRef.current);
         greetingTimerRef.current = null;

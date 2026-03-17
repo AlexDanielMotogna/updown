@@ -33,11 +33,11 @@ import {
 import { formatUSDC, formatPrice, statusStyles, USDC_DIVISOR } from '@/lib/format';
 import { UP_COLOR, DOWN_COLOR, GAIN_COLOR, ACCENT_COLOR } from '@/lib/constants';
 
-const INTERVAL_BADGE_COLORS: Record<string, { bg: string; color: string }> = {
-  '1m': { bg: 'rgba(255, 152, 0, 0.15)', color: '#FFB74D' },
-  '5m': { bg: 'rgba(33, 150, 243, 0.15)', color: '#64B5F6' },
-  '15m': { bg: 'rgba(76, 175, 80, 0.15)', color: '#81C784' },
-  '1h': { bg: 'rgba(255, 255, 255, 0.06)', color: 'rgba(255, 255, 255, 0.5)' },
+const INTERVAL_TAG_IMAGES: Record<string, string> = {
+  '1m': '/assets/turbo-tag.png',
+  '5m': '/assets/rapid-tag.png',
+  '15m': '/assets/short-tag.png',
+  '1h': '/assets/hourly-tag.png',
 };
 
 const INTERVAL_LABELS: Record<string, string> = {
@@ -145,32 +145,39 @@ export default function PoolDetailPage() {
 
   return (
     <AppShell>
-      {/* ═══ Pool Info Bar (full width) ═══ */}
-      {/* ═══ Row 1: Stats strip (like profile top row) ═══ */}
+      {/* ═══ Back nav + Asset identity ═══ */}
       <Box sx={{ bgcolor: '#0B0F14', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-        <Box sx={{ px: { xs: 1.5, md: 3 }, py: { xs: 1.25, md: 1.5 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: { xs: 0.5, md: 0 } }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+        <Box sx={{ px: { xs: 1.5, md: 3 }, py: { xs: 1, md: 1.25 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Link href="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex' }}>
               <ArrowBack sx={{ fontSize: 18, color: 'rgba(255,255,255,0.4)', '&:hover': { color: '#fff' }, cursor: 'pointer' }} />
             </Link>
             <Circle sx={{ fontSize: 8, color: isConnected ? GAIN_COLOR : DOWN_COLOR, animation: isConnected ? 'pulse 2s infinite' : 'none', '@keyframes pulse': { '0%': { opacity: 1 }, '50%': { opacity: 0.4 }, '100%': { opacity: 1 } } }} />
             <AssetIcon asset={pool.asset} size={22} />
-            <Typography sx={{ fontWeight: 700, fontSize: { xs: '0.85rem', md: '0.95rem' } }}>{pool.asset}/USD</Typography>
-            {pool.interval && <Chip label={INTERVAL_LABELS[pool.interval] || pool.interval} size="small" sx={{ fontSize: '0.6rem', fontWeight: 600, height: 20, backgroundColor: (INTERVAL_BADGE_COLORS[pool.interval] || INTERVAL_BADGE_COLORS['1h']).bg, color: (INTERVAL_BADGE_COLORS[pool.interval] || INTERVAL_BADGE_COLORS['1h']).color, border: 'none', borderRadius: '2px' }} />}
+            <Typography sx={{ fontWeight: 700, fontSize: { xs: '0.9rem', md: '1rem' } }}>{pool.asset}/USD</Typography>
+            {pool.interval && <Box component="img" src={INTERVAL_TAG_IMAGES[pool.interval] || '/assets/hourly-tag.png'} alt={INTERVAL_LABELS[pool.interval] || pool.interval} sx={{ height: { xs: 36, md: 42 }, imageRendering: '-webkit-optimize-contrast' }} />}
           </Box>
+          <Chip label={pool.status} size="small" sx={{ ...statusStyle, fontWeight: 700, fontSize: { xs: '0.6rem', md: '0.7rem' }, letterSpacing: '0.08em', px: 1, borderRadius: '2px', height: { xs: 22, md: 24 } }} />
+        </Box>
+      </Box>
+
+      {/* ═══ Stats strip ═══ */}
+      <Box sx={{ bgcolor: '#0B0F14', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+        <Box sx={{ px: { xs: 1.5, md: 3 }, py: { xs: 1, md: 1.25 }, display: 'flex', alignItems: 'center', justifyContent: 'space-around' }}>
           {[
             { icon: '/assets/players-icon-500.png', value: pool.betCount, label: 'PLAYERS', color: '#fff' },
             { icon: '/assets/pool-icon-500.png', value: formatUSDC(pool.totalPool), label: 'POOL', color: GAIN_COLOR },
-            { icon: '/assets/up-icon-64x64.png', value: `${Number.isFinite(Number(pool.odds.up)) ? Number(pool.odds.up).toFixed(2) : pool.odds.up}x`, label: 'UP ODDS', color: UP_COLOR, hideMobile: true },
-            { icon: '/assets/down-icon-64x64.png', value: `${Number.isFinite(Number(pool.odds.down)) ? Number(pool.odds.down).toFixed(2) : pool.odds.down}x`, label: 'DOWN ODDS', color: DOWN_COLOR, hideMobile: true },
-          ].map((s) => (
-            <Box key={s.label} sx={{ display: s.hideMobile ? { xs: 'none', sm: 'flex' } : 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box component="img" src={s.icon} alt="" sx={{ width: { xs: 16, md: 20 }, height: { xs: 16, md: 20 } }} />
-              <Typography sx={{ fontSize: { xs: '0.8rem', md: '0.9rem' }, fontWeight: 700, color: s.color }}>{s.value}</Typography>
-              <Typography sx={{ fontSize: { xs: '0.6rem', md: '0.65rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.35)', whiteSpace: 'nowrap' }}>{s.label}</Typography>
+            { icon: '/assets/up-icon-64x64.png', value: `${Number.isFinite(Number(pool.odds.up)) ? Number(pool.odds.up).toFixed(2) : pool.odds.up}x`, label: 'UP ODDS', color: UP_COLOR },
+            { icon: '/assets/down-icon-64x64.png', value: `${Number.isFinite(Number(pool.odds.down)) ? Number(pool.odds.down).toFixed(2) : pool.odds.down}x`, label: 'DOWN ODDS', color: DOWN_COLOR },
+          ].map((s, i) => (
+            <Box key={s.label} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.06)' : 'none', pl: i > 0 ? { xs: 1.5, md: 2.5 } : 0 }}>
+              <Box component="img" src={s.icon} alt="" sx={{ width: { xs: 14, md: 20 }, height: { xs: 14, md: 20 } }} />
+              <Box>
+                <Typography sx={{ fontSize: { xs: '0.8rem', md: '0.9rem' }, fontWeight: 700, color: s.color, lineHeight: 1.2 }}>{s.value}</Typography>
+                <Typography sx={{ fontSize: { xs: '0.55rem', md: '0.6rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.3)', lineHeight: 1 }}>{s.label}</Typography>
+              </Box>
             </Box>
           ))}
-          <Chip label={pool.status} size="small" sx={{ ...statusStyle, fontWeight: 700, fontSize: { xs: '0.6rem', md: '0.7rem' }, letterSpacing: '0.08em', px: 1, borderRadius: '2px', height: { xs: 22, md: 24 } }} />
         </Box>
       </Box>
 
@@ -199,7 +206,7 @@ export default function PoolDetailPage() {
                 >
                   {livePrice
                     ? `$${Number(livePrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                    : '—'}
+                    : ''}
                 </Typography>
               </Box>
             </Box>
@@ -209,7 +216,7 @@ export default function PoolDetailPage() {
               <Box>
                 <Typography sx={{ fontSize: { xs: '0.7rem', md: '0.8rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)', mb: 0.25 }}>Strike Price</Typography>
                 <Typography sx={{ fontSize: { xs: '1.1rem', md: '1.3rem' }, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                  {pool.strikePrice ? formatPrice(pool.strikePrice) : '—'}
+                  {pool.strikePrice ? formatPrice(pool.strikePrice) : ''}
                 </Typography>
               </Box>
             </Box>
@@ -387,7 +394,7 @@ export default function PoolDetailPage() {
                 zIndex: 2,
               }}
             >
-            {/* JOIN UP / JOIN DOWN buttons — top */}
+            {/* JOIN UP / JOIN DOWN buttons  top */}
             <Box sx={{ display: 'flex', gap: 0, width: '100%', mb: 2 }}>
               <Box
                 component={motion.div}
@@ -488,7 +495,7 @@ export default function PoolDetailPage() {
             </Box>
           </Box>
 
-            {/* DOWN Team (right) — desktop only */}
+            {/* DOWN Team (right)  desktop only */}
             <Box
               component={motion.div}
               {...({ whileTap: { scale: 0.97 } } as Record<string, unknown>)}
@@ -616,7 +623,7 @@ export default function PoolDetailPage() {
               )}
               {isRefund && (
                 <Typography variant="body2" sx={{ mt: 1, color: ACCENT_COLOR, fontWeight: 600, fontSize: '0.8rem' }}>
-                  No opponents — all bets refunded
+                  No opponents  all bets refunded
                 </Typography>
               )}
             </Box>
@@ -642,7 +649,7 @@ export default function PoolDetailPage() {
         txSignature={txState.txSignature}
         error={txState.error}
         onClose={handleCloseModal}
-        onRetry={() => { resetTx(); }}
+        onRetry={() => { resetTx(); setShowModal(false); }}
       />
     </AppShell>
   );

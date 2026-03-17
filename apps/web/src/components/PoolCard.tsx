@@ -9,11 +9,11 @@ import { UP_COLOR, DOWN_COLOR } from '@/lib/constants';
 import { Countdown } from './Countdown';
 import { AssetIcon } from './AssetIcon';
 
-const INTERVAL_BADGE_COLORS: Record<string, { bg: string; color: string }> = {
-  '1m': { bg: 'rgba(255, 152, 0, 0.15)', color: '#FFB74D' },
-  '5m': { bg: 'rgba(33, 150, 243, 0.15)', color: '#64B5F6' },
-  '15m': { bg: 'rgba(76, 175, 80, 0.15)', color: '#81C784' },
-  '1h': { bg: 'rgba(255, 255, 255, 0.06)', color: 'rgba(255, 255, 255, 0.5)' },
+const INTERVAL_TAG_IMAGES: Record<string, string> = {
+  '1m': '/assets/turbo-tag.png',
+  '5m': '/assets/rapid-tag.png',
+  '15m': '/assets/short-tag.png',
+  '1h': '/assets/hourly-tag.png',
 };
 
 const INTERVAL_LABELS: Record<string, string> = {
@@ -83,18 +83,11 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
                   {pool.asset}/USD
                 </Typography>
                 {pool.interval && (
-                  <Chip
-                    label={INTERVAL_LABELS[pool.interval] || pool.interval}
-                    size="small"
-                    sx={{
-                      fontSize: '0.65rem',
-                      fontWeight: 500,
-                      height: 20,
-                      backgroundColor: (INTERVAL_BADGE_COLORS[pool.interval] || INTERVAL_BADGE_COLORS['1h']).bg,
-                      color: (INTERVAL_BADGE_COLORS[pool.interval] || INTERVAL_BADGE_COLORS['1h']).color,
-                      border: 'none',
-                      borderRadius: '2px',
-                    }}
+                  <Box
+                    component="img"
+                    src={INTERVAL_TAG_IMAGES[pool.interval] || '/assets/hourly-tag.png'}
+                    alt={INTERVAL_LABELS[pool.interval] || pool.interval}
+                    sx={{ height: { xs: 36, md: 42 }, imageRendering: '-webkit-optimize-contrast' }}
                   />
                 )}
               </Box>
@@ -160,7 +153,7 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
                     fontSize: '0.7rem',
                   }}
                 >
-                  Monitoring price — predictions locked
+                  Monitoring price  predictions locked
                 </Typography>
               )}
             </Box>

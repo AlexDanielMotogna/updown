@@ -3,18 +3,16 @@
 import { useEffect, useRef } from 'react';
 import {
   Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Button,
   Box,
   Typography,
   Link,
 } from '@mui/material';
-import { motion, AnimatePresence, type Easing } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { TransactionStatus } from '@/hooks/useTransactions';
 import { getExplorerTxUrl } from '@/lib/format';
 import { fireWinConfetti } from '@/lib/confetti';
+import { GAIN_COLOR } from '@/lib/constants';
 
 interface TransactionModalProps {
   open: boolean;
@@ -26,212 +24,32 @@ interface TransactionModalProps {
   onRetry?: () => void;
 }
 
-/* ─── CSS-only Loot Box ─── */
-
-const particleVariants = {
-  hidden: { scale: 0, opacity: 0 },
-  visible: (i: number) => {
-    const angle = (i / 10) * 360;
-    const rad = (angle * Math.PI) / 180;
-    const tx = Math.cos(rad) * 60;
-    const ty = Math.sin(rad) * 60;
-    return {
-      scale: [0, 1.2, 0.5],
-      opacity: [0, 1, 0],
-      x: [0, tx],
-      y: [0, ty],
-      transition: { duration: 0.8, ease: 'easeOut' as Easing, delay: i * 0.04 },
-    };
-  },
+/* ─── Progress mapping ─── */
+const PROGRESS: Record<TransactionStatus, number> = {
+  idle: 0,
+  preparing: 20,
+  signing: 45,
+  confirming: 75,
+  success: 100,
+  error: 100,
 };
 
-function LootBox({ status }: { status: TransactionStatus }) {
-  const isShaking = status === 'confirming';
-  const isOpen = status === 'success';
-  const isCracked = status === 'error';
+const STATUS_LABELS: Record<TransactionStatus, string> = {
+  idle: '',
+  preparing: 'PREPARING',
+  signing: 'AWAITING SIGNATURE',
+  confirming: 'CONFIRMING ON-CHAIN',
+  success: 'CONFIRMED',
+  error: 'FAILED',
+};
 
-  return (
-    <motion.div
-      animate={
-        isShaking
-          ? {
-              x: [0, -3, 3, -4, 4, -5, 5, -3, 3, -1, 0],
-              rotate: [0, -1, 1, -1.5, 1.5, -2, 2, -1, 1, 0, 0],
-            }
-          : { x: 0, rotate: 0 }
-      }
-      transition={isShaking ? { duration: 0.4, repeat: Infinity } : { type: 'spring' }}
-      style={{ position: 'relative', width: 100, height: 100, margin: '0 auto' }}
-    >
-      {/* Golden glow behind (visible on success) */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: [0.6, 1, 0.6], scale: [1, 1.15, 1] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              width: 120,
-              height: 120,
-              marginLeft: -60,
-              marginTop: -60,
-              borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(255,215,0,0.4) 0%, rgba(255,215,0,0) 70%)',
-            }}
-          />
-        )}
-      </AnimatePresence>
+const NEON_GREEN = GAIN_COLOR;
+const NEON_RED = '#F87171';
 
-      {/* Red glow behind (visible on error) */}
-      {isCracked && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            width: 120,
-            height: 120,
-            marginLeft: -60,
-            marginTop: -60,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(248,113,113,0.3) 0%, rgba(248,113,113,0) 70%)',
-          }}
-        />
-      )}
-
-      {/* Box lid */}
-      <motion.div
-        animate={
-          isOpen
-            ? { y: -22, rotate: -8, opacity: 0.8 }
-            : isCracked
-            ? { y: -2, rotate: 2, skewX: 5 }
-            : { y: 0, rotate: 0, opacity: 1, skewX: 0 }
-        }
-        transition={
-          isOpen
-            ? { type: 'spring', stiffness: 200, damping: 15 }
-            : isCracked
-            ? { duration: 0.3, ease: 'easeOut' }
-            : { type: 'spring' }
-        }
-        style={{ position: 'absolute', top: 0, left: 5, right: 5, transformOrigin: 'top center' }}
-      >
-        <Box
-          sx={{
-            height: 35,
-            background: isCracked
-              ? 'linear-gradient(180deg, #8B3A3A, #6B2A2A)'
-              : 'linear-gradient(180deg, #D4A843, #B8922E)',
-            borderRadius: '4px 4px 0 0',
-            border: isCracked ? '1px solid #F8717140' : '1px solid #E8C55280',
-            borderBottom: 'none',
-            '&::after': {
-              content: '""',
-              position: 'absolute',
-              top: 4,
-              left: '20%',
-              right: '20%',
-              height: 3,
-              borderRadius: 2,
-              background: isCracked ? 'rgba(255,100,100,0.3)' : 'rgba(255,255,255,0.25)',
-            },
-          }}
-        />
-      </motion.div>
-
-      {/* Box body */}
-      <Box
-        sx={{
-          position: 'absolute',
-          bottom: 5,
-          left: 10,
-          right: 10,
-          height: 55,
-          background: isCracked
-            ? 'linear-gradient(180deg, #7A3030, #5A2020)'
-            : 'linear-gradient(180deg, #C49A38, #A07D25)',
-          borderRadius: '0 0 4px 4px',
-          border: isCracked ? '1px solid #F8717130' : '1px solid #D4AA4080',
-          borderTop: 'none',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: -4,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: 16,
-            height: 8,
-            borderRadius: '8px 8px 0 0',
-            background: isCracked ? '#F8717150' : 'rgba(255,255,255,0.2)',
-            border: isCracked ? '1px solid #F8717140' : '1px solid rgba(255,255,255,0.15)',
-            borderBottom: 'none',
-          },
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            top: '45%',
-            left: 0,
-            right: 0,
-            height: 3,
-            background: isCracked ? 'rgba(255,100,100,0.15)' : 'rgba(255,255,255,0.1)',
-          },
-        }}
-      />
-
-      {/* Success particles */}
-      <AnimatePresence>
-        {isOpen &&
-          Array.from({ length: 10 }).map((_, i) => {
-            const colors = ['#FFD700', '#FFA500', '#22C55E', '#FFFFFF', '#FFD700'];
-            const color = colors[i % colors.length];
-            const size = 4 + (i % 3) * 2;
-            return (
-              <motion.div
-                key={i}
-                custom={i}
-                variants={particleVariants}
-                initial="hidden"
-                animate="visible"
-                style={{
-                  position: 'absolute',
-                  top: '40%',
-                  left: '50%',
-                  width: size,
-                  height: size,
-                  borderRadius: i % 2 === 0 ? '50%' : '1px',
-                  background: color,
-                  marginLeft: -size / 2,
-                  marginTop: -size / 2,
-                }}
-              />
-            );
-          })}
-      </AnimatePresence>
-    </motion.div>
-  );
-}
-
-function StatusMessage({ status }: { status: TransactionStatus }) {
-  switch (status) {
-    case 'preparing':
-      return 'Preparing your prediction...';
-    case 'signing':
-      return 'Sign to open...';
-    case 'confirming':
-      return 'Opening...';
-    case 'success':
-      return 'Prediction placed!';
-    case 'error':
-      return 'Transaction failed';
-    default:
-      return '';
-  }
+function getGlowColor(status: TransactionStatus) {
+  if (status === 'success') return NEON_GREEN;
+  if (status === 'error') return NEON_RED;
+  return '#60A5FA'; // blue for in-progress
 }
 
 export function TransactionModal({
@@ -245,6 +63,8 @@ export function TransactionModal({
 }: TransactionModalProps) {
   const isComplete = status === 'success' || status === 'error';
   const isPending = status === 'preparing' || status === 'signing' || status === 'confirming';
+  const glowColor = getGlowColor(status);
+  const progress = PROGRESS[status];
 
   const firedRef = useRef(false);
   useEffect(() => {
@@ -265,77 +85,190 @@ export function TransactionModal({
       fullWidth
       PaperProps={{
         sx: {
-          background: '#0D1219',
-          border: 'none',
-          borderRadius: 0,
-          maxWidth: { xs: '95vw', sm: 440 },
+          background: '#0A0E14',
+          border: `1px solid ${glowColor}30`,
+          borderRadius: '4px',
+          maxWidth: { xs: '95vw', sm: 420 },
           overflow: 'hidden',
+          boxShadow: `0 0 40px ${glowColor}15, 0 0 80px ${glowColor}08`,
+          transition: 'border-color 0.4s ease, box-shadow 0.4s ease',
         },
       }}
     >
-      <DialogTitle
-        sx={{
-          textAlign: 'center',
-          fontWeight: 500,
-          pt: 4,
-          pb: 0,
-        }}
-      >
-        {title}
-      </DialogTitle>
-      <DialogContent>
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            py: 5,
+      {/* ═══ Neon progress bar ═══ */}
+      <Box sx={{ position: 'relative', height: 4, bgcolor: 'rgba(255,255,255,0.06)' }}>
+        <motion.div
+          animate={{ width: `${progress}%` }}
+          transition={
+            status === 'confirming'
+              ? { duration: 20, ease: 'linear' }
+              : { duration: 0.6, ease: 'easeOut' }
+          }
+          style={{
+            height: '100%',
+            background: status === 'error'
+              ? `linear-gradient(90deg, ${NEON_RED}80, ${NEON_RED})`
+              : `linear-gradient(90deg, ${glowColor}80, ${glowColor})`,
+            boxShadow: `0 0 12px ${glowColor}60, 0 2px 8px ${glowColor}40`,
+            position: 'relative',
+            overflow: 'hidden',
           }}
         >
-          <LootBox status={status} />
+          {/* Shimmer on the bar while pending */}
+          {isPending && (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
+                backgroundSize: '200% 100%',
+                animation: 'barShimmer 1.5s infinite linear',
+                '@keyframes barShimmer': {
+                  from: { backgroundPosition: '-200% 0' },
+                  to: { backgroundPosition: '200% 0' },
+                },
+              }}
+            />
+          )}
+        </motion.div>
+      </Box>
 
+      {/* ═══ Content ═══ */}
+      <Box sx={{ px: { xs: 3, sm: 4 }, pt: 4, pb: 1.5 }}>
+        {/* Title */}
+        <Typography
+          sx={{
+            textAlign: 'center',
+            fontWeight: 700,
+            fontSize: { xs: '0.75rem', sm: '0.8rem' },
+            letterSpacing: '0.15em',
+            color: 'rgba(255,255,255,0.4)',
+            textTransform: 'uppercase',
+          }}
+        >
+          {title}
+        </Typography>
+
+        {/* Status icon + text */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
           <AnimatePresence mode="wait">
             <motion.div
               key={status}
-              initial={{ opacity: 0, y: 10, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
             >
-              <Typography
-                variant="h6"
+              {/* Central icon */}
+              <Box
                 sx={{
-                  mt: 4,
-                  textAlign: 'center',
-                  fontWeight: 400,
-                  color: status === 'error' ? 'error.main' : status === 'success' ? '#FFD700' : 'text.primary',
+                  width: 72,
+                  height: 72,
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: `${glowColor}12`,
+                  border: `2px solid ${glowColor}40`,
+                  boxShadow: `0 0 30px ${glowColor}20`,
+                  mb: 3,
+                  position: 'relative',
+                  transition: 'all 0.4s ease',
                 }}
               >
-                <StatusMessage status={status} />
+                {isPending && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      inset: -3,
+                      borderRadius: '50%',
+                      border: `2px solid transparent`,
+                      borderTopColor: glowColor,
+                      animation: 'spinRing 1s linear infinite',
+                      '@keyframes spinRing': {
+                        from: { transform: 'rotate(0deg)' },
+                        to: { transform: 'rotate(360deg)' },
+                      },
+                    }}
+                  />
+                )}
+                <Typography sx={{ fontSize: '1.8rem', lineHeight: 1, filter: `drop-shadow(0 0 8px ${glowColor}60)` }}>
+                  {status === 'success' ? '\u2714' : status === 'error' ? '\u2716' : '\u26A1'}
+                </Typography>
+              </Box>
+
+              {/* Status label */}
+              <Typography
+                sx={{
+                  fontWeight: 700,
+                  fontSize: { xs: '1.1rem', sm: '1.25rem' },
+                  letterSpacing: '0.08em',
+                  color: status === 'error' ? NEON_RED : status === 'success' ? NEON_GREEN : '#fff',
+                  textShadow: `0 0 20px ${glowColor}50`,
+                  textAlign: 'center',
+                }}
+              >
+                {STATUS_LABELS[status]}
               </Typography>
+
+              {/* Sub-label */}
+              {isPending && (
+                <Typography
+                  sx={{
+                    mt: 1,
+                    fontSize: '0.8rem',
+                    color: 'rgba(255,255,255,0.4)',
+                    fontWeight: 500,
+                    textAlign: 'center',
+                  }}
+                >
+                  {status === 'preparing' && 'Setting up your transaction...'}
+                  {status === 'signing' && 'Approve in your wallet'}
+                  {status === 'confirming' && 'Waiting for blockchain confirmation...'}
+                </Typography>
+              )}
+              {status === 'success' && (
+                <Typography
+                  sx={{
+                    mt: 1,
+                    fontSize: '0.8rem',
+                    color: 'rgba(255,255,255,0.5)',
+                    fontWeight: 500,
+                    textAlign: 'center',
+                  }}
+                >
+                  Your prediction is locked in
+                </Typography>
+              )}
             </motion.div>
           </AnimatePresence>
 
+          {/* Error details */}
           {error && (
             <Box
               sx={{
                 mt: 2,
                 p: 2,
-                borderRadius: 0,
-                background: 'rgba(255, 82, 82, 0.1)',
-                border: 'none',
-                maxWidth: '100%',
+                width: '100%',
+                background: `${NEON_RED}10`,
+                border: `1px solid ${NEON_RED}25`,
+                borderRadius: '4px',
               }}
             >
               <Typography
                 variant="body2"
-                sx={{ color: 'error.main', textAlign: 'center', wordBreak: 'break-word' }}
+                sx={{ color: NEON_RED, textAlign: 'center', wordBreak: 'break-word', fontSize: '0.8rem' }}
               >
                 {error}
               </Typography>
             </Box>
           )}
 
+          {/* Explorer link */}
           {txSignature && (
             <Link
               href={getExplorerTxUrl(txSignature)}
@@ -343,31 +276,51 @@ export function TransactionModal({
               rel="noopener noreferrer"
               sx={{
                 mt: 3,
-                color: '#FFFFFF',
+                px: 2.5,
+                py: 1,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.75,
+                color: 'rgba(255,255,255,0.6)',
                 textDecoration: 'none',
-                fontSize: '0.9rem',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                bgcolor: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '4px',
+                transition: 'all 0.2s ease',
                 '&:hover': {
-                  textDecoration: 'underline',
+                  color: '#fff',
+                  bgcolor: 'rgba(255,255,255,0.08)',
+                  borderColor: 'rgba(255,255,255,0.15)',
                 },
               }}
             >
-              View on Solana Explorer
+              View on Explorer &rarr;
             </Link>
           )}
         </Box>
-      </DialogContent>
-      <DialogActions sx={{ p: 3, pt: 0, justifyContent: 'center', gap: 2 }}>
+      </Box>
+
+      {/* ═══ Actions ═══ */}
+      <Box sx={{ px: { xs: 3, sm: 4 }, pb: 3, display: 'flex', justifyContent: 'center', gap: 1.5 }}>
         {status === 'error' && onRetry && (
           <Button
             onClick={onRetry}
-            variant="outlined"
             sx={{
-              borderColor: 'rgba(255, 255, 255, 0.2)',
-              color: 'text.primary',
               px: 4,
+              py: 1,
+              fontWeight: 700,
+              fontSize: '0.8rem',
+              letterSpacing: '0.06em',
+              color: '#fff',
+              bgcolor: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: '4px',
+              textTransform: 'uppercase',
               '&:hover': {
-                borderColor: 'rgba(255, 255, 255, 0.4)',
-                backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                bgcolor: 'rgba(255,255,255,0.10)',
+                borderColor: 'rgba(255,255,255,0.2)',
               },
             }}
           >
@@ -377,17 +330,24 @@ export function TransactionModal({
         {isComplete && (
           <Button
             onClick={onClose}
-            variant="contained"
             sx={{
               px: 4,
+              py: 1,
+              fontWeight: 700,
+              fontSize: '0.8rem',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              borderRadius: '4px',
+              color: status === 'success' ? '#000' : '#fff',
               background: status === 'success'
-                ? 'linear-gradient(135deg, #22C55E, #16A34A)'
-                : 'rgba(255, 255, 255, 0.1)',
-              color: status === 'success' ? '#000' : 'text.primary',
+                ? `linear-gradient(135deg, ${NEON_GREEN}, ${NEON_GREEN}CC)`
+                : 'rgba(255,255,255,0.08)',
+              boxShadow: status === 'success' ? `0 0 20px ${NEON_GREEN}30` : 'none',
+              border: status === 'success' ? 'none' : '1px solid rgba(255,255,255,0.12)',
               '&:hover': {
                 background: status === 'success'
-                  ? 'linear-gradient(135deg, #22C55EDD, #16A34ADD)'
-                  : 'rgba(255, 255, 255, 0.15)',
+                  ? `linear-gradient(135deg, ${NEON_GREEN}DD, ${NEON_GREEN}AA)`
+                  : 'rgba(255,255,255,0.12)',
               },
             }}
           >
@@ -396,13 +356,17 @@ export function TransactionModal({
         )}
         {isPending && (
           <Typography
-            variant="caption"
-            sx={{ color: 'text.secondary', fontWeight: 400 }}
+            sx={{
+              fontSize: '0.7rem',
+              color: 'rgba(255,255,255,0.3)',
+              fontWeight: 500,
+              letterSpacing: '0.05em',
+            }}
           >
-            Please don&apos;t close this window
+            Do not close this window
           </Typography>
         )}
-      </DialogActions>
+      </Box>
     </Dialog>
   );
 }

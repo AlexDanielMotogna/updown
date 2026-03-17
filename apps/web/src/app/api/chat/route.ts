@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // ---------------------------------------------------------------------------
-// POST /api/chat — Proxy user messages to Claude with TA context
+// POST /api/chat  Proxy user messages to Claude with TA context
 // ---------------------------------------------------------------------------
 
 interface PriceData {
@@ -36,14 +36,14 @@ function buildSystemPrompt(body: ChatRequestBody): string {
   const { asset, poolStatus, analysis, timeframe, priceData } = body;
 
   const statusDescriptions: Record<string, string> = {
-    JOINING: 'Predictions are currently OPEN — users can still place predictions.',
-    ACTIVE: 'Predictions are LOCKED — price is being monitored until pool ends.',
-    RESOLVED: 'Pool has RESOLVED — the winning side has been determined.',
-    CLAIMABLE: 'Pool is CLAIMABLE — winners can collect their payouts.',
-    UPCOMING: 'Pool is UPCOMING — not yet active.',
+    JOINING: 'Predictions are currently OPEN  users can still place predictions.',
+    ACTIVE: 'Predictions are LOCKED  price is being monitored until pool ends.',
+    RESOLVED: 'Pool has RESOLVED  the winning side has been determined.',
+    CLAIMABLE: 'Pool is CLAIMABLE  winners can collect their payouts.',
+    UPCOMING: 'Pool is UPCOMING  not yet active.',
   };
 
-  let analysisBlock = 'No analysis data available yet — candles are still loading.';
+  let analysisBlock = 'No analysis data available yet  candles are still loading.';
   if (analysis) {
     const indicatorLines = analysis.indicators
       .map((i) => `  - ${i.name}: ${i.signal} (strength ${(i.strength * 100).toFixed(0)}%, value: ${i.value})`)
@@ -62,17 +62,17 @@ ${indicatorLines}
 
 PERSONALITY:
 - You speak like a robot: use "BEEP BOOP", "BZZT", "PROCESSING...", "[MODULE]" prefixes
-- Be concise — 2-3 sentences max per response
+- Be concise  2-3 sentences max per response
 - Be witty and slightly sarcastic but helpful
 - Always tie your answers back to the data
-- NEVER give direct financial advice — you analyze data, humans decide
+- NEVER give direct financial advice  you analyze data, humans decide
 - If asked to recommend a prediction, share what the data shows but add a disclaimer
 - You can respond in the same language the user writes in (e.g., Spanish if they write in Spanish)
 
 FORMATTING (CRITICAL):
-- NEVER use emojis — you are a robot, not a human
+- NEVER use emojis  you are a robot, not a human
 - NEVER use markdown formatting (no asterisks, no bold, no italic, no headers)
-- Use plain text only — your responses will be read aloud by a speech synthesizer
+- Use plain text only  your responses will be read aloud by a speech synthesizer
 - Use CAPS for emphasis instead of bold/italic (e.g., "STRONG signal" not "**strong** signal")
 - Use dashes and parentheses for structure, not markdown
 
@@ -82,7 +82,7 @@ ${priceData ? `- Funding Rate: ${(priceData.funding * 100).toFixed(4)}% (${price
 - 24h Volume: $${priceData.volume24h.toLocaleString()}
 - Mark Price: $${priceData.mark.toFixed(2)}
 - Oracle Price: $${priceData.oracle.toFixed(2)}
-- Mark/Oracle Spread: ${priceData.spreadPct.toFixed(4)}%${Math.abs(priceData.spreadPct) > 0.05 ? ' (DIVERGENT — notable spread)' : ''}
+- Mark/Oracle Spread: ${priceData.spreadPct.toFixed(4)}%${Math.abs(priceData.spreadPct) > 0.05 ? ' (DIVERGENT  notable spread)' : ''}
 - 24h Price Change: ${priceData.priceChange24hPct >= 0 ? '+' : ''}${priceData.priceChange24hPct.toFixed(2)}%` : 'Market intelligence data not available yet.'}
 
 CONTEXT:
@@ -94,8 +94,8 @@ RULES:
 - If the user asks about a specific indicator (RSI, MACD, EMA, Bollinger Bands, Momentum), give them the exact reading from the data above
 - If signals are mixed (confidence < 55%), emphasize that and suggest caution
 - If signals are strong (confidence > 70%), you can be more assertive about the direction
-- Keep the robotic persona consistent — every message should feel like it comes from a bot
-- Reference specific numbers from the analysis — don't be vague
+- Keep the robotic persona consistent  every message should feel like it comes from a bot
+- Reference specific numbers from the analysis  don't be vague
 - When market intelligence is available, weave it into your analysis: mention funding direction, OI trends, volume context, and mark/oracle spread when relevant`;
 }
 

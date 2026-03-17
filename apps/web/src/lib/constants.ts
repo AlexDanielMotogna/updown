@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Centralized constants — single source of truth
+// Centralized constants  single source of truth
 // ---------------------------------------------------------------------------
 
 // Pacifica

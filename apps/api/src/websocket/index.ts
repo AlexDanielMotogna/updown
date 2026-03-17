@@ -177,7 +177,7 @@ export function emitPoolStatus(poolId: string, data: {
   winner?: string;
 }): void {
   if (io) {
-    // Broadcast globally — the frontend filters by poolId where needed.
+    // Broadcast globally  the frontend filters by poolId where needed.
     // Using a single emit avoids duplicate delivery to clients in the pool room.
     io.emit('pool:status', data);
   }
@@ -207,7 +207,7 @@ export function emitRefund(walletAddress: string, data: {
 
 /**
  * Emit a user reward event (XP / coins / level-up).
- * Broadcasts globally — the frontend filters by wallet address.
+ * Broadcasts globally  the frontend filters by wallet address.
  */
 export function emitUserReward(walletAddress: string, data: {
   xp: number;

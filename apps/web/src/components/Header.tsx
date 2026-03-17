@@ -132,7 +132,7 @@ export function Header() {
           justifyContent: 'space-between',
           position: 'relative',
           height: { xs: 56, lg: 64 },
-          px: { xs: 2, sm: 3, lg: 5, xl: 6 },
+          px: { xs: 1, sm: 2, lg: 3, xl: 4 },
         }}
       >
         {/* Left: Logo */}
@@ -151,7 +151,7 @@ export function Header() {
           />
         </Link>
 
-        {/* Desktop nav — centered (only on lg+) */}
+        {/* Desktop nav  centered (only on lg+) */}
         <Box
           sx={{
             display: { xs: 'none', lg: 'flex' },
@@ -434,7 +434,7 @@ export function Header() {
                 </Box>
               </ClickAwayListener>
 
-              {/* Profile avatar — hide wallet text on small screens */}
+              {/* Profile avatar  hide wallet text on small screens */}
               <ConnectWalletButton variant="header" />
             </>
           ) : (
@@ -443,7 +443,7 @@ export function Header() {
         </Box>
       </Box>
 
-      {/* Mobile bottom nav — fixed bar (visible below lg) */}
+      {/* Mobile bottom nav  fixed bar (visible below lg) */}
       <Box
         sx={{
           display: { xs: 'flex', lg: 'none' },

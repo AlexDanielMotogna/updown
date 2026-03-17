@@ -56,7 +56,7 @@ export function useUsdcBalance() {
           decimals: balance.value.decimals,
         };
       } catch {
-        // ATA doesn't exist yet — balance is 0
+        // ATA doesn't exist yet  balance is 0
         return { raw: '0', uiAmount: 0, decimals: 6 };
       }
     },

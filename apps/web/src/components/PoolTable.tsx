@@ -10,6 +10,13 @@ import { formatUSDC, statusStyles, USDC_DIVISOR } from '@/lib/format';
 import { UP_COLOR, DOWN_COLOR, GAIN_COLOR, ACCENT_COLOR } from '@/lib/constants';
 import { Countdown } from './Countdown';
 
+const INTERVAL_TAG_IMAGES: Record<string, string> = {
+  '1m': '/assets/turbo-tag.png',
+  '5m': '/assets/rapid-tag.png',
+  '15m': '/assets/short-tag.png',
+  '1h': '/assets/hourly-tag.png',
+};
+
 const INTERVAL_LABELS: Record<string, string> = {
   '1m': 'Turbo 1m',
   '5m': 'Rapid 5m',
@@ -116,8 +123,8 @@ function PoolRow({
   const totalUpUsd = totalUp / USDC_DIVISOR;
   const totalDownUsd = totalDown / USDC_DIVISOR;
   const totalUsd = totalUpUsd + totalDownUsd;
-  const oddsUp = totalUpUsd > 0 && totalUsd > 0 ? (totalUsd / totalUpUsd).toFixed(1) : '—';
-  const oddsDown = totalDownUsd > 0 && totalUsd > 0 ? (totalUsd / totalDownUsd).toFixed(1) : '—';
+  const oddsUp = totalUpUsd > 0 && totalUsd > 0 ? (totalUsd / totalUpUsd).toFixed(1) : '';
+  const oddsDown = totalDownUsd > 0 && totalUsd > 0 ? (totalUsd / totalDownUsd).toFixed(1) : '';
 
   // --- Optimistic status transitions ---
   const [optimisticStatus, setOptimisticStatus] = useState<string>(pool.status);
@@ -196,7 +203,7 @@ function PoolRow({
         },
       }}
     >
-      {/* Box image — desktop only, first column */}
+      {/* Box image  desktop only, first column */}
       <Box
         sx={{
           display: { xs: 'none', md: 'block' },
@@ -261,10 +268,11 @@ function PoolRow({
                 <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                   <Typography sx={{ fontWeight: 600, fontSize: '0.95rem' }}>{pool.asset}/USD</Typography>
                 </Link>
-                <Chip
-                  label={INTERVAL_LABELS[pool.interval] || pool.interval}
-                  size="small"
-                  sx={{ height: 20, fontSize: '0.6rem', bgcolor: 'rgba(255,255,255,0.06)', color: 'text.secondary', borderRadius: '2px' }}
+                <Box
+                  component="img"
+                  src={INTERVAL_TAG_IMAGES[pool.interval] || '/assets/hourly-tag.png'}
+                  alt={INTERVAL_LABELS[pool.interval] || pool.interval}
+                  sx={{ height: { xs: 36, md: 42 }, imageRendering: '-webkit-optimize-contrast' }}
                 />
                 {isHot && (
                   <Chip
@@ -439,7 +447,22 @@ function PoolRow({
                 />
               )}
               <Link href={`/pool/${pool.id}`} style={{ marginLeft: 'auto', textDecoration: 'none' }}>
-                <Button size="small" sx={{ fontSize: '0.75rem', color: 'text.secondary', minWidth: 44, minHeight: 44, px: 1 }}>
+                <Button
+                  size="small"
+                  sx={{
+                    py: 1,
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    color: 'text.secondary',
+                    borderRadius: '2px',
+                    bgcolor: 'rgba(255,255,255,0.06)',
+                    textTransform: 'none',
+                    minHeight: 44,
+                    minWidth: 44,
+                    px: 2,
+                    '&:hover': { bgcolor: 'rgba(255,255,255,0.10)' },
+                  }}
+                >
                   View
                 </Button>
               </Link>
@@ -447,8 +470,22 @@ function PoolRow({
             );
           })() : (
             <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none' }}>
-              <Button fullWidth size="small" sx={{ py: 1, fontSize: '0.8rem', color: 'text.secondary', textTransform: 'none', minHeight: 44 }}>
-                View Details
+              <Button
+                fullWidth
+                size="small"
+                sx={{
+                  py: 1,
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  color: 'text.secondary',
+                  borderRadius: '2px',
+                  bgcolor: 'rgba(255,255,255,0.06)',
+                  textTransform: 'none',
+                  minHeight: 44,
+                  '&:hover': { bgcolor: 'rgba(255,255,255,0.10)' },
+                }}
+              >
+                View
               </Button>
             </Link>
           )}
@@ -463,10 +500,11 @@ function PoolRow({
             {pool.asset}/USD
           </Typography>
         </Link>
-        <Chip
-          label={INTERVAL_LABELS[pool.interval] || pool.interval}
-          size="small"
-          sx={{ height: 20, fontSize: '0.6rem', bgcolor: 'rgba(255,255,255,0.06)', color: 'text.secondary', borderRadius: '2px' }}
+        <Box
+          component="img"
+          src={INTERVAL_TAG_IMAGES[pool.interval] || '/assets/hourly-tag.png'}
+          alt={INTERVAL_LABELS[pool.interval] || pool.interval}
+          sx={{ height: { xs: 36, md: 42 }, imageRendering: '-webkit-optimize-contrast' }}
         />
         <Chip label={status} size="small" sx={{ ...statusStyle, height: 20, fontSize: '0.55rem', fontWeight: 600, borderRadius: '2px' }} />
         {isHot && (
@@ -574,9 +612,9 @@ function PoolRow({
             <Button
               size="small"
               sx={{
-                minWidth: 0,
+                minWidth: 80,
                 px: 2.5,
-                py: 0.5,
+                py: 0.75,
                 fontSize: '0.75rem',
                 fontWeight: 700,
                 bgcolor: UP_COLOR,
@@ -594,9 +632,9 @@ function PoolRow({
             <Button
               size="small"
               sx={{
-                minWidth: 0,
-                px: 2,
-                py: 0.5,
+                minWidth: 80,
+                px: 2.5,
+                py: 0.75,
                 fontSize: '0.75rem',
                 fontWeight: 600,
                 color: 'text.secondary',
@@ -643,7 +681,21 @@ function PoolRow({
           );
         })() : (
           <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none' }}>
-            <Button size="small" sx={{ minWidth: 0, px: 1, fontSize: '0.7rem', color: 'text.secondary', borderRadius: '2px' }}>
+            <Button
+              size="small"
+              sx={{
+                minWidth: 80,
+                px: 2.5,
+                py: 0.75,
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: 'text.secondary',
+                borderRadius: '2px',
+                bgcolor: 'rgba(255,255,255,0.06)',
+                textTransform: 'none',
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.10)' },
+              }}
+            >
               View
             </Button>
           </Link>

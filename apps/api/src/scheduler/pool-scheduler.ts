@@ -99,7 +99,7 @@ export class PoolScheduler {
       await this.ensureJoiningPool(template);
     }
 
-    // ── Cron: safety-net guard — only creates if no JOINING pool exists ──
+    // ── Cron: safety-net guard  only creates if no JOINING pool exists ──
     for (const template of config.templates) {
       const job = cron.schedule(template.cronExpression, async () => {
         await this.ensureJoiningPool(template);
@@ -113,7 +113,7 @@ export class PoolScheduler {
     // (updateMany WHERE status=X) so duplicate processing is impossible even
     // if multiple instances run this cron concurrently.
     const transitionJob = cron.schedule('*/2 * * * * *', async () => {
-      // Run all three in parallel — they operate on different statuses
+      // Run all three in parallel  they operate on different statuses
       // (JOINING, ACTIVE, RESOLVED) so there are no conflicts.
       await Promise.all([
         this.processStatusTransitions(),
@@ -239,7 +239,7 @@ export class PoolScheduler {
       },
     });
     if (duplicate) {
-      console.log(`[Scheduler] Skipping ${template.asset}/${template.intervalKey} — JOINING pool already exists`);
+      console.log(`[Scheduler] Skipping ${template.asset}/${template.intervalKey}  JOINING pool already exists`);
       return null;
     }
 
@@ -584,7 +584,7 @@ export class PoolScheduler {
       );
 
       if (betCount === 0) {
-        // Empty pool — no winner, just mark with real final price and go to CLAIMABLE
+        // Empty pool  no winner, just mark with real final price and go to CLAIMABLE
         await prisma.pool.update({
           where: { id: pool.id },
           data: { status: PoolStatus.CLAIMABLE, finalPrice },
@@ -601,7 +601,7 @@ export class PoolScheduler {
       }
 
       if (betCount === 1) {
-        // Single bettor — determine real winner by price, then refund
+        // Single bettor  determine real winner by price, then refund
         const soleBet = await prisma.bet.findFirst({ where: { poolId: pool.id } });
 
         if (soleBet && !soleBet.claimed) {
@@ -667,12 +667,12 @@ export class PoolScheduler {
       const winningSideTotal = winner === Side.UP ? pool.totalUp : pool.totalDown;
 
       if (winningSideTotal === BigInt(0)) {
-        // All bettors are on the losing side — refund everyone
+        // All bettors are on the losing side  refund everyone
         const allBets = await prisma.bet.findMany({
           where: { poolId: pool.id, claimed: false },
         });
 
-        console.log(`[Scheduler] Pool ${pool.id}: winning side (${winner}) has 0 bets — refunding ${allBets.length} bettor(s)`);
+        console.log(`[Scheduler] Pool ${pool.id}: winning side (${winner}) has 0 bets  refunding ${allBets.length} bettor(s)`);
 
         for (const bet of allBets) {
           const refundTx = await this.refundBet(bet);
@@ -716,7 +716,7 @@ export class PoolScheduler {
         return;
       }
 
-      // Normal resolution — both sides have bets
+      // Normal resolution  both sides have bets
 
       // Resolve on-chain if program is deployed
       if (process.env.SOLANA_RPC_URL) {
@@ -772,7 +772,7 @@ export class PoolScheduler {
 
   /**
    * Transition RESOLVED pools to CLAIMABLE after a short delay.
-   * This replaces the fragile setTimeout approach — if the server restarts,
+   * This replaces the fragile setTimeout approach  if the server restarts,
    * the next scheduler tick will pick up any stale RESOLVED pools.
    */
   async processClaimableTransitions(): Promise<void> {

@@ -72,7 +72,7 @@ export function usePacificaPrices(symbols: string[], enabled = true) {
   useEffect(() => {
     if (!enabled || symbols.length === 0) return;
 
-    // prices channel is a global broadcast — single subscription, no symbol param
+    // prices channel is a global broadcast  single subscription, no symbol param
     const unsub = subscribe({ source: 'prices' });
     const removeListener = addListener(handleMessage);
 

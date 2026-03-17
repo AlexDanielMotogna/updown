@@ -246,10 +246,10 @@ NEXT_PUBLIC_USDC_MINT=Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr
 
 ### Events
 
-- `PoolCreated` — New pool initialized
-- `Deposited` — User deposited to pool
-- `PoolResolved` — Pool resolved with winner
-- `PayoutClaimed` — User claimed payout
+- `PoolCreated`  New pool initialized
+- `Deposited`  User deposited to pool
+- `PoolResolved`  Pool resolved with winner
+- `PayoutClaimed`  User claimed payout
 
 ### PDA Seeds
 
@@ -279,22 +279,22 @@ See [docs/ENGINEERING_STANDARDS.md](docs/ENGINEERING_STANDARDS.md) for full sche
 ## API Endpoints
 
 ### Pools
-- `GET /api/pools` — List pools (filter: asset, interval, status)
-- `GET /api/pools/:id` — Pool detail
-- `GET /api/pools/:id/stats` — Real-time pool totals
+- `GET /api/pools`  List pools (filter: asset, interval, status)
+- `GET /api/pools/:id`  Pool detail
+- `GET /api/pools/:id/stats`  Real-time pool totals
 
 ### Bets
-- `POST /api/bets` — Register bet intent
-- `PATCH /api/bets/:id/confirm` — Confirm deposit tx
-- `GET /api/bets/my` — User's bets
+- `POST /api/bets`  Register bet intent
+- `PATCH /api/bets/:id/confirm`  Confirm deposit tx
+- `GET /api/bets/my`  User's bets
 
 ### Claims
-- `GET /api/claims/claimable` — User's claimable pools
-- `POST /api/claims/:poolId` — Register claim tx
+- `GET /api/claims/claimable`  User's claimable pools
+- `POST /api/claims/:poolId`  Register claim tx
 
 ### Prices
-- `GET /api/prices/:asset` — Current price
-- `WS /ws/prices` — Real-time price stream
+- `GET /api/prices/:asset`  Current price
+- `WS /ws/prices`  Real-time price stream
 
 ---
 
@@ -369,11 +369,11 @@ pnpm --filter web build
 
 ## Non-Negotiable Rules
 
-1. **No "vibe coding"** — Every decision must be intentional
-2. **Layer separation** — UI / hooks / services / domain
-3. **No fetch in components** — Use hooks → services
-4. **No AI branding** — No Claude/ChatGPT signatures
-5. **Append-only audit** — Critical events never overwritten
+1. **No "vibe coding"**  Every decision must be intentional
+2. **Layer separation**  UI / hooks / services / domain
+3. **No fetch in components**  Use hooks → services
+4. **No AI branding**  No Claude/ChatGPT signatures
+5. **Append-only audit**  Critical events never overwritten
 
 ---
 

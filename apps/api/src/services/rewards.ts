@@ -51,8 +51,8 @@ async function ensureDailyReset(walletAddress: string) {
 
 /**
  * Award XP when a bet is placed (after confirm-deposit).
- * Coins are NOT awarded here — only after pool resolution (in awardBetWin).
- * Fire-and-forget — errors logged but never thrown.
+ * Coins are NOT awarded here  only after pool resolution (in awardBetWin).
+ * Fire-and-forget  errors logged but never thrown.
  */
 export async function awardBetPlacement(
   walletAddress: string,
@@ -71,7 +71,7 @@ export async function awardBetPlacement(
     const newLevel = getLevelForXp(newTotalXp);
     const didLevelUp = newLevel > user.level;
 
-    // Atomic update — XP only, no coins
+    // Atomic update  XP only, no coins
     await prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { walletAddress },
@@ -122,7 +122,7 @@ export async function awardBetPlacement(
       }
     });
 
-    // Emit WS reward event — XP only
+    // Emit WS reward event  XP only
     emitUserReward(walletAddress, {
       xp: Number(totalXpAward),
       coins: 0,
@@ -138,7 +138,7 @@ export async function awardBetPlacement(
 
 /**
  * Award XP + coins when a bet is won (called during claim).
- * This is where ALL coins are awarded — base bet coins + win bonus + streak + level-up.
+ * This is where ALL coins are awarded  base bet coins + win bonus + streak + level-up.
  * Coins are only given here (after pool resolution) to prevent rewarding refunded pools.
  */
 export async function awardBetWin(

@@ -40,7 +40,7 @@ export function MarketIntelligence({ asset, priceData }: MarketIntelligenceProps
     return (
       <Box sx={{ mb: 4 }}>
         <Typography variant="caption" sx={{ color: 'text.secondary', mb: 2, display: 'block' }}>
-          MARKET INTELLIGENCE — {asset}
+          MARKET INTELLIGENCE  {asset}
         </Typography>
         <Grid container spacing={1.5} alignItems="stretch">
           {['Funding Rate', 'Open Interest', '24h Volume', 'Mark/Oracle Spread'].map((label) => (
@@ -107,7 +107,7 @@ export function MarketIntelligence({ asset, priceData }: MarketIntelligenceProps
   return (
     <Box sx={{ mb: 4 }}>
       <Typography variant="caption" sx={{ color: 'text.secondary', mb: 2, display: 'block' }}>
-        MARKET INTELLIGENCE — {asset}
+        MARKET INTELLIGENCE  {asset}
       </Typography>
       <Grid container spacing={1.5} alignItems="stretch">
         {cards.map((card) => (

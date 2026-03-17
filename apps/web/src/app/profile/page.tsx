@@ -142,7 +142,7 @@ function BetRow({
         },
       }}
     >
-      {/* Box image — desktop only */}
+      {/* Box image  desktop only */}
       <Box
         sx={{
           display: { xs: 'none', md: 'block' },
@@ -246,7 +246,7 @@ function BetRow({
               {isRefund ? 'Refund' : 'Payout'}: {formatUSDC(bet.payoutAmount!, { min: 2 })}
             </Typography>
           ) : (
-            <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>—</Typography>
+            <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}></Typography>
           )}
         </Box>
 
@@ -262,7 +262,7 @@ function BetRow({
                 {formatPrice(bet.pool.strikePrice)}
               </Typography>
             ) : (
-              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: 'text.secondary' }}>—</Typography>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: 'text.secondary' }}></Typography>
             )}
           </Box>
           <Box>
@@ -382,7 +382,7 @@ function BetRow({
             {formatUSDC(bet.payoutAmount!, { min: 2 })}
           </Typography>
         ) : (
-          <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>—</Typography>
+          <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}></Typography>
         )}
       </Box>
 
@@ -397,7 +397,7 @@ function BetRow({
             {formatPrice(bet.pool.strikePrice)}
           </Typography>
         ) : (
-          <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: 'text.secondary' }}>—</Typography>
+          <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: 'text.secondary' }}></Typography>
         )}
       </Box>
 
@@ -483,7 +483,7 @@ function BetRow({
           </Button>
         )}
         {!bet.depositTx && !bet.claimTx && (
-          <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>—</Typography>
+          <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}></Typography>
         )}
       </Box>
     </Box>
@@ -591,7 +591,7 @@ export default function MyBetsPage() {
         resetClaim();
         await claim(bet.pool.id, bet.id);
       } catch {
-        // Stop on first error — user can retry or claim remaining individually
+        // Stop on first error  user can retry or claim remaining individually
         return;
       }
     }
@@ -691,7 +691,7 @@ export default function MyBetsPage() {
         sx={{
           width: '100%',
           height: { xs: 140, sm: 180, md: 240 },
-          backgroundImage: 'url(/Banner/web-banner-1500x300.png)',
+          backgroundImage: 'url(/Banner/banner-web-1500x300.gif)',
           backgroundSize: 'contain',
           backgroundPosition: 'center top',
           backgroundRepeat: 'no-repeat',
@@ -874,7 +874,7 @@ export default function MyBetsPage() {
                 }}
               >
                 <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: GAIN_COLOR }}>
-                  {claimable!.summary.count} TO CLAIM — {formatUSDC(claimable!.summary.totalClaimable, { min: 2 })}
+                  {claimable!.summary.count} TO CLAIM  {formatUSDC(claimable!.summary.totalClaimable, { min: 2 })}
                 </Typography>
                 <Button
                   variant="contained"

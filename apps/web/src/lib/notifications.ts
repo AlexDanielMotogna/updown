@@ -12,7 +12,7 @@ export const NOTIFICATION_DEFS: Record<NotificationType, NotificationDef> = {
     autoHideDuration: 8000,
     build: (ctx) => ({
       title: 'You Won!',
-      message: `${ctx.asset ?? 'Asset'}/USD ${ctx.interval ?? ''} — Collect your winnings`,
+      message: `${ctx.asset ?? 'Asset'}/USD ${ctx.interval ?? ''}  Collect your winnings`,
     }),
   },
   POOL_LOST: {
@@ -20,7 +20,7 @@ export const NOTIFICATION_DEFS: Record<NotificationType, NotificationDef> = {
     autoHideDuration: 6000,
     build: (ctx) => ({
       title: 'Better Luck Next Time',
-      message: `${ctx.asset ?? 'Asset'}/USD ${ctx.interval ?? ''} — Prediction was incorrect`,
+      message: `${ctx.asset ?? 'Asset'}/USD ${ctx.interval ?? ''}  Prediction was incorrect`,
     }),
   },
   POOL_CLAIMABLE: {
@@ -28,7 +28,7 @@ export const NOTIFICATION_DEFS: Record<NotificationType, NotificationDef> = {
     autoHideDuration: 10000,
     build: (ctx) => ({
       title: 'Claim Available',
-      message: `${ctx.asset ?? 'Asset'}/USD — Your payout is ready to claim`,
+      message: `${ctx.asset ?? 'Asset'}/USD  Your payout is ready to claim`,
     }),
   },
   POOL_RESOLVED: {
@@ -36,7 +36,7 @@ export const NOTIFICATION_DEFS: Record<NotificationType, NotificationDef> = {
     autoHideDuration: 5000,
     build: (ctx) => ({
       title: 'Pool Resolved',
-      message: `${ctx.asset ?? 'Asset'}/USD ${ctx.interval ?? ''} — Winner: ${ctx.winner ?? 'N/A'}`,
+      message: `${ctx.asset ?? 'Asset'}/USD ${ctx.interval ?? ''}  Winner: ${ctx.winner ?? 'N/A'}`,
     }),
   },
   REFUND_RECEIVED: {
@@ -52,7 +52,7 @@ export const NOTIFICATION_DEFS: Record<NotificationType, NotificationDef> = {
     autoHideDuration: 5000,
     build: (ctx) => ({
       title: 'Prediction Placed',
-      message: `${ctx.side ?? ''} on ${ctx.asset ?? 'pool'} — Good luck!`,
+      message: `${ctx.side ?? ''} on ${ctx.asset ?? 'pool'}  Good luck!`,
     }),
   },
   DEPOSIT_FAILED: {

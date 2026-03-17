@@ -23,7 +23,7 @@ export function useWalletBridge() {
 
   // Prefer external wallet ONLY if its standard adapter is connected,
   // otherwise fall back to embedded (avoids building transactions for a
-  // wallet that can't actually sign — e.g. deployed env without extension)
+  // wallet that can't actually sign  e.g. deployed env without extension)
   const activeWallet = useMemo(() => {
     if (!wallets.length) return null;
 
@@ -52,7 +52,7 @@ export function useWalletBridge() {
   const sendTransaction = useCallback(
     async (transaction: Transaction): Promise<string> => {
       // Validate wallet session is still active before attempting to sign.
-      // getAccessToken() checks the actual token — returns null if expired.
+      // getAccessToken() checks the actual token  returns null if expired.
       const token = await getAccessToken();
       if (!token) {
         throw new Error(
@@ -72,7 +72,7 @@ export function useWalletBridge() {
 
       let stdWallet = findStdWallet();
 
-      // Standard wallet adapter may still be auto-connecting — wait briefly
+      // Standard wallet adapter may still be auto-connecting  wait briefly
       if (!stdWallet) {
         for (let i = 0; i < 5; i++) {
           await new Promise((r) => setTimeout(r, 500));

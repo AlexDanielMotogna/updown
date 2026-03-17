@@ -1,12 +1,12 @@
-# Bug Audit — Parimutuel Pools
+# Bug Audit  Parimutuel Pools
 
 Analisis exhaustivo del codigo logico. Ordenado por severidad.
 
 ---
 
-## CRITICAL — Rompen funcionalidad core
+## CRITICAL  Rompen funcionalidad core
 
-### BUG-01: Race condition en resolvePool — doble resolucion de pools
+### BUG-01: Race condition en resolvePool  doble resolucion de pools
 
 **Archivos:** `apps/api/src/scheduler/pool-scheduler.ts` lineas 514-672
 
@@ -28,7 +28,7 @@ finalPrice: pool.strikePrice, // BUG: precio falso
 
 **Problema:** Cuando hay 0-1 apostadores, el final price se setea al strike price en vez del precio real del mercado. El frontend muestra `$66,853.20 → $66,853.20` lo cual es incorrecto e imposible.
 
-**Efecto:** El usuario ve un resultado que no refleja el mercado real. Muestra "DOWN WINS" con precios identicos — confuso y rompe confianza.
+**Efecto:** El usuario ve un resultado que no refleja el mercado real. Muestra "DOWN WINS" con precios identicos  confuso y rompe confianza.
 
 **Fix:** Siempre hacer el fetch del precio real antes de resolver, independientemente del numero de apostadores.
 
@@ -77,7 +77,7 @@ const onRefund = (payload: { poolId?: string; amount?: string; message?: string 
 
 **Problema:** El endpoint `/confirm-deposit` no verifica que el pool este en status JOINING. Un deposito podria confirmarse despues de que el pool ya este ACTIVE, RESOLVED, o CLAIMABLE.
 
-**Efecto:** Apuestas fantasma — dinero depositado en pools ya resueltos, sin posibilidad de ganar.
+**Efecto:** Apuestas fantasma  dinero depositado en pools ya resueltos, sin posibilidad de ganar.
 
 **Fix:** Agregar check: `if (pool.status !== 'JOINING') return 400`.
 
@@ -89,7 +89,7 @@ const onRefund = (payload: { poolId?: string; amount?: string; message?: string 
 
 ```typescript
 const bet = await prisma.bet.create({ ... });    // Step 1
-await prisma.pool.update({ ... increment ... });  // Step 2 — puede fallar
+await prisma.pool.update({ ... increment ... });  // Step 2  puede fallar
 ```
 
 **Problema:** Si el `pool.update` falla despues de que el bet fue creado, el bet existe pero los totales del pool no se actualizan. Los odds y payouts se calculan mal.
@@ -98,7 +98,7 @@ await prisma.pool.update({ ... increment ... });  // Step 2 — puede fallar
 
 ---
 
-## HIGH — Afectan UX significativamente
+## HIGH  Afectan UX significativamente
 
 ### BUG-07: No se emite pool update despues de confirm-deposit
 
@@ -112,7 +112,7 @@ await prisma.pool.update({ ... increment ... });  // Step 2 — puede fallar
 
 ---
 
-### BUG-08: pool:status se emite doble — al room Y globalmente
+### BUG-08: pool:status se emite doble  al room Y globalmente
 
 **Archivo:** `apps/api/src/websocket/index.ts` lineas 180-184
 
@@ -168,7 +168,7 @@ notifStore.push(buildNotification('DEPOSIT_SUCCESS', { poolId, side }));
 
 ---
 
-## MEDIUM — Problemas logicos menores
+## MEDIUM  Problemas logicos menores
 
 ### BUG-12: Pools vacios reciben winner = UP por defecto
 
@@ -178,7 +178,7 @@ notifStore.push(buildNotification('DEPOSIT_SUCCESS', { poolId, side }));
 const winner = soleBet ? soleBet.side : Side.UP;
 ```
 
-**Problema:** Pools con 0 bets reciben `winner = UP`. Estos aparecen en el LiveResultsSidebar como "UP WINS" con $0.00 — confuso.
+**Problema:** Pools con 0 bets reciben `winner = UP`. Estos aparecen en el LiveResultsSidebar como "UP WINS" con $0.00  confuso.
 
 **Fix:** Para pools con 0 bets, no setear winner. O mejor: no emitir pool:status para pools vacios.
 
@@ -238,7 +238,7 @@ const isDupe = existing.some(
 
 ---
 
-## LOW — Mejoras de robustez
+## LOW  Mejoras de robustez
 
 ### BUG-17: confirm-deposit no valida que walletAddress firmo la transaccion
 
@@ -274,22 +274,22 @@ const isDupe = existing.some(
 
 | ID | Severidad | Componente | Descripcion corta | Estado |
 |----|-----------|------------|-------------------|--------|
-| 01 | CRITICAL | Scheduler | Race condition → doble resolucion, UP siempre gana | FIXED — atomic claim con updateMany |
-| 02 | CRITICAL | Scheduler | finalPrice = strikePrice para single-bettor | FIXED — siempre fetch precio real |
-| 03 | CRITICAL | WebSocket | wallet:refund broadcast a todos | MITIGATED — frontend filtra por wallet (BUG-04) |
-| 04 | CRITICAL | Frontend | useNotifications no filtra refund por wallet | FIXED — compara walletAddress |
-| 05 | CRITICAL | API | confirm-deposit no verifica pool status | FIXED — check status === JOINING |
-| 06 | CRITICAL | API | bet.create + pool.update no atomicos | FIXED — prisma.$transaction |
-| 07 | HIGH | API | No emitPoolUpdate despues de deposit | FIXED — emitPoolUpdate con totals |
-| 08 | HIGH | WebSocket | pool:status emitido doble (room + global) | FIXED — solo io.emit global |
-| 09 | HIGH | Scheduler | setTimeout fragil para RESOLVED → CLAIMABLE | FIXED — processClaimableTransitions cron |
-| 10 | HIGH | API | USDC_MINT defaults inconsistentes | FIXED — mismo default EPjFWdd5... |
-| 11 | HIGH | Frontend | Deposit notification sin asset name | FIXED — pasa pool.asset |
-| 12 | MEDIUM | Scheduler | Pools vacios → winner = UP | FIXED — no asigna winner si 0 bets |
-| 13 | MEDIUM | Frontend | LiveResultsSidebar muestra pools vacios | FIXED — filtra totalPool !== '0' |
-| 14 | MEDIUM | Frontend | activeWallet flickea embedded ↔ external | FIXED (prev commit) — verifica standardWallets |
-| 15 | MEDIUM | Frontend | useNotifications mounts useBets sin wallet | MITIGATED — BUG-04 fix previene notifs erroneas |
-| 16 | MEDIUM | Frontend | Dedup notificaciones insuficiente | FIXED — incluye message en dedup |
-| 17 | LOW | API | No valida signer de TX en confirm-deposit | FIXED — verifica signers on-chain |
-| 18 | LOW | Scheduler | No concurrency-safe multi-instancia | FIXED — pg_try_advisory_lock en crons |
-| 19 | LOW | Scheduler | activatePool tiene misma race condition | FIXED — atomic claim con updateMany |
+| 01 | CRITICAL | Scheduler | Race condition → doble resolucion, UP siempre gana | FIXED  atomic claim con updateMany |
+| 02 | CRITICAL | Scheduler | finalPrice = strikePrice para single-bettor | FIXED  siempre fetch precio real |
+| 03 | CRITICAL | WebSocket | wallet:refund broadcast a todos | MITIGATED  frontend filtra por wallet (BUG-04) |
+| 04 | CRITICAL | Frontend | useNotifications no filtra refund por wallet | FIXED  compara walletAddress |
+| 05 | CRITICAL | API | confirm-deposit no verifica pool status | FIXED  check status === JOINING |
+| 06 | CRITICAL | API | bet.create + pool.update no atomicos | FIXED  prisma.$transaction |
+| 07 | HIGH | API | No emitPoolUpdate despues de deposit | FIXED  emitPoolUpdate con totals |
+| 08 | HIGH | WebSocket | pool:status emitido doble (room + global) | FIXED  solo io.emit global |
+| 09 | HIGH | Scheduler | setTimeout fragil para RESOLVED → CLAIMABLE | FIXED  processClaimableTransitions cron |
+| 10 | HIGH | API | USDC_MINT defaults inconsistentes | FIXED  mismo default EPjFWdd5... |
+| 11 | HIGH | Frontend | Deposit notification sin asset name | FIXED  pasa pool.asset |
+| 12 | MEDIUM | Scheduler | Pools vacios → winner = UP | FIXED  no asigna winner si 0 bets |
+| 13 | MEDIUM | Frontend | LiveResultsSidebar muestra pools vacios | FIXED  filtra totalPool !== '0' |
+| 14 | MEDIUM | Frontend | activeWallet flickea embedded ↔ external | FIXED (prev commit)  verifica standardWallets |
+| 15 | MEDIUM | Frontend | useNotifications mounts useBets sin wallet | MITIGATED  BUG-04 fix previene notifs erroneas |
+| 16 | MEDIUM | Frontend | Dedup notificaciones insuficiente | FIXED  incluye message en dedup |
+| 17 | LOW | API | No valida signer de TX en confirm-deposit | FIXED  verifica signers on-chain |
+| 18 | LOW | Scheduler | No concurrency-safe multi-instancia | FIXED  pg_try_advisory_lock en crons |
+| 19 | LOW | Scheduler | activatePool tiene misma race condition | FIXED  atomic claim con updateMany |

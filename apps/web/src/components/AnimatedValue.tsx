@@ -4,7 +4,7 @@ import CountUp from 'react-countup';
 import { USDC_DIVISOR } from '@/lib/format';
 
 interface AnimatedValueProps {
-  /** Raw USDC on-chain string — will be divided by USDC_DIVISOR */
+  /** Raw USDC on-chain string  will be divided by USDC_DIVISOR */
   usdcValue?: string;
   /** Plain numeric value (use instead of usdcValue) */
   value?: number;

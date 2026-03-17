@@ -25,7 +25,7 @@ function getConnection() {
   return _connection;
 }
 
-// USDC mint — lazy to ensure dotenv has loaded before reading env
+// USDC mint  lazy to ensure dotenv has loaded before reading env
 let _usdcMint: PublicKey | null = null;
 function getUsdcMint() {
   if (!_usdcMint) {
@@ -403,7 +403,7 @@ transactionsRouter.post('/confirm-deposit', async (req, res) => {
 
     console.log(`[Deposit] Verified on-chain: pool=${poolId}, wallet=${walletAddress}, side=${side}, amount=${betAmount}`);
 
-    // BUG-06: Atomic transaction — bet.create + pool.update together
+    // BUG-06: Atomic transaction  bet.create + pool.update together
     const [bet, updatedPool] = await prisma.$transaction(async (tx) => {
       const newBet = await tx.bet.create({
         data: {

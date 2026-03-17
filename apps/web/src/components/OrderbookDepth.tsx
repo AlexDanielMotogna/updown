@@ -73,7 +73,7 @@ export function OrderbookDepth({ asset }: OrderbookDepthProps) {
             Spread: ${formatPrice(data.spread)}
           </text>
 
-          {/* Bids (green) — top half, bars extend left from center */}
+          {/* Bids (green)  top half, bars extend left from center */}
           {data.bids.map((bid, i) => {
             const y = i * (barHeight + gap);
             const barW = (bid.amount / maxAmount) * maxBarWidth;
@@ -115,7 +115,7 @@ export function OrderbookDepth({ asset }: OrderbookDepthProps) {
             );
           })}
 
-          {/* Asks (red) — bottom half, bars extend right from center */}
+          {/* Asks (red)  bottom half, bars extend right from center */}
           {data.asks.map((ask, i) => {
             const y = levels * (barHeight + gap) + midGap + i * (barHeight + gap);
             const barW = (ask.amount / maxAmount) * maxBarWidth;

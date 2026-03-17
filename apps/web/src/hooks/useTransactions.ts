@@ -198,9 +198,9 @@ export function useDeposit() {
       } catch (error) {
         let message = error instanceof Error ? error.message : 'Transaction failed';
 
-        // Session expired — trigger re-authentication automatically
+        // Session expired  trigger re-authentication automatically
         if (message.includes('SESSION_EXPIRED')) {
-          message = 'Session expired — please log in and try again.';
+          message = 'Session expired  please log in and try again.';
           login();
         }
 

@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Technical Analysis Engine — Pure functions, zero dependencies
+// Technical Analysis Engine  Pure functions, zero dependencies
 // ---------------------------------------------------------------------------
 
 export interface TACandle {
@@ -364,8 +364,8 @@ function generateExplanation(
 
   parts.push(`[SCAN COMPLETE] ${strength} ${direction} signal detected. ${agreeing} of 5 indicators confirm.`);
 
-  if (rsi.rsi > 70) parts.push(`RSI reading ${rsi.rsi.toFixed(0)} — overbought zone.`);
-  else if (rsi.rsi < 30) parts.push(`RSI reading ${rsi.rsi.toFixed(0)} — oversold zone.`);
+  if (rsi.rsi > 70) parts.push(`RSI reading ${rsi.rsi.toFixed(0)}  overbought zone.`);
+  else if (rsi.rsi < 30) parts.push(`RSI reading ${rsi.rsi.toFixed(0)}  oversold zone.`);
 
   if (Math.abs(macd.histogram) > 0) {
     parts.push(`MACD histogram ${macd.histogram > 0 ? 'positive' : 'negative'}.`);

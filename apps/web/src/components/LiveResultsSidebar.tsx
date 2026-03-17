@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Box, Typography, Chip, Fab } from '@mui/material';
+import { Box, Typography, Fab } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingUp, TrendingDown } from '@mui/icons-material';
 import LeaderboardIcon from '@mui/icons-material/Leaderboard';
@@ -12,6 +12,13 @@ import { UP_COLOR, DOWN_COLOR, GAIN_COLOR } from '@/lib/constants';
 import { AssetIcon } from './AssetIcon';
 
 const MAX_VISIBLE = 12;
+
+const INTERVAL_TAG_IMAGES: Record<string, string> = {
+  '1m': '/assets/turbo-tag.png',
+  '5m': '/assets/rapid-tag.png',
+  '15m': '/assets/short-tag.png',
+  '1h': '/assets/hourly-tag.png',
+};
 
 const INTERVAL_LABELS: Record<string, string> = {
   '1m': 'Turbo 1m',
@@ -129,17 +136,11 @@ export function LiveResultsSidebar() {
                     {pool.asset}/USD
                   </Typography>
                 </Box>
-                <Chip
-                  label={INTERVAL_LABELS[pool.interval] || pool.interval}
-                  size="small"
-                  sx={{
-                    height: 18,
-                    fontSize: '0.6rem',
-                    fontWeight: 500,
-                    bgcolor: 'rgba(255,255,255,0.06)',
-                    color: 'text.secondary',
-                    borderRadius: '2px',
-                  }}
+                <Box
+                  component="img"
+                  src={INTERVAL_TAG_IMAGES[pool.interval] || '/assets/hourly-tag.png'}
+                  alt={INTERVAL_LABELS[pool.interval] || pool.interval}
+                  sx={{ height: { xs: 32, md: 36 }, imageRendering: '-webkit-optimize-contrast' }}
                 />
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>

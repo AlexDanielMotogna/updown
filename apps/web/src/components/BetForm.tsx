@@ -34,7 +34,7 @@ interface BetFormProps {
   isSubmitting?: boolean;
   error?: string;
   initialSide?: 'UP' | 'DOWN';
-  /** Controlled side — when provided, BetForm uses this instead of internal state */
+  /** Controlled side  when provided, BetForm uses this instead of internal state */
   controlledSide?: 'UP' | 'DOWN';
   /** Hide the UP/DOWN toggle (when arena handles side selection) */
   hideToggle?: boolean;
@@ -109,7 +109,7 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
 
   return (
     <Box component="form" onSubmit={handleSubmit}>
-      {/* Side Selection — Battle Style */}
+      {/* Side Selection  Battle Style */}
       {!hideToggle && (<>
       <Typography
         variant="caption"
@@ -285,7 +285,7 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
       </ToggleButtonGroup>
       </>)}
 
-      {/* Preset Amounts — image buttons */}
+      {/* Preset Amounts  image buttons */}
       <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
         {PRESET_AMOUNTS.map((preset) => {
           const isActive = amount === preset.value.toString();

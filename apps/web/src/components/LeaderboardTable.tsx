@@ -277,7 +277,7 @@ export function LeaderboardTable() {
 
   return (
     <Box>
-      {/* Header: title + sort tabs — same pattern as PoolTable's status tabs */}
+      {/* Header: title + sort tabs  same pattern as PoolTable's status tabs */}
       <Box sx={{ mb: 3, mt: { xs: 2, md: 3 } }}>
         <Box
           sx={{
@@ -328,7 +328,7 @@ export function LeaderboardTable() {
       {!isLoading && entries.length === 0 && (
         <Box sx={{ textAlign: 'center', py: 8, px: 4 }}>
           <Typography color="text.secondary" sx={{ fontSize: '1rem' }}>
-            No players yet — be the first to earn XP!
+            No players yet  be the first to earn XP!
           </Typography>
         </Box>
       )}
@@ -343,7 +343,7 @@ export function LeaderboardTable() {
             gap: '3px',
           }}
         >
-          {/* Header — desktop only */}
+          {/* Header  desktop only */}
           <Box
             sx={{
               display: { xs: 'none', md: 'grid' },

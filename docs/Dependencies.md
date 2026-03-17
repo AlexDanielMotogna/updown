@@ -88,8 +88,8 @@ Yarn Installation
 Installation
 You can install the Anchor CLI and tooling in two ways:
 
-Anchor Version Manager (AVM) — Recommended installation method
-Without AVM — Install directly from GitHub
+Anchor Version Manager (AVM)  Recommended installation method
+Without AVM  Install directly from GitHub
 AVM
 Without AVM
 The Anchor Version Manager (AVM) allows you to install and manage different Anchor versions on your system and easily update Anchor versions in the future. To install Anchor using AVM, follow the steps below:

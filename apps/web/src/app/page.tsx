@@ -151,7 +151,7 @@ export default function MarketsPage() {
   return (
     <AppShell>
       <Container maxWidth="xl">
-            {/* How to Play — 3 cards */}
+            {/* How to Play  3 cards */}
             <Box
               sx={{
                 display: 'grid',
@@ -204,7 +204,7 @@ export default function MarketsPage() {
               ))}
             </Box>
 
-            {/* Status tabs + Filters — Hellcase style */}
+            {/* Status tabs + Filters  Hellcase style */}
             <Box sx={{ mb: 3 }}>
               <Box
                 sx={{
