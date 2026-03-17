@@ -93,6 +93,11 @@ export function useNotifications() {
       // Show floating popup
       showRewardPopup({ xp: data.xp, coins: data.coins, levelUp: data.levelUp, level: data.level });
 
+      // Push UP Coins notification
+      if (data.coins > 0) {
+        push(buildNotification('COINS_EARNED', { coins: data.coins }));
+      }
+
       // Push level-up notification (fires confetti via NotificationToasts)
       if (data.levelUp) {
         push(buildNotification('LEVEL_UP', { level: data.level }));

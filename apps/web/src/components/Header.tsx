@@ -29,7 +29,7 @@ import { ConnectWalletButton } from './ConnectWalletButton';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR, DOWN_COLOR } from '@/lib/constants';
+import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR, DOWN_COLOR, UP_COINS_DIVISOR } from '@/lib/constants';
 import { useNotificationStore, type Notification, type NotificationSeverity } from '@/stores/notificationStore';
 import { AssetIcon } from './AssetIcon';
 import { UserLevelBadge } from './UserLevelBadge';
@@ -235,7 +235,7 @@ export function Header() {
                     />
                     <Typography sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem' }, fontWeight: 600, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
                       {(() => {
-                        const num = Number(userProfile.coinsBalance) / 100;
+                        const num = Number(userProfile.coinsBalance) / UP_COINS_DIVISOR;
                         return num >= 1_000_000 ? `${(num / 1_000_000).toFixed(1)}M`
                           : num >= 1_000 ? `${(num / 1_000).toFixed(1)}K`
                           : num.toFixed(0);
@@ -455,7 +455,7 @@ export function Header() {
           backgroundColor: '#0B0F14',
           borderTop: '1px solid rgba(255,255,255,0.06)',
           justifyContent: 'space-around',
-          px: 1,
+          px: 0,
           pb: 'env(safe-area-inset-bottom)',
         }}
       >

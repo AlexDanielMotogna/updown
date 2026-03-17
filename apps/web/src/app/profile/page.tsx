@@ -767,7 +767,7 @@ export default function MyBetsPage() {
                           XP {(Number(userProfile.totalXp) - Number(userProfile.xpForCurrentLevel)).toLocaleString()}/{(Number(userProfile.xpForNextLevel) - Number(userProfile.xpForCurrentLevel)).toLocaleString()}
                         </Typography>
                         <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.25)' }}>
-                          {userProfile.level + 1} LVL
+                          {userProfile.level >= 40 ? 'MAX' : `${userProfile.level + 1} LVL`}
                         </Typography>
                       </Box>
                     </Box>
@@ -796,7 +796,7 @@ export default function MyBetsPage() {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                     <Box component="img" src="/token/Token_16px_Gold.png" alt="UP" sx={{ width: { xs: 14, md: 18 }, height: { xs: 14, md: 18 } }} />
                     <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: ACCENT_COLOR, fontVariantNumeric: 'tabular-nums' }}>
-                      {userProfile ? (Number(userProfile.coinsBalance) / UP_COINS_DIVISOR).toFixed(0) : '0'}
+                      {userProfile ? (Number(userProfile.coinsBalance) / UP_COINS_DIVISOR).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
                     </Typography>
                   </Box>
                 </Box>

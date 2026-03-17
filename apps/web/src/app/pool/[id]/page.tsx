@@ -263,11 +263,6 @@ export default function PoolDetailPage() {
           pb: { xs: 4, md: 6 },
         }}
       >
-        {/* Gold tokens — decorative, bottom right */}
-        <Box sx={{ position: 'absolute', bottom: 0, right: { xs: -40, md: 0 }, pointerEvents: 'none', zIndex: 0, opacity: 0.2, display: { xs: 'none', md: 'block' } }}>
-          <Box component="img" src="/assets/gold-tokens-asset.png" alt="" sx={{ width: 500, height: 'auto' }} />
-        </Box>
-
         {/* ─── Row 2: MARKET BATTLE + Countdown (centered, own row) ─── */}
         <Box sx={{ textAlign: 'center', pt: { xs: 3, md: 4 }, pb: { xs: 2, md: 3 }, px: { xs: 1.5, md: 3 }, position: 'relative', zIndex: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: { xs: 2, md: 3 }, mb: 1.5 }}>

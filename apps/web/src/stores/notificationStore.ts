@@ -24,18 +24,21 @@ export interface Notification {
   severity: NotificationSeverity;
   poolId?: string;
   asset?: string;
+  level?: number;
   autoHideDuration: number;
   createdAt: number;
-  dismissed: boolean;
+  dismissed: boolean;       // read/dismissed in bell panel
+  toastDismissed: boolean;  // toast auto-hidden (doesn't mark as read)
 }
 
-export type NotificationInput = Omit<Notification, 'id' | 'createdAt' | 'dismissed'>;
+export type NotificationInput = Omit<Notification, 'id' | 'createdAt' | 'dismissed' | 'toastDismissed'>;
 
 interface NotificationStore {
   notifications: Notification[];
   userPoolIds: Set<string>;
   push: (n: NotificationInput) => void;
   dismiss: (id: string) => void;
+  dismissToast: (id: string) => void;
   dismissAll: () => void;
   addUserPoolId: (poolId: string) => void;
   setUserPoolIds: (ids: string[]) => void;
@@ -71,6 +74,7 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
       id: `notif-${now}-${++counter}`,
       createdAt: now,
       dismissed: false,
+      toastDismissed: false,
     };
 
     set((state) => {
@@ -83,13 +87,20 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
   dismiss: (id) =>
     set((state) => ({
       notifications: state.notifications.map((n) =>
-        n.id === id ? { ...n, dismissed: true } : n,
+        n.id === id ? { ...n, dismissed: true, toastDismissed: true } : n,
+      ),
+    })),
+
+  dismissToast: (id) =>
+    set((state) => ({
+      notifications: state.notifications.map((n) =>
+        n.id === id ? { ...n, toastDismissed: true } : n,
       ),
     })),
 
   dismissAll: () =>
     set((state) => ({
-      notifications: state.notifications.map((n) => ({ ...n, dismissed: true })),
+      notifications: state.notifications.map((n) => ({ ...n, dismissed: true, toastDismissed: true })),
     })),
 
   addUserPoolId: (poolId) =>

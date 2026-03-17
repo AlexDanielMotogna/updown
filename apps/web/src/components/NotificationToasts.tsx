@@ -17,6 +17,7 @@ import {
   type NotificationSeverity,
 } from '@/stores/notificationStore';
 import { AssetIcon } from './AssetIcon';
+import { UserLevelBadge } from './UserLevelBadge';
 import { GAIN_COLOR, ACCENT_COLOR, DOWN_COLOR } from '@/lib/constants';
 import { fireWinConfetti, fireClaimConfetti } from '@/lib/confetti';
 
@@ -135,7 +136,11 @@ const ToastItem = memo(function ToastItem({ notification, onDismiss }: ToastItem
       >
         {/* Icon */}
         <Box sx={{ pt: 0.25, flexShrink: 0 }}>
-          {notification.asset ? (
+          {notification.type === 'LEVEL_UP' && notification.level ? (
+            <UserLevelBadge level={notification.level} title="" size="sm" variant="icon-only" />
+          ) : notification.type === 'COINS_EARNED' ? (
+            <Box component="img" src="/token/Token_16px_Gold.png" alt="UP Coin" sx={{ width: 22, height: 22 }} />
+          ) : notification.asset ? (
             <AssetIcon asset={notification.asset} size={22} />
           ) : (
             getSeverityIcon(notification.severity, notification.type)
@@ -195,10 +200,10 @@ const ToastItem = memo(function ToastItem({ notification, onDismiss }: ToastItem
 
 export function NotificationToasts() {
   const notifications = useNotificationStore((s) => s.notifications);
-  const dismiss = useNotificationStore((s) => s.dismiss);
+  const dismissToast = useNotificationStore((s) => s.dismissToast);
 
-  // Show only non-dismissed, up to MAX_VISIBLE
-  const visible = notifications.filter((n) => !n.dismissed).slice(0, MAX_VISIBLE);
+  // Show only toasts not yet hidden, up to MAX_VISIBLE
+  const visible = notifications.filter((n) => !n.toastDismissed).slice(0, MAX_VISIBLE);
 
   if (visible.length === 0) return null;
 
@@ -222,7 +227,7 @@ export function NotificationToasts() {
     >
       <AnimatePresence>
         {visible.map((n) => (
-          <ToastItem key={n.id} notification={n} onDismiss={dismiss} />
+          <ToastItem key={n.id} notification={n} onDismiss={dismissToast} />
         ))}
       </AnimatePresence>
     </Box>

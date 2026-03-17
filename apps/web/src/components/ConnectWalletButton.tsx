@@ -13,7 +13,7 @@ import {
 import { ContentCopy, Logout, CheckCircle } from '@mui/icons-material';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR } from '@/lib/constants';
+import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR, UP_COINS_DIVISOR } from '@/lib/constants';
 import { UserLevelBadge } from './UserLevelBadge';
 
 interface ConnectWalletButtonProps {
@@ -222,11 +222,38 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
                         />
                       </Box>
                       <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', flexShrink: 0 }}>
-                        {userProfile.level + 1} LVL
+                        {userProfile.level >= 40 ? 'MAX' : `${userProfile.level + 1} LVL`}
                       </Typography>
                     </Box>
                     <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', mt: 0.5 }}>
                       XP {(Number(userProfile.totalXp) - Number(userProfile.xpForCurrentLevel)).toLocaleString()} / {(Number(userProfile.xpForNextLevel) - Number(userProfile.xpForCurrentLevel)).toLocaleString()}
+                    </Typography>
+                  </Box>
+                )}
+
+                {/* UP Coins */}
+                {userProfile && (
+                  <Box
+                    sx={{
+                      px: 2,
+                      py: 1.5,
+                      borderBottom: '1px solid rgba(255,255,255,0.06)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}
+                  >
+                    <Box
+                      component="img"
+                      src="/token/Token_16px_Gold.png"
+                      alt="UP Coin"
+                      sx={{ width: 16, height: 16 }}
+                    />
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: ACCENT_COLOR }}>
+                      {(Number(userProfile.coinsBalance) / UP_COINS_DIVISOR).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)' }}>
+                      UP Coins
                     </Typography>
                   </Box>
                 )}

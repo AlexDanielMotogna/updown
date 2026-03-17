@@ -101,19 +101,18 @@ export default function MarketsPage() {
     });
   }, [data]);
 
-  // Identify top 3 most popular pools (by participant count, min 2 bets)
+  // Sort pools: those with bets first (by betCount desc), rest keep original order
   const { sortedPools, popularPoolIds } = useMemo(() => {
     if (allPools.length === 0) return { sortedPools: allPools, popularPoolIds: new Set<string>() };
 
-    const candidates = [...allPools].filter(p => p.betCount >= 2);
-    candidates.sort((a, b) => b.betCount - a.betCount);
-    const top3Ids = new Set(candidates.slice(0, 3).map(p => p.id));
+    const withBets = allPools.filter(p => p.betCount >= 1).sort((a, b) => b.betCount - a.betCount);
+    const withoutBets = allPools.filter(p => p.betCount === 0);
 
-    // Move popular pools to the top (ordered by betCount desc), rest keep original order
-    const popular = allPools.filter(p => top3Ids.has(p.id)).sort((a, b) => b.betCount - a.betCount);
-    const rest = allPools.filter(p => !top3Ids.has(p.id));
+    // Mark top 3 (with at least 2 bets) as "POPULAR"
+    const popularCandidates = withBets.filter(p => p.betCount >= 2);
+    const top3Ids = new Set(popularCandidates.slice(0, 3).map(p => p.id));
 
-    return { sortedPools: [...popular, ...rest], popularPoolIds: top3Ids };
+    return { sortedPools: [...withBets, ...withoutBets], popularPoolIds: top3Ids };
   }, [allPools]);
 
   const userBetByPoolId = useMemo(() => {

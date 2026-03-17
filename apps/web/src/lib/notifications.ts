@@ -120,5 +120,6 @@ export function buildNotification(
     autoHideDuration: def.autoHideDuration,
     poolId: ctx.poolId as string | undefined,
     asset: ctx.asset as string | undefined,
+    level: ctx.level as number | undefined,
   };
 }

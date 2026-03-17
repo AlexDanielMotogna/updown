@@ -231,7 +231,7 @@ function LeaderboardRow({
           <Box>
             <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: sort === 'coins' ? ACCENT_COLOR : GAIN_COLOR, fontVariantNumeric: 'tabular-nums' }}>
               {sort === 'coins'
-                ? Number(entry.coinsLifetime).toLocaleString()
+                ? (Number(entry.coinsLifetime) / UP_COINS_DIVISOR).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                 : Number(entry.totalXp).toLocaleString()}
             </Typography>
             <Typography sx={{ fontSize: '0.6rem', color: 'text.secondary', textTransform: 'uppercase' }}>

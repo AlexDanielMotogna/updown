@@ -16,12 +16,23 @@ import { awardBetPlacement, awardBetWin, awardClaimCompleted } from '../services
 
 export const transactionsRouter: RouterType = Router();
 
-// Solana connection
-const RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
-const connection = new Connection(RPC_URL, 'confirmed');
+// Solana connection (lazy to ensure dotenv has loaded)
+let _connection: Connection | null = null;
+function getConnection() {
+  if (!_connection) {
+    _connection = new Connection(process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com', 'confirmed');
+  }
+  return _connection;
+}
 
-// USDC mint — must match the scheduler's USDC_MINT so vault PDAs are consistent
-const USDC_MINT = new PublicKey(process.env.USDC_MINT || 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+// USDC mint — lazy to ensure dotenv has loaded before reading env
+let _usdcMint: PublicKey | null = null;
+function getUsdcMint() {
+  if (!_usdcMint) {
+    _usdcMint = new PublicKey(process.env.USDC_MINT || 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+  }
+  return _usdcMint;
+}
 
 // Load authority keypair for server-signed transactions (claims)
 function getAuthorityKeypair(): Keypair {
@@ -165,7 +176,7 @@ transactionsRouter.post('/deposit', async (req, res) => {
     const [poolPDA] = getPoolPDA(poolIdBytes);
     const [vault] = getVaultPDA(poolIdBytes);
     const [userBet] = getUserBetPDA(poolPDA, user);
-    const userTokenAccount = await getAssociatedTokenAddress(USDC_MINT, user);
+    const userTokenAccount = await getAssociatedTokenAddress(getUsdcMint(), user);
 
     // Return accounts needed for transaction
     res.json({
@@ -283,7 +294,7 @@ transactionsRouter.post('/confirm-deposit', async (req, res) => {
     }
 
     // Verify transaction on-chain
-    const tx = await connection.getTransaction(txSignature, {
+    const tx = await getConnection().getTransaction(txSignature, {
       commitment: 'confirmed',
       maxSupportedTransactionVersion: 0,
     });
@@ -341,15 +352,22 @@ transactionsRouter.post('/confirm-deposit', async (req, res) => {
     const poolIdHash = Buffer.from(pool.poolId, 'utf-8');
     poolIdHash.copy(poolIdBytes, 0, 0, Math.min(poolIdHash.length, 32));
     const [vault] = getVaultPDA(poolIdBytes);
-    const vaultTokenAccount = await getAssociatedTokenAddress(USDC_MINT, vault, true);
+    const vaultTokenAccount = await getAssociatedTokenAddress(getUsdcMint(), vault, true);
     const vaultTokenAccountStr = vaultTokenAccount.toBase58();
 
     // Find the vault's token balance change
     let transferAmount = BigInt(0);
 
+    console.log(`[Deposit Debug] USDC_MINT: ${getUsdcMint().toBase58()}`);
+    console.log(`[Deposit Debug] Expected vault ATA: ${vaultTokenAccountStr}`);
+    console.log(`[Deposit Debug] postBalances:`, JSON.stringify(postBalances.map(b => ({ mint: b.mint, accountIndex: b.accountIndex, amount: b.uiTokenAmount.amount }))));
+    console.log(`[Deposit Debug] preBalances:`, JSON.stringify(preBalances.map(b => ({ mint: b.mint, accountIndex: b.accountIndex, amount: b.uiTokenAmount?.amount }))));
+    const accountKeys = tx.transaction.message.getAccountKeys();
+    console.log(`[Deposit Debug] Account keys:`, Array.from({ length: accountKeys.length }, (_, i) => `${i}: ${accountKeys.get(i)?.toBase58()}`));
+
     // Look for vault in post balances
     for (const postBalance of postBalances) {
-      if (postBalance.mint !== USDC_MINT.toBase58()) continue;
+      if (postBalance.mint !== getUsdcMint().toBase58()) continue;
 
       // Get the account key from the transaction
       const accountKeys = tx.transaction.message.getAccountKeys();
@@ -556,7 +574,7 @@ transactionsRouter.post('/claim', async (req, res) => {
     const [poolPDA] = getPoolPDA(poolIdBytes);
     const [vault] = getVaultPDA(poolIdBytes);
     const [userBet] = getUserBetPDA(poolPDA, user);
-    const userTokenAccount = await getAssociatedTokenAddress(USDC_MINT, user);
+    const userTokenAccount = await getAssociatedTokenAddress(getUsdcMint(), user);
 
     // Calculate expected payout with level-based fee
     const totalPool = pool.totalUp + pool.totalDown;
@@ -660,7 +678,7 @@ transactionsRouter.post('/confirm-claim', async (req, res) => {
     }
 
     // Verify transaction on-chain
-    const tx = await connection.getTransaction(txSignature, {
+    const tx = await getConnection().getTransaction(txSignature, {
       commitment: 'confirmed',
       maxSupportedTransactionVersion: 0,
     });
@@ -855,8 +873,8 @@ transactionsRouter.post('/execute-claim', async (req, res) => {
 
     // Build USDC transfer: authority → user
     const userPubkey = new PublicKey(walletAddress);
-    const authorityATA = await getAssociatedTokenAddress(USDC_MINT, authority.publicKey);
-    const userATA = await getAssociatedTokenAddress(USDC_MINT, userPubkey);
+    const authorityATA = await getAssociatedTokenAddress(getUsdcMint(), authority.publicKey);
+    const userATA = await getAssociatedTokenAddress(getUsdcMint(), userPubkey);
 
     const transaction = new Transaction();
 
@@ -867,14 +885,14 @@ transactionsRouter.post('/execute-claim', async (req, res) => {
     );
 
     // Create user's ATA if it doesn't exist
-    const userATAInfo = await connection.getAccountInfo(userATA);
+    const userATAInfo = await getConnection().getAccountInfo(userATA);
     if (!userATAInfo) {
       transaction.add(
         createAssociatedTokenAccountInstruction(
           authority.publicKey, // payer
           userATA,             // ata
           userPubkey,          // owner
-          USDC_MINT,           // mint
+          getUsdcMint(),       // mint
         ),
       );
     }
@@ -892,12 +910,12 @@ transactionsRouter.post('/execute-claim', async (req, res) => {
     );
 
     // Sign and send
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+    const { blockhash, lastValidBlockHeight } = await getConnection().getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = authority.publicKey;
     transaction.sign(authority);
 
-    const signature = await connection.sendRawTransaction(transaction.serialize(), {
+    const signature = await getConnection().sendRawTransaction(transaction.serialize(), {
       skipPreflight: false,
       preflightCommitment: 'confirmed',
     });
@@ -905,7 +923,7 @@ transactionsRouter.post('/execute-claim', async (req, res) => {
     console.log(`[execute-claim] Sent payout tx: ${signature}, amount: ${payout}, to: ${walletAddress}`);
 
     // Wait for confirmation
-    const confirmation = await connection.confirmTransaction(
+    const confirmation = await getConnection().confirmTransaction(
       { signature, blockhash, lastValidBlockHeight },
       'confirmed',
     );
