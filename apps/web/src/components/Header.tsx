@@ -131,7 +131,7 @@ export function Header() {
           alignItems: 'center',
           justifyContent: 'space-between',
           position: 'relative',
-          height: { xs: 56, lg: 64 },
+          height: { xs: 44, sm: 52, lg: 64 },
           px: { xs: 1, sm: 2, lg: 3, xl: 4 },
         }}
       >
