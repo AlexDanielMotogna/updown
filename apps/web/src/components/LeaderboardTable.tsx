@@ -19,14 +19,10 @@ import Avatar from '@mui/material/Avatar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
 import { UserLevelBadge } from './UserLevelBadge';
-import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR, DOWN_COLOR, UP_COINS_DIVISOR } from '@/lib/constants';
+import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR, DOWN_COLOR, UP_COINS_DIVISOR, getAvatarUrl } from '@/lib/constants';
 import type { LeaderboardEntry } from '@/lib/api';
 
 const MEDAL_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32'];
-
-function getAvatarUrl(address: string): string {
-  return `https://api.dicebear.com/9.x/shapes/svg?seed=${address}`;
-}
 
 function LeaderboardRow({
   entry,

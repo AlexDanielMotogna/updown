@@ -22,16 +22,13 @@ import {
 } from '@mui/icons-material';
 import { useInfinitePools, useBets, usePriceStream, useIntersectionObserver, type PoolFilters } from '@/hooks';
 import { PoolTable, AppShell } from '@/components';
-import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR } from '@/lib/constants';
+import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR, INTERVAL_LABELS } from '@/lib/constants';
 
 const ASSETS = ['ALL', 'BTC', 'ETH', 'SOL'];
 const INTERVAL_OPTIONS = ['ALL', '1m', '5m', '15m', '1h'];
-const INTERVAL_LABELS: Record<string, string> = {
+const INTERVAL_LABELS_WITH_ALL: Record<string, string> = {
   ALL: 'ALL',
-  '1m': 'Turbo 1m',
-  '5m': 'Rapid 5m',
-  '15m': 'Short 15m',
-  '1h': 'Hourly',
+  ...INTERVAL_LABELS,
 };
 const STATUSES = ['ALL', 'JOINING', 'ACTIVE'];
 
@@ -326,7 +323,7 @@ export default function MarketsPage() {
                   >
                     {INTERVAL_OPTIONS.map((interval) => (
                       <ToggleButton key={interval} value={interval}>
-                        {INTERVAL_LABELS[interval]}
+                        {INTERVAL_LABELS_WITH_ALL[interval]}
                       </ToggleButton>
                     ))}
                   </ToggleButtonGroup>

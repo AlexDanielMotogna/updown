@@ -2,8 +2,8 @@ import { Router, type Router as RouterType } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db';
 import { registerUser } from '../services/rewards';
-import { getLevelTitle, getXpForLevel, getXpToNextLevel } from '../utils/levels';
-import { getFeeBps } from '../utils/fees';
+import { getLevelTitle } from '../utils/levels';
+import { serializeUserProfile } from '../utils/serializers';
 
 export const usersRouter: RouterType = Router();
 
@@ -199,49 +199,3 @@ usersRouter.get('/leaderboard', async (req, res) => {
   }
 });
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function serializeUserProfile(user: {
-  walletAddress: string;
-  totalXp: bigint;
-  level: number;
-  coinsBalance: bigint;
-  coinsLifetime: bigint;
-  coinsRedeemed: bigint;
-  totalBets: number;
-  totalWins: number;
-  totalWagered: bigint;
-  currentStreak: number;
-  bestStreak: number;
-  createdAt: Date;
-}) {
-  return {
-    walletAddress: user.walletAddress,
-    level: user.level,
-    title: getLevelTitle(user.level),
-    totalXp: user.totalXp.toString(),
-    xpForCurrentLevel: getXpForLevel(user.level).toString(),
-    xpForNextLevel: getXpForLevel(user.level + 1).toString(),
-    xpToNextLevel: getXpToNextLevel(user.level).toString(),
-    xpProgress: user.level >= 40
-      ? 1
-      : Number(user.totalXp - getXpForLevel(user.level)) /
-        Number(getXpToNextLevel(user.level) || 1n),
-    coinsBalance: user.coinsBalance.toString(),
-    coinsLifetime: user.coinsLifetime.toString(),
-    coinsRedeemed: user.coinsRedeemed.toString(),
-    feeBps: getFeeBps(user.level),
-    feePercent: (getFeeBps(user.level) / 100).toFixed(2),
-    stats: {
-      totalBets: user.totalBets,
-      totalWins: user.totalWins,
-      winRate: user.totalBets > 0
-        ? ((user.totalWins / user.totalBets) * 100).toFixed(1)
-        : '0.0',
-      totalWagered: user.totalWagered.toString(),
-      currentStreak: user.currentStreak,
-      bestStreak: user.bestStreak,
-    },
-    createdAt: user.createdAt.toISOString(),
-  };
-}

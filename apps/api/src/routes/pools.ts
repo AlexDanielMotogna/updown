@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../db';
 import type { PoolStatus, Prisma } from '@prisma/client';
 import { getScheduler } from '../scheduler/pool-scheduler';
+import { serializePool } from '../utils/serializers';
 
 export const poolsRouter: RouterType = Router();
 
@@ -14,46 +15,6 @@ const poolFilterSchema = z.object({
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(100).default(20),
 });
-
-// Helper to serialize BigInt values
-function serializePool(pool: {
-  id: string;
-  poolId: string;
-  asset: string;
-  interval: string;
-  durationSeconds: number;
-  status: PoolStatus;
-  startTime: Date;
-  endTime: Date;
-  lockTime: Date;
-  strikePrice: bigint | null;
-  finalPrice: bigint | null;
-  totalUp: bigint;
-  totalDown: bigint;
-  winner: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}) {
-  return {
-    id: pool.id,
-    poolId: pool.poolId,
-    asset: pool.asset,
-    interval: pool.interval,
-    durationSeconds: pool.durationSeconds,
-    status: pool.status,
-    startTime: pool.startTime.toISOString(),
-    endTime: pool.endTime.toISOString(),
-    lockTime: pool.lockTime.toISOString(),
-    strikePrice: pool.strikePrice?.toString() ?? null,
-    finalPrice: pool.finalPrice?.toString() ?? null,
-    totalUp: pool.totalUp.toString(),
-    totalDown: pool.totalDown.toString(),
-    totalPool: (pool.totalUp + pool.totalDown).toString(),
-    winner: pool.winner,
-    createdAt: pool.createdAt.toISOString(),
-    updatedAt: pool.updatedAt.toISOString(),
-  };
-}
 
 // GET /api/pools - List all pools with optional filters
 poolsRouter.get('/', async (req, res) => {

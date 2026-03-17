@@ -8,24 +8,10 @@ import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 import Link from 'next/link';
 import { usePools } from '@/hooks/usePools';
 import { formatUSDC } from '@/lib/format';
-import { UP_COLOR, DOWN_COLOR, GAIN_COLOR } from '@/lib/constants';
+import { UP_COLOR, DOWN_COLOR, GAIN_COLOR, INTERVAL_TAG_IMAGES, INTERVAL_LABELS } from '@/lib/constants';
 import { AssetIcon } from './AssetIcon';
 
 const MAX_VISIBLE = 12;
-
-const INTERVAL_TAG_IMAGES: Record<string, string> = {
-  '1m': '/assets/turbo-tag.png',
-  '5m': '/assets/rapid-tag.png',
-  '15m': '/assets/short-tag.png',
-  '1h': '/assets/hourly-tag.png',
-};
-
-const INTERVAL_LABELS: Record<string, string> = {
-  '1m': 'Turbo 1m',
-  '5m': 'Rapid 5m',
-  '15m': 'Short 15m',
-  '1h': 'Hourly',
-};
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();

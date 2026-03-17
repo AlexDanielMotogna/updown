@@ -13,7 +13,7 @@ import {
 import { ContentCopy, Logout, CheckCircle } from '@mui/icons-material';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR, UP_COINS_DIVISOR } from '@/lib/constants';
+import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR, UP_COINS_DIVISOR, getAvatarUrl } from '@/lib/constants';
 import { UserLevelBadge } from './UserLevelBadge';
 
 interface ConnectWalletButtonProps {
@@ -22,10 +22,6 @@ interface ConnectWalletButtonProps {
 
 function truncateAddress(address: string): string {
   return `${address.slice(0, 4)}...${address.slice(-4)}`;
-}
-
-function getAvatarUrl(address: string): string {
-  return `https://api.dicebear.com/9.x/shapes/svg?seed=${address}`;
 }
 
 export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonProps) {

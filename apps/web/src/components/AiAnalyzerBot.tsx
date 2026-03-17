@@ -4,16 +4,13 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Box, Typography, IconButton, InputBase, CircularProgress, useMediaQuery } from '@mui/material';
 import { VolumeUp, VolumeOff, Close, Send } from '@mui/icons-material';
 import { useMarketAnalysis } from '@/hooks/useMarketAnalysis';
-import type { AnalysisResult, Signal } from '@/lib/technical-analysis';
 import type { PacificaPriceData } from '@/hooks/usePacificaPrices';
-import { UP_COLOR, DOWN_COLOR } from '@/lib/constants';
+import { UP_COLOR } from '@/lib/constants';
+import { BotAvatar, type BotState } from './ai-bot/BotAvatar';
+import { SignalCard } from './ai-bot/SignalCard';
+import { speakRobotic, fetchAiReply, type PoolStatus, type ChatMessage } from './ai-bot/speech';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-type BotState = 'MINIMIZED' | 'GREETING' | 'ANALYZING' | 'RESULT';
-type PoolStatus = 'UPCOMING' | 'JOINING' | 'ACTIVE' | 'RESOLVED' | 'CLAIMABLE';
+const CYAN = UP_COLOR;
 
 interface AiAnalyzerBotProps {
   asset: string;
@@ -23,239 +20,6 @@ interface AiAnalyzerBotProps {
   winner?: string | null;
   priceData?: PacificaPriceData | null;
 }
-
-interface ChatMessage {
-  id: number;
-  text: string;
-  sender: 'bot' | 'user';
-}
-
-// ---------------------------------------------------------------------------
-// Colors
-// ---------------------------------------------------------------------------
-
-const CYAN = UP_COLOR;
-const RED = DOWN_COLOR;
-const colorForSignal = (s: Signal) => (s === 'UP' ? CYAN : RED);
-
-// ---------------------------------------------------------------------------
-// SVG Bot Avatar
-// ---------------------------------------------------------------------------
-
-function BotAvatar({ size = 40, state, signal }: { size?: number; state: BotState; signal?: Signal }) {
-  const eyeColor = state === 'RESULT' && signal ? colorForSignal(signal) : CYAN;
-  const isAnalyzing = state === 'ANALYZING';
-
-  return (
-    <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
-      <line x1="20" y1="4" x2="20" y2="9" stroke={CYAN} strokeWidth="1.5" strokeLinecap="round" />
-      <circle cx="20" cy="3" r="2" fill={CYAN}>
-        <animate attributeName="opacity" values="1;0.4;1" dur="2s" repeatCount="indefinite" />
-      </circle>
-      <rect x="6" y="10" width="28" height="22" rx="6" fill="#1a1a2e" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-      <circle cx="14" cy="21" r="3" fill={eyeColor}>
-        {isAnalyzing ? (
-          <animate attributeName="cx" values="13;15;13" dur="0.8s" repeatCount="indefinite" />
-        ) : (
-          <animate attributeName="opacity" values="1;0.6;1" dur="3s" repeatCount="indefinite" />
-        )}
-      </circle>
-      <circle cx="26" cy="21" r="3" fill={eyeColor}>
-        {isAnalyzing ? (
-          <animate attributeName="cx" values="25;27;25" dur="0.8s" repeatCount="indefinite" />
-        ) : (
-          <animate attributeName="opacity" values="1;0.6;1" dur="3s" repeatCount="indefinite" />
-        )}
-      </circle>
-      <rect x="15" y="27" width="10" height="1.5" rx="0.75" fill="rgba(255,255,255,0.2)" />
-    </svg>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Signal Card
-// ---------------------------------------------------------------------------
-
-function SignalCard({ analysis }: { analysis: AnalysisResult }) {
-  const color = colorForSignal(analysis.signal);
-
-  return (
-    <Box
-      sx={{
-        p: 2,
-        borderRadius: 0,
-        background: analysis.signal === 'UP' ? 'rgba(0, 229, 255, 0.06)' : 'rgba(255, 82, 82, 0.06)',
-        border: 'none',
-      }}
-    >
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-        <Typography sx={{ fontSize: '1.1rem', fontWeight: 600, color }}>
-          {analysis.signal === 'UP' ? '\u25B2' : '\u25BC'} {analysis.signal}
-        </Typography>
-        <Typography sx={{ fontSize: '0.85rem', fontWeight: 500, color }}>
-          {analysis.confidence}%
-        </Typography>
-      </Box>
-      <Box sx={{ height: 4, borderRadius: 0, backgroundColor: 'rgba(255, 255, 255, 0.08)', mb: 1.5, overflow: 'hidden' }}>
-        <Box
-          sx={{
-            height: '100%',
-            width: `${analysis.confidence}%`,
-            borderRadius: 0,
-            background: `linear-gradient(90deg, ${color}88, ${color})`,
-            transition: 'width 0.5s ease',
-          }}
-        />
-      </Box>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-        {analysis.indicators.map((ind) => {
-          const indColor = colorForSignal(ind.signal);
-          return (
-            <Box
-              key={ind.name}
-              sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 0.5,
-                px: 1,
-                py: 0.25,
-                borderRadius: '2px',
-                backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                border: 'none',
-              }}
-            >
-              <Typography sx={{ fontSize: '0.6rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.03em' }}>
-                {ind.name}
-              </Typography>
-              <Typography sx={{ fontSize: '0.6rem', fontWeight: 600, color: indColor }}>
-                {ind.signal}
-              </Typography>
-            </Box>
-          );
-        })}
-      </Box>
-    </Box>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Robotic voice helper
-// ---------------------------------------------------------------------------
-
-// Strip markdown, emojis, and special chars that sound bad when spoken
-function cleanTextForSpeech(text: string): string {
-  return text
-    // Remove emojis (Unicode emoji ranges)
-    .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}]/gu, '')
-    // Remove markdown bold/italic asterisks
-    .replace(/\*+/g, '')
-    // Remove bracket prefixes like [MODULE] but keep the word
-    .replace(/\[([^\]]+)\]/g, '$1')
-    // Remove markdown links
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    // Remove stray special chars
-    .replace(/[#_~`>|]/g, '')
-    // Collapse multiple spaces
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-}
-
-// Cache the selected voice so it's consistent across the session
-let cachedVoice: SpeechSynthesisVoice | null = null;
-let voiceSearched = false;
-
-// Chrome loads voices asynchronously  reset cache when they arrive
-if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-  speechSynthesis.addEventListener?.('voiceschanged', () => {
-    voiceSearched = false;
-    cachedVoice = null;
-  });
-}
-
-function getConsistentVoice(): SpeechSynthesisVoice | null {
-  if (voiceSearched) return cachedVoice;
-  voiceSearched = true;
-
-  const voices = speechSynthesis.getVoices();
-  if (!voices.length) return null;
-
-  // Priority order: pick the best robotic-sounding voice available
-  const priorities = [
-    /google uk english male/i,
-    /microsoft david/i,
-    /daniel/i,
-    /google us english/i,
-    /microsoft mark/i,
-    /microsoft zira/i,
-    /english.*male/i,
-    /en-us/i,
-    /en-gb/i,
-  ];
-
-  for (const pattern of priorities) {
-    const match = voices.find((v) => pattern.test(v.name) || pattern.test(v.lang));
-    if (match) {
-      cachedVoice = match;
-      return cachedVoice;
-    }
-  }
-
-  // Fallback: first English voice
-  cachedVoice = voices.find((v) => v.lang.startsWith('en')) || voices[0];
-  return cachedVoice;
-}
-
-function speakRobotic(text: string) {
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-
-  speechSynthesis.cancel();
-
-  const cleaned = cleanTextForSpeech(text);
-  if (!cleaned) return;
-
-  const utter = new SpeechSynthesisUtterance(cleaned);
-  utter.rate = 1.0;
-  utter.pitch = 0.3;
-  utter.lang = 'en-US';
-
-  const voice = getConsistentVoice();
-  if (voice) utter.voice = voice;
-
-  speechSynthesis.speak(utter);
-}
-
-// ---------------------------------------------------------------------------
-// AI Chat  calls /api/chat which proxies to Claude
-// ---------------------------------------------------------------------------
-
-async function fetchAiReply(
-  message: string,
-  analysis: AnalysisResult | null,
-  asset: string,
-  poolStatus: PoolStatus,
-  timeframe: string,
-  chatHistory: ChatMessage[],
-  priceData?: PacificaPriceData | null,
-): Promise<string> {
-  // Build history in Claude format (last 10 messages)
-  const history = chatHistory.slice(-10).map((m) => ({
-    role: m.sender === 'user' ? 'user' as const : 'assistant' as const,
-    content: m.text,
-  }));
-
-  const res = await fetch('/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, asset, poolStatus, analysis, timeframe, history, priceData }),
-  });
-
-  const data = await res.json();
-  return data.reply || 'BZZT... Something went wrong with my circuits.';
-}
-
-// ---------------------------------------------------------------------------
-// Main Component
-// ---------------------------------------------------------------------------
 
 export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, priceData }: AiAnalyzerBotProps) {
   const isMobile = useMediaQuery('(max-width:600px)');
@@ -269,7 +33,6 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
   const msgIdRef = useRef(0);
   const greetingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Refs to read current state inside effects without adding to deps
   const botStateRef = useRef(botState);
   botStateRef.current = botState;
   const messagesRef = useRef(messages);
@@ -277,7 +40,6 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
   const voiceEnabledRef = useRef(voiceEnabled);
   voiceEnabledRef.current = voiceEnabled;
 
-  // Track if we've posted the initial analysis to prevent duplicates
   const hasPostedAnalysisRef = useRef(false);
   const lastSignalDirRef = useRef<string>('');
 
@@ -381,19 +143,13 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
     [handleSend],
   );
 
-  // ---- Cleanup timer on unmount ----
+  // ---- Effects ----
 
   useEffect(() => {
     return () => {
       if (greetingTimerRef.current) clearTimeout(greetingTimerRef.current);
     };
   }, []);
-
-  // ---- Analysis ready → post ONCE, then only on signal flip ----
-  // Deps: ONLY analysis?.signal. This fires when:
-  //   1. analysis goes from null → object (signal changes from undefined → 'UP'/'DOWN')
-  //   2. signal flips direction
-  // It does NOT fire on confidence changes or candle ticks.
 
   useEffect(() => {
     if (!analysis) return;
@@ -405,12 +161,10 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
       return;
     }
 
-    // First analysis: post the full explanation
     if (!hasPostedAnalysisRef.current) {
       hasPostedAnalysisRef.current = true;
       lastSignalDirRef.current = analysis.signal;
 
-      // Cancel the greeting timer  analysis arrived before it fired
       if (greetingTimerRef.current) {
         clearTimeout(greetingTimerRef.current);
         greetingTimerRef.current = null;
@@ -422,7 +176,6 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
       return;
     }
 
-    // Signal direction flipped (UP↔DOWN)
     if (analysis.signal !== lastSignalDirRef.current) {
       lastSignalDirRef.current = analysis.signal;
       const msg = `[SIGNAL FLIP] Direction changed to ${analysis.signal} at ${analysis.confidence}%. ${analysis.indicators.filter((i) => i.signal === analysis.signal).length} of 5 indicators confirm.`;
@@ -432,7 +185,6 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analysis?.signal]);
 
-  // Reset tracking when panel closes
   useEffect(() => {
     if (botState === 'MINIMIZED') {
       hasPostedAnalysisRef.current = false;
@@ -442,7 +194,6 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
     }
   }, [botState]);
 
-  // Auto-scroll messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);

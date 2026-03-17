@@ -5,23 +5,9 @@ import { TrendingUp, TrendingDown } from '@mui/icons-material';
 import Link from 'next/link';
 import type { Pool } from '@/lib/api';
 import { formatUSDC, formatPrice, formatDateTime, formatTime, statusStyles, USDC_DIVISOR } from '@/lib/format';
-import { UP_COLOR, DOWN_COLOR } from '@/lib/constants';
+import { UP_COLOR, DOWN_COLOR, INTERVAL_TAG_IMAGES, INTERVAL_LABELS } from '@/lib/constants';
 import { Countdown } from './Countdown';
 import { AssetIcon } from './AssetIcon';
-
-const INTERVAL_TAG_IMAGES: Record<string, string> = {
-  '1m': '/assets/turbo-tag.png',
-  '5m': '/assets/rapid-tag.png',
-  '15m': '/assets/short-tag.png',
-  '1h': '/assets/hourly-tag.png',
-};
-
-const INTERVAL_LABELS: Record<string, string> = {
-  '1m': 'Turbo 1m',
-  '5m': 'Rapid 5m',
-  '15m': 'Short 15m',
-  '1h': 'Hourly',
-};
 
 interface PoolCardProps {
   pool: Pool;

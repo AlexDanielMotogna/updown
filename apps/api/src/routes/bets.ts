@@ -1,9 +1,10 @@
 import { Router, type Router as RouterType } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db';
-import type { Side, PoolStatus } from '@prisma/client';
 
 import { getFeeBps, DEFAULT_FEE_BPS } from '../utils/fees';
+import { calculatePayout } from '../utils/payout';
+import { serializeBet } from '../utils/serializers';
 
 export const betsRouter: RouterType = Router();
 
@@ -13,78 +14,6 @@ const betsQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(100).default(20),
 });
-
-// Helper to serialize bet with pool info
-function serializeBet(bet: {
-  id: string;
-  poolId: string;
-  walletAddress: string;
-  side: Side;
-  amount: bigint;
-  depositTx: string | null;
-  claimed: boolean;
-  claimTx: string | null;
-  payoutAmount: bigint | null;
-  createdAt: Date;
-  updatedAt: Date;
-  pool: {
-    _count: { bets: number };
-    id: string;
-    poolId: string;
-    asset: string;
-    interval: string;
-    status: PoolStatus;
-    startTime: Date;
-    endTime: Date;
-    strikePrice: bigint | null;
-    finalPrice: bigint | null;
-    totalUp: bigint;
-    totalDown: bigint;
-    winner: Side | null;
-  };
-}, feeBps: number = DEFAULT_FEE_BPS) {
-  const totalPool = bet.pool.totalUp + bet.pool.totalDown;
-  const isWinner = bet.pool.winner === bet.side;
-
-  // Calculate potential/actual payout
-  let payout: string | null = null;
-  if (bet.pool.winner && isWinner) {
-    const winnerPool = bet.side === 'UP' ? bet.pool.totalUp : bet.pool.totalDown;
-    if (winnerPool > 0n) {
-      const share = Number(bet.amount) / Number(winnerPool);
-      const grossPayout = Math.floor(share * Number(totalPool));
-      // No fee if only one bettor in the pool (no counterparty)
-      const fee = bet.pool._count.bets <= 1 ? 0 : Math.floor((grossPayout * feeBps) / 10000);
-      payout = (grossPayout - fee).toString();
-    }
-  }
-
-  return {
-    id: bet.id,
-    poolId: bet.poolId,
-    walletAddress: bet.walletAddress,
-    side: bet.side,
-    amount: bet.amount.toString(),
-    depositTx: bet.depositTx,
-    claimed: bet.claimed,
-    claimTx: bet.claimTx,
-    payoutAmount: bet.payoutAmount?.toString() ?? payout,
-    isWinner: bet.pool.winner ? isWinner : null,
-    createdAt: bet.createdAt.toISOString(),
-    pool: {
-      id: bet.pool.id,
-      poolId: bet.pool.poolId,
-      asset: bet.pool.asset,
-      interval: bet.pool.interval,
-      status: bet.pool.status,
-      startTime: bet.pool.startTime.toISOString(),
-      endTime: bet.pool.endTime.toISOString(),
-      strikePrice: bet.pool.strikePrice?.toString() ?? null,
-      finalPrice: bet.pool.finalPrice?.toString() ?? null,
-      winner: bet.pool.winner,
-    },
-  };
-}
 
 // GET /api/bets - List user's bets
 betsRouter.get('/', async (req, res) => {
@@ -221,16 +150,15 @@ betsRouter.get('/claimable', async (req, res) => {
 
     // Calculate total claimable amount
     const totalClaimable = winningBets.reduce((sum, bet) => {
-      const totalPool = bet.pool.totalUp + bet.pool.totalDown;
-      const winnerPool = bet.side === 'UP' ? bet.pool.totalUp : bet.pool.totalDown;
-      if (winnerPool > 0n) {
-        const share = Number(bet.amount) / Number(winnerPool);
-        const grossPayout = BigInt(Math.floor(share * Number(totalPool)));
-        // No fee if only one bettor in the pool (no counterparty)
-        const fee = bet.pool._count.bets <= 1 ? 0n : (grossPayout * BigInt(feeBps)) / 10000n;
-        return sum + (grossPayout - fee);
-      }
-      return sum;
+      const { payout } = calculatePayout({
+        betAmount: bet.amount,
+        totalUp: bet.pool.totalUp,
+        totalDown: bet.pool.totalDown,
+        side: bet.side,
+        betCount: bet.pool._count.bets,
+        feeBps,
+      });
+      return sum + payout;
     }, 0n);
 
     res.json({

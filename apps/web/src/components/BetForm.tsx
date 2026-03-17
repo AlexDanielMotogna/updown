@@ -25,7 +25,7 @@ import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import type { PoolDetail } from '@/lib/api';
 import { USDC_DIVISOR } from '@/lib/format';
-import { UP_COLOR, DOWN_COLOR, GAIN_COLOR, ACCENT_COLOR, UP_COINS_DIVISOR } from '@/lib/constants';
+import { UP_COLOR, DOWN_COLOR, GAIN_COLOR, ACCENT_COLOR, UP_COINS_DIVISOR, FEE_BPS_DIVISOR, DEFAULT_FEE_PERCENT, UP_COINS_PER_DOLLAR } from '@/lib/constants';
 import { AnimatedValue } from './AnimatedValue';
 
 interface BetFormProps {
@@ -95,10 +95,10 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
   const newTotalSide = side === 'UP' ? totalUp + amountNum : totalDown + amountNum;
   const newTotal = totalUp + totalDown + amountNum;
   const grossPayout = newTotalSide > 0 ? (amountNum / newTotalSide) * newTotal : 0;
-  const feePercent = userProfile ? userProfile.feeBps / 10000 : 0.05;
+  const feePercent = userProfile ? userProfile.feeBps / FEE_BPS_DIVISOR : DEFAULT_FEE_PERCENT;
   const potentialPayout = grossPayout * (1 - feePercent);
   const potentialOdds = amountNum > 0 ? potentialPayout / amountNum : 0;
-  const estimatedCoins = (amountNum * 10 / UP_COINS_DIVISOR); // 0.10 UP per $1
+  const estimatedCoins = (amountNum * UP_COINS_PER_DOLLAR / UP_COINS_DIVISOR);
 
   const currentOddsUp = totalUp + totalDown > 0 ? (totalUp + totalDown) / (totalUp || 1) : 2;
   const currentOddsDown = totalUp + totalDown > 0 ? (totalUp + totalDown) / (totalDown || 1) : 2;
