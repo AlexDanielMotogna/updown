@@ -471,9 +471,10 @@ export function Header() {
                   gap: 0.25,
                   color: active ? '#FFFFFF' : 'text.secondary',
                   fontWeight: active ? 500 : 400,
-                  fontSize: '0.7rem',
-                  py: 1,
+                  fontSize: '0.6rem',
+                  py: 0.5,
                   minWidth: 0,
+                  minHeight: 0,
                   borderRadius: 0,
                   textTransform: 'none',
                   '&:hover': {
@@ -482,7 +483,7 @@ export function Header() {
                   },
                 }}
               >
-                <Icon sx={{ fontSize: 22 }} />
+                <Icon sx={{ fontSize: 18 }} />
                 {item.label}
               </Button>
             </Link>
