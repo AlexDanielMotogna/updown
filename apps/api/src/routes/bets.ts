@@ -32,6 +32,7 @@ function serializeBet(bet: {
     id: string;
     poolId: string;
     asset: string;
+    interval: string;
     status: PoolStatus;
     startTime: Date;
     endTime: Date;
@@ -74,6 +75,7 @@ function serializeBet(bet: {
       id: bet.pool.id,
       poolId: bet.pool.poolId,
       asset: bet.pool.asset,
+      interval: bet.pool.interval,
       status: bet.pool.status,
       startTime: bet.pool.startTime.toISOString(),
       endTime: bet.pool.endTime.toISOString(),
@@ -112,6 +114,7 @@ betsRouter.get('/', async (req, res) => {
               id: true,
               poolId: true,
               asset: true,
+              interval: true,
               status: true,
               startTime: true,
               endTime: true,
@@ -190,6 +193,7 @@ betsRouter.get('/claimable', async (req, res) => {
             id: true,
             poolId: true,
             asset: true,
+            interval: true,
             status: true,
             startTime: true,
             endTime: true,

@@ -8,6 +8,7 @@ import {
   Tabs,
   Tab,
   Alert,
+  Avatar,
   Card,
   CardContent,
   Button,
@@ -19,14 +20,29 @@ import {
   TrendingUp,
   TrendingDown,
   OpenInNew,
+  ContentCopy,
+  CheckCircle,
+  LocalFireDepartment,
+  AttachMoney,
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useInfiniteBets, useClaimableBets, useClaim, useIntersectionObserver } from '@/hooks';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { TransactionModal, AppShell, ConnectWalletButton, Countdown, AssetIcon } from '@/components';
-import { formatUSDC, formatDate, formatPrice, formatDateTime, getExplorerTxUrl, statusStyles, USDC_DIVISOR } from '@/lib/format';
-import { GAIN_COLOR, UP_COLOR, DOWN_COLOR } from '@/lib/constants';
+import { UserLevelBadge } from '@/components/UserLevelBadge';
+import { formatUSDC, formatDate, formatPrice, getExplorerTxUrl, statusStyles, USDC_DIVISOR } from '@/lib/format';
+import { GAIN_COLOR, UP_COLOR, DOWN_COLOR, ACCENT_COLOR, UP_COINS_DIVISOR } from '@/lib/constants';
 import type { Bet } from '@/lib/api';
+
+function getAvatarUrl(address: string): string {
+  return `https://api.dicebear.com/9.x/shapes/svg?seed=${address}`;
+}
+
+function truncateAddress(address: string): string {
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
 
 const ASSET_INTERVAL_BOX_IMAGE: Record<string, string> = {
   'BTC-1m': '/boxes/Btc-1min.png',
@@ -238,22 +254,22 @@ function BetRow({
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
           <Box>
             {bet.pool.strikePrice && bet.pool.finalPrice ? (
-              <Typography sx={{ fontSize: '0.8rem', fontVariantNumeric: 'tabular-nums', color: bet.pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: bet.pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR }}>
                 {formatPrice(bet.pool.strikePrice)} → {formatPrice(bet.pool.finalPrice)}
               </Typography>
             ) : bet.pool.strikePrice ? (
-              <Typography sx={{ fontSize: '0.8rem', fontVariantNumeric: 'tabular-nums' }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                 {formatPrice(bet.pool.strikePrice)}
               </Typography>
             ) : (
-              <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>—</Typography>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: 'text.secondary' }}>—</Typography>
             )}
           </Box>
           <Box>
             {isActive && !isResolving ? (
               <Countdown targetDate={bet.pool.endTime} compact />
             ) : (
-              <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary' }}>
                 {formatDate(bet.pool.endTime)}
               </Typography>
             )}
@@ -373,15 +389,15 @@ function BetRow({
       {/* Price */}
       <Box sx={{ display: { xs: 'none', md: 'block' }, alignSelf: 'center' }}>
         {bet.pool.strikePrice && bet.pool.finalPrice ? (
-          <Typography sx={{ fontSize: '0.8rem', fontVariantNumeric: 'tabular-nums', color: bet.pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR }}>
+          <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: bet.pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR }}>
             {formatPrice(bet.pool.strikePrice)} → {formatPrice(bet.pool.finalPrice)}
           </Typography>
         ) : bet.pool.strikePrice ? (
-          <Typography sx={{ fontSize: '0.8rem', fontVariantNumeric: 'tabular-nums' }}>
+          <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
             {formatPrice(bet.pool.strikePrice)}
           </Typography>
         ) : (
-          <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>—</Typography>
+          <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: 'text.secondary' }}>—</Typography>
         )}
       </Box>
 
@@ -390,12 +406,12 @@ function BetRow({
         {isResolving ? (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <CircularProgress size={12} sx={{ color: '#FBBF24' }} />
-            <Typography sx={{ fontSize: '0.8rem', color: '#FBBF24' }}>Resolving</Typography>
+            <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: '#FBBF24' }}>Resolving</Typography>
           </Box>
         ) : isActive ? (
           <Countdown targetDate={bet.pool.endTime} compact />
         ) : (
-          <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
+          <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: 'text.secondary' }}>
             {formatDate(bet.pool.endTime)}
           </Typography>
         )}
@@ -524,11 +540,14 @@ function BetRowSkeleton() {
 /* ─── Page ─── */
 
 export default function MyBetsPage() {
-  const { connected } = useWalletBridge();
+  const { connected, walletAddress } = useWalletBridge();
+  const { data: userProfile } = useUserProfile();
+  const { data: balance } = useUsdcBalance();
   const [tab, setTab] = useState(0);
   const [claimingBetId, setClaimingBetId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [claimAllProgress, setClaimAllProgress] = useState<{ current: number; total: number } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const {
     data: betsData,
@@ -606,18 +625,18 @@ export default function MyBetsPage() {
 
   const displayBets = tab === 0 ? activeBets : tab === 1 ? resolvedBets : claimedBets;
 
-  // Portfolio stats (computed from all loaded bets)
-  const totalStaked = useMemo(
-    () => bets.reduce((sum, b) => sum + Number(b.amount), 0),
-    [bets],
-  );
   const wonBets = bets.filter((b) => b.isWinner === true && !(b.claimed && b.payoutAmount != null && b.payoutAmount === b.amount));
   const lostBets = bets.filter((b) => b.isWinner === false);
-  const totalPayout = useMemo(
-    () => wonBets.filter((b) => b.payoutAmount).reduce((sum, b) => sum + Number(b.payoutAmount!), 0),
-    [wonBets],
-  );
+  const totalStaked = useMemo(() => bets.reduce((sum, b) => sum + Number(b.amount), 0), [bets]);
+  const totalPayout = useMemo(() => wonBets.filter((b) => b.payoutAmount).reduce((sum, b) => sum + Number(b.payoutAmount!), 0), [wonBets]);
   const hasClaimable = claimable && claimable.summary.count > 0;
+
+  const handleCopy = () => {
+    if (!walletAddress) return;
+    navigator.clipboard.writeText(walletAddress);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const sentinelRef = useIntersectionObserver(
     () => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); },
@@ -626,134 +645,258 @@ export default function MyBetsPage() {
 
   return (
     <AppShell>
-      <Container maxWidth="xl" sx={{ py: { xs: 3, md: 6 } }}>
-        <Typography
-          variant="h3"
-          sx={{ fontWeight: 400, mb: { xs: 3, md: 5 }, fontSize: { xs: '1.75rem', md: undefined } }}
-        >
-          Portfolio
-        </Typography>
-
-        {!connected ? (
-          <Card
+      {/* ─── Stats Row (top, like Hellcase) ─── */}
+      <Box sx={{ bgcolor: '#0B0F14', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+        <Container maxWidth={false} sx={{ px: { xs: 1.5, md: 3 } }}>
+          <Box
             sx={{
-              background: '#0D1219',
-              border: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: { xs: 0.5, md: 0 },
+              py: { xs: 1, md: 1.5 },
             }}
           >
-            <CardContent sx={{ textAlign: 'center', py: 10 }}>
-              <Typography
-                variant="h6"
-                sx={{ color: 'text.secondary', fontWeight: 400, mb: 3 }}
+            {[
+              { value: userProfile?.stats.totalBets ?? 0, label: 'PREDICTIONS', color: UP_COLOR },
+              { value: `${userProfile?.stats.totalWins ?? 0}`, label: 'WINS', color: GAIN_COLOR },
+              { value: `${userProfile?.stats.winRate ?? '0'}%`, label: 'WIN RATE', color: GAIN_COLOR },
+              { value: userProfile?.stats.currentStreak ?? 0, label: 'CURRENT STREAK', color: ACCENT_COLOR },
+              { value: userProfile?.stats.bestStreak ?? 0, label: 'BEST STREAK', color: ACCENT_COLOR },
+            ].map((stat, i) => (
+              <Box
+                key={i}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  flexShrink: 0,
+                }}
               >
-                Connect your wallet to view your predictions
+                <Typography sx={{ fontSize: { xs: '0.7rem', md: '0.8rem' }, fontWeight: 700, color: stat.color, fontVariantNumeric: 'tabular-nums' }}>
+                  {stat.value}
+                </Typography>
+                <Typography sx={{ fontSize: { xs: '0.55rem', md: '0.65rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
+                  {stat.label}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        </Container>
+      </Box>
+
+      {/* ─── Banner ─── */}
+      <Box
+        sx={{
+          width: '100%',
+          height: { xs: 140, sm: 180, md: 240 },
+          backgroundImage: 'url(/Banner/web-banner-1500x300.png)',
+          backgroundSize: 'contain',
+          backgroundPosition: 'center top',
+          backgroundRepeat: 'no-repeat',
+          backgroundColor: '#0B0F14',
+        }}
+      />
+
+      {/* ─── Profile Strip (overlaps banner bottom) ─── */}
+      <Box sx={{ bgcolor: '#0D1219' }}>
+        <Container maxWidth={false} sx={{ px: { xs: 2, md: 3 } }}>
+          {!connected ? (
+            <Box sx={{ textAlign: 'center', py: 8 }}>
+              <Typography sx={{ color: 'text.secondary', fontWeight: 400, mb: 3, fontSize: '1rem' }}>
+                Connect your wallet to view your profile
               </Typography>
               <ConnectWalletButton variant="page" />
-            </CardContent>
-          </Card>
-        ) : (
-          <>
-            {/* Portfolio Stats — always visible */}
+            </Box>
+          ) : (
             <Box
               sx={{
                 display: 'grid',
-                gridTemplateColumns: {
-                  xs: '1fr 1fr',
-                  sm: hasClaimable ? 'repeat(4, 1fr) auto' : 'repeat(4, 1fr)',
-                },
-                gap: '3px',
-                mb: 4,
+                gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: '2.5fr repeat(6, 1fr)' },
+                gap: 0.5,
+                mt: { xs: -3, md: -5 },
+                py: { xs: 1.5, md: 2 },
               }}
             >
-              {/* Total Predictions */}
-              <Box sx={{ px: 2.5, py: 2.5, background: `linear-gradient(135deg, ${UP_COLOR}12, ${UP_COLOR}04)` }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'text.secondary', letterSpacing: '0.08em', mb: 0.5 }}>
-                  PREDICTIONS
-                </Typography>
-                <Typography sx={{ fontSize: '1.75rem', fontWeight: 700, color: 'text.primary', lineHeight: 1 }}>
-                  {bets.length}
-                </Typography>
+              {/* ── Card 1: Avatar + Level + XP (full width on mobile, 2 cols on desktop) ── */}
+              <Box sx={{ gridColumn: { xs: '1 / -1', md: 'auto' }, display: 'flex', alignItems: 'center', gap: { xs: 1.5, md: 2 }, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5 }}>
+                <Box sx={{ position: 'relative', flexShrink: 0 }}>
+                  {walletAddress ? (
+                    <Avatar
+                      src={getAvatarUrl(walletAddress)}
+                      sx={{ width: { xs: 40, md: 56 }, height: { xs: 40, md: 56 } }}
+                    />
+                  ) : (
+                    <Skeleton variant="circular" width={56} height={56} sx={{ bgcolor: 'rgba(255,255,255,0.06)' }} />
+                  )}
+                  {userProfile && (
+                    <Box sx={{ position: 'absolute', bottom: -16, right: -6 }}>
+                      <UserLevelBadge level={userProfile.level} title={userProfile.title} size="sm" variant="icon-only" />
+                    </Box>
+                  )}
+                </Box>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                    <Typography sx={{ fontSize: { xs: '0.85rem', md: '1rem' }, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {walletAddress ? truncateAddress(walletAddress) : ''}
+                    </Typography>
+                    <Box
+                      component="button"
+                      onClick={handleCopy}
+                      sx={{
+                        background: 'none', border: 'none', cursor: 'pointer', p: 0,
+                        display: 'flex', alignItems: 'center', flexShrink: 0,
+                        color: copied ? GAIN_COLOR : 'rgba(255,255,255,0.3)',
+                        '&:hover': { color: '#fff' },
+                      }}
+                    >
+                      {copied ? <CheckCircle sx={{ fontSize: 13 }} /> : <ContentCopy sx={{ fontSize: 13 }} />}
+                    </Box>
+                  </Box>
+                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', mb: 0.5 }}>
+                    {userProfile ? `LVL ${userProfile.level}: ${userProfile.title}` : ''}
+                  </Typography>
+                  {userProfile && (
+                    <Box sx={{ width: '100%' }}>
+                      <Box sx={{ width: '100%', height: 8, borderRadius: 4, bgcolor: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                        <Box sx={{ width: `${Math.max(0, Math.min(100, (userProfile.xpProgress || 0) * 100))}%`, height: '100%', borderRadius: 4, bgcolor: ACCENT_COLOR }} />
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.35)' }}>
+                          XP {(Number(userProfile.totalXp) - Number(userProfile.xpForCurrentLevel)).toLocaleString()}/{(Number(userProfile.xpForNextLevel) - Number(userProfile.xpForCurrentLevel)).toLocaleString()}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.25)' }}>
+                          {userProfile.level + 1} LVL
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
+                </Box>
               </Box>
 
-              {/* Win / Loss */}
-              <Box sx={{ px: 2.5, py: 2.5, background: `linear-gradient(135deg, ${GAIN_COLOR}12, ${GAIN_COLOR}04)` }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'text.secondary', letterSpacing: '0.08em', mb: 0.5 }}>
-                  WIN / LOSS
-                </Typography>
-                <Typography sx={{ fontSize: '1.75rem', fontWeight: 700, lineHeight: 1 }}>
-                  <Box component="span" sx={{ color: GAIN_COLOR }}>{wonBets.length}</Box>
-                  <Box component="span" sx={{ color: 'text.secondary', mx: 0.5 }}>/</Box>
-                  <Box component="span" sx={{ color: DOWN_COLOR }}>{lostBets.length}</Box>
-                </Typography>
+              {/* ── Card 2: Balance ── */}
+              <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
+                <Box>
+                  <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)', mb: 0.25 }}>
+                    Your funds
+                  </Typography>
+                  <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                    $ {balance ? balance.uiAmount.toFixed(2) : '0.00'}
+                  </Typography>
+                </Box>
               </Box>
 
-              {/* Total Staked */}
-              <Box sx={{ px: 2.5, py: 2.5, background: 'linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))' }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'text.secondary', letterSpacing: '0.08em', mb: 0.5 }}>
-                  TOTAL STAKED
-                </Typography>
-                <Typography sx={{ fontSize: '1.75rem', fontWeight: 700, color: 'text.primary', lineHeight: 1 }}>
-                  ${(totalStaked / USDC_DIVISOR).toFixed(0)}
-                </Typography>
+              {/* ── Card 3: UP Coins ── */}
+              <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
+                <Box>
+                  <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)', mb: 0.25 }}>
+                    UP Coins
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                    <Box component="img" src="/token/Token_16px_Gold.png" alt="UP" sx={{ width: { xs: 14, md: 18 }, height: { xs: 14, md: 18 } }} />
+                    <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: ACCENT_COLOR, fontVariantNumeric: 'tabular-nums' }}>
+                      {userProfile ? (Number(userProfile.coinsBalance) / UP_COINS_DIVISOR).toFixed(0) : '0'}
+                    </Typography>
+                  </Box>
+                </Box>
               </Box>
 
-              {/* Total Won */}
-              <Box sx={{ px: 2.5, py: 2.5, background: `linear-gradient(135deg, ${GAIN_COLOR}0A, ${GAIN_COLOR}03)` }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'text.secondary', letterSpacing: '0.08em', mb: 0.5 }}>
-                  TOTAL WON
-                </Typography>
-                <Typography sx={{ fontSize: '1.75rem', fontWeight: 700, color: GAIN_COLOR, lineHeight: 1 }}>
-                  ${(totalPayout / USDC_DIVISOR).toFixed(0)}
-                </Typography>
+              {/* ── Card 4: Predictions ── */}
+              <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
+                <Box>
+                  <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)', mb: 0.25 }}>
+                    Predictions
+                  </Typography>
+                  <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                    {userProfile?.stats.totalBets ?? bets.length}
+                  </Typography>
+                </Box>
               </Box>
 
-              {/* Claim card — only when there are claimable bets */}
-              {hasClaimable && (
-                <Box
+              {/* ── Card 5: Win / Loss ── */}
+              <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
+                <Box>
+                  <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)', mb: 0.25 }}>
+                    Win / Loss
+                  </Typography>
+                  <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                    <Box component="span" sx={{ color: GAIN_COLOR }}>{wonBets.length}</Box>
+                    <Box component="span" sx={{ color: 'rgba(255,255,255,0.3)', mx: 0.5 }}>/</Box>
+                    <Box component="span" sx={{ color: DOWN_COLOR }}>{lostBets.length}</Box>
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* ── Card 6: Total Staked ── */}
+              <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
+                <Box>
+                  <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)', mb: 0.25 }}>
+                    Total Staked
+                  </Typography>
+                  <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                    ${(totalStaked / USDC_DIVISOR).toFixed(0)}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* ── Card 7: Total Won ── */}
+              <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
+                <Box>
+                  <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)', mb: 0.25 }}>
+                    Total Won
+                  </Typography>
+                  <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: GAIN_COLOR, fontVariantNumeric: 'tabular-nums' }}>
+                    ${(totalPayout / USDC_DIVISOR).toFixed(0)}
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+          )}
+        </Container>
+      </Box>
+
+      <Container maxWidth={false} sx={{ pb: { xs: 3, md: 6 }, pt: { xs: 2, md: 3 }, px: { xs: 2, md: 3 } }}>
+        {connected && (
+          <>
+            {/* ─── Claim All Banner ─── */}
+            {hasClaimable && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 2,
+                  px: 3,
+                  py: 2,
+                  mb: 3,
+                  background: `linear-gradient(135deg, ${GAIN_COLOR}20, ${GAIN_COLOR}08)`,
+                }}
+              >
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: GAIN_COLOR }}>
+                  {claimable!.summary.count} TO CLAIM — {formatUSDC(claimable!.summary.totalClaimable, { min: 2 })}
+                </Typography>
+                <Button
+                  variant="contained"
+                  onClick={handleClaimAll}
+                  disabled={claimAllProgress !== null}
                   sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    px: { xs: 2.5, md: 4 },
-                    py: 2.5,
-                    gridColumn: { xs: '1 / -1', sm: 'auto' },
-                    background: `linear-gradient(135deg, ${GAIN_COLOR}20, ${GAIN_COLOR}08)`,
-                    gap: 1,
+                    background: `linear-gradient(135deg, ${GAIN_COLOR}, #16A34A)`,
+                    color: '#000',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    px: 4,
+                    py: 0.75,
+                    textTransform: 'none',
+                    whiteSpace: 'nowrap',
+                    '&:hover': { background: `linear-gradient(135deg, ${GAIN_COLOR}DD, #16A34ADD)` },
+                    '&:disabled': { background: 'rgba(255,255,255,0.2)', color: 'rgba(0,0,0,0.5)' },
                   }}
                 >
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: GAIN_COLOR, letterSpacing: '0.08em', textAlign: 'center' }}>
-                    {claimable!.summary.count} TO CLAIM — {formatUSDC(claimable!.summary.totalClaimable, { min: 2 })}
-                  </Typography>
-                  <Button
-                    variant="contained"
-                    onClick={handleClaimAll}
-                    disabled={claimAllProgress !== null}
-                    sx={{
-                      background: `linear-gradient(135deg, ${GAIN_COLOR}, #16A34A)`,
-                      color: '#000',
-                      fontWeight: 700,
-                      fontSize: '0.85rem',
-                      px: 4,
-                      py: 1,
-                      textTransform: 'none',
-                      whiteSpace: 'nowrap',
-                      '&:hover': {
-                        background: `linear-gradient(135deg, ${GAIN_COLOR}DD, #16A34ADD)`,
-                      },
-                      '&:disabled': {
-                        background: 'rgba(255, 255, 255, 0.2)',
-                        color: 'rgba(0, 0, 0, 0.5)',
-                      },
-                    }}
-                  >
-                    {claimAllProgress
-                      ? `Claiming ${claimAllProgress.current}/${claimAllProgress.total}...`
-                      : 'Claim All'}
-                  </Button>
-                </Box>
-              )}
-            </Box>
+                  {claimAllProgress ? `Claiming ${claimAllProgress.current}/${claimAllProgress.total}...` : 'Claim All'}
+                </Button>
+              </Box>
+            )}
 
             {/* Tabs */}
             <Box
@@ -765,6 +908,8 @@ export default function MyBetsPage() {
               <Tabs
                 value={tab}
                 onChange={handleTabChange}
+                variant="scrollable"
+                scrollButtons={false}
                 sx={{
                   minHeight: 44,
                   '& .MuiTabs-indicator': {
@@ -775,8 +920,8 @@ export default function MyBetsPage() {
                     color: 'text.secondary',
                     fontWeight: 500,
                     textTransform: 'none',
-                    fontSize: '0.85rem',
-                    px: 2.5,
+                    fontSize: { xs: '0.8rem', sm: '0.85rem' },
+                    px: { xs: 1.5, sm: 2.5 },
                     minHeight: 44,
                     minWidth: 'auto',
                     '&.Mui-selected': {

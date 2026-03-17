@@ -34,24 +34,35 @@ interface BetFormProps {
   isSubmitting?: boolean;
   error?: string;
   initialSide?: 'UP' | 'DOWN';
+  /** Controlled side — when provided, BetForm uses this instead of internal state */
+  controlledSide?: 'UP' | 'DOWN';
+  /** Hide the UP/DOWN toggle (when arena handles side selection) */
+  hideToggle?: boolean;
 }
 
-const PRESET_AMOUNTS = [10, 50, 100, 500];
+const PRESET_AMOUNTS = [
+  { value: 10, img: '/assets/button-10dollars.png' },
+  { value: 50, img: '/assets/button-50dollars.png' },
+  { value: 100, img: '/assets/button-100dollars.png' },
+  { value: 500, img: '/assets/button-500dollars.png' },
+];
 
-export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide }: BetFormProps) {
+export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, controlledSide, hideToggle }: BetFormProps) {
   const { connected } = useWalletBridge();
   const { data: balance } = useUsdcBalance();
   const { data: userProfile } = useUserProfile();
-  const [side, setSide] = useState<'UP' | 'DOWN'>(initialSide || 'UP');
+  const [internalSide, setInternalSide] = useState<'UP' | 'DOWN'>(initialSide || 'UP');
   const [amount, setAmount] = useState<string>('');
 
+  const side = controlledSide ?? internalSide;
+
   useEffect(() => {
-    if (initialSide) setSide(initialSide);
+    if (initialSide) setInternalSide(initialSide);
   }, [initialSide]);
 
   const handleSideChange = (_: React.MouseEvent, newSide: 'UP' | 'DOWN' | null) => {
     if (newSide) {
-      setSide(newSide);
+      setInternalSide(newSide);
     }
   };
 
@@ -99,6 +110,7 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide }: Be
   return (
     <Box component="form" onSubmit={handleSubmit}>
       {/* Side Selection — Battle Style */}
+      {!hideToggle && (<>
       <Typography
         variant="caption"
         sx={{ color: 'text.secondary', mb: 1.5, display: 'block', textAlign: 'center', letterSpacing: '0.15em' }}
@@ -271,14 +283,50 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide }: Be
           </Typography>
         </ToggleButton>
       </ToggleButtonGroup>
+      </>)}
+
+      {/* Preset Amounts — image buttons */}
+      <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+        {PRESET_AMOUNTS.map((preset) => {
+          const isActive = amount === preset.value.toString();
+          return (
+            <Box
+              key={preset.value}
+              component={motion.div}
+              {...({ whileTap: { scale: 0.92 } } as Record<string, unknown>)}
+              onClick={() => canInteract && handlePresetClick(preset.value)}
+              sx={{
+                flex: 1,
+                cursor: canInteract ? 'pointer' : 'default',
+                transition: 'all 0.2s ease',
+                opacity: canInteract ? (isActive ? 1 : 0.6) : 0.3,
+                filter: isActive ? `drop-shadow(0 0 8px ${sideColor}40)` : 'none',
+                transform: isActive ? 'translateY(-2px)' : 'none',
+                '&:hover': canInteract ? {
+                  opacity: 1,
+                  transform: 'translateY(-2px)',
+                  filter: `drop-shadow(0 0 6px ${sideColor}30)`,
+                } : {},
+              }}
+            >
+              <Box
+                component="img"
+                src={preset.img}
+                alt={`$${preset.value}`}
+                sx={{ width: '100%', height: 'auto', display: 'block' }}
+              />
+            </Box>
+          );
+        })}
+      </Box>
 
       {/* Amount Input */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, letterSpacing: '0.1em', fontSize: '0.65rem' }}>
           AMOUNT
         </Typography>
         {connected && balance && (
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', fontWeight: 500, textTransform: 'none', letterSpacing: 0, fontSize: '0.7rem' }}>
             Balance: {balance.uiAmount.toFixed(2)} USDC
           </Typography>
         )}
@@ -291,55 +339,29 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide }: Be
         placeholder="0.00"
         disabled={!canInteract}
         InputProps={{
-          startAdornment: <InputAdornment position="start">$</InputAdornment>,
-          endAdornment: <InputAdornment position="end">USDC</InputAdornment>,
+          startAdornment: <InputAdornment position="start"><Typography sx={{ color: sideColor, fontWeight: 600 }}>$</Typography></InputAdornment>,
+          endAdornment: <InputAdornment position="end"><Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem', fontWeight: 500 }}>USDC</Typography></InputAdornment>,
         }}
         sx={{
           mb: 2,
           '& .MuiOutlinedInput-root': {
-            fontSize: '1.25rem',
-            fontWeight: 300,
+            fontSize: '1.5rem',
+            fontWeight: 600,
             backgroundColor: 'rgba(255, 255, 255, 0.02)',
+            borderRadius: 2,
             '& fieldset': {
-              borderColor: 'transparent',
+              borderColor: 'rgba(255,255,255,0.06)',
             },
             '&:hover fieldset': {
-              borderColor: 'rgba(255, 255, 255, 0.1)',
+              borderColor: `${sideColor}30`,
             },
             '&.Mui-focused fieldset': {
-              borderColor: 'rgba(255, 255, 255, 0.15)',
+              borderColor: `${sideColor}40`,
               borderWidth: 1,
             },
           },
         }}
       />
-
-      {/* Preset Amounts */}
-      <Box sx={{ display: 'flex', gap: 1.5, mb: 4 }}>
-        {PRESET_AMOUNTS.map((preset) => (
-          <Button
-            key={preset}
-            variant="text"
-            size="small"
-            onClick={() => handlePresetClick(preset)}
-            disabled={!canInteract}
-            sx={{
-              flex: 1,
-              py: { xs: 0.75, sm: 1 },
-              color: 'text.secondary',
-              fontWeight: 400,
-              bgcolor: 'rgba(255, 255, 255, 0.03)',
-              transition: 'all 0.2s ease',
-              '&:hover': {
-                color: sideColor,
-                bgcolor: `${sideColor}10`,
-              },
-            }}
-          >
-            ${preset}
-          </Button>
-        ))}
-      </Box>
 
       {/* Potential Payout */}
       <AnimatePresence>
@@ -455,7 +477,7 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide }: Be
             {pool.status === 'CLAIMABLE' && (
               <>
                 <AccountBalanceWallet sx={{ fontSize: 18, color: GAIN_COLOR }} />
-                <Typography variant="body2" sx={{ fontWeight: 500, color: GAIN_COLOR }}>Check Portfolio to claim winnings</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 500, color: GAIN_COLOR }}>Check Profile to claim winnings</Typography>
               </>
             )}
           </Box>
@@ -464,10 +486,10 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide }: Be
 
       {/* Submit Button */}
       <motion.div
-        animate={canBet ? { boxShadow: [`0 0 0 0px ${sideColor}40`, `0 0 0 8px ${sideColor}00`, `0 0 0 0px ${sideColor}40`] } : {}}
+        animate={canBet ? { boxShadow: [`0 0 0 0px ${sideColor}40`, `0 0 0 10px ${sideColor}00`, `0 0 0 0px ${sideColor}40`] } : {}}
         transition={canBet ? { duration: 2, repeat: Infinity, ease: 'easeInOut' } : {}}
         whileTap={canBet ? { scale: 0.95 } : undefined}
-        style={{ borderRadius: 4 }}
+        style={{ borderRadius: 12 }}
       >
       <Button
         type="submit"
@@ -477,21 +499,25 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide }: Be
         disabled={!canBet}
         sx={{
           py: 2,
-          fontSize: '1rem',
-          fontWeight: 600,
-          letterSpacing: '0.02em',
+          fontSize: '1.05rem',
+          fontWeight: 700,
+          letterSpacing: '0.08em',
+          borderRadius: 3,
+          textTransform: 'uppercase',
           background: side === 'UP'
             ? `linear-gradient(135deg, ${UP_COLOR}, #16A34A)`
             : `linear-gradient(135deg, ${DOWN_COLOR}, #DC2626)`,
           color: '#000',
+          boxShadow: canBet ? `0 4px 20px ${sideColor}30` : 'none',
           '&:hover': {
             background: side === 'UP'
               ? `linear-gradient(135deg, ${UP_COLOR}DD, #16A34ADD)`
               : `linear-gradient(135deg, ${DOWN_COLOR}DD, #DC2626DD)`,
+            boxShadow: `0 6px 30px ${sideColor}40`,
           },
           '&:disabled': {
-            background: 'rgba(255, 255, 255, 0.1)',
-            color: 'rgba(255, 255, 255, 0.3)',
+            background: 'rgba(255, 255, 255, 0.06)',
+            color: 'rgba(255, 255, 255, 0.25)',
           },
         }}
       >

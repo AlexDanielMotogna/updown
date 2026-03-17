@@ -12,7 +12,9 @@ import {
 } from '@mui/material';
 import { ContentCopy, Logout, CheckCircle } from '@mui/icons-material';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
-import { UP_COLOR, GAIN_COLOR } from '@/lib/constants';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR } from '@/lib/constants';
+import { UserLevelBadge } from './UserLevelBadge';
 
 interface ConnectWalletButtonProps {
   variant?: 'header' | 'page';
@@ -28,6 +30,7 @@ function getAvatarUrl(address: string): string {
 
 export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonProps) {
   const { connected, walletAddress, login, logout } = useWalletBridge();
+  const { data: userProfile } = useUserProfile();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const anchorRef = useRef<HTMLButtonElement>(null);
@@ -47,22 +50,23 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
       <Button
         onClick={login}
         sx={{
-          height,
-          px: isPage ? 3 : 2.5,
-          fontSize: '0.875rem',
+          height: isPage ? '48px' : { xs: '32px', sm: '36px' },
+          px: isPage ? 3 : { xs: 1.5, sm: 2.5 },
+          fontSize: { xs: '0.75rem', sm: '0.875rem' },
           fontWeight: 500,
           backgroundColor: `${UP_COLOR}10`,
           border: 'none',
           borderRadius: '4px',
           color: UP_COLOR,
           transition: 'all 0.2s ease',
+          whiteSpace: 'nowrap',
           '&:hover': {
             backgroundColor: `${UP_COLOR}1A`,
             borderColor: `${UP_COLOR}50`,
           },
         }}
       >
-        Connect Wallet
+        Connect
       </Button>
     );
   }
@@ -82,25 +86,31 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
             ) : undefined
           }
           sx={{
-            height,
-            px: isPage ? 3 : 2.5,
-            fontSize: '0.875rem',
+            height: isPage ? '48px' : { xs: '32px', sm: '36px' },
+            px: isPage ? 3 : { xs: 1, sm: 2.5 },
+            fontSize: { xs: '0.75rem', sm: '0.875rem' },
             fontWeight: 500,
             backgroundColor: open ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.05)',
             border: 'none',
             borderRadius: '4px',
             color: 'text.primary',
             transition: 'all 0.2s ease',
+            minWidth: 0,
             '&:hover': {
               backgroundColor: 'rgba(255, 255, 255, 0.08)',
               borderColor: 'rgba(255, 255, 255, 0.2)',
             },
             '& .MuiButton-startIcon': {
-              mr: 0.75,
+              mr: { xs: 0, sm: 0.75 },
+            },
+            '& .wallet-text': {
+              display: { xs: 'none', sm: 'inline' },
             },
           }}
         >
-          {walletAddress ? truncateAddress(walletAddress) : 'Connected'}
+          <Box component="span" className="wallet-text">
+            {walletAddress ? truncateAddress(walletAddress) : 'Connected'}
+          </Box>
         </Button>
 
         <Popper
@@ -172,6 +182,54 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
                     )}
                   </Button>
                 </Box>
+
+                {/* Level & XP section */}
+                {userProfile && (
+                  <Box
+                    sx={{
+                      px: 2,
+                      py: 1.5,
+                      borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+                      <UserLevelBadge level={userProfile.level} title={userProfile.title} size="md" variant="icon-only" />
+                      <Box>
+                        <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
+                          LVL {userProfile.level}: {userProfile.title}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    {/* XP Progress bar */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box
+                        sx={{
+                          flex: 1,
+                          height: 6,
+                          borderRadius: 3,
+                          bgcolor: 'rgba(255,255,255,0.06)',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            width: `${Math.max(0, Math.min(100, (userProfile.xpProgress || 0) * 100))}%`,
+                            height: '100%',
+                            borderRadius: 3,
+                            bgcolor: ACCENT_COLOR,
+                            transition: 'width 0.3s ease',
+                          }}
+                        />
+                      </Box>
+                      <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', flexShrink: 0 }}>
+                        {userProfile.level + 1} LVL
+                      </Typography>
+                    </Box>
+                    <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', mt: 0.5 }}>
+                      XP {(Number(userProfile.totalXp) - Number(userProfile.xpForCurrentLevel)).toLocaleString()} / {(Number(userProfile.xpForNextLevel) - Number(userProfile.xpForCurrentLevel)).toLocaleString()}
+                    </Typography>
+                  </Box>
+                )}
 
                 {/* Disconnect */}
                 <Button

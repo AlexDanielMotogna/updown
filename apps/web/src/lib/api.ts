@@ -69,6 +69,7 @@ export interface Bet {
     id: string;
     poolId: string;
     asset: string;
+    interval: string;
     status: string;
     startTime: string;
     endTime: string;

@@ -289,6 +289,8 @@ export function LeaderboardTable() {
           <Tabs
             value={sortTab}
             onChange={(_, v) => { setSortTab(v); setPage(1); }}
+            variant="scrollable"
+            scrollButtons={false}
             sx={{
               minHeight: 44,
               '& .MuiTabs-indicator': {
@@ -299,8 +301,8 @@ export function LeaderboardTable() {
                 color: 'text.secondary',
                 fontWeight: 500,
                 textTransform: 'none',
-                fontSize: '0.85rem',
-                px: 2.5,
+                fontSize: { xs: '0.75rem', sm: '0.85rem' },
+                px: { xs: 1.5, sm: 2.5 },
                 minHeight: 44,
                 minWidth: 'auto',
                 gap: 0.75,

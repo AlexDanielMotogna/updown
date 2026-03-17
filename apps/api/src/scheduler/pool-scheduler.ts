@@ -17,6 +17,7 @@ import {
 } from 'solana-client';
 import { getSchedulerConfig, PoolTemplate } from './config';
 import { emitNewPool, emitPoolStatus, emitRefund } from '../websocket';
+import { resetStreak } from '../services/rewards';
 
 const USDC_MINT = new PublicKey(
   process.env.USDC_MINT || 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
@@ -731,6 +732,15 @@ export class PoolScheduler {
         where: { id: pool.id },
         data: { finalPrice, winner },
       });
+
+      // Reset streak for all losers in this pool
+      const losingSide = winner === Side.UP ? Side.DOWN : Side.UP;
+      const losingBets = await prisma.bet.findMany({
+        where: { poolId: pool.id, side: losingSide },
+        select: { walletAddress: true },
+      });
+      const losingWallets = [...new Set(losingBets.map((b) => b.walletAddress))];
+      await Promise.all(losingWallets.map((wallet) => resetStreak(wallet)));
 
       await this.logEvent('POOL_RESOLVED', 'pool', pool.id, {
         strikePrice: strikePrice.toString(),
