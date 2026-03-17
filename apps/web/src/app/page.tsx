@@ -170,19 +170,19 @@ export default function MarketsPage() {
                     overflow: 'hidden',
                     display: 'flex',
                     alignItems: 'center',
-                    minHeight: 110,
-                    px: 2.5,
-                    py: 2,
+                    minHeight: { xs: 90, md: 110 },
+                    px: { xs: 2, md: 2.5 },
+                    py: { xs: 1.5, md: 2 },
                     background: card.gradient,
                     transition: 'background 0.2s ease',
                     '&:hover': { background: 'rgba(255,255,255,0.03)' },
                   }}
                 >
                   <Box sx={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
-                    <Typography sx={{ fontWeight: 800, fontSize: '1rem', mb: 0.5 }}>
+                    <Typography sx={{ fontWeight: 800, fontSize: { xs: '0.9rem', md: '1rem' }, mb: 0.5 }}>
                       {card.title}
                     </Typography>
-                    <Typography sx={{ fontSize: '0.82rem', fontWeight: 500, color: 'text.secondary', lineHeight: 1.5, maxWidth: '70%' }}>
+                    <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.82rem' }, fontWeight: 500, color: 'text.secondary', lineHeight: 1.5, maxWidth: { xs: '80%', md: '70%' } }}>
                       {card.desc}
                     </Typography>
                   </Box>
@@ -195,10 +195,10 @@ export default function MarketsPage() {
                       right: -10,
                       top: '50%',
                       transform: 'translateY(-50%)',
-                      height: '120%',
+                      height: { xs: '100%', md: '120%' },
                       width: 'auto',
                       objectFit: 'contain',
-                      opacity: 0.9,
+                      opacity: { xs: 0.6, md: 0.9 },
                     }}
                   />
                 </Box>
@@ -217,6 +217,8 @@ export default function MarketsPage() {
                 <Tabs
                   value={statusTab}
                   onChange={handleStatusChange}
+                  variant="scrollable"
+                  scrollButtons={false}
                   sx={{
                     minHeight: 44,
                     '& .MuiTabs-indicator': {
@@ -227,8 +229,8 @@ export default function MarketsPage() {
                       color: 'text.secondary',
                       fontWeight: 500,
                       textTransform: 'none',
-                      fontSize: '0.85rem',
-                      px: 2.5,
+                      fontSize: { xs: '0.8rem', sm: '0.85rem' },
+                      px: { xs: 1.5, sm: 2.5 },
                       minHeight: 44,
                       minWidth: 'auto',
                       gap: 0.75,
@@ -269,7 +271,7 @@ export default function MarketsPage() {
 
               {/* Collapsible filter panel */}
               <Collapse in={filtersOpen}>
-                <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, py: 2, flexWrap: 'wrap' }}>
+                <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1, sm: 2 }, py: 2, flexWrap: 'wrap', overflowX: 'auto' }}>
                   <ToggleButtonGroup
                     value={assetFilter}
                     exclusive

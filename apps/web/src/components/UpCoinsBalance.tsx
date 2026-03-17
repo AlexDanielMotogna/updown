@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Typography } from '@mui/material';
-import { ACCENT_COLOR, UP_COINS_DIVISOR } from '@/lib/constants';
+import { UP_COINS_DIVISOR } from '@/lib/constants';
 
 interface UpCoinsBalanceProps {
   balance: string;
@@ -27,20 +27,11 @@ export function UpCoinsBalance({ balance }: UpCoinsBalanceProps) {
       }}
     >
       <Box
-        sx={{
-          width: 16,
-          height: 16,
-          borderRadius: '50%',
-          bgcolor: `${ACCENT_COLOR}30`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Typography sx={{ fontSize: '0.55rem', fontWeight: 800, color: ACCENT_COLOR, lineHeight: 1 }}>
-          UP
-        </Typography>
-      </Box>
+        component="img"
+        src="/token/Token_16px_Gold.png"
+        alt="UP Coin"
+        sx={{ width: 16, height: 16 }}
+      />
       <Typography
         sx={{
           fontSize: '0.85rem',

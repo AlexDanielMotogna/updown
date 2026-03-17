@@ -33,11 +33,10 @@ import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR, DOWN_COLOR } from '@/lib/constants'
 import { useNotificationStore, type Notification, type NotificationSeverity } from '@/stores/notificationStore';
 import { AssetIcon } from './AssetIcon';
 import { UserLevelBadge } from './UserLevelBadge';
-import { UpCoinsBalance } from './UpCoinsBalance';
 
 const NAV_ITEMS = [
   { label: 'Markets', href: '/', icon: ShowChart },
-  { label: 'Portfolio', href: '/bets', icon: WorkOutline },
+  { label: 'Profile', href: '/profile', icon: WorkOutline },
   { label: 'Leaderboard', href: '/leaderboard', icon: EmojiEvents },
 ];
 
@@ -132,34 +131,30 @@ export function Header() {
           alignItems: 'center',
           justifyContent: 'space-between',
           position: 'relative',
-          height: { xs: 56, md: 64 },
-          px: { xs: 2, sm: 3, md: 4 },
+          height: { xs: 56, lg: 64 },
+          px: { xs: 2, sm: 3, lg: 5, xl: 6 },
         }}
       >
         {/* Left: Logo */}
-        <Link href="/" style={{ textDecoration: 'none' }}>
-          <Typography
-            variant="h5"
-            sx={{
-              fontWeight: 600,
-              letterSpacing: '-0.02em',
-              cursor: 'pointer',
-              display: 'flex',
-            }}
-          >
-            <Box component="span" sx={{ color: UP_COLOR }}>
-              Up
-            </Box>
-            <Box component="span" sx={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-              Down
-            </Box>
-          </Typography>
+        <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+          <Box
+            component="img"
+            src="/updown-logos/Logo_48px.png"
+            alt="UpDown"
+            sx={{ display: { xs: 'block', sm: 'none' }, width: 28, height: 28 }}
+          />
+          <Box
+            component="img"
+            src="/updown-logos/Logo_text_white_796x277.png"
+            alt="UpDown"
+            sx={{ display: { xs: 'none', sm: 'block' }, height: { sm: 32, md: 36 } }}
+          />
         </Link>
 
-        {/* Desktop nav — centered */}
+        {/* Desktop nav — centered (only on lg+) */}
         <Box
           sx={{
-            display: { xs: 'none', md: 'flex' },
+            display: { xs: 'none', lg: 'flex' },
             position: 'absolute',
             left: '50%',
             transform: 'translateX(-50%)',
@@ -190,41 +185,81 @@ export function Header() {
           })}
         </Box>
 
-        {/* Right: Hellcase-style bar */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        {/* Right: Hellcase-style compact bar */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 } }}>
           {connected ? (
             <>
-              {/* Balance */}
+              {/* Unified stats bar */}
               <Box
                 sx={{
-                  display: { xs: 'none', sm: 'flex' },
+                  display: 'flex',
                   alignItems: 'center',
-                  gap: 0.75,
                   bgcolor: 'rgba(255,255,255,0.04)',
-                  borderRadius: '4px',
-                  px: 1.5,
-                  height: 36,
+                  borderRadius: '6px',
+                  height: { xs: 34, sm: 38 },
+                  overflow: 'hidden',
                 }}
               >
-                <AttachMoney sx={{ fontSize: 16, color: GAIN_COLOR }} />
-                <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
-                  {balance ? balance.uiAmount.toFixed(2) : '0.00'}
-                </Typography>
+                {/* Level icon */}
+                {userProfile && (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      px: { xs: 0.75, sm: 1 },
+                      height: '100%',
+                      borderRight: '1px solid rgba(255,255,255,0.06)',
+                    }}
+                  >
+                    <UserLevelBadge level={userProfile.level} title={userProfile.title} size="sm" variant="icon-only" />
+                  </Box>
+                )}
+
+                {/* UP Coins */}
+                {userProfile && (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                      px: { xs: 0.75, sm: 1.25 },
+                      height: '100%',
+                      borderRight: '1px solid rgba(255,255,255,0.06)',
+                    }}
+                  >
+                    <Box
+                      component="img"
+                      src="/token/Token_16px_Gold.png"
+                      alt="UP Coin"
+                      sx={{ width: 14, height: 14 }}
+                    />
+                    <Typography sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem' }, fontWeight: 600, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                      {(() => {
+                        const num = Number(userProfile.coinsBalance) / 100;
+                        return num >= 1_000_000 ? `${(num / 1_000_000).toFixed(1)}M`
+                          : num >= 1_000 ? `${(num / 1_000).toFixed(1)}K`
+                          : num.toFixed(0);
+                      })()}
+                    </Typography>
+                  </Box>
+                )}
+
+                {/* USDC Balance */}
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    px: { xs: 0.75, sm: 1.25 },
+                    height: '100%',
+                  }}
+                >
+                  <AttachMoney sx={{ fontSize: 14, color: GAIN_COLOR }} />
+                  <Typography sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem' }, fontWeight: 600, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                    {balance ? balance.uiAmount.toFixed(2) : '0.00'}
+                  </Typography>
+                </Box>
               </Box>
-
-              {/* UP Coins Balance */}
-              {userProfile && (
-                <Box sx={{ display: { xs: 'none', sm: 'flex' } }}>
-                  <UpCoinsBalance balance={userProfile.coinsBalance} />
-                </Box>
-              )}
-
-              {/* Level Badge */}
-              {userProfile && (
-                <Box sx={{ display: { xs: 'none', sm: 'flex' } }}>
-                  <UserLevelBadge level={userProfile.level} title={userProfile.title} size="sm" />
-                </Box>
-              )}
 
               {/* Notifications */}
               <ClickAwayListener onClickAway={handleBellClose}>
@@ -234,11 +269,11 @@ export function Header() {
                     size="small"
                     onClick={handleBellClick}
                     sx={{
-                      bgcolor: bellOpen ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)',
-                      borderRadius: '4px',
-                      width: 36,
-                      height: 36,
-                      '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' },
+                      bgcolor: bellOpen ? 'rgba(255,255,255,0.08)' : 'transparent',
+                      borderRadius: '6px',
+                      width: { xs: 34, sm: 38 },
+                      height: { xs: 34, sm: 38 },
+                      '&:hover': { bgcolor: 'rgba(255,255,255,0.06)' },
                     }}
                   >
                     <Badge
@@ -399,7 +434,7 @@ export function Header() {
                 </Box>
               </ClickAwayListener>
 
-              {/* Profile avatar */}
+              {/* Profile avatar — hide wallet text on small screens */}
               <ConnectWalletButton variant="header" />
             </>
           ) : (
@@ -408,16 +443,17 @@ export function Header() {
         </Box>
       </Box>
 
-      {/* Mobile bottom nav — fixed bar */}
+      {/* Mobile bottom nav — fixed bar (visible below lg) */}
       <Box
         sx={{
-          display: { xs: 'flex', md: 'none' },
+          display: { xs: 'flex', lg: 'none' },
           position: 'fixed',
           bottom: 0,
           left: 0,
           right: 0,
           zIndex: 100,
           backgroundColor: '#0B0F14',
+          borderTop: '1px solid rgba(255,255,255,0.06)',
           justifyContent: 'space-around',
           px: 1,
           pb: 'env(safe-area-inset-bottom)',
