@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Box, Typography, IconButton, InputBase, CircularProgress, useMediaQuery } from '@mui/material';
+import { motion } from 'framer-motion';
 import { VolumeUp, VolumeOff, Close, Send } from '@mui/icons-material';
 import { useMarketAnalysis } from '@/hooks/useMarketAnalysis';
+import { useDraggablePosition } from '@/hooks/useDraggablePosition';
 import type { PacificaPriceData } from '@/hooks/usePacificaPrices';
 import { UP_COLOR } from '@/lib/constants';
 import { BotAvatar, type BotState } from './ai-bot/BotAvatar';
@@ -23,6 +25,8 @@ interface AiAnalyzerBotProps {
 
 export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, priceData }: AiAnalyzerBotProps) {
   const isMobile = useMediaQuery('(max-width:600px)');
+  const bubbleSize = isMobile ? 48 : 56;
+  const { motionProps } = useDraggablePosition('bot-drag-pos', bubbleSize);
   const [botState, setBotState] = useState<BotState>('MINIMIZED');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
@@ -204,52 +208,59 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
 
   if (botState === 'MINIMIZED') {
     return (
-      <Box
-        onClick={handleOpen}
-        sx={{
+      <motion.div
+        {...motionProps}
+        style={{
+          ...motionProps.style,
           position: 'fixed',
-          bottom: isMobile ? 16 : 24,
+          bottom: isMobile ? 'calc(80px + env(safe-area-inset-bottom, 0px))' : 24,
           right: isMobile ? 16 : 24,
-          width: isMobile ? 48 : 56,
-          height: isMobile ? 48 : 56,
-          borderRadius: '50%',
-          backgroundColor: '#111820',
-          border: 'none',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
           zIndex: 1200,
-          boxShadow: `0 0 20px ${CYAN}22`,
-          animation: 'botBreathe 3s ease-in-out infinite, botPulseGlow 2s ease-in-out infinite',
-          transition: 'transform 0.2s ease',
-          '&:hover': { transform: 'scale(1.1)' },
-          '@keyframes botBreathe': {
-            '0%, 100%': { transform: 'scale(1)' },
-            '50%': { transform: 'scale(1.05)' },
-          },
-          '@keyframes botPulseGlow': {
-            '0%, 100%': { boxShadow: `0 0 20px ${CYAN}22` },
-            '50%': { boxShadow: `0 0 30px ${CYAN}44` },
-          },
         }}
       >
-        <BotAvatar size={isMobile ? 30 : 36} state="MINIMIZED" />
-        {hasNewResult && (
-          <Box
-            sx={{
-              position: 'absolute',
-              top: 2,
-              right: 2,
-              width: 10,
-              height: 10,
-              borderRadius: '50%',
-              backgroundColor: CYAN,
-              border: '2px solid #111820',
-            }}
-          />
-        )}
-      </Box>
+        <Box
+          onClick={handleOpen}
+          sx={{
+            width: bubbleSize,
+            height: bubbleSize,
+            borderRadius: '50%',
+            backgroundColor: '#111820',
+            border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: `0 0 20px ${CYAN}22`,
+            animation: 'botBreathe 3s ease-in-out infinite, botPulseGlow 2s ease-in-out infinite',
+            transition: 'transform 0.2s ease',
+            '&:hover': { transform: 'scale(1.1)' },
+            '@keyframes botBreathe': {
+              '0%, 100%': { transform: 'scale(1)' },
+              '50%': { transform: 'scale(1.05)' },
+            },
+            '@keyframes botPulseGlow': {
+              '0%, 100%': { boxShadow: `0 0 20px ${CYAN}22` },
+              '50%': { boxShadow: `0 0 30px ${CYAN}44` },
+            },
+          }}
+        >
+          <BotAvatar size={isMobile ? 30 : 36} state="MINIMIZED" />
+          {hasNewResult && (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 2,
+                right: 2,
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                backgroundColor: CYAN,
+                border: '2px solid #111820',
+              }}
+            />
+          )}
+        </Box>
+      </motion.div>
     );
   }
 
@@ -259,7 +270,7 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
 
   const panelWidth = isMobile ? '100vw' : 360;
   const panelRight = isMobile ? 0 : 24;
-  const panelBottom = isMobile ? 0 : 24;
+  const panelBottom = isMobile ? 'env(safe-area-inset-bottom, 0px)' : 24;
 
   return (
     <Box

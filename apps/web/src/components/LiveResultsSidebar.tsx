@@ -7,6 +7,7 @@ import { TrendingUp, TrendingDown } from '@mui/icons-material';
 import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 import Link from 'next/link';
 import { usePools } from '@/hooks/usePools';
+import { useDraggablePosition } from '@/hooks/useDraggablePosition';
 import { formatUSDC } from '@/lib/format';
 import { UP_COLOR, DOWN_COLOR, GAIN_COLOR, INTERVAL_TAG_IMAGES, INTERVAL_LABELS } from '@/lib/constants';
 import { AssetIcon } from './AssetIcon';
@@ -25,6 +26,7 @@ function timeAgo(dateStr: string): string {
 
 export function LiveResultsSidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { motionProps } = useDraggablePosition('fab-drag-pos', 48);
   const { data } = usePools({ limit: 50 });
   const pools = (data?.data ?? []).filter(
     (p) => (p.status === 'RESOLVED' || p.status === 'CLAIMABLE') &&
@@ -187,30 +189,38 @@ export function LiveResultsSidebar() {
       </Box>
 
       {/* Mobile FAB */}
-      <Fab
-        size="small"
-        onClick={() => setMobileOpen(!mobileOpen)}
-        sx={{
-          display: { xs: 'flex', lg: 'none' },
+      <motion.div
+        {...motionProps}
+        style={{
+          ...motionProps.style,
           position: 'fixed',
-          bottom: 80,
+          bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
           left: 16,
           zIndex: 99,
-          bgcolor: '#111820',
-          border: 'none',
-          color: 'text.primary',
-          fontSize: '0.7rem',
-          fontWeight: 600,
-          width: 48,
-          height: 48,
-          '&:hover': { bgcolor: '#1a2230' },
+          display: 'inline-flex',
         }}
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.25 }}>
-          <LeaderboardIcon sx={{ fontSize: 14, color: GAIN_COLOR }} />
-          <Typography sx={{ fontSize: '0.55rem', fontWeight: 600, lineHeight: 1 }}>LIVE</Typography>
-        </Box>
-      </Fab>
+        <Fab
+          size="small"
+          onClick={() => setMobileOpen(!mobileOpen)}
+          sx={{
+            display: { xs: 'flex', lg: 'none' },
+            bgcolor: '#111820',
+            border: 'none',
+            color: 'text.primary',
+            fontSize: '0.7rem',
+            fontWeight: 600,
+            width: 48,
+            height: 48,
+            '&:hover': { bgcolor: '#1a2230' },
+          }}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.25 }}>
+            <LeaderboardIcon sx={{ fontSize: 14, color: GAIN_COLOR }} />
+            <Typography sx={{ fontSize: '0.55rem', fontWeight: 600, lineHeight: 1 }}>LIVE</Typography>
+          </Box>
+        </Fab>
+      </motion.div>
 
       {/* Mobile bottom sheet */}
       {mobileOpen && (
