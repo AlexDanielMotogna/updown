@@ -3,10 +3,9 @@ import { usePrivy, useWallets } from '@privy-io/react-auth';
 import {
   useSendTransaction,
   useConnectedStandardWallets,
-  useStandardSignAndSendTransaction,
+  useStandardSignTransaction,
 } from '@privy-io/react-auth/solana';
 import { Transaction, PublicKey } from '@solana/web3.js';
-import bs58 from 'bs58';
 import { useSolanaConnection } from '@/app/providers';
 
 export function useWalletBridge() {
@@ -15,7 +14,7 @@ export function useWalletBridge() {
   const { wallets: standardWallets } = useConnectedStandardWallets();
   const connection = useSolanaConnection();
   const { sendTransaction: embeddedSend } = useSendTransaction();
-  const { signAndSendTransaction: standardSignAndSend } = useStandardSignAndSendTransaction();
+  const { signTransaction: standardSign } = useStandardSignTransaction();
 
   // Keep a ref to standardWallets so the sendTransaction callback
   // always sees the latest value (avoids stale closure)
@@ -86,11 +85,11 @@ export function useWalletBridge() {
         const serialized = transaction.serialize({
           requireAllSignatures: false,
         });
-        const { signature } = await standardSignAndSend({
+        const { signedTransaction } = await standardSign({
           transaction: serialized,
           wallet: stdWallet,
         });
-        return bs58.encode(signature);
+        return await connection.sendRawTransaction(signedTransaction);
       }
 
       throw new Error(
@@ -100,7 +99,7 @@ export function useWalletBridge() {
     [
       isEmbedded,
       embeddedSend,
-      standardSignAndSend,
+      standardSign,
       walletAddress,
       connection,
       getAccessToken,
