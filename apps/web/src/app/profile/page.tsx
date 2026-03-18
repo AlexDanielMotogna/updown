@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
   Box,
   Container,
@@ -21,11 +22,18 @@ import { GAIN_COLOR, UP_COLOR } from '@/lib/constants';
 import { BetRow, BetRowSkeleton } from '@/components/profile/BetRow';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 
+const TAB_KEYS = ['active', 'resolved', 'claimed'] as const;
+
 export default function MyBetsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const { connected, walletAddress } = useWalletBridge();
   const { data: userProfile } = useUserProfile();
   const { data: balance } = useUsdcBalance();
-  const [tab, setTab] = useState(0);
+  const tabParam = searchParams.get('tab') ?? 'active';
+  const tabIndex = TAB_KEYS.indexOf(tabParam as typeof TAB_KEYS[number]);
+  const tab = tabIndex >= 0 ? tabIndex : 0;
   const [claimingBetId, setClaimingBetId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [claimAllProgress, setClaimAllProgress] = useState<{ current: number; total: number } | null>(null);
@@ -41,9 +49,17 @@ export default function MyBetsPage() {
   const { data: claimableData } = useClaimableBets();
   const { claim, state: claimState, reset: resetClaim } = useClaim();
 
-  const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
-    setTab(newValue);
-  };
+  const handleTabChange = useCallback((_: React.SyntheticEvent, newValue: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    const key = TAB_KEYS[newValue]!;
+    if (key === 'active') {
+      params.delete('tab');
+    } else {
+      params.set('tab', key);
+    }
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }, [searchParams, router, pathname]);
 
   const handleClaim = async (poolId: string, betId: string) => {
     setClaimingBetId(betId);

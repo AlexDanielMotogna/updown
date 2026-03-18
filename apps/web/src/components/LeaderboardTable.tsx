@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
   Box,
   Typography,
@@ -262,11 +263,22 @@ function LeaderboardRow({
 }
 
 export function LeaderboardTable() {
-  const [sortTab, setSortTab] = useState(0);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const sortOptions: Array<'xp' | 'coins' | 'level'> = ['xp', 'coins', 'level'];
+  const tabParam = searchParams.get('tab') as 'xp' | 'coins' | 'level' | null;
+  const sortTab = tabParam && sortOptions.includes(tabParam) ? sortOptions.indexOf(tabParam) : 0;
   const sort = sortOptions[sortTab]!;
   const [page, setPage] = useState(1);
   const { data, isLoading } = useLeaderboard({ sort, page, limit: 20 });
+
+  const handleTabChange = useCallback((_: unknown, v: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', sortOptions[v]!);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    setPage(1);
+  }, [searchParams, router, pathname, sortOptions]);
 
   const entries = data?.data ?? [];
   const meta = data?.meta;
@@ -284,7 +296,7 @@ export function LeaderboardTable() {
         >
           <Tabs
             value={sortTab}
-            onChange={(_, v) => { setSortTab(v); setPage(1); }}
+            onChange={handleTabChange}
             variant="scrollable"
             scrollButtons={false}
             sx={{

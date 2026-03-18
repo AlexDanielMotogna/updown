@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
   Box,
   Container,
@@ -60,13 +61,31 @@ const HOW_TO_PLAY = [
 ];
 
 export default function MarketsPage() {
-  const [assetFilter, setAssetFilter] = useState('ALL');
-  const [intervalFilter, setIntervalFilter] = useState('ALL');
-  const [statusTab, setStatusTab] = useState(0);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const [filtersOpen, setFiltersOpen] = useState(false);
 
+  // Read filters from URL (fallback to defaults)
+  const statusParam = searchParams.get('status') ?? 'all';
+  const statusTab = STATUSES.findIndex((s) => s.toLowerCase() === statusParam.toLowerCase());
+  const safeStatusTab = statusTab >= 0 ? statusTab : 0;
+  const assetFilter = ASSETS.includes(searchParams.get('asset') ?? '') ? searchParams.get('asset')! : 'ALL';
+  const intervalFilter = INTERVAL_OPTIONS.includes(searchParams.get('interval') ?? '') ? searchParams.get('interval')! : 'ALL';
+
+  const updateParam = useCallback((key: string, value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === 'ALL' || value === 'all') {
+      params.delete(key);
+    } else {
+      params.set(key, value);
+    }
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }, [searchParams, router, pathname]);
+
   // "ALL" tab shows JOINING + ACTIVE pools; other tabs filter to a single status
-  const selectedStatus = statusTab === 0 ? 'JOINING,ACTIVE' : STATUSES[statusTab];
+  const selectedStatus = safeStatusTab === 0 ? 'JOINING,ACTIVE' : STATUSES[safeStatusTab];
 
   // Memoize filters to prevent unnecessary re-renders and WebSocket re-subscriptions
   const filters = useMemo(() => ({
@@ -126,15 +145,15 @@ export default function MarketsPage() {
   );
 
   const handleAssetChange = (_: React.MouseEvent, newAsset: string | null) => {
-    if (newAsset) setAssetFilter(newAsset);
+    if (newAsset) updateParam('asset', newAsset);
   };
 
   const handleIntervalChange = (_: React.MouseEvent, newInterval: string | null) => {
-    if (newInterval) setIntervalFilter(newInterval);
+    if (newInterval) updateParam('interval', newInterval);
   };
 
   const handleStatusChange = (_: React.SyntheticEvent, newValue: number) => {
-    setStatusTab(newValue);
+    updateParam('status', STATUSES[newValue]!.toLowerCase());
   };
 
   // Filters are now fully handled server-side; use sorted list with popular pools first
@@ -211,7 +230,7 @@ export default function MarketsPage() {
                 }}
               >
                 <Tabs
-                  value={statusTab}
+                  value={safeStatusTab}
                   onChange={handleStatusChange}
                   variant="scrollable"
                   scrollButtons={false}
