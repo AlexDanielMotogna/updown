@@ -17,6 +17,7 @@
     "@privy-io/react-auth": "^2.12.1",
     "@solana/web3.js": "^1.87.0",
     "@tanstack/react-query": "^5.0.0",
+    "bs58": "^6.0.0",
     "canvas-confetti": "^1.9.4",
     "framer-motion": "^12.34.5",
     "next": "^14.0.0",
