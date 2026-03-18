@@ -3,31 +3,32 @@
 import { Box, Typography } from '@mui/material';
 import { ACCENT_COLOR, UP_COLOR, GAIN_COLOR } from '@/lib/constants';
 
-// Level tier colors
+// Level tier colors — 10 tiers across 40 levels (4 levels each)
 function getTierColor(level: number): string {
-  if (level <= 10) return 'rgba(255,255,255,0.5)';
-  if (level <= 20) return UP_COLOR;
-  if (level <= 30) return GAIN_COLOR;
-  if (level <= 40) return ACCENT_COLOR;
-  if (level <= 50) return '#A78BFA'; // purple
-  if (level <= 60) return '#F472B6'; // pink
-  if (level <= 70) return '#FB923C'; // orange
-  if (level <= 80) return '#F43F5E'; // rose
-  if (level <= 90) return '#E879F9'; // fuchsia
-  return '#FACC15'; // gold for 91-100
+  if (level <= 4) return 'rgba(255,255,255,0.5)';
+  if (level <= 8) return UP_COLOR;
+  if (level <= 12) return GAIN_COLOR;
+  if (level <= 16) return ACCENT_COLOR;
+  if (level <= 20) return '#A78BFA'; // purple
+  if (level <= 24) return '#F472B6'; // pink
+  if (level <= 28) return '#FB923C'; // orange
+  if (level <= 32) return '#F43F5E'; // rose
+  if (level <= 36) return '#E879F9'; // fuchsia
+  return '#FACC15'; // gold for 37-40
 }
 
+// 10 icons distributed across 40 levels (4 levels per icon)
 function getLevelIcon(level: number): string {
-  if (level <= 10) return '/Level/Level_icons-1-10.png';
-  if (level <= 20) return '/Level/Level_icons-10-20.png';
-  if (level <= 30) return '/Level/Level_icons-20-30.png';
-  if (level <= 40) return '/Level/Level_icons-30-40.png';
-  if (level <= 50) return '/Level/Level_icons-40-50.png';
-  if (level <= 60) return '/Level/Level_icons-50-60.png';
-  if (level <= 70) return '/Level/Level_icons-60-70.png';
-  if (level <= 80) return '/Level/Level_icons-70-80.png';
-  if (level <= 90) return '/Level/Level_icons-80-90.png';
-  return '/Level/Level_icons-90-100.png';
+  if (level <= 4) return '/Level/Level_1-4.png';
+  if (level <= 8) return '/Level/Level_5-8.png';
+  if (level <= 12) return '/Level/Level_9-12.png';
+  if (level <= 16) return '/Level/Level_13-16.png';
+  if (level <= 20) return '/Level/Level_17-20.png';
+  if (level <= 24) return '/Level/Level_21-24.png';
+  if (level <= 28) return '/Level/Level_25-28.png';
+  if (level <= 32) return '/Level/Level_29-32.png';
+  if (level <= 36) return '/Level/Level_33-36.png';
+  return '/Level/Level_37-40.png';
 }
 
 interface UserLevelBadgeProps {
