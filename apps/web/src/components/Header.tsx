@@ -147,7 +147,7 @@ export function Header() {
                         const num = Number(userProfile.coinsBalance) / UP_COINS_DIVISOR;
                         return num >= 1_000_000 ? `${(num / 1_000_000).toFixed(1)}M`
                           : num >= 1_000 ? `${(num / 1_000).toFixed(1)}K`
-                          : num.toFixed(0);
+                          : num.toFixed(1);
                       })()}
                     </Typography>
                   </Box>

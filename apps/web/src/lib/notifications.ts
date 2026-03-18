@@ -1,4 +1,5 @@
 import type { NotificationType, NotificationSeverity, NotificationInput } from '@/stores/notificationStore';
+import { UP_COINS_DIVISOR } from '@/lib/constants';
 
 interface NotificationDef {
   severity: NotificationSeverity;
@@ -91,7 +92,7 @@ export const NOTIFICATION_DEFS: Record<NotificationType, NotificationDef> = {
     severity: 'info',
     autoHideDuration: 4000,
     build: (ctx) => ({
-      title: `+${ctx.coins} UP Coins`,
+      title: `+${(Number(ctx.coins) / UP_COINS_DIVISOR).toFixed(2)} UP Coins`,
       message: 'Keep betting to earn more!',
     }),
   },
