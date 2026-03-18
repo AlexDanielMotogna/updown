@@ -15,9 +15,12 @@ const priceCache = new Map<string, { price: string; timestamp: number }>();
  * Initialize Socket.io server
  */
 export function initWebSocket(httpServer: HttpServer): Server {
+  const wsOrigin = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
+    : ['http://localhost:3000', 'http://127.0.0.1:3000'];
   io = new Server(httpServer, {
     cors: {
-      origin: process.env.CORS_ORIGIN || ['http://localhost:3000', 'http://127.0.0.1:3000'],
+      origin: wsOrigin,
       methods: ['GET', 'POST'],
       credentials: true,
     },

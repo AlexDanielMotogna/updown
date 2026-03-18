@@ -17,8 +17,11 @@ const httpServer = createServer(app);
 const PORT = process.env.PORT || 3002;
 
 // Middleware
+const corsOrigin = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
+  : 'http://localhost:3000';
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: corsOrigin,
   credentials: true,
 }));
 app.use(express.json());
