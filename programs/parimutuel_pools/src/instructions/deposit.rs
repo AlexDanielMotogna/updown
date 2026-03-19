@@ -15,7 +15,7 @@ pub struct Deposit<'info> {
     pub pool: Account<'info, Pool>,
 
     #[account(
-        init,
+        init_if_needed,
         payer = user,
         space = 8 + UserBet::INIT_SPACE,
         seeds = [UserBet::SEED_PREFIX, pool.key().as_ref(), user.key().as_ref()],
@@ -75,14 +75,21 @@ pub fn handler(ctx: Context<Deposit>, side: Side, amount: u64) -> Result<()> {
         }
     }
 
-    // Initialize user bet
+    // Initialize or accumulate user bet
     let user_bet = &mut ctx.accounts.user_bet;
-    user_bet.pool = pool.key();
-    user_bet.user = ctx.accounts.user.key();
-    user_bet.side = side;
-    user_bet.amount = amount;
-    user_bet.claimed = false;
-    user_bet.bump = ctx.bumps.user_bet;
+    if user_bet.user == Pubkey::default() {
+        // New bet — initialize all fields
+        user_bet.pool = pool.key();
+        user_bet.user = ctx.accounts.user.key();
+        user_bet.side = side;
+        user_bet.amount = amount;
+        user_bet.claimed = false;
+        user_bet.bump = ctx.bumps.user_bet;
+    } else {
+        // Existing bet — must be same side
+        require!(user_bet.side == side, PoolError::SideMismatch);
+        user_bet.amount = user_bet.amount.checked_add(amount).ok_or(PoolError::Overflow)?;
+    }
 
     emit!(Deposited {
         pool_id: pool.pool_id,

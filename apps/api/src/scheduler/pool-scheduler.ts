@@ -3,7 +3,6 @@ import { PrismaClient, PoolStatus } from '@prisma/client';
 import { Keypair } from '@solana/web3.js';
 import { PacificaProvider } from 'market-data';
 import { getSchedulerConfig } from './config';
-import { emitPoolStatus } from '../websocket';
 import { PoolCreator } from './pool-creator';
 import { PoolResolver } from './pool-resolver';
 import { getConnection, getAuthorityKeypair } from '../utils/solana';
@@ -35,9 +34,9 @@ export class PoolScheduler {
     }
 
     const connection = getConnection();
-    const deps = { prisma, connection, wallet: this.wallet };
+    const deps = { prisma, connection, wallet: this.wallet, priceProvider: this.priceProvider };
     this.creator = new PoolCreator(deps);
-    this.resolver = new PoolResolver({ ...deps, priceProvider: this.priceProvider });
+    this.resolver = new PoolResolver(deps);
   }
 
   /**
@@ -81,6 +80,7 @@ export class PoolScheduler {
         this.processStatusTransitions(),
         this.resolver.processResolutions(),
         this.resolver.processClaimableTransitions(),
+        this.resolver.processPoolClosures(),
       ]);
     });
     this.jobs.push(transitionJob);
@@ -116,97 +116,31 @@ export class PoolScheduler {
   }
 
   /**
-   * Process JOINING → ACTIVE transitions (at lock_time, capture strike price).
+   * Create successor pools when current pool's lockTime passes.
+   * No more ACTIVE transition — pools go JOINING → RESOLVED directly.
    */
   async processStatusTransitions(): Promise<void> {
     const now = new Date();
-    const poolsToActivate = await prisma.pool.findMany({
+    const lockedPools = await prisma.pool.findMany({
       where: {
         status: PoolStatus.JOINING,
         lockTime: { lte: now },
       },
+      select: { id: true, asset: true, interval: true },
     });
 
-    await Promise.all(
-      poolsToActivate.map((pool) => this.activatePool(pool.id, pool.asset, pool.interval))
-    );
-  }
-
-  /**
-   * Activate a pool: capture strike price, transition to ACTIVE,
-   * then immediately create the successor JOINING pool.
-   */
-  private async activatePool(poolId: string, asset: string, interval: string | null): Promise<void> {
-    const claimed = await prisma.pool.updateMany({
-      where: { id: poolId, status: PoolStatus.JOINING },
-      data: { status: PoolStatus.ACTIVE },
-    });
-    if (claimed.count === 0) return;
-
-    // Kick off successor creation in parallel
-    let successorPromise: Promise<void> | null = null;
-    if (interval) {
-      const config = getSchedulerConfig();
+    const config = getSchedulerConfig();
+    for (const pool of lockedPools) {
+      if (!pool.interval) continue;
       const template = config.templates.find(
-        (t) => t.asset === asset && t.intervalKey === interval
+        (t) => t.asset === pool.asset && t.intervalKey === pool.interval
       );
       if (template) {
-        successorPromise = this.creator.ensureJoiningPool(template).catch((err) =>
-          console.error(`[Scheduler] Failed to create successor for ${asset}/${interval}:`, err)
+        await this.creator.ensureJoiningPool(template).catch((err) =>
+          console.error(`[Scheduler] Failed to create successor for ${pool.asset}/${pool.interval}:`, err)
         );
       }
     }
-
-    try {
-      const priceTick = await this.priceProvider.getSpotPrice(asset);
-      const strikePrice = priceTick.price;
-
-      await Promise.all([
-        prisma.pool.update({
-          where: { id: poolId },
-          data: { strikePrice },
-        }),
-        prisma.priceSnapshot.create({
-          data: {
-            poolId,
-            type: 'STRIKE',
-            price: strikePrice,
-            timestamp: priceTick.timestamp,
-            source: priceTick.source,
-            rawHash: priceTick.rawHash || '',
-          },
-        }),
-        prisma.eventLog.create({
-          data: {
-            eventType: 'POOL_ACTIVATED',
-            entityType: 'pool',
-            entityId: poolId,
-            payload: {
-              strikePrice: strikePrice.toString(),
-              source: priceTick.source,
-            },
-          },
-        }),
-      ]);
-
-      emitPoolStatus(poolId, {
-        id: poolId,
-        status: 'ACTIVE',
-        strikePrice: strikePrice.toString(),
-      });
-
-      console.log(`[Scheduler] Pool ${poolId} → ACTIVE with strike price: ${strikePrice}`);
-    } catch (error) {
-      console.error(`[Scheduler] Failed to capture strike price for pool ${poolId}, reverting to JOINING:`, error);
-      await prisma.pool.update({
-        where: { id: poolId },
-        data: { status: PoolStatus.JOINING },
-      }).catch((revertErr) =>
-        console.error(`[Scheduler] Failed to revert pool ${poolId} to JOINING:`, revertErr)
-      );
-    }
-
-    if (successorPromise) await successorPromise;
   }
 
   /**

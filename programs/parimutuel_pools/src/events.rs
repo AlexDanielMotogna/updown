@@ -9,6 +9,7 @@ pub struct PoolCreated {
     pub start_time: i64,
     pub end_time: i64,
     pub lock_time: i64,
+    pub strike_price: u64,
 }
 
 #[event]
@@ -46,4 +47,11 @@ pub struct Refunded {
     pub user: Pubkey,
     pub amount: u64,
     pub side: Side,
+}
+
+#[event]
+pub struct PoolClosed {
+    pub pool_id: [u8; 32],
+    pub authority: Pubkey,
+    pub rent_reclaimed: u64,
 }

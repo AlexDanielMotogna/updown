@@ -50,15 +50,15 @@ export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData,
       <Box
         sx={{
           display: { xs: 'none', md: 'grid' },
-          gridTemplateColumns: '110px minmax(180px, 2fr) 110px 140px 100px 110px 60px 150px',
+          gridTemplateColumns: '110px minmax(180px, 2fr) 110px 140px 100px 110px 60px 130px 40px',
           pr: 2,
           pl: 0,
           py: 1,
           bgcolor: '#0D1219',
         }}
       >
-        {['', 'Asset', 'Countdown', 'Distribution', 'Pool Size', 'Odds', 'Players', 'Action'].map((h, i) => (
-          <Typography key={i} variant="caption" sx={{ color: 'text.secondary', fontSize: '12px', fontWeight: 600, letterSpacing: '0.08em' }}>
+        {['', 'Asset', 'Countdown', 'Distribution', 'Pool Size', 'Odds', 'Players', 'Action', ''].map((h, i) => (
+          <Typography key={i} variant="caption" sx={{ color: 'text.secondary', fontSize: '12px', fontWeight: 600, letterSpacing: '0.08em', ...(h === 'Action' && { textAlign: 'center' }) }}>
             {h}
           </Typography>
         ))}

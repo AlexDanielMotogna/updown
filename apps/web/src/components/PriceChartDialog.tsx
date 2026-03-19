@@ -14,7 +14,8 @@ import {
 } from '@mui/material';
 import { Close, ShowChart, CandlestickChart } from '@mui/icons-material';
 import { usePacificaCandles, type Candle } from '@/hooks';
-import { UP_COLOR, DOWN_COLOR } from '@/lib/constants';
+import { UP_COLOR, DOWN_COLOR, ACCENT_COLOR } from '@/lib/constants';
+import { USDC_DIVISOR } from '@/lib/format';
 
 type ChartType = 'line' | 'candles';
 
@@ -22,6 +23,8 @@ interface PriceChartDialogProps {
   open: boolean;
   onClose: () => void;
   asset: string;
+  livePrice?: string | null;
+  strikePrice?: string | null;
 }
 
 const INTERVALS = [
@@ -187,28 +190,44 @@ function ChartAxes({ dims, yTicks, xTicks, duration }: AxesProps) {
 interface ChartProps {
   candles: Candle[];
   duration: number;
+  livePrice?: number | null;
+  strikePrice?: number | null;
 }
 
-function LineChart({ candles, duration }: ChartProps) {
+function smoothPath(points: { x: number; y: number }[]): string {
+  if (points.length === 0) return '';
+  if (points.length === 1) return `M${points[0].x},${points[0].y}`;
+  let d = `M${points[0].x.toFixed(1)},${points[0].y.toFixed(1)}`;
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const cpx = (prev.x + curr.x) / 2;
+    d += ` C${cpx.toFixed(1)},${prev.y.toFixed(1)} ${cpx.toFixed(1)},${curr.y.toFixed(1)} ${curr.x.toFixed(1)},${curr.y.toFixed(1)}`;
+  }
+  return d;
+}
+
+function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
   const layout = useChartLayout(candles, 'line');
   const { containerRef, dims, parsed, chartH, toX, toY, yTicks, xTicks, hoverIndex, hoverY, hoverPrice, handleMouseMove, handleMouseLeave } = layout;
 
   const closes = useMemo(() => parsed.map((p) => p.c), [parsed]);
   const times = useMemo(() => parsed.map((p) => p.t), [parsed]);
 
-  const linePath = useMemo(() => {
-    if (closes.length === 0) return '';
-    return closes.map((p, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(p).toFixed(1)}`).join(' ');
-  }, [closes, toX, toY]);
+  const points = useMemo(() => closes.map((p, i) => ({ x: toX(i), y: toY(p) })), [closes, toX, toY]);
+
+  const linePath = useMemo(() => smoothPath(points), [points]);
 
   const areaPath = useMemo(() => {
-    if (closes.length === 0) return '';
+    if (points.length === 0) return '';
     const bottom = PADDING.top + chartH;
-    return `${linePath} L${toX(closes.length - 1).toFixed(1)},${bottom} L${toX(0).toFixed(1)},${bottom} Z`;
-  }, [linePath, closes.length, toX, chartH]);
+    return `${linePath} L${points[points.length - 1].x.toFixed(1)},${bottom} L${points[0].x.toFixed(1)},${bottom} Z`;
+  }, [linePath, points, chartH]);
 
   const isUp = closes.length > 1 ? closes[closes.length - 1] >= closes[0] : true;
   const lineColor = isUp ? UP_COLOR : DOWN_COLOR;
+
+  const lastPoint = points.length > 0 ? points[points.length - 1] : null;
 
   const hoverData = hoverIndex !== null && hoverIndex < closes.length
     ? { price: closes[hoverIndex], time: times[hoverIndex], x: toX(hoverIndex), y: toY(closes[hoverIndex]) }
@@ -226,12 +245,48 @@ function LineChart({ candles, duration }: ChartProps) {
 
         <ChartAxes dims={dims} yTicks={yTicks} xTicks={xTicks} duration={duration} />
 
+        {/* Strike price line */}
+        {strikePrice != null && (() => {
+          const sy = toY(strikePrice);
+          if (sy >= PADDING.top && sy <= PADDING.top + chartH) {
+            return (
+              <>
+                <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={sy} y2={sy} stroke={ACCENT_COLOR} strokeWidth={1} strokeDasharray="6,4" strokeOpacity={0.5} />
+                <rect x={dims.width - PADDING.right + 1} y={sy - 9} width={PADDING.right - 4} height={18} rx={2} fill={`${ACCENT_COLOR}30`} />
+                <text x={dims.width - PADDING.right + 8} y={sy + 4} fill={ACCENT_COLOR} fontSize={9} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={600}>
+                  {formatChartPrice(strikePrice)}
+                </text>
+              </>
+            );
+          }
+          return null;
+        })()}
+
         {areaPath && <path d={areaPath} fill="url(#line-area-grad)" />}
-        {linePath && <path d={linePath} fill="none" stroke={lineColor} strokeWidth={1.5} />}
+        {linePath && <path d={linePath} fill="none" stroke={lineColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />}
+
+        {/* Live price line + label on Y axis */}
+        {livePrice != null && lastPoint && (() => {
+          const ly = toY(livePrice);
+          if (ly >= PADDING.top && ly <= PADDING.top + chartH) {
+            return (
+              <>
+                <line x1={lastPoint.x} x2={dims.width - PADDING.right} y1={ly} y2={ly} stroke={lineColor} strokeWidth={1} strokeDasharray="3,3" strokeOpacity={0.6} />
+                <circle cx={lastPoint.x} cy={lastPoint.y} r={3.5} fill={lineColor} stroke="#111820" strokeWidth={2}>
+                  <animate attributeName="r" values="3.5;5;3.5" dur="2s" repeatCount="indefinite" />
+                </circle>
+                <rect x={dims.width - PADDING.right + 1} y={ly - 10} width={PADDING.right - 4} height={20} rx={3} fill={lineColor} />
+                <text x={dims.width - PADDING.right + 8} y={ly + 4} fill="#000" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700}>
+                  {formatChartPrice(livePrice)}
+                </text>
+              </>
+            );
+          }
+          return null;
+        })()}
 
         {hoverData && (
           <>
-            {/* Vertical crosshair */}
             <line x1={hoverData.x} x2={hoverData.x} y1={PADDING.top} y2={PADDING.top + chartH} stroke="rgba(255,255,255,0.2)" strokeWidth={1} strokeDasharray="3,3" />
             <circle cx={hoverData.x} cy={hoverData.y} r={4} fill={lineColor} stroke="#111820" strokeWidth={2} />
           </>
@@ -241,7 +296,6 @@ function LineChart({ candles, duration }: ChartProps) {
         {hoverY !== null && hoverPrice !== null && (
           <>
             <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={hoverY} y2={hoverY} stroke="rgba(255,255,255,0.25)" strokeWidth={1} strokeDasharray="3,3" />
-            {/* Price label on right axis */}
             <rect x={dims.width - PADDING.right + 1} y={hoverY - 10} width={PADDING.right - 4} height={20} rx={3} fill="rgba(255,255,255,0.12)" />
             <text x={dims.width - PADDING.right + 8} y={hoverY + 4} fill="#FFFFFF" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={500}>
               {formatChartPrice(hoverPrice)}
@@ -266,7 +320,7 @@ function LineChart({ candles, duration }: ChartProps) {
 
 // --- Candlestick chart ---
 
-function CandlesChart({ candles, duration }: ChartProps) {
+function CandlesChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
   const layout = useChartLayout(candles, 'candles');
   const { containerRef, dims, parsed, chartW, chartH, toX, toY, yTicks, xTicks, hoverIndex, hoverY, hoverPrice, handleMouseMove, handleMouseLeave } = layout;
 
@@ -282,6 +336,23 @@ function CandlesChart({ candles, duration }: ChartProps) {
       <svg width={dims.width} height={dims.height} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} style={{ display: 'block' }}>
         <ChartAxes dims={dims} yTicks={yTicks} xTicks={xTicks} duration={duration} />
 
+        {/* Strike price line */}
+        {strikePrice != null && (() => {
+          const sy = toY(strikePrice);
+          if (sy >= PADDING.top && sy <= PADDING.top + chartH) {
+            return (
+              <>
+                <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={sy} y2={sy} stroke={ACCENT_COLOR} strokeWidth={1} strokeDasharray="6,4" strokeOpacity={0.5} />
+                <rect x={dims.width - PADDING.right + 1} y={sy - 9} width={PADDING.right - 4} height={18} rx={2} fill={`${ACCENT_COLOR}30`} />
+                <text x={dims.width - PADDING.right + 8} y={sy + 4} fill={ACCENT_COLOR} fontSize={9} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={600}>
+                  {formatChartPrice(strikePrice)}
+                </text>
+              </>
+            );
+          }
+          return null;
+        })()}
+
         {parsed.map((c, i) => {
           const x = toX(i);
           const isUp = c.c >= c.o;
@@ -295,22 +366,30 @@ function CandlesChart({ candles, duration }: ChartProps) {
 
           return (
             <g key={i}>
-              {/* Wick */}
               <line x1={x} x2={x} y1={wickTop} y2={wickBottom} stroke={color} strokeWidth={1} />
-              {/* Body */}
-              <rect
-                x={x - half}
-                y={bodyTop}
-                width={candleWidth}
-                height={bodyHeight}
-                fill={isUp ? color : color}
-                fillOpacity={isUp ? 0.25 : 0.8}
-                stroke={color}
-                strokeWidth={1}
-              />
+              <rect x={x - half} y={bodyTop} width={candleWidth} height={bodyHeight} fill={color} fillOpacity={isUp ? 0.25 : 0.8} stroke={color} strokeWidth={1} />
             </g>
           );
         })}
+
+        {/* Live price line + label */}
+        {livePrice != null && (() => {
+          const ly = toY(livePrice);
+          const lastX = parsed.length > 0 ? toX(parsed.length - 1) : PADDING.left;
+          const lvColor = parsed.length > 1 ? (parsed[parsed.length - 1].c >= parsed[0].c ? UP_COLOR : DOWN_COLOR) : UP_COLOR;
+          if (ly >= PADDING.top && ly <= PADDING.top + chartH) {
+            return (
+              <>
+                <line x1={lastX} x2={dims.width - PADDING.right} y1={ly} y2={ly} stroke={lvColor} strokeWidth={1} strokeDasharray="3,3" strokeOpacity={0.6} />
+                <rect x={dims.width - PADDING.right + 1} y={ly - 10} width={PADDING.right - 4} height={20} rx={3} fill={lvColor} />
+                <text x={dims.width - PADDING.right + 8} y={ly + 4} fill="#000" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700}>
+                  {formatChartPrice(livePrice)}
+                </text>
+              </>
+            );
+          }
+          return null;
+        })()}
 
         {/* Vertical crosshair */}
         {hoverCandle && hoverIndex !== null && (
@@ -321,7 +400,6 @@ function CandlesChart({ candles, duration }: ChartProps) {
         {hoverY !== null && hoverPrice !== null && (
           <>
             <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={hoverY} y2={hoverY} stroke="rgba(255,255,255,0.25)" strokeWidth={1} strokeDasharray="3,3" />
-            {/* Price label on right axis */}
             <rect x={dims.width - PADDING.right + 1} y={hoverY - 10} width={PADDING.right - 4} height={20} rx={3} fill="rgba(255,255,255,0.12)" />
             <text x={dims.width - PADDING.right + 8} y={hoverY + 4} fill="#FFFFFF" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={500}>
               {formatChartPrice(hoverPrice)}
@@ -360,7 +438,9 @@ function CandlesChart({ candles, duration }: ChartProps) {
 
 // --- Dialog ---
 
-export function PriceChartDialog({ open, onClose, asset }: PriceChartDialogProps) {
+export function PriceChartDialog({ open, onClose, asset, livePrice: livePriceStr, strikePrice: strikePriceStr }: PriceChartDialogProps) {
+  const livePriceNum = livePriceStr ? Number(livePriceStr) : null;
+  const strikePriceNum = strikePriceStr ? Number(strikePriceStr) / USDC_DIVISOR : null;
   const [intervalIdx, setIntervalIdx] = useState(3); // default 15m
   const [chartType, setChartType] = useState<ChartType>('line');
 
@@ -508,8 +588,8 @@ export function PriceChartDialog({ open, onClose, asset }: PriceChartDialogProps
         )}
         {!loading && !error && candles.length > 0 && (
           chartType === 'line'
-            ? <LineChart candles={candles} duration={interval.duration} />
-            : <CandlesChart candles={candles} duration={interval.duration} />
+            ? <LineChart candles={candles} duration={interval.duration} livePrice={livePriceNum} strikePrice={strikePriceNum} />
+            : <CandlesChart candles={candles} duration={interval.duration} livePrice={livePriceNum} strikePrice={strikePriceNum} />
         )}
         {!loading && !error && candles.length === 0 && (
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>

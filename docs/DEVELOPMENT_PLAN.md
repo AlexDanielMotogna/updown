@@ -178,14 +178,15 @@ parimutuel-pools/
 ## Pool Lifecycle States
 
 ```
-UPCOMING → JOINING → ACTIVE → RESOLVED → CLAIMABLE
-    │          │         │         │           │
-    │          │         │         │           └── Users can claim payouts
-    │          │         │         └── Winner determined, final price stored
-    │          │         └── Deposits locked, strike price stored
-    │          └── Users can deposit USDC (UP/DOWN)
-    └── Pool created, waiting for join window
+JOINING → RESOLVED → CLAIMABLE → CLOSED
+    │         │           │          │
+    │         │           │          └── Pool account closed, rent reclaimed
+    │         │           └── Winners claim payouts / one-sided pools refunded
+    │         └── Final price captured, winner determined (UP if final > strike)
+    └── Pool created with strike price, users deposit USDC until lockTime
 ```
+
+> **Note:** Pools no longer use UPCOMING or ACTIVE states. The scheduler creates JOINING pools continuously. Betting is open until 1 second before endTime. Resolution happens immediately after endTime.
 
 ---
 

@@ -23,6 +23,9 @@ pub enum PoolError {
     #[msg("User bet already exists")]
     BetAlreadyExists,
 
+    #[msg("Cannot change sides: deposits must be on the same side as your first bet")]
+    SideMismatch,
+
     #[msg("User did not win this pool")]
     NotWinner,
 
@@ -35,7 +38,7 @@ pub enum PoolError {
     #[msg("Unauthorized: only authority can resolve")]
     Unauthorized,
 
-    #[msg("Invalid time configuration: lock_time must be before start_time, start_time must be before end_time")]
+    #[msg("Invalid time configuration: lock_time must be before end_time")]
     InvalidTimeConfig,
 
     #[msg("Arithmetic overflow")]
@@ -46,4 +49,7 @@ pub enum PoolError {
 
     #[msg("Fee basis points must be <= 10000")]
     InvalidFeeBps,
+
+    #[msg("Vault still has tokens — all claims/refunds must be processed first")]
+    VaultNotEmpty,
 }

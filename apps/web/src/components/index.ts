@@ -29,3 +29,4 @@ export { UpCoinsBalance } from './UpCoinsBalance';
 export { RewardPopup } from './RewardPopup';
 export { UserProfilePanel } from './UserProfilePanel';
 export { LeaderboardTable } from './LeaderboardTable';
+export { InlineChart } from './pool/InlineChart';

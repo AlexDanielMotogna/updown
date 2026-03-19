@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Box, Typography, Fab } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingUp, TrendingDown } from '@mui/icons-material';
 import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 import Link from 'next/link';
 import { usePools } from '@/hooks/usePools';
@@ -132,11 +131,12 @@ export function LiveResultsSidebar() {
                 />
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-                {pool.winner === 'UP' ? (
-                  <TrendingUp sx={{ fontSize: 14, color: UP_COLOR }} />
-                ) : (
-                  <TrendingDown sx={{ fontSize: 14, color: DOWN_COLOR }} />
-                )}
+                <Box
+                  component="img"
+                  src={pool.winner === 'UP' ? '/assets/up-icon-64x64.png' : '/assets/down-icon-64x64.png'}
+                  alt=""
+                  sx={{ width: 14, height: 14 }}
+                />
                 <Typography
                   sx={{
                     fontSize: '0.75rem',

@@ -10,7 +10,6 @@ import {
   TransactionModal,
   AppShell,
   PoolDetailSkeleton,
-  PriceChartDialog,
   AiAnalyzerBot,
   AssetIcon,
 } from '@/components';
@@ -19,6 +18,7 @@ import { UP_COLOR, DOWN_COLOR, GAIN_COLOR, INTERVAL_TAG_IMAGES, INTERVAL_LABELS 
 import { PoolStatsStrip } from '@/components/pool/PoolStatsStrip';
 import { PoolInfoCards } from '@/components/pool/PoolInfoCards';
 import { ArenaSection } from '@/components/pool/ArenaSection';
+import { InlineChart } from '@/components/pool/InlineChart';
 
 export default function PoolDetailPage() {
   const params = useParams();
@@ -29,7 +29,6 @@ export default function PoolDetailPage() {
   const { data, isLoading, error } = usePool(poolId);
   const { deposit, state: txState, reset: resetTx } = useDeposit();
   const [showModal, setShowModal] = useState(false);
-  const [chartOpen, setChartOpen] = useState(false);
   const [selectedSide, setSelectedSide] = useState<'UP' | 'DOWN'>(initialSide || 'UP');
   const betFormRef = useRef<HTMLDivElement>(null);
 
@@ -120,7 +119,7 @@ export default function PoolDetailPage() {
             <Typography sx={{ fontWeight: 700, fontSize: { xs: '0.9rem', md: '1rem' } }}>{pool.asset}/USD</Typography>
             {pool.interval && <Box component="img" src={INTERVAL_TAG_IMAGES[pool.interval] || '/assets/hourly-tag.png'} alt={INTERVAL_LABELS[pool.interval] || pool.interval} sx={{ height: { xs: 36, md: 42 }, imageRendering: '-webkit-optimize-contrast' }} />}
           </Box>
-          <Chip label={pool.status} size="small" sx={{ ...statusStyle, fontWeight: 700, fontSize: { xs: '0.6rem', md: '0.7rem' }, letterSpacing: '0.08em', px: 1, borderRadius: '2px', height: { xs: 22, md: 24 } }} />
+          <Chip label={pool.status === 'JOINING' ? 'LIVE' : pool.status} size="small" sx={{ ...statusStyle, fontWeight: 700, fontSize: { xs: '0.6rem', md: '0.7rem' }, letterSpacing: '0.08em', px: 1, borderRadius: '2px', height: { xs: 22, md: 24 } }} />
         </Box>
       </Box>
 
@@ -130,23 +129,31 @@ export default function PoolDetailPage() {
         livePrice={livePrice}
         priceFlash={priceFlash}
         strikePrice={pool.strikePrice}
+        finalPrice={pool.finalPrice}
+        status={pool.status}
         totalUp={pool.totalUp}
         totalDown={pool.totalDown}
-        onChartOpen={() => setChartOpen(true)}
+        endTime={pool.endTime}
       />
 
-      <ArenaSection
-        pool={pool}
-        selectedSide={selectedSide}
-        onSelectSide={setSelectedSide}
-        onBet={handleBet}
-        txState={txState}
-        betFormRef={betFormRef}
-      />
-
-      {pool?.asset && (
-        <PriceChartDialog open={chartOpen} onClose={() => setChartOpen(false)} asset={pool.asset} />
-      )}
+      <Box sx={{
+        display: { xs: 'block', md: 'grid' },
+        gridTemplateColumns: { md: '1fr 340px' },
+        gap: { md: 1.5 },
+        px: { md: 2 },
+        py: { md: 1.5 },
+        alignItems: 'start',
+      }}>
+        <InlineChart asset={pool.asset} livePrice={livePrice} strikePrice={pool.strikePrice} />
+        <ArenaSection
+          pool={pool}
+          selectedSide={selectedSide}
+          onSelectSide={setSelectedSide}
+          onBet={handleBet}
+          txState={txState}
+          betFormRef={betFormRef}
+        />
+      </Box>
 
       {pool && (
         <AiAnalyzerBot asset={pool.asset} poolStatus={pool.status} startTime={pool.startTime} endTime={pool.endTime} winner={pool.winner} priceData={priceData} />

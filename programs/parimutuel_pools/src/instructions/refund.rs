@@ -18,6 +18,7 @@ pub struct Refund<'info> {
 
     #[account(
         mut,
+        close = user,
         seeds = [UserBet::SEED_PREFIX, pool.key().as_ref(), user.key().as_ref()],
         bump = user_bet.bump,
         constraint = user_bet.user == user.key(),

@@ -38,6 +38,8 @@ interface BetFormProps {
   controlledSide?: 'UP' | 'DOWN';
   /** Hide the UP/DOWN toggle (when arena handles side selection) */
   hideToggle?: boolean;
+  /** If user already has a bet, lock to this side */
+  existingBetSide?: 'UP' | 'DOWN';
 }
 
 const PRESET_AMOUNTS = [
@@ -47,21 +49,21 @@ const PRESET_AMOUNTS = [
   { value: 500, img: '/assets/button-500dollars.png' },
 ];
 
-export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, controlledSide, hideToggle }: BetFormProps) {
+export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, controlledSide, hideToggle, existingBetSide }: BetFormProps) {
   const { connected } = useWalletBridge();
   const { data: balance } = useUsdcBalance();
   const { data: userProfile } = useUserProfile();
-  const [internalSide, setInternalSide] = useState<'UP' | 'DOWN'>(initialSide || 'UP');
+  const [internalSide, setInternalSide] = useState<'UP' | 'DOWN'>(existingBetSide || initialSide || 'UP');
   const [amount, setAmount] = useState<string>('');
 
-  const side = controlledSide ?? internalSide;
+  const side = existingBetSide ?? controlledSide ?? internalSide;
 
   useEffect(() => {
     if (initialSide) setInternalSide(initialSide);
   }, [initialSide]);
 
   const handleSideChange = (_: React.MouseEvent, newSide: 'UP' | 'DOWN' | null) => {
-    if (newSide) {
+    if (newSide && !existingBetSide) {
       setInternalSide(newSide);
     }
   };
@@ -286,7 +288,7 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
       </>)}
 
       {/* Preset Amounts  image buttons */}
-      <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+      <Box sx={{ display: 'flex', gap: 0.75, mb: 1.5 }}>
         {PRESET_AMOUNTS.map((preset) => {
           const isActive = amount === preset.value.toString();
           return (
@@ -339,25 +341,28 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
         placeholder="0.00"
         disabled={!canInteract}
         InputProps={{
-          startAdornment: <InputAdornment position="start"><Typography sx={{ color: sideColor, fontWeight: 600 }}>$</Typography></InputAdornment>,
-          endAdornment: <InputAdornment position="end"><Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem', fontWeight: 500 }}>USDC</Typography></InputAdornment>,
+          startAdornment: <InputAdornment position="start"><Typography sx={{ color: sideColor, fontWeight: 600, fontSize: '0.9rem' }}>$</Typography></InputAdornment>,
+          endAdornment: <InputAdornment position="end"><Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.7rem', fontWeight: 500 }}>USDC</Typography></InputAdornment>,
         }}
         sx={{
-          mb: 2,
+          mb: 1.5,
           '& .MuiOutlinedInput-root': {
-            fontSize: '1.5rem',
+            fontSize: '1.1rem',
             fontWeight: 600,
             backgroundColor: 'rgba(255, 255, 255, 0.02)',
             borderRadius: 2,
+            py: 0,
+            '& .MuiOutlinedInput-input': {
+              py: 1,
+            },
             '& fieldset': {
-              borderColor: 'rgba(255,255,255,0.06)',
+              border: 'none',
             },
             '&:hover fieldset': {
-              borderColor: `${sideColor}30`,
+              border: 'none',
             },
             '&.Mui-focused fieldset': {
-              borderColor: `${sideColor}40`,
-              borderWidth: 1,
+              border: 'none',
             },
           },
         }}
@@ -375,49 +380,45 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
           >
             <Box
               sx={{
-                p: { xs: 2, sm: 2.5 },
-                mb: 3,
+                px: 1.5,
+                py: 1,
+                mb: 1.5,
                 borderRadius: 0,
                 background: '#0D1219',
                 borderTop: `1px solid ${GAIN_COLOR}30`,
               }}
             >
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
-                <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 300 }}>
-                  Your Stake
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                <Typography sx={{ color: 'text.secondary', fontWeight: 300, fontSize: '0.75rem' }}>
+                  Stake
                 </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 400 }}>
-                  ${amountNum.toFixed(2)} USDC
+                <Typography sx={{ fontWeight: 400, fontSize: '0.75rem' }}>
+                  ${amountNum.toFixed(2)}
                 </Typography>
               </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
-                <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 300 }}>
-                  Potential Odds
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                <Typography sx={{ color: 'text.secondary', fontWeight: 300, fontSize: '0.75rem' }}>
+                  Odds
                 </Typography>
-                <Typography variant="body2" sx={{ color: sideColor, fontWeight: 500 }}>
+                <Typography sx={{ color: sideColor, fontWeight: 500, fontSize: '0.75rem' }}>
                   <AnimatedValue value={potentialOdds} suffix="x" duration={0.4} />
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 300 }}>
-                  Potential Payout
+                <Typography sx={{ color: 'text.secondary', fontWeight: 300, fontSize: '0.75rem' }}>
+                  Payout
                 </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600, color: GAIN_COLOR }}>
+                <Typography sx={{ fontWeight: 600, color: GAIN_COLOR, fontSize: '0.75rem' }}>
                   <AnimatedValue value={potentialPayout} prefix="$" suffix=" USDC" duration={0.4} />
                 </Typography>
               </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1.5 }}>
-                <Typography variant="caption" sx={{ color: ACCENT_COLOR, fontWeight: 500 }}>
-                  {estimatedCoins > 0 ? `+~${estimatedCoins.toFixed(2)} UP` : ''}
-                </Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 300 }}>
-                  {userProfile
-                    ? userProfile.feeBps < 500
-                      ? `Includes ${userProfile.feePercent}% fee (Lv.${userProfile.level} discount)`
-                      : `Includes ${userProfile.feePercent}% platform fee`
-                    : 'Includes 5% platform fee'}
-                </Typography>
-              </Box>
+              {estimatedCoins > 0 && (
+                <Box sx={{ mt: 0.5 }}>
+                  <Typography sx={{ color: ACCENT_COLOR, fontWeight: 500, fontSize: '0.65rem' }}>
+                    +~{estimatedCoins.toFixed(2)} UP
+                  </Typography>
+                </Box>
+              )}
             </Box>
           </motion.div>
         )}
@@ -428,10 +429,12 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
         <Alert
           severity="error"
           sx={{
-            mb: 3,
+            mb: 1.5,
             backgroundColor: `${DOWN_COLOR}15`,
             border: 'none',
-            borderRadius: 0,
+            borderRadius: 1,
+            py: 0,
+            '& .MuiAlert-message': { fontSize: '0.75rem' },
           }}
         >
           {error}
@@ -442,9 +445,10 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
       {pool.status !== 'JOINING' && (
         <Box
           sx={{
-            p: 2,
-            mb: 3,
-            borderRadius: 0,
+            px: 1.5,
+            py: 1,
+            mb: 1.5,
+            borderRadius: 1,
             background: 'rgba(255, 255, 255, 0.03)',
             textAlign: 'center',
           }}
@@ -454,32 +458,32 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 1,
+              gap: 0.75,
               color: 'text.secondary',
             }}
           >
             {pool.status === 'UPCOMING' && (
               <>
-                <HourglassEmpty sx={{ fontSize: 18 }} />
-                <Typography variant="body2" sx={{ fontWeight: 500 }}>Pool opens soon</Typography>
+                <HourglassEmpty sx={{ fontSize: 14 }} />
+                <Typography sx={{ fontWeight: 500, fontSize: '0.75rem' }}>Pool opens soon</Typography>
               </>
             )}
             {pool.status === 'ACTIVE' && (
               <>
-                <Lock sx={{ fontSize: 18 }} />
-                <Typography variant="body2" sx={{ fontWeight: 500 }}>Predictions closed - Waiting for result</Typography>
+                <Lock sx={{ fontSize: 14 }} />
+                <Typography sx={{ fontWeight: 500, fontSize: '0.75rem' }}>Predictions closed</Typography>
               </>
             )}
             {pool.status === 'RESOLVED' && (
               <>
-                <CheckCircle sx={{ fontSize: 18 }} />
-                <Typography variant="body2" sx={{ fontWeight: 500 }}>Pool resolved</Typography>
+                <CheckCircle sx={{ fontSize: 14 }} />
+                <Typography sx={{ fontWeight: 500, fontSize: '0.75rem' }}>Pool resolved</Typography>
               </>
             )}
             {pool.status === 'CLAIMABLE' && (
               <>
-                <AccountBalanceWallet sx={{ fontSize: 18, color: GAIN_COLOR }} />
-                <Typography variant="body2" sx={{ fontWeight: 500, color: GAIN_COLOR }}>Check Profile to claim winnings</Typography>
+                <AccountBalanceWallet sx={{ fontSize: 14, color: GAIN_COLOR }} />
+                <Typography sx={{ fontWeight: 500, fontSize: '0.75rem', color: GAIN_COLOR }}>Claim winnings in Profile</Typography>
               </>
             )}
           </Box>
@@ -497,14 +501,13 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
         type="submit"
         variant="contained"
         fullWidth
-        size="large"
         disabled={!canBet}
         sx={{
-          py: 2,
-          fontSize: '1.05rem',
+          py: 1.25,
+          fontSize: '0.85rem',
           fontWeight: 700,
-          letterSpacing: '0.08em',
-          borderRadius: 3,
+          letterSpacing: '0.06em',
+          borderRadius: 2,
           textTransform: 'uppercase',
           background: side === 'UP'
             ? `linear-gradient(135deg, ${UP_COLOR}, #16A34A)`
@@ -533,9 +536,20 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
           ? 'Pool Ended'
           : isSubmitting
           ? 'Processing...'
+          : existingBetSide
+          ? `Add to ${side} Prediction`
           : `Place ${side} Prediction`}
       </Button>
       </motion.div>
+
+      {/* Fee disclaimer  small, below button */}
+      <Typography sx={{ textAlign: 'center', mt: 1, fontSize: '0.6rem', color: 'rgba(255,255,255,0.2)', fontWeight: 400 }}>
+        {userProfile
+          ? userProfile.feeBps < 500
+            ? `${userProfile.feePercent}% fee (Lv.${userProfile.level} discount)`
+            : `${userProfile.feePercent}% platform fee on winnings`
+          : '5% platform fee on winnings'}
+      </Typography>
     </Box>
   );
 }

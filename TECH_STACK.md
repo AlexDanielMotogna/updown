@@ -43,7 +43,8 @@ parimutuel-pools-build/
 |------------|---------|---------|
 | Material-UI (MUI) | 5.14.0 | Component library |
 | Emotion | 11.11.0 | CSS-in-JS styling |
-| Hanken Grotesk | - | Primary font (Google Fonts) |
+| Framer Motion | 11.x | Animations (page transitions, countdowns, pool rows) |
+| Satoshi / Hanken Grotesk | - | Primary fonts |
 
 ### State Management & Data
 | Technology | Version | Purpose |
@@ -64,19 +65,32 @@ parimutuel-pools-build/
 ### Directory Structure
 ```
 apps/web/src/
-├── app/           # Next.js App Router pages
-├── components/    # React components (PoolCard, BetForm, etc.)
-├── hooks/         # Custom hooks (usePools, useBets, usePriceStream)
-├── lib/           # API client, socket connection
-├── stores/        # Zustand stores
-└── types/         # TypeScript definitions
+├── app/                # Next.js App Router pages
+├── components/         # React components
+│   ├── pool/           # Pool-specific components
+│   │   ├── ArenaSection.tsx    # Compact bet sidebar (UP/DOWN toggle + BetForm)
+│   │   ├── InlineChart.tsx     # Interactive SVG price chart (line/candle)
+│   │   ├── PoolInfoCards.tsx   # Live price, countdown, strike, pool totals
+│   │   ├── PoolRow.tsx         # Table row with share button
+│   │   └── PoolStatsStrip.tsx  # Bet count, pool size, odds summary
+│   ├── BetForm.tsx     # Compact bet input with presets
+│   ├── PoolTable.tsx   # Animated pool list with headers
+│   ├── Countdown.tsx   # Phase-aware countdown (calm → heating → critical → final)
+│   └── ...
+├── hooks/              # Custom hooks
+├── lib/                # API client, format utils, constants
+├── stores/             # Zustand stores
+└── types/              # TypeScript definitions
 ```
 
 ### Key Hooks
-- `usePools()` - Fetch and filter pools with React Query
-- `useBets(wallet)` - User bet history
-- `usePriceStream(assets)` - Real-time price subscriptions
-- `useTransactions()` - Deposit and claim operations
+- `usePools()` — Fetch and filter pools with React Query
+- `useBets(wallet)` — User bet history
+- `usePriceStream(assets)` — Real-time WebSocket price subscriptions
+- `usePacificaCandles(opts)` — Candlestick data for charts
+- `usePacificaPrices(assets)` — REST price data with metadata
+- `useDeposit()` — Deposit flow (prepare → sign → confirm)
+- `useDraggablePosition(key)` — Persistent draggable position for floating UI
 
 ---
 
@@ -159,9 +173,18 @@ model PriceSnapshot {
 | `/api/transactions/confirm-claim` | POST | Confirm claim |
 
 ### Scheduler Jobs
-- **Pool Creation**: Hourly (BTC, ETH pools)
-- **Status Transitions**: Every minute
-- **Pool Resolution**: Every minute (checks ended pools)
+
+The scheduler runs three core services:
+
+| Job | Frequency | Description |
+|-----|-----------|-------------|
+| **PoolCreator** | Every tick | Ensures a JOINING pool exists per asset+interval. Dedup checks filter out pools past lockTime to prevent stale blocking. |
+| **PoolResolver** | Every tick | Resolves ended pools: captures final price, determines winner, handles refunds for one-sided pools. |
+| **PoolScheduler** | Per-interval cron | Orchestrates pool creation via cron expressions (1m: `* * * * *`, 5m: `*/5`, 15m: `*/15`, 1h: `0 *`). |
+
+**Templates:** 3 assets (BTC, ETH, SOL) x 4 intervals (1m, 5m, 15m, 1h) = 12 pool templates.
+
+**Timing:** Strike price captured at creation. Betting open until 1 second before end. Successor pool created immediately when current pool ends.
 
 ---
 
@@ -179,16 +202,22 @@ model PriceSnapshot {
 ### Instructions
 
 #### `initialize_pool`
-Creates a new parimutuel pool with timing parameters and token vault.
+Creates a new parimutuel pool with timing parameters, strike price, and USDC token vault.
 
 #### `deposit`
-User deposits USDC choosing UP or DOWN side.
+User deposits USDC choosing UP or DOWN side. Validates pool is in JOINING state and within lockTime.
 
 #### `resolve`
-Authority resolves pool with strike and final prices.
+Authority resolves pool with final price. Determines winner based on strike vs final price comparison.
 
 #### `claim`
-Winners claim their USDC payout.
+Winners claim their proportional USDC payout (minus platform fee).
+
+#### `refund`
+Refunds deposits when a pool is one-sided (all UP or all DOWN — no opponents).
+
+#### `close_pool`
+Closes a resolved/empty pool account and reclaims rent to the authority.
 
 ### Account PDAs
 
@@ -240,7 +269,12 @@ Winners claim their USDC payout.
 ### Pool Lifecycle
 
 ```
-UPCOMING → JOINING → ACTIVE → RESOLVED → CLAIMABLE
+JOINING → RESOLVED → CLAIMABLE → CLOSED
+    │         │           │          │
+    │         │           │          └── Account closed, rent reclaimed
+    │         │           └── Winners claim / one-sided pools refunded
+    │         └── Final price captured, winner determined
+    └── Created with strike price, users deposit until lockTime
 ```
 
 ### Deposit Flow

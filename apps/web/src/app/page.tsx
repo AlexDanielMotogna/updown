@@ -1,42 +1,39 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useMemo, useCallback } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
   Box,
   Container,
   Typography,
-  ToggleButtonGroup,
-  ToggleButton,
   Alert,
-  Tabs,
-  Tab,
   CircularProgress,
-  Button,
-  Collapse,
+  Chip,
 } from '@mui/material';
 import {
-  FilterList,
-  Bolt,
-  HourglassTop,
-  ViewList,
+  GridView,
+  Timer,
+  Speed,
+  AvTimer,
+  Schedule,
 } from '@mui/icons-material';
 import { useInfinitePools, useBets, usePriceStream, useIntersectionObserver, type PoolFilters } from '@/hooks';
 import { PoolTable, AppShell } from '@/components';
-import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR, INTERVAL_LABELS } from '@/lib/constants';
+import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR } from '@/lib/constants';
 
-const ASSETS = ['ALL', 'BTC', 'ETH', 'SOL'];
-const INTERVAL_OPTIONS = ['ALL', '1m', '5m', '15m', '1h'];
-const INTERVAL_LABELS_WITH_ALL: Record<string, string> = {
-  ALL: 'ALL',
-  ...INTERVAL_LABELS,
-};
-const STATUSES = ['ALL', 'JOINING', 'ACTIVE'];
+const ASSET_FILTERS = [
+  { value: 'ALL', label: 'All', icon: <GridView sx={{ fontSize: 16 }} /> },
+  { value: 'BTC', label: 'BTC', img: '/coins/btc-coin.png' },
+  { value: 'ETH', label: 'ETH', img: '/coins/eth-coin.png' },
+  { value: 'SOL', label: 'SOL', img: '/coins/sol-coin.png' },
+];
 
-const STATUS_ICONS = [
-  <ViewList key="all" sx={{ fontSize: 18 }} />,
-  <HourglassTop key="joining" sx={{ fontSize: 18 }} />,
-  <Bolt key="active" sx={{ fontSize: 18 }} />,
+const INTERVAL_FILTERS = [
+  { value: 'ALL', label: 'All', icon: <GridView sx={{ fontSize: 16 }} /> },
+  { value: '1m', label: '1 min', icon: <Speed sx={{ fontSize: 16 }} /> },
+  { value: '5m', label: '5 min', icon: <Timer sx={{ fontSize: 16 }} /> },
+  { value: '15m', label: '15 min', icon: <AvTimer sx={{ fontSize: 16 }} /> },
+  { value: '1h', label: '1 hour', icon: <Schedule sx={{ fontSize: 16 }} /> },
 ];
 
 const HOW_TO_PLAY = [
@@ -64,14 +61,12 @@ export default function MarketsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Read filters from URL (fallback to defaults)
-  const statusParam = searchParams.get('status') ?? 'all';
-  const statusTab = STATUSES.findIndex((s) => s.toLowerCase() === statusParam.toLowerCase());
-  const safeStatusTab = statusTab >= 0 ? statusTab : 0;
-  const assetFilter = ASSETS.includes(searchParams.get('asset') ?? '') ? searchParams.get('asset')! : 'ALL';
-  const intervalFilter = INTERVAL_OPTIONS.includes(searchParams.get('interval') ?? '') ? searchParams.get('interval')! : 'ALL';
+  const assetValues = ASSET_FILTERS.map(f => f.value);
+  const intervalValues = INTERVAL_FILTERS.map(f => f.value);
+  const assetFilter = assetValues.includes(searchParams.get('asset') ?? '') ? searchParams.get('asset')! : 'ALL';
+  const intervalFilter = intervalValues.includes(searchParams.get('interval') ?? '') ? searchParams.get('interval')! : 'ALL';
 
   const updateParam = useCallback((key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -84,15 +79,12 @@ export default function MarketsPage() {
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }, [searchParams, router, pathname]);
 
-  // "ALL" tab shows JOINING + ACTIVE pools; other tabs filter to a single status
-  const selectedStatus = safeStatusTab === 0 ? 'JOINING,ACTIVE' : STATUSES[safeStatusTab];
-
-  // Memoize filters to prevent unnecessary re-renders and WebSocket re-subscriptions
+  // Show all live pools (JOINING = open for betting)
   const filters = useMemo(() => ({
     asset: assetFilter === 'ALL' ? undefined : assetFilter,
     interval: intervalFilter === 'ALL' ? undefined : intervalFilter,
-    status: selectedStatus,
-  }), [assetFilter, intervalFilter, selectedStatus]);
+    status: 'JOINING',
+  }), [assetFilter, intervalFilter]);
 
   const {
     data,
@@ -144,25 +136,8 @@ export default function MarketsPage() {
     hasNextPage && !isFetchingNextPage
   );
 
-  const handleAssetChange = (_: React.MouseEvent, newAsset: string | null) => {
-    if (newAsset) updateParam('asset', newAsset);
-  };
-
-  const handleIntervalChange = (_: React.MouseEvent, newInterval: string | null) => {
-    if (newInterval) updateParam('interval', newInterval);
-  };
-
-  const handleStatusChange = (_: React.SyntheticEvent, newValue: number) => {
-    updateParam('status', STATUSES[newValue]!.toLowerCase());
-  };
-
   // Filters are now fully handled server-side; use sorted list with popular pools first
   const pools = sortedPools;
-
-  const selectedPillSx = {
-    backgroundColor: `${UP_COLOR}18`,
-    color: UP_COLOR,
-  };
 
   return (
     <AppShell>
@@ -220,134 +195,42 @@ export default function MarketsPage() {
               ))}
             </Box>
 
-            {/* Status tabs + Filters  Hellcase style */}
-            <Box sx={{ mb: 3 }}>
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <Tabs
-                  value={safeStatusTab}
-                  onChange={handleStatusChange}
-                  variant="scrollable"
-                  scrollButtons={false}
-                  sx={{
-                    minHeight: 44,
-                    '& .MuiTabs-indicator': {
-                      backgroundColor: ACCENT_COLOR,
-                      height: 2,
-                    },
-                    '& .MuiTab-root': {
-                      color: 'text.secondary',
-                      fontWeight: 500,
-                      textTransform: 'none',
-                      fontSize: { xs: '0.8rem', sm: '0.85rem' },
-                      px: { xs: 1.5, sm: 2.5 },
-                      minHeight: 44,
-                      minWidth: 'auto',
-                      gap: 0.75,
-                      '&.Mui-selected': { color: '#FFFFFF' },
-                    },
-                  }}
-                >
-                  {STATUSES.map((status, i) => (
-                    <Tab
-                      key={status}
-                      icon={STATUS_ICONS[i]}
-                      iconPosition="start"
-                      label={status}
-                    />
-                  ))}
-                </Tabs>
-
-                <Button
-                  variant="text"
-                  size="small"
-                  startIcon={<FilterList />}
-                  onClick={() => setFiltersOpen((prev) => !prev)}
-                  sx={{
-                    borderRadius: '4px',
-                    color: filtersOpen ? ACCENT_COLOR : 'text.secondary',
-                    textTransform: 'none',
-                    fontWeight: 500,
-                    fontSize: '0.85rem',
-                    px: 2,
-                    '&:hover': {
-                      bgcolor: `${ACCENT_COLOR}10`,
-                    },
-                  }}
-                >
-                  Filters
-                </Button>
+            {/* Filters */}
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                {ASSET_FILTERS.map((f) => (
+                  <Chip
+                    key={f.value}
+                    label={f.label}
+                    icon={f.img ? (
+                      <Box component="img" src={f.img} alt={f.label} sx={{ width: 18, height: 18, borderRadius: '50%' }} />
+                    ) : f.icon}
+                    onClick={() => updateParam('asset', f.value)}
+                    sx={{
+                      fontWeight: 600, fontSize: '0.8rem', border: 'none',
+                      backgroundColor: assetFilter === f.value ? `${UP_COLOR}20` : 'rgba(255,255,255,0.04)',
+                      color: assetFilter === f.value ? UP_COLOR : 'text.secondary',
+                      '&:hover': { backgroundColor: assetFilter === f.value ? `${UP_COLOR}28` : 'rgba(255,255,255,0.08)' },
+                    }}
+                  />
+                ))}
               </Box>
-
-              {/* Collapsible filter panel */}
-              <Collapse in={filtersOpen}>
-                <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1, sm: 2 }, py: 2, flexWrap: 'wrap', overflowX: 'auto' }}>
-                  <ToggleButtonGroup
-                    value={assetFilter}
-                    exclusive
-                    onChange={handleAssetChange}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                {INTERVAL_FILTERS.map((f) => (
+                  <Chip
+                    key={f.value}
+                    label={f.label}
+                    icon={f.icon}
+                    onClick={() => updateParam('interval', f.value)}
                     sx={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                      border: 'none',
-                      borderRadius: '4px',
-                      padding: '3px',
-                      '& .MuiToggleButtonGroup-grouped': {
-                        border: 'none',
-                        borderRadius: '4px !important',
-                        mx: 0.25,
-                        px: { xs: 1.5, sm: 2.5 },
-                        py: 0.75,
-                        color: 'text.secondary',
-                        fontWeight: 400,
-                        fontSize: '0.8rem',
-                        transition: 'all 0.3s ease',
-                        '&.Mui-selected': selectedPillSx,
-                        '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.04)' },
-                      },
+                      fontWeight: 600, fontSize: '0.8rem', border: 'none',
+                      backgroundColor: intervalFilter === f.value ? `${UP_COLOR}20` : 'rgba(255,255,255,0.04)',
+                      color: intervalFilter === f.value ? UP_COLOR : 'text.secondary',
+                      '&:hover': { backgroundColor: intervalFilter === f.value ? `${UP_COLOR}28` : 'rgba(255,255,255,0.08)' },
                     }}
-                  >
-                    {ASSETS.map((asset) => (
-                      <ToggleButton key={asset} value={asset}>{asset}</ToggleButton>
-                    ))}
-                  </ToggleButtonGroup>
-
-                  <ToggleButtonGroup
-                    value={intervalFilter}
-                    exclusive
-                    onChange={handleIntervalChange}
-                    sx={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                      border: 'none',
-                      borderRadius: '4px',
-                      padding: '3px',
-                      '& .MuiToggleButtonGroup-grouped': {
-                        border: 'none',
-                        borderRadius: '4px !important',
-                        mx: 0.25,
-                        px: { xs: 1.25, sm: 2 },
-                        py: 0.75,
-                        color: 'text.secondary',
-                        fontWeight: 400,
-                        fontSize: '0.8rem',
-                        transition: 'all 0.3s ease',
-                        '&.Mui-selected': selectedPillSx,
-                        '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.04)' },
-                      },
-                    }}
-                  >
-                    {INTERVAL_OPTIONS.map((interval) => (
-                      <ToggleButton key={interval} value={interval}>
-                        {INTERVAL_LABELS_WITH_ALL[interval]}
-                      </ToggleButton>
-                    ))}
-                  </ToggleButtonGroup>
-                </Box>
-              </Collapse>
+                  />
+                ))}
+              </Box>
             </Box>
 
             {/* Error State */}

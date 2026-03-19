@@ -20,12 +20,11 @@ Every pool goes through a lifecycle:
 
 | Status | What Happens |
 |---|---|
-| **JOINING** | Pool is open. Place your UP or DOWN prediction. |
-| **ACTIVE** | Bets are locked. Price is being tracked. No new predictions accepted. |
-| **RESOLVED** | Winner (UP or DOWN) is determined based on price movement. |
+| **JOINING** | Pool is open. A strike price is locked in. Place your UP or DOWN prediction. Betting stays open until 1 second before the pool ends. |
+| **RESOLVED** | Winner (UP or DOWN) is determined. If the final price > strike price, **UP wins**. If lower, **DOWN wins**. One-sided pools (no opponents) are automatically refunded. |
 | **CLAIMABLE** | Winners can claim their payout via a blockchain transaction. |
 
-A **strike price** is captured when the pool opens. A **final price** is captured when the active phase ends. If the final price is higher than the strike, **UP wins**. If lower, **DOWN wins**.
+A **strike price** is captured when the pool is created. A **final price** is captured when the pool ends. The countdown timer shows exactly how long until resolution.
 
 ---
 
@@ -151,6 +150,8 @@ The home page shows all available pools. You can filter by:
 
 Click the **Filters** button to reveal asset and interval filters. Pools with the most bets appear first, and the top 3 most popular pools get a "POPULAR" badge.
 
+Each pool row shows: box art, asset name + interval tag, countdown, distribution bar, pool size, odds, player count, action button, and a share button to copy the pool link.
+
 Your selected filters are saved in the URL — bookmarking or refreshing keeps your view.
 
 ---
@@ -159,12 +160,22 @@ Your selected filters are saved in the URL — bookmarking or refreshing keeps y
 
 Click any pool to see its detail page:
 
-- **Live price** with real-time updates
-- **Strike vs Final price** comparison
-- **UP/DOWN arena** showing each side's pool size, odds, and percentage
-- **Bet form** with preset amounts ($10, $50, $100, $500) or custom input
-- **Payout preview** before confirming
-- **Countdown timer** for the current phase
+**Header bar:**
+- Back navigation, live connection indicator, asset icon + name, interval tag, status chip
+
+**Info strip:**
+- Live price (real-time with flash colors), countdown timer, strike price (→ final price when resolved), UP pool total, DOWN pool total
+
+**Main layout (desktop — side by side, mobile — stacked):**
+
+| Left (chart) | Right (sidebar) |
+|---|---|
+| Interactive price chart with 8 intervals (1m to 1D) | UP/DOWN toggle buttons with live % |
+| Line or candlestick view | Bet form with preset amounts ($10–$500) |
+| Strike price line + live price indicator | Energy bar showing pool distribution |
+| Hover for OHLC data on candles | Winner banner when resolved |
+
+- **Payout preview** shown before confirming
 - **AI Analyzer Bot** (bottom-right bubble) for market insights
 
 ---

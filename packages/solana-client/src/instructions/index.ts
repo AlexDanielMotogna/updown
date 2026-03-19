@@ -42,6 +42,7 @@ const DEPOSIT_DISC = Buffer.from([242, 35, 198, 137, 82, 225, 242, 182]);
 const RESOLVE_DISC = Buffer.from([246, 150, 236, 206, 108, 63, 58, 10]);
 const CLAIM_DISC = Buffer.from([62, 198, 214, 193, 213, 159, 108, 210]);
 const REFUND_DISC = Buffer.from([2, 96, 183, 251, 63, 208, 46, 46]);
+const CLOSE_POOL_DISC = Buffer.from([140, 189, 209, 23, 239, 62, 239, 11]);
 
 // ── Instruction Builders ───────────────────────────────────────────────────────
 
@@ -59,6 +60,7 @@ export function buildInitializePoolIx(
   startTime: number | bigint,
   endTime: number | bigint,
   lockTime: number | bigint,
+  strikePrice: number | bigint,
 ): TransactionInstruction {
   const data = Buffer.concat([
     INITIALIZE_POOL_DISC,
@@ -67,6 +69,7 @@ export function buildInitializePoolIx(
     encodeI64(startTime),         // i64
     encodeI64(endTime),           // i64
     encodeI64(lockTime),          // i64
+    encodeU64(strikePrice),       // u64
   ]);
 
   const keys = [
@@ -196,4 +199,24 @@ export function buildRefundIx(
   ];
 
   return new TransactionInstruction({ keys, programId: PROGRAM_ID, data: REFUND_DISC });
+}
+
+/**
+ * Build `close_pool` TransactionInstruction.
+ * Closes a resolved pool + empty vault, reclaiming rent to authority.
+ * Accounts: pool, vault, authority, tokenProgram
+ */
+export function buildClosePoolIx(
+  pool: PublicKey,
+  vault: PublicKey,
+  authority: PublicKey,
+): TransactionInstruction {
+  const keys = [
+    { pubkey: pool, isSigner: false, isWritable: true },
+    { pubkey: vault, isSigner: false, isWritable: true },
+    { pubkey: authority, isSigner: true, isWritable: true },
+    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+  ];
+
+  return new TransactionInstruction({ keys, programId: PROGRAM_ID, data: CLOSE_POOL_DISC });
 }

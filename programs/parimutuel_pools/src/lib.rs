@@ -21,8 +21,9 @@ pub mod parimutuel_pools {
         start_time: i64,
         end_time: i64,
         lock_time: i64,
+        strike_price: u64,
     ) -> Result<()> {
-        instructions::initialize_pool::handler(ctx, pool_id, asset, start_time, end_time, lock_time)
+        instructions::initialize_pool::handler(ctx, pool_id, asset, start_time, end_time, lock_time, strike_price)
     }
 
     /// Deposit USDC to a pool (UP or DOWN side)
@@ -47,6 +48,11 @@ pub mod parimutuel_pools {
     /// Refund a user's bet (authority-only, no user signature needed)
     pub fn refund(ctx: Context<Refund>) -> Result<()> {
         instructions::refund::handler(ctx)
+    }
+
+    /// Close a resolved pool and reclaim rent (authority only)
+    pub fn close_pool(ctx: Context<ClosePool>) -> Result<()> {
+        instructions::close_pool::handler(ctx)
     }
 }
 

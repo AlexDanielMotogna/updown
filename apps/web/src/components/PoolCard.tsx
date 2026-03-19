@@ -22,13 +22,13 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
   const upPercentage = total > 0 ? (totalUp / total) * 100 : 50;
 
   const countdownTarget =
-    pool.status === 'JOINING' ? pool.lockTime :
+    pool.status === 'JOINING' ? pool.endTime :
     pool.status === 'ACTIVE' ? pool.endTime :
     pool.status === 'UPCOMING' ? pool.startTime :
     null;
 
   const countdownLabel =
-    pool.status === 'JOINING' ? 'Predictions close in' :
+    pool.status === 'JOINING' ? 'Result in' :
     pool.status === 'ACTIVE' ? 'Result in' :
     pool.status === 'UPCOMING' ? 'Opens in' :
     null;
@@ -113,8 +113,8 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
                 </Box>
               </Box>
 
-              {/* Timeline hint */}
-              {pool.status === 'JOINING' && (
+              {/* Strike price + timeline hint */}
+              {pool.status === 'JOINING' && pool.strikePrice && (
                 <Typography
                   variant="caption"
                   sx={{
@@ -125,21 +125,7 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
                     fontSize: '0.7rem',
                   }}
                 >
-                  Result at {formatTime(pool.endTime)}
-                </Typography>
-              )}
-              {pool.status === 'ACTIVE' && (
-                <Typography
-                  variant="caption"
-                  sx={{
-                    display: 'block',
-                    textAlign: 'center',
-                    color: 'text.secondary',
-                    mt: 1.5,
-                    fontSize: '0.7rem',
-                  }}
-                >
-                  Monitoring price  predictions locked
+                  Price to beat: {formatPrice(pool.strikePrice)}
                 </Typography>
               )}
             </Box>

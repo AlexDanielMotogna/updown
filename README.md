@@ -16,17 +16,18 @@ parimutuel-pools/
 │   │   └── src/
 │   │       ├── app/            # App router pages
 │   │       ├── components/     # React components
+│   │       │   └── pool/       # Pool-specific (ArenaSection, InlineChart, PoolInfoCards, PoolRow, etc.)
 │   │       ├── hooks/          # Custom hooks
-│   │       ├── services/       # API client
+│   │       ├── lib/            # API client, format utils, constants
 │   │       ├── stores/         # Zustand state
 │   │       └── styles/         # MUI theme
 │   │
 │   └── api/                    # Node.js Backend
 │       └── src/
-│           ├── controllers/    # HTTP handlers
+│           ├── routes/         # HTTP route handlers
+│           ├── scheduler/      # Pool lifecycle (creator, resolver, scheduler)
 │           ├── services/       # Business logic
-│           ├── jobs/           # Scheduled tasks
-│           ├── db/             # Database layer
+│           ├── websocket/      # Socket.io real-time layer
 │           └── middleware/     # Auth, validation
 │
 ├── packages/
@@ -239,17 +240,21 @@ NEXT_PUBLIC_USDC_MINT=Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr
 
 | Instruction | Description | Authority |
 |-------------|-------------|-----------|
-| `initialize_pool` | Create a new betting pool | Resolver |
+| `initialize_pool` | Create a new betting pool with strike price | Resolver |
 | `deposit` | Deposit USDC to UP or DOWN side | User |
-| `resolve` | Set strike/final prices, determine winner | Resolver |
+| `resolve` | Set final price, determine winner | Resolver |
 | `claim` | Claim payout from resolved pool | User (winner) |
+| `refund` | Refund one-sided pools (no opponents) | Resolver |
+| `close_pool` | Close empty/resolved pool, reclaim rent | Resolver |
 
 ### Events
 
-- `PoolCreated`  New pool initialized
-- `Deposited`  User deposited to pool
-- `PoolResolved`  Pool resolved with winner
-- `PayoutClaimed`  User claimed payout
+- `PoolCreated` — New pool initialized with strike price
+- `Deposited` — User deposited USDC to pool
+- `PoolResolved` — Pool resolved with winner
+- `PayoutClaimed` — User claimed payout
+- `Refunded` — One-sided pool refunded
+- `PoolClosed` — Empty/resolved pool closed
 
 ### PDA Seeds
 
@@ -329,14 +334,15 @@ See [docs/ENGINEERING_STANDARDS.md](docs/ENGINEERING_STANDARDS.md) for full sche
 ## Pool Lifecycle
 
 ```
-UPCOMING → JOINING → ACTIVE → RESOLVED → CLAIMABLE
-    │          │         │         │           │
-    │          │         │         │           └── Users claim payouts
-    │          │         │         └── Winner determined (UP/DOWN)
-    │          │         └── Deposits locked, strike price set
-    │          └── Users deposit USDC to UP or DOWN
-    └── Pool created by scheduler
+JOINING → RESOLVED → CLAIMABLE → CLOSED
+    │         │           │          │
+    │         │           │          └── Pool account closed, rent reclaimed
+    │         │           └── Winners claim payouts (or refund if one-sided)
+    │         └── Winner determined by final price vs strike price
+    └── Pool created by scheduler with strike price, users deposit USDC
 ```
+
+Pools are created continuously by the scheduler (3 assets x 4 intervals). Strike price is captured at creation. Betting stays open until 1 second before the pool ends. One-sided pools (all UP or all DOWN) trigger automatic refunds.
 
 ---
 

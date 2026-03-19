@@ -2,7 +2,7 @@ import { PrismaClient, PoolStatus, Side, Prisma } from '@prisma/client';
 import { Connection, Keypair, PublicKey, Transaction } from '@solana/web3.js';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { PacificaProvider } from 'market-data';
-import { getPoolPDA, getVaultPDA, getUserBetPDA, buildResolveIx, buildRefundIx } from 'solana-client';
+import { getPoolPDA, getVaultPDA, getUserBetPDA, buildResolveIx, buildRefundIx, buildClosePoolIx } from 'solana-client';
 import { emitPoolStatus, emitRefund } from '../websocket';
 import { resetStreak } from '../services/rewards';
 import { derivePoolSeed, getUsdcMint } from '../utils/solana';
@@ -21,10 +21,18 @@ const REFUND_MAX_RETRIES = 3;
  * on-chain resolve, and RESOLVED → CLAIMABLE transitions.
  */
 export class PoolResolver {
+  /** Track close_pool failures to avoid retrying every 2s */
+  private closeFailures = new Map<string, number>();
+  private static CLOSE_RETRY_DELAY_MS = 5 * 60 * 1000; // 5 minutes
+  /** Prevent concurrent processPoolClosures executions */
+  private closingInProgress = false;
+
   constructor(private deps: ResolverDeps) {}
 
   /**
-   * Find and resolve all ACTIVE pools past their endTime.
+   * Find and resolve all JOINING/ACTIVE pools past their endTime.
+   * JOINING is the normal flow (strike at creation, no ACTIVE phase).
+   * ACTIVE is kept for backward compatibility with pre-migration pools.
    */
   async processResolutions(): Promise<void> {
     // Add 5-second buffer to account for Solana clock skew on devnet.
@@ -34,7 +42,7 @@ export class PoolResolver {
     const cutoff = new Date(Date.now() - bufferMs);
     const poolsToResolve = await this.deps.prisma.pool.findMany({
       where: {
-        status: PoolStatus.ACTIVE,
+        status: { in: [PoolStatus.JOINING, PoolStatus.ACTIVE] },
         endTime: { lte: cutoff },
       },
     });
@@ -76,7 +84,7 @@ export class PoolResolver {
     try {
       const emptyPools = await this.deps.prisma.pool.findMany({
         where: {
-          status: { in: [PoolStatus.RESOLVED, PoolStatus.CLAIMABLE] },
+          status: { in: [PoolStatus.JOINING, PoolStatus.RESOLVED, PoolStatus.CLAIMABLE] },
           totalUp: BigInt(0),
           totalDown: BigInt(0),
           endTime: { lt: oneHourAgo },
@@ -125,10 +133,17 @@ export class PoolResolver {
     }
 
     // Atomic claim: only one scheduler tick can resolve this pool
-    const claimed = await this.deps.prisma.pool.updateMany({
-      where: { id: pool.id, status: PoolStatus.ACTIVE },
+    // Try JOINING first (new flow), fall back to ACTIVE (backward compat)
+    let claimed = await this.deps.prisma.pool.updateMany({
+      where: { id: pool.id, status: PoolStatus.JOINING },
       data: { status: PoolStatus.RESOLVED },
     });
+    if (claimed.count === 0) {
+      claimed = await this.deps.prisma.pool.updateMany({
+        where: { id: pool.id, status: PoolStatus.ACTIVE },
+        data: { status: PoolStatus.RESOLVED },
+      });
+    }
     if (claimed.count === 0) return;
 
     try {
@@ -155,8 +170,9 @@ export class PoolResolver {
         `[Scheduler] Pool ${pool.id} resolution: strike=${strikePrice} final=${finalPrice} diff=${finalPrice - strikePrice}`,
       );
 
-      // Empty pool — no winner
+      // Empty pool — no winner, but still resolve on-chain so close_pool works
       if (betCount === 0) {
+        await this.resolvePoolOnChain(pool.id, strikePrice, finalPrice);
         await this.deps.prisma.pool.update({
           where: { id: pool.id },
           data: { status: PoolStatus.CLAIMABLE, finalPrice },
@@ -228,10 +244,10 @@ export class PoolResolver {
 
       console.log(`[Scheduler] Pool ${pool.id} → RESOLVED: winner=${winner}, strike=${strikePrice}, final=${finalPrice}`);
     } catch (error) {
-      console.error(`[Scheduler] Failed to resolve pool ${pool.id}, reverting to ACTIVE:`, error);
+      console.error(`[Scheduler] Failed to resolve pool ${pool.id}, reverting to JOINING:`, error);
       await this.deps.prisma.pool.update({
         where: { id: pool.id },
-        data: { status: PoolStatus.ACTIVE },
+        data: { status: PoolStatus.JOINING },
       }).catch(() => {});
     }
   }
@@ -586,6 +602,97 @@ export class PoolResolver {
     }
 
     console.log(`[Scheduler] resolve tx confirmed: ${signature}`);
+    return signature;
+  }
+
+  /**
+   * Close resolved pools whose vaults are empty (all claims/refunds done).
+   * Reclaims ~0.0044 SOL rent per pool back to the authority.
+   * Uses atomic status claim to prevent concurrent processing.
+   */
+  async processPoolClosures(): Promise<void> {
+    if (this.closingInProgress) return;
+    this.closingInProgress = true;
+
+    try {
+      // Find CLAIMABLE pools older than 30 seconds where all bets are claimed
+      const cutoff = new Date(Date.now() - 30_000);
+      const candidates = await this.deps.prisma.pool.findMany({
+        where: {
+          status: PoolStatus.CLAIMABLE,
+          updatedAt: { lte: cutoff },
+        },
+        select: { id: true, poolId: true },
+      });
+
+      for (const pool of candidates) {
+        // Skip pools that recently failed close (backoff to avoid RPC flooding)
+        const lastFailure = this.closeFailures.get(pool.id);
+        if (lastFailure && Date.now() - lastFailure < PoolResolver.CLOSE_RETRY_DELAY_MS) continue;
+
+        // Check if any unclaimed bets remain
+        const unclaimed = await this.deps.prisma.bet.count({
+          where: { poolId: pool.id, claimed: false },
+        });
+        if (unclaimed > 0) continue;
+
+        try {
+          await this.closePoolOnChain(pool.id);
+
+          // Clean up DB records
+          this.closeFailures.delete(pool.id);
+          await this.deps.prisma.priceSnapshot.deleteMany({ where: { poolId: pool.id } });
+          await this.deps.prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: pool.id } });
+          await this.deps.prisma.bet.deleteMany({ where: { poolId: pool.id } });
+          await this.deps.prisma.pool.deleteMany({ where: { id: pool.id } });
+
+          console.log(`[Scheduler] Pool ${pool.id} closed on-chain & cleaned up (rent reclaimed)`);
+        } catch (error) {
+          // Back off — don't retry for 5 minutes
+          this.closeFailures.set(pool.id, Date.now());
+          console.warn(
+            `[Scheduler] Failed to close pool ${pool.id} (will retry in 5m):`,
+            error instanceof Error ? error.message : error,
+          );
+        }
+      }
+    } catch (error) {
+      console.error('[Scheduler] processPoolClosures error:', error);
+    } finally {
+      this.closingInProgress = false;
+    }
+  }
+
+  /**
+   * Send on-chain close_pool instruction to reclaim rent.
+   */
+  private async closePoolOnChain(poolId: string): Promise<string> {
+    const seed = derivePoolSeed(poolId);
+    const [poolPda] = getPoolPDA(seed);
+    const [vaultPda] = getVaultPDA(seed);
+
+    const ix = buildClosePoolIx(poolPda, vaultPda, this.deps.wallet.publicKey);
+
+    const transaction = new Transaction().add(ix);
+    const { blockhash, lastValidBlockHeight } = await this.deps.connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = this.deps.wallet.publicKey;
+    transaction.sign(this.deps.wallet);
+
+    const signature = await this.deps.connection.sendRawTransaction(transaction.serialize(), {
+      skipPreflight: true,
+    });
+
+    const confirmation = await this.deps.connection.confirmTransaction(
+      { signature, blockhash, lastValidBlockHeight },
+      'confirmed',
+    );
+
+    if (confirmation.value.err) {
+      throw new Error(`close_pool tx failed: ${JSON.stringify(confirmation.value.err)}`);
+    }
+
+    console.log(`[Scheduler] close_pool tx confirmed: ${signature}`);
     return signature;
   }
 

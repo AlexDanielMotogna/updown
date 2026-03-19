@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { PrismaClient, PoolStatus, Prisma } from '@prisma/client';
 import { Connection, Keypair, PublicKey, Transaction } from '@solana/web3.js';
+import { PacificaProvider } from 'market-data';
 import { getPoolPDA, getVaultPDA, buildInitializePoolIx } from 'solana-client';
 import { PoolTemplate } from './config';
 import { emitNewPool } from '../websocket';
@@ -10,6 +11,7 @@ export interface CreatorDeps {
   prisma: PrismaClient;
   connection: Connection;
   wallet: Keypair;
+  priceProvider: PacificaProvider;
 }
 
 /**
@@ -32,11 +34,14 @@ export class PoolCreator {
     if (pending) return;
 
     const work = (async () => {
+      // Only count JOINING pools whose lockTime hasn't passed yet.
+      // Pools past lockTime are about to be resolved and don't count as active.
       const existing = await this.deps.prisma.pool.findFirst({
         where: {
           asset: template.asset,
           interval: template.intervalKey,
           status: PoolStatus.JOINING,
+          lockTime: { gt: new Date() },
         },
       });
 
@@ -96,6 +101,7 @@ export class PoolCreator {
         asset: template.asset,
         interval: template.intervalKey,
         status: PoolStatus.JOINING,
+        lockTime: { gt: new Date() },
       },
     });
     if (duplicate) {
@@ -110,26 +116,33 @@ export class PoolCreator {
     const seed = derivePoolSeed(uuid);
 
     const interval = template.interval;
-    const lockTime = Math.floor(now / interval) * interval + interval;
-    const startTime = lockTime;
-    const endTime = lockTime + interval;
+    // New timing: pool starts now, resolves after interval, betting open until 1s before end
+    const startTime = now;
+    const endTime = startTime + interval;
+    const lockTime = endTime - 1;
 
     console.log(`[Scheduler] Creating ${template.asset}/${template.intervalKey} pool...`);
-    console.log(`[Scheduler]   Lock: ${new Date(lockTime * 1000).toISOString()}`);
     console.log(`[Scheduler]   Start: ${new Date(startTime * 1000).toISOString()}`);
+    console.log(`[Scheduler]   Lock: ${new Date(lockTime * 1000).toISOString()}`);
     console.log(`[Scheduler]   End: ${new Date(endTime * 1000).toISOString()}`);
 
     try {
+      // Capture strike price at creation time
+      const priceTick = await this.deps.priceProvider.getSpotPrice(template.asset);
+      const strikePrice = priceTick.price;
+
+      console.log(`[Scheduler]   Strike price: ${strikePrice}`);
+
       const [poolPda] = getPoolPDA(seed);
       const [vaultPda] = getVaultPDA(seed);
       const usdcMint = getUsdcMint();
 
-      // Send on-chain initializePool transaction
+      // Send on-chain initializePool transaction with strike price
       // If this fails, we abort entirely (no DB insert). Scheduler retries next tick.
       await this.initializePoolOnChain(
         seed, template.asset,
-        startTime, endTime, lockTime, usdcMint,
-        poolPda, vaultPda,
+        startTime, endTime, lockTime, strikePrice,
+        usdcMint, poolPda, vaultPda,
       );
 
       const pool = await this.deps.prisma.pool.create({
@@ -143,20 +156,34 @@ export class PoolCreator {
           lockTime: new Date(lockTime * 1000),
           startTime: new Date(startTime * 1000),
           endTime: new Date(endTime * 1000),
+          strikePrice,
           totalUp: BigInt(0),
           totalDown: BigInt(0),
+        },
+      });
+
+      // Create STRIKE PriceSnapshot at creation time
+      await this.deps.prisma.priceSnapshot.create({
+        data: {
+          poolId: pool.id,
+          type: 'STRIKE',
+          price: strikePrice,
+          timestamp: priceTick.timestamp,
+          source: priceTick.source,
+          rawHash: priceTick.rawHash || '',
         },
       });
 
       await this.logEvent('POOL_CREATED', 'pool', pool.id, {
         poolId: poolPda.toBase58(),
         asset: template.asset,
+        strikePrice: strikePrice.toString(),
         lockTime: lockTime.toString(),
         startTime: startTime.toString(),
         endTime: endTime.toString(),
       });
 
-      console.log(`[Scheduler] Pool created: ${pool.id} (${poolPda.toBase58()})`);
+      console.log(`[Scheduler] Pool created: ${pool.id} (${poolPda.toBase58()}) strike=${strikePrice}`);
 
       emitNewPool({
         id: pool.id,
@@ -168,6 +195,7 @@ export class PoolCreator {
         startTime: pool.startTime.toISOString(),
         endTime: pool.endTime.toISOString(),
         lockTime: pool.lockTime.toISOString(),
+        strikePrice: strikePrice.toString(),
         totalUp: '0',
         totalDown: '0',
         totalPool: '0',
@@ -183,6 +211,7 @@ export class PoolCreator {
   private async initializePoolOnChain(
     seed: Buffer, asset: string,
     startTime: number, endTime: number, lockTime: number,
+    strikePrice: bigint,
     usdcMint: PublicKey,
     poolPda: PublicKey, vaultPda: PublicKey,
   ): Promise<string> {
@@ -191,10 +220,7 @@ export class PoolCreator {
     console.log(`[Scheduler]   Vault PDA: ${vaultPda.toBase58()}`);
     console.log(`[Scheduler]   Asset: ${asset}`);
     console.log(`[Scheduler]   Times: lock=${lockTime}, start=${startTime}, end=${endTime}`);
-
-    // Anchor requires lock_time < start_time (strict).
-    // Our scheduler sets lockTime == startTime, so pass lockTime - 1 on-chain.
-    const onChainLockTime = lockTime - 1;
+    console.log(`[Scheduler]   Strike: ${strikePrice}`);
 
     const ix = buildInitializePoolIx(
       poolPda,
@@ -205,7 +231,8 @@ export class PoolCreator {
       asset,
       startTime,
       endTime,
-      onChainLockTime,
+      lockTime,
+      strikePrice,
     );
 
     const transaction = new Transaction().add(ix);
@@ -215,8 +242,7 @@ export class PoolCreator {
     transaction.sign(this.deps.wallet);
 
     const signature = await this.deps.connection.sendRawTransaction(transaction.serialize(), {
-      skipPreflight: false,
-      preflightCommitment: 'confirmed',
+      skipPreflight: true,
     });
 
     const confirmation = await this.deps.connection.confirmTransaction(

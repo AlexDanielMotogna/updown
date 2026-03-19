@@ -44,10 +44,11 @@ pub fn handler(
     start_time: i64,
     end_time: i64,
     lock_time: i64,
+    strike_price: u64,
 ) -> Result<()> {
     // Validate time configuration
     require!(
-        lock_time < start_time && start_time < end_time,
+        lock_time < end_time,
         PoolError::InvalidTimeConfig
     );
 
@@ -61,7 +62,7 @@ pub fn handler(
     pool.start_time = start_time;
     pool.end_time = end_time;
     pool.lock_time = lock_time;
-    pool.strike_price = 0;
+    pool.strike_price = strike_price;
     pool.final_price = 0;
     pool.total_up = 0;
     pool.total_down = 0;
@@ -77,6 +78,7 @@ pub fn handler(
         start_time,
         end_time,
         lock_time,
+        strike_price,
     });
 
     Ok(())

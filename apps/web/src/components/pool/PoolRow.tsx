@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Box, Typography, Chip, Button, LinearProgress } from '@mui/material';
-import { TrendingUp, TrendingDown, Person, LocalFireDepartment, Star } from '@mui/icons-material';
+import { TrendingUp, TrendingDown, Person, LocalFireDepartment, Star, Share } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import type { Pool } from '@/lib/api';
@@ -56,28 +56,24 @@ export function PoolRow({
   const status = optimisticStatus;
   const statusStyle = statusStyles[status] || statusStyles.UPCOMING;
   const isJoining = status === 'JOINING';
-  const lockTimePassed = isJoining && new Date(pool.lockTime).getTime() <= Date.now();
-  const endTimePassed = status === 'ACTIVE' && new Date(pool.endTime).getTime() <= Date.now();
-  const canBet = isJoining && !lockTimePassed;
+  const endTimePassed = isJoining && new Date(pool.endTime).getTime() <= Date.now();
+  const canBet = isJoining && !endTimePassed;
   const isHot = canBet && pool.betCount >= 5;
 
   const handleCountdownComplete = useCallback(() => {
-    if (optimisticStatus === 'JOINING') {
-      setOptimisticStatus('ACTIVE');
-    } else if (optimisticStatus === 'ACTIVE') {
-      setHidden(true);
-    }
-  }, [optimisticStatus]);
+    // Pool ended — hide from list (will be resolved server-side)
+    setHidden(true);
+  }, []);
 
   // Hide immediately if endTime already passed on mount (e.g., page refresh)
   useEffect(() => {
-    if (optimisticStatus === 'ACTIVE' && new Date(pool.endTime).getTime() <= Date.now()) {
+    if (isJoining && new Date(pool.endTime).getTime() <= Date.now()) {
       setHidden(true);
     }
-  }, [optimisticStatus, pool.endTime]);
+  }, [isJoining, pool.endTime]);
 
   const countdownTarget =
-    status === 'JOINING' ? pool.lockTime :
+    status === 'JOINING' ? pool.endTime :
     status === 'ACTIVE' ? pool.endTime :
     status === 'UPCOMING' ? pool.startTime :
     null;
@@ -100,7 +96,7 @@ export function PoolRow({
         position: 'relative',
         overflow: 'hidden',
         display: { xs: 'block', md: 'grid' },
-        gridTemplateColumns: { md: '110px minmax(180px, 2fr) 110px 140px 100px 110px 60px 150px' },
+        gridTemplateColumns: { md: '110px minmax(180px, 2fr) 110px 140px 100px 110px 60px 130px 40px' },
         alignItems: 'stretch',
         pr: { xs: 0, md: 2 },
         pl: 0,
@@ -225,7 +221,7 @@ export function PoolRow({
                   />
                 )}
               </Box>
-              <Chip label={status} size="small" sx={{ ...statusStyle, height: 20, fontSize: '0.6rem', fontWeight: 600, borderRadius: '2px', mt: 0.5 }} />
+              <Chip label={status === 'JOINING' ? 'LIVE' : status} size="small" sx={{ ...statusStyle, height: 20, fontSize: '0.6rem', fontWeight: 600, borderRadius: '2px', mt: 0.5 }} />
             </Box>
           </Box>
         </Box>
@@ -233,9 +229,7 @@ export function PoolRow({
         {/* Middle: countdown left, pool size right */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-            {lockTimePassed ? (
-              <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', fontStyle: 'italic' }}>Locking...</Typography>
-            ) : endTimePassed ? (
+            {endTimePassed ? (
               <Typography sx={{ fontSize: '0.8rem', color: '#FBBF24', fontStyle: 'italic' }}>Resolving...</Typography>
             ) : countdownTarget ? (
               <Countdown targetDate={countdownTarget} compact onComplete={handleCountdownComplete} />
@@ -419,7 +413,7 @@ export function PoolRow({
           alt={INTERVAL_LABELS[pool.interval] || pool.interval}
           sx={{ height: { xs: 36, md: 42 }, imageRendering: '-webkit-optimize-contrast' }}
         />
-        <Chip label={status} size="small" sx={{ ...statusStyle, height: 20, fontSize: '0.55rem', fontWeight: 600, borderRadius: '2px' }} />
+        <Chip label={status === 'JOINING' ? 'LIVE' : status} size="small" sx={{ ...statusStyle, height: 20, fontSize: '0.55rem', fontWeight: 600, borderRadius: '2px' }} />
         {isHot && (
           <Chip
             icon={<LocalFireDepartment sx={{ fontSize: 11 }} />}
@@ -457,9 +451,7 @@ export function PoolRow({
 
       {/* Countdown */}
       <Box sx={{ display: { xs: 'none', md: 'block' }, alignSelf: 'center' }}>
-        {lockTimePassed ? (
-          <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', fontStyle: 'italic' }}>Locking...</Typography>
-        ) : endTimePassed ? (
+        {endTimePassed ? (
           <Typography sx={{ fontSize: '0.8rem', color: '#FBBF24', fontStyle: 'italic' }}>Resolving...</Typography>
         ) : countdownTarget ? (
           <Countdown targetDate={countdownTarget} compact onComplete={handleCountdownComplete} />
@@ -519,14 +511,15 @@ export function PoolRow({
       </Box>
 
       {/* Action */}
-      <Box sx={{ display: { xs: 'none', md: 'flex' }, alignSelf: 'center', gap: 0.75 }}>
+      {/* Action */}
+      <Box sx={{ display: { xs: 'none', md: 'flex' }, alignSelf: 'center', justifyContent: 'center', alignItems: 'center' }}>
         {canBet ? (
           <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none' }}>
             <Button
               size="small"
               sx={{
-                minWidth: 80,
-                px: 2.5,
+                minWidth: 70,
+                px: 2,
                 py: 0.75,
                 fontSize: '0.75rem',
                 fontWeight: 700,
@@ -545,8 +538,8 @@ export function PoolRow({
             <Button
               size="small"
               sx={{
-                minWidth: 80,
-                px: 2.5,
+                minWidth: 70,
+                px: 2,
                 py: 0.75,
                 fontSize: '0.75rem',
                 fontWeight: 600,
@@ -597,8 +590,8 @@ export function PoolRow({
             <Button
               size="small"
               sx={{
-                minWidth: 80,
-                px: 2.5,
+                minWidth: 70,
+                px: 2,
                 py: 0.75,
                 fontSize: '0.75rem',
                 fontWeight: 600,
@@ -613,6 +606,31 @@ export function PoolRow({
             </Button>
           </Link>
         )}
+      </Box>
+
+      {/* Share */}
+      <Box
+        component="button"
+        onClick={(e: React.MouseEvent) => {
+          e.stopPropagation();
+          const url = `${window.location.origin}/pool/${pool.id}`;
+          if (navigator.share) {
+            navigator.share({ title: `${pool.asset} ${pool.interval} Pool`, url });
+          } else {
+            navigator.clipboard.writeText(url);
+          }
+        }}
+        sx={{
+          display: { xs: 'none', md: 'flex' },
+          alignSelf: 'center', justifyContent: 'center', alignItems: 'center',
+          background: 'none', border: 'none', cursor: 'pointer', p: 0.5,
+          borderRadius: '4px',
+          color: 'rgba(255,255,255,0.25)',
+          '&:hover': { color: 'rgba(255,255,255,0.7)', bgcolor: 'rgba(255,255,255,0.06)' },
+          transition: 'all 0.15s ease',
+        }}
+      >
+        <Share sx={{ fontSize: 15 }} />
       </Box>
     </Box>
     </motion.div>

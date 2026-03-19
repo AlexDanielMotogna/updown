@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, CircularProgress } from '@mui/material';
 import { motion } from 'framer-motion';
 import { ACCENT_COLOR, DOWN_COLOR } from '@/lib/constants';
 
@@ -10,6 +10,8 @@ interface CountdownProps {
   label?: string;
   onComplete?: () => void;
   compact?: boolean;
+  /** Override font size for compact mode */
+  compactFontSize?: string | object;
 }
 
 interface TimeLeft {
@@ -46,7 +48,7 @@ function getPhase(totalMs: number): Phase {
   return 'calm';
 }
 
-export function Countdown({ targetDate, label, onComplete, compact = false }: CountdownProps) {
+export function Countdown({ targetDate, label, onComplete, compact = false, compactFontSize }: CountdownProps) {
   const targetMs = useMemo(() => {
     const date = typeof targetDate === 'string' ? new Date(targetDate) : targetDate;
     return date.getTime();
@@ -125,25 +127,20 @@ export function Countdown({ targetDate, label, onComplete, compact = false }: Co
   if (compact) {
     return (
       <Box>
-        {phaseLabel && (
-          <Typography
-            variant="caption"
-            sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}
-          >
-            {phaseLabel}
-          </Typography>
-        )}
         <Typography
           sx={{
             fontVariantNumeric: 'tabular-nums',
-            fontSize: '0.85rem',
-            fontWeight: 500,
+            fontSize: compactFontSize ?? '0.85rem',
+            fontWeight: compactFontSize ? 700 : 500,
             color: isExpired ? 'text.disabled' : numberColor,
             transition: 'all 0.3s ease',
           }}
         >
           {isExpired ? (
-            'Expired'
+            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+              <CircularProgress size={12} sx={{ color: 'text.secondary' }} />
+              Resolving...
+            </Box>
           ) : (
             timeUnits.map((unit, i) => (
               <span key={unit.label}>
@@ -194,12 +191,12 @@ export function Countdown({ targetDate, label, onComplete, compact = false }: Co
       )}
 
       {isExpired ? (
-        <Typography
-          variant="h6"
-          sx={{ color: 'text.disabled', textAlign: 'center' }}
-        >
-          Expired
-        </Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, py: 1 }}>
+          <CircularProgress size={24} sx={{ color: ACCENT_COLOR }} />
+          <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem', fontWeight: 500, letterSpacing: '0.05em' }}>
+            Resolving pool...
+          </Typography>
+        </Box>
       ) : (
         <Box sx={{ display: 'flex', gap: { xs: 1, sm: 1.5 }, justifyContent: 'center' }}>
           {timeUnits.map((unit) => (

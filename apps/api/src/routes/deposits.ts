@@ -85,7 +85,7 @@ depositsRouter.post('/deposit', async (req, res) => {
       });
     }
 
-    // Check if user already has a bet in this pool
+    // Check if user already has a bet in this pool — allow re-deposit on same side only
     const existingBet = await prisma.bet.findUnique({
       where: {
         poolId_walletAddress: {
@@ -95,12 +95,12 @@ depositsRouter.post('/deposit', async (req, res) => {
       },
     });
 
-    if (existingBet) {
+    if (existingBet && existingBet.side !== side) {
       return res.status(400).json({
         success: false,
         error: {
-          code: 'BET_EXISTS',
-          message: 'You already have a bet in this pool',
+          code: 'SIDE_MISMATCH',
+          message: `You already have a ${existingBet.side} bet in this pool. Cannot switch sides.`,
         },
       });
     }
@@ -199,7 +199,22 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
       });
     }
 
-    // Check if bet already exists
+    // Check for idempotency — same tx signature means already processed
+    const existingBetByTx = await prisma.bet.findFirst({
+      where: { poolId: pool.id, walletAddress, depositTx: txSignature },
+    });
+
+    if (existingBetByTx) {
+      return res.json({
+        success: true,
+        data: {
+          betId: existingBetByTx.id,
+          status: 'already_confirmed',
+        },
+      });
+    }
+
+    // Check side mismatch for existing bets
     const existingBet = await prisma.bet.findUnique({
       where: {
         poolId_walletAddress: {
@@ -209,22 +224,12 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
       },
     });
 
-    if (existingBet) {
-      // If bet exists with same tx, return success
-      if (existingBet.depositTx === txSignature) {
-        return res.json({
-          success: true,
-          data: {
-            betId: existingBet.id,
-            status: 'already_confirmed',
-          },
-        });
-      }
+    if (existingBet && existingBet.side !== side) {
       return res.status(400).json({
         success: false,
         error: {
-          code: 'BET_EXISTS',
-          message: 'Bet already exists for this wallet and pool',
+          code: 'SIDE_MISMATCH',
+          message: `You already have a ${existingBet.side} bet in this pool. Cannot switch sides.`,
         },
       });
     }
@@ -334,14 +339,24 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
 
     console.log(`[Deposit] Verified on-chain: pool=${poolId}, wallet=${walletAddress}, side=${side}, amount=${betAmount}`);
 
-    // BUG-06: Atomic transaction — bet.create + pool.update together
+    // Atomic transaction — bet.upsert + pool.update together (supports multiple deposits)
     const [bet, updatedPool] = await prisma.$transaction(async (tx) => {
-      const newBet = await tx.bet.create({
-        data: {
+      const newBet = await tx.bet.upsert({
+        where: {
+          poolId_walletAddress: {
+            poolId: pool.id,
+            walletAddress,
+          },
+        },
+        create: {
           poolId: pool.id,
           walletAddress,
           side,
           amount: betAmount,
+          depositTx: txSignature,
+        },
+        update: {
+          amount: { increment: betAmount },
           depositTx: txSignature,
         },
       });
