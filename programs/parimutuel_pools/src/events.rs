@@ -36,5 +36,14 @@ pub struct PayoutClaimed {
     pub pool_id: [u8; 32],
     pub user: Pubkey,
     pub amount: u64,
+    pub fee: u64,
+    pub side: Side,
+}
+
+#[event]
+pub struct Refunded {
+    pub pool_id: [u8; 32],
+    pub user: Pubkey,
+    pub amount: u64,
     pub side: Side,
 }

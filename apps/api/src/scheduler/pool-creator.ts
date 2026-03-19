@@ -1,10 +1,10 @@
 import crypto from 'crypto';
 import { PrismaClient, PoolStatus, Prisma } from '@prisma/client';
-import { Connection, Keypair, PublicKey } from '@solana/web3.js';
-import { getPoolPDA, getVaultPDA } from 'solana-client';
+import { Connection, Keypair, PublicKey, Transaction } from '@solana/web3.js';
+import { getPoolPDA, getVaultPDA, buildInitializePoolIx } from 'solana-client';
 import { PoolTemplate } from './config';
 import { emitNewPool } from '../websocket';
-import { getUsdcMint } from '../utils/solana';
+import { getUsdcMint, derivePoolSeed } from '../utils/solana';
 
 export interface CreatorDeps {
   prisma: PrismaClient;
@@ -104,7 +104,10 @@ export class PoolCreator {
     }
 
     const now = Math.floor(Date.now() / 1000);
-    const poolId = crypto.randomBytes(32);
+
+    // Generate UUID first — this is the canonical pool identity
+    const uuid = crypto.randomUUID();
+    const seed = derivePoolSeed(uuid);
 
     const interval = template.interval;
     const lockTime = Math.floor(now / interval) * interval + interval;
@@ -117,24 +120,21 @@ export class PoolCreator {
     console.log(`[Scheduler]   End: ${new Date(endTime * 1000).toISOString()}`);
 
     try {
-      const [poolPda] = getPoolPDA(poolId);
-      const [vaultPda] = getVaultPDA(poolId);
-
+      const [poolPda] = getPoolPDA(seed);
+      const [vaultPda] = getVaultPDA(seed);
       const usdcMint = getUsdcMint();
 
-      if (process.env.SOLANA_RPC_URL) {
-        try {
-          await this.initializePoolOnChain(
-            Array.from(poolId), template.asset,
-            startTime, endTime, lockTime, usdcMint,
-          );
-        } catch (error) {
-          console.error('[Scheduler] Failed to create pool on-chain:', error);
-        }
-      }
+      // Send on-chain initializePool transaction
+      // If this fails, we abort entirely (no DB insert). Scheduler retries next tick.
+      await this.initializePoolOnChain(
+        seed, template.asset,
+        startTime, endTime, lockTime, usdcMint,
+        poolPda, vaultPda,
+      );
 
       const pool = await this.deps.prisma.pool.create({
         data: {
+          id: uuid,
           poolId: poolPda.toBase58(),
           asset: template.asset,
           interval: template.intervalKey,
@@ -181,19 +181,55 @@ export class PoolCreator {
   }
 
   private async initializePoolOnChain(
-    poolId: number[], asset: string,
+    seed: Buffer, asset: string,
     startTime: number, endTime: number, lockTime: number,
     usdcMint: PublicKey,
+    poolPda: PublicKey, vaultPda: PublicKey,
   ): Promise<string> {
-    const [poolPda] = getPoolPDA(Uint8Array.from(poolId));
-    const [vaultPda] = getVaultPDA(Uint8Array.from(poolId));
-    console.log(`[Scheduler] Would initialize on-chain pool:`);
+    console.log(`[Scheduler] Initializing on-chain pool:`);
     console.log(`[Scheduler]   Pool PDA: ${poolPda.toBase58()}`);
     console.log(`[Scheduler]   Vault PDA: ${vaultPda.toBase58()}`);
     console.log(`[Scheduler]   Asset: ${asset}`);
     console.log(`[Scheduler]   Times: lock=${lockTime}, start=${startTime}, end=${endTime}`);
-    // TODO: Implement full Anchor program call when deployed
-    return 'pending-onchain-integration';
+
+    // Anchor requires lock_time < start_time (strict).
+    // Our scheduler sets lockTime == startTime, so pass lockTime - 1 on-chain.
+    const onChainLockTime = lockTime - 1;
+
+    const ix = buildInitializePoolIx(
+      poolPda,
+      vaultPda,
+      usdcMint,
+      this.deps.wallet.publicKey,
+      seed,
+      asset,
+      startTime,
+      endTime,
+      onChainLockTime,
+    );
+
+    const transaction = new Transaction().add(ix);
+    const { blockhash, lastValidBlockHeight } = await this.deps.connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = this.deps.wallet.publicKey;
+    transaction.sign(this.deps.wallet);
+
+    const signature = await this.deps.connection.sendRawTransaction(transaction.serialize(), {
+      skipPreflight: false,
+      preflightCommitment: 'confirmed',
+    });
+
+    const confirmation = await this.deps.connection.confirmTransaction(
+      { signature, blockhash, lastValidBlockHeight },
+      'confirmed',
+    );
+
+    if (confirmation.value.err) {
+      throw new Error(`initializePool tx failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
+    }
+
+    console.log(`[Scheduler] initializePool tx confirmed: ${signature}`);
+    return signature;
   }
 
   private async logEvent(

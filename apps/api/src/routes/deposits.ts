@@ -4,8 +4,9 @@ import { PublicKey } from '@solana/web3.js';
 import { prisma } from '../db';
 import { emitPoolUpdate } from '../websocket';
 import { getPoolPDA, getVaultPDA, getUserBetPDA, PROGRAM_ID } from 'solana-client';
-import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { getConnection, getUsdcMint, derivePoolIdBytes } from '../utils/solana';
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { getConnection, getUsdcMint, derivePoolSeed } from '../utils/solana';
+import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { awardBetPlacement } from '../services/rewards';
 
 export const depositsRouter: RouterType = Router();
@@ -104,22 +105,23 @@ depositsRouter.post('/deposit', async (req, res) => {
       });
     }
 
-    // Derive PDAs
-    const poolIdBytes = derivePoolIdBytes(pool.poolId);
+    // Derive PDAs using deterministic seed from pool UUID
+    const seed = derivePoolSeed(pool.id);
     const user = new PublicKey(walletAddress);
-    const [poolPDA] = getPoolPDA(poolIdBytes);
-    const [vault] = getVaultPDA(poolIdBytes);
+    const [poolPDA] = getPoolPDA(seed);
+    const [vaultPDA] = getVaultPDA(seed);
     const [userBet] = getUserBetPDA(poolPDA, user);
     const userTokenAccount = await getAssociatedTokenAddress(getUsdcMint(), user);
 
     // Return accounts needed for transaction
+    // vault IS a token account (initialized by Anchor initializePool), not an ATA
     res.json({
       success: true,
       data: {
         accounts: {
           pool: poolPDA.toBase58(),
           userBet: userBet.toBase58(),
-          vault: vault.toBase58(),
+          vault: vaultPDA.toBase58(),
           userTokenAccount: userTokenAccount.toBase58(),
           user: walletAddress,
           tokenProgram: TOKEN_PROGRAM_ID.toBase58(),
@@ -276,22 +278,20 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
       });
     }
 
-    // Parse the actual transfer amount from on-chain transaction
-    // SPL Token transfers show up in pre/post token balances
+    // Parse the actual transfer amount from on-chain transaction.
+    // The vault PDA IS the token account (initialized by Anchor initializePool).
+    const seed = derivePoolSeed(pool.id);
+    const [vaultPDA] = getVaultPDA(seed);
+    const vaultPDAStr = vaultPDA.toBase58();
+
     const preBalances = tx.meta?.preTokenBalances || [];
     const postBalances = tx.meta?.postTokenBalances || [];
-
-    // Generate expected vault address
-    const poolIdBytes = derivePoolIdBytes(pool.poolId);
-    const [vault] = getVaultPDA(poolIdBytes);
-    const vaultTokenAccount = await getAssociatedTokenAddress(getUsdcMint(), vault, true);
-    const vaultTokenAccountStr = vaultTokenAccount.toBase58();
 
     // Find the vault's token balance change
     let transferAmount = BigInt(0);
 
     console.log(`[Deposit Debug] USDC_MINT: ${getUsdcMint().toBase58()}`);
-    console.log(`[Deposit Debug] Expected vault ATA: ${vaultTokenAccountStr}`);
+    console.log(`[Deposit Debug] Expected vault PDA: ${vaultPDAStr}`);
     console.log(`[Deposit Debug] postBalances:`, JSON.stringify(postBalances.map(b => ({ mint: b.mint, accountIndex: b.accountIndex, amount: b.uiTokenAmount.amount }))));
     console.log(`[Deposit Debug] preBalances:`, JSON.stringify(preBalances.map(b => ({ mint: b.mint, accountIndex: b.accountIndex, amount: b.uiTokenAmount?.amount }))));
     const accountKeys = tx.transaction.message.getAccountKeys();
@@ -302,9 +302,8 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
       if (postBalance.mint !== getUsdcMint().toBase58()) continue;
 
       // Get the account key from the transaction
-      const accountKeys = tx.transaction.message.getAccountKeys();
       const accountKey = accountKeys.get(postBalance.accountIndex);
-      if (!accountKey || accountKey.toBase58() !== vaultTokenAccountStr) continue;
+      if (!accountKey || accountKey.toBase58() !== vaultPDAStr) continue;
 
       // Find matching pre-balance
       const preBalance = preBalances.find(
@@ -335,7 +334,7 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
 
     console.log(`[Deposit] Verified on-chain: pool=${poolId}, wallet=${walletAddress}, side=${side}, amount=${betAmount}`);
 
-    // BUG-06: Atomic transaction  bet.create + pool.update together
+    // BUG-06: Atomic transaction — bet.create + pool.update together
     const [bet, updatedPool] = await prisma.$transaction(async (tx) => {
       const newBet = await tx.bet.create({
         data: {

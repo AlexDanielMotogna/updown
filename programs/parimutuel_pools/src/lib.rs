@@ -39,9 +39,14 @@ pub mod parimutuel_pools {
         instructions::resolve::handler(ctx, strike_price, final_price)
     }
 
-    /// Claim payout from resolved pool
-    pub fn claim(ctx: Context<Claim>) -> Result<()> {
-        instructions::claim::handler(ctx)
+    /// Claim payout from resolved pool (user + authority co-sign, with fee)
+    pub fn claim(ctx: Context<Claim>, fee_bps: u16) -> Result<()> {
+        instructions::claim::handler(ctx, fee_bps)
+    }
+
+    /// Refund a user's bet (authority-only, no user signature needed)
+    pub fn refund(ctx: Context<Refund>) -> Result<()> {
+        instructions::refund::handler(ctx)
     }
 }
 

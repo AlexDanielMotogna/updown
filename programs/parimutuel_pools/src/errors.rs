@@ -43,4 +43,7 @@ pub enum PoolError {
 
     #[msg("No bets on winning side")]
     NoWinningBets,
+
+    #[msg("Fee basis points must be <= 10000")]
+    InvalidFeeBps,
 }

@@ -7,7 +7,7 @@ import { RewardPopup } from './RewardPopup';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: { xs: '72px', lg: 0 } }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: { xs: 'calc(72px + env(safe-area-inset-bottom, 0px))', lg: 0 } }}>
       <Header />
       <RewardPopup />
       <Box sx={{ display: 'flex', bgcolor: '#0B0F14' }}>

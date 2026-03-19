@@ -22,6 +22,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useNotificationStore, type Notification, type NotificationSeverity } from '@/stores/notificationStore';
 import { AssetIcon } from '../AssetIcon';
+import { UserLevelBadge } from '../UserLevelBadge';
 import { GAIN_COLOR, ACCENT_COLOR, DOWN_COLOR } from '@/lib/constants';
 
 const SEVERITY_COLORS: Record<NotificationSeverity, string> = {
@@ -34,6 +35,8 @@ const SEVERITY_COLORS: Record<NotificationSeverity, string> = {
 function getSeverityIcon(severity: NotificationSeverity, type: string) {
   if (type === 'POOL_WON' || type === 'POOL_CLAIMABLE')
     return <EmojiEvents sx={{ fontSize: 18, color: GAIN_COLOR }} />;
+  if (type === 'CLAIM_SUCCESS' || type === 'REFUND_RECEIVED')
+    return <Box component="img" src="/coins/usdc-coin.png" alt="USDC" sx={{ width: 18, height: 18 }} />;
   switch (severity) {
     case 'success': return <CheckCircleOutline sx={{ fontSize: 18, color: GAIN_COLOR }} />;
     case 'info': return <InfoOutlined sx={{ fontSize: 18, color: ACCENT_COLOR }} />;
@@ -205,7 +208,11 @@ export function NotificationPanel() {
                         }}
                       >
                         <Box sx={{ pt: 0.25, flexShrink: 0 }}>
-                          {n.asset ? (
+                          {n.type === 'LEVEL_UP' && n.level ? (
+                            <UserLevelBadge level={n.level} title="" size="sm" variant="icon-only" />
+                          ) : n.type === 'COINS_EARNED' ? (
+                            <Box component="img" src="/token/Token_16px_Gold.png" alt="UP Coin" sx={{ width: 18, height: 18 }} />
+                          ) : n.asset ? (
                             <AssetIcon asset={n.asset} size={18} />
                           ) : (
                             getSeverityIcon(n.severity, n.type)

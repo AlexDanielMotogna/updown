@@ -41,10 +41,8 @@ export function getAuthorityKeypair(): Keypair {
   throw new Error('AUTHORITY_SECRET_KEY or AUTHORITY_KEYPAIR_PATH not configured');
 }
 
-/** Convert a pool's string ID into the 32-byte buffer used for PDA derivation. */
-export function derivePoolIdBytes(poolId: string): Buffer {
-  const bytes = Buffer.alloc(32);
-  const hash = Buffer.from(poolId, 'utf-8');
-  hash.copy(bytes, 0, 0, Math.min(hash.length, 32));
-  return bytes;
+/** Derive deterministic 32-byte seed from a pool UUID via SHA-256. */
+export function derivePoolSeed(poolUuid: string): Buffer {
+  const crypto = require('crypto');
+  return crypto.createHash('sha256').update(poolUuid).digest();
 }

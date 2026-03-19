@@ -411,8 +411,10 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
                   {estimatedCoins > 0 ? `+~${estimatedCoins.toFixed(2)} UP` : ''}
                 </Typography>
                 <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 300 }}>
-                  {userProfile && userProfile.feeBps < 500
-                    ? `Includes ${userProfile.feePercent}% fee (Lv.${userProfile.level} discount)`
+                  {userProfile
+                    ? userProfile.feeBps < 500
+                      ? `Includes ${userProfile.feePercent}% fee (Lv.${userProfile.level} discount)`
+                      : `Includes ${userProfile.feePercent}% platform fee`
                     : 'Includes 5% platform fee'}
                 </Typography>
               </Box>

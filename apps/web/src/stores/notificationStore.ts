@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export type NotificationSeverity = 'success' | 'info' | 'warning' | 'error';
 
@@ -50,69 +51,97 @@ const DEDUP_WINDOW_MS = 3000;
 
 let counter = 0;
 
-export const useNotificationStore = create<NotificationStore>((set, get) => ({
-  notifications: [],
-  userPoolIds: new Set<string>(),
+export const useNotificationStore = create<NotificationStore>()(
+  persist(
+    (set, get) => ({
+      notifications: [],
+      userPoolIds: new Set<string>(),
 
-  push: (input) => {
-    // Deduplicate: ignore if same type + poolId was pushed within the last few seconds
-    const now = Date.now();
-    const existing = get().notifications;
-    // BUG-16: Include message in dedup check so distinct notifications
-    // of the same type (e.g. two different DEPOSIT_FAILED) aren't dropped
-    const isDupe = existing.some(
-      (n) =>
-        n.type === input.type &&
-        n.poolId === input.poolId &&
-        n.message === input.message &&
-        now - n.createdAt < DEDUP_WINDOW_MS,
-    );
-    if (isDupe) return;
+      push: (input) => {
+        const now = Date.now();
+        const existing = get().notifications;
+        const isDupe = existing.some(
+          (n) =>
+            n.type === input.type &&
+            n.poolId === input.poolId &&
+            n.message === input.message &&
+            now - n.createdAt < DEDUP_WINDOW_MS,
+        );
+        if (isDupe) return;
 
-    const notification: Notification = {
-      ...input,
-      id: `notif-${now}-${++counter}`,
-      createdAt: now,
-      dismissed: false,
-      toastDismissed: false,
-    };
+        const notification: Notification = {
+          ...input,
+          id: `notif-${now}-${++counter}`,
+          createdAt: now,
+          dismissed: false,
+          toastDismissed: false,
+        };
 
-    set((state) => {
-      const next = [notification, ...state.notifications];
-      if (next.length > MAX_HISTORY) next.length = MAX_HISTORY;
-      return { notifications: next };
-    });
-  },
+        set((state) => {
+          const next = [notification, ...state.notifications];
+          if (next.length > MAX_HISTORY) next.length = MAX_HISTORY;
+          return { notifications: next };
+        });
+      },
 
-  dismiss: (id) =>
-    set((state) => ({
-      notifications: state.notifications.map((n) =>
-        n.id === id ? { ...n, dismissed: true, toastDismissed: true } : n,
-      ),
-    })),
+      dismiss: (id) =>
+        set((state) => ({
+          notifications: state.notifications.map((n) =>
+            n.id === id ? { ...n, dismissed: true, toastDismissed: true } : n,
+          ),
+        })),
 
-  dismissToast: (id) =>
-    set((state) => ({
-      notifications: state.notifications.map((n) =>
-        n.id === id ? { ...n, toastDismissed: true } : n,
-      ),
-    })),
+      dismissToast: (id) =>
+        set((state) => ({
+          notifications: state.notifications.map((n) =>
+            n.id === id ? { ...n, toastDismissed: true } : n,
+          ),
+        })),
 
-  dismissAll: () =>
-    set((state) => ({
-      notifications: state.notifications.map((n) => ({ ...n, dismissed: true, toastDismissed: true })),
-    })),
+      dismissAll: () =>
+        set((state) => ({
+          notifications: state.notifications.map((n) => ({ ...n, dismissed: true, toastDismissed: true })),
+        })),
 
-  addUserPoolId: (poolId) =>
-    set((state) => {
-      if (state.userPoolIds.has(poolId)) return state;
-      const next = new Set(state.userPoolIds);
-      next.add(poolId);
-      return { userPoolIds: next };
+      addUserPoolId: (poolId) =>
+        set((state) => {
+          if (state.userPoolIds.has(poolId)) return state;
+          const next = new Set(state.userPoolIds);
+          next.add(poolId);
+          return { userPoolIds: next };
+        }),
+
+      setUserPoolIds: (ids) =>
+        set(() => ({ userPoolIds: new Set(ids) })),
     }),
-
-  setUserPoolIds: (ids) =>
-    set(() => ({ userPoolIds: new Set(ids) })),
-}));
+    {
+      name: 'updown-notifications',
+      storage: {
+        getItem: (name) => {
+          const raw = localStorage.getItem(name);
+          if (!raw) return null;
+          const parsed = JSON.parse(raw);
+          const state = parsed?.state;
+          if (state) {
+            // Restore Set from array
+            state.userPoolIds = new Set(state.userPoolIds || []);
+            // Mark all toasts as dismissed so they don't re-appear on reload
+            state.notifications = (state.notifications || []).map(
+              (n: Notification) => ({ ...n, toastDismissed: true }),
+            );
+          }
+          return parsed;
+        },
+        setItem: (name, value) => {
+          // Convert Set to array for JSON serialization
+          const state = { ...value.state };
+          state.userPoolIds = Array.from(state.userPoolIds || []) as unknown as Set<string>;
+          localStorage.setItem(name, JSON.stringify({ ...value, state }));
+        },
+        removeItem: (name) => localStorage.removeItem(name),
+      },
+    },
+  ),
+);
 
 export { MAX_VISIBLE };

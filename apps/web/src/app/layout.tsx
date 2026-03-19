@@ -1,8 +1,12 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
 import { Providers } from './providers';
 
 export const dynamic = 'force-dynamic';
+
+export const viewport: Viewport = {
+  viewportFit: 'cover',
+};
 
 const satoshi = localFont({
   src: '../../public/fonts/Satoshi-Variable.woff2',

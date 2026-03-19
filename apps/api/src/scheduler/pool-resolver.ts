@@ -1,15 +1,11 @@
 import { PrismaClient, PoolStatus, Side, Prisma } from '@prisma/client';
 import { Connection, Keypair, PublicKey, Transaction } from '@solana/web3.js';
-import {
-  TOKEN_PROGRAM_ID,
-  getAssociatedTokenAddress,
-  createTransferInstruction,
-  createAssociatedTokenAccountInstruction,
-} from '@solana/spl-token';
+import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { PacificaProvider } from 'market-data';
+import { getPoolPDA, getVaultPDA, getUserBetPDA, buildResolveIx, buildRefundIx } from 'solana-client';
 import { emitPoolStatus, emitRefund } from '../websocket';
 import { resetStreak } from '../services/rewards';
-import { getUsdcMint } from '../utils/solana';
+import { derivePoolSeed, getUsdcMint } from '../utils/solana';
 
 export interface ResolverDeps {
   prisma: PrismaClient;
@@ -18,9 +14,11 @@ export interface ResolverDeps {
   priceProvider: PacificaProvider;
 }
 
+const REFUND_MAX_RETRIES = 3;
+
 /**
  * Handles pool resolution: final price capture, winner determination,
- * refunds for edge cases, and RESOLVED → CLAIMABLE transitions.
+ * on-chain resolve, and RESOLVED → CLAIMABLE transitions.
  */
 export class PoolResolver {
   constructor(private deps: ResolverDeps) {}
@@ -29,11 +27,15 @@ export class PoolResolver {
    * Find and resolve all ACTIVE pools past their endTime.
    */
   async processResolutions(): Promise<void> {
-    const now = new Date();
+    // Add 5-second buffer to account for Solana clock skew on devnet.
+    // The on-chain resolve checks Clock::get().unix_timestamp >= end_time,
+    // which can lag behind wall time by several seconds.
+    const bufferMs = 5000;
+    const cutoff = new Date(Date.now() - bufferMs);
     const poolsToResolve = await this.deps.prisma.pool.findMany({
       where: {
         status: PoolStatus.ACTIVE,
-        endTime: { lte: now },
+        endTime: { lte: cutoff },
       },
     });
 
@@ -117,7 +119,8 @@ export class PoolResolver {
     totalDown: bigint;
   }): Promise<void> {
     if (!pool.strikePrice) {
-      console.error(`[Scheduler] Cannot resolve pool ${pool.id}: no strike price`);
+      console.warn(`[Scheduler] Pool ${pool.id} has no strike price — cleaning up stuck pool`);
+      await this.handleNoStrikePricePool(pool.id);
       return;
     }
 
@@ -167,7 +170,7 @@ export class PoolResolver {
         return;
       }
 
-      // Single bettor — refund
+      // Single bettor — resolve on-chain with prices that make their side win, then auto-refund
       if (betCount === 1) {
         await this.handleSingleBettorRefund(pool.id, strikePrice, finalPrice, betCount);
         return;
@@ -183,7 +186,7 @@ export class PoolResolver {
         winner = Side.DOWN; // Tie goes to DOWN
       }
 
-      // One-sided pool — refund everyone
+      // One-sided pool — resolve on-chain with prices that make the side-with-bets win, then auto-refund
       const winningSideTotal = winner === Side.UP ? pool.totalUp : pool.totalDown;
       if (winningSideTotal === BigInt(0)) {
         await this.handleOneSidedRefund(pool.id, winner, strikePrice, finalPrice, betCount);
@@ -191,13 +194,7 @@ export class PoolResolver {
       }
 
       // Normal resolution — both sides have bets
-      if (process.env.SOLANA_RPC_URL) {
-        try {
-          await this.resolvePoolOnChain(pool.poolId, strikePrice, finalPrice);
-        } catch (error) {
-          console.error(`[Scheduler] Failed to resolve pool on-chain:`, error);
-        }
-      }
+      await this.resolvePoolOnChain(pool.id, strikePrice, finalPrice);
 
       await this.deps.prisma.pool.update({
         where: { id: pool.id },
@@ -239,157 +236,357 @@ export class PoolResolver {
     }
   }
 
+  /**
+   * Single bettor: resolve on-chain with prices that make the bettor's side win,
+   * then auto-refund via on-chain refund instruction. Falls back to CLAIMABLE for manual claim.
+   */
   private async handleSingleBettorRefund(
     poolId: string, strikePrice: bigint, finalPrice: bigint, betCount: number,
   ): Promise<void> {
     const soleBet = await this.deps.prisma.bet.findFirst({ where: { poolId } });
 
-    if (soleBet && !soleBet.claimed) {
-      const refundTx = await this.refundBet(soleBet);
-      if (refundTx) {
-        await this.deps.prisma.bet.update({
-          where: { id: soleBet.id },
-          data: { claimed: true, claimTx: refundTx, payoutAmount: soleBet.amount },
-        });
-        emitRefund(soleBet.walletAddress, {
-          poolId,
-          amount: soleBet.amount.toString(),
-          txSignature: refundTx,
-        });
-        console.log(`[Scheduler] Pool ${poolId}: refunded ${soleBet.amount} to ${soleBet.walletAddress} (tx: ${refundTx})`);
-      } else {
-        console.warn(`[Scheduler] Pool ${poolId}: on-chain refund failed, falling back to claimable`);
-      }
+    if (!soleBet) {
+      await this.deps.prisma.pool.update({
+        where: { id: poolId },
+        data: { status: PoolStatus.CLAIMABLE, finalPrice },
+      });
+      return;
     }
 
-    const winner: Side = finalPrice > strikePrice ? Side.UP : Side.DOWN;
+    // Resolve on-chain with prices that make the bettor's side win
+    const { onChainStrike, onChainFinal } = this.pricesForSideWin(soleBet.side as Side);
+    await this.resolvePoolOnChain(poolId, onChainStrike, onChainFinal);
+
+    const winner = soleBet.side as Side;
 
     await this.deps.prisma.pool.update({
       where: { id: poolId },
-      data: { status: PoolStatus.CLAIMABLE, finalPrice, winner },
-    });
-    await this.logEvent('POOL_REFUND', 'pool', poolId, {
-      reason: 'single_bettor',
-      strikePrice: strikePrice.toString(),
-      finalPrice: finalPrice.toString(),
-      betCount: betCount.toString(),
-      refunded: (soleBet?.claimed || !!soleBet).toString(),
-    });
-    emitPoolStatus(poolId, { id: poolId, status: 'CLAIMABLE' });
-    console.log(`[Scheduler] Pool ${poolId} → CLAIMABLE (single bettor, winner=${winner})`);
-  }
-
-  private async handleOneSidedRefund(
-    poolId: string, winner: Side, strikePrice: bigint, finalPrice: bigint, betCount: number,
-  ): Promise<void> {
-    const allBets = await this.deps.prisma.bet.findMany({
-      where: { poolId, claimed: false },
+      data: { finalPrice, winner },
     });
 
-    console.log(`[Scheduler] Pool ${poolId}: winning side (${winner}) has 0 bets — refunding ${allBets.length} bettor(s)`);
+    // Auto-refund: try up to 3 times, then fall back to CLAIMABLE for manual claim
+    const refundSuccess = await this.autoRefundBets(poolId, [soleBet]);
 
-    for (const bet of allBets) {
-      const refundTx = await this.refundBet(bet);
-      if (refundTx) {
-        await this.deps.prisma.bet.update({
-          where: { id: bet.id },
-          data: { claimed: true, claimTx: refundTx, payoutAmount: bet.amount },
-        });
-        emitRefund(bet.walletAddress, {
-          poolId,
-          amount: bet.amount.toString(),
-          txSignature: refundTx,
-        });
-        console.log(`[Scheduler] Pool ${poolId}: refunded ${bet.amount} to ${bet.walletAddress} (tx: ${refundTx})`);
-      } else {
-        console.warn(`[Scheduler] Pool ${poolId}: failed to refund bet ${bet.id} for ${bet.walletAddress}`);
-      }
+    if (refundSuccess) {
+      // All bets refunded — mark pool as done
+      await this.deps.prisma.pool.update({
+        where: { id: poolId },
+        data: { status: PoolStatus.CLAIMABLE },
+      });
+      await this.logEvent('POOL_REFUND', 'pool', poolId, {
+        reason: 'single_bettor_auto',
+        strikePrice: strikePrice.toString(),
+        finalPrice: finalPrice.toString(),
+        betCount: betCount.toString(),
+        onChainWinner: winner,
+      });
+      console.log(`[Scheduler] Pool ${poolId} → auto-refunded (single bettor, winner=${winner})`);
+    } else {
+      // Refund failed after retries — leave as CLAIMABLE for manual claim
+      await this.deps.prisma.pool.update({
+        where: { id: poolId },
+        data: { status: PoolStatus.CLAIMABLE },
+      });
+      await this.logEvent('POOL_REFUND', 'pool', poolId, {
+        reason: 'single_bettor_manual_fallback',
+        strikePrice: strikePrice.toString(),
+        finalPrice: finalPrice.toString(),
+        betCount: betCount.toString(),
+        onChainWinner: winner,
+      });
+      console.log(`[Scheduler] Pool ${poolId} → CLAIMABLE (auto-refund failed, manual claim available)`);
     }
 
-    await this.deps.prisma.pool.update({
-      where: { id: poolId },
-      data: { status: PoolStatus.CLAIMABLE, finalPrice, winner },
-    });
-    await this.logEvent('POOL_REFUND', 'pool', poolId, {
-      reason: 'one_sided_pool',
-      strikePrice: strikePrice.toString(),
-      finalPrice: finalPrice.toString(),
-      winner,
-      betCount: betCount.toString(),
-      refundedCount: allBets.length.toString(),
-    });
     emitPoolStatus(poolId, { id: poolId, status: 'CLAIMABLE' });
-    console.log(`[Scheduler] Pool ${poolId} → CLAIMABLE (one-sided, all refunded)`);
   }
 
   /**
-   * Refund a single bet by transferring USDC back to the user.
+   * One-sided pool: all bets on one side. Resolve on-chain with prices that make
+   * the side-with-bets win, then auto-refund. Falls back to CLAIMABLE for manual claim.
    */
-  async refundBet(bet: {
-    id: string;
-    walletAddress: string;
-    amount: bigint;
-  }): Promise<string | null> {
+  private async handleOneSidedRefund(
+    poolId: string, winner: Side, strikePrice: bigint, finalPrice: bigint, betCount: number,
+  ): Promise<void> {
+    // The actual winner has 0 bets. We want the OTHER side (with bets) to win.
+    const sideWithBets = winner === Side.UP ? Side.DOWN : Side.UP;
+    const { onChainStrike, onChainFinal } = this.pricesForSideWin(sideWithBets);
+
+    await this.resolvePoolOnChain(poolId, onChainStrike, onChainFinal);
+
+    await this.deps.prisma.pool.update({
+      where: { id: poolId },
+      data: { finalPrice, winner: sideWithBets },
+    });
+
+    // Get all bets to refund
+    const bets = await this.deps.prisma.bet.findMany({
+      where: { poolId, claimed: false },
+    });
+
+    // Auto-refund with 3 retries
+    const refundSuccess = await this.autoRefundBets(poolId, bets);
+
+    if (refundSuccess) {
+      await this.deps.prisma.pool.update({
+        where: { id: poolId },
+        data: { status: PoolStatus.CLAIMABLE },
+      });
+      await this.logEvent('POOL_REFUND', 'pool', poolId, {
+        reason: 'one_sided_auto',
+        strikePrice: strikePrice.toString(),
+        finalPrice: finalPrice.toString(),
+        winner: sideWithBets,
+        betCount: betCount.toString(),
+      });
+      console.log(`[Scheduler] Pool ${poolId} → auto-refunded (one-sided, winner=${sideWithBets})`);
+    } else {
+      await this.deps.prisma.pool.update({
+        where: { id: poolId },
+        data: { status: PoolStatus.CLAIMABLE },
+      });
+      await this.logEvent('POOL_REFUND', 'pool', poolId, {
+        reason: 'one_sided_manual_fallback',
+        strikePrice: strikePrice.toString(),
+        finalPrice: finalPrice.toString(),
+        winner: sideWithBets,
+        betCount: betCount.toString(),
+      });
+      console.log(`[Scheduler] Pool ${poolId} → CLAIMABLE (auto-refund failed, manual claim available)`);
+    }
+
+    emitPoolStatus(poolId, { id: poolId, status: 'CLAIMABLE' });
+  }
+
+  /**
+   * Handle a stuck ACTIVE pool that has no strike price.
+   * If no bets → move straight to CLAIMABLE for cleanup.
+   * If bets exist → resolve on-chain with synthetic prices, then auto-refund.
+   */
+  private async handleNoStrikePricePool(poolId: string): Promise<void> {
     try {
-      const userPubkey = new PublicKey(bet.walletAddress);
-      const usdcMint = getUsdcMint();
-      const authorityATA = await getAssociatedTokenAddress(usdcMint, this.deps.wallet.publicKey);
-      const userATA = await getAssociatedTokenAddress(usdcMint, userPubkey);
-
-      const transaction = new Transaction();
-
-      const userATAInfo = await this.deps.connection.getAccountInfo(userATA);
-      if (!userATAInfo) {
-        transaction.add(
-          createAssociatedTokenAccountInstruction(
-            this.deps.wallet.publicKey, userATA, userPubkey, usdcMint,
-          ),
-        );
-      }
-
-      transaction.add(
-        createTransferInstruction(
-          authorityATA, userATA, this.deps.wallet.publicKey,
-          BigInt(bet.amount), [], TOKEN_PROGRAM_ID,
-        ),
-      );
-
-      const { blockhash, lastValidBlockHeight } = await this.deps.connection.getLatestBlockhash();
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = this.deps.wallet.publicKey;
-      transaction.sign(this.deps.wallet);
-
-      const signature = await this.deps.connection.sendRawTransaction(transaction.serialize(), {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
+      const bets = await this.deps.prisma.bet.findMany({
+        where: { poolId, claimed: false },
       });
 
-      const confirmation = await this.deps.connection.confirmTransaction(
-        { signature, blockhash, lastValidBlockHeight },
-        'confirmed',
-      );
-
-      if (confirmation.value.err) {
-        console.error(`[Scheduler] Refund tx failed on-chain:`, confirmation.value.err);
-        return null;
+      if (bets.length === 0) {
+        await this.deps.prisma.pool.update({
+          where: { id: poolId },
+          data: { status: PoolStatus.CLAIMABLE },
+        });
+        await this.logEvent('POOL_STUCK_CLEANUP', 'pool', poolId, {
+          reason: 'no_strike_price_no_bets',
+        });
+        emitPoolStatus(poolId, { id: poolId, status: 'CLAIMABLE' });
+        console.log(`[Scheduler] Pool ${poolId} → CLAIMABLE (no strike price, no bets)`);
+        return;
       }
 
-      return signature;
+      console.log(`[Scheduler] Pool ${poolId}: no strike price, resolving on-chain for ${bets.length} bet(s)`);
+
+      // Determine which side has bets and make that side win
+      const hasUp = bets.some(b => b.side === Side.UP);
+      const hasDown = bets.some(b => b.side === Side.DOWN);
+      let refundWinner: Side;
+
+      if (hasUp && !hasDown) {
+        refundWinner = Side.UP;
+      } else if (hasDown && !hasUp) {
+        refundWinner = Side.DOWN;
+      } else {
+        // Both sides have bets — DOWN wins by default (equal prices)
+        refundWinner = Side.DOWN;
+      }
+
+      const { onChainStrike, onChainFinal } = this.pricesForSideWin(refundWinner);
+
+      await this.resolvePoolOnChain(poolId, onChainStrike, onChainFinal);
+
+      await this.deps.prisma.pool.update({
+        where: { id: poolId },
+        data: { status: PoolStatus.CLAIMABLE, winner: refundWinner },
+      });
+
+      // Auto-refund with 3 retries
+      const refundSuccess = await this.autoRefundBets(poolId, bets);
+
+      await this.logEvent('POOL_STUCK_CLEANUP', 'pool', poolId, {
+        reason: 'no_strike_price_with_bets',
+        refundedCount: bets.length.toString(),
+        onChainWinner: refundWinner,
+        autoRefund: refundSuccess ? 'success' : 'failed_manual_fallback',
+      });
+      emitPoolStatus(poolId, { id: poolId, status: 'CLAIMABLE' });
+      console.log(`[Scheduler] Pool ${poolId} → CLAIMABLE (no strike price, ${bets.length} bet(s), winner=${refundWinner}, auto=${refundSuccess})`);
     } catch (error) {
-      console.error(`[Scheduler] Failed to refund bet ${bet.id}:`, error);
-      return null;
+      console.error(`[Scheduler] Failed to clean up stuck pool ${poolId}:`, error);
     }
   }
 
+  /**
+   * Auto-refund bets via on-chain refund instruction (authority-signed).
+   * Retries up to REFUND_MAX_RETRIES times per bet. Returns true if ALL bets were refunded.
+   */
+  private async autoRefundBets(
+    poolId: string,
+    bets: Array<{ id: string; walletAddress: string; side: string; amount: bigint; claimed: boolean }>,
+  ): Promise<boolean> {
+    const unclaimedBets = bets.filter(b => !b.claimed);
+    if (unclaimedBets.length === 0) return true;
+
+    let allSuccess = true;
+
+    for (const bet of unclaimedBets) {
+      let success = false;
+
+      for (let attempt = 1; attempt <= REFUND_MAX_RETRIES; attempt++) {
+        try {
+          await this.refundBetOnChain(poolId, bet.walletAddress);
+
+          // Mark as claimed in DB
+          await this.deps.prisma.bet.update({
+            where: { id: bet.id },
+            data: { claimed: true, payoutAmount: bet.amount },
+          });
+
+          await this.logEvent('BET_AUTO_REFUNDED', 'bet', bet.id, {
+            poolId,
+            walletAddress: bet.walletAddress,
+            amount: bet.amount.toString(),
+            attempt: attempt.toString(),
+          });
+
+          emitRefund(bet.walletAddress, {
+            poolId,
+            amount: bet.amount.toString(),
+            txSignature: 'auto-refund',
+          });
+
+          console.log(`[Scheduler] Auto-refunded bet ${bet.id} (attempt ${attempt})`);
+          success = true;
+          break;
+        } catch (error) {
+          console.warn(
+            `[Scheduler] Refund attempt ${attempt}/${REFUND_MAX_RETRIES} failed for bet ${bet.id}:`,
+            error instanceof Error ? error.message : error,
+          );
+
+          if (attempt < REFUND_MAX_RETRIES) {
+            // Wait before retry (exponential backoff: 2s, 4s)
+            await new Promise(r => setTimeout(r, 2000 * attempt));
+          }
+        }
+      }
+
+      if (!success) {
+        console.error(`[Scheduler] All ${REFUND_MAX_RETRIES} refund attempts failed for bet ${bet.id} — manual claim required`);
+        allSuccess = false;
+      }
+    }
+
+    return allSuccess;
+  }
+
+  /**
+   * Send on-chain refund instruction for a single bet.
+   * Authority signs — no user signature needed.
+   */
+  private async refundBetOnChain(poolId: string, walletAddress: string): Promise<string> {
+    const seed = derivePoolSeed(poolId);
+    const [poolPda] = getPoolPDA(seed);
+    const [vaultPda] = getVaultPDA(seed);
+    const user = new PublicKey(walletAddress);
+    const [userBetPda] = getUserBetPDA(poolPda, user);
+    const userTokenAccount = await getAssociatedTokenAddress(getUsdcMint(), user);
+
+    const ix = buildRefundIx(
+      poolPda,
+      userBetPda,
+      vaultPda,
+      userTokenAccount,
+      user,
+      this.deps.wallet.publicKey,
+    );
+
+    const transaction = new Transaction().add(ix);
+    const { blockhash, lastValidBlockHeight } = await this.deps.connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = this.deps.wallet.publicKey;
+    transaction.sign(this.deps.wallet);
+
+    const signature = await this.deps.connection.sendRawTransaction(transaction.serialize(), {
+      skipPreflight: false,
+      preflightCommitment: 'confirmed',
+    });
+
+    const confirmation = await this.deps.connection.confirmTransaction(
+      { signature, blockhash, lastValidBlockHeight },
+      'confirmed',
+    );
+
+    if (confirmation.value.err) {
+      throw new Error(`refund tx failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
+    }
+
+    console.log(`[Scheduler] refund tx confirmed: ${signature}`);
+    return signature;
+  }
+
+  /**
+   * Generate strike/final prices that make a given side win on-chain.
+   * UP wins when finalPrice > strikePrice, DOWN wins when finalPrice <= strikePrice.
+   */
+  private pricesForSideWin(side: Side): { onChainStrike: bigint; onChainFinal: bigint } {
+    if (side === Side.UP) {
+      // UP wins: final > strike
+      return { onChainStrike: BigInt(1000), onChainFinal: BigInt(2000) };
+    }
+    // DOWN wins: final <= strike (equal → DOWN wins)
+    return { onChainStrike: BigInt(2000), onChainFinal: BigInt(1000) };
+  }
+
+  /**
+   * Send on-chain resolve instruction.
+   */
   private async resolvePoolOnChain(
-    poolPubkey: string, strikePrice: bigint, finalPrice: bigint,
+    poolId: string, strikePrice: bigint, finalPrice: bigint,
   ): Promise<string> {
-    console.log(`[Scheduler] Would resolve on-chain pool:`);
-    console.log(`[Scheduler]   Pool: ${poolPubkey}`);
+    const seed = derivePoolSeed(poolId);
+    const [poolPda] = getPoolPDA(seed);
+
+    console.log(`[Scheduler] Resolving on-chain pool:`);
+    console.log(`[Scheduler]   Pool PDA: ${poolPda.toBase58()}`);
     console.log(`[Scheduler]   Strike: ${strikePrice}`);
     console.log(`[Scheduler]   Final: ${finalPrice}`);
-    // TODO: Implement full Anchor program call when deployed
-    return 'pending-onchain-integration';
+
+    const ix = buildResolveIx(
+      poolPda,
+      this.deps.wallet.publicKey,
+      strikePrice,
+      finalPrice,
+    );
+
+    const transaction = new Transaction().add(ix);
+    const { blockhash, lastValidBlockHeight } = await this.deps.connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = this.deps.wallet.publicKey;
+    transaction.sign(this.deps.wallet);
+
+    const signature = await this.deps.connection.sendRawTransaction(transaction.serialize(), {
+      skipPreflight: false,
+      preflightCommitment: 'confirmed',
+    });
+
+    const confirmation = await this.deps.connection.confirmTransaction(
+      { signature, blockhash, lastValidBlockHeight },
+      'confirmed',
+    );
+
+    if (confirmation.value.err) {
+      throw new Error(`resolve tx failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
+    }
+
+    console.log(`[Scheduler] resolve tx confirmed: ${signature}`);
+    return signature;
   }
 
   private async logEvent(

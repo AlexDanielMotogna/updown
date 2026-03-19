@@ -110,20 +110,15 @@ export interface DepositAccounts {
   };
 }
 
-export interface ClaimAccounts {
-  accounts: {
-    pool: string;
-    userBet: string;
-    vault: string;
-    userTokenAccount: string;
-    user: string;
-    tokenProgram: string;
-  };
-  programId: string;
+export interface ClaimResponse {
+  transaction: string; // base64 partially-signed tx
   bet: {
     id: string;
     side: string;
     amount: string;
+    grossPayout: string;
+    fee: string;
+    feeBps: number;
     expectedPayout: string;
   };
 }
@@ -215,8 +210,8 @@ export async function confirmDeposit(params: {
 export async function prepareClaim(params: {
   poolId: string;
   walletAddress: string;
-}): Promise<ApiResponse<ClaimAccounts>> {
-  return fetchApi<ClaimAccounts>('/api/transactions/claim', {
+}): Promise<ApiResponse<ClaimResponse>> {
+  return fetchApi<ClaimResponse>('/api/transactions/claim', {
     method: 'POST',
     body: JSON.stringify(params),
   });
@@ -227,16 +222,6 @@ export async function confirmClaim(params: {
   txSignature: string;
 }): Promise<ApiResponse<{ betId: string; payoutAmount: string; status: string }>> {
   return fetchApi('/api/transactions/confirm-claim', {
-    method: 'POST',
-    body: JSON.stringify(params),
-  });
-}
-
-export async function executeClaim(params: {
-  poolId: string;
-  walletAddress: string;
-}): Promise<ApiResponse<{ betId: string; payoutAmount: string; txSignature: string; status: string }>> {
-  return fetchApi('/api/transactions/execute-claim', {
     method: 'POST',
     body: JSON.stringify(params),
   });

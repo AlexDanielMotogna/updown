@@ -54,30 +54,67 @@ export class PacificaProvider implements IMarketDataProvider {
   /**
    * Get spot price for a symbol via REST API
    * Uses the oracle price for parimutuel pool resolution
+   * Retries up to 3 times with exponential backoff on transient errors.
    */
   async getSpotPrice(symbol: string): Promise<NormalizedPriceTick> {
-    const url = `${this.baseUrl}/api/v1/info/prices`;
+    return this.fetchWithRetry(async () => {
+      const url = `${this.baseUrl}/api/v1/info/prices`;
 
-    const response = await fetch(url, {
-      headers: { 'Accept': 'application/json' },
-    });
+      const response = await fetch(url, {
+        headers: { 'Accept': 'application/json' },
+      });
 
-    if (!response.ok) {
-      throw new Error(`Pacifica API error: ${response.status} ${response.statusText}`);
+      if (!response.ok) {
+        throw new Error(`Pacifica API error: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json() as PacificaApiResponse<PacificaPriceData[]>;
+
+      if (!result.success || !result.data) {
+        throw new Error(`Pacifica API error: ${result.error || 'Unknown error'}`);
+      }
+
+      const priceData = result.data.find(p => p.symbol === symbol);
+      if (!priceData) {
+        throw new Error(`Symbol ${symbol} not found in Pacifica prices`);
+      }
+
+      return this.normalizePriceData(priceData);
+    }, `getSpotPrice(${symbol})`);
+  }
+
+  /**
+   * Retry a fetch operation with exponential backoff.
+   * Does NOT retry on "symbol not found" errors (logic errors, not transient).
+   */
+  private async fetchWithRetry<T>(
+    fn: () => Promise<T>,
+    label: string,
+    maxRetries = 3,
+    initialDelayMs = 500,
+  ): Promise<T> {
+    let lastError: Error | undefined;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        // Don't retry on logic errors (symbol not found)
+        if (lastError.message.includes('not found in Pacifica prices')) {
+          throw lastError;
+        }
+
+        if (attempt < maxRetries) {
+          const delay = initialDelayMs * Math.pow(2, attempt);
+          console.warn(`[Pacifica] ${label} failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay}ms:`, lastError.message);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
     }
 
-    const result = await response.json() as PacificaApiResponse<PacificaPriceData[]>;
-
-    if (!result.success || !result.data) {
-      throw new Error(`Pacifica API error: ${result.error || 'Unknown error'}`);
-    }
-
-    const priceData = result.data.find(p => p.symbol === symbol);
-    if (!priceData) {
-      throw new Error(`Symbol ${symbol} not found in Pacifica prices`);
-    }
-
-    return this.normalizePriceData(priceData);
+    throw lastError!;
   }
 
   /**

@@ -197,7 +197,13 @@ export class PoolScheduler {
 
       console.log(`[Scheduler] Pool ${poolId} → ACTIVE with strike price: ${strikePrice}`);
     } catch (error) {
-      console.error(`[Scheduler] Failed to activate pool ${poolId}:`, error);
+      console.error(`[Scheduler] Failed to capture strike price for pool ${poolId}, reverting to JOINING:`, error);
+      await prisma.pool.update({
+        where: { id: poolId },
+        data: { status: PoolStatus.JOINING },
+      }).catch((revertErr) =>
+        console.error(`[Scheduler] Failed to revert pool ${poolId} to JOINING:`, revertErr)
+      );
     }
 
     if (successorPromise) await successorPromise;

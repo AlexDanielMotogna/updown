@@ -2,27 +2,16 @@ import { useState, useCallback } from 'react';
 import { Transaction, PublicKey, Connection } from '@solana/web3.js';
 import { useWalletBridge } from './useWalletBridge';
 import { useSolanaConnection } from '@/app/providers';
-import {
-  TOKEN_PROGRAM_ID,
-  createTransferInstruction,
-  getAssociatedTokenAddress,
-  createAssociatedTokenAccountInstruction,
-} from '@solana/spl-token';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   prepareDeposit,
   confirmDeposit,
-  executeClaim,
+  prepareClaim,
+  confirmClaim,
 } from '@/lib/api';
+import { buildDepositIx } from 'solana-client';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { buildNotification } from '@/lib/notifications';
-
-// USDC mint on devnet (same as backend)
-const USDC_MINT = new PublicKey(
-  process.env.NEXT_PUBLIC_USDC_MINT || 'By87mHK9Meinfv4AEqTx9qyYmGDLUcwiywpkkCWwGUVz'
-);
-
-export type TransactionStatus = 'idle' | 'preparing' | 'signing' | 'confirming' | 'success' | 'error';
 
 /**
  * Confirm transaction with polling for slow devnet
@@ -77,6 +66,8 @@ async function confirmTransactionWithRetry(
   return false;
 }
 
+export type TransactionStatus = 'idle' | 'preparing' | 'signing' | 'confirming' | 'success' | 'error';
+
 export interface TransactionState {
   status: TransactionStatus;
   txSignature?: string;
@@ -113,40 +104,25 @@ export function useDeposit() {
 
         setState({ status: 'signing' });
 
-        // Create real USDC transfer to vault
-        const transaction = new Transaction();
-        const vaultPubkey = new PublicKey(response.data.accounts.vault);
+        // Build Anchor deposit instruction
+        const { accounts } = response.data;
+        const poolPubkey = new PublicKey(accounts.pool);
+        const userBetPubkey = new PublicKey(accounts.userBet);
+        const vaultPubkey = new PublicKey(accounts.vault);
+        const userTokenAccount = new PublicKey(accounts.userTokenAccount);
+        const sideValue = side === 'UP' ? 0 : 1;
 
-        // Get user's USDC token account
-        const userTokenAccount = await getAssociatedTokenAddress(USDC_MINT, publicKey);
-
-        // Get vault's token account (should already exist)
-        const vaultTokenAccount = await getAssociatedTokenAddress(USDC_MINT, vaultPubkey, true);
-
-        // Check if vault token account exists, if not create it
-        const vaultAccountInfo = await connection.getAccountInfo(vaultTokenAccount);
-        if (!vaultAccountInfo) {
-          transaction.add(
-            createAssociatedTokenAccountInstruction(
-              publicKey, // payer
-              vaultTokenAccount, // ata
-              vaultPubkey, // owner
-              USDC_MINT // mint
-            )
-          );
-        }
-
-        // Add transfer instruction (amount is already in USDC base units with 6 decimals)
-        transaction.add(
-          createTransferInstruction(
-            userTokenAccount, // from
-            vaultTokenAccount, // to
-            publicKey, // owner
-            BigInt(amount), // amount in base units
-            [], // multiSigners
-            TOKEN_PROGRAM_ID
-          )
+        const ix = buildDepositIx(
+          poolPubkey,
+          userBetPubkey,
+          vaultPubkey,
+          userTokenAccount,
+          publicKey,
+          sideValue as 0 | 1,
+          BigInt(amount),
         );
+
+        const transaction = new Transaction().add(ix);
 
         const { blockhash } = await connection.getLatestBlockhash();
         transaction.recentBlockhash = blockhash;
@@ -198,9 +174,9 @@ export function useDeposit() {
       } catch (error) {
         let message = error instanceof Error ? error.message : 'Transaction failed';
 
-        // Session expired  trigger re-authentication automatically
+        // Session expired — trigger re-authentication automatically
         if (message.includes('SESSION_EXPIRED')) {
-          message = 'Session expired  please log in and try again.';
+          message = 'Session expired — please log in and try again.';
           login();
         }
 
@@ -228,7 +204,8 @@ export function useDeposit() {
 }
 
 export function useClaim() {
-  const { publicKey } = useWalletBridge();
+  const connection = useSolanaConnection();
+  const { publicKey, sendTransaction } = useWalletBridge();
   const queryClient = useQueryClient();
   const [state, setState] = useState<TransactionState>({ status: 'idle' });
 
@@ -242,21 +219,49 @@ export function useClaim() {
       try {
         setState({ status: 'preparing' });
 
-        // Server handles the entire claim: validate, transfer USDC, update DB
-        setState({ status: 'confirming' });
-
-        const response = await executeClaim({
+        // 1. Get partially-signed transaction from API (authority already signed)
+        const response = await prepareClaim({
           poolId,
           walletAddress: publicKey.toBase58(),
         });
 
         if (!response.success || !response.data) {
-          throw new Error(response.error?.message || 'Failed to claim payout');
+          throw new Error(response.error?.message || 'Failed to prepare claim');
         }
 
-        const { txSignature } = response.data;
+        setState({ status: 'signing' });
 
-        setState({ status: 'success', txSignature });
+        // 2. Deserialize the partially-signed transaction
+        const { transaction: txBase64, bet } = response.data;
+        const txBuffer = Buffer.from(txBase64, 'base64');
+        const transaction = Transaction.from(txBuffer);
+
+        // 3. User signs + sends (wallet adapter adds user signature)
+        const signature = await sendTransaction(transaction);
+
+        setState({ status: 'confirming', txSignature: signature });
+
+        // Wait for confirmation
+        const confirmed = await confirmTransactionWithRetry(connection, signature);
+
+        if (!confirmed) {
+          throw new Error('Transaction confirmation failed. Please check the explorer.');
+        }
+
+        // 4. Confirm with POST /confirm-claim
+        const confirmResponse = await confirmClaim({
+          betId: bet.id,
+          txSignature: signature,
+        });
+
+        if (!confirmResponse.success) {
+          throw new Error(
+            confirmResponse.error?.message ||
+              'Claim sent on-chain but server failed to record it. Contact support with tx: ' + signature,
+          );
+        }
+
+        setState({ status: 'success', txSignature: signature });
 
         useNotificationStore.getState().push(
           buildNotification('CLAIM_SUCCESS', { poolId }),
@@ -265,9 +270,9 @@ export function useClaim() {
         // Invalidate queries
         queryClient.invalidateQueries({ queryKey: ['bets'] });
         queryClient.invalidateQueries({ queryKey: ['claimableBets'] });
-        queryClient.invalidateQueries({ queryKey: ['usdcBalance'] });
+        queryClient.invalidateQueries({ queryKey: ['usdc-balance'] });
 
-        return txSignature;
+        return signature;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Claim failed';
 
@@ -279,7 +284,7 @@ export function useClaim() {
         throw error;
       }
     },
-    [publicKey, queryClient, state.txSignature]
+    [publicKey, connection, sendTransaction, queryClient, state.txSignature]
   );
 
   const reset = useCallback(() => {
