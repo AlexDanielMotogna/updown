@@ -1,12 +1,85 @@
 import { PublicKey, Connection, Keypair } from '@solana/web3.js';
 
-// Solana connection (lazy to ensure dotenv has loaded)
-let _connection: Connection | null = null;
-export function getConnection(): Connection {
-  if (!_connection) {
-    _connection = new Connection(process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com', 'confirmed');
+/**
+ * RPC connection with automatic failover.
+ * Cycles through multiple RPC endpoints when one fails (429, timeout, errors).
+ * Set SOLANA_RPC_URLS as comma-separated list, falls back to SOLANA_RPC_URL.
+ */
+let _connectionManager: RpcConnectionManager | null = null;
+
+class RpcConnectionManager {
+  private endpoints: string[];
+  private connections: Connection[];
+  private currentIndex = 0;
+  private failCounts: number[];
+
+  constructor(endpoints: string[]) {
+    this.endpoints = endpoints;
+    this.connections = endpoints.map(url => new Connection(url, 'confirmed'));
+    this.failCounts = endpoints.map(() => 0);
+    console.log(`[RPC] Initialized with ${endpoints.length} endpoint(s):`);
+    endpoints.forEach((url, i) => {
+      // Mask API keys in logs
+      const masked = url.replace(/([?&]api-key=|\/v2\/|\/v1\/)([^&/]+)/, '$1***');
+      console.log(`[RPC]   ${i + 1}. ${masked}`);
+    });
   }
-  return _connection;
+
+  /** Get current active connection */
+  get(): Connection {
+    return this.connections[this.currentIndex];
+  }
+
+  /** Report a failure on the current endpoint and rotate to next */
+  reportFailure(): Connection {
+    const failed = this.endpoints[this.currentIndex];
+    const masked = failed.replace(/([?&]api-key=|\/v2\/|\/v1\/)([^&/]+)/, '$1***');
+    this.failCounts[this.currentIndex]++;
+    const prevIndex = this.currentIndex;
+    this.currentIndex = (this.currentIndex + 1) % this.endpoints.length;
+    console.warn(`[RPC] Endpoint ${prevIndex + 1} failed (${masked}), switching to endpoint ${this.currentIndex + 1}`);
+    return this.connections[this.currentIndex];
+  }
+
+  /** Get stats for health monitoring */
+  getStats() {
+    return this.endpoints.map((url, i) => ({
+      endpoint: url.replace(/([?&]api-key=|\/v2\/|\/v1\/)([^&/]+)/, '$1***'),
+      active: i === this.currentIndex,
+      failures: this.failCounts[i],
+    }));
+  }
+}
+
+function getRpcManager(): RpcConnectionManager {
+  if (!_connectionManager) {
+    // Parse endpoints: SOLANA_RPC_URLS (comma-separated) or single SOLANA_RPC_URL
+    const urlsEnv = process.env.SOLANA_RPC_URLS;
+    let endpoints: string[];
+
+    if (urlsEnv) {
+      endpoints = urlsEnv.split(',').map(u => u.trim()).filter(Boolean);
+    } else {
+      endpoints = [process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com'];
+    }
+
+    _connectionManager = new RpcConnectionManager(endpoints);
+  }
+  return _connectionManager;
+}
+
+export function getConnection(): Connection {
+  return getRpcManager().get();
+}
+
+/** Report RPC failure and get the next connection */
+export function rotateConnection(): Connection {
+  return getRpcManager().reportFailure();
+}
+
+/** Get RPC stats for admin health endpoint */
+export function getRpcStats() {
+  return getRpcManager().getStats();
 }
 
 // USDC mint  lazy to ensure dotenv has loaded before reading env

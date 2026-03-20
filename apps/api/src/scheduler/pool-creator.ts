@@ -5,7 +5,7 @@ import { PacificaProvider } from 'market-data';
 import { getPoolPDA, getVaultPDA, buildInitializePoolIx } from 'solana-client';
 import { PoolTemplate } from './config';
 import { emitNewPool } from '../websocket';
-import { getUsdcMint, derivePoolSeed } from '../utils/solana';
+import { getUsdcMint, derivePoolSeed, getConnection, rotateConnection } from '../utils/solana';
 
 export interface CreatorDeps {
   prisma: PrismaClient;
@@ -203,6 +203,11 @@ export class PoolCreator {
 
       return pool.id;
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes('429') || msg.includes('Too Many Requests') || msg.includes('Server responded') ||
+          msg.includes('ECONNREFUSED') || msg.includes('ETIMEDOUT') || msg.includes('fetch failed')) {
+        rotateConnection();
+      }
       console.error(`[Scheduler] Failed to create pool:`, error);
       return null;
     }
@@ -236,16 +241,16 @@ export class PoolCreator {
     );
 
     const transaction = new Transaction().add(ix);
-    const { blockhash, lastValidBlockHeight } = await this.deps.connection.getLatestBlockhash();
+    const { blockhash, lastValidBlockHeight } = await getConnection().getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = this.deps.wallet.publicKey;
     transaction.sign(this.deps.wallet);
 
-    const signature = await this.deps.connection.sendRawTransaction(transaction.serialize(), {
+    const signature = await getConnection().sendRawTransaction(transaction.serialize(), {
       skipPreflight: true,
     });
 
-    const confirmation = await this.deps.connection.confirmTransaction(
+    const confirmation = await getConnection().confirmTransaction(
       { signature, blockhash, lastValidBlockHeight },
       'confirmed',
     );

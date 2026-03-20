@@ -1,7 +1,7 @@
 import { Router, type Router as RouterType } from 'express';
 import { prisma } from '../../db';
 import { getScheduler } from '../../scheduler/pool-scheduler';
-import { getConnection } from '../../utils/solana';
+import { getConnection, getRpcStats } from '../../utils/solana';
 import { PacificaProvider } from 'market-data';
 
 export const adminHealthRouter: RouterType = Router();
@@ -87,6 +87,7 @@ adminHealthRouter.get('/overview', async (_req, res) => {
         },
         jobs: jobHealth,
         rpc: rpcLatency,
+        rpcEndpoints: getRpcStats(),
         priceProvider: { healthy: priceHealthy },
         authorityBalance,
         stuckPools: stuckCount,

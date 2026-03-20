@@ -5,7 +5,7 @@ import { PacificaProvider } from 'market-data';
 import { PROGRAM_ID, getPoolPDA, getVaultPDA, getUserBetPDA, buildResolveIx, buildRefundIx, buildClosePoolIx } from 'solana-client';
 import { emitPoolStatus, emitRefund } from '../websocket';
 import { resetStreak } from '../services/rewards';
-import { derivePoolSeed, getUsdcMint } from '../utils/solana';
+import { derivePoolSeed, getUsdcMint, getConnection, rotateConnection } from '../utils/solana';
 
 export interface ResolverDeps {
   prisma: PrismaClient;
@@ -28,6 +28,20 @@ export class PoolResolver {
   private closingInProgress = false;
 
   constructor(private deps: ResolverDeps) {}
+
+  /** Dynamic connection getter — always returns current active RPC from the manager */
+  private get connection(): Connection {
+    return getConnection();
+  }
+
+  /** Check if error is RPC-related (429, timeout, network) and rotate to next endpoint */
+  private handleRpcError(error: unknown): void {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes('429') || msg.includes('Too Many Requests') || msg.includes('Server responded') ||
+        msg.includes('ECONNREFUSED') || msg.includes('ETIMEDOUT') || msg.includes('fetch failed')) {
+      rotateConnection();
+    }
+  }
 
   /**
    * Find and resolve all JOINING/ACTIVE pools past their endTime.
@@ -244,6 +258,7 @@ export class PoolResolver {
 
       console.log(`[Scheduler] Pool ${pool.id} → RESOLVED: winner=${winner}, strike=${strikePrice}, final=${finalPrice}`);
     } catch (error) {
+      this.handleRpcError(error);
       console.error(`[Scheduler] Failed to resolve pool ${pool.id}, reverting to JOINING:`, error);
       await this.deps.prisma.pool.update({
         where: { id: pool.id },
@@ -434,6 +449,7 @@ export class PoolResolver {
       emitPoolStatus(poolId, { id: poolId, status: 'CLAIMABLE' });
       console.log(`[Scheduler] Pool ${poolId} → CLAIMABLE (no strike price, ${bets.length} bet(s), winner=${refundWinner}, auto=${refundSuccess})`);
     } catch (error) {
+      this.handleRpcError(error);
       console.error(`[Scheduler] Failed to clean up stuck pool ${poolId}:`, error);
     }
   }
@@ -481,6 +497,7 @@ export class PoolResolver {
           success = true;
           break;
         } catch (error) {
+          this.handleRpcError(error);
           console.warn(
             `[Scheduler] Refund attempt ${attempt}/${REFUND_MAX_RETRIES} failed for bet ${bet.id}:`,
             error instanceof Error ? error.message : error,
@@ -524,17 +541,17 @@ export class PoolResolver {
     );
 
     const transaction = new Transaction().add(ix);
-    const { blockhash, lastValidBlockHeight } = await this.deps.connection.getLatestBlockhash();
+    const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = this.deps.wallet.publicKey;
     transaction.sign(this.deps.wallet);
 
-    const signature = await this.deps.connection.sendRawTransaction(transaction.serialize(), {
+    const signature = await this.connection.sendRawTransaction(transaction.serialize(), {
       skipPreflight: false,
       preflightCommitment: 'confirmed',
     });
 
-    const confirmation = await this.deps.connection.confirmTransaction(
+    const confirmation = await this.connection.confirmTransaction(
       { signature, blockhash, lastValidBlockHeight },
       'confirmed',
     );
@@ -582,17 +599,17 @@ export class PoolResolver {
     );
 
     const transaction = new Transaction().add(ix);
-    const { blockhash, lastValidBlockHeight } = await this.deps.connection.getLatestBlockhash();
+    const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = this.deps.wallet.publicKey;
     transaction.sign(this.deps.wallet);
 
-    const signature = await this.deps.connection.sendRawTransaction(transaction.serialize(), {
+    const signature = await this.connection.sendRawTransaction(transaction.serialize(), {
       skipPreflight: false,
       preflightCommitment: 'confirmed',
     });
 
-    const confirmation = await this.deps.connection.confirmTransaction(
+    const confirmation = await this.connection.confirmTransaction(
       { signature, blockhash, lastValidBlockHeight },
       'confirmed',
     );
@@ -645,7 +662,7 @@ export class PoolResolver {
           const closeSeed = derivePoolSeed(pool.id);
           const [closureVaultPda] = getVaultPDA(closeSeed);
           try {
-            const vaultBalance = await this.deps.connection.getTokenAccountBalance(closureVaultPda);
+            const vaultBalance = await this.connection.getTokenAccountBalance(closureVaultPda);
             const vaultAmount = Number(vaultBalance.value.amount);
             if (vaultAmount > 0) {
               console.warn(`[Scheduler] Pool ${pool.id} vault still has ${vaultAmount} tokens — skipping close`);
@@ -656,9 +673,9 @@ export class PoolResolver {
           }
 
           // Measure rent reclaimed
-          const balanceBefore = await this.deps.connection.getBalance(this.deps.wallet.publicKey);
+          const balanceBefore = await this.connection.getBalance(this.deps.wallet.publicKey);
           const txSig = await this.closePoolOnChain(pool.id);
-          const balanceAfter = await this.deps.connection.getBalance(this.deps.wallet.publicKey);
+          const balanceAfter = await this.connection.getBalance(this.deps.wallet.publicKey);
           const rentReclaimed = balanceAfter - balanceBefore;
 
           // Log closure event BEFORE deleting records (entityType: 'closure' so it survives pool cleanup)
@@ -716,6 +733,7 @@ export class PoolResolver {
         }
       }
     } catch (error) {
+      this.handleRpcError(error);
       console.error('[Scheduler] processPoolClosures error:', error);
     } finally {
       this.closingInProgress = false;
@@ -734,17 +752,17 @@ export class PoolResolver {
     const ix = buildClosePoolIx(poolPda, vaultPda, this.deps.wallet.publicKey);
 
     const transaction = new Transaction().add(ix);
-    const { blockhash, lastValidBlockHeight } = await this.deps.connection.getLatestBlockhash();
+    const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = this.deps.wallet.publicKey;
     transaction.sign(this.deps.wallet);
 
-    const signature = await this.deps.connection.sendRawTransaction(transaction.serialize(), {
+    const signature = await this.connection.sendRawTransaction(transaction.serialize(), {
       skipPreflight: false,
       preflightCommitment: 'confirmed',
     });
 
-    const confirmation = await this.deps.connection.confirmTransaction(
+    const confirmation = await this.connection.confirmTransaction(
       { signature, blockhash, lastValidBlockHeight },
       'confirmed',
     );
@@ -754,7 +772,7 @@ export class PoolResolver {
     }
 
     // Verify the pool account is actually closed on-chain
-    const poolAccount = await this.deps.connection.getAccountInfo(poolPda);
+    const poolAccount = await this.connection.getAccountInfo(poolPda);
     if (poolAccount !== null) {
       throw new Error(`close_pool tx ${signature} confirmed but pool PDA still exists — tx may have been dropped`);
     }
@@ -838,9 +856,9 @@ export class PoolResolver {
     const betCount = await this.deps.prisma.bet.count({ where: { poolId } });
 
     // Measure rent reclaimed
-    const balanceBefore = await this.deps.connection.getBalance(this.deps.wallet.publicKey);
+    const balanceBefore = await this.connection.getBalance(this.deps.wallet.publicKey);
     const txSig = await this.closePoolOnChain(poolId);
-    const balanceAfter = await this.deps.connection.getBalance(this.deps.wallet.publicKey);
+    const balanceAfter = await this.connection.getBalance(this.deps.wallet.publicKey);
     const rentReclaimed = balanceAfter - balanceBefore;
 
     // Log closure event BEFORE deleting records
@@ -893,7 +911,7 @@ export class PoolResolver {
 
     // 1. Scan on-chain
     emit('info', 'Scanning all program accounts on-chain...');
-    const allAccounts = await this.deps.connection.getProgramAccounts(PROGRAM_ID);
+    const allAccounts = await this.connection.getProgramAccounts(PROGRAM_ID);
     const poolAccounts = allAccounts.filter(a => {
       if (a.account.data.length < 8) return false;
       return POOL_DISC.every((b, i) => a.account.data[i] === b);
@@ -949,7 +967,7 @@ export class PoolResolver {
       // Check vault balance
       let vaultBalance = 0;
       try {
-        const balance = await this.deps.connection.getTokenAccountBalance(vaultPda);
+        const balance = await this.connection.getTokenAccountBalance(vaultPda);
         vaultBalance = Number(balance.value.amount);
       } catch { /* vault closed */ }
 
@@ -969,15 +987,15 @@ export class PoolResolver {
 
           const resolveIx = buildResolveIx(account.pubkey, this.deps.wallet.publicKey, BigInt(1000), BigInt(1000));
           const resolveTx = new Transaction().add(resolveIx);
-          const { blockhash: rb, lastValidBlockHeight: rvbh } = await this.deps.connection.getLatestBlockhash();
+          const { blockhash: rb, lastValidBlockHeight: rvbh } = await this.connection.getLatestBlockhash();
           resolveTx.recentBlockhash = rb;
           resolveTx.feePayer = this.deps.wallet.publicKey;
           resolveTx.sign(this.deps.wallet);
 
-          const resolveSig = await this.deps.connection.sendRawTransaction(resolveTx.serialize(), {
+          const resolveSig = await this.connection.sendRawTransaction(resolveTx.serialize(), {
             skipPreflight: false, preflightCommitment: 'confirmed',
           });
-          await this.deps.connection.confirmTransaction(
+          await this.connection.confirmTransaction(
             { signature: resolveSig, blockhash: rb, lastValidBlockHeight: rvbh }, 'confirmed',
           );
           emit('info', `  Resolved: ${resolveSig.slice(0, 20)}...`);
@@ -987,26 +1005,26 @@ export class PoolResolver {
         emit('info', `  Closing pool to reclaim rent...`);
         await delay(RPC_DELAY);
 
-        const balanceBefore = await this.deps.connection.getBalance(this.deps.wallet.publicKey);
+        const balanceBefore = await this.connection.getBalance(this.deps.wallet.publicKey);
         const closeIx = buildClosePoolIx(account.pubkey, vaultPda, this.deps.wallet.publicKey);
         const closeTx = new Transaction().add(closeIx);
-        const { blockhash: cb, lastValidBlockHeight: cvbh } = await this.deps.connection.getLatestBlockhash();
+        const { blockhash: cb, lastValidBlockHeight: cvbh } = await this.connection.getLatestBlockhash();
         closeTx.recentBlockhash = cb;
         closeTx.feePayer = this.deps.wallet.publicKey;
         closeTx.sign(this.deps.wallet);
 
-        const closeSig = await this.deps.connection.sendRawTransaction(closeTx.serialize(), {
+        const closeSig = await this.connection.sendRawTransaction(closeTx.serialize(), {
           skipPreflight: false, preflightCommitment: 'confirmed',
         });
-        await this.deps.connection.confirmTransaction(
+        await this.connection.confirmTransaction(
           { signature: closeSig, blockhash: cb, lastValidBlockHeight: cvbh }, 'confirmed',
         );
 
         // Verify
-        const poolCheck = await this.deps.connection.getAccountInfo(account.pubkey);
+        const poolCheck = await this.connection.getAccountInfo(account.pubkey);
         if (poolCheck !== null) throw new Error('Pool PDA still exists after close tx');
 
-        const balanceAfter = await this.deps.connection.getBalance(this.deps.wallet.publicKey);
+        const balanceAfter = await this.connection.getBalance(this.deps.wallet.publicKey);
         const rentReclaimed = balanceAfter - balanceBefore;
         totalRentReclaimed += rentReclaimed;
 
