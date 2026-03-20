@@ -2,7 +2,7 @@ import { PrismaClient, PoolStatus, Side, Prisma } from '@prisma/client';
 import { Connection, Keypair, PublicKey, Transaction } from '@solana/web3.js';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { PacificaProvider } from 'market-data';
-import { getPoolPDA, getVaultPDA, getUserBetPDA, buildResolveIx, buildRefundIx, buildClosePoolIx } from 'solana-client';
+import { PROGRAM_ID, getPoolPDA, getVaultPDA, getUserBetPDA, buildResolveIx, buildRefundIx, buildClosePoolIx } from 'solana-client';
 import { emitPoolStatus, emitRefund } from '../websocket';
 import { resetStreak } from '../services/rewards';
 import { derivePoolSeed, getUsdcMint } from '../utils/solana';
@@ -842,6 +842,177 @@ export class PoolResolver {
     await this.deps.prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: poolId } });
     await this.deps.prisma.bet.deleteMany({ where: { poolId } });
     await this.deps.prisma.pool.deleteMany({ where: { id: poolId } });
+  }
+
+  /**
+   * Scan on-chain for orphaned pools (exist on-chain but deleted from DB).
+   * Resolves and closes them to reclaim rent back to the authority wallet.
+   */
+  async recoverOrphanedPools(): Promise<{
+    totalOnChain: number;
+    totalInDb: number;
+    orphaned: number;
+    recovered: Array<{
+      poolPda: string;
+      asset: string;
+      status: string;
+      vaultBalance: number;
+      action: string;
+      rentReclaimed?: string;
+      txSignature?: string;
+      error?: string;
+    }>;
+  }> {
+    const POOL_DISC = [241, 154, 109, 4, 17, 177, 109, 188];
+    const STATUS_NAMES = ['Upcoming', 'Joining', 'Active', 'Resolved'];
+
+    // 1. Get all accounts owned by our program
+    const allAccounts = await this.deps.connection.getProgramAccounts(PROGRAM_ID);
+    const poolAccounts = allAccounts.filter(a => {
+      if (a.account.data.length < 8) return false;
+      return POOL_DISC.every((b, i) => a.account.data[i] === b);
+    });
+
+    // 2. Get all pool PDA addresses from DB
+    const dbPools = await this.deps.prisma.pool.findMany({ select: { poolId: true } });
+    const dbPoolPdas = new Set(dbPools.map(p => p.poolId));
+
+    // 3. Find orphaned (on-chain but not in DB)
+    const orphaned = poolAccounts.filter(a => !dbPoolPdas.has(a.pubkey.toBase58()));
+
+    const results: Array<{
+      poolPda: string; asset: string; status: string; vaultBalance: number;
+      action: string; rentReclaimed?: string; txSignature?: string; error?: string;
+    }> = [];
+
+    for (const account of orphaned) {
+      const data = account.account.data;
+      const poolPdaStr = account.pubkey.toBase58();
+
+      // Parse pool data (Borsh layout)
+      let offset = 8; // skip discriminator
+      const poolSeed = data.slice(offset, offset + 32);
+      offset += 32;
+
+      // asset: Borsh string (u32 LE length + bytes)
+      const assetLen = data.readUInt32LE(offset);
+      offset += 4;
+      const asset = data.slice(offset, offset + assetLen).toString('utf8');
+      offset += assetLen;
+
+      // skip authority(32) + usdcMint(32) + vault(32) + startTime(8) + endTime(8) + lockTime(8) + strikePrice(8) + finalPrice(8)
+      offset += 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8;
+
+      // totalUp + totalDown (8 each)
+      offset += 8 + 8;
+
+      // status (1 byte enum)
+      const statusByte = data[offset];
+      const status = STATUS_NAMES[statusByte] || `Unknown(${statusByte})`;
+
+      // Derive vault PDA from on-chain seed
+      const [vaultPda] = getVaultPDA(poolSeed);
+
+      // Check vault balance
+      let vaultBalance = 0;
+      try {
+        const balance = await this.deps.connection.getTokenAccountBalance(vaultPda);
+        vaultBalance = Number(balance.value.amount);
+      } catch {
+        // Vault might already be closed — that's fine
+      }
+
+      // If vault has USDC, skip — needs manual refund first
+      if (vaultBalance > 0) {
+        results.push({
+          poolPda: poolPdaStr, asset, status, vaultBalance,
+          action: 'SKIPPED_HAS_FUNDS',
+          error: `Vault has ${(vaultBalance / 1e6).toFixed(2)} USDC — needs manual refund first`,
+        });
+        continue;
+      }
+
+      try {
+        // If not resolved, resolve first with synthetic prices
+        if (statusByte !== 3) {
+          const resolveIx = buildResolveIx(
+            account.pubkey,
+            this.deps.wallet.publicKey,
+            BigInt(1000),
+            BigInt(1000), // equal prices → doesn't matter for empty vault
+          );
+
+          const resolveTx = new Transaction().add(resolveIx);
+          const { blockhash: rb, lastValidBlockHeight: rvbh } = await this.deps.connection.getLatestBlockhash();
+          resolveTx.recentBlockhash = rb;
+          resolveTx.feePayer = this.deps.wallet.publicKey;
+          resolveTx.sign(this.deps.wallet);
+
+          const resolveSig = await this.deps.connection.sendRawTransaction(resolveTx.serialize(), {
+            skipPreflight: false, preflightCommitment: 'confirmed',
+          });
+          await this.deps.connection.confirmTransaction(
+            { signature: resolveSig, blockhash: rb, lastValidBlockHeight: rvbh }, 'confirmed',
+          );
+          console.log(`[Recovery] Resolved orphaned pool ${poolPdaStr}: ${resolveSig}`);
+        }
+
+        // Close pool to reclaim rent
+        const balanceBefore = await this.deps.connection.getBalance(this.deps.wallet.publicKey);
+
+        const closeIx = buildClosePoolIx(account.pubkey, vaultPda, this.deps.wallet.publicKey);
+        const closeTx = new Transaction().add(closeIx);
+        const { blockhash: cb, lastValidBlockHeight: cvbh } = await this.deps.connection.getLatestBlockhash();
+        closeTx.recentBlockhash = cb;
+        closeTx.feePayer = this.deps.wallet.publicKey;
+        closeTx.sign(this.deps.wallet);
+
+        const closeSig = await this.deps.connection.sendRawTransaction(closeTx.serialize(), {
+          skipPreflight: false, preflightCommitment: 'confirmed',
+        });
+        await this.deps.connection.confirmTransaction(
+          { signature: closeSig, blockhash: cb, lastValidBlockHeight: cvbh }, 'confirmed',
+        );
+
+        // Verify closure
+        const poolCheck = await this.deps.connection.getAccountInfo(account.pubkey);
+        if (poolCheck !== null) {
+          throw new Error('Pool PDA still exists after close tx');
+        }
+
+        const balanceAfter = await this.deps.connection.getBalance(this.deps.wallet.publicKey);
+        const rentReclaimed = balanceAfter - balanceBefore;
+
+        results.push({
+          poolPda: poolPdaStr, asset, status, vaultBalance: 0,
+          action: 'CLOSED',
+          rentReclaimed: (rentReclaimed / 1e9).toFixed(6),
+          txSignature: closeSig,
+        });
+
+        await this.logEvent('POOL_ORPHAN_RECOVERED', 'closure', poolPdaStr, {
+          poolPda: poolPdaStr, asset, previousStatus: status,
+          rentReclaimedLamports: rentReclaimed.toString(),
+          rentReclaimedSol: (rentReclaimed / 1e9).toFixed(6),
+          txSignature: closeSig,
+        });
+
+        console.log(`[Recovery] Closed orphaned pool ${poolPdaStr}: +${(rentReclaimed / 1e9).toFixed(6)} SOL`);
+      } catch (error) {
+        results.push({
+          poolPda: poolPdaStr, asset, status, vaultBalance,
+          action: 'FAILED',
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    return {
+      totalOnChain: poolAccounts.length,
+      totalInDb: dbPools.length,
+      orphaned: orphaned.length,
+      recovered: results,
+    };
   }
 
   private async logEvent(

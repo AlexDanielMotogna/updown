@@ -138,6 +138,28 @@ adminActionsRouter.post('/restart-scheduler', async (_req, res) => {
   }
 });
 
+// POST /actions/recover-orphaned-pools
+adminActionsRouter.post('/recover-orphaned-pools', async (_req, res) => {
+  try {
+    const scheduler = getScheduler();
+    const resolver = scheduler.getResolver();
+    const result = await resolver.recoverOrphanedPools();
+
+    await logAdminEvent('ADMIN_RECOVER_ORPHANS', 'system', {
+      totalOnChain: result.totalOnChain.toString(),
+      orphaned: result.orphaned.toString(),
+      closed: result.recovered.filter(r => r.action === 'CLOSED').length.toString(),
+      skipped: result.recovered.filter(r => r.action === 'SKIPPED_HAS_FUNDS').length.toString(),
+      failed: result.recovered.filter(r => r.action === 'FAILED').length.toString(),
+    });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Admin recover-orphaned-pools error:', error);
+    res.status(500).json({ success: false, error: { code: 'ACTION_ERROR', message: error instanceof Error ? error.message : 'Failed to recover orphaned pools' } });
+  }
+});
+
 // POST /actions/create-pool (moved from /api/pools/test)
 const createPoolSchema = z.object({
   asset: z.enum(['BTC', 'ETH', 'SOL']).default('BTC'),

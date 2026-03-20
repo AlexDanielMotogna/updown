@@ -97,6 +97,13 @@ export function ManualActions() {
           </Button>
         </ActionCard>
 
+        <ActionCard title="Recover Orphaned Pools" description="Scan on-chain for pools deleted from DB but still on-chain. Resolves and closes them to reclaim rent.">
+          <Button variant="contained" color="warning"
+            onClick={() => setConfirmAction({ label: 'Scan & recover orphaned pools (may take a while)', fn: () => adminPost('/actions/recover-orphaned-pools') })}>
+            Scan & Recover
+          </Button>
+        </ActionCard>
+
         <ActionCard title="Create Pool" description="Manually create a new pool (admin-only, replaces /api/pools/test)">
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             <FormControl size="small" sx={{ minWidth: 100 }}>
