@@ -1,4 +1,5 @@
 import { Router, type Router as RouterType } from 'express';
+import { z } from 'zod';
 import { prisma } from '../../db';
 import { getConnection, getAuthorityKeypair, getUsdcMint } from '../../utils/solana';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
@@ -74,6 +75,20 @@ adminFinanceRouter.get('/overview', async (_req, res) => {
     const totalVolume = volumeAgg._sum.amount?.toString() ?? '0';
     const totalPayouts = payoutAgg._sum.payoutAmount?.toString() ?? '0';
 
+    // Pool closure stats from event logs
+    const closureEvents = await prisma.eventLog.findMany({
+      where: { eventType: 'POOL_CLOSED', entityType: 'closure' },
+      select: { payload: true },
+    });
+    let totalRentReclaimed = 0;
+    let totalPoolsClosed = closureEvents.length;
+    for (const ev of closureEvents) {
+      const payload = ev.payload as Record<string, string> | null;
+      if (payload?.rentReclaimedLamports) {
+        totalRentReclaimed += Number(payload.rentReclaimedLamports);
+      }
+    }
+
     res.json({
       success: true,
       data: {
@@ -84,10 +99,56 @@ adminFinanceRouter.get('/overview', async (_req, res) => {
         authorityUsdcBalance: authorityUsdcRaw,
         authorityUsdcDisplay,
         poolStatusCounts: statusMap,
+        closures: {
+          totalPoolsClosed,
+          totalRentReclaimedLamports: totalRentReclaimed,
+          totalRentReclaimedSol: (totalRentReclaimed / 1e9).toFixed(6),
+        },
       },
     });
   } catch (error) {
     console.error('Admin finance error:', error);
     res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: 'Failed to fetch finance data' } });
+  }
+});
+
+// GET /finance/closures — Paginated list of closed pools with rent reclaimed
+const closuresSchema = z.object({
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(30),
+});
+
+adminFinanceRouter.get('/closures', async (req, res) => {
+  try {
+    const parsed = closuresSchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid query', details: parsed.error.flatten() } });
+    }
+    const { page, limit } = parsed.data;
+    const skip = (page - 1) * limit;
+
+    const [closures, total] = await Promise.all([
+      prisma.eventLog.findMany({
+        where: { eventType: 'POOL_CLOSED', entityType: 'closure' },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.eventLog.count({ where: { eventType: 'POOL_CLOSED', entityType: 'closure' } }),
+    ]);
+
+    res.json({
+      success: true,
+      data: closures.map(e => ({
+        id: e.id,
+        poolId: e.entityId,
+        payload: e.payload,
+        closedAt: e.createdAt.toISOString(),
+      })),
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    });
+  } catch (error) {
+    console.error('Admin closures error:', error);
+    res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: 'Failed to fetch closures' } });
   }
 });

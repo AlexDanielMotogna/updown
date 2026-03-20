@@ -637,7 +637,44 @@ export class PoolResolver {
         if (unclaimed > 0) continue;
 
         try {
-          await this.closePoolOnChain(pool.id);
+          // Verify vault is actually empty on-chain before closing
+          const closeSeed = derivePoolSeed(pool.id);
+          const [closureVaultPda] = getVaultPDA(closeSeed);
+          try {
+            const vaultBalance = await this.deps.connection.getTokenAccountBalance(closureVaultPda);
+            const vaultAmount = Number(vaultBalance.value.amount);
+            if (vaultAmount > 0) {
+              console.warn(`[Scheduler] Pool ${pool.id} vault still has ${vaultAmount} tokens — skipping close`);
+              continue;
+            }
+          } catch {
+            // Vault account might not exist (already closed) — that's fine, proceed
+          }
+
+          // Snapshot pool data before closing
+          const poolData = await this.deps.prisma.pool.findUnique({ where: { id: pool.id } });
+          const betCount = await this.deps.prisma.bet.count({ where: { poolId: pool.id } });
+
+          // Measure rent reclaimed
+          const balanceBefore = await this.deps.connection.getBalance(this.deps.wallet.publicKey);
+          const txSig = await this.closePoolOnChain(pool.id);
+          const balanceAfter = await this.deps.connection.getBalance(this.deps.wallet.publicKey);
+          const rentReclaimed = balanceAfter - balanceBefore;
+
+          // Log closure event BEFORE deleting records (entityType: 'closure' so it survives pool cleanup)
+          await this.logEvent('POOL_CLOSED', 'closure', pool.id, {
+            poolId: pool.id,
+            asset: poolData?.asset ?? 'unknown',
+            interval: poolData?.interval ?? 'unknown',
+            totalUp: poolData?.totalUp?.toString() ?? '0',
+            totalDown: poolData?.totalDown?.toString() ?? '0',
+            totalPool: ((poolData?.totalUp ?? BigInt(0)) + (poolData?.totalDown ?? BigInt(0))).toString(),
+            betCount: betCount.toString(),
+            winner: poolData?.winner ?? 'none',
+            rentReclaimedLamports: rentReclaimed.toString(),
+            rentReclaimedSol: (rentReclaimed / 1e9).toFixed(6),
+            txSignature: txSig,
+          });
 
           // Clean up DB records
           this.closeFailures.delete(pool.id);
@@ -646,7 +683,7 @@ export class PoolResolver {
           await this.deps.prisma.bet.deleteMany({ where: { poolId: pool.id } });
           await this.deps.prisma.pool.deleteMany({ where: { id: pool.id } });
 
-          console.log(`[Scheduler] Pool ${pool.id} closed on-chain & cleaned up (rent reclaimed)`);
+          console.log(`[Scheduler] Pool ${pool.id} closed on-chain & cleaned up (rent: +${(rentReclaimed / 1e9).toFixed(6)} SOL)`);
         } catch (error) {
           // Back off — don't retry for 5 minutes
           this.closeFailures.set(pool.id, Date.now());
@@ -665,6 +702,7 @@ export class PoolResolver {
 
   /**
    * Send on-chain close_pool instruction to reclaim rent.
+   * Verifies the pool account is actually closed after confirmation.
    */
   private async closePoolOnChain(poolId: string): Promise<string> {
     const seed = derivePoolSeed(poolId);
@@ -680,7 +718,8 @@ export class PoolResolver {
     transaction.sign(this.deps.wallet);
 
     const signature = await this.deps.connection.sendRawTransaction(transaction.serialize(), {
-      skipPreflight: true,
+      skipPreflight: false,
+      preflightCommitment: 'confirmed',
     });
 
     const confirmation = await this.deps.connection.confirmTransaction(
@@ -689,10 +728,16 @@ export class PoolResolver {
     );
 
     if (confirmation.value.err) {
-      throw new Error(`close_pool tx failed: ${JSON.stringify(confirmation.value.err)}`);
+      throw new Error(`close_pool tx failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
     }
 
-    console.log(`[Scheduler] close_pool tx confirmed: ${signature}`);
+    // Verify the pool account is actually closed on-chain
+    const poolAccount = await this.deps.connection.getAccountInfo(poolPda);
+    if (poolAccount !== null) {
+      throw new Error(`close_pool tx ${signature} confirmed but pool PDA still exists — tx may have been dropped`);
+    }
+
+    console.log(`[Scheduler] close_pool tx confirmed & verified: ${signature}`);
     return signature;
   }
 
@@ -766,7 +811,31 @@ export class PoolResolver {
    * Calls close_pool on-chain and cleans up DB records.
    */
   async forceClosePool(poolId: string): Promise<void> {
-    await this.closePoolOnChain(poolId);
+    // Snapshot pool data before closing
+    const poolData = await this.deps.prisma.pool.findUnique({ where: { id: poolId } });
+    const betCount = await this.deps.prisma.bet.count({ where: { poolId } });
+
+    // Measure rent reclaimed
+    const balanceBefore = await this.deps.connection.getBalance(this.deps.wallet.publicKey);
+    const txSig = await this.closePoolOnChain(poolId);
+    const balanceAfter = await this.deps.connection.getBalance(this.deps.wallet.publicKey);
+    const rentReclaimed = balanceAfter - balanceBefore;
+
+    // Log closure event BEFORE deleting records
+    await this.logEvent('POOL_CLOSED', 'closure', poolId, {
+      poolId,
+      asset: poolData?.asset ?? 'unknown',
+      interval: poolData?.interval ?? 'unknown',
+      totalUp: poolData?.totalUp?.toString() ?? '0',
+      totalDown: poolData?.totalDown?.toString() ?? '0',
+      totalPool: ((poolData?.totalUp ?? BigInt(0)) + (poolData?.totalDown ?? BigInt(0))).toString(),
+      betCount: betCount.toString(),
+      winner: poolData?.winner ?? 'none',
+      rentReclaimedLamports: rentReclaimed.toString(),
+      rentReclaimedSol: (rentReclaimed / 1e9).toFixed(6),
+      txSignature: txSig,
+      source: 'admin',
+    });
 
     // Clean up DB records
     await this.deps.prisma.priceSnapshot.deleteMany({ where: { poolId } });

@@ -75,7 +75,7 @@ export function EventLog() {
                   <TableCell sx={{ fontSize: 11, whiteSpace: 'nowrap' }}>{new Date(e.createdAt).toLocaleString()}</TableCell>
                   <TableCell sx={{ fontSize: 12 }}>{e.eventType}</TableCell>
                   <TableCell sx={{ fontSize: 12 }}>{e.entityType}</TableCell>
-                  <TableCell sx={{ fontFamily: 'monospace', fontSize: 11 }}>{e.entityId.slice(0, 8)}...</TableCell>
+                  <TableCell sx={{ fontFamily: 'monospace', fontSize: 11, cursor: 'pointer', '&:hover': { color: '#F59E0B' } }} onClick={() => navigator.clipboard.writeText(e.entityId)} title="Click to copy">{e.entityId}</TableCell>
                   <TableCell sx={{ fontFamily: 'monospace', fontSize: 10, maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {JSON.stringify(e.payload)}
                   </TableCell>

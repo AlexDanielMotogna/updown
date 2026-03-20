@@ -86,6 +86,7 @@ export function Header() {
                       backgroundColor: 'transparent',
                     },
                   }}
+                  startIcon={<item.icon sx={{ fontSize: 18 }} />}
                 >
                   {item.label}
                 </Button>
