@@ -98,7 +98,8 @@ export class PoolResolver {
     try {
       const emptyPools = await this.deps.prisma.pool.findMany({
         where: {
-          status: { in: [PoolStatus.JOINING, PoolStatus.RESOLVED, PoolStatus.CLAIMABLE] },
+          // Only CLAIMABLE — never delete JOINING (might get bets) or RESOLVED (mid-resolution race)
+          status: PoolStatus.CLAIMABLE,
           totalUp: BigInt(0),
           totalDown: BigInt(0),
           endTime: { lt: oneHourAgo },
@@ -187,7 +188,7 @@ export class PoolResolver {
       // Empty pool — no winner, but still resolve on-chain so close_pool works
       if (betCount === 0) {
         await this.resolvePoolOnChain(pool.id, strikePrice, finalPrice);
-        await this.deps.prisma.pool.update({
+        await this.deps.prisma.pool.updateMany({
           where: { id: pool.id },
           data: { status: PoolStatus.CLAIMABLE, finalPrice },
         });
