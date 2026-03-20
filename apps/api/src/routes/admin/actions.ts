@@ -138,25 +138,55 @@ adminActionsRouter.post('/restart-scheduler', async (_req, res) => {
   }
 });
 
-// POST /actions/recover-orphaned-pools
+// POST /actions/recover-orphaned-pools (SSE streaming)
+let recoveryAbort: (() => void) | null = null;
+
 adminActionsRouter.post('/recover-orphaned-pools', async (_req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const send = (data: Record<string, unknown>) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  // Abort signal for stopping mid-scan
+  let aborted = false;
+  recoveryAbort = () => { aborted = true; };
+
   try {
     const scheduler = getScheduler();
     const resolver = scheduler.getResolver();
-    const result = await resolver.recoverOrphanedPools();
+    const result = await resolver.recoverOrphanedPools(
+      (event) => { send(event); },
+      () => aborted,
+    );
 
     await logAdminEvent('ADMIN_RECOVER_ORPHANS', 'system', {
       totalOnChain: result.totalOnChain.toString(),
       orphaned: result.orphaned.toString(),
-      closed: result.recovered.filter(r => r.action === 'CLOSED').length.toString(),
-      skipped: result.recovered.filter(r => r.action === 'SKIPPED_HAS_FUNDS').length.toString(),
-      failed: result.recovered.filter(r => r.action === 'FAILED').length.toString(),
+      closed: result.closed.toString(),
+      skipped: result.skipped.toString(),
+      failed: result.failed.toString(),
+      totalRentReclaimed: result.totalRentReclaimed,
     });
 
-    res.json({ success: true, data: result });
+    send({ type: 'done', ...result });
   } catch (error) {
-    console.error('Admin recover-orphaned-pools error:', error);
-    res.status(500).json({ success: false, error: { code: 'ACTION_ERROR', message: error instanceof Error ? error.message : 'Failed to recover orphaned pools' } });
+    send({ type: 'error', message: error instanceof Error ? error.message : 'Recovery failed' });
+  }
+  recoveryAbort = null;
+  res.end();
+});
+
+// POST /actions/stop-recovery
+adminActionsRouter.post('/stop-recovery', async (_req, res) => {
+  if (recoveryAbort) {
+    recoveryAbort();
+    res.json({ success: true, message: 'Stop signal sent' });
+  } else {
+    res.json({ success: true, message: 'No recovery running' });
   }
 });
 

@@ -847,70 +847,81 @@ export class PoolResolver {
   /**
    * Scan on-chain for orphaned pools (exist on-chain but deleted from DB).
    * Resolves and closes them to reclaim rent back to the authority wallet.
+   * Streams progress events via callback and throttles RPC calls.
    */
-  async recoverOrphanedPools(): Promise<{
+  async recoverOrphanedPools(
+    onProgress?: (event: { type: string; message: string; [key: string]: unknown }) => void,
+    shouldAbort?: () => boolean,
+  ): Promise<{
     totalOnChain: number;
     totalInDb: number;
     orphaned: number;
-    recovered: Array<{
-      poolPda: string;
-      asset: string;
-      status: string;
-      vaultBalance: number;
-      action: string;
-      rentReclaimed?: string;
-      txSignature?: string;
-      error?: string;
-    }>;
+    closed: number;
+    skipped: number;
+    failed: number;
+    totalRentReclaimed: string;
   }> {
     const POOL_DISC = [241, 154, 109, 4, 17, 177, 109, 188];
     const STATUS_NAMES = ['Upcoming', 'Joining', 'Active', 'Resolved'];
+    const RPC_DELAY = 1000; // 1s between pool operations to avoid 429s
+    const emit = (type: string, message: string, extra?: Record<string, unknown>) => {
+      onProgress?.({ type, message, ...extra });
+    };
+    const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-    // 1. Get all accounts owned by our program
+    // 1. Scan on-chain
+    emit('info', 'Scanning all program accounts on-chain...');
     const allAccounts = await this.deps.connection.getProgramAccounts(PROGRAM_ID);
     const poolAccounts = allAccounts.filter(a => {
       if (a.account.data.length < 8) return false;
       return POOL_DISC.every((b, i) => a.account.data[i] === b);
     });
 
-    // 2. Get all pool PDA addresses from DB
+    // 2. Get DB pool PDAs
     const dbPools = await this.deps.prisma.pool.findMany({ select: { poolId: true } });
     const dbPoolPdas = new Set(dbPools.map(p => p.poolId));
 
-    // 3. Find orphaned (on-chain but not in DB)
+    // 3. Find orphaned
     const orphaned = poolAccounts.filter(a => !dbPoolPdas.has(a.pubkey.toBase58()));
 
-    const results: Array<{
-      poolPda: string; asset: string; status: string; vaultBalance: number;
-      action: string; rentReclaimed?: string; txSignature?: string; error?: string;
-    }> = [];
+    emit('info', `Found ${poolAccounts.length} pools on-chain, ${dbPools.length} in DB, ${orphaned.length} orphaned`);
 
-    for (const account of orphaned) {
+    if (orphaned.length === 0) {
+      emit('success', 'No orphaned pools found. All clean!');
+      return { totalOnChain: poolAccounts.length, totalInDb: dbPools.length, orphaned: 0, closed: 0, skipped: 0, failed: 0, totalRentReclaimed: '0' };
+    }
+
+    let closed = 0;
+    let skipped = 0;
+    let failed = 0;
+    let totalRentReclaimed = 0;
+
+    for (let i = 0; i < orphaned.length; i++) {
+      const account = orphaned[i];
       const data = account.account.data;
       const poolPdaStr = account.pubkey.toBase58();
 
       // Parse pool data (Borsh layout)
-      let offset = 8; // skip discriminator
+      let offset = 8;
       const poolSeed = data.slice(offset, offset + 32);
       offset += 32;
-
-      // asset: Borsh string (u32 LE length + bytes)
       const assetLen = data.readUInt32LE(offset);
       offset += 4;
       const asset = data.slice(offset, offset + assetLen).toString('utf8');
       offset += assetLen;
-
-      // skip authority(32) + usdcMint(32) + vault(32) + startTime(8) + endTime(8) + lockTime(8) + strikePrice(8) + finalPrice(8)
-      offset += 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8;
-
-      // totalUp + totalDown (8 each)
-      offset += 8 + 8;
-
-      // status (1 byte enum)
+      // skip authority(32) + usdcMint(32) + vault(32) + times(8*3) + prices(8*2) + totals(8*2)
+      offset += 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8 + 8 + 8;
       const statusByte = data[offset];
       const status = STATUS_NAMES[statusByte] || `Unknown(${statusByte})`;
 
-      // Derive vault PDA from on-chain seed
+      // Check abort signal
+      if (shouldAbort?.()) {
+        emit('warn', `Stopped by user at pool ${i + 1}/${orphaned.length}`);
+        break;
+      }
+
+      emit('pool_start', `[${i + 1}/${orphaned.length}] ${asset} pool ${poolPdaStr.slice(0, 12)}... (${status})`, { index: i + 1, total: orphaned.length, poolPda: poolPdaStr, asset, status });
+
       const [vaultPda] = getVaultPDA(poolSeed);
 
       // Check vault balance
@@ -918,30 +929,23 @@ export class PoolResolver {
       try {
         const balance = await this.deps.connection.getTokenAccountBalance(vaultPda);
         vaultBalance = Number(balance.value.amount);
-      } catch {
-        // Vault might already be closed — that's fine
-      }
+      } catch { /* vault closed */ }
 
-      // If vault has USDC, skip — needs manual refund first
       if (vaultBalance > 0) {
-        results.push({
-          poolPda: poolPdaStr, asset, status, vaultBalance,
-          action: 'SKIPPED_HAS_FUNDS',
-          error: `Vault has ${(vaultBalance / 1e6).toFixed(2)} USDC — needs manual refund first`,
-        });
+        const usdcAmount = (vaultBalance / 1e6).toFixed(2);
+        emit('warn', `  SKIPPED — vault has ${usdcAmount} USDC (needs manual refund)`, { poolPda: poolPdaStr, vaultBalance });
+        skipped++;
+        await delay(RPC_DELAY);
         continue;
       }
 
       try {
-        // If not resolved, resolve first with synthetic prices
+        // Resolve if needed
         if (statusByte !== 3) {
-          const resolveIx = buildResolveIx(
-            account.pubkey,
-            this.deps.wallet.publicKey,
-            BigInt(1000),
-            BigInt(1000), // equal prices → doesn't matter for empty vault
-          );
+          emit('info', `  Resolving on-chain (status: ${status})...`);
+          await delay(RPC_DELAY);
 
+          const resolveIx = buildResolveIx(account.pubkey, this.deps.wallet.publicKey, BigInt(1000), BigInt(1000));
           const resolveTx = new Transaction().add(resolveIx);
           const { blockhash: rb, lastValidBlockHeight: rvbh } = await this.deps.connection.getLatestBlockhash();
           resolveTx.recentBlockhash = rb;
@@ -954,12 +958,14 @@ export class PoolResolver {
           await this.deps.connection.confirmTransaction(
             { signature: resolveSig, blockhash: rb, lastValidBlockHeight: rvbh }, 'confirmed',
           );
-          console.log(`[Recovery] Resolved orphaned pool ${poolPdaStr}: ${resolveSig}`);
+          emit('info', `  Resolved: ${resolveSig.slice(0, 20)}...`);
         }
 
-        // Close pool to reclaim rent
-        const balanceBefore = await this.deps.connection.getBalance(this.deps.wallet.publicKey);
+        // Close pool
+        emit('info', `  Closing pool to reclaim rent...`);
+        await delay(RPC_DELAY);
 
+        const balanceBefore = await this.deps.connection.getBalance(this.deps.wallet.publicKey);
         const closeIx = buildClosePoolIx(account.pubkey, vaultPda, this.deps.wallet.publicKey);
         const closeTx = new Transaction().add(closeIx);
         const { blockhash: cb, lastValidBlockHeight: cvbh } = await this.deps.connection.getLatestBlockhash();
@@ -974,21 +980,13 @@ export class PoolResolver {
           { signature: closeSig, blockhash: cb, lastValidBlockHeight: cvbh }, 'confirmed',
         );
 
-        // Verify closure
+        // Verify
         const poolCheck = await this.deps.connection.getAccountInfo(account.pubkey);
-        if (poolCheck !== null) {
-          throw new Error('Pool PDA still exists after close tx');
-        }
+        if (poolCheck !== null) throw new Error('Pool PDA still exists after close tx');
 
         const balanceAfter = await this.deps.connection.getBalance(this.deps.wallet.publicKey);
         const rentReclaimed = balanceAfter - balanceBefore;
-
-        results.push({
-          poolPda: poolPdaStr, asset, status, vaultBalance: 0,
-          action: 'CLOSED',
-          rentReclaimed: (rentReclaimed / 1e9).toFixed(6),
-          txSignature: closeSig,
-        });
+        totalRentReclaimed += rentReclaimed;
 
         await this.logEvent('POOL_ORPHAN_RECOVERED', 'closure', poolPdaStr, {
           poolPda: poolPdaStr, asset, previousStatus: status,
@@ -997,22 +995,25 @@ export class PoolResolver {
           txSignature: closeSig,
         });
 
-        console.log(`[Recovery] Closed orphaned pool ${poolPdaStr}: +${(rentReclaimed / 1e9).toFixed(6)} SOL`);
-      } catch (error) {
-        results.push({
-          poolPda: poolPdaStr, asset, status, vaultBalance,
-          action: 'FAILED',
-          error: error instanceof Error ? error.message : String(error),
+        emit('success', `  CLOSED — reclaimed ${(rentReclaimed / 1e9).toFixed(6)} SOL (tx: ${closeSig.slice(0, 20)}...)`, {
+          poolPda: poolPdaStr, rentReclaimed: (rentReclaimed / 1e9).toFixed(6), txSignature: closeSig,
         });
+        closed++;
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        emit('error', `  FAILED — ${msg}`, { poolPda: poolPdaStr, error: msg });
+        failed++;
       }
+
+      await delay(RPC_DELAY);
     }
 
-    return {
-      totalOnChain: poolAccounts.length,
-      totalInDb: dbPools.length,
-      orphaned: orphaned.length,
-      recovered: results,
-    };
+    const totalSol = (totalRentReclaimed / 1e9).toFixed(6);
+    emit('complete', `Done! Closed: ${closed}, Skipped: ${skipped}, Failed: ${failed}. Total rent reclaimed: ${totalSol} SOL`, {
+      closed, skipped, failed, totalRentReclaimed: totalSol,
+    });
+
+    return { totalOnChain: poolAccounts.length, totalInDb: dbPools.length, orphaned: orphaned.length, closed, skipped, failed, totalRentReclaimed: totalSol };
   }
 
   private async logEvent(

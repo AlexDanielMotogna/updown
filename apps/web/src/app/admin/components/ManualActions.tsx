@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Box, Card, Typography, Button, TextField, Alert, Dialog,
   DialogTitle, DialogContent, DialogActions, Select, MenuItem, FormControl, InputLabel,
 } from '@mui/material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { adminPost } from '../lib/adminApi';
+import { adminPost, adminPostSSE } from '../lib/adminApi';
 
 function ActionCard({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return (
@@ -17,6 +17,22 @@ function ActionCard({ title, description, children }: { title: string; descripti
     </Card>
   );
 }
+
+interface LogLine {
+  type: string;
+  message: string;
+  [key: string]: unknown;
+}
+
+const LOG_COLORS: Record<string, string> = {
+  info: '#93C5FD',
+  success: '#4ADE80',
+  warn: '#FBBF24',
+  error: '#F87171',
+  pool_start: '#C084FC',
+  complete: '#22C55E',
+  done: '#22C55E',
+};
 
 export function ManualActions() {
   const qc = useQueryClient();
@@ -31,6 +47,33 @@ export function ManualActions() {
   // Create pool inputs
   const [asset, setAsset] = useState('BTC');
   const [intervalKey, setIntervalKey] = useState('5m');
+
+  // Recovery state
+  const [recoveryRunning, setRecoveryRunning] = useState(false);
+  const [recoveryLogs, setRecoveryLogs] = useState<LogLine[]>([]);
+  const logEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [recoveryLogs]);
+
+  const startRecovery = async () => {
+    setRecoveryRunning(true);
+    setRecoveryLogs([]);
+    setConfirmAction(null);
+
+    try {
+      await adminPostSSE('/actions/recover-orphaned-pools', undefined, (event) => {
+        setRecoveryLogs(prev => [...prev, event as LogLine]);
+      });
+    } catch (err) {
+      setRecoveryLogs(prev => [...prev, { type: 'error', message: `Connection error: ${err instanceof Error ? err.message : String(err)}` }]);
+    }
+
+    setRecoveryRunning(false);
+    qc.invalidateQueries({ queryKey: ['admin-health'] });
+    qc.invalidateQueries({ queryKey: ['admin-finance'] });
+  };
 
   const execMutation = useMutation({
     mutationFn: (fn: () => Promise<unknown>) => fn(),
@@ -58,6 +101,69 @@ export function ManualActions() {
           {result.message}
         </Alert>
       )}
+
+      {/* Recovery section */}
+      <Card sx={{ p: 2, border: '1px solid rgba(245,158,11,0.3)' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+          <Box>
+            <Typography variant="subtitle2">Recover Orphaned Pools</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Scan on-chain for pools deleted from DB. Resolves and closes them to reclaim rent. (1s delay between ops)
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {recoveryRunning ? (
+              <Button
+                variant="contained"
+                color="error"
+                onClick={() => { adminPost('/actions/stop-recovery').catch(() => {}); }}
+              >
+                Stop
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                color="warning"
+                onClick={() => setConfirmAction({ label: 'Scan & recover orphaned pools', fn: startRecovery })}
+              >
+                Scan & Recover
+              </Button>
+            )}
+          </Box>
+        </Box>
+
+        {recoveryLogs.length > 0 && (
+          <Box
+            sx={{
+              mt: 1,
+              bgcolor: '#0D1117',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 1,
+              p: 1.5,
+              maxHeight: 400,
+              overflow: 'auto',
+              fontFamily: 'monospace',
+              fontSize: 12,
+              lineHeight: 1.6,
+              '&::-webkit-scrollbar': { width: 6 },
+              '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.2)', borderRadius: 3 },
+            }}
+          >
+            {recoveryLogs.map((log, i) => (
+              <Box key={i} sx={{ color: LOG_COLORS[log.type] || '#E5E7EB', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                {log.type === 'done' ? (
+                  <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                    <strong>{log.message}</strong>
+                  </Box>
+                ) : (
+                  log.message
+                )}
+              </Box>
+            ))}
+            <div ref={logEndRef} />
+          </Box>
+        )}
+      </Card>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
         <ActionCard title="Force Resolve Pool" description="Resolve a stuck JOINING/ACTIVE pool using current market price">
@@ -97,13 +203,6 @@ export function ManualActions() {
           </Button>
         </ActionCard>
 
-        <ActionCard title="Recover Orphaned Pools" description="Scan on-chain for pools deleted from DB but still on-chain. Resolves and closes them to reclaim rent.">
-          <Button variant="contained" color="warning"
-            onClick={() => setConfirmAction({ label: 'Scan & recover orphaned pools (may take a while)', fn: () => adminPost('/actions/recover-orphaned-pools') })}>
-            Scan & Recover
-          </Button>
-        </ActionCard>
-
         <ActionCard title="Create Pool" description="Manually create a new pool (admin-only, replaces /api/pools/test)">
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             <FormControl size="small" sx={{ minWidth: 100 }}>
@@ -131,16 +230,24 @@ export function ManualActions() {
         </ActionCard>
       </Box>
 
-      <Dialog open={!!confirmAction} onClose={() => setConfirmAction(null)}>
+      <Dialog open={!!confirmAction} onClose={() => !recoveryRunning && setConfirmAction(null)}>
         <DialogTitle>Confirm Action</DialogTitle>
         <DialogContent>
           <Typography>Are you sure you want to: <strong>{confirmAction?.label}</strong>?</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmAction(null)}>Cancel</Button>
-          <Button variant="contained" color="error" disabled={execMutation.isPending}
-            onClick={() => confirmAction && execMutation.mutate(confirmAction.fn)}>
-            {execMutation.isPending ? 'Executing...' : 'Confirm'}
+          <Button onClick={() => setConfirmAction(null)} disabled={recoveryRunning}>Cancel</Button>
+          <Button variant="contained" color="error" disabled={execMutation.isPending || recoveryRunning}
+            onClick={() => {
+              if (!confirmAction) return;
+              // Recovery uses its own flow (SSE streaming)
+              if (confirmAction.label.includes('orphaned')) {
+                confirmAction.fn();
+              } else {
+                execMutation.mutate(confirmAction.fn);
+              }
+            }}>
+            {execMutation.isPending || recoveryRunning ? 'Executing...' : 'Confirm'}
           </Button>
         </DialogActions>
       </Dialog>
