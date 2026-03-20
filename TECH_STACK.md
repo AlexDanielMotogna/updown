@@ -180,9 +180,9 @@ The scheduler runs three core services:
 |-----|-----------|-------------|
 | **PoolCreator** | Every tick | Ensures a JOINING pool exists per asset+interval. Dedup checks filter out pools past lockTime to prevent stale blocking. |
 | **PoolResolver** | Every tick | Resolves ended pools: captures final price, determines winner, handles refunds for one-sided pools. |
-| **PoolScheduler** | Per-interval cron | Orchestrates pool creation via cron expressions (1m: `* * * * *`, 5m: `*/5`, 15m: `*/15`, 1h: `0 *`). |
+| **PoolScheduler** | Per-interval cron | Orchestrates pool creation via cron expressions (3m: `*/3 * * * *`, 5m: `*/5`, 15m: `*/15`, 1h: `0 *`). |
 
-**Templates:** 3 assets (BTC, ETH, SOL) x 4 intervals (1m, 5m, 15m, 1h) = 12 pool templates.
+**Templates:** 3 assets (BTC, ETH, SOL) x 4 intervals (3m, 5m, 15m, 1h) = 12 pool templates.
 
 **Timing:** Strike price captured at creation. Betting open until 1 second before end. Successor pool created immediately when current pool ends.
 

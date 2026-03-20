@@ -39,14 +39,14 @@ export const SOLANA_CLUSTER = 'devnet';
 // Interval display
 // ---------------------------------------------------------------------------
 export const INTERVAL_LABELS: Record<string, string> = {
-  '1m': 'Turbo 1m',
+  '3m': 'Turbo 3m',
   '5m': 'Rapid 5m',
   '15m': 'Short 15m',
   '1h': 'Hourly',
 };
 
 export const INTERVAL_TAG_IMAGES: Record<string, string> = {
-  '1m': '/assets/turbo-tag.png',
+  '3m': '/assets/turbo-tag.png',
   '5m': '/assets/rapid-tag.png',
   '15m': '/assets/short-tag.png',
   '1h': '/assets/hourly-tag.png',
@@ -56,15 +56,15 @@ export const INTERVAL_TAG_IMAGES: Record<string, string> = {
 // Box art — asset-interval specific boxes take priority, then asset fallback
 // ---------------------------------------------------------------------------
 export const ASSET_INTERVAL_BOX_IMAGE: Record<string, string> = {
-  'BTC-1m': '/boxes/Btc-1min.png',
+  'BTC-3m': '/boxes/Btc-3min.png',
   'BTC-5m': '/boxes/Btc-5min.png',
   'BTC-15m': '/boxes/Btc-15min.png',
   'BTC-1h': '/boxes/Btc-1h.png',
-  'ETH-1m': '/boxes/Eth-1min.png',
+  'ETH-3m': '/boxes/Eth-3min.png',
   'ETH-5m': '/boxes/Eth-5min.png',
   'ETH-15m': '/boxes/Eth-15min.png',
   'ETH-1h': '/boxes/Eth-1h.png',
-  'SOL-1m': '/boxes/Sol-1min.png',
+  'SOL-3m': '/boxes/Sol-3min.png',
   'SOL-5m': '/boxes/Sol-5min.png',
   'SOL-15m': '/boxes/Sol-15min.png',
   'SOL-1h': '/boxes/Sol-1h.png',

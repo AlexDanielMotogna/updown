@@ -216,7 +216,7 @@ export function ManualActions() {
             <FormControl size="small" sx={{ minWidth: 100 }}>
               <InputLabel>Interval</InputLabel>
               <Select value={intervalKey} onChange={e => setIntervalKey(e.target.value)} label="Interval">
-                <MenuItem value="1m">1m</MenuItem>
+                <MenuItem value="3m">3m</MenuItem>
                 <MenuItem value="5m">5m</MenuItem>
                 <MenuItem value="15m">15m</MenuItem>
                 <MenuItem value="1h">1h</MenuItem>

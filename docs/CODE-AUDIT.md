@@ -38,14 +38,14 @@ Add to `apps/web/src/lib/constants.ts`:
 ```ts
 // Interval display
 export const INTERVAL_LABELS: Record<string, string> = {
-  '1m': 'Turbo 1m',
+  '3m': 'Turbo 3m',
   '5m': 'Rapid 5m',
   '15m': 'Short 15m',
   '1h': 'Hourly',
 };
 
 export const INTERVAL_TAG_IMAGES: Record<string, string> = {
-  '1m': '/assets/turbo-tag.png',
+  '3m': '/assets/turbo-tag.png',
   '5m': '/assets/rapid-tag.png',
   '15m': '/assets/short-tag.png',
   '1h': '/assets/hourly-tag.png',

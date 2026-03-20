@@ -9,7 +9,7 @@ UpDown is a crypto price prediction platform on Solana. Stake USDC to predict wh
 1. **Connect Wallet** — Click "Connect Wallet" in the header. Choose an embedded wallet (no extension needed) or an external one like Phantom.
 2. **Pick a Pool** — Browse the Markets page. Pools marked **JOINING** are open for predictions.
 3. **Predict UP or DOWN** — Open a pool, toggle your side, enter your USDC stake, and confirm the transaction.
-4. **Wait for the Result** — The pool locks (ACTIVE) and resolves after the timeframe ends (1 min – 1 hour).
+4. **Wait for the Result** — The pool locks (ACTIVE) and resolves after the timeframe ends (3 min – 1 hour).
 5. **Claim Your Winnings** — Go to Profile > Resolved tab and click "Claim Payout" on winning bets.
 
 ---

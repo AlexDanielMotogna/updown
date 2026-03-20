@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Container, Typography } from '@mui/material';
+import { Box, Container, Typography, Tooltip } from '@mui/material';
 import {
   EmojiEvents,
   Bolt,
@@ -11,6 +11,12 @@ import {
   SmartToy,
   ShowChart,
   WorkOutline,
+  AccountBalanceWallet,
+  Lock,
+  Gavel,
+  Verified,
+  SwapHoriz,
+  Shield,
 } from '@mui/icons-material';
 import { AppShell } from '@/components';
 import { AssetIcon } from '@/components/AssetIcon';
@@ -151,12 +157,13 @@ function DataRow({ label, value, color, bold }: { label: string; value: string; 
         justifyContent: 'space-between',
         alignItems: 'center',
         py: 1,
-        px: 1.5,
+        px: { xs: 1, sm: 1.5 },
+        gap: 1,
         borderBottom: '1px solid rgba(255,255,255,0.04)',
       }}
     >
-      <Typography sx={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.65)' }}>{label}</Typography>
-      <Typography sx={{ fontSize: '0.9rem', fontWeight: bold ? 700 : 500, color: color || '#fff', fontVariantNumeric: 'tabular-nums' }}>{value}</Typography>
+      <Typography sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' }, color: 'rgba(255,255,255,0.65)', minWidth: 0 }}>{label}</Typography>
+      <Typography sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' }, fontWeight: bold ? 700 : 500, color: color || '#fff', fontVariantNumeric: 'tabular-nums', flexShrink: 0, textAlign: 'right' }}>{value}</Typography>
     </Box>
   );
 }
@@ -182,25 +189,25 @@ function LevelRow({
     <Box
       sx={{
         display: 'grid',
-        gridTemplateColumns: { xs: '50px 1fr 1fr 60px 60px', md: '60px 1.2fr 1.2fr 100px 100px' },
+        gridTemplateColumns: { xs: '40px 1fr 1fr 48px 48px', sm: '50px 1fr 1fr 60px 60px', md: '60px 1.2fr 1.2fr 100px 100px' },
         alignItems: 'center',
         py: 1,
-        px: 1.5,
+        px: { xs: 0.75, sm: 1.5 },
         borderBottom: '1px solid rgba(255,255,255,0.04)',
         '&:hover': { bgcolor: 'rgba(255,255,255,0.02)' },
         transition: 'background 0.15s ease',
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-        <Box component="img" src={icon} alt={`Lv.${level}`} sx={{ width: 22, height: 22 }} />
-        <Typography sx={{ fontSize: '0.88rem', fontWeight: 700, color: tierColor }}>{level}</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <Box component="img" src={icon} alt={`Lv.${level}`} sx={{ width: { xs: 18, sm: 22 }, height: { xs: 18, sm: 22 } }} />
+        <Typography sx={{ fontSize: { xs: '0.78rem', sm: '0.88rem' }, fontWeight: 700, color: tierColor }}>{level}</Typography>
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-        <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: tierColor }}>{title}</Typography>
+        <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, fontWeight: 600, color: tierColor }}>{title}</Typography>
       </Box>
-      <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.65)', fontVariantNumeric: 'tabular-nums' }}>{xp}</Typography>
-      <Typography sx={{ fontSize: '0.85rem', color: GAIN_COLOR, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fee}</Typography>
-      <Typography sx={{ fontSize: '0.85rem', color: ACCENT_COLOR, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{mult}</Typography>
+      <Typography sx={{ fontSize: { xs: '0.72rem', sm: '0.85rem' }, color: 'rgba(255,255,255,0.65)', fontVariantNumeric: 'tabular-nums' }}>{xp}</Typography>
+      <Typography sx={{ fontSize: { xs: '0.72rem', sm: '0.85rem' }, color: GAIN_COLOR, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fee}</Typography>
+      <Typography sx={{ fontSize: { xs: '0.72rem', sm: '0.85rem' }, color: ACCENT_COLOR, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{mult}</Typography>
     </Box>
   );
 }
@@ -250,6 +257,41 @@ const LEVELS = [
   { level: 40, title: 'Apex Legend', xp: '5,275,014', fee: '3.00%', mult: '2.0x', icon: '/Level/Level_37-40.png', color: '#FACC15' },
 ];
 
+/* ── Token chart data ─────────────────────────────────────────────────── */
+
+const ALLOCATIONS = [
+  { label: 'Play-to-Earn', pct: 40, tokens: '4,000,000,000', color: '#22C55E', desc: 'Distributed to players through gameplay' },
+  { label: 'Liquidity', pct: 15, tokens: '1,500,000,000', color: '#4ADE80', desc: 'DEX liquidity on Raydium / Orca' },
+  { label: 'Team', pct: 15, tokens: '1,500,000,000', color: '#F59E0B', desc: '24-month vesting, 6-month cliff' },
+  { label: 'Treasury', pct: 10, tokens: '1,000,000,000', color: '#A78BFA', desc: 'Protocol growth & partnerships' },
+  { label: 'Community', pct: 10, tokens: '1,000,000,000', color: '#F472B6', desc: 'Community initiatives & early adopters' },
+  { label: 'Marketing', pct: 5, tokens: '500,000,000', color: '#FB923C', desc: 'Exchange listings, campaigns, KOLs' },
+  { label: 'Advisors', pct: 5, tokens: '500,000,000', color: '#E879F9', desc: '18-month vesting, 3-month cliff' },
+];
+
+const VESTING = [
+  { label: 'Play-to-Earn', color: '#22C55E', cliff: 0, end: 30, note: 'Ongoing via gameplay' },
+  { label: 'Liquidity', color: '#4ADE80', cliff: 0, end: 1, note: '100% at TGE' },
+  { label: 'Team', color: '#F59E0B', cliff: 6, end: 30, note: '6mo cliff, 24mo linear' },
+  { label: 'Treasury', color: '#A78BFA', cliff: 0, end: 12, note: '12mo linear' },
+  { label: 'Community', color: '#F472B6', cliff: 0, end: 24, note: 'Airdrop waves' },
+  { label: 'Marketing', color: '#FB923C', cliff: 0, end: 24, note: 'Per milestone' },
+  { label: 'Advisors', color: '#E879F9', cliff: 3, end: 21, note: '3mo cliff, 18mo linear' },
+];
+
+const DONUT_R = 70;
+const DONUT_CIRC = 2 * Math.PI * DONUT_R;
+const DONUT_SEGMENTS = (() => {
+  let offset = 0;
+  return ALLOCATIONS.map((a) => {
+    const dashLen = (a.pct / 100) * DONUT_CIRC;
+    const seg = { ...a, dashLen, offset };
+    offset += dashLen;
+    return seg;
+  });
+})();
+const VESTING_MAX = 30;
+
 /* ── Page ─────────────────────────────────────────────────────────────── */
 
 export default function DocsPage() {
@@ -280,7 +322,8 @@ export default function DocsPage() {
               { label: 'XP & Rewards', href: '#xp-rewards', color: '#FB923C' },
               { label: 'Level Progression', href: '#levels', color: '#E879F9' },
               { label: 'UP Coins', href: '#up-coins', color: '#FACC15' },
-              { label: 'UP Token — Tokenomics', href: '#tokenomics', color: '#FACC15' },
+              { label: 'UP Token Tokenomics', href: '#tokenomics', color: '#FACC15' },
+              { label: 'Security & Transparency', href: '#security', color: '#38BDF8' },
               { label: 'Features', href: '#features', color: UP_COLOR },
               { label: 'Tips', href: '#tips', color: GAIN_COLOR },
             ].map((item) => (
@@ -313,7 +356,7 @@ export default function DocsPage() {
           <StepCard step={2} title="Fund Your Wallet" desc="Deposit USDC (Solana) into your wallet. You need USDC to place predictions and a small amount of SOL for transaction fees." color="#F472B6" />
           <StepCard step={3} title="Pick a Pool" desc="Browse Markets. Pools marked JOINING are open for predictions." color={ACCENT_COLOR} />
           <StepCard step={4} title="Predict UP or DOWN" desc="Toggle your side, enter USDC stake, confirm the transaction." color={GAIN_COLOR} />
-          <StepCard step={5} title="Wait for Result" desc="Pool locks (ACTIVE) and resolves after 1 min – 1 hour." color="#A78BFA" />
+          <StepCard step={5} title="Wait for Result" desc="Pool locks (ACTIVE) and resolves after 3 min – 1 hour." color="#A78BFA" />
           <StepCard step={6} title="Claim Winnings" desc="Go to Profile > Resolved tab, click Claim Payout. UP Coins and XP are awarded on claim." color="#FACC15" />
         </Box>
 
@@ -330,12 +373,12 @@ export default function DocsPage() {
             { label: 'RESOLVED', desc: 'Winner decided', icon: <CheckCircle sx={{ fontSize: 16 }} />, color: '#A78BFA' },
             { label: 'CLAIMABLE', desc: 'Claim payouts', icon: <Star sx={{ fontSize: 16 }} />, color: GAIN_COLOR },
           ].map((s) => (
-            <Box key={s.label} sx={{ bgcolor: `${s.color}08`, p: 2, display: 'flex', flexDirection: 'column', gap: 0.5, borderBottom: `2px solid ${s.color}` }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <Box key={s.label} sx={{ bgcolor: `${s.color}08`, p: { xs: 1.25, md: 2 }, display: 'flex', flexDirection: 'column', gap: 0.5, borderBottom: `2px solid ${s.color}` }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <Box sx={{ color: s.color }}>{s.icon}</Box>
-                <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: s.color, letterSpacing: '0.08em' }}>{s.label}</Typography>
+                <Typography sx={{ fontSize: { xs: '0.72rem', md: '0.85rem' }, fontWeight: 700, color: s.color, letterSpacing: '0.08em' }}>{s.label}</Typography>
               </Box>
-              <Typography sx={{ fontSize: '0.88rem', color: 'rgba(255,255,255,0.6)' }}>{s.desc}</Typography>
+              <Typography sx={{ fontSize: { xs: '0.78rem', md: '0.88rem' }, color: 'rgba(255,255,255,0.6)' }}>{s.desc}</Typography>
             </Box>
           ))}
         </Box>
@@ -357,12 +400,12 @@ export default function DocsPage() {
           <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 2 }}>TIMEFRAMES</Typography>
           <Box sx={{ display: 'flex', gap: { xs: 1.5, md: 3 }, flexWrap: 'wrap', justifyContent: 'center' }}>
             {[
-              { key: '1m', img: '/assets/turbo-tag.png' },
+              { key: '3m', img: '/assets/turbo-tag.png' },
               { key: '5m', img: '/assets/rapid-tag.png' },
               { key: '15m', img: '/assets/short-tag.png' },
               { key: '1h', img: '/assets/hourly-tag.png' },
             ].map((t) => (
-              <Img key={t.key} src={t.img} size={120} alt={t.key} />
+              <Box key={t.key} component="img" src={t.img} alt={t.key} sx={{ width: { xs: 80, sm: 100, md: 120 }, height: { xs: 80, sm: 100, md: 120 }, objectFit: 'contain' }} />
             ))}
           </Box>
         </Box>
@@ -370,7 +413,7 @@ export default function DocsPage() {
         {/* ── Odds & Payouts ────────────────────────────────────────── */}
         <SectionTitle id="odds-payouts">Odds & Payouts</SectionTitle>
         <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
-          <strong style={{ color: '#fff' }}>Parimutuel</strong> — winners split the entire pool proportionally. Odds update in real-time as bets come in.
+          <strong style={{ color: '#fff' }}>Parimutuel</strong>: winners split the entire pool proportionally. Odds update in real-time as bets come in.
         </Typography>
 
         {/* Arena-style example */}
@@ -452,15 +495,15 @@ export default function DocsPage() {
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: '50px 1fr 1fr 60px 60px', md: '60px 1.2fr 1.2fr 100px 100px' },
+            gridTemplateColumns: { xs: '40px 1fr 1fr 48px 48px', sm: '50px 1fr 1fr 60px 60px', md: '60px 1.2fr 1.2fr 100px 100px' },
             py: 1,
-            px: 1.5,
+            px: { xs: 0.75, sm: 1.5 },
             bgcolor: '#0D1219',
             borderBottom: '1px solid rgba(255,255,255,0.08)',
           }}
         >
           {['LVL', 'TITLE', 'TOTAL XP', 'FEE', 'COINS'].map((h) => (
-            <Typography key={h} sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em' }}>{h}</Typography>
+            <Typography key={h} sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em' }}>{h}</Typography>
           ))}
         </Box>
         <Box sx={{ bgcolor: '#0D1219', mb: 2 }}>
@@ -477,7 +520,7 @@ export default function DocsPage() {
           </Box>
         </SectionTitle>
         <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
-          Coins are <strong style={{ color: '#fff' }}>only awarded when you claim</strong> a winning bet — never at deposit time.
+          Coins are <strong style={{ color: '#fff' }}>only awarded when you claim</strong> a winning bet, never at deposit time.
         </Typography>
 
         {/* Coin sources */}
@@ -504,14 +547,14 @@ export default function DocsPage() {
           <DataRow label="Minimum bet for coins" value="$1 USDC" />
           <DataRow label="Bets 1–20 / day" value="100% rate" color={GAIN_COLOR} />
           <DataRow label="Bets 21–40 / day" value="50% rate" color={ACCENT_COLOR} />
-          <DataRow label="Bets 41+ / day" value="0% — no coins" color={DOWN_COLOR} />
+          <DataRow label="Bets 41+ / day" value="0%, no coins" color={DOWN_COLOR} />
         </Box>
 
         {/* ── UP Token Tokenomics ──────────────────────────────────── */}
         <SectionTitle id="tokenomics">
           <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
             <Img src="/token/Token_16px_Gold.png" size={16} alt="UP Token" />
-            UP Token — Tokenomics
+            UP Token Tokenomics
           </Box>
         </SectionTitle>
         <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
@@ -527,68 +570,134 @@ export default function DocsPage() {
           <InfoCard icon={<CheckCircle sx={{ fontSize: 14, color: UP_COLOR }} />} label="DECIMALS" value="6" color={UP_COLOR} />
         </Box>
 
-        {/* Token Distribution */}
+        {/* Token Distribution: Donut Chart + Legend */}
         <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1 }}>TOKEN DISTRIBUTION</Typography>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: '3px', mb: 2 }}>
-          {/* Allocation bars */}
-          <Box sx={{ bgcolor: '#0D1219', p: { xs: 2, md: 2.5 }, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            {[
-              { label: 'Play-to-Earn Rewards', pct: 40, tokens: '4,000,000,000', color: GAIN_COLOR, desc: 'Distributed to players through gameplay' },
-              { label: 'Liquidity Pool', pct: 15, tokens: '1,500,000,000', color: UP_COLOR, desc: 'DEX liquidity on Raydium / Orca' },
-              { label: 'Team & Development', pct: 15, tokens: '1,500,000,000', color: ACCENT_COLOR, desc: '24-month vesting, 6-month cliff' },
-              { label: 'Treasury', pct: 10, tokens: '1,000,000,000', color: '#A78BFA', desc: 'Protocol growth & partnerships' },
-              { label: 'Community & Airdrops', pct: 10, tokens: '1,000,000,000', color: '#F472B6', desc: 'Community initiatives & early adopters' },
-              { label: 'Marketing', pct: 5, tokens: '500,000,000', color: '#FB923C', desc: 'Exchange listings, campaigns, KOLs' },
-              { label: 'Advisors', pct: 5, tokens: '500,000,000', color: '#E879F9', desc: '18-month vesting, 3-month cliff' },
-            ].map((a) => (
-              <Box key={a.label}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.88rem', fontWeight: 600, color: a.color }}>{a.label}</Typography>
-                  <Typography sx={{ fontSize: '0.88rem', fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>{a.pct}%</Typography>
-                </Box>
-                <Box sx={{ width: '100%', height: 6, bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 1, overflow: 'hidden' }}>
-                  <Box sx={{ width: `${a.pct}%`, height: '100%', bgcolor: a.color, borderRadius: 1 }} />
-                </Box>
-                <Typography sx={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)', mt: 0.25 }}>{a.tokens} UP — {a.desc}</Typography>
-              </Box>
-            ))}
-          </Box>
-
-          {/* Token details */}
-          <Box sx={{ bgcolor: '#0D1219', display: 'flex', flexDirection: 'column' }}>
-            <Box sx={{ p: 2, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1 }}>TOKEN UTILITY</Typography>
-              {[
-                { title: 'Fee Discounts', desc: 'Pay platform fees in $UP for up to 50% additional discount on top of level-based reductions.', color: GAIN_COLOR },
-                { title: 'Staking Rewards', desc: 'Stake $UP to earn a share of platform fee revenue, distributed weekly.', color: UP_COLOR },
-                { title: 'Governance', desc: 'Vote on new assets, timeframes, fee parameters, and treasury allocation.', color: ACCENT_COLOR },
-                { title: 'Exclusive Pools', desc: 'Access high-stakes and special event pools by holding minimum $UP balance.', color: '#A78BFA' },
-                { title: 'Boosted Earnings', desc: 'Burn $UP to activate temporary 2x coin multiplier on top of level multiplier.', color: '#FACC15' },
-              ].map((u) => (
-                <Box key={u.title} sx={{ display: 'flex', gap: 1, mb: 1.5, alignItems: 'flex-start' }}>
-                  <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: u.color, mt: 0.8, flexShrink: 0 }} />
-                  <Box>
-                    <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: u.color }}>{u.title}</Typography>
-                    <Typography sx={{ fontSize: '0.88rem', color: 'rgba(255,255,255,0.6)', lineHeight: 1.6 }}>{u.desc}</Typography>
-                  </Box>
-                </Box>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center', gap: { xs: 2, md: 4 }, bgcolor: '#0D1219', p: { xs: 2, md: 3 }, mb: '3px' }}>
+          {/* Donut Chart */}
+          <Box sx={{ position: 'relative', flexShrink: 0, width: { xs: 170, sm: 200, md: 220 }, height: { xs: 170, sm: 200, md: 220 } }}>
+            <svg viewBox="0 0 220 220" width="100%" height="100%">
+              {DONUT_SEGMENTS.map((seg) => (
+                <Tooltip
+                  key={seg.label}
+                  title={<Box sx={{ textAlign: 'center', py: 0.5 }}>
+                    <Typography sx={{ fontWeight: 700, fontSize: '0.85rem', color: seg.color }}>{seg.label}</Typography>
+                    <Typography sx={{ fontSize: '0.8rem' }}>{seg.pct}% &middot; {seg.tokens} UP</Typography>
+                    <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)' }}>{seg.desc}</Typography>
+                  </Box>}
+                  arrow
+                  slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', maxWidth: 220 } }, arrow: { sx: { color: '#1a1f2e' } } }}
+                >
+                  <circle
+                    cx="110"
+                    cy="110"
+                    r={DONUT_R}
+                    fill="none"
+                    stroke={seg.color}
+                    strokeWidth="28"
+                    strokeDasharray={`${seg.dashLen} ${DONUT_CIRC}`}
+                    strokeDashoffset={-seg.offset}
+                    style={{ transform: 'rotate(-90deg)', transformOrigin: '110px 110px', cursor: 'pointer', transition: 'stroke-width 0.15s' }}
+                  />
+                </Tooltip>
               ))}
+            </svg>
+            <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+              <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.08em' }}>TOTAL</Typography>
+              <Typography sx={{ fontSize: { xs: '1rem', md: '1.2rem' }, fontWeight: 800, color: '#FACC15' }}>10B</Typography>
+              <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)' }}>$UP</Typography>
             </Box>
-
-            <Box sx={{ p: 2 }}>
-              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1 }}>VESTING SCHEDULE</Typography>
-              <DataRow label="Play-to-Earn" value="Unlocked via gameplay" color={GAIN_COLOR} />
-              <DataRow label="Liquidity" value="100% at TGE" color={UP_COLOR} />
-              <DataRow label="Team" value="6mo cliff → 24mo linear" color={ACCENT_COLOR} />
-              <DataRow label="Treasury" value="12mo linear unlock" color="#A78BFA" />
-              <DataRow label="Community" value="Airdrop waves + campaigns" color="#F472B6" />
-              <DataRow label="Marketing" value="Unlocked per milestone" color="#FB923C" />
-              <DataRow label="Advisors" value="3mo cliff → 18mo linear" color="#E879F9" />
-            </Box>
+          </Box>
+          {/* Legend */}
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1.25, width: '100%' }}>
+            {ALLOCATIONS.map((a) => (
+              <Tooltip
+                key={a.label}
+                title={`${a.tokens} UP - ${a.desc}`}
+                placement="left"
+                arrow
+                slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.78rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer', py: 0.25, mx: -0.5, px: 0.5, borderRadius: '4px', transition: 'background 0.15s', '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' } }}>
+                  <Box sx={{ width: 10, height: 10, borderRadius: '2px', bgcolor: a.color, flexShrink: 0 }} />
+                  <Typography sx={{ fontSize: { xs: '0.82rem', md: '0.88rem' }, fontWeight: 600, color: a.color, flex: 1, minWidth: 0 }}>{a.label}</Typography>
+                  <Typography sx={{ fontSize: { xs: '0.82rem', md: '0.88rem' }, fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>{a.pct}%</Typography>
+                </Box>
+              </Tooltip>
+            ))}
           </Box>
         </Box>
 
-        {/* Coins → Token conversion */}
+        {/* Vesting Timeline */}
+        <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1, mt: 2 }}>VESTING SCHEDULE</Typography>
+        <Box sx={{ bgcolor: '#0D1219', p: { xs: 1.5, md: 2.5 }, mb: '3px' }}>
+          {/* Month markers */}
+          <Box sx={{ display: 'flex', ml: { xs: '65px', sm: '80px', md: '100px' }, mr: { xs: '70px', sm: '90px', md: '120px' }, mb: 1 }}>
+            {[0, 6, 12, 18, 24, 30].map((m) => (
+              <Typography key={m} sx={{ fontSize: { xs: '0.58rem', md: '0.68rem' }, color: 'rgba(255,255,255,0.3)', flex: 1 }}>
+                {m === 0 ? 'TGE' : `${m}mo`}
+              </Typography>
+            ))}
+          </Box>
+          {/* Bars */}
+          {VESTING.map((v) => (
+            <Tooltip
+              key={v.label}
+              title={<Box sx={{ py: 0.5 }}>
+                <Typography sx={{ fontWeight: 700, fontSize: '0.82rem', color: v.color }}>{v.label}</Typography>
+                {v.cliff > 0 && <Typography sx={{ fontSize: '0.78rem' }}>Cliff: {v.cliff} months</Typography>}
+                <Typography sx={{ fontSize: '0.78rem' }}>Vesting: month {v.cliff} to {v.end}</Typography>
+                <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)' }}>{v.note}</Typography>
+              </Box>}
+              arrow
+              placement="top"
+              slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', maxWidth: 200 } }, arrow: { sx: { color: '#1a1f2e' } } }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.75, gap: { xs: 0.75, md: 1.5 }, cursor: 'pointer', py: 0.25, borderRadius: '4px', transition: 'background 0.15s', '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }}>
+                <Typography sx={{ fontSize: { xs: '0.65rem', md: '0.78rem' }, color: v.color, fontWeight: 600, width: { xs: 55, sm: 70, md: 90 }, flexShrink: 0, textAlign: 'right' }}>{v.label}</Typography>
+                <Box sx={{ flex: 1, height: { xs: 14, md: 18 }, bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '3px', position: 'relative', overflow: 'hidden' }}>
+                  {v.cliff > 0 && (
+                    <Box sx={{
+                      position: 'absolute', left: 0, top: 0, bottom: 0,
+                      width: `${(v.cliff / VESTING_MAX) * 100}%`,
+                      bgcolor: `${v.color}10`,
+                      borderRight: `1px dashed ${v.color}50`,
+                    }} />
+                  )}
+                  <Box sx={{
+                    position: 'absolute', top: 0, bottom: 0,
+                    left: `${(v.cliff / VESTING_MAX) * 100}%`,
+                    width: `${((v.end - v.cliff) / VESTING_MAX) * 100}%`,
+                    background: `linear-gradient(90deg, ${v.color}90, ${v.color}50)`,
+                    borderRadius: '3px',
+                  }} />
+                </Box>
+                <Typography sx={{ fontSize: { xs: '0.55rem', md: '0.68rem' }, color: 'rgba(255,255,255,0.4)', width: { xs: 65, sm: 80, md: 110 }, flexShrink: 0 }}>{v.note}</Typography>
+              </Box>
+            </Tooltip>
+          ))}
+        </Box>
+
+        {/* Token Utility */}
+        <Box sx={{ bgcolor: '#0D1219', p: { xs: 1.5, md: 2 }, mb: 2 }}>
+          <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1 }}>TOKEN UTILITY</Typography>
+          {[
+            { title: 'Fee Discounts', desc: 'Pay platform fees in $UP for up to 50% additional discount on top of level-based reductions.', color: GAIN_COLOR },
+            { title: 'Staking Rewards', desc: 'Stake $UP to earn a share of platform fee revenue, distributed weekly.', color: UP_COLOR },
+            { title: 'Governance', desc: 'Vote on new assets, timeframes, fee parameters, and treasury allocation.', color: ACCENT_COLOR },
+            { title: 'Exclusive Pools', desc: 'Access high-stakes and special event pools by holding minimum $UP balance.', color: '#A78BFA' },
+            { title: 'Boosted Earnings', desc: 'Burn $UP to activate temporary 2x coin multiplier on top of level multiplier.', color: '#FACC15' },
+          ].map((u) => (
+            <Box key={u.title} sx={{ display: 'flex', gap: 1, mb: 1.5, alignItems: 'flex-start' }}>
+              <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: u.color, mt: 0.8, flexShrink: 0 }} />
+              <Box>
+                <Typography sx={{ fontSize: { xs: '0.85rem', md: '0.9rem' }, fontWeight: 700, color: u.color }}>{u.title}</Typography>
+                <Typography sx={{ fontSize: { xs: '0.82rem', md: '0.88rem' }, color: 'rgba(255,255,255,0.6)', lineHeight: 1.6 }}>{u.desc}</Typography>
+              </Box>
+            </Box>
+          ))}
+        </Box>
+
+        {/* Coins to Token conversion */}
         <Box sx={{ bgcolor: `${GAIN_COLOR}10`, borderLeft: `3px solid ${GAIN_COLOR}`, px: 2, py: 1.5, borderRadius: '0 4px 4px 0', mb: 2 }}>
           <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.75)', lineHeight: 1.6 }}>
             <strong style={{ color: GAIN_COLOR }}>Early Player Advantage:</strong> UP Coins earned now will convert to $UP tokens at launch.
@@ -601,7 +710,7 @@ export default function DocsPage() {
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px', mb: 2 }}>
           {[
             { step: 'Play', desc: 'Place predictions on BTC, ETH, SOL price movements', color: UP_COLOR },
-            { step: 'Earn', desc: 'Win pools → earn UP Coins + XP → level up → lower fees & higher multipliers', color: GAIN_COLOR },
+            { step: 'Earn', desc: 'Win pools, earn UP Coins + XP, level up, lower fees & higher multipliers', color: GAIN_COLOR },
             { step: 'Convert', desc: 'UP Coins convert to $UP tokens at Token Generation Event (TGE)', color: '#FACC15' },
             { step: 'Stake', desc: 'Stake $UP to earn platform fee revenue share', color: ACCENT_COLOR },
             { step: 'Govern', desc: 'Use $UP to vote on protocol upgrades and new features', color: '#A78BFA' },
@@ -618,11 +727,122 @@ export default function DocsPage() {
           ))}
         </Box>
 
+        {/* ── Security & Transparency ─────────────────────────────── */}
+        <SectionTitle id="security">Security & Transparency</SectionTitle>
+        <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
+          Every pool, deposit, payout and refund happens on the <strong style={{ color: '#fff' }}>Solana blockchain</strong>.
+          All transactions are public and verifiable by anyone.
+        </Typography>
+
+        {/* How it works flow */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px', mb: 2 }}>
+          {[
+            {
+              icon: <AccountBalanceWallet sx={{ fontSize: 20 }} />,
+              title: 'Wallet Connection via Privy',
+              desc: 'UpDown uses Privy for secure wallet authentication. You can create an embedded wallet instantly (no browser extension needed) or connect an external wallet like Phantom. Privy handles key management with enterprise-grade security. UpDown never has access to your private keys.',
+              color: '#38BDF8',
+            },
+            {
+              icon: <Lock sx={{ fontSize: 20 }} />,
+              title: 'Pool Creation (On-Chain)',
+              desc: 'Each pool creates a unique Program Derived Address (PDA) and a vault token account on Solana. The vault can only be controlled by the smart contract, not by any person or server.',
+              color: ACCENT_COLOR,
+            },
+            {
+              icon: <ShowChart sx={{ fontSize: 20 }} />,
+              title: 'Market Data by Pacifica',
+              desc: 'All price data (live charts, candles, strike and final prices) comes from Pacifica (pacifica.fi), a professional-grade market data provider. Strike price is captured when the pool opens, final price when it closes. Both are written on-chain and publicly verifiable.',
+              color: UP_COLOR,
+            },
+            {
+              icon: <SwapHoriz sx={{ fontSize: 20 }} />,
+              title: 'Deposits',
+              desc: 'When you bet, your USDC is transferred directly from your wallet to the on-chain vault via a Solana transaction that only you sign. The platform never holds your funds in a centralized account.',
+              color: GAIN_COLOR,
+            },
+            {
+              icon: <Gavel sx={{ fontSize: 20 }} />,
+              title: 'Resolution',
+              desc: 'After the pool ends, the smart contract compares final price vs strike price. If final > strike, UP wins. If lower, DOWN wins. The result is recorded on-chain permanently.',
+              color: '#A78BFA',
+            },
+            {
+              icon: <Verified sx={{ fontSize: 20 }} />,
+              title: 'Payouts & Claims',
+              desc: 'Winnings are calculated by the formula: (your bet x total pool) / winning side total. The smart contract transfers USDC directly from the vault to your wallet. Fees are level-based (5% to 3%) and deducted transparently.',
+              color: '#F472B6',
+            },
+            {
+              icon: <Shield sx={{ fontSize: 20 }} />,
+              title: 'Refunds',
+              desc: 'One-sided pools (everyone bet the same direction) are automatically refunded in full, no fees. The smart contract handles refunds without requiring any action from you.',
+              color: '#FACC15',
+            },
+          ].map((item) => (
+            <Box
+              key={item.title}
+              sx={{
+                display: 'flex',
+                gap: 1.5,
+                px: { xs: 1.5, md: 2.5 },
+                py: { xs: 1.5, md: 2 },
+                bgcolor: '#0D1219',
+                transition: 'background 0.15s ease',
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' },
+              }}
+            >
+              <Box sx={{ color: item.color, mt: 0.25, flexShrink: 0 }}>{item.icon}</Box>
+              <Box>
+                <Typography sx={{ fontSize: { xs: '0.88rem', md: '0.95rem' }, fontWeight: 700, mb: 0.25, color: item.color }}>{item.title}</Typography>
+                <Typography sx={{ fontSize: { xs: '0.82rem', md: '0.9rem' }, color: 'rgba(255,255,255,0.65)', lineHeight: 1.6 }}>{item.desc}</Typography>
+              </Box>
+            </Box>
+          ))}
+        </Box>
+
+        {/* On-chain architecture details */}
+        <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1 }}>ON-CHAIN ARCHITECTURE</Typography>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: '3px', mb: 2 }}>
+          <Box sx={{ bgcolor: '#0D1219', p: { xs: 1.5, md: 2 } }}>
+            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#38BDF8', letterSpacing: '0.08em', mb: 1 }}>SMART CONTRACT</Typography>
+            <DataRow label="Blockchain" value="Solana" color="#38BDF8" />
+            <DataRow label="Framework" value="Anchor (Rust)" />
+            <DataRow label="Token" value="USDC (SPL)" color={GAIN_COLOR} />
+            <DataRow label="Vault type" value="PDA Token Account" />
+            <DataRow label="Vault authority" value="Program only" color={ACCENT_COLOR} />
+          </Box>
+          <Box sx={{ bgcolor: '#0D1219', p: { xs: 1.5, md: 2 } }}>
+            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#38BDF8', letterSpacing: '0.08em', mb: 1 }}>WHAT LIVES ON-CHAIN</Typography>
+            <DataRow label="Pool data" value="PDA per pool" />
+            <DataRow label="Bet records" value="PDA per user per pool" />
+            <DataRow label="USDC vault" value="PDA token account" />
+            <DataRow label="Strike & final price" value="Stored on pool PDA" />
+            <DataRow label="Winner side" value="Written at resolution" color={GAIN_COLOR} />
+          </Box>
+        </Box>
+
+        {/* Transaction signing */}
+        <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1 }}>WHO SIGNS WHAT</Typography>
+        <Box sx={{ bgcolor: '#0D1219', mb: 2 }}>
+          <DataRow label="Deposit" value="You sign" color={UP_COLOR} />
+          <DataRow label="Claim payout" value="You + Platform co-sign" color={GAIN_COLOR} />
+          <DataRow label="Pool resolution" value="Platform signs" color={ACCENT_COLOR} />
+          <DataRow label="Refund" value="Platform signs (automatic)" color="#FACC15" />
+        </Box>
+
+        <Box sx={{ bgcolor: 'rgba(56, 189, 248, 0.08)', borderLeft: '3px solid #38BDF8', px: 2, py: 1.5, borderRadius: '0 4px 4px 0', mb: 2 }}>
+          <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.75)', lineHeight: 1.6 }}>
+            <strong style={{ color: '#38BDF8' }}>Fully verifiable:</strong> every transaction can be inspected on Solana Explorer.
+            The vault is controlled exclusively by the smart contract. No person or server can move funds without the correct on-chain conditions being met.
+          </Typography>
+        </Box>
+
         {/* ── Features ──────────────────────────────────────────────── */}
         <SectionTitle id="features">Features</SectionTitle>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: '3px', mb: 2 }}>
           {[
-            { icon: <ShowChart sx={{ fontSize: 20 }} />, title: 'Markets Page', desc: 'Filter by status (All/Joining/Active), asset (BTC/ETH/SOL), and interval (1m/5m/15m/1h). Filters saved in URL.', color: UP_COLOR },
+            { icon: <ShowChart sx={{ fontSize: 20 }} />, title: 'Markets Page', desc: 'Filter by status (All/Joining/Active), asset (BTC/ETH/SOL), and interval (3m/5m/15m/1h). Filters saved in URL.', color: UP_COLOR },
             { icon: <Img src="/assets/market-battle-icon-500.png" size={22} alt="Pool" />, title: 'Pool Detail', desc: 'Live price, strike vs final, UP/DOWN arena, bet form with presets, payout preview, price chart.', color: ACCENT_COLOR },
             { icon: <WorkOutline sx={{ fontSize: 20 }} />, title: 'Profile', desc: 'Stats, level badge, XP progress, USDC & UP Coins balance, bet history in Active/Resolved/Claimed tabs.', color: '#A78BFA' },
             { icon: <EmojiEvents sx={{ fontSize: 20 }} />, title: 'Leaderboard', desc: 'Rankings by Top XP, Top Coins, or Top Level. Gold/Silver/Bronze medals for top 3.', color: GAIN_COLOR },
@@ -653,11 +873,11 @@ export default function DocsPage() {
         <SectionTitle id="tips">Tips</SectionTitle>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
           {[
-            { tip: 'Start small — $10–$50 bets to learn how odds shift.', color: UP_COLOR },
-            { tip: 'Watch the odds — early bets on the minority side get better multipliers.', color: ACCENT_COLOR },
-            { tip: 'Level up — fees drop from 5.00% to 3.00% and coin multiplier goes up to 2.0x.', color: GAIN_COLOR },
+            { tip: 'Start small, $10-$50 bets to learn how odds shift.', color: UP_COLOR },
+            { tip: 'Watch the odds. Early bets on the minority side get better multipliers.', color: ACCENT_COLOR },
+            { tip: 'Level up! Fees drop from 5.00% to 3.00% and coin multiplier goes up to 2.0x.', color: GAIN_COLOR },
             { tip: 'Use the AI Bot on pool detail pages for technical analysis.', color: '#A78BFA' },
-            { tip: 'Claim promptly — don\'t forget winning bets in Profile > Resolved.', color: '#FACC15' },
+            { tip: 'Claim promptly. Don\'t forget winning bets in Profile > Resolved.', color: '#FACC15' },
           ].map((t, i) => (
             <Box key={i} sx={{ bgcolor: `${t.color}08`, borderLeft: `3px solid ${t.color}`, px: 2, py: 1.5 }}>
               <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.75)', lineHeight: 1.6 }}>

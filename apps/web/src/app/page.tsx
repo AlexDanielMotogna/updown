@@ -30,7 +30,7 @@ const ASSET_FILTERS = [
 
 const INTERVAL_FILTERS = [
   { value: 'ALL', label: 'All', icon: <GridView sx={{ fontSize: 16 }} /> },
-  { value: '1m', label: '1 min', icon: <Speed sx={{ fontSize: 16 }} /> },
+  { value: '3m', label: '3 min', icon: <Speed sx={{ fontSize: 16 }} /> },
   { value: '5m', label: '5 min', icon: <Timer sx={{ fontSize: 16 }} /> },
   { value: '15m', label: '15 min', icon: <AvTimer sx={{ fontSize: 16 }} /> },
   { value: '1h', label: '1 hour', icon: <Schedule sx={{ fontSize: 16 }} /> },
@@ -40,7 +40,7 @@ const HOW_TO_PLAY = [
   {
     image: '/info-cards/info-1.webp',
     title: 'Pick a Pool',
-    desc: 'Choose your asset & timeframe. BTC, ETH, SOL from 1min turbo to 1hr rounds.',
+    desc: 'Choose your asset & timeframe. BTC, ETH, SOL from 3min turbo to 1hr rounds.',
     gradient: `linear-gradient(135deg, ${ACCENT_COLOR}15, ${ACCENT_COLOR}05)`,
   },
   {
@@ -196,18 +196,20 @@ export default function MarketsPage() {
             </Box>
 
             {/* Filters */}
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'stretch', sm: 'center' }, justifyContent: 'space-between', mb: 3, gap: { xs: 1, sm: 1 } }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflowX: 'auto', WebkitOverflowScrolling: 'touch', '&::-webkit-scrollbar': { display: 'none' }, scrollbarWidth: 'none' }}>
                 {ASSET_FILTERS.map((f) => (
                   <Chip
                     key={f.value}
                     label={f.label}
+                    size="small"
                     icon={f.img ? (
-                      <Box component="img" src={f.img} alt={f.label} sx={{ width: 18, height: 18, borderRadius: '50%' }} />
+                      <Box component="img" src={f.img} alt={f.label} sx={{ width: 16, height: 16, borderRadius: '50%' }} />
                     ) : f.icon}
                     onClick={() => updateParam('asset', f.value)}
                     sx={{
-                      fontWeight: 600, fontSize: '0.8rem', border: 'none',
+                      fontWeight: 600, fontSize: { xs: '0.72rem', sm: '0.8rem' }, border: 'none', flexShrink: 0,
+                      height: { xs: 28, sm: 32 },
                       backgroundColor: assetFilter === f.value ? `${UP_COLOR}20` : 'rgba(255,255,255,0.04)',
                       color: assetFilter === f.value ? UP_COLOR : 'text.secondary',
                       '&:hover': { backgroundColor: assetFilter === f.value ? `${UP_COLOR}28` : 'rgba(255,255,255,0.08)' },
@@ -215,15 +217,17 @@ export default function MarketsPage() {
                   />
                 ))}
               </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflowX: 'auto', WebkitOverflowScrolling: 'touch', '&::-webkit-scrollbar': { display: 'none' }, scrollbarWidth: 'none' }}>
                 {INTERVAL_FILTERS.map((f) => (
                   <Chip
                     key={f.value}
                     label={f.label}
+                    size="small"
                     icon={f.icon}
                     onClick={() => updateParam('interval', f.value)}
                     sx={{
-                      fontWeight: 600, fontSize: '0.8rem', border: 'none',
+                      fontWeight: 600, fontSize: { xs: '0.72rem', sm: '0.8rem' }, border: 'none', flexShrink: 0,
+                      height: { xs: 28, sm: 32 },
                       backgroundColor: intervalFilter === f.value ? `${UP_COLOR}20` : 'rgba(255,255,255,0.04)',
                       color: intervalFilter === f.value ? UP_COLOR : 'text.secondary',
                       '&:hover': { backgroundColor: intervalFilter === f.value ? `${UP_COLOR}28` : 'rgba(255,255,255,0.08)' },

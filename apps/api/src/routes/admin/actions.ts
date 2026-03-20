@@ -193,7 +193,7 @@ adminActionsRouter.post('/stop-recovery', async (_req, res) => {
 // POST /actions/create-pool (moved from /api/pools/test)
 const createPoolSchema = z.object({
   asset: z.enum(['BTC', 'ETH', 'SOL']).default('BTC'),
-  intervalKey: z.enum(['1m', '5m', '15m', '1h']).default('5m'),
+  intervalKey: z.enum(['3m', '5m', '15m', '1h']).default('5m'),
   intervalSeconds: z.number().min(60).default(300),
   joinWindowSeconds: z.number().min(30).default(120),
   lockBufferSeconds: z.number().min(5).default(15),

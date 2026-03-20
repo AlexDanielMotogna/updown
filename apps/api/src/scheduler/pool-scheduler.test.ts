@@ -67,7 +67,7 @@ describe('Scheduler Config', () => {
       expect(config.priceSource).toBe('pacifica');
       expect(config.templates).toHaveLength(12); // 3 assets x 4 intervals
       expect(config.templates[0].asset).toBe('BTC');
-      expect(config.templates[0].intervalKey).toBe('1m');
+      expect(config.templates[0].intervalKey).toBe('3m');
     });
 
     it('should disable scheduler when SCHEDULER_ENABLED=false', () => {

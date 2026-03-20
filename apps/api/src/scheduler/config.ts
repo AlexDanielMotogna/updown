@@ -5,7 +5,7 @@
 
 export interface PoolTemplate {
   asset: string;
-  intervalKey: string; // Interval identifier: '1m', '5m', '15m', '1h'
+  intervalKey: string; // Interval identifier: '3m', '5m', '15m', '1h'
   interval: number; // Duration in seconds
   cronExpression: string; // When to create new pools
   joinWindowSeconds: number; // How long users can deposit before lock
@@ -36,13 +36,13 @@ export function getSchedulerConfig(): SchedulerConfig {
     const ASSETS = ['BTC', 'ETH', 'SOL'];
     // joinWindowSeconds = interval so the JOINING countdown matches the pool duration
     // lockBufferSeconds = 0 so lock and start happen simultaneously
-    // This gives clean transitions: JOINING(1m) → ACTIVE(1m) → RESOLVED
+    // This gives clean transitions: JOINING(3m) → ACTIVE(3m) → RESOLVED
     const INTERVAL_CONFIGS: Omit<PoolTemplate, 'asset'>[] = [
       {
-        intervalKey: '1m',
-        interval: 60,
-        cronExpression: '* * * * *',
-        joinWindowSeconds: 60,
+        intervalKey: '3m',
+        interval: 180,
+        cronExpression: '*/3 * * * *',
+        joinWindowSeconds: 180,
         lockBufferSeconds: 0,
       },
       {
