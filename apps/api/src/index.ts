@@ -7,6 +7,7 @@ import { betsRouter } from './routes/bets';
 import { healthRouter } from './routes/health';
 import { transactionsRouter } from './routes/transactions';
 import { usersRouter } from './routes/users';
+import { adminRouter } from './routes/admin';
 import { getScheduler } from './scheduler';
 import { initWebSocket, shutdownWebSocket } from './websocket';
 
@@ -32,6 +33,7 @@ app.use('/api/pools', poolsRouter);
 app.use('/api/bets', betsRouter);
 app.use('/api/transactions', transactionsRouter);
 app.use('/api/users', usersRouter);
+app.use('/api/admin', adminRouter);
 
 // Scheduler status endpoint
 app.get('/api/scheduler/status', (req, res) => {

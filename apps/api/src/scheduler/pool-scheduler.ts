@@ -14,11 +14,22 @@ const prisma = new PrismaClient();
  * Orchestrates the full lifecycle of parimutuel pools by composing
  * PoolCreator (creation + dedup) and PoolResolver (resolution + refunds).
  */
+export interface JobHealth {
+  name: string;
+  schedule: string;
+  lastRunAt: Date | null;
+  lastErrorAt: Date | null;
+  lastError: string | null;
+  runCount: number;
+  errorCount: number;
+}
+
 export class PoolScheduler {
   private priceProvider: PacificaProvider;
   private wallet: Keypair;
   private jobs: cron.ScheduledTask[] = [];
   private isRunning = false;
+  private jobHealthMap = new Map<string, JobHealth>();
 
   private creator: PoolCreator;
   private resolver: PoolResolver;
@@ -26,12 +37,7 @@ export class PoolScheduler {
   constructor() {
     this.priceProvider = new PacificaProvider();
 
-    try {
-      this.wallet = getAuthorityKeypair();
-    } catch {
-      console.warn('[Scheduler] No AUTHORITY_SECRET_KEY or AUTHORITY_KEYPAIR_PATH found, using random keypair');
-      this.wallet = Keypair.generate();
-    }
+    this.wallet = getAuthorityKeypair();
 
     const connection = getConnection();
     const deps = { prisma, connection, wallet: this.wallet, priceProvider: this.priceProvider };
@@ -67,36 +73,41 @@ export class PoolScheduler {
 
     // Cron: safety-net guard per template
     for (const template of config.templates) {
-      const job = cron.schedule(template.cronExpression, async () => {
-        await this.creator.ensureJoiningPool(template);
+      const jobName = `guard:${template.asset}/${template.intervalKey}`;
+      const job = cron.schedule(template.cronExpression, () => {
+        this.runTracked(jobName, () => this.creator.ensureJoiningPool(template));
       });
       this.jobs.push(job);
+      this.initJobHealth(jobName, template.cronExpression);
       console.log(`[Scheduler] Guard for ${template.asset}/${template.intervalKey}: ${template.cronExpression}`);
     }
 
     // Status transitions every 2 seconds
-    const transitionJob = cron.schedule('*/2 * * * * *', async () => {
-      await Promise.all([
+    const transitionJob = cron.schedule('*/2 * * * * *', () => {
+      this.runTracked('transitions', () => Promise.all([
         this.processStatusTransitions(),
         this.resolver.processResolutions(),
         this.resolver.processClaimableTransitions(),
         this.resolver.processPoolClosures(),
-      ]);
+      ]));
     });
     this.jobs.push(transitionJob);
+    this.initJobHealth('transitions', '*/2 * * * * *');
     console.log('[Scheduler] Scheduled transition & resolution job: every 2 seconds');
 
     // Periodic dedup cleanup (every 30 seconds)
-    const dedupJob = cron.schedule('*/30 * * * * *', async () => {
-      await this.creator.cleanupDuplicateJoiningPools(config.templates);
+    const dedupJob = cron.schedule('*/30 * * * * *', () => {
+      this.runTracked('dedup-cleanup', () => this.creator.cleanupDuplicateJoiningPools(config.templates));
     });
     this.jobs.push(dedupJob);
+    this.initJobHealth('dedup-cleanup', '*/30 * * * * *');
 
     // Cleanup empty pools (every hour at :30)
-    const cleanupJob = cron.schedule('30 * * * *', async () => {
-      await this.resolver.cleanupEmptyPools();
+    const cleanupJob = cron.schedule('30 * * * *', () => {
+      this.runTracked('empty-pool-cleanup', () => this.resolver.cleanupEmptyPools());
     });
     this.jobs.push(cleanupJob);
+    this.initJobHealth('empty-pool-cleanup', '30 * * * *');
     console.log('[Scheduler] Scheduled cleanup jobs');
 
     this.isRunning = true;
@@ -168,6 +179,60 @@ export class PoolScheduler {
       joinWindowSeconds,
       lockBufferSeconds,
     });
+  }
+
+  private initJobHealth(name: string, schedule: string): void {
+    this.jobHealthMap.set(name, {
+      name,
+      schedule,
+      lastRunAt: null,
+      lastErrorAt: null,
+      lastError: null,
+      runCount: 0,
+      errorCount: 0,
+    });
+  }
+
+  private async runTracked(name: string, fn: () => Promise<unknown>): Promise<void> {
+    const health = this.jobHealthMap.get(name);
+    try {
+      await fn();
+      if (health) {
+        health.lastRunAt = new Date();
+        health.runCount++;
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error(`[Scheduler] ${name} error:`, msg);
+      if (health) {
+        health.lastRunAt = new Date();
+        health.runCount++;
+        health.lastErrorAt = new Date();
+        health.lastError = msg;
+        health.errorCount++;
+      }
+    }
+  }
+
+  /**
+   * Get health status for all cron jobs
+   */
+  getJobHealth(): JobHealth[] {
+    return Array.from(this.jobHealthMap.values());
+  }
+
+  /**
+   * Get the resolver instance (for admin actions)
+   */
+  getResolver(): PoolResolver {
+    return this.resolver;
+  }
+
+  /**
+   * Get the creator instance (for admin actions)
+   */
+  getCreator(): PoolCreator {
+    return this.creator;
   }
 
   /**

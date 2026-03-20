@@ -696,6 +696,85 @@ export class PoolResolver {
     return signature;
   }
 
+  /**
+   * Force-resolve a pool from admin panel. Reuses existing resolvePool logic.
+   */
+  async forceResolvePool(pool: {
+    id: string;
+    poolId: string;
+    asset: string;
+    strikePrice: bigint | null;
+    totalUp: bigint;
+    totalDown: bigint;
+  }): Promise<void> {
+    await this.resolvePool(pool);
+  }
+
+  /**
+   * Force-refund all bets in a pool from admin panel.
+   * Resolves on-chain with synthetic prices if needed, then auto-refunds all bets.
+   */
+  async forceRefundPool(poolId: string): Promise<void> {
+    const pool = await this.deps.prisma.pool.findUnique({ where: { id: poolId } });
+    if (!pool) throw new Error('Pool not found');
+
+    const bets = await this.deps.prisma.bet.findMany({
+      where: { poolId, claimed: false },
+    });
+
+    if (bets.length === 0) {
+      // No unclaimed bets — just move to CLAIMABLE
+      await this.deps.prisma.pool.update({
+        where: { id: poolId },
+        data: { status: PoolStatus.CLAIMABLE },
+      });
+      return;
+    }
+
+    // If pool is still JOINING/ACTIVE, resolve on-chain first with synthetic prices
+    if (pool.status === PoolStatus.JOINING || pool.status === PoolStatus.ACTIVE) {
+      // Determine which side has more bets and make that side win
+      const hasUp = bets.some(b => b.side === 'UP');
+      const hasDown = bets.some(b => b.side === 'DOWN');
+      let refundWinner: 'UP' | 'DOWN';
+      if (hasUp && !hasDown) refundWinner = 'UP';
+      else if (hasDown && !hasUp) refundWinner = 'DOWN';
+      else refundWinner = 'DOWN'; // tie → DOWN
+
+      const { onChainStrike, onChainFinal } = this.pricesForSideWin(refundWinner as unknown as import('@prisma/client').Side);
+
+      // Claim status atomically
+      await this.deps.prisma.pool.updateMany({
+        where: { id: poolId, status: { in: [PoolStatus.JOINING, PoolStatus.ACTIVE] } },
+        data: { status: PoolStatus.RESOLVED },
+      });
+
+      await this.resolvePoolOnChain(poolId, onChainStrike, onChainFinal);
+
+      await this.deps.prisma.pool.update({
+        where: { id: poolId },
+        data: { status: PoolStatus.CLAIMABLE, winner: refundWinner as unknown as import('@prisma/client').Side },
+      });
+    }
+
+    // Auto-refund all unclaimed bets
+    await this.autoRefundBets(poolId, bets);
+  }
+
+  /**
+   * Force-close a pool from admin panel.
+   * Calls close_pool on-chain and cleans up DB records.
+   */
+  async forceClosePool(poolId: string): Promise<void> {
+    await this.closePoolOnChain(poolId);
+
+    // Clean up DB records
+    await this.deps.prisma.priceSnapshot.deleteMany({ where: { poolId } });
+    await this.deps.prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: poolId } });
+    await this.deps.prisma.bet.deleteMany({ where: { poolId } });
+    await this.deps.prisma.pool.deleteMany({ where: { id: poolId } });
+  }
+
   private async logEvent(
     eventType: string, entityType: string, entityId: string, payload: Record<string, string>,
   ): Promise<void> {

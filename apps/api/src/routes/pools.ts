@@ -2,7 +2,6 @@ import { Router, type Router as RouterType } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db';
 import type { PoolStatus, Prisma } from '@prisma/client';
-import { getScheduler } from '../scheduler/pool-scheduler';
 import { serializePool } from '../utils/serializers';
 
 export const poolsRouter: RouterType = Router();
@@ -195,60 +194,3 @@ poolsRouter.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/pools/test - Create a test pool (dev only)
-const createTestPoolSchema = z.object({
-  asset: z.enum(['BTC', 'ETH', 'SOL']).default('BTC'),
-  intervalKey: z.enum(['1m', '5m', '15m', '1h']).default('5m'),
-  intervalSeconds: z.number().min(60).default(300), // 5 min default
-  joinWindowSeconds: z.number().min(30).default(120), // 2 min default
-  lockBufferSeconds: z.number().min(5).default(15),
-});
-
-poolsRouter.post('/test', async (req, res) => {
-  try {
-    const parsed = createTestPoolSchema.safeParse(req.body);
-
-    if (!parsed.success) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Invalid request body',
-          details: parsed.error.flatten(),
-        },
-      });
-    }
-
-    const { asset, intervalKey, intervalSeconds, joinWindowSeconds, lockBufferSeconds } = parsed.data;
-    const scheduler = getScheduler();
-
-    const poolId = await scheduler.createPoolManual(asset, intervalSeconds, joinWindowSeconds, intervalKey, lockBufferSeconds);
-
-    if (!poolId) {
-      return res.status(500).json({
-        success: false,
-        error: {
-          code: 'POOL_CREATION_FAILED',
-          message: 'Failed to create test pool',
-        },
-      });
-    }
-
-    const pool = await prisma.pool.findUnique({ where: { id: poolId } });
-
-    res.status(201).json({
-      success: true,
-      data: pool ? serializePool(pool) : { id: poolId },
-      message: 'Test pool created successfully',
-    });
-  } catch (error) {
-    console.error('Error creating test pool:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'CREATE_ERROR',
-        message: 'Failed to create test pool',
-      },
-    });
-  }
-});

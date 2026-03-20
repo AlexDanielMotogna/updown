@@ -16,6 +16,7 @@ export default function FaucetPage() {
   const [txSignature, setTxSignature] = useState('');
   const [error, setError] = useState('');
   const [amount, setAmount] = useState(0);
+  const [solAmount, setSolAmount] = useState(0);
 
   const inputAddress = address || walletAddress || '';
 
@@ -36,6 +37,7 @@ export default function FaucetPage() {
       }
       setTxSignature(data.txSignature);
       setAmount(data.amount);
+      setSolAmount(data.solAmount || 0);
       setStatus('success');
     } catch (err: any) {
       setError(err.message || 'Something went wrong');
@@ -58,7 +60,7 @@ export default function FaucetPage() {
             Devnet USDC Faucet
           </Typography>
           <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.6)', lineHeight: 1.6 }}>
-            Mint free test USDC on Solana devnet to start playing on UpDown. 1,000 USDC per request, 1 hour cooldown.
+            Mint free test USDC + SOL on Solana devnet to start playing on UpDown. 1,000 USDC + 0.05 SOL per request, 1 hour cooldown.
           </Typography>
         </Box>
 
@@ -115,7 +117,7 @@ export default function FaucetPage() {
                 '&:disabled': { background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.3)' },
               }}
             >
-              Mint 1,000 USDC
+              Mint 1,000 USDC + 0.05 SOL
             </Button>
           )}
 
@@ -124,7 +126,7 @@ export default function FaucetPage() {
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, py: 2 }}>
               <CircularProgress size={40} sx={{ color: UP_COLOR }} />
               <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.7)' }}>
-                Minting USDC to your wallet...
+                Minting USDC + SOL to your wallet...
               </Typography>
             </Box>
           )}
@@ -134,7 +136,7 @@ export default function FaucetPage() {
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, py: 2 }}>
               <CheckCircle sx={{ fontSize: 48, color: GAIN_COLOR }} />
               <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: GAIN_COLOR }}>
-                {amount} USDC Minted!
+                {amount} USDC{solAmount > 0 ? ` + ${solAmount} SOL` : ''} Minted!
               </Typography>
               {txSignature && (
                 <Box
@@ -196,9 +198,10 @@ export default function FaucetPage() {
         <Box sx={{ mt: 3, display: 'flex', flexDirection: 'column', gap: '3px' }}>
           {[
             { label: 'Network', value: 'Solana Devnet', color: UP_COLOR },
-            { label: 'Amount per mint', value: '1,000 USDC', color: GAIN_COLOR },
+            { label: 'USDC per mint', value: '1,000 USDC', color: GAIN_COLOR },
+            { label: 'SOL per mint', value: '0.05 SOL (for tx fees)', color: ACCENT_COLOR },
             { label: 'Cooldown', value: '1 hour per wallet', color: ACCENT_COLOR },
-            { label: 'Token', value: 'Devnet USDC (not real)', color: 'rgba(255,255,255,0.5)' },
+            { label: 'Tokens', value: 'Devnet only (not real)', color: 'rgba(255,255,255,0.5)' },
           ].map((row) => (
             <Box key={row.label} sx={{ display: 'flex', justifyContent: 'space-between', px: 2, py: 1, bgcolor: '#0D1219' }}>
               <Typography sx={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.6)' }}>{row.label}</Typography>
