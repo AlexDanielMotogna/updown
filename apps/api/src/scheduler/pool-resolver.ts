@@ -636,6 +636,10 @@ export class PoolResolver {
         });
         if (unclaimed > 0) continue;
 
+        // Snapshot pool data before try block so it's available in catch
+        const poolData = await this.deps.prisma.pool.findUnique({ where: { id: pool.id } });
+        const betCount = await this.deps.prisma.bet.count({ where: { poolId: pool.id } });
+
         try {
           // Verify vault is actually empty on-chain before closing
           const closeSeed = derivePoolSeed(pool.id);
@@ -650,10 +654,6 @@ export class PoolResolver {
           } catch {
             // Vault account might not exist (already closed) — that's fine, proceed
           }
-
-          // Snapshot pool data before closing
-          const poolData = await this.deps.prisma.pool.findUnique({ where: { id: pool.id } });
-          const betCount = await this.deps.prisma.bet.count({ where: { poolId: pool.id } });
 
           // Measure rent reclaimed
           const balanceBefore = await this.deps.connection.getBalance(this.deps.wallet.publicKey);
@@ -685,11 +685,33 @@ export class PoolResolver {
 
           console.log(`[Scheduler] Pool ${pool.id} closed on-chain & cleaned up (rent: +${(rentReclaimed / 1e9).toFixed(6)} SOL)`);
         } catch (error) {
+          const errMsg = error instanceof Error ? error.message : String(error);
+
+          // Pool already closed on-chain (by recovery scan or another instance) — just clean up DB
+          if (errMsg.includes('AccountNotInitialized')) {
+            console.log(`[Scheduler] Pool ${pool.id} already closed on-chain — cleaning up DB records`);
+            await this.logEvent('POOL_CLOSED', 'closure', pool.id, {
+              poolId: pool.id,
+              asset: poolData?.asset ?? 'unknown',
+              interval: poolData?.interval ?? 'unknown',
+              betCount: betCount.toString(),
+              source: 'auto_cleanup',
+              note: 'Pool PDA already closed on-chain',
+            });
+            this.closeFailures.delete(pool.id);
+            await this.deps.prisma.priceSnapshot.deleteMany({ where: { poolId: pool.id } });
+            await this.deps.prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: pool.id } });
+            await this.deps.prisma.bet.deleteMany({ where: { poolId: pool.id } });
+            await this.deps.prisma.pool.deleteMany({ where: { id: pool.id } });
+            console.log(`[Scheduler] Pool ${pool.id} DB records cleaned up (was already closed on-chain)`);
+            continue;
+          }
+
           // Back off — don't retry for 5 minutes
           this.closeFailures.set(pool.id, Date.now());
           console.warn(
             `[Scheduler] Failed to close pool ${pool.id} (will retry in 5m):`,
-            error instanceof Error ? error.message : error,
+            errMsg,
           );
         }
       }
