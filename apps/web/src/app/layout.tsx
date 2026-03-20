@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export const viewport: Viewport = {
   viewportFit: 'cover',
+  themeColor: '#0B0F14',
 };
 
 const satoshi = localFont({
@@ -17,12 +18,18 @@ const satoshi = localFont({
 export const metadata: Metadata = {
   title: 'UpDown',
   description: 'Stake USDC on UP/DOWN price predictions',
+  manifest: '/manifest.json',
   icons: {
     icon: [
       { url: '/updown-logos/Logo_32px.png', sizes: '32x32', type: 'image/png' },
       { url: '/updown-logos/Logo_16px.png', sizes: '16x16', type: 'image/png' },
     ],
     apple: '/updown-logos/Logo_180px.png',
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'UpDown',
   },
 };
 

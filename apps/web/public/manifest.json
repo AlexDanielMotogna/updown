@@ -1,0 +1,32 @@
+{
+  "name": "UpDown",
+  "short_name": "UpDown",
+  "description": "Stake USDC on UP/DOWN price predictions",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B0F14",
+  "theme_color": "#0B0F14",
+  "icons": [
+    {
+      "src": "/updown-logos/Logo_48px.png",
+      "sizes": "48x48",
+      "type": "image/png"
+    },
+    {
+      "src": "/updown-logos/Logo_180px.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/updown-logos/Logo_512px.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/updown-logos/Logo_512px.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
