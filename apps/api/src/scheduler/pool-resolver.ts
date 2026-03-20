@@ -925,6 +925,7 @@ export class PoolResolver {
     const orphaned = poolAccounts.filter(a => !dbPoolPdas.has(a.pubkey.toBase58()));
 
     emit('info', `Found ${poolAccounts.length} pools on-chain, ${dbPools.length} in DB, ${orphaned.length} orphaned`);
+    emit('info', `Only recovering pools owned by authority ${this.deps.wallet.publicKey.toBase58().slice(0, 12)}...`);
 
     if (orphaned.length === 0) {
       emit('success', 'No orphaned pools found. All clean!');
@@ -949,8 +950,14 @@ export class PoolResolver {
       offset += 4;
       const asset = data.slice(offset, offset + assetLen).toString('utf8');
       offset += assetLen;
-      // skip authority(32) + usdcMint(32) + vault(32) + times(8*3) + prices(8*2) + totals(8*2)
-      offset += 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8 + 8 + 8;
+      // authority (32 bytes) — only recover pools owned by our wallet
+      const authority = new PublicKey(data.slice(offset, offset + 32));
+      offset += 32;
+      if (!authority.equals(this.deps.wallet.publicKey)) {
+        continue; // belongs to a different authority, skip
+      }
+      // skip usdcMint(32) + vault(32) + times(8*3) + prices(8*2) + totals(8*2)
+      offset += 32 + 32 + 8 + 8 + 8 + 8 + 8 + 8 + 8;
       const statusByte = data[offset];
       const status = STATUS_NAMES[statusByte] || `Unknown(${statusByte})`;
 
