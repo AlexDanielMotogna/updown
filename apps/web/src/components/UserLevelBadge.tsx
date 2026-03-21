@@ -60,11 +60,8 @@ export function UserLevelBadge({ level, title, size = 'sm', variant = 'default' 
         display: 'inline-flex',
         alignItems: 'center',
         gap: 0.5,
-        px: isSm ? 1 : 1.5,
+        px: isSm ? 0.5 : 1,
         py: isSm ? 0.25 : 0.5,
-        borderRadius: '4px',
-        bgcolor: `${color}15`,
-        border: `1px solid ${color}30`,
       }}
     >
       <Box

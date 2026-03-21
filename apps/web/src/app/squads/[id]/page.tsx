@@ -60,7 +60,7 @@ export default function SquadDetailPage() {
 
   const [tab, setTab] = useState(0);
   const [showCreatePool, setShowCreatePool] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<'link' | 'code' | false>(false);
 
   const isOwner = squad?.members?.some(m => m.walletAddress === walletAddress && m.role === 'OWNER') ?? false;
 
@@ -68,10 +68,17 @@ export default function SquadDetailPage() {
     ? `${window.location.origin}/squads?join=${squad.inviteCode}`
     : '';
 
-  const handleCopyInvite = () => {
+  const handleCopyLink = () => {
     if (inviteLink) {
       navigator.clipboard.writeText(inviteLink);
-      setCopied(true);
+      setCopied('link');
+    }
+  };
+
+  const handleCopyCode = () => {
+    if (squad?.inviteCode) {
+      navigator.clipboard.writeText(squad.inviteCode);
+      setCopied('code');
     }
   };
 
@@ -161,23 +168,41 @@ export default function SquadDetailPage() {
               <Typography sx={{ fontSize: { xs: '1rem', md: '1.15rem' }, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {squad.name}
               </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25 }}>
-                <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
-                  {squad.inviteCode}
-                </Typography>
-                <Tooltip title={copied ? 'Copied!' : 'Copy invite link'} arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.25 }}>
+                <Tooltip title={copied === 'code' ? 'Copied!' : 'Copy code'} arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
                   <Box
                     component="button"
-                    onClick={handleCopyInvite}
+                    onClick={handleCopyCode}
                     sx={{
-                      background: 'none', border: 'none', cursor: 'pointer', p: 0,
-                      display: 'flex', alignItems: 'center', flexShrink: 0,
-                      color: copied ? GAIN_COLOR : 'rgba(255,255,255,0.3)',
-                      '&:hover': { color: ACCENT_COLOR },
-                      transition: 'color 0.15s',
+                      background: 'none', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.3,
+                      color: copied === 'code' ? GAIN_COLOR : 'text.secondary',
+                      '&:hover': { borderColor: 'rgba(255,255,255,0.2)', color: '#fff' },
+                      transition: 'all 0.15s',
                     }}
                   >
-                    {copied ? <CheckCircle sx={{ fontSize: 13 }} /> : <Share sx={{ fontSize: 13 }} />}
+                    <Typography sx={{ fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.05em' }}>
+                      {squad.inviteCode}
+                    </Typography>
+                    {copied === 'code' ? <CheckCircle sx={{ fontSize: 11 }} /> : <ContentCopy sx={{ fontSize: 11 }} />}
+                  </Box>
+                </Tooltip>
+                <Tooltip title={copied === 'link' ? 'Copied!' : 'Copy invite link'} arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
+                  <Box
+                    component="button"
+                    onClick={handleCopyLink}
+                    sx={{
+                      background: 'none', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.3,
+                      color: copied === 'link' ? GAIN_COLOR : 'text.secondary',
+                      '&:hover': { borderColor: 'rgba(255,255,255,0.2)', color: '#fff' },
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <Typography sx={{ fontSize: '0.72rem', fontWeight: 600 }}>
+                      Link
+                    </Typography>
+                    {copied === 'link' ? <CheckCircle sx={{ fontSize: 11 }} /> : <Share sx={{ fontSize: 11 }} />}
                   </Box>
                 </Tooltip>
               </Box>
@@ -189,7 +214,6 @@ export default function SquadDetailPage() {
             <Box>
               <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', mb: 0.25 }}>Members</Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Groups sx={{ fontSize: 18, color: UP_COLOR }} />
                 <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
                   {squad.memberCount}
                 </Typography>
@@ -204,12 +228,9 @@ export default function SquadDetailPage() {
           <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
             <Box>
               <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', mb: 0.25 }}>Active Pools</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <PoolIcon sx={{ fontSize: 18, color: GAIN_COLOR }} />
-                <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: GAIN_COLOR, fontVariantNumeric: 'tabular-nums' }}>
-                  {pools?.filter(p => p.status === 'JOINING' || p.status === 'ACTIVE').length ?? 0}
-                </Typography>
-              </Box>
+              <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: GAIN_COLOR, fontVariantNumeric: 'tabular-nums' }}>
+                {pools?.filter(p => p.status === 'JOINING' || p.status === 'ACTIVE').length ?? 0}
+              </Typography>
             </Box>
           </Box>
 
@@ -217,12 +238,9 @@ export default function SquadDetailPage() {
           <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
             <Box>
               <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', mb: 0.25 }}>Total Pools</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <EmojiEvents sx={{ fontSize: 18, color: ACCENT_COLOR }} />
-                <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
-                  {squad.poolCount}
-                </Typography>
-              </Box>
+              <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                {squad.poolCount}
+              </Typography>
             </Box>
           </Box>
 
@@ -334,10 +352,10 @@ export default function SquadDetailPage() {
 
         {/* Copy snackbar */}
         <Snackbar
-          open={copied}
+          open={!!copied}
           autoHideDuration={2000}
           onClose={() => setCopied(false)}
-          message="Invite link copied!"
+          message={copied === 'code' ? 'Invite code copied!' : 'Invite link copied!'}
         />
       </Container>
     </AppShell>

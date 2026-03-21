@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Box, Typography, Fab } from '@mui/material';
+import { Box, Typography, Drawer, IconButton } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import LeaderboardIcon from '@mui/icons-material/Leaderboard';
+import CloseIcon from '@mui/icons-material/Close';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import Link from 'next/link';
 import { usePools } from '@/hooks/usePools';
-import { useDraggablePosition } from '@/hooks/useDraggablePosition';
 import { formatUSDC } from '@/lib/format';
 import { UP_COLOR, DOWN_COLOR, GAIN_COLOR, INTERVAL_TAG_IMAGES, INTERVAL_LABELS } from '@/lib/constants';
 import { AssetIcon } from './AssetIcon';
@@ -25,11 +27,10 @@ function timeAgo(dateStr: string): string {
 
 export function LiveResultsSidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { motionProps } = useDraggablePosition('fab-drag-pos', 48);
   const { data } = usePools({ limit: 50 });
   const pools = (data?.data ?? []).filter(
     (p) => (p.status === 'RESOLVED' || p.status === 'CLAIMABLE') &&
-           p.totalPool !== '0' // BUG-13: Hide empty pools with no bets
+           p.totalPool !== '0'
   ).slice(0, MAX_VISIBLE);
 
   // Track known pool IDs to detect genuinely new arrivals
@@ -44,7 +45,6 @@ export function LiveResultsSidebar() {
         knownIdsRef.current.add(pool.id);
       }
     }
-    // Only animate if 1-3 new results trickle in (not bulk load/refresh)
     if (freshIds.size > 0 && freshIds.size <= 3) {
       setNewIds(freshIds);
       const t = setTimeout(() => setNewIds(new Set()), 2800);
@@ -60,7 +60,7 @@ export function LiveResultsSidebar() {
         flexDirection: 'column',
       }}
     >
-      <Box sx={{ px: 2, py: 1.5 }}>
+      <Box sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <LeaderboardIcon
             sx={{
@@ -72,6 +72,14 @@ export function LiveResultsSidebar() {
             LIVE RESULTS
           </Typography>
         </Box>
+        {/* Close button — mobile only */}
+        <IconButton
+          onClick={() => setMobileOpen(false)}
+          size="small"
+          sx={{ display: { xs: 'flex', lg: 'none' }, color: 'text.secondary', '&:hover': { color: '#fff' } }}
+        >
+          <CloseIcon sx={{ fontSize: 18 }} />
+        </IconButton>
       </Box>
 
       <Box
@@ -173,7 +181,7 @@ export function LiveResultsSidebar() {
 
   return (
     <>
-      {/* Desktop sidebar */}
+      {/* Desktop sidebar — same as before */}
       <Box
         sx={{
           display: { xs: 'none', lg: 'block' },
@@ -188,69 +196,72 @@ export function LiveResultsSidebar() {
         {sidebarContent}
       </Box>
 
-      {/* Mobile FAB */}
-      <motion.div
-        {...motionProps}
-        style={{
-          ...motionProps.style,
+      {/* Mobile toggle — slim tab on left edge */}
+      <Box
+        onClick={() => setMobileOpen(!mobileOpen)}
+        sx={{
+          display: { xs: 'flex', lg: 'none' },
           position: 'fixed',
-          bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
-          left: 16,
+          top: '50%',
+          left: 0,
+          transform: 'translateY(-50%)',
           zIndex: 99,
-          display: 'inline-flex',
+          bgcolor: '#0D1219',
+          borderRight: '1px solid rgba(255,255,255,0.08)',
+          borderTop: '1px solid rgba(255,255,255,0.08)',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          borderTopRightRadius: 8,
+          borderBottomRightRadius: 8,
+          cursor: 'pointer',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 0.5,
+          py: 1.5,
+          px: 0.5,
+          transition: 'background 0.15s ease',
+          '&:hover': { bgcolor: 'rgba(255,255,255,0.06)' },
         }}
       >
-        <Fab
-          size="small"
-          onClick={() => setMobileOpen(!mobileOpen)}
+        {mobileOpen ? (
+          <ChevronLeftIcon sx={{ fontSize: 16, color: GAIN_COLOR }} />
+        ) : (
+          <ChevronRightIcon sx={{ fontSize: 16, color: GAIN_COLOR }} />
+        )}
+        <Typography
           sx={{
-            display: { xs: 'flex', lg: 'none' },
-            bgcolor: '#111820',
-            border: 'none',
-            color: 'text.primary',
-            fontSize: '0.7rem',
-            fontWeight: 600,
-            width: 48,
-            height: 48,
-            '&:hover': { bgcolor: '#1a2230' },
+            fontSize: '0.5rem',
+            fontWeight: 700,
+            color: GAIN_COLOR,
+            writingMode: 'vertical-rl',
+            textOrientation: 'mixed',
+            letterSpacing: '0.1em',
           }}
         >
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.25 }}>
-            <LeaderboardIcon sx={{ fontSize: 14, color: GAIN_COLOR }} />
-            <Typography sx={{ fontSize: '0.55rem', fontWeight: 600, lineHeight: 1 }}>LIVE</Typography>
-          </Box>
-        </Fab>
-      </motion.div>
+          LIVE
+        </Typography>
+      </Box>
 
-      {/* Mobile bottom sheet */}
-      {mobileOpen && (
-        <Box
-          onClick={() => setMobileOpen(false)}
-          sx={{
-            display: { xs: 'block', lg: 'none' },
-            position: 'fixed',
-            inset: 0,
-            zIndex: 98,
-            bgcolor: 'rgba(0,0,0,0.5)',
-          }}
-        >
-          <Box
-            onClick={(e) => e.stopPropagation()}
-            sx={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              maxHeight: '60vh',
-              bgcolor: '#080C11',
-              borderTop: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 0,
-            }}
-          >
-            {sidebarContent}
-          </Box>
-        </Box>
-      )}
+      {/* Mobile drawer — slides from left */}
+      <Drawer
+        anchor="left"
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        sx={{
+          display: { xs: 'block', lg: 'none' },
+          '& .MuiDrawer-paper': {
+            width: 280,
+            backgroundColor: '#0B0F14 !important',
+            backgroundImage: 'none',
+            borderRight: '1px solid rgba(255,255,255,0.06)',
+          },
+          '& .MuiBackdrop-root': {
+            bgcolor: 'rgba(0,0,0,0.6)',
+          },
+        }}
+      >
+        {sidebarContent}
+      </Drawer>
     </>
   );
 }

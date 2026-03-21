@@ -51,7 +51,7 @@ function LeaderboardRow({
       <Box
         sx={{
           display: { xs: 'none', md: 'grid' },
-          gridTemplateColumns: '60px 1fr 100px 140px 100px 80px 100px',
+          gridTemplateColumns: '60px 1fr 100px 140px 90px 120px 100px',
           alignItems: 'center',
           px: 2,
           py: 0,
@@ -140,28 +140,29 @@ function LeaderboardRow({
         </Box>
 
         {/* Win Rate bar */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, overflow: 'hidden' }}>
           <LinearProgress
             variant="determinate"
             value={winRate}
             sx={{
-              flex: 1,
+              width: 50,
+              flexShrink: 0,
               height: 6,
               borderRadius: 1,
-              bgcolor: 'rgba(255,255,255,0.06)',
+              bgcolor: `${DOWN_COLOR}40`,
               '& .MuiLinearProgress-bar': {
                 bgcolor: winRate >= 60 ? GAIN_COLOR : winRate >= 40 ? ACCENT_COLOR : DOWN_COLOR,
                 borderRadius: 1,
               },
             }}
           />
-          <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', fontWeight: 500, fontVariantNumeric: 'tabular-nums', minWidth: 28, textAlign: 'right' }}>
+          <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', fontWeight: 500, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
             {winRate}%
           </Typography>
         </Box>
 
         {/* Streak */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
           {entry.bestStreak >= 3 && <LocalFireDepartment sx={{ fontSize: 14, color: ACCENT_COLOR }} />}
           <Typography sx={{ fontSize: '0.8rem', color: entry.bestStreak >= 3 ? ACCENT_COLOR : 'text.secondary', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
             {entry.bestStreak}
@@ -355,7 +356,7 @@ export function LeaderboardTable() {
           <Box
             sx={{
               display: { xs: 'none', md: 'grid' },
-              gridTemplateColumns: '60px 1fr 100px 140px 100px 80px 100px',
+              gridTemplateColumns: '60px 1fr 100px 140px 90px 120px 100px',
               px: 2,
               py: 1,
               bgcolor: '#0D1219',
