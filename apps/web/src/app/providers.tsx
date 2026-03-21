@@ -8,7 +8,10 @@ import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
 import { Connection, clusterApiUrl } from '@solana/web3.js';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { NotificationToasts } from '@/components/NotificationToasts';
+import { ReferralDialog } from '@/components/ReferralDialog';
+import { ReferralBanner } from '@/components/ReferralBanner';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useReferral } from '@/hooks/useReferral';
 
 function NotificationLayer({ children }: { children: ReactNode }) {
   useNotifications();
@@ -16,6 +19,35 @@ function NotificationLayer({ children }: { children: ReactNode }) {
     <>
       {children}
       <NotificationToasts />
+    </>
+  );
+}
+
+function ReferralLayer({ children }: { children: ReactNode }) {
+  const {
+    referrerInfo,
+    showDialog,
+    showBanner,
+    loading,
+    acceptReferral,
+    declineReferral,
+  } = useReferral();
+
+  return (
+    <>
+      {showBanner && referrerInfo && (
+        <ReferralBanner referrerWallet={referrerInfo} />
+      )}
+      {children}
+      {showDialog && referrerInfo && (
+        <ReferralDialog
+          open={showDialog}
+          referrerWallet={referrerInfo}
+          loading={loading}
+          onAccept={acceptReferral}
+          onDecline={declineReferral}
+        />
+      )}
     </>
   );
 }
@@ -293,7 +325,9 @@ export function Providers({ children }: { children: ReactNode }) {
             <CssBaseline />
             <ErrorBoundary>
               <NotificationLayer>
-                {children}
+                <ReferralLayer>
+                  {children}
+                </ReferralLayer>
               </NotificationLayer>
             </ErrorBoundary>
           </ThemeProvider>

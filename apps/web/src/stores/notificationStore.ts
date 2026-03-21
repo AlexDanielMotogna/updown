@@ -15,7 +15,9 @@ export type NotificationType =
   | 'CLAIM_FAILED'
   | 'XP_EARNED'
   | 'COINS_EARNED'
-  | 'LEVEL_UP';
+  | 'LEVEL_UP'
+  | 'REFERRAL_CLAIM_SUCCESS'
+  | 'REFERRAL_CLAIM_FAILED';
 
 export interface Notification {
   id: string;
