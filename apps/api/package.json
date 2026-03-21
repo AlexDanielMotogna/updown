@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "bash prisma/migrate-safe.sh",
     "db:generate": "prisma generate",
     "db:push": "prisma db push"
   },

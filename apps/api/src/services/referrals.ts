@@ -3,8 +3,12 @@ import { PublicKey, Transaction } from '@solana/web3.js';
 import { getAssociatedTokenAddress, createTransferInstruction } from '@solana/spl-token';
 import { prisma } from '../db';
 import { getConnection, getUsdcMint, getAuthorityKeypair } from '../utils/solana';
+import { getLevelForXp, getXpForLevel } from '../utils/levels';
+import { emitUserReward } from '../websocket';
 
 const COMMISSION_BPS = 100; // 1% of bet amount
+const REFERRAL_XP_REWARD = 500n;
+const REFERRAL_COINS_REWARD = 5000n; // 50 UP in base units (100 base = 1 UP display)
 
 /**
  * Generate a deterministic referral code from a wallet address.
@@ -85,6 +89,69 @@ export async function acceptReferral(
       where: { walletAddress: referredWallet },
       data: { referredBy: referrer.walletAddress },
     });
+
+    // Award XP + Coins to referrer
+    const referrerUser = await tx.user.findUnique({
+      where: { walletAddress: referrer.walletAddress },
+    });
+    if (referrerUser) {
+      const newTotalXp = referrerUser.totalXp + REFERRAL_XP_REWARD;
+      const newLevel = getLevelForXp(newTotalXp);
+      const didLevelUp = newLevel > referrerUser.level;
+
+      await tx.user.update({
+        where: { walletAddress: referrer.walletAddress },
+        data: {
+          totalXp: { increment: REFERRAL_XP_REWARD },
+          level: newLevel,
+          coinsBalance: { increment: REFERRAL_COINS_REWARD },
+          coinsLifetime: { increment: REFERRAL_COINS_REWARD },
+        },
+      });
+
+      await tx.rewardLog.create({
+        data: {
+          walletAddress: referrer.walletAddress,
+          rewardType: 'XP',
+          reason: 'REFERRAL_ACCEPTED',
+          amount: REFERRAL_XP_REWARD,
+          metadata: { referredWallet },
+        },
+      });
+
+      await tx.rewardLog.create({
+        data: {
+          walletAddress: referrer.walletAddress,
+          rewardType: 'COINS',
+          reason: 'REFERRAL_ACCEPTED',
+          amount: REFERRAL_COINS_REWARD,
+          metadata: { referredWallet },
+        },
+      });
+
+      if (didLevelUp) {
+        await tx.rewardLog.create({
+          data: {
+            walletAddress: referrer.walletAddress,
+            rewardType: 'XP',
+            reason: 'LEVEL_UP',
+            amount: 0n,
+            metadata: { oldLevel: referrerUser.level, newLevel, trigger: 'referral' },
+          },
+        });
+      }
+
+      // Emit real-time notification to referrer
+      emitUserReward(referrer.walletAddress, {
+        xp: Number(REFERRAL_XP_REWARD),
+        coins: Number(REFERRAL_COINS_REWARD),
+        level: newLevel,
+        levelUp: didLevelUp,
+        totalXp: Number(newTotalXp),
+        xpToNextLevel: Number(getXpForLevel(newLevel + 1) - newTotalXp),
+        reason: 'referral',
+      });
+    }
   });
 
   return { success: true };

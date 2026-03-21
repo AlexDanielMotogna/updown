@@ -478,6 +478,7 @@ export default function DocsPage() {
 
         <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1 }}>HOW IT WORKS</Typography>
         <Box sx={{ bgcolor: '#0D1219', mb: 2 }}>
+          <DataRow label="Referrer reward on accept" value="+500 XP + 50 UP Coins" color={ACCENT_COLOR} bold />
           <DataRow label="Commission rate" value="1% of bet amount" color={GAIN_COLOR} bold />
           <DataRow label="When earned" value="Pool resolves normally" />
           <DataRow label="Refunded pools" value="No commission" color={DOWN_COLOR} />

@@ -18,6 +18,12 @@ export function useNotifications() {
   const queryClient = useQueryClient();
   const initializedRef = useRef(false);
 
+  // Clear all notifications and poolIds when wallet changes
+  useEffect(() => {
+    useNotificationStore.getState().clear();
+    initializedRef.current = false;
+  }, [walletAddress]);
+
   // Seed userPoolIds from existing bets on mount / when bets data changes
   useEffect(() => {
     const bets = betsQuery.data?.data;
@@ -86,6 +92,7 @@ export function useNotifications() {
       level: number;
       levelUp: boolean;
       totalXp: number;
+      reason?: string;
     }) => {
       // Only handle events for the connected wallet
       if (!walletAddress || data.walletAddress !== walletAddress) return;
@@ -95,7 +102,12 @@ export function useNotifications() {
 
       // Push UP Coins notification
       if (data.coins > 0) {
-        push(buildNotification('COINS_EARNED', { coins: data.coins }));
+        push(buildNotification('COINS_EARNED', { coins: data.coins, reason: data.reason }));
+      }
+
+      // Push XP notification for referral
+      if (data.xp > 0 && data.reason === 'referral') {
+        push(buildNotification('XP_EARNED', { xp: data.xp, totalXp: data.totalXp, reason: data.reason }));
       }
 
       // Push level-up notification (fires confetti via NotificationToasts)
