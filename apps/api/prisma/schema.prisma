@@ -21,6 +21,11 @@ enum Side {
   DOWN
 }
 
+enum SquadRole {
+  OWNER
+  MEMBER
+}
+
 model Pool {
   id              String     @id @default(uuid())
   poolId          String     @unique @map("pool_id")
@@ -39,10 +44,15 @@ model Pool {
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
 
+  squadId         String?    @map("squad_id")
+  maxBettors      Int?       @map("max_bettors")
+
+  squad          Squad?     @relation("SquadPools", fields: [squadId], references: [id])
   bets           Bet[]
   priceSnapshots PriceSnapshot[]
 
   @@index([asset, interval, status])
+  @@index([squadId, status])
   @@map("pools")
 }
 
@@ -229,4 +239,50 @@ model ReferralPayout {
 
   @@index([walletAddress])
   @@map("referral_payouts")
+}
+
+// ─── Squad Pools ─────────────────────────────────────────────────────────────
+
+model Squad {
+  id            String   @id @default(uuid())
+  name          String
+  inviteCode    String   @unique @map("invite_code")
+  creatorWallet String   @map("creator_wallet")
+  maxMembers    Int      @default(20) @map("max_members")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  members  SquadMember[]
+  pools    Pool[]         @relation("SquadPools")
+  messages SquadMessage[]
+
+  @@index([creatorWallet])
+  @@map("squads")
+}
+
+model SquadMember {
+  id            String    @id @default(uuid())
+  squadId       String    @map("squad_id")
+  walletAddress String    @map("wallet_address")
+  role          SquadRole @default(MEMBER)
+  joinedAt      DateTime  @default(now()) @map("joined_at")
+
+  squad Squad @relation(fields: [squadId], references: [id])
+
+  @@unique([squadId, walletAddress])
+  @@index([walletAddress])
+  @@map("squad_members")
+}
+
+model SquadMessage {
+  id            String   @id @default(uuid())
+  squadId       String   @map("squad_id")
+  walletAddress String   @map("wallet_address")
+  content       String
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  squad Squad @relation(fields: [squadId], references: [id])
+
+  @@index([squadId, createdAt])
+  @@map("squad_messages")
 }

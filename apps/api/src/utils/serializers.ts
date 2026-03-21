@@ -22,6 +22,8 @@ export function serializePool(pool: {
   winner: string | null;
   createdAt: Date;
   updatedAt: Date;
+  squadId?: string | null;
+  maxBettors?: number | null;
 }) {
   return {
     id: pool.id,

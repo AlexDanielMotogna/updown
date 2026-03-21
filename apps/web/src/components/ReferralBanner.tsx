@@ -25,7 +25,7 @@ export function ReferralBanner({ referrerWallet }: ReferralBannerProps) {
       <PeopleOutline sx={{ fontSize: 14, color: GAIN_COLOR }} />
       <Typography sx={{ fontSize: { xs: '0.7rem', md: '0.8rem' }, color: 'rgba(255,255,255,0.6)' }}>
         Invited by{' '}
-        <Box component="span" sx={{ color: '#fff', fontWeight: 600, fontFamily: 'monospace' }}>
+        <Box component="span" sx={{ color: '#fff', fontWeight: 600 }}>
           {referrerWallet}
         </Box>
         {' '}— connect wallet to accept

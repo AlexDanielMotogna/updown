@@ -109,4 +109,24 @@ export function unsubscribePool(poolId: string): void {
   sock.emit('unsubscribe:pool', { poolId });
 }
 
+/**
+ * Subscribe to squad updates
+ */
+export function subscribeSquad(squadId: string): void {
+  if (!isBrowser()) return;
+
+  const sock = getSocket();
+  sock.emit('subscribe:squad', { squadId });
+}
+
+/**
+ * Unsubscribe from squad updates
+ */
+export function unsubscribeSquad(squadId: string): void {
+  if (!isBrowser()) return;
+
+  const sock = getSocket();
+  sock.emit('unsubscribe:squad', { squadId });
+}
+
 export type { Socket };

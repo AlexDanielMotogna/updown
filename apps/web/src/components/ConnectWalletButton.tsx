@@ -151,7 +151,6 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
                       sx={{
                         fontSize: '0.8rem',
                         fontWeight: 600,
-                        fontFamily: 'monospace',
                         color: '#fff',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',

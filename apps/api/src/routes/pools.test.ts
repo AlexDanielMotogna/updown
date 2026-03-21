@@ -57,6 +57,8 @@ describe('Pools API', () => {
         totalUp: BigInt(1000_000000),
         totalDown: BigInt(500_000000),
         winner: null,
+        squadId: null,
+        maxBettors: null,
         createdAt: new Date('2024-01-01T11:00:00Z'),
         updatedAt: new Date('2024-01-01T12:00:00Z'),
         _count: { bets: 5 },
@@ -148,6 +150,8 @@ describe('Pools API', () => {
         totalUp: BigInt(1000_000000),
         totalDown: BigInt(500_000000),
         winner: null,
+        squadId: null,
+        maxBettors: null,
         createdAt: new Date('2024-01-01T11:00:00Z'),
         updatedAt: new Date('2024-01-01T12:00:00Z'),
         priceSnapshots: [

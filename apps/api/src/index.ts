@@ -9,6 +9,7 @@ import { transactionsRouter } from './routes/transactions';
 import { usersRouter } from './routes/users';
 import { adminRouter } from './routes/admin';
 import { referralsRouter } from './routes/referrals';
+import { squadsRouter } from './routes/squads';
 import { getScheduler } from './scheduler';
 import { initWebSocket, shutdownWebSocket } from './websocket';
 
@@ -36,6 +37,7 @@ app.use('/api/transactions', transactionsRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/referrals', referralsRouter);
+app.use('/api/squads', squadsRouter);
 
 // Scheduler status endpoint
 app.get('/api/scheduler/status', (req, res) => {

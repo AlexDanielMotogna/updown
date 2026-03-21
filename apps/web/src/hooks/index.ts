@@ -12,3 +12,4 @@ export * from './useOrderbook';
 export * from './useNotifications';
 export * from './useUserProfile';
 export * from './useLeaderboard';
+export * from './useSquads';

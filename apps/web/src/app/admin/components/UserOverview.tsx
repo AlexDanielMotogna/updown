@@ -67,7 +67,7 @@ interface UserSearchData {
 function WalletCell({ address, onClick }: { address: string; onClick?: () => void }) {
   return (
     <TableCell
-      sx={{ fontFamily: 'monospace', fontSize: 11, cursor: onClick ? 'pointer' : undefined, '&:hover': onClick ? { color: '#F59E0B' } : undefined }}
+      sx={{ fontSize: 11, cursor: onClick ? 'pointer' : undefined, '&:hover': onClick ? { color: '#F59E0B' } : undefined }}
       onClick={onClick}
     >
       {address.slice(0, 6)}...{address.slice(-4)}
@@ -124,7 +124,7 @@ export function UserOverview() {
             placeholder="Search by wallet address..."
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
-            sx={{ fontFamily: 'monospace' }}
+            sx={{  }}
           />
           <Button type="submit" variant="contained" disabled={searchInput.trim().length < 32} startIcon={<SearchIcon />}>
             Search
@@ -141,7 +141,7 @@ export function UserOverview() {
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: '1fr 1fr 1fr 1fr' }, gap: 1.5, mb: 2 }}>
             <Box>
               <Typography variant="caption" color="text.secondary">Wallet</Typography>
-              <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: 11 }}>{searchResult.data.profile.walletAddress}</Typography>
+              <Typography variant="body2" sx={{ fontSize: 11 }}>{searchResult.data.profile.walletAddress}</Typography>
             </Box>
             <Box>
               <Typography variant="caption" color="text.secondary">Level</Typography>

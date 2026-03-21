@@ -45,7 +45,6 @@ export function UserProfilePanel() {
           sx={{
             fontSize: '0.75rem',
             color: 'text.secondary',
-            fontFamily: 'monospace',
           }}
         >
           {profile.walletAddress.slice(0, 4)}...{profile.walletAddress.slice(-4)}

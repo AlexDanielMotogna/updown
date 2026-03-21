@@ -68,6 +68,8 @@ describe('Transactions API', () => {
       totalUp: BigInt(0),
       totalDown: BigInt(0),
       winner: null,
+      squadId: null,
+      maxBettors: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -185,6 +187,8 @@ describe('Transactions API', () => {
       totalUp: BigInt(0),
       totalDown: BigInt(0),
       winner: null,
+      squadId: null,
+      maxBettors: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -260,6 +264,8 @@ describe('Transactions API', () => {
       totalUp: BigInt(1000_000000),
       totalDown: BigInt(500_000000),
       winner: 'UP' as const,
+      squadId: null,
+      maxBettors: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

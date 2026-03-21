@@ -138,7 +138,6 @@ export function ReferralDashboard({ walletAddress }: ReferralDashboardProps) {
               <Typography
                 sx={{
                   fontSize: { xs: '0.8rem', md: '0.85rem' },
-                  fontFamily: 'monospace',
                   fontWeight: 600,
                   color: '#fff',
                   overflow: 'hidden',
@@ -378,7 +377,6 @@ export function ReferralDashboard({ walletAddress }: ReferralDashboardProps) {
                         sx={{
                           fontSize: '0.85rem',
                           fontWeight: 600,
-                          fontFamily: 'monospace',
                           color: '#fff',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
@@ -421,7 +419,6 @@ export function ReferralDashboard({ walletAddress }: ReferralDashboardProps) {
                         sx={{
                           fontSize: '0.85rem',
                           fontWeight: 600,
-                          fontFamily: 'monospace',
                           color: '#fff',
                           flex: 1,
                           overflow: 'hidden',
@@ -539,7 +536,6 @@ export function ReferralDashboard({ walletAddress }: ReferralDashboardProps) {
                         sx={{
                           fontSize: '0.85rem',
                           fontWeight: 600,
-                          fontFamily: 'monospace',
                           color: '#fff',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
@@ -578,7 +574,7 @@ export function ReferralDashboard({ walletAddress }: ReferralDashboardProps) {
                     </Box>
 
                     {/* Tx */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.75 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 0.75 }}>
                       {e.paidTx ? (
                         <Button
                           component="a"
@@ -618,7 +614,6 @@ export function ReferralDashboard({ walletAddress }: ReferralDashboardProps) {
                         sx={{
                           fontSize: '0.85rem',
                           fontWeight: 600,
-                          fontFamily: 'monospace',
                           color: '#fff',
                           flex: 1,
                           overflow: 'hidden',

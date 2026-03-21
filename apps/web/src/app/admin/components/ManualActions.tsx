@@ -97,7 +97,7 @@ export function ManualActions() {
       </Alert>
 
       {result && (
-        <Alert severity={result.type} onClose={() => setResult(null)} sx={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: 12 }}>
+        <Alert severity={result.type} onClose={() => setResult(null)} sx={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>
           {result.message}
         </Alert>
       )}
@@ -142,7 +142,6 @@ export function ManualActions() {
               p: 1.5,
               maxHeight: 400,
               overflow: 'auto',
-              fontFamily: 'monospace',
               fontSize: 12,
               lineHeight: 1.6,
               '&::-webkit-scrollbar': { width: 6 },

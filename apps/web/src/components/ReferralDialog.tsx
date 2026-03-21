@@ -59,7 +59,7 @@ export function ReferralDialog({
       <DialogContent sx={{ textAlign: 'center', px: 4 }}>
         <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', mb: 2 }}>
           Referred by{' '}
-          <Box component="span" sx={{ color: '#fff', fontWeight: 600, fontFamily: 'monospace' }}>
+          <Box component="span" sx={{ color: '#fff', fontWeight: 600 }}>
             {referrerWallet}
           </Box>
         </Typography>

@@ -1,0 +1,74 @@
+'use client';
+
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Button,
+  CircularProgress,
+} from '@mui/material';
+import { UP_COLOR } from '@/lib/constants';
+
+interface CreateSquadDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (name: string) => void;
+  isLoading: boolean;
+}
+
+export function CreateSquadDialog({ open, onClose, onSubmit, isLoading }: CreateSquadDialogProps) {
+  const [name, setName] = useState('');
+
+  const handleSubmit = () => {
+    if (name.trim()) {
+      onSubmit(name.trim());
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="xs"
+      fullWidth
+      PaperProps={{ sx: { background: '#0D1219', borderRadius: 0 } }}
+    >
+      <DialogTitle sx={{ fontWeight: 700 }}>Create a Squad</DialogTitle>
+      <DialogContent>
+        <TextField
+          autoFocus
+          fullWidth
+          label="Squad Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          inputProps={{ maxLength: 50 }}
+          sx={{ mt: 1 }}
+          onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+        />
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={onClose} sx={{ color: 'text.secondary', textTransform: 'none' }}>
+          Cancel
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          disabled={!name.trim() || isLoading}
+          variant="contained"
+          sx={{
+            backgroundColor: UP_COLOR,
+            color: '#000',
+            '&:hover': { backgroundColor: UP_COLOR, filter: 'brightness(1.15)' },
+            fontWeight: 700,
+            textTransform: 'none',
+            borderRadius: '2px',
+          }}
+        >
+          {isLoading ? <CircularProgress size={20} /> : 'Create'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}

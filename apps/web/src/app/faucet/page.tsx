@@ -81,7 +81,6 @@ export default function FaucetPage() {
                   bgcolor: 'rgba(255,255,255,0.03)',
                   color: '#fff',
                   fontSize: '0.9rem',
-                  fontFamily: 'monospace',
                   '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
                   '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
                   '&.Mui-focused fieldset': { borderColor: UP_COLOR },
@@ -148,7 +147,6 @@ export default function FaucetPage() {
                     fontSize: '0.85rem',
                     color: ACCENT_COLOR,
                     textDecoration: 'none',
-                    fontFamily: 'monospace',
                     '&:hover': { textDecoration: 'underline' },
                   }}
                 >
