@@ -1,7 +1,8 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, Tooltip } from '@mui/material';
+import { InfoOutlined } from '@mui/icons-material';
 import { AnimatePresence } from 'framer-motion';
 import type { Pool } from '@/lib/api';
 import { PoolRow } from './pool/PoolRow';
@@ -57,10 +58,27 @@ export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData,
           bgcolor: '#0D1219',
         }}
       >
-        {['', 'Asset', 'Countdown', 'Distribution', 'Pool Size', 'Odds', 'Players', 'Action', ''].map((h, i) => (
-          <Typography key={i} variant="caption" sx={{ color: 'text.secondary', fontSize: '12px', fontWeight: 600, letterSpacing: '0.08em', ...(h === 'Action' && { textAlign: 'center' }) }}>
-            {h}
-          </Typography>
+        {[
+          { label: '', tip: '' },
+          { label: 'Asset', tip: 'Cryptocurrency and pool timeframe' },
+          { label: 'Countdown', tip: 'Time remaining before the pool locks' },
+          { label: 'Distribution', tip: 'How USDC is split between UP and DOWN sides' },
+          { label: 'Pool Size', tip: 'Total USDC staked by all players' },
+          { label: 'Odds', tip: 'Current payout multiplier if your side wins' },
+          { label: 'Players', tip: 'Number of participants in the pool' },
+          { label: 'Action', tip: '' },
+          { label: '', tip: '' },
+        ].map((h, i) => (
+          <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.4, ...(h.label === 'Action' && { justifyContent: 'center' }) }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '12px', fontWeight: 600, letterSpacing: '0.08em' }}>
+              {h.label}
+            </Typography>
+            {h.tip && (
+              <Tooltip title={h.tip} arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
+                <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+              </Tooltip>
+            )}
+          </Box>
         ))}
       </Box>
 

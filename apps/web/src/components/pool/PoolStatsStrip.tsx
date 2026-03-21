@@ -1,6 +1,7 @@
 'use client';
 
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, Tooltip } from '@mui/material';
+import { InfoOutlined } from '@mui/icons-material';
 import { formatUSDC } from '@/lib/format';
 import { UP_COLOR, DOWN_COLOR, GAIN_COLOR } from '@/lib/constants';
 
@@ -10,6 +11,13 @@ interface PoolStatsStripProps {
   upOdds: string;
   downOdds: string;
 }
+
+const STRIP_TOOLTIPS: Record<string, string> = {
+  'PLAYERS': 'Total participants in this pool',
+  'POOL': 'Total USDC staked across both sides',
+  'UP ODDS': 'Payout multiplier if UP wins. Changes as new bets come in',
+  'DOWN ODDS': 'Payout multiplier if DOWN wins. Changes as new bets come in',
+};
 
 export function PoolStatsStrip({ betCount, totalPool, upOdds, downOdds }: PoolStatsStripProps) {
   const stats = [
@@ -27,7 +35,12 @@ export function PoolStatsStrip({ betCount, totalPool, upOdds, downOdds }: PoolSt
             <Box component="img" src={s.icon} alt="" sx={{ width: { xs: 14, md: 20 }, height: { xs: 14, md: 20 } }} />
             <Box>
               <Typography sx={{ fontSize: { xs: '0.8rem', md: '0.9rem' }, fontWeight: 700, color: s.color, lineHeight: 1.2 }}>{s.value}</Typography>
-              <Typography sx={{ fontSize: { xs: '0.55rem', md: '0.6rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.3)', lineHeight: 1 }}>{s.label}</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                <Typography sx={{ fontSize: { xs: '0.55rem', md: '0.6rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.3)', lineHeight: 1 }}>{s.label}</Typography>
+                <Tooltip title={STRIP_TOOLTIPS[s.label]} arrow placement="bottom" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
+                  <InfoOutlined sx={{ fontSize: 9, color: 'rgba(255,255,255,0.15)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+                </Tooltip>
+              </Box>
             </Box>
           </Box>
         ))}

@@ -10,6 +10,7 @@ import {
   Typography,
   InputAdornment,
   Alert,
+  Tooltip,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -18,6 +19,7 @@ import {
   Lock,
   CheckCircle,
   AccountBalanceWallet,
+  InfoOutlined,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
@@ -389,34 +391,46 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
               }}
             >
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                <Typography sx={{ color: 'text.secondary', fontWeight: 300, fontSize: '0.75rem' }}>
-                  Stake
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
+                  <Typography sx={{ color: 'text.secondary', fontWeight: 300, fontSize: '0.75rem' }}>Stake</Typography>
+                  <Tooltip title="USDC amount you are placing on this prediction" arrow placement="left" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
+                    <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.15)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+                  </Tooltip>
+                </Box>
                 <Typography sx={{ fontWeight: 400, fontSize: '0.75rem' }}>
                   ${amountNum.toFixed(2)}
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                <Typography sx={{ color: 'text.secondary', fontWeight: 300, fontSize: '0.75rem' }}>
-                  Odds
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
+                  <Typography sx={{ color: 'text.secondary', fontWeight: 300, fontSize: '0.75rem' }}>Odds</Typography>
+                  <Tooltip title="Current payout multiplier. Changes in real-time as other players bet" arrow placement="left" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
+                    <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.15)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+                  </Tooltip>
+                </Box>
                 <Typography sx={{ color: sideColor, fontWeight: 500, fontSize: '0.75rem' }}>
                   <AnimatedValue value={potentialOdds} suffix="x" duration={0.4} />
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography sx={{ color: 'text.secondary', fontWeight: 300, fontSize: '0.75rem' }}>
-                  Payout
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
+                  <Typography sx={{ color: 'text.secondary', fontWeight: 300, fontSize: '0.75rem' }}>Payout</Typography>
+                  <Tooltip title="Estimated USDC you receive if your side wins (before fees)" arrow placement="left" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
+                    <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.15)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+                  </Tooltip>
+                </Box>
                 <Typography sx={{ fontWeight: 600, color: GAIN_COLOR, fontSize: '0.75rem' }}>
                   <AnimatedValue value={potentialPayout} prefix="$" suffix=" USDC" duration={0.4} />
                 </Typography>
               </Box>
               {estimatedCoins > 0 && (
-                <Box sx={{ mt: 0.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, mt: 0.5 }}>
                   <Typography sx={{ color: ACCENT_COLOR, fontWeight: 500, fontSize: '0.65rem' }}>
                     +~{estimatedCoins.toFixed(2)} UP
                   </Typography>
+                  <Tooltip title="Estimated UP Coins earned when you claim a winning bet. Multiplied by your level" arrow placement="right" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
+                    <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.15)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+                  </Tooltip>
                 </Box>
               )}
             </Box>
@@ -543,13 +557,18 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
       </motion.div>
 
       {/* Fee disclaimer  small, below button */}
-      <Typography sx={{ textAlign: 'center', mt: 1, fontSize: '0.6rem', color: 'rgba(255,255,255,0.2)', fontWeight: 400 }}>
-        {userProfile
-          ? userProfile.feeBps < 500
-            ? `${userProfile.feePercent}% fee (Lv.${userProfile.level} discount)`
-            : `${userProfile.feePercent}% platform fee on winnings`
-          : '5% platform fee on winnings'}
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.4, mt: 1 }}>
+        <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.2)', fontWeight: 400 }}>
+          {userProfile
+            ? userProfile.feeBps < 500
+              ? `${userProfile.feePercent}% fee (Lv.${userProfile.level} discount)`
+              : `${userProfile.feePercent}% platform fee on winnings`
+            : '5% platform fee on winnings'}
+        </Typography>
+        <Tooltip title="Fee is only charged on winnings, never on losses. Higher levels get lower fees (5% down to 3%)" arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
+          <InfoOutlined sx={{ fontSize: 10, color: 'rgba(255,255,255,0.15)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+        </Tooltip>
+      </Box>
     </Box>
   );
 }

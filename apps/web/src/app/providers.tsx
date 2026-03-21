@@ -309,7 +309,7 @@ export function Providers({ children }: { children: ReactNode }) {
           accentColor: '#FFFFFF',
           walletChainType: 'solana-only',
           logo: '/updown-logos/Logo_text_white_796x277.png',
-          walletList: ['phantom', 'solflare', 'detected_solana_wallets'],
+          walletList: ['phantom', 'solflare', 'backpack', 'coinbase_wallet', 'metamask', 'detected_solana_wallets'],
           showWalletLoginFirst: true,
         },
         loginMethods: ['wallet'],
