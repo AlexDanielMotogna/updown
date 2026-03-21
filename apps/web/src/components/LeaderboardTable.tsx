@@ -10,11 +10,13 @@ import {
   Tab,
   CircularProgress,
   LinearProgress,
+  Tooltip,
 } from '@mui/material';
 import {
   EmojiEvents,
   LocalFireDepartment,
   MilitaryTech,
+  InfoOutlined,
 } from '@mui/icons-material';
 import Avatar from '@mui/material/Avatar';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -361,19 +363,34 @@ export function LeaderboardTable() {
               bgcolor: '#0D1219',
             }}
           >
-            {['Rank', 'Player', 'Level', sort === 'coins' ? 'UP Coins' : 'XP', 'W / L', 'Win Rate', 'Streak'].map((h) => (
-              <Typography
-                key={h}
-                variant="caption"
-                sx={{
-                  color: 'text.secondary',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  letterSpacing: '0.08em',
-                }}
+            {[
+              { label: 'Rank', tip: 'Position based on current sorting' },
+              { label: 'Player', tip: 'Wallet address of the player' },
+              { label: 'Level', tip: 'Player level based on total XP earned' },
+              { label: sort === 'coins' ? 'UP Coins' : 'XP', tip: sort === 'coins' ? 'Total UP Coins earned from winning bets' : 'Total experience points earned from activity' },
+              { label: 'W / L', tip: 'Total wins and losses across all pools' },
+              { label: 'Win Rate', tip: 'Percentage of bets won' },
+              { label: 'Streak', tip: 'Current consecutive wins (resets on loss)' },
+            ].map((h) => (
+              <Box
+                key={h.label}
+                sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}
               >
-                {h}
-              </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: 'text.secondary',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    letterSpacing: '0.08em',
+                  }}
+                >
+                  {h.label}
+                </Typography>
+                <Tooltip title={h.tip} arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
+                  <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+                </Tooltip>
+              </Box>
             ))}
           </Box>
 

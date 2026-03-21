@@ -11,7 +11,9 @@ import {
   Alert,
   Button,
   CircularProgress,
+  Tooltip,
 } from '@mui/material';
+import { InfoOutlined } from '@mui/icons-material';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useInfiniteBets, useClaimableBets, useClaim, useIntersectionObserver } from '@/hooks';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -282,10 +284,27 @@ export default function MyBetsPage() {
                     bgcolor: '#0D1219',
                   }}
                 >
-                  {['', 'Asset', 'Result', 'Stake', 'Payout', 'Price', 'Time', 'Action', 'Tx'].map((h, i) => (
-                    <Typography key={i} variant="caption" sx={{ color: 'text.secondary', fontSize: '12px', fontWeight: 600, letterSpacing: '0.08em' }}>
-                      {h}
-                    </Typography>
+                  {[
+                    { label: '', tip: '' },
+                    { label: 'Asset', tip: 'Cryptocurrency and pool timeframe' },
+                    { label: 'Result', tip: 'Whether your prediction was correct' },
+                    { label: 'Stake', tip: 'USDC amount you placed on this pool' },
+                    { label: 'Payout', tip: 'USDC received after fees (winners only)' },
+                    { label: 'Price', tip: 'Strike price at open vs final price at close' },
+                    { label: 'Time', tip: 'When the pool was resolved' },
+                    { label: 'Action', tip: '' },
+                    { label: 'Tx', tip: 'View transaction on Solana Explorer' },
+                  ].map((h, i) => (
+                    <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '12px', fontWeight: 600, letterSpacing: '0.08em' }}>
+                        {h.label}
+                      </Typography>
+                      {h.tip && (
+                        <Tooltip title={h.tip} arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
+                          <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+                        </Tooltip>
+                      )}
+                    </Box>
                   ))}
                 </Box>
 

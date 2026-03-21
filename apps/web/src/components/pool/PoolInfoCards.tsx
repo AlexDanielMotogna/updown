@@ -1,6 +1,7 @@
 'use client';
 
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, Tooltip } from '@mui/material';
+import { InfoOutlined } from '@mui/icons-material';
 import { formatUSDC, formatPrice, USDC_DIVISOR } from '@/lib/format';
 import { UP_COLOR, DOWN_COLOR } from '@/lib/constants';
 import { AnimatedValue } from '@/components/AnimatedValue';
@@ -17,11 +18,31 @@ interface PoolInfoCardsProps {
   endTime?: string;
 }
 
+const INFO_TOOLTIPS: Record<string, string> = {
+  'Live Price': 'Current market price from Pacifica, updated in real-time. The number next to it shows the difference from the strike price',
+  'Result In': 'Time until the pool closes and the winner is determined',
+  'Status': 'Current pool state in its lifecycle',
+  'Strike Price': 'Price captured when the pool opened. Final price must beat this for UP to win',
+  'Strike → Final': 'Opening price vs closing price. Higher = UP wins, lower = DOWN wins',
+  'UP Pool': 'Total USDC staked by players predicting the price will go UP',
+  'DOWN Pool': 'Total USDC staked by players predicting the price will go DOWN',
+};
+
 function InfoCard({ label, children }: { label: string; children: React.ReactNode }) {
+  const tip = INFO_TOOLTIPS[label];
   return (
     <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: { xs: 1.5, md: 2.5 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
       <Box>
-        <Typography sx={{ fontSize: { xs: '0.7rem', md: '0.8rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)', mb: 0.25, lineHeight: 1, minHeight: 12 }}>{label}</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25, minHeight: 12 }}>
+          <Typography sx={{ fontSize: { xs: '0.7rem', md: '0.8rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)', lineHeight: 1 }}>
+            {label}
+          </Typography>
+          {tip && (
+            <Tooltip title={tip} arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
+              <InfoOutlined sx={{ fontSize: 12, color: 'rgba(255,255,255,0.2)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+            </Tooltip>
+          )}
+        </Box>
         {children}
       </Box>
     </Box>
@@ -44,7 +65,7 @@ export function PoolInfoCards({ livePrice, priceFlash, strikePrice, finalPrice, 
           {/* Live Price */}
           <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: { xs: 1.5, md: 2.5 }, py: 1.5, display: 'flex', alignItems: 'center', gridColumn: { xs: 'span 2', sm: 'span 1' } }}>
             <Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.25, minHeight: 12 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25, minHeight: 12 }}>
                 <Typography sx={{ fontSize: { xs: '0.7rem', md: '0.8rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)', lineHeight: 1 }}>Live Price</Typography>
                 {livePrice && strikePrice && (() => {
                   const delta = Number(livePrice) - Number(strikePrice) / USDC_DIVISOR;
@@ -58,6 +79,9 @@ export function PoolInfoCards({ livePrice, priceFlash, strikePrice, finalPrice, 
                     </Box>
                   );
                 })()}
+                <Tooltip title={INFO_TOOLTIPS['Live Price']} arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
+                  <InfoOutlined sx={{ fontSize: 12, color: 'rgba(255,255,255,0.2)', cursor: 'help', ml: 'auto', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+                </Tooltip>
               </Box>
               <Typography
                 component="span"
