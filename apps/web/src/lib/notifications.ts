@@ -85,7 +85,9 @@ export const NOTIFICATION_DEFS: Record<NotificationType, NotificationDef> = {
     autoHideDuration: 4000,
     build: (ctx) => ({
       title: `+${ctx.xp} XP`,
-      message: `Total: ${Number(ctx.totalXp).toLocaleString()} XP`,
+      message: ctx.reason === 'referral'
+        ? 'New referral accepted!'
+        : `Total: ${Number(ctx.totalXp).toLocaleString()} XP`,
     }),
   },
   COINS_EARNED: {
@@ -93,7 +95,9 @@ export const NOTIFICATION_DEFS: Record<NotificationType, NotificationDef> = {
     autoHideDuration: 4000,
     build: (ctx) => ({
       title: `+${(Number(ctx.coins) / UP_COINS_DIVISOR).toFixed(2)} UP Coins`,
-      message: 'Keep betting to earn more!',
+      message: ctx.reason === 'referral'
+        ? 'Referral bonus! Someone accepted your invite.'
+        : 'Keep betting to earn more!',
     }),
   },
   LEVEL_UP: {

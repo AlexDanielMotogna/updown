@@ -94,6 +94,7 @@ enum RewardReason {
   DAILY_BONUS
   WIN_STREAK
   LEVEL_UP
+  REFERRAL_ACCEPTED
 }
 
 model User {

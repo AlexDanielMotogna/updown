@@ -1,0 +1,2 @@
+-- AlterEnum: Add REFERRAL_ACCEPTED to RewardReason
+ALTER TYPE "RewardReason" ADD VALUE 'REFERRAL_ACCEPTED';

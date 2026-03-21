@@ -220,6 +220,7 @@ export function emitUserReward(walletAddress: string, data: {
   totalXp: number;
   xpToNextLevel: number;
   streak?: number;
+  reason?: string;
 }): void {
   if (io) {
     io.emit('user:reward', { walletAddress, ...data });

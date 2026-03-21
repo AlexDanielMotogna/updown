@@ -43,6 +43,7 @@ interface NotificationStore {
   dismiss: (id: string) => void;
   dismissToast: (id: string) => void;
   dismissAll: () => void;
+  clear: () => void;
   addUserPoolId: (poolId: string) => void;
   setUserPoolIds: (ids: string[]) => void;
 }
@@ -103,6 +104,12 @@ export const useNotificationStore = create<NotificationStore>()(
       dismissAll: () =>
         set((state) => ({
           notifications: state.notifications.map((n) => ({ ...n, dismissed: true, toastDismissed: true })),
+        })),
+
+      clear: () =>
+        set(() => ({
+          notifications: [],
+          userPoolIds: new Set<string>(),
         })),
 
       addUserPoolId: (poolId) =>
