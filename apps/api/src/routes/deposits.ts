@@ -8,6 +8,7 @@ import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { getConnection, getUsdcMint, derivePoolSeed } from '../utils/solana';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { awardBetPlacement } from '../services/rewards';
+import { isSquadMember } from '../services/squads';
 
 export const depositsRouter: RouterType = Router();
 
@@ -83,6 +84,38 @@ depositsRouter.post('/deposit', async (req, res) => {
           message: 'Deposit deadline has passed',
         },
       });
+    }
+
+    // Squad pool checks: membership + maxBettors
+    if (pool.squadId) {
+      if (!(await isSquadMember(walletAddress, pool.squadId))) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'NOT_SQUAD_MEMBER',
+            message: 'Only squad members can bet in squad pools',
+          },
+        });
+      }
+
+      if (pool.maxBettors) {
+        const currentBettors = await prisma.bet.count({
+          where: { poolId: pool.id },
+        });
+        const existingBetForUser = await prisma.bet.findUnique({
+          where: { poolId_walletAddress: { poolId: pool.id, walletAddress } },
+        });
+        // Only check limit if this wallet doesn't already have a bet
+        if (!existingBetForUser && currentBettors >= pool.maxBettors) {
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'MAX_BETTORS_REACHED',
+              message: `This pool is limited to ${pool.maxBettors} participants`,
+            },
+          });
+        }
+      }
     }
 
     // Check if user already has a bet in this pool — allow re-deposit on same side only
@@ -197,6 +230,19 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
           message: `Pool is in ${pool.status} status, deposits only allowed during JOINING`,
         },
       });
+    }
+
+    // Squad pool: verify membership
+    if (pool.squadId) {
+      if (!(await isSquadMember(walletAddress, pool.squadId))) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'NOT_SQUAD_MEMBER',
+            message: 'Only squad members can bet in squad pools',
+          },
+        });
+      }
     }
 
     // Check for idempotency — same tx signature means already processed

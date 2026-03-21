@@ -34,8 +34,8 @@ poolsRouter.get('/', async (req, res) => {
     const { asset, interval, status, page, limit } = parsed.data;
     const skip = (page - 1) * limit;
 
-    // Build where clause
-    const where: Prisma.PoolWhereInput = {};
+    // Build where clause — exclude squad pools from public markets
+    const where: Prisma.PoolWhereInput = { squadId: null };
     if (asset) {
       where.asset = asset.toUpperCase();
     }

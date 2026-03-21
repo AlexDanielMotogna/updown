@@ -92,7 +92,6 @@ function LeaderboardRow({
               sx={{
                 fontSize: '0.85rem',
                 fontWeight: 600,
-                fontFamily: 'monospace',
                 color: '#fff',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -162,7 +161,7 @@ function LeaderboardRow({
         </Box>
 
         {/* Streak */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'flex-end' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           {entry.bestStreak >= 3 && <LocalFireDepartment sx={{ fontSize: 14, color: ACCENT_COLOR }} />}
           <Typography sx={{ fontSize: '0.8rem', color: entry.bestStreak >= 3 ? ACCENT_COLOR : 'text.secondary', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
             {entry.bestStreak}
@@ -205,7 +204,6 @@ function LeaderboardRow({
               sx={{
                 fontSize: '0.85rem',
                 fontWeight: 600,
-                fontFamily: 'monospace',
                 color: '#fff',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -247,8 +245,8 @@ function LeaderboardRow({
               W / L
             </Typography>
           </Box>
-          <Box sx={{ textAlign: 'right' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               {entry.bestStreak >= 3 && <LocalFireDepartment sx={{ fontSize: 14, color: ACCENT_COLOR }} />}
               <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: entry.bestStreak >= 3 ? ACCENT_COLOR : 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
                 {entry.bestStreak}

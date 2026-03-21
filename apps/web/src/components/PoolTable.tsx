@@ -13,9 +13,10 @@ interface PoolTableProps {
   getPrice: (asset: string) => string | null;
   isPlaceholderData?: boolean;
   popularPoolIds?: Set<string>;
+  alwaysShowView?: boolean;
 }
 
-export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData, popularPoolIds }: PoolTableProps) {
+export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData, popularPoolIds, alwaysShowView }: PoolTableProps) {
   const knownIdsRef = useRef<Set<string>>(new Set());
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
 
@@ -51,7 +52,7 @@ export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData,
       <Box
         sx={{
           display: { xs: 'none', md: 'grid' },
-          gridTemplateColumns: '110px minmax(180px, 2fr) 110px 140px 100px 110px 60px 130px 40px',
+          gridTemplateColumns: '100px 2fr 1fr 1fr 1fr 1fr 0.7fr 1fr 0.4fr',
           pr: 2,
           pl: 0,
           py: 1,
@@ -67,9 +68,9 @@ export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData,
           { label: 'Odds', tip: 'Current payout multiplier if your side wins' },
           { label: 'Players', tip: 'Number of participants in the pool' },
           { label: 'Action', tip: '' },
-          { label: '', tip: '' },
+          { label: 'Share', tip: '' },
         ].map((h, i) => (
-          <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.4, ...(h.label === 'Action' && { justifyContent: 'center' }) }}>
+          <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.4, ...(h.label === 'Action' && { justifyContent: 'flex-start' }) }}>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '12px', fontWeight: 600, letterSpacing: '0.08em' }}>
               {h.label}
             </Typography>
@@ -93,6 +94,7 @@ export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData,
             index={i}
             isNew={newIds.has(pool.id)}
             isPopular={popularPoolIds?.has(pool.id)}
+            alwaysShowView={alwaysShowView}
           />
         ))}
       </AnimatePresence>

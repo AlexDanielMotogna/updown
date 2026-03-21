@@ -394,3 +394,160 @@ export async function claimReferralPayout(
     body: JSON.stringify({ walletAddress }),
   });
 }
+
+// ─── Squad endpoints ────────────────────────────────────────────────────────
+
+export interface Squad {
+  id: string;
+  name: string;
+  inviteCode: string;
+  creatorWallet: string;
+  maxMembers: number;
+  memberCount: number;
+  poolCount: number;
+  activePoolCount: number;
+  role: 'OWNER' | 'MEMBER';
+  joinedAt: string;
+  createdAt: string;
+}
+
+export interface SquadDetail {
+  id: string;
+  name: string;
+  inviteCode: string;
+  creatorWallet: string;
+  maxMembers: number;
+  memberCount: number;
+  poolCount: number;
+  members: SquadMemberEntry[];
+  createdAt: string;
+}
+
+export interface SquadMemberEntry {
+  walletAddress: string;
+  role: 'OWNER' | 'MEMBER';
+  joinedAt: string;
+}
+
+export interface SquadInviteInfo {
+  id: string;
+  name: string;
+  memberCount: number;
+  maxMembers: number;
+}
+
+export interface SquadChatMessage {
+  id: string;
+  walletAddress: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface SquadLeaderboardEntry {
+  walletAddress: string;
+  role: 'OWNER' | 'MEMBER';
+  totalBets: number;
+  totalWins: number;
+  totalWagered: string;
+  netPnl: string;
+}
+
+export interface SquadPool extends Pool {
+  squadId: string | null;
+  maxBettors: number | null;
+}
+
+export async function fetchSquads(wallet: string): Promise<ApiResponse<Squad[]>> {
+  return fetchApi<Squad[]>(`/api/squads?wallet=${wallet}`);
+}
+
+export async function fetchSquad(id: string, wallet: string): Promise<ApiResponse<SquadDetail>> {
+  return fetchApi<SquadDetail>(`/api/squads/${id}?wallet=${wallet}`);
+}
+
+export async function createSquad(params: {
+  wallet: string;
+  name: string;
+}): Promise<ApiResponse<Squad>> {
+  return fetchApi<Squad>('/api/squads', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function joinSquad(params: {
+  wallet: string;
+  inviteCode: string;
+}): Promise<ApiResponse<{ squadId: string; squadName: string; role: string }>> {
+  return fetchApi('/api/squads/join', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function resolveSquadInvite(code: string): Promise<ApiResponse<SquadInviteInfo>> {
+  return fetchApi<SquadInviteInfo>(`/api/squads/resolve?code=${code}`);
+}
+
+export async function leaveSquad(squadId: string, wallet: string): Promise<ApiResponse<{ message: string }>> {
+  return fetchApi(`/api/squads/${squadId}/leave`, {
+    method: 'POST',
+    body: JSON.stringify({ wallet }),
+  });
+}
+
+export async function kickSquadMember(
+  squadId: string,
+  targetWallet: string,
+  ownerWallet: string,
+): Promise<ApiResponse<{ message: string }>> {
+  return fetchApi(`/api/squads/${squadId}/members/${targetWallet}?wallet=${ownerWallet}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function fetchSquadPools(squadId: string, wallet: string): Promise<ApiResponse<SquadPool[]>> {
+  return fetchApi<SquadPool[]>(`/api/squads/${squadId}/pools?wallet=${wallet}`);
+}
+
+export async function createSquadPool(params: {
+  squadId: string;
+  wallet: string;
+  asset: string;
+  durationSeconds: number;
+  maxBettors?: number;
+}): Promise<ApiResponse<{ poolId: string }>> {
+  const { squadId, ...body } = params;
+  return fetchApi(`/api/squads/${squadId}/pools`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function fetchSquadMessages(
+  squadId: string,
+  wallet: string,
+  params?: { before?: string; limit?: number },
+): Promise<ApiResponse<SquadChatMessage[]>> {
+  const searchParams = new URLSearchParams({ wallet });
+  if (params?.before) searchParams.set('before', params.before);
+  if (params?.limit) searchParams.set('limit', params.limit.toString());
+  return fetchApi<SquadChatMessage[]>(`/api/squads/${squadId}/messages?${searchParams.toString()}`);
+}
+
+export async function sendSquadMessage(
+  squadId: string,
+  params: { wallet: string; content: string },
+): Promise<ApiResponse<SquadChatMessage>> {
+  return fetchApi<SquadChatMessage>(`/api/squads/${squadId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function fetchSquadLeaderboard(
+  squadId: string,
+  wallet: string,
+): Promise<ApiResponse<SquadLeaderboardEntry[]>> {
+  return fetchApi<SquadLeaderboardEntry[]>(`/api/squads/${squadId}/leaderboard?wallet=${wallet}`);
+}

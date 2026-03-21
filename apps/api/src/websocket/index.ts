@@ -96,6 +96,18 @@ export function initWebSocket(httpServer: HttpServer): Server {
       socket.leave(`pool:${data.poolId}`);
     });
 
+    // Handle squad subscriptions
+    socket.on('subscribe:squad', (data: { squadId: string }) => {
+      if (!data?.squadId) return;
+      socket.join(`squad:${data.squadId}`);
+      console.log(`[WS] ${socket.id} subscribed to squad:${data.squadId}`);
+    });
+
+    socket.on('unsubscribe:squad', (data: { squadId: string }) => {
+      if (!data?.squadId) return;
+      socket.leave(`squad:${data.squadId}`);
+    });
+
     // Handle disconnect
     socket.on('disconnect', () => {
       console.log(`[WS] Client disconnected: ${socket.id}`);
@@ -224,6 +236,42 @@ export function emitUserReward(walletAddress: string, data: {
 }): void {
   if (io) {
     io.emit('user:reward', { walletAddress, ...data });
+  }
+}
+
+/**
+ * Emit a squad chat message to squad room
+ */
+export function emitSquadMessage(squadId: string, message: {
+  id: string;
+  walletAddress: string;
+  content: string;
+  createdAt: string;
+}): void {
+  if (io) {
+    io.to(`squad:${squadId}`).emit('squad:message', { squadId, message });
+  }
+}
+
+/**
+ * Emit a new squad pool to squad room
+ */
+export function emitSquadPoolNew(squadId: string, pool: object): void {
+  if (io) {
+    io.to(`squad:${squadId}`).emit('squad:pool:new', { squadId, pool });
+  }
+}
+
+/**
+ * Emit a member joined event to squad room
+ */
+export function emitSquadMemberJoined(squadId: string, member: {
+  walletAddress: string;
+  role: string;
+  joinedAt: string;
+}): void {
+  if (io) {
+    io.to(`squad:${squadId}`).emit('squad:member:joined', { squadId, member });
   }
 }
 

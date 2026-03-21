@@ -17,6 +17,7 @@ interface PoolRowProps {
   index: number;
   isNew?: boolean;
   isPopular?: boolean;
+  alwaysShowView?: boolean;
 }
 
 export function PoolRow({
@@ -26,6 +27,7 @@ export function PoolRow({
   index,
   isNew,
   isPopular,
+  alwaysShowView,
 }: PoolRowProps) {
   const totalUp = Number(pool.totalUp);
   const totalDown = Number(pool.totalDown);
@@ -96,7 +98,7 @@ export function PoolRow({
         position: 'relative',
         overflow: 'hidden',
         display: { xs: 'block', md: 'grid' },
-        gridTemplateColumns: { md: '110px minmax(180px, 2fr) 110px 140px 100px 110px 60px 130px 40px' },
+        gridTemplateColumns: { md: '100px 2fr 1fr 1fr 1fr 1fr 0.7fr 1fr 0.4fr' },
         alignItems: 'stretch',
         pr: { xs: 0, md: 2 },
         pl: 0,
@@ -323,7 +325,27 @@ export function PoolRow({
                 View
               </Button>
             </Link>
-          ) : pool.winner ? (() => {
+          ) : (alwaysShowView || !pool.winner) ? (
+            <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none' }}>
+              <Button
+                fullWidth
+                size="small"
+                sx={{
+                  py: 1,
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  color: 'text.secondary',
+                  borderRadius: '2px',
+                  bgcolor: 'rgba(255,255,255,0.06)',
+                  textTransform: 'none',
+                  minHeight: 44,
+                  '&:hover': { bgcolor: 'rgba(255,255,255,0.10)' },
+                }}
+              >
+                View
+              </Button>
+            </Link>
+          ) : (() => {
             const isRefund = Number(pool.totalUp) === 0 || Number(pool.totalDown) === 0;
             return (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -375,27 +397,7 @@ export function PoolRow({
               </Link>
             </Box>
             );
-          })() : (
-            <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none' }}>
-              <Button
-                fullWidth
-                size="small"
-                sx={{
-                  py: 1,
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  color: 'text.secondary',
-                  borderRadius: '2px',
-                  bgcolor: 'rgba(255,255,255,0.06)',
-                  textTransform: 'none',
-                  minHeight: 44,
-                  '&:hover': { bgcolor: 'rgba(255,255,255,0.10)' },
-                }}
-              >
-                View
-              </Button>
-            </Link>
-          )}
+          })()}
         </Box>
       </Box>
 
@@ -511,8 +513,7 @@ export function PoolRow({
       </Box>
 
       {/* Action */}
-      {/* Action */}
-      <Box sx={{ display: { xs: 'none', md: 'flex' }, alignSelf: 'center', justifyContent: 'center', alignItems: 'center' }}>
+      <Box sx={{ display: { xs: 'none', md: 'flex' }, alignSelf: 'center', justifyContent: 'flex-start', alignItems: 'center' }}>
         {canBet ? (
           <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none' }}>
             <Button
@@ -533,7 +534,7 @@ export function PoolRow({
               Join
             </Button>
           </Link>
-        ) : status === 'ACTIVE' ? (
+        ) : (alwaysShowView || status === 'ACTIVE' || !pool.winner) ? (
           <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none' }}>
             <Button
               size="small"
@@ -553,7 +554,7 @@ export function PoolRow({
               View
             </Button>
           </Link>
-        ) : pool.winner ? (() => {
+        ) : (() => {
           const isRefund = Number(pool.totalUp) === 0 || Number(pool.totalDown) === 0;
           return (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -585,27 +586,7 @@ export function PoolRow({
             )}
           </Box>
           );
-        })() : (
-          <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none' }}>
-            <Button
-              size="small"
-              sx={{
-                minWidth: 70,
-                px: 2,
-                py: 0.75,
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                color: 'text.secondary',
-                borderRadius: '2px',
-                bgcolor: 'rgba(255,255,255,0.06)',
-                textTransform: 'none',
-                '&:hover': { bgcolor: 'rgba(255,255,255,0.10)' },
-              }}
-            >
-              View
-            </Button>
-          </Link>
-        )}
+        })()}
       </Box>
 
       {/* Share */}
@@ -622,7 +603,7 @@ export function PoolRow({
         }}
         sx={{
           display: { xs: 'none', md: 'flex' },
-          alignSelf: 'center', justifyContent: 'center', alignItems: 'center',
+          alignSelf: 'center', justifyContent: 'flex-start', alignItems: 'center',
           background: 'none', border: 'none', cursor: 'pointer', p: 0.5,
           borderRadius: '4px',
           color: 'rgba(255,255,255,0.25)',

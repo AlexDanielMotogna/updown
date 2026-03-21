@@ -99,7 +99,7 @@ export function PoolManagement() {
               <TableBody>
                 {stuckPools.map(p => (
                   <TableRow key={p.id}>
-                    <TableCell sx={{ fontFamily: 'monospace', fontSize: 11, cursor: 'pointer', '&:hover': { color: '#F59E0B' } }} onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(p.id); }} title="Click to copy">{p.id}</TableCell>
+                    <TableCell sx={{ fontSize: 11, cursor: 'pointer', '&:hover': { color: '#F59E0B' } }} onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(p.id); }} title="Click to copy">{p.id}</TableCell>
                     <TableCell>{p.asset}</TableCell>
                     <TableCell><Chip label={p.status} size="small" sx={{ bgcolor: statusColors[p.status] + '22', color: statusColors[p.status] }} /></TableCell>
                     <TableCell>{p.stuckMinutes}m</TableCell>
@@ -147,7 +147,7 @@ export function PoolManagement() {
             <TableBody>
               {(poolsData?.data ?? []).map(p => (
                 <TableRow key={p.id} hover sx={{ cursor: 'pointer' }} onClick={() => setSelectedPoolId(p.id)}>
-                  <TableCell sx={{ fontFamily: 'monospace', fontSize: 11, cursor: 'pointer', '&:hover': { color: '#F59E0B' } }} onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(p.id); }} title="Click to copy">{p.id}</TableCell>
+                  <TableCell sx={{ fontSize: 11, cursor: 'pointer', '&:hover': { color: '#F59E0B' } }} onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(p.id); }} title="Click to copy">{p.id}</TableCell>
                   <TableCell>{p.asset}</TableCell>
                   <TableCell>{p.interval}</TableCell>
                   <TableCell><Chip label={p.status} size="small" sx={{ bgcolor: (statusColors[p.status] || '#666') + '22', color: statusColors[p.status] || '#666' }} /></TableCell>
@@ -186,7 +186,7 @@ export function PoolManagement() {
                     <TableBody>
                       {detailData.data.bets.map(b => (
                         <TableRow key={b.id}>
-                          <TableCell sx={{ fontFamily: 'monospace', fontSize: 11 }}>{b.walletAddress.slice(0, 8)}...{b.walletAddress.slice(-4)}</TableCell>
+                          <TableCell sx={{ fontSize: 11 }}>{b.walletAddress.slice(0, 8)}...{b.walletAddress.slice(-4)}</TableCell>
                           <TableCell><Chip label={b.side} size="small" sx={{ bgcolor: b.side === 'UP' ? '#22C55E22' : '#F8717122', color: b.side === 'UP' ? '#22C55E' : '#F87171' }} /></TableCell>
                           <TableCell>{b.amount}</TableCell>
                           <TableCell>{b.claimed ? 'Yes' : 'No'}</TableCell>

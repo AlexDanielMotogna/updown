@@ -167,7 +167,7 @@ export function FinancialOverview() {
                       <TableRow key={c.id}>
                         <TableCell sx={{ fontSize: 11, whiteSpace: 'nowrap' }}>{new Date(c.closedAt).toLocaleString()}</TableCell>
                         <TableCell
-                          sx={{ fontFamily: 'monospace', fontSize: 11, cursor: 'pointer', '&:hover': { color: '#F59E0B' } }}
+                          sx={{ fontSize: 11, cursor: 'pointer', '&:hover': { color: '#F59E0B' } }}
                           onClick={() => navigator.clipboard.writeText(c.poolId)}
                           title="Click to copy"
                         >{c.poolId}</TableCell>
@@ -181,7 +181,7 @@ export function FinancialOverview() {
                           ) : '—'}
                         </TableCell>
                         <TableCell sx={{ color: '#22C55E', fontWeight: 500 }}>{c.payload.rentReclaimedSol ?? '0'} SOL</TableCell>
-                        <TableCell sx={{ fontFamily: 'monospace', fontSize: 10 }}>
+                        <TableCell sx={{ fontSize: 10 }}>
                           {c.payload.txSignature ? (
                             <a
                               href={`https://explorer.solana.com/tx/${c.payload.txSignature}?cluster=devnet`}

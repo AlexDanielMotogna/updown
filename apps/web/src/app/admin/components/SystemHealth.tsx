@@ -135,7 +135,7 @@ export function SystemHealth() {
               {h.jobs.map(job => (
                 <TableRow key={job.name} sx={{ bgcolor: !job.healthy ? 'rgba(248,113,113,0.05)' : undefined }}>
                   <TableCell sx={{ fontSize: 12, fontWeight: 500 }}>{job.name}</TableCell>
-                  <TableCell sx={{ fontFamily: 'monospace', fontSize: 11 }}>{job.schedule}</TableCell>
+                  <TableCell sx={{ fontSize: 11 }}>{job.schedule}</TableCell>
                   <TableCell>
                     <Chip
                       label={job.healthy ? 'OK' : job.lastRunAt ? 'Error' : 'Pending'}
@@ -150,7 +150,7 @@ export function SystemHealth() {
                   <TableCell sx={{ fontSize: 11 }}>{timeAgo(job.lastRunAt)}</TableCell>
                   <TableCell>{job.runCount}</TableCell>
                   <TableCell sx={{ color: job.errorCount > 0 ? '#F87171' : undefined }}>{job.errorCount}</TableCell>
-                  <TableCell sx={{ maxWidth: 200, fontSize: 10, fontFamily: 'monospace' }}>
+                  <TableCell sx={{ maxWidth: 200, fontSize: 10 }}>
                     {job.lastError ? (
                       <Tooltip title={job.lastError} arrow>
                         <Typography noWrap sx={{ fontSize: 'inherit', fontFamily: 'inherit', maxWidth: 200 }}>
