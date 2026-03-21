@@ -84,7 +84,7 @@ export class PoolCreator {
         if (betCount === 0) {
           await this.deps.prisma.priceSnapshot.deleteMany({ where: { poolId: pool.id } });
           await this.deps.prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: pool.id } });
-          await this.deps.prisma.pool.delete({ where: { id: pool.id } });
+          await this.deps.prisma.pool.deleteMany({ where: { id: pool.id } });
           console.log(`[Scheduler] Removed duplicate JOINING pool ${pool.id} (${pool.asset}/${pool.interval})`);
         }
       }

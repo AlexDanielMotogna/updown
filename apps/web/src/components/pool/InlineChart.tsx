@@ -223,7 +223,7 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
 
   return (
     <Box ref={containerRef} sx={{ width: '100%', height: '100%', position: 'relative' }}>
-      <svg width={dims.width} height={dims.height} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} style={{ display: 'block' }}>
+      <svg width={dims.width} height={dims.height} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} style={{ display: 'block', willChange: 'contents' }}>
         <defs>
           <linearGradient id="inline-line-area-grad" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor={lineColor} stopOpacity={0.2} />
@@ -237,32 +237,32 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
           const sy = toY(strikePrice);
           if (sy >= PADDING.top && sy <= PADDING.top + chartH) {
             return (
-              <>
+              <g style={{ transition: 'transform 0.4s ease' }}>
                 <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={sy} y2={sy} stroke={ACCENT_COLOR} strokeWidth={1} strokeDasharray="6,4" strokeOpacity={0.5} />
                 <rect x={0} y={sy - 11} width={PADDING.left + 72} height={22} rx={3} fill={ACCENT_COLOR} />
                 <text x={6} y={sy + 4} fill="#000" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700}>
                   Strike {formatChartPrice(strikePrice)}
                 </text>
-              </>
+              </g>
             );
           }
           return null;
         })()}
 
-        {areaPath && <path d={areaPath} fill="url(#inline-line-area-grad)" />}
-        {linePath && <path d={linePath} fill="none" stroke={lineColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />}
+        {areaPath && <path d={areaPath} fill="url(#inline-line-area-grad)" style={{ transition: 'd 0.5s ease, opacity 0.3s' }} />}
+        {linePath && <path d={linePath} fill="none" stroke={lineColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'd 0.5s ease' }} />}
 
         {livePrice != null && lastPoint && (() => {
           const ly = toY(livePrice);
           if (ly >= PADDING.top && ly <= PADDING.top + chartH) {
             return (
               <>
-                <line x1={lastPoint.x} x2={dims.width - PADDING.right} y1={ly} y2={ly} stroke={lineColor} strokeWidth={1} strokeDasharray="3,3" strokeOpacity={0.6} />
-                <circle cx={lastPoint.x} cy={lastPoint.y} r={3.5} fill={lineColor} stroke="#111820" strokeWidth={2}>
+                <line x1={lastPoint.x} x2={dims.width - PADDING.right} y1={ly} y2={ly} stroke={lineColor} strokeWidth={1} strokeDasharray="3,3" strokeOpacity={0.6} style={{ transition: 'y1 0.4s ease, y2 0.4s ease' }} />
+                <circle cx={lastPoint.x} cy={lastPoint.y} r={3.5} fill={lineColor} stroke="#111820" strokeWidth={2} style={{ transition: 'cx 0.5s ease, cy 0.5s ease' }}>
                   <animate attributeName="r" values="3.5;5;3.5" dur="2s" repeatCount="indefinite" />
                 </circle>
-                <rect x={dims.width - PADDING.right + 1} y={ly - 10} width={PADDING.right - 4} height={20} rx={3} fill={lineColor} />
-                <text x={dims.width - PADDING.right + 8} y={ly + 4} fill="#000" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700}>
+                <rect x={dims.width - PADDING.right + 1} y={ly - 10} width={PADDING.right - 4} height={20} rx={3} fill={lineColor} style={{ transition: 'y 0.4s ease' }} />
+                <text x={dims.width - PADDING.right + 8} y={ly + 4} fill="#000" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700} style={{ transition: 'y 0.4s ease' }}>
                   {formatChartPrice(livePrice)}
                 </text>
               </>
@@ -316,20 +316,20 @@ function CandlesChart({ candles, duration, livePrice, strikePrice }: ChartProps)
 
   return (
     <Box ref={containerRef} sx={{ width: '100%', height: '100%', position: 'relative' }}>
-      <svg width={dims.width} height={dims.height} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} style={{ display: 'block' }}>
+      <svg width={dims.width} height={dims.height} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} style={{ display: 'block', willChange: 'contents' }}>
         <ChartAxes dims={dims} yTicks={yTicks} xTicks={xTicks} duration={duration} />
 
         {strikePrice != null && (() => {
           const sy = toY(strikePrice);
           if (sy >= PADDING.top && sy <= PADDING.top + chartH) {
             return (
-              <>
+              <g style={{ transition: 'transform 0.4s ease' }}>
                 <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={sy} y2={sy} stroke={ACCENT_COLOR} strokeWidth={1} strokeDasharray="6,4" strokeOpacity={0.5} />
                 <rect x={0} y={sy - 11} width={PADDING.left + 72} height={22} rx={3} fill={ACCENT_COLOR} />
                 <text x={6} y={sy + 4} fill="#000" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700}>
                   Strike {formatChartPrice(strikePrice)}
                 </text>
-              </>
+              </g>
             );
           }
           return null;
@@ -347,9 +347,9 @@ function CandlesChart({ candles, duration, livePrice, strikePrice }: ChartProps)
           const half = candleWidth / 2;
 
           return (
-            <g key={i}>
-              <line x1={x} x2={x} y1={wickTop} y2={wickBottom} stroke={color} strokeWidth={1} />
-              <rect x={x - half} y={bodyTop} width={candleWidth} height={bodyHeight} fill={color} fillOpacity={isUp ? 0.25 : 0.8} stroke={color} strokeWidth={1} />
+            <g key={i} style={{ transition: 'opacity 0.3s' }}>
+              <line x1={x} x2={x} y1={wickTop} y2={wickBottom} stroke={color} strokeWidth={1} style={{ transition: 'y1 0.4s ease, y2 0.4s ease' }} />
+              <rect x={x - half} y={bodyTop} width={candleWidth} height={bodyHeight} fill={color} fillOpacity={isUp ? 0.25 : 0.8} stroke={color} strokeWidth={1} style={{ transition: 'y 0.4s ease, height 0.4s ease' }} />
             </g>
           );
         })}
@@ -361,9 +361,9 @@ function CandlesChart({ candles, duration, livePrice, strikePrice }: ChartProps)
           if (ly >= PADDING.top && ly <= PADDING.top + chartH) {
             return (
               <>
-                <line x1={lastX} x2={dims.width - PADDING.right} y1={ly} y2={ly} stroke={lvColor} strokeWidth={1} strokeDasharray="3,3" strokeOpacity={0.6} />
-                <rect x={dims.width - PADDING.right + 1} y={ly - 10} width={PADDING.right - 4} height={20} rx={3} fill={lvColor} />
-                <text x={dims.width - PADDING.right + 8} y={ly + 4} fill="#000" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700}>
+                <line x1={lastX} x2={dims.width - PADDING.right} y1={ly} y2={ly} stroke={lvColor} strokeWidth={1} strokeDasharray="3,3" strokeOpacity={0.6} style={{ transition: 'y1 0.4s ease, y2 0.4s ease' }} />
+                <rect x={dims.width - PADDING.right + 1} y={ly - 10} width={PADDING.right - 4} height={20} rx={3} fill={lvColor} style={{ transition: 'y 0.4s ease' }} />
+                <text x={dims.width - PADDING.right + 8} y={ly + 4} fill="#000" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700} style={{ transition: 'y 0.4s ease' }}>
                   {formatChartPrice(livePrice)}
                 </text>
               </>
