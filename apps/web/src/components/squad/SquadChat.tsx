@@ -68,24 +68,26 @@ export function SquadChat({ messages, onSend, isSending, currentWallet }: SquadC
       {/* Floating chat window */}
       <AnimatePresence>
         {open && (
+          <Box
+            sx={{
+              position: 'fixed',
+              bottom: { xs: 'calc(64px + env(safe-area-inset-bottom, 0px) + 56px)', lg: 90 },
+              right: { xs: 8, lg: 20 },
+              zIndex: 1300,
+              width: { xs: 'calc(100vw - 16px)', sm: 380 },
+            }}
+          >
           <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            style={{
-              position: 'fixed',
-              bottom: 90,
-              right: 20,
-              zIndex: 1300,
-              width: 'min(380px, calc(100vw - 32px))',
-            }}
           >
             <Box
               sx={{
                 display: 'flex',
                 flexDirection: 'column',
-                height: { xs: 420, md: 480 },
+                height: { xs: 360, md: 480 },
                 bgcolor: '#0B0F14',
                 border: '1px solid rgba(255,255,255,0.08)',
                 overflow: 'hidden',
@@ -219,6 +221,7 @@ export function SquadChat({ messages, onSend, isSending, currentWallet }: SquadC
               </Box>
             </Box>
           </motion.div>
+          </Box>
         )}
       </AnimatePresence>
 
@@ -226,15 +229,18 @@ export function SquadChat({ messages, onSend, isSending, currentWallet }: SquadC
       <Box
         sx={{
           position: 'fixed',
-          bottom: 20,
-          right: 20,
+          bottom: { xs: 'calc(64px + env(safe-area-inset-bottom, 0px))', lg: 20 },
+          right: { xs: 12, lg: 20 },
           zIndex: 1300,
         }}
       >
         <Fab
           onClick={handleToggle}
-          size="medium"
+          size="small"
           sx={{
+            width: { xs: 40, lg: 48 },
+            height: { xs: 40, lg: 48 },
+            minHeight: 0,
             bgcolor: open ? 'rgba(255,255,255,0.1)' : UP_COLOR,
             color: open ? '#fff' : '#000',
             '&:hover': {
