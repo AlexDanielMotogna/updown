@@ -444,45 +444,62 @@ export function BetRow({
 
 export function BetRowSkeleton() {
   return (
-    <Box
-      sx={{
-        display: { xs: 'block', md: 'grid' },
-        gridTemplateColumns: { md: '80px 2.5fr 1fr 1fr 1fr 2fr 1fr 1fr 1.2fr' },
-        alignItems: 'center',
-        px: 0,
-        py: 0,
-        bgcolor: '#0D1219',
-      }}
-    >
-      {/* Desktop: box image column */}
-      <Box sx={{ display: { xs: 'none', md: 'flex' }, justifyContent: 'center', py: 1.5 }}>
-        <Skeleton variant="rounded" width={60} height={50} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+    <>
+      {/* Desktop row skeleton */}
+      <Box
+        sx={{
+          display: { xs: 'none', md: 'grid' },
+          gridTemplateColumns: '80px 2.5fr 1fr 1fr 1fr 2fr 1fr 1fr 1.2fr',
+          alignItems: 'center',
+          px: 0,
+          py: 0,
+          minHeight: 70,
+          bgcolor: '#0D1219',
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 1.5 }}>
+          <Skeleton variant="rounded" width={60} height={50} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+        </Box>
+        <Box sx={{ pl: 1.5 }}>
+          <Skeleton variant="text" width={90} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.06)' }} />
+          <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5 }}>
+            <Skeleton variant="rounded" width={36} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '2px' }} />
+            <Skeleton variant="rounded" width={52} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '2px' }} />
+          </Box>
+        </Box>
+        <Skeleton variant="rounded" width={48} height={20} sx={{ bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '2px' }} />
+        <Skeleton variant="text" width={55} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.06)' }} />
+        <Skeleton variant="text" width={55} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+        <Skeleton variant="text" width={120} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+        <Skeleton variant="text" width={70} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+        <Skeleton variant="rounded" width={56} height={28} sx={{ bgcolor: 'rgba(255,255,255,0.06)', borderRadius: '2px' }} />
+        <Skeleton variant="text" width={60} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
       </Box>
-      {/* Desktop columns */}
-      {[110, 50, 70, 80, 70, 80, 60, 90].map((w, i) => (
-        <Skeleton key={i} variant="text" width={w} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.06)', display: { xs: 'none', md: 'block' } }} />
-      ))}
+
       {/* Mobile card skeleton */}
-      <Box sx={{ display: { xs: 'block', md: 'none' }, p: 2 }}>
+      <Box sx={{ display: { xs: 'block', md: 'none' }, bgcolor: '#0D1219', p: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
           <Skeleton variant="rounded" width={40} height={40} sx={{ bgcolor: 'rgba(255,255,255,0.04)', flexShrink: 0 }} />
-          <Box>
-            <Skeleton variant="text" width={120} height={20} sx={{ bgcolor: 'rgba(255,255,255,0.06)' }} />
-            <Skeleton variant="text" width={80} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+          <Box sx={{ flex: 1 }}>
+            <Skeleton variant="text" width={100} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.06)' }} />
+            <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5 }}>
+              <Skeleton variant="rounded" width={36} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '2px' }} />
+              <Skeleton variant="rounded" width={44} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '2px' }} />
+            </Box>
           </Box>
         </Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-          <Skeleton variant="text" width={100} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
-          <Skeleton variant="text" width={90} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+          <Skeleton variant="text" width={90} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+          <Skeleton variant="text" width={80} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.06)' }} />
         </Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-          <Skeleton variant="text" width={130} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
-          <Skeleton variant="text" width={60} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+          <Skeleton variant="text" width={120} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+          <Skeleton variant="text" width={60} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
         </Box>
         <Box sx={{ pt: 1.5 }}>
-          <Skeleton variant="rounded" width="100%" height={44} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+          <Skeleton variant="rounded" width="100%" height={44} sx={{ bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '2px' }} />
         </Box>
       </Box>
-    </Box>
+    </>
   );
 }

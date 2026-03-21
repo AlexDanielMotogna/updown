@@ -714,7 +714,8 @@ export class PoolResolver {
           const errMsg = error instanceof Error ? error.message : String(error);
 
           // Pool already closed on-chain (by recovery scan or another instance) — just clean up DB
-          if (errMsg.includes('AccountNotInitialized')) {
+          // Error 3012 = AccountNotInitialized in Anchor runtime
+          if (errMsg.includes('AccountNotInitialized') || errMsg.includes('Custom":3012')) {
             console.log(`[Scheduler] Pool ${pool.id} already closed on-chain — cleaning up DB records`);
             await this.logEvent('POOL_CLOSED', 'closure', pool.id, {
               poolId: pool.id,

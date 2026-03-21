@@ -1,63 +1,78 @@
-import { Card, CardContent, Box, Skeleton } from '@mui/material';
+import { Box, Skeleton } from '@mui/material';
 
+/**
+ * Skeleton for a PoolRow in the markets table.
+ * Matches the grid layout: box image, asset, countdown, distribution, pool size, odds, players, action, arrow
+ */
 export function PoolCardSkeleton() {
   return (
-    <Card
-      sx={{
-        overflow: 'hidden',
-        background: '#111820',
-        border: 'none',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <CardContent sx={{ p: 3, display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-        {/* Header: asset + status chip */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-          <Box>
-            <Skeleton variant="text" width={100} height={28} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)' }} />
-            <Skeleton variant="text" width={140} height={36} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)', mt: 0.5 }} />
-          </Box>
-          <Skeleton variant="rounded" width={64} height={24} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)', borderRadius: '2px' }} />
+    <>
+      {/* Desktop row skeleton */}
+      <Box
+        sx={{
+          display: { xs: 'none', md: 'grid' },
+          gridTemplateColumns: '110px minmax(180px, 2fr) 110px 140px 100px 110px 60px 130px 40px',
+          alignItems: 'center',
+          pr: 2,
+          pl: 0,
+          py: 0,
+          minHeight: 70,
+          bgcolor: '#0D1219',
+        }}
+      >
+        {/* Box image */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}>
+          <Skeleton variant="rounded" width={60} height={54} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
         </Box>
-
-        {/* Countdown / Info area */}
-        <Box sx={{ mb: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Skeleton variant="text" width={50} height={20} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)' }} />
-            <Skeleton variant="text" width={80} height={20} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)' }} />
-          </Box>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Skeleton variant="text" width={40} height={20} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)' }} />
-            <Skeleton variant="text" width={100} height={20} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)' }} />
-          </Box>
+        {/* Asset */}
+        <Box sx={{ pl: 1.5 }}>
+          <Skeleton variant="text" width={100} height={20} sx={{ bgcolor: 'rgba(255,255,255,0.06)' }} />
+          <Skeleton variant="text" width={60} height={14} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
         </Box>
-
+        {/* Countdown */}
+        <Skeleton variant="text" width={70} height={20} sx={{ bgcolor: 'rgba(255,255,255,0.06)' }} />
         {/* Distribution */}
-        <Box sx={{ mb: 3 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
-            <Skeleton variant="text" width={80} height={20} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)' }} />
-            <Skeleton variant="text" width={80} height={20} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)' }} />
+        <Box>
+          <Skeleton variant="rounded" width={120} height={6} sx={{ bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 1, mb: 0.5 }} />
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', width: 120 }}>
+            <Skeleton variant="text" width={40} height={12} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+            <Skeleton variant="text" width={40} height={12} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
           </Box>
-          <Skeleton variant="rounded" width="100%" height={6} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)', borderRadius: 0 }} />
         </Box>
+        {/* Pool size */}
+        <Skeleton variant="text" width={60} height={20} sx={{ bgcolor: 'rgba(255,255,255,0.06)' }} />
+        {/* Odds */}
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Skeleton variant="text" width={40} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+          <Skeleton variant="text" width={40} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+        </Box>
+        {/* Players */}
+        <Skeleton variant="text" width={20} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+        {/* Action */}
+        <Skeleton variant="rounded" width={100} height={32} sx={{ bgcolor: 'rgba(255,255,255,0.06)', borderRadius: '2px' }} />
+        {/* Arrow */}
+        <Box />
+      </Box>
 
-        {/* Total pool */}
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            pt: 2,
-            mt: 'auto',
-            borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-          }}
-        >
-          <Skeleton variant="text" width={70} height={16} sx={{ bgcolor: 'rgba(255, 255, 255, 0.04)' }} />
-          <Skeleton variant="text" width={60} height={20} sx={{ bgcolor: 'rgba(255, 255, 255, 0.06)' }} />
+      {/* Mobile card skeleton */}
+      <Box sx={{ display: { xs: 'block', md: 'none' }, bgcolor: '#0D1219', p: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+          <Skeleton variant="rounded" width={44} height={44} sx={{ bgcolor: 'rgba(255,255,255,0.04)', flexShrink: 0 }} />
+          <Box sx={{ flex: 1 }}>
+            <Skeleton variant="text" width={100} height={20} sx={{ bgcolor: 'rgba(255,255,255,0.06)' }} />
+            <Skeleton variant="text" width={60} height={14} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+          </Box>
+          <Skeleton variant="rounded" width={56} height={20} sx={{ bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '2px' }} />
         </Box>
-      </CardContent>
-    </Card>
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1.5, pt: 1.5 }}>
+          {[1, 2, 3].map((i) => (
+            <Box key={i}>
+              <Skeleton variant="text" width={50} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.06)' }} />
+              <Skeleton variant="text" width={35} height={12} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+            </Box>
+          ))}
+        </Box>
+      </Box>
+    </>
   );
 }

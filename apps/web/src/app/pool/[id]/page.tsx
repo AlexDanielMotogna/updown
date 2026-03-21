@@ -94,10 +94,33 @@ export default function PoolDetailPage() {
   if (error || !pool) {
     return (
       <AppShell>
-        <Box sx={{ px: { xs: 2, md: 4 }, py: { xs: 3, md: 6 } }}>
-          <Alert severity="error" sx={{ backgroundColor: 'rgba(248, 113, 113, 0.1)', border: 'none', borderRadius: 0 }}>
-            Failed to load pool details
-          </Alert>
+        <Box sx={{ textAlign: 'center', py: { xs: 8, md: 12 }, px: 3 }}>
+          <Typography sx={{ fontSize: '1.1rem', fontWeight: 600, color: '#fff', mb: 1 }}>
+            This pool has ended
+          </Typography>
+          <Typography sx={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.45)', mb: 3 }}>
+            The pool was resolved and is no longer available. Check out the active markets.
+          </Typography>
+          <Link href="/" style={{ textDecoration: 'none' }}>
+            <Box
+              component="span"
+              sx={{
+                display: 'inline-block',
+                px: 4,
+                py: 1,
+                bgcolor: 'rgba(255,255,255,0.06)',
+                color: '#fff',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                borderRadius: '2px',
+                cursor: 'pointer',
+                transition: 'background 0.15s',
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.10)' },
+              }}
+            >
+              Back to Markets
+            </Box>
+          </Link>
         </Box>
       </AppShell>
     );
