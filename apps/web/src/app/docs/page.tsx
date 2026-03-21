@@ -319,6 +319,7 @@ export default function DocsPage() {
               { label: 'Assets & Timeframes', href: '#assets-timeframes', color: GAIN_COLOR },
               { label: 'Odds & Payouts', href: '#odds-payouts', color: '#A78BFA' },
               { label: 'Claiming Payouts', href: '#claiming', color: '#F472B6' },
+              { label: 'Referral Program', href: '#referrals', color: '#22C55E' },
               { label: 'XP & Rewards', href: '#xp-rewards', color: '#FB923C' },
               { label: 'Level Progression', href: '#levels', color: '#E879F9' },
               { label: 'UP Coins', href: '#up-coins', color: '#FACC15' },
@@ -460,6 +461,35 @@ export default function DocsPage() {
               <Typography sx={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.65)', lineHeight: 1.6 }}>{c.desc}</Typography>
             </Box>
           ))}
+        </Box>
+
+        {/* ── Referral Program ─────────────────────────────────────── */}
+        <SectionTitle id="referrals">Referral Program</SectionTitle>
+        <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
+          Invite friends and earn <strong style={{ color: GAIN_COLOR }}>1% of their bet amounts</strong> as commission every time a pool resolves normally. No extra cost to them.
+        </Typography>
+
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px', mb: 2 }}>
+          <StepCard step={1} title="Share Your Link" desc="Go to Referrals page or click the share icon on your profile. Copy your unique referral link." color={UP_COLOR} />
+          <StepCard step={2} title="Friend Opens Link" desc="They open the link. If not connected, a banner shows they were invited. Once they connect, a dialog asks them to accept." color={ACCENT_COLOR} />
+          <StepCard step={3} title="They Play" desc="Your friend places bets normally. Every time a pool they bet in resolves (not a refund), you earn 1% of their bet amount." color={GAIN_COLOR} />
+          <StepCard step={4} title="Claim Earnings" desc="Go to Referrals page. When your unpaid balance reaches $1, click Claim. USDC is sent directly to your wallet on-chain." color="#A78BFA" />
+        </Box>
+
+        <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1 }}>HOW IT WORKS</Typography>
+        <Box sx={{ bgcolor: '#0D1219', mb: 2 }}>
+          <DataRow label="Commission rate" value="1% of bet amount" color={GAIN_COLOR} bold />
+          <DataRow label="When earned" value="Pool resolves normally" />
+          <DataRow label="Refunded pools" value="No commission" color={DOWN_COLOR} />
+          <DataRow label="Minimum claim" value="$1.00 USDC" />
+          <DataRow label="Payout method" value="USDC transfer on-chain" color={UP_COLOR} />
+          <DataRow label="Self-referral" value="Blocked" color={DOWN_COLOR} />
+        </Box>
+
+        <Box sx={{ bgcolor: `${GAIN_COLOR}10`, borderLeft: `3px solid ${GAIN_COLOR}`, px: 2, py: 1.5, borderRadius: '0 4px 4px 0', mb: 2 }}>
+          <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.75)', lineHeight: 1.6 }}>
+            <strong style={{ color: GAIN_COLOR }}>Example:</strong> Your friend bets $100 on a pool. The pool resolves with a winner. You earn <strong style={{ color: '#fff' }}>$1.00 USDC</strong> — regardless of whether your friend won or lost.
+          </Typography>
         </Box>
 
         {/* ── XP System ─────────────────────────────────────────────── */}

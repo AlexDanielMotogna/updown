@@ -104,6 +104,22 @@ export const NOTIFICATION_DEFS: Record<NotificationType, NotificationDef> = {
       message: 'You unlocked a new fee discount tier!',
     }),
   },
+  REFERRAL_CLAIM_SUCCESS: {
+    severity: 'success',
+    autoHideDuration: 6000,
+    build: (ctx) => ({
+      title: 'Referral Payout Claimed',
+      message: ctx.amount ? `$${ctx.amount} USDC sent to your wallet` : 'Payout sent to your wallet',
+    }),
+  },
+  REFERRAL_CLAIM_FAILED: {
+    severity: 'error',
+    autoHideDuration: 8000,
+    build: (ctx) => ({
+      title: 'Referral Claim Failed',
+      message: (ctx.error as string) || 'Could not process the referral payout',
+    }),
+  },
 };
 
 /** Helper to build a full NotificationInput from a type + context */

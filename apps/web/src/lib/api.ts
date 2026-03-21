@@ -229,8 +229,42 @@ export async function confirmClaim(params: {
 
 // ─── User / Rewards endpoints ────────────────────────────────────────────────
 
+// ─── Referral types ──────────────────────────────────────────────────────────
+
+export interface ReferralStats {
+  referralCode: string;
+  totalReferrals: number;
+  totalEarned: string;
+  unpaidBalance: string;
+  referrals: Array<{
+    wallet: string;
+    joinedAt: string;
+    earned: string;
+  }>;
+}
+
+export interface ReferralEarningEntry {
+  id: string;
+  referredWallet: string;
+  poolId: string;
+  feeAmount: string;
+  commissionAmount: string;
+  paid: boolean;
+  paidTx: string | null;
+  createdAt: string;
+}
+
+export interface ReferralPayoutEntry {
+  id: string;
+  amount: string;
+  txSignature: string | null;
+  status: string;
+  createdAt: string;
+}
+
 export interface UserProfile {
   walletAddress: string;
+  referralCode: string | null;
   level: number;
   title: string;
   totalXp: string;
@@ -310,4 +344,53 @@ export async function fetchLeaderboard(
   if (params?.limit) searchParams.set('limit', params.limit.toString());
   const query = searchParams.toString();
   return fetchApi<LeaderboardEntry[]>(`/api/users/leaderboard${query ? `?${query}` : ''}`);
+}
+
+// ─── Referral endpoints ──────────────────────────────────────────────────────
+
+export async function resolveReferralCode(
+  code: string,
+): Promise<ApiResponse<{ referrerWallet: string }>> {
+  return fetchApi<{ referrerWallet: string }>(`/api/referrals/resolve?code=${encodeURIComponent(code)}`);
+}
+
+export async function acceptReferralApi(
+  walletAddress: string,
+  referralCode: string,
+): Promise<ApiResponse<{ status: string }>> {
+  return fetchApi('/api/referrals/accept', {
+    method: 'POST',
+    body: JSON.stringify({ walletAddress, referralCode }),
+  });
+}
+
+export async function fetchReferralStats(
+  wallet: string,
+): Promise<ApiResponse<ReferralStats>> {
+  return fetchApi<ReferralStats>(`/api/referrals/stats?wallet=${wallet}`);
+}
+
+export async function fetchReferralEarnings(
+  wallet: string,
+  params?: { page?: number; limit?: number },
+): Promise<ApiResponse<ReferralEarningEntry[]>> {
+  const searchParams = new URLSearchParams({ wallet });
+  if (params?.page) searchParams.set('page', params.page.toString());
+  if (params?.limit) searchParams.set('limit', params.limit.toString());
+  return fetchApi<ReferralEarningEntry[]>(`/api/referrals/earnings?${searchParams.toString()}`);
+}
+
+export async function fetchReferralPayouts(
+  wallet: string,
+): Promise<ApiResponse<ReferralPayoutEntry[]>> {
+  return fetchApi<ReferralPayoutEntry[]>(`/api/referrals/payouts?wallet=${wallet}`);
+}
+
+export async function claimReferralPayout(
+  walletAddress: string,
+): Promise<ApiResponse<{ payoutId: string; amount: string; status: string }>> {
+  return fetchApi('/api/referrals/claim', {
+    method: 'POST',
+    body: JSON.stringify({ walletAddress }),
+  });
 }

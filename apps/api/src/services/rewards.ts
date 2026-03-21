@@ -7,6 +7,7 @@ import {
   calculateLevelUpBonus,
 } from '../utils/coins';
 import { emitUserReward } from '../websocket';
+import { ensureReferralCode } from './referrals';
 
 /** Check if two dates are the same calendar day (UTC). */
 function isSameDay(a: Date, b: Date): boolean {
@@ -21,11 +22,18 @@ function isSameDay(a: Date, b: Date): boolean {
  * Get or create a User record (upsert on wallet connect).
  */
 export async function registerUser(walletAddress: string) {
-  return prisma.user.upsert({
+  const user = await prisma.user.upsert({
     where: { walletAddress },
     update: {},
     create: { walletAddress },
   });
+
+  // Generate referral code if missing (fire-and-forget)
+  ensureReferralCode(walletAddress).catch((err) =>
+    console.error('[Rewards] ensureReferralCode failed:', err),
+  );
+
+  return user;
 }
 
 /**

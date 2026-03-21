@@ -124,10 +124,16 @@ model User {
   dailyCoins     BigInt   @default(0) @map("daily_coins")
   dailyResetDate DateTime? @map("daily_reset_date")
 
+  // Referrals
+  referralCode   String?  @unique @map("referral_code")
+  referredBy     String?  @map("referred_by")
+
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   rewardLogs     RewardLog[]
+  referralsGiven Referral[] @relation("referrer")
+  referralsReceived Referral[] @relation("referred")
 
   @@index([level])
   @@index([coinsLifetime])
@@ -177,4 +183,49 @@ model EventLog {
   @@index([entityType, entityId])
   @@index([eventType])
   @@map("event_log")
+}
+
+// ─── Referral System ──────────────────────────────────────────────────────────
+
+model Referral {
+  id             String   @id @default(uuid())
+  referrerWallet String   @map("referrer_wallet")
+  referredWallet String   @unique @map("referred_wallet")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  referrer User @relation("referrer", fields: [referrerWallet], references: [walletAddress])
+  referred User @relation("referred", fields: [referredWallet], references: [walletAddress])
+
+  @@index([referrerWallet, createdAt])
+  @@map("referrals")
+}
+
+model ReferralEarning {
+  id               String   @id @default(uuid())
+  referrerWallet   String   @map("referrer_wallet")
+  referredWallet   String   @map("referred_wallet")
+  betId            String   @map("bet_id")
+  poolId           String   @map("pool_id")
+  feeAmount        BigInt   @map("fee_amount")
+  commissionBps    Int      @default(2000) @map("commission_bps")
+  commissionAmount BigInt   @map("commission_amount")
+  paid             Boolean  @default(false)
+  paidTx           String?  @map("paid_tx")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@index([referrerWallet, createdAt])
+  @@index([paid])
+  @@map("referral_earnings")
+}
+
+model ReferralPayout {
+  id            String   @id @default(uuid())
+  walletAddress String   @map("wallet_address")
+  amount        BigInt
+  txSignature   String?  @map("tx_signature")
+  status        String   @default("pending") // pending, completed, failed
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([walletAddress])
+  @@map("referral_payouts")
 }

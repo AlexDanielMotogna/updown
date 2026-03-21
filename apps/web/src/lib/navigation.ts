@@ -1,4 +1,4 @@
-import { ShowChart, WorkOutline, EmojiEvents, MenuBook, AccountBalanceWallet } from '@mui/icons-material';
+import { ShowChart, WorkOutline, EmojiEvents, MenuBook, AccountBalanceWallet, PeopleOutline } from '@mui/icons-material';
 import type { SvgIconComponent } from '@mui/icons-material';
 
 export interface NavItem {
@@ -10,6 +10,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Markets', href: '/', icon: ShowChart },
   { label: 'Profile', href: '/profile', icon: WorkOutline },
+  { label: 'Referrals', href: '/referrals', icon: PeopleOutline },
   { label: 'Leaderboard', href: '/leaderboard', icon: EmojiEvents },
   { label: 'Faucet', href: '/faucet', icon: AccountBalanceWallet },
   { label: 'Docs', href: '/docs', icon: MenuBook },

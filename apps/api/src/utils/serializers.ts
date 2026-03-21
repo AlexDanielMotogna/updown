@@ -131,10 +131,12 @@ export function serializeUserProfile(user: {
   totalWagered: bigint;
   currentStreak: number;
   bestStreak: number;
+  referralCode: string | null;
   createdAt: Date;
 }) {
   return {
     walletAddress: user.walletAddress,
+    referralCode: user.referralCode,
     level: user.level,
     title: getLevelTitle(user.level),
     totalXp: user.totalXp.toString(),

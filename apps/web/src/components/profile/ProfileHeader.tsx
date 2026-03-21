@@ -6,10 +6,13 @@ import {
   Typography,
   Avatar,
   Skeleton,
+  Tooltip,
 } from '@mui/material';
 import {
   ContentCopy,
   CheckCircle,
+  InfoOutlined,
+  Share,
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { ConnectWalletButton } from '@/components';
@@ -32,6 +35,7 @@ interface ProfileHeaderProps {
     xpForCurrentLevel: string;
     xpForNextLevel: string;
     coinsBalance: string;
+    referralCode?: string | null;
     stats: {
       totalBets: number;
       totalWins: number;
@@ -60,12 +64,21 @@ export function ProfileHeader({
   totalPayout,
 }: ProfileHeaderProps) {
   const [copied, setCopied] = useState(false);
+  const [refCopied, setRefCopied] = useState(false);
 
   const handleCopy = () => {
     if (!walletAddress) return;
     navigator.clipboard.writeText(walletAddress);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShareReferral = () => {
+    if (!userProfile?.referralCode) return;
+    const url = `${window.location.origin}/?ref=${userProfile.referralCode}`;
+    navigator.clipboard.writeText(url);
+    setRefCopied(true);
+    setTimeout(() => setRefCopied(false), 2000);
   };
 
   return (
@@ -84,11 +97,11 @@ export function ProfileHeader({
             }}
           >
             {[
-              { value: userProfile?.stats.totalBets ?? 0, label: 'PREDICTIONS', color: UP_COLOR },
-              { value: `${userProfile?.stats.totalWins ?? 0}`, label: 'WINS', color: GAIN_COLOR },
-              { value: `${userProfile?.stats.winRate ?? '0'}%`, label: 'WIN RATE', color: GAIN_COLOR },
-              { value: userProfile?.stats.currentStreak ?? 0, label: 'CURRENT STREAK', color: ACCENT_COLOR },
-              { value: userProfile?.stats.bestStreak ?? 0, label: 'BEST STREAK', color: ACCENT_COLOR },
+              { value: userProfile?.stats.totalBets ?? 0, label: 'PREDICTIONS', color: UP_COLOR, tip: 'Total predictions placed across all pools' },
+              { value: `${userProfile?.stats.totalWins ?? 0}`, label: 'WINS', color: GAIN_COLOR, tip: 'Predictions where your side won' },
+              { value: `${userProfile?.stats.winRate ?? '0'}%`, label: 'WIN RATE', color: GAIN_COLOR, tip: 'Percentage of predictions you won' },
+              { value: userProfile?.stats.currentStreak ?? 0, label: 'CURRENT STREAK', color: ACCENT_COLOR, tip: 'Consecutive wins right now. Resets on loss' },
+              { value: userProfile?.stats.bestStreak ?? 0, label: 'BEST STREAK', color: ACCENT_COLOR, tip: 'Longest win streak you have achieved' },
             ].map((stat, i) => (
               <Box
                 key={i}
@@ -105,6 +118,9 @@ export function ProfileHeader({
                 <Typography sx={{ fontSize: { xs: '0.55rem', md: '0.65rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
                   {stat.label}
                 </Typography>
+                <Tooltip title={stat.tip} arrow placement="bottom" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
+                  <InfoOutlined sx={{ fontSize: 10, color: 'rgba(255,255,255,0.15)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+                </Tooltip>
               </Box>
             ))}
           </Box>
@@ -178,6 +194,23 @@ export function ProfileHeader({
                     >
                       {copied ? <CheckCircle sx={{ fontSize: 13 }} /> : <ContentCopy sx={{ fontSize: 13 }} />}
                     </Box>
+                    {userProfile?.referralCode && (
+                      <Tooltip title={refCopied ? 'Copied!' : 'Copy referral link'} arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
+                        <Box
+                          component="button"
+                          onClick={handleShareReferral}
+                          sx={{
+                            background: 'none', border: 'none', cursor: 'pointer', p: 0,
+                            display: 'flex', alignItems: 'center', flexShrink: 0,
+                            color: refCopied ? GAIN_COLOR : 'rgba(255,255,255,0.3)',
+                            '&:hover': { color: ACCENT_COLOR },
+                            transition: 'color 0.15s',
+                          }}
+                        >
+                          {refCopied ? <CheckCircle sx={{ fontSize: 13 }} /> : <Share sx={{ fontSize: 13 }} />}
+                        </Box>
+                      </Tooltip>
+                    )}
                   </Box>
                   <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', mb: 0.5 }}>
                     {userProfile ? `LVL ${userProfile.level}: ${userProfile.title}` : ''}
@@ -203,9 +236,12 @@ export function ProfileHeader({
               {/* ── Card 2: Balance ── */}
               <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
                 <Box>
-                  <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)', mb: 0.25 }}>
-                    Your funds
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, mb: 0.25 }}>
+                    <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>Your funds</Typography>
+                    <Tooltip title="Your current USDC balance on Solana" arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
+                      <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.15)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+                    </Tooltip>
+                  </Box>
                   <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
                     $ {balance ? balance.uiAmount.toFixed(2) : '0.00'}
                   </Typography>
@@ -215,9 +251,12 @@ export function ProfileHeader({
               {/* ── Card 3: UP Coins ── */}
               <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
                 <Box>
-                  <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)', mb: 0.25 }}>
-                    UP Coins
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, mb: 0.25 }}>
+                    <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>UP Coins</Typography>
+                    <Tooltip title="Coins earned from winning bets. Will convert to $UP tokens at launch" arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
+                      <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.15)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+                    </Tooltip>
+                  </Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                     <Box component="img" src="/token/Token_16px_Gold.png" alt="UP" sx={{ width: { xs: 14, md: 18 }, height: { xs: 14, md: 18 } }} />
                     <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: ACCENT_COLOR, fontVariantNumeric: 'tabular-nums' }}>
@@ -230,9 +269,12 @@ export function ProfileHeader({
               {/* ── Card 4: Predictions ── */}
               <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
                 <Box>
-                  <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)', mb: 0.25 }}>
-                    Predictions
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, mb: 0.25 }}>
+                    <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>Predictions</Typography>
+                    <Tooltip title="Total number of bets you have placed" arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
+                      <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.15)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+                    </Tooltip>
+                  </Box>
                   <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
                     {userProfile?.stats.totalBets ?? totalBets}
                   </Typography>
@@ -242,9 +284,12 @@ export function ProfileHeader({
               {/* ── Card 5: Win / Loss ── */}
               <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
                 <Box>
-                  <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)', mb: 0.25 }}>
-                    Win / Loss
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, mb: 0.25 }}>
+                    <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>Win / Loss</Typography>
+                    <Tooltip title="Total wins vs losses. Refunded pools are not counted" arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
+                      <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.15)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+                    </Tooltip>
+                  </Box>
                   <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
                     <Box component="span" sx={{ color: GAIN_COLOR }}>{wonCount}</Box>
                     <Box component="span" sx={{ color: 'rgba(255,255,255,0.3)', mx: 0.5 }}>/</Box>
@@ -256,9 +301,12 @@ export function ProfileHeader({
               {/* ── Card 6: Total Staked ── */}
               <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
                 <Box>
-                  <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)', mb: 0.25 }}>
-                    Total Staked
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, mb: 0.25 }}>
+                    <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>Total Staked</Typography>
+                    <Tooltip title="Total USDC you have deposited across all pools" arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
+                      <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.15)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+                    </Tooltip>
+                  </Box>
                   <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
                     ${(totalStaked / USDC_DIVISOR).toFixed(0)}
                   </Typography>
@@ -268,9 +316,12 @@ export function ProfileHeader({
               {/* ── Card 7: Total Won ── */}
               <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
                 <Box>
-                  <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)', mb: 0.25 }}>
-                    Total Won
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, mb: 0.25 }}>
+                    <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>Total Won</Typography>
+                    <Tooltip title="Total USDC received from winning predictions after fees" arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
+                      <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.15)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+                    </Tooltip>
+                  </Box>
                   <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: GAIN_COLOR, fontVariantNumeric: 'tabular-nums' }}>
                     ${(totalPayout / USDC_DIVISOR).toFixed(0)}
                   </Typography>

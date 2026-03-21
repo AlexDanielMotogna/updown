@@ -5,6 +5,7 @@ import { PacificaProvider } from 'market-data';
 import { PROGRAM_ID, getPoolPDA, getVaultPDA, getUserBetPDA, buildResolveIx, buildRefundIx, buildClosePoolIx } from 'solana-client';
 import { emitPoolStatus, emitRefund } from '../websocket';
 import { resetStreak } from '../services/rewards';
+import { recordReferralCommissions } from '../services/referrals';
 import { derivePoolSeed, getUsdcMint, getConnection, rotateConnection } from '../utils/solana';
 
 export interface ResolverDeps {
@@ -231,6 +232,13 @@ export class PoolResolver {
         where: { id: pool.id },
         data: { finalPrice, winner },
       });
+
+      // Record referral commissions for ALL bets (win or lose) — fire-and-forget
+      const allBets = await this.deps.prisma.bet.findMany({
+        where: { poolId: pool.id },
+        select: { id: true, walletAddress: true, amount: true },
+      });
+      recordReferralCommissions(pool.id, allBets).catch(() => {});
 
       // Reset streak for losers
       const losingSide = winner === Side.UP ? Side.DOWN : Side.UP;
