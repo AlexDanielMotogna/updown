@@ -4,7 +4,7 @@ import { Box, Typography, Tooltip, Button } from '@mui/material';
 import { InfoOutlined, OpenInNew } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GAIN_COLOR } from '@/lib/constants';
-import { USDC_DIVISOR, getExplorerTxUrl } from '@/lib/format';
+import { USDC_DIVISOR, getExplorerTxUrl, formatDate } from '@/lib/format';
 
 const tooltipSlotProps = {
   tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } },
@@ -115,7 +115,7 @@ export function PayoutsTab({ payouts }: PayoutsTabProps) {
                 )}
               </Box>
               <Typography sx={{ fontSize: '0.85rem', fontWeight: 500, color: 'text.secondary', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', textAlign: 'right' }}>
-                {new Date(p.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+                {formatDate(p.createdAt)}
               </Typography>
             </Box>
 
@@ -126,7 +126,7 @@ export function PayoutsTab({ payouts }: PayoutsTabProps) {
                   ${(Number(p.amount) / USDC_DIVISOR).toFixed(2)}
                 </Typography>
                 <Typography sx={{ fontSize: '0.8rem', fontWeight: 500, color: 'text.secondary' }}>
-                  {new Date(p.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+                  {formatDate(p.createdAt)}
                 </Typography>
               </Box>
               {p.txSignature && (

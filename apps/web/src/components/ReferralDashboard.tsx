@@ -121,7 +121,7 @@ export function ReferralDashboard({ walletAddress }: ReferralDashboardProps) {
       />
 
       {/* ─── Tabs ─── */}
-      <Box sx={{ px: { xs: 1.5, md: 3 }, pt: { xs: 2, md: 3 } }}>
+      <Box sx={{ px: 0, pt: { xs: 2, md: 3 } }}>
         <Box sx={{ borderBottom: '1px solid rgba(255, 255, 255, 0.06)', mb: 3 }}>
           <Tabs
             value={tab}

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { NAV_ITEMS } from '@/lib/navigation';
 
 const SHORT_LABELS: Record<string, string> = {
+  Tournaments: 'Tourney',
   Leaderboard: 'Ranks',
 };
 

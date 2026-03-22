@@ -19,6 +19,7 @@ import {
 } from '@mui/icons-material';
 import { useInfinitePools, useBets, usePriceStream, useIntersectionObserver, type PoolFilters } from '@/hooks';
 import { PoolTable, AppShell } from '@/components';
+import { TournamentBanner } from '@/components/tournament/TournamentBanner';
 import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR } from '@/lib/constants';
 
 const ASSET_FILTERS = [
@@ -141,7 +142,9 @@ export default function MarketsPage() {
 
   return (
     <AppShell>
-      <Container maxWidth="xl">
+      <Container maxWidth={false} sx={{ px: { xs: 2, md: 3 } }}>
+            <TournamentBanner />
+
             {/* How to Play  3 cards */}
             <Box
               sx={{

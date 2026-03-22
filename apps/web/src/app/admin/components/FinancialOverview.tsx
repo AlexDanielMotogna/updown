@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { formatDate } from '@/lib/format';
 import {
   Box, Card, Typography, CircularProgress, Button,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip,
@@ -165,7 +166,7 @@ export function FinancialOverview() {
                   <TableBody>
                     {(closuresData?.data ?? []).map(c => (
                       <TableRow key={c.id}>
-                        <TableCell sx={{ fontSize: 11, whiteSpace: 'nowrap' }}>{new Date(c.closedAt).toLocaleString()}</TableCell>
+                        <TableCell sx={{ fontSize: 11, whiteSpace: 'nowrap' }}>{formatDate(c.closedAt)}</TableCell>
                         <TableCell
                           sx={{ fontSize: 11, cursor: 'pointer', '&:hover': { color: '#F59E0B' } }}
                           onClick={() => navigator.clipboard.writeText(c.poolId)}

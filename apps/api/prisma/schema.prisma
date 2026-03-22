@@ -47,10 +47,9 @@ model Pool {
   squadId         String?    @map("squad_id")
   maxBettors      Int?       @map("max_bettors")
 
-  squad          Squad?     @relation("SquadPools", fields: [squadId], references: [id])
-  bets           Bet[]
-  priceSnapshots PriceSnapshot[]
-
+  squad              Squad?           @relation("SquadPools", fields: [squadId], references: [id])
+  bets               Bet[]
+  priceSnapshots     PriceSnapshot[]
   @@index([asset, interval, status])
   @@index([squadId, status])
   @@map("pools")
@@ -295,4 +294,75 @@ model SquadMessage {
 
   @@index([squadId, createdAt])
   @@map("squad_messages")
+}
+
+// ─── Tournaments ─────────────────────────────────────────────────────────────
+
+model Tournament {
+  id            String    @id @default(uuid())
+  name          String
+  asset         String
+  entryFee      BigInt    @map("entry_fee")
+  size          Int                                // 8, 16, 32
+  matchDuration     Int       @map("match_duration")       // seconds — wait time after predictions
+  predictionWindow  Int       @default(300) @map("prediction_window") // seconds — time to predict
+  status        String    @default("REGISTERING")  // REGISTERING, ACTIVE, COMPLETED, CANCELLED
+  currentRound  Int       @default(0) @map("current_round")
+  totalRounds   Int       @map("total_rounds")     // log2(size)
+  prizePool     BigInt    @default(0) @map("prize_pool")
+  winnerWallet  String?   @map("winner_wallet")
+  prizeClaimedTx String?  @map("prize_claimed_tx")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  startedAt     DateTime? @map("started_at")
+  completedAt   DateTime? @map("completed_at")
+
+  participants TournamentParticipant[]
+  matches      TournamentMatch[]
+
+  @@index([status])
+  @@map("tournaments")
+}
+
+model TournamentParticipant {
+  id              String   @id @default(uuid())
+  tournamentId    String   @map("tournament_id")
+  walletAddress   String   @map("wallet_address")
+  seed            Int
+  eliminatedRound Int?     @map("eliminated_round")
+  depositTx       String?  @map("deposit_tx")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id])
+
+  @@unique([tournamentId, walletAddress])
+  @@index([tournamentId])
+  @@map("tournament_participants")
+}
+
+model TournamentMatch {
+  id                  String    @id @default(uuid())
+  tournamentId        String    @map("tournament_id")
+  round               Int
+  matchIndex          Int       @map("match_index")
+  player1Wallet       String?   @map("player1_wallet")
+  player2Wallet       String?   @map("player2_wallet")
+  player1Prediction   BigInt?   @map("player1_prediction")
+  player2Prediction   BigInt?   @map("player2_prediction")
+  player1PredictedAt  DateTime? @map("player1_predicted_at")
+  player2PredictedAt  DateTime? @map("player2_predicted_at")
+  predictionDeadline  DateTime? @map("prediction_deadline")
+  startTime           DateTime? @map("start_time")
+  endTime             DateTime? @map("end_time")
+  strikePrice         BigInt?   @map("strike_price")
+  finalPrice          BigInt?   @map("final_price")
+  winnerWallet        String?   @map("winner_wallet")
+  status              String    @default("PENDING") // PENDING, ACTIVE, RESOLVED, BYE
+  createdAt           DateTime  @default(now()) @map("created_at")
+  resolvedAt          DateTime? @map("resolved_at")
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id])
+
+  @@unique([tournamentId, round, matchIndex])
+  @@index([tournamentId, round])
+  @@map("tournament_matches")
 }

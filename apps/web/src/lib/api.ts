@@ -592,3 +592,127 @@ export interface UptimeHistory {
 export async function fetchUptimeHistory(): Promise<ApiResponse<UptimeHistory>> {
   return fetchApi<UptimeHistory>('/api/health/history');
 }
+
+// ─── Tournaments ─────────────────────────────────────────────────────────────
+
+export interface TournamentPrize {
+  id: string;
+  name: string;
+  asset: string;
+  prizePool: string;
+  prizeClaimedTx: string | null;
+  completedAt: string | null;
+}
+
+export interface TournamentClaimResult {
+  prizeAmount: string;
+  feeAmount: string;
+  txSignature: string;
+}
+
+export interface TournamentSummary {
+  id: string;
+  name: string;
+  asset: string;
+  entryFee: string;
+  size: number;
+  matchDuration: number;
+  predictionWindow: number;
+  status: string;
+  currentRound: number;
+  totalRounds: number;
+  prizePool: string;
+  winnerWallet: string | null;
+  prizeClaimedTx: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  participantCount: number;
+  participantWallets?: string[];
+  _count?: { participants: number };
+}
+
+export interface TournamentMatchData {
+  id: string;
+  round: number;
+  matchIndex: number;
+  player1Wallet: string | null;
+  player2Wallet: string | null;
+  player1Prediction: string | null;
+  player2Prediction: string | null;
+  player1PredictedAt: string | null;
+  player2PredictedAt: string | null;
+  predictionDeadline: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  strikePrice: string | null;
+  finalPrice: string | null;
+  winnerWallet: string | null;
+  status: string;
+}
+
+export interface TournamentBracket {
+  tournament: TournamentSummary;
+  participants: Array<{ walletAddress: string; seed: number; eliminatedRound: number | null }>;
+  rounds: Record<number, TournamentMatchData[]>;
+}
+
+export async function fetchTournaments(status?: string): Promise<ApiResponse<TournamentSummary[]>> {
+  const query = status ? `?status=${status}` : '';
+  return fetchApi<TournamentSummary[]>(`/api/tournaments${query}`);
+}
+
+export async function fetchTournamentBracket(id: string, wallet?: string): Promise<ApiResponse<TournamentBracket>> {
+  const query = wallet ? `?wallet=${wallet}` : '';
+  return fetchApi<TournamentBracket>(`/api/tournaments/${id}/bracket${query}`);
+}
+
+export async function submitTournamentPrediction(
+  tournamentId: string,
+  matchId: string,
+  walletAddress: string,
+  prediction: number,
+): Promise<ApiResponse<{ started: boolean }>> {
+  return fetchApi<{ started: boolean }>(`/api/tournaments/${tournamentId}/matches/${matchId}/predict`, {
+    method: 'POST',
+    body: JSON.stringify({ walletAddress, prediction }),
+  });
+}
+
+export async function fetchActiveTournamentBanner(): Promise<ApiResponse<TournamentSummary | null>> {
+  return fetchApi<TournamentSummary | null>('/api/tournaments/active-banner');
+}
+
+export interface TournamentRegisterAccounts {
+  entryFee: string;
+  accounts: {
+    authorityTokenAccount: string;
+    userTokenAccount: string;
+    usdcMint: string;
+  };
+}
+
+export async function prepareTournamentRegister(tournamentId: string, walletAddress: string): Promise<ApiResponse<TournamentRegisterAccounts>> {
+  return fetchApi<TournamentRegisterAccounts>(`/api/tournaments/${tournamentId}/prepare-register`, {
+    method: 'POST',
+    body: JSON.stringify({ walletAddress }),
+  });
+}
+
+export async function registerForTournament(tournamentId: string, walletAddress: string, depositTx: string): Promise<ApiResponse<unknown>> {
+  return fetchApi(`/api/tournaments/${tournamentId}/register`, {
+    method: 'POST',
+    body: JSON.stringify({ walletAddress, depositTx }),
+  });
+}
+
+export async function fetchMyTournamentPrizes(wallet: string): Promise<ApiResponse<TournamentPrize[]>> {
+  return fetchApi<TournamentPrize[]>(`/api/tournaments/my-prizes?wallet=${wallet}`);
+}
+
+export async function claimTournamentPrize(tournamentId: string, walletAddress: string): Promise<ApiResponse<TournamentClaimResult>> {
+  return fetchApi<TournamentClaimResult>(`/api/tournaments/${tournamentId}/claim-prize`, {
+    method: 'POST',
+    body: JSON.stringify({ walletAddress }),
+  });
+}

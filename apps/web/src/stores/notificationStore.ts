@@ -17,7 +17,10 @@ export type NotificationType =
   | 'COINS_EARNED'
   | 'LEVEL_UP'
   | 'REFERRAL_CLAIM_SUCCESS'
-  | 'REFERRAL_CLAIM_FAILED';
+  | 'REFERRAL_CLAIM_FAILED'
+  | 'TOURNAMENT_MATCH_WON'
+  | 'TOURNAMENT_MATCH_LOST'
+  | 'TOURNAMENT_WON';
 
 export interface Notification {
   id: string;

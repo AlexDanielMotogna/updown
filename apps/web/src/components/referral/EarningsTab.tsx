@@ -5,7 +5,7 @@ import { Box, Typography, Tooltip, Button } from '@mui/material';
 import { InfoOutlined, OpenInNew } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAvatarUrl, GAIN_COLOR, ACCENT_COLOR } from '@/lib/constants';
-import { USDC_DIVISOR, getExplorerTxUrl } from '@/lib/format';
+import { USDC_DIVISOR, getExplorerTxUrl, formatDate } from '@/lib/format';
 
 const tooltipSlotProps = {
   tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } },
@@ -119,7 +119,7 @@ export function EarningsTab({ earnings }: EarningsTabProps) {
 
               {/* Date */}
               <Typography sx={{ fontSize: '0.85rem', fontWeight: 500, color: 'text.secondary', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-                {new Date(e.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+                {formatDate(e.createdAt)}
               </Typography>
 
               {/* Commission */}
@@ -212,7 +212,7 @@ export function EarningsTab({ earnings }: EarningsTabProps) {
               <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5, pt: 1.5 }}>
                 <Box>
                   <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
-                    {new Date(e.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+                    {formatDate(e.createdAt)}
                   </Typography>
                   <Typography sx={{ fontSize: '0.6rem', color: 'text.secondary', textTransform: 'uppercase' }}>
                     Date
