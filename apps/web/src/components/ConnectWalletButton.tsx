@@ -46,7 +46,7 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
       <Button
         onClick={login}
         sx={{
-          height: isPage ? '48px' : { xs: '32px', sm: '36px' },
+          height: isPage ? '48px' : { xs: 34, sm: 38 },
           px: isPage ? 3 : { xs: 1.5, sm: 2.5 },
           fontSize: { xs: '0.75rem', sm: '0.875rem' },
           fontWeight: 500,
@@ -82,7 +82,7 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
             ) : undefined
           }
           sx={{
-            height: isPage ? '48px' : { xs: '32px', sm: '36px' },
+            height: isPage ? '48px' : { xs: 34, sm: 38 },
             px: isPage ? 3 : { xs: 1, sm: 2.5 },
             fontSize: { xs: '0.75rem', sm: '0.875rem' },
             fontWeight: 500,
