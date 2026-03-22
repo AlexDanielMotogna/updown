@@ -551,3 +551,44 @@ export async function fetchSquadLeaderboard(
 ): Promise<ApiResponse<SquadLeaderboardEntry[]>> {
   return fetchApi<SquadLeaderboardEntry[]>(`/api/squads/${squadId}/leaderboard?wallet=${wallet}`);
 }
+
+// ─── Status endpoint ────────────────────────────────────────────────────────
+
+export interface ServiceStatus {
+  name: string;
+  status: 'operational' | 'degraded' | 'down';
+  latency?: number;
+  details?: string;
+}
+
+export interface SystemStatus {
+  overall: 'operational' | 'degraded' | 'partial_outage';
+  services: ServiceStatus[];
+  uptime: number;
+  timestamp: string;
+  responseTime: number;
+}
+
+export async function fetchSystemStatus(): Promise<ApiResponse<SystemStatus>> {
+  return fetchApi<SystemStatus>('/api/health/status');
+}
+
+export interface DayStatus {
+  date: string;
+  status: 'operational' | 'degraded' | 'down' | 'no_data';
+  uptime: number;
+}
+
+export interface ServiceHistory {
+  name: string;
+  days: DayStatus[];
+  uptimePercent: number;
+}
+
+export interface UptimeHistory {
+  history: ServiceHistory[];
+}
+
+export async function fetchUptimeHistory(): Promise<ApiResponse<UptimeHistory>> {
+  return fetchApi<UptimeHistory>('/api/health/history');
+}
