@@ -9,8 +9,10 @@ import { useDraggablePosition } from '@/hooks/useDraggablePosition';
 import type { PacificaPriceData } from '@/hooks/usePacificaPrices';
 import { UP_COLOR } from '@/lib/constants';
 import { BotAvatar, type BotState } from './ai-bot/BotAvatar';
+import { ChatMessage } from './ai-bot/ChatMessage';
 import { SignalCard } from './ai-bot/SignalCard';
-import { speakRobotic, fetchAiReply, type PoolStatus, type ChatMessage } from './ai-bot/speech';
+import { TypingIndicator } from './ai-bot/TypingIndicator';
+import { speakRobotic, fetchAiReply, type PoolStatus, type ChatMessage as ChatMessageType } from './ai-bot/speech';
 
 const CYAN = UP_COLOR;
 
@@ -28,7 +30,7 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
   const bubbleSize = isMobile ? 48 : 56;
   const { motionProps } = useDraggablePosition('bot-drag-pos', bubbleSize);
   const [botState, setBotState] = useState<BotState>('MINIMIZED');
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [hasNewResult, setHasNewResult] = useState(false);
   const [userInput, setUserInput] = useState('');
@@ -357,100 +359,11 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
         }}
       >
         {messages.map((msg) => (
-          <Box
-            key={msg.id}
-            sx={{
-              display: 'flex',
-              justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start',
-              animation: 'fadeSlideIn 0.3s ease-out',
-              '@keyframes fadeSlideIn': {
-                from: { opacity: 0, transform: 'translateY(10px)' },
-                to: { opacity: 1, transform: 'translateY(0)' },
-              },
-            }}
-          >
-            {msg.sender === 'bot' ? (
-              <Box sx={{ display: 'flex', gap: 1, maxWidth: '90%' }}>
-                <Box
-                  sx={{
-                    width: 6,
-                    minHeight: 6,
-                    borderRadius: '50%',
-                    backgroundColor: CYAN,
-                    mt: 0.8,
-                    flexShrink: 0,
-                    opacity: 0.6,
-                  }}
-                />
-                <Typography
-                  sx={{
-                    fontSize: '0.78rem',
-                    color: 'rgba(255,255,255,0.75)',
-                    lineHeight: 1.5,
-                    fontWeight: 300,
-                  }}
-                >
-                  {msg.text}
-                </Typography>
-              </Box>
-            ) : (
-              <Box
-                sx={{
-                  maxWidth: '80%',
-                  px: 1.5,
-                  py: 0.75,
-                  borderRadius: '2px',
-                  backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                  border: 'none',
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontSize: '0.78rem',
-                    color: 'rgba(255,255,255,0.85)',
-                    lineHeight: 1.5,
-                    fontWeight: 400,
-                  }}
-                >
-                  {msg.text}
-                </Typography>
-              </Box>
-            )}
-          </Box>
+          <ChatMessage key={msg.id} msg={msg} />
         ))}
 
         {/* Typing indicator */}
-        {isTyping && (
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            <Box
-              sx={{
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                backgroundColor: CYAN,
-                opacity: 0.6,
-              }}
-            />
-            <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-              {[0, 1, 2].map((i) => (
-                <Box
-                  key={i}
-                  sx={{
-                    width: 5,
-                    height: 5,
-                    borderRadius: '50%',
-                    backgroundColor: 'rgba(255,255,255,0.3)',
-                    animation: `typingDot 1s ease-in-out ${i * 0.15}s infinite`,
-                    '@keyframes typingDot': {
-                      '0%, 100%': { opacity: 0.3 },
-                      '50%': { opacity: 1 },
-                    },
-                  }}
-                />
-              ))}
-            </Box>
-          </Box>
-        )}
+        {isTyping && <TypingIndicator />}
 
         <div ref={messagesEndRef} />
       </Box>

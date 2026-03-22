@@ -5,30 +5,27 @@ import {
   Box,
   Button,
   TextField,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
   InputAdornment,
   Alert,
   Tooltip,
 } from '@mui/material';
 import {
-  TrendingUp,
-  TrendingDown,
   HourglassEmpty,
   Lock,
   CheckCircle,
   AccountBalanceWallet,
   InfoOutlined,
 } from '@mui/icons-material';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import type { PoolDetail } from '@/lib/api';
 import { USDC_DIVISOR } from '@/lib/format';
-import { UP_COLOR, DOWN_COLOR, GAIN_COLOR, ACCENT_COLOR, UP_COINS_DIVISOR, FEE_BPS_DIVISOR, DEFAULT_FEE_PERCENT, UP_COINS_PER_DOLLAR } from '@/lib/constants';
-import { AnimatedValue } from './AnimatedValue';
+import { UP_COLOR, DOWN_COLOR, GAIN_COLOR, UP_COINS_DIVISOR, FEE_BPS_DIVISOR, DEFAULT_FEE_PERCENT, UP_COINS_PER_DOLLAR } from '@/lib/constants';
+import { SideSelector } from './bet/SideSelector';
+import { PayoutPreview } from './bet/PayoutPreview';
 
 interface BetFormProps {
   pool: PoolDetail;
@@ -114,180 +111,17 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
   return (
     <Box component="form" onSubmit={handleSubmit}>
       {/* Side Selection  Battle Style */}
-      {!hideToggle && (<>
-      <Typography
-        variant="caption"
-        sx={{ color: 'text.secondary', mb: 1.5, display: 'block', textAlign: 'center', letterSpacing: '0.15em' }}
-      >
-        CHOOSE YOUR SIDE
-      </Typography>
-      <ToggleButtonGroup
-        value={side}
-        exclusive
-        onChange={handleSideChange}
-        fullWidth
-        sx={{
-          mb: 1.5,
-          gap: 0,
-          display: 'grid',
-          gridTemplateColumns: '1fr auto 1fr',
-          '& .MuiToggleButtonGroup-grouped': {
-            border: 'none !important',
-            borderRadius: '4px !important',
-          },
-        }}
-      >
-        {/* UP Panel */}
-        <ToggleButton
-          value="UP"
-          component={motion.button}
-          {...({ whileTap: { scale: 0.97 } } as Record<string, unknown>)}
-          sx={{
-            py: { xs: 2.5, sm: 3.5 },
-            px: { xs: 1.5, sm: 2 },
-            flexDirection: 'column',
-            gap: 0.5,
-            transition: 'background 0.2s ease, opacity 0.2s ease',
-            position: 'relative',
-            overflow: 'hidden',
-            ...(side === 'UP'
-              ? {
-                  background: `${UP_COLOR}12`,
-                  boxShadow: `0 0 30px ${UP_COLOR}20, inset 0 0 30px ${UP_COLOR}08`,
-                  '&:hover': { background: `${UP_COLOR}1A` },
-                }
-              : {
-                  opacity: 0.45,
-                  background: 'rgba(255,255,255,0.02)',
-                  '&:hover': { opacity: 0.7, background: 'rgba(255,255,255,0.04)' },
-                }),
-            '&.Mui-selected': {
-              background: `${UP_COLOR}12`,
-              '&:hover': { background: `${UP_COLOR}1A` },
-            },
-          }}
-        >
-          <TrendingUp sx={{ fontSize: 40, color: side === 'UP' ? UP_COLOR : 'text.secondary' }} />
-          <Typography
-            variant="h5"
-            sx={{ color: side === 'UP' ? UP_COLOR : 'text.primary', fontWeight: 700, letterSpacing: '0.05em' }}
-          >
-            UP
-          </Typography>
-          <Box
-            sx={{
-              px: 1.5,
-              py: 0.25,
-              borderRadius: '2px',
-              bgcolor: side === 'UP' ? `${UP_COLOR}18` : 'rgba(255,255,255,0.06)',
-            }}
-          >
-            <Typography variant="body2" sx={{ color: side === 'UP' ? UP_COLOR : 'text.secondary', fontWeight: 600 }}>
-              {currentOddsUp.toFixed(2)}x
-            </Typography>
-          </Box>
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-            {tugTotal > 0 ? `$${totalUp.toFixed(0)} pooled` : 'No predictions yet'}
-          </Typography>
-        </ToggleButton>
-
-        {/* VS Divider */}
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            position: 'relative',
-            width: { xs: 40, sm: 48 },
-            pointerEvents: 'none',
-          }}
-        >
-          {/* Vertical glowing line */}
-          <Box
-            sx={{
-              position: 'absolute',
-              top: 8,
-              bottom: 8,
-              width: '2px',
-              background: `linear-gradient(to bottom, transparent, ${UP_COLOR}40, rgba(255,255,255,0.25), ${DOWN_COLOR}40, transparent)`,
-              filter: 'blur(0.5px)',
-            }}
-          />
-          {/* Lightning VS badge */}
-          <Box
-            sx={{
-              position: 'relative',
-              zIndex: 1,
-              width: 36,
-              height: 36,
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'rgba(255,255,255,0.06)',
-              boxShadow: '0 0 16px rgba(255,255,255,0.06)',
-            }}
-          >
-            <Typography sx={{ fontSize: '1rem', lineHeight: 1 }}>⚡</Typography>
-          </Box>
-        </Box>
-
-        {/* DOWN Panel */}
-        <ToggleButton
-          value="DOWN"
-          component={motion.button}
-          {...({ whileTap: { scale: 0.97 } } as Record<string, unknown>)}
-          sx={{
-            py: { xs: 2.5, sm: 3.5 },
-            px: { xs: 1.5, sm: 2 },
-            flexDirection: 'column',
-            gap: 0.5,
-            transition: 'background 0.2s ease, opacity 0.2s ease',
-            position: 'relative',
-            overflow: 'hidden',
-            ...(side === 'DOWN'
-              ? {
-                  background: `${DOWN_COLOR}12`,
-                  boxShadow: `0 0 30px ${DOWN_COLOR}20, inset 0 0 30px ${DOWN_COLOR}08`,
-                  '&:hover': { background: `${DOWN_COLOR}1A` },
-                }
-              : {
-                  opacity: 0.45,
-                  background: 'rgba(255,255,255,0.02)',
-                  '&:hover': { opacity: 0.7, background: 'rgba(255,255,255,0.04)' },
-                }),
-            '&.Mui-selected': {
-              background: `${DOWN_COLOR}12`,
-              '&:hover': { background: `${DOWN_COLOR}1A` },
-            },
-          }}
-        >
-          <TrendingDown sx={{ fontSize: 40, color: side === 'DOWN' ? DOWN_COLOR : 'text.secondary' }} />
-          <Typography
-            variant="h5"
-            sx={{ color: side === 'DOWN' ? DOWN_COLOR : 'text.primary', fontWeight: 700, letterSpacing: '0.05em' }}
-          >
-            DOWN
-          </Typography>
-          <Box
-            sx={{
-              px: 1.5,
-              py: 0.25,
-              borderRadius: '2px',
-              bgcolor: side === 'DOWN' ? `${DOWN_COLOR}18` : 'rgba(255,255,255,0.06)',
-            }}
-          >
-            <Typography variant="body2" sx={{ color: side === 'DOWN' ? DOWN_COLOR : 'text.secondary', fontWeight: 600 }}>
-              {currentOddsDown.toFixed(2)}x
-            </Typography>
-          </Box>
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-            {tugTotal > 0 ? `$${totalDown.toFixed(0)} pooled` : 'No predictions yet'}
-          </Typography>
-        </ToggleButton>
-      </ToggleButtonGroup>
-      </>)}
+      {!hideToggle && (
+        <SideSelector
+          side={side}
+          onSideChange={handleSideChange}
+          currentOddsUp={currentOddsUp}
+          currentOddsDown={currentOddsDown}
+          totalUp={totalUp}
+          totalDown={totalDown}
+          tugTotal={tugTotal}
+        />
+      )}
 
       {/* Preset Amounts  image buttons */}
       <Box sx={{ display: 'flex', gap: 0.75, mb: 1.5 }}>
@@ -371,72 +205,13 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
       />
 
       {/* Potential Payout */}
-      <AnimatePresence>
-        {amountNum > 0 && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            style={{ overflow: 'hidden' }}
-          >
-            <Box
-              sx={{
-                px: 1.5,
-                py: 1,
-                mb: 1.5,
-                borderRadius: 0,
-                background: '#0D1219',
-                borderTop: `1px solid ${GAIN_COLOR}30`,
-              }}
-            >
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
-                  <Typography sx={{ color: 'text.secondary', fontWeight: 300, fontSize: '0.75rem' }}>Stake</Typography>
-                  <Tooltip title="USDC amount you are placing on this prediction" arrow placement="left" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
-                    <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.15)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
-                  </Tooltip>
-                </Box>
-                <Typography sx={{ fontWeight: 400, fontSize: '0.75rem' }}>
-                  ${amountNum.toFixed(2)}
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
-                  <Typography sx={{ color: 'text.secondary', fontWeight: 300, fontSize: '0.75rem' }}>Odds</Typography>
-                  <Tooltip title="Current payout multiplier. Changes in real-time as other players bet" arrow placement="left" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
-                    <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.15)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
-                  </Tooltip>
-                </Box>
-                <Typography sx={{ color: sideColor, fontWeight: 500, fontSize: '0.75rem' }}>
-                  <AnimatedValue value={potentialOdds} suffix="x" duration={0.4} />
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
-                  <Typography sx={{ color: 'text.secondary', fontWeight: 300, fontSize: '0.75rem' }}>Payout</Typography>
-                  <Tooltip title="Estimated USDC you receive if your side wins (before fees)" arrow placement="left" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
-                    <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.15)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
-                  </Tooltip>
-                </Box>
-                <Typography sx={{ fontWeight: 600, color: GAIN_COLOR, fontSize: '0.75rem' }}>
-                  <AnimatedValue value={potentialPayout} prefix="$" suffix=" USDC" duration={0.4} />
-                </Typography>
-              </Box>
-              {estimatedCoins > 0 && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, mt: 0.5 }}>
-                  <Typography sx={{ color: ACCENT_COLOR, fontWeight: 500, fontSize: '0.65rem' }}>
-                    +~{estimatedCoins.toFixed(2)} UP
-                  </Typography>
-                  <Tooltip title="Estimated UP Coins earned when you claim a winning bet. Multiplied by your level" arrow placement="right" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
-                    <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.15)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
-                  </Tooltip>
-                </Box>
-              )}
-            </Box>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <PayoutPreview
+        amountNum={amountNum}
+        potentialOdds={potentialOdds}
+        potentialPayout={potentialPayout}
+        estimatedCoins={estimatedCoins}
+        sideColor={sideColor}
+      />
 
       {/* Error */}
       {error && (

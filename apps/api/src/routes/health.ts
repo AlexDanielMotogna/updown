@@ -1,4 +1,5 @@
 import { Router, type Router as RouterType } from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import { getConnection } from '../utils/solana';
 import { getScheduler } from '../scheduler';
@@ -237,7 +238,7 @@ async function recordUptimeCheck(): Promise<void> {
     await prisma.uptimeCheck.create({
       data: {
         status: overall,
-        services: services as any,
+        services: services as unknown as Prisma.InputJsonValue,
       },
     });
   } catch (error) {
