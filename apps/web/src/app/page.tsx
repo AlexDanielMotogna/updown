@@ -38,19 +38,19 @@ const INTERVAL_FILTERS = [
 
 const HOW_TO_PLAY = [
   {
-    image: '/info-cards/info-1.webp',
+    image: '/assets/asset-card-1.png',
     title: 'Pick a Pool',
     desc: 'Choose your asset & timeframe. BTC, ETH, SOL from 3min turbo to 1hr rounds.',
     gradient: `linear-gradient(135deg, ${ACCENT_COLOR}15, ${ACCENT_COLOR}05)`,
   },
   {
-    image: '/info-cards/info-2.webp',
+    image: '/assets/asset-card-2.png',
     title: 'Go UP or DOWN',
     desc: 'Stake USDC on your prediction. All bets go into the pool  winner takes all.',
     gradient: `linear-gradient(135deg, ${UP_COLOR}15, ${UP_COLOR}05)`,
   },
   {
-    image: '/info-cards/info-3.png',
+    image: '/assets/asset-card-3.png',
     title: 'Collect Winnings',
     desc: 'Price moves your way? Claim your share of the entire pool. Instant payout.',
     gradient: `linear-gradient(135deg, ${GAIN_COLOR}15, ${GAIN_COLOR}05)`,
@@ -182,10 +182,10 @@ export default function MarketsPage() {
                     alt={card.title}
                     sx={{
                       position: 'absolute',
-                      right: -10,
+                      right: 10,
                       top: '50%',
                       transform: 'translateY(-50%)',
-                      height: { xs: '100%', md: '120%' },
+                      height: { xs: '85%', md: '100%' },
                       width: 'auto',
                       objectFit: 'contain',
                       opacity: { xs: 0.6, md: 0.9 },
