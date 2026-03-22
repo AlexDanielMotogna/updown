@@ -34,6 +34,13 @@ function Footer() {
           >
             Privacy & Disclaimer
           </Typography>
+          <Typography
+            component="a"
+            href="/status"
+            sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', textDecoration: 'none', '&:hover': { color: 'rgba(255,255,255,0.7)' }, transition: 'color 0.15s' }}
+          >
+            Status
+          </Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
           <Box
