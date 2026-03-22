@@ -28,8 +28,9 @@ export async function createTournament(data: {
   size: number;
   matchDuration: number;
   predictionWindow?: number;
+  scheduledAt?: string;
 }) {
-  const { name, asset, entryFee, size, matchDuration, predictionWindow } = data;
+  const { name, asset, entryFee, size, matchDuration, predictionWindow, scheduledAt } = data;
 
   if (!VALID_SIZES.includes(size)) {
     throw new Error(`Invalid tournament size: ${size}. Must be one of ${VALID_SIZES.join(', ')}`);
@@ -49,6 +50,7 @@ export async function createTournament(data: {
       status: 'REGISTERING',
       currentRound: 0,
       prizePool: BigInt(0),
+      scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
     },
   });
 }
@@ -456,8 +458,11 @@ export async function getTournamentBracket(tournamentId: string) {
 // ─── 9. Get Active Banner ────────────────────────────────────────────────────
 
 export async function getActiveBanner() {
-  return prisma.tournament.findFirst({
-    where: { status: 'REGISTERING' },
+  const t = await prisma.tournament.findFirst({
+    where: { status: { in: ['REGISTERING', 'ACTIVE'] } },
     orderBy: { createdAt: 'asc' },
+    include: { _count: { select: { participants: true } } },
   });
+  if (!t) return null;
+  return { ...t, participantCount: t._count.participants, _count: undefined };
 }

@@ -312,6 +312,7 @@ model Tournament {
   prizePool     BigInt    @default(0) @map("prize_pool")
   winnerWallet  String?   @map("winner_wallet")
   prizeClaimedTx String?  @map("prize_claimed_tx")
+  scheduledAt   DateTime? @map("scheduled_at")       // informational — estimated start time
   createdAt     DateTime  @default(now()) @map("created_at")
   startedAt     DateTime? @map("started_at")
   completedAt   DateTime? @map("completed_at")

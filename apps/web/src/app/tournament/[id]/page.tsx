@@ -17,6 +17,8 @@ import { usePriceStream } from '@/hooks/usePriceStream';
 import { useTournamentRegister } from '@/hooks/useTournamentRegister';
 import { AssetIcon } from '@/components/AssetIcon';
 import { InlineChart } from '@/components/pool/InlineChart';
+import { AppShell } from '@/components';
+import { formatDate } from '@/lib/format';
 
 // ─── Design tokens ───────────────────────────────────────────────────────────
 
@@ -707,20 +709,24 @@ export default function TournamentBracketPage() {
 
   if (loading) {
     return (
-      <Box sx={{ minHeight: '100vh', bgcolor: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <CircularProgress size={32} sx={{ color: UP_COLOR }} />
-      </Box>
+      <AppShell>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 12 }}>
+          <CircularProgress size={32} sx={{ color: UP_COLOR }} />
+        </Box>
+      </AppShell>
     );
   }
 
   if (error || !bracket) {
     return (
-      <Box sx={{ minHeight: '100vh', bgcolor: BG, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-        <Typography sx={{ color: 'rgba(255,255,255,0.5)' }}>{error || 'Tournament not found'}</Typography>
-        <Link href="/tournaments" style={{ textDecoration: 'none' }}>
-          <Typography sx={{ color: UP_COLOR, fontSize: '0.85rem', '&:hover': { textDecoration: 'underline' } }}>Back to Tournaments</Typography>
-        </Link>
-      </Box>
+      <AppShell>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, py: 12 }}>
+          <Typography sx={{ color: 'rgba(255,255,255,0.5)' }}>{error || 'Tournament not found'}</Typography>
+          <Link href="/tournaments" style={{ textDecoration: 'none' }}>
+            <Typography sx={{ color: UP_COLOR, fontSize: '0.85rem', '&:hover': { textDecoration: 'underline' } }}>Back to Tournaments</Typography>
+          </Link>
+        </Box>
+      </AppShell>
     );
   }
 
@@ -740,9 +746,8 @@ export default function TournamentBracketPage() {
   const livePrice = getPrice(t.asset);
 
   return (
+    <AppShell>
     <Box sx={{
-      minHeight: '100vh',
-      bgcolor: BG,
       '&::-webkit-scrollbar': { width: 3 },
       '&::-webkit-scrollbar-track': { bgcolor: 'transparent' },
       '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 0 },
@@ -778,7 +783,7 @@ export default function TournamentBracketPage() {
                 </IconButton>
               </Box>
               <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>
-                {t.asset}/USD · {Number(t.matchDuration) / 60}min matches · {t.size}-player bracket
+                {t.asset}/USD · {Number(t.matchDuration) / 60}min matches · {t.size}-player bracket{t.scheduledAt ? ` · Starts ${formatDate(t.scheduledAt)}` : ''}
               </Typography>
             </Box>
           </Box>
@@ -1052,5 +1057,6 @@ export default function TournamentBracketPage() {
         </Box>
       )}
     </Box>
+    </AppShell>
   );
 }

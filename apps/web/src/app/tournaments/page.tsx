@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import { EmojiEvents } from '@mui/icons-material';
 import Link from 'next/link';
-import { AppShell } from '@/components';
+import { AppShell, AssetIcon } from '@/components';
 import { fetchTournaments, type TournamentSummary } from '@/lib/api';
 import { UP_COLOR, ACCENT_COLOR, GAIN_COLOR } from '@/lib/constants';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
@@ -69,7 +69,12 @@ function TournamentCard({ t, onRegistered }: { t: TournamentSummary; onRegistere
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <EmojiEvents sx={{ fontSize: 20, color: ACCENT_COLOR }} />
+          <Box
+            component="img"
+            src={`/tournaments/tournament-${t.asset.toLowerCase()}.png`}
+            alt={t.asset}
+            sx={{ width: 36, height: 36, objectFit: 'contain' }}
+          />
           <Typography sx={{ fontWeight: 700, fontSize: '0.95rem' }}>{t.name}</Typography>
         </Box>
         <Chip
@@ -81,7 +86,13 @@ function TournamentCard({ t, onRegistered }: { t: TournamentSummary; onRegistere
 
       {/* Info grid */}
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1 }}>
-        <InfoItem label="Asset" value={t.asset} />
+        <Box>
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>Asset</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <AssetIcon asset={t.asset} size={20} />
+            <Typography sx={{ fontSize: '0.85rem', fontWeight: 700 }}>{t.asset}</Typography>
+          </Box>
+        </Box>
         <InfoItem label="Entry Fee" value={`$${entryFeeUsdc}`} />
         <InfoItem label="Players" value={`${filled} / ${t.size}`} />
         <InfoItem label="Prize Pool" value={`$${prizePoolUsdc}`} color={GAIN_COLOR} />

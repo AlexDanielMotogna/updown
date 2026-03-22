@@ -34,7 +34,7 @@ adminTournamentsRouter.get('/', async (_req, res) => {
 // POST /api/admin/tournaments/create — create tournament
 adminTournamentsRouter.post('/create', async (req, res) => {
   try {
-    const { name, asset, entryFee, size, matchDuration, predictionWindow } = req.body;
+    const { name, asset, entryFee, size, matchDuration, predictionWindow, scheduledAt } = req.body;
     if (!name || !asset || !entryFee || !size || !matchDuration) {
       return res.status(400).json({ success: false, error: { code: 'MISSING_FIELDS', message: 'name, asset, entryFee, size, matchDuration required' } });
     }
@@ -46,6 +46,7 @@ adminTournamentsRouter.post('/create', async (req, res) => {
       size,
       matchDuration,
       predictionWindow,
+      scheduledAt,
     });
 
     res.status(201).json({
@@ -145,5 +146,24 @@ adminTournamentsRouter.post('/:id/reset-round', async (req, res) => {
     console.error('[Admin] Reset round error:', error);
     const message = error instanceof Error ? error.message : 'Failed to reset round';
     res.status(500).json({ success: false, error: { code: 'RESET_ERROR', message } });
+  }
+});
+
+// POST /api/admin/tournaments/:id/update-schedule — update scheduled start time
+adminTournamentsRouter.post('/:id/update-schedule', async (req, res) => {
+  try {
+    const { scheduledAt } = req.body;
+    const tournament = await prisma.tournament.update({
+      where: { id: req.params.id },
+      data: { scheduledAt: scheduledAt ? new Date(scheduledAt) : null },
+    });
+    res.json({
+      success: true,
+      data: { ...tournament, entryFee: tournament.entryFee.toString(), prizePool: tournament.prizePool.toString() },
+    });
+  } catch (error) {
+    console.error('[Admin] Update schedule error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to update schedule';
+    res.status(400).json({ success: false, error: { code: 'UPDATE_ERROR', message } });
   }
 });

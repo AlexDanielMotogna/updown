@@ -618,6 +618,7 @@ export interface TournamentSummary {
   size: number;
   matchDuration: number;
   predictionWindow: number;
+  scheduledAt: string | null;
   status: string;
   currentRound: number;
   totalRounds: number;

@@ -21,6 +21,7 @@ interface Tournament {
   totalRounds: number;
   prizePool: string;
   winnerWallet: string | null;
+  scheduledAt: string | null;
   createdAt: string;
   startedAt: string | null;
   completedAt: string | null;
@@ -48,6 +49,11 @@ export function TournamentManagement() {
   const [size, setSize] = useState(8);
   const [matchDuration, setMatchDuration] = useState(300);
   const [predictionWindow, setPredictionWindow] = useState(300);
+  const [scheduledAt, setScheduledAt] = useState('');
+
+  // Edit schedule
+  const [editScheduleId, setEditScheduleId] = useState<string | null>(null);
+  const [editScheduleValue, setEditScheduleValue] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-tournaments'],
@@ -65,11 +71,26 @@ export function TournamentManagement() {
       size,
       matchDuration,
       predictionWindow,
+      scheduledAt: scheduledAt || undefined,
     }),
     onSuccess: () => {
       setResult({ type: 'success', message: 'Tournament created' });
       setName('');
       setEntryFee('');
+      setScheduledAt('');
+      qc.invalidateQueries({ queryKey: ['admin-tournaments'] });
+    },
+    onError: (err) => {
+      setResult({ type: 'error', message: err instanceof Error ? err.message : 'Failed' });
+    },
+  });
+
+  const scheduleMutation = useMutation({
+    mutationFn: ({ id, scheduledAt: val }: { id: string; scheduledAt: string | null }) =>
+      adminPost(`/tournaments/${id}/update-schedule`, { scheduledAt: val }),
+    onSuccess: () => {
+      setResult({ type: 'success', message: 'Schedule updated' });
+      setEditScheduleId(null);
       qc.invalidateQueries({ queryKey: ['admin-tournaments'] });
     },
     onError: (err) => {
@@ -127,7 +148,7 @@ export function TournamentManagement() {
             placeholder="10"
           />
         </Box>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr 1fr' }, gap: 2, mb: 2 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr 1fr 1fr' }, gap: 2, mb: 2 }}>
           <FormControl size="small">
             <InputLabel>Size</InputLabel>
             <Select value={size} onChange={(e) => setSize(Number(e.target.value))} label="Size">
@@ -155,6 +176,14 @@ export function TournamentManagement() {
               <MenuItem value={3600}>1 hour</MenuItem>
             </Select>
           </FormControl>
+          <TextField
+            label="Estimated Start"
+            size="small"
+            type="datetime-local"
+            value={scheduledAt}
+            onChange={(e) => setScheduledAt(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+          />
           <Button
             variant="contained"
             onClick={() => createMutation.mutate()}
@@ -215,6 +244,32 @@ export function TournamentManagement() {
                 <Typography variant="caption" color="text.secondary">
                   {t.asset} · ${(Number(t.entryFee) / USDC_DIVISOR).toFixed(2)} entry · {t._count.participants}/{t.size} players · Round {t.currentRound}/{t.totalRounds}
                 </Typography>
+                {editScheduleId === t.id ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                    <TextField
+                      size="small"
+                      type="datetime-local"
+                      value={editScheduleValue}
+                      onChange={(e) => setEditScheduleValue(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      sx={{ '& .MuiInputBase-root': { height: 28, fontSize: '0.7rem' } }}
+                    />
+                    <Button size="small" sx={{ fontSize: '0.65rem', minWidth: 0 }} onClick={() => scheduleMutation.mutate({ id: t.id, scheduledAt: editScheduleValue || null })}>
+                      Save
+                    </Button>
+                    <Button size="small" sx={{ fontSize: '0.65rem', minWidth: 0 }} onClick={() => setEditScheduleId(null)}>
+                      X
+                    </Button>
+                  </Box>
+                ) : (
+                  <Typography
+                    variant="caption"
+                    sx={{ color: 'text.secondary', cursor: 'pointer', '&:hover': { color: '#fff' }, display: 'block', mt: 0.25 }}
+                    onClick={() => { setEditScheduleId(t.id); setEditScheduleValue(t.scheduledAt ? new Date(t.scheduledAt).toISOString().slice(0, 16) : ''); }}
+                  >
+                    {t.scheduledAt ? `Starts: ${new Date(t.scheduledAt).toLocaleString()}` : '+ Set start time'}
+                  </Typography>
+                )}
               </Box>
 
               <Typography variant="body2" fontWeight={600} sx={{ color: '#4ADE80' }}>
