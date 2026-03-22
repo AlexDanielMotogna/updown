@@ -158,6 +158,7 @@ const NAV_SECTIONS = [
   { id: 'odds-payouts', label: 'Odds & Payouts' },
   { id: 'claiming', label: 'Claiming Payouts' },
   { id: 'squad-pools', label: 'Squad Pools' },
+  { id: 'tournaments', label: 'Tournaments' },
   { id: 'referrals', label: 'Referral Program' },
   { id: 'xp-rewards', label: 'XP & Rewards' },
   { id: 'levels', label: 'Level Progression' },
@@ -426,6 +427,39 @@ export default function DocsPage() {
               <DataRow label="Resolution & claims" value="Identical to public pools" />
             </Box>
 
+            {/* ── Tournaments ────────────────────────────────────────── */}
+            <SectionTitle id="tournaments">Tournaments</SectionTitle>
+            <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
+              Single-elimination bracket tournaments. Pay an entry fee, predict prices in 1v1 matches, and the last player standing wins the entire prize pool.
+            </Typography>
+
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px', mb: 2 }}>
+              <StepCard step={1} title="Register" desc="Pay the entry fee to join. All entry fees go directly into the prize pool." />
+              <StepCard step={2} title="Bracket" desc="Players are placed in a single-elimination bracket. Each round is a 1v1 match." />
+              <StepCard step={3} title="Predict" desc="Before each match, both players have a limited time window to predict the closing price of the asset (e.g. BTC/USD)." />
+              <StepCard step={4} title="Match resolves" desc="After predictions close, the match runs for the configured duration while the price moves. When it ends, the player closest to the final price advances." />
+              <StepCard step={5} title="Repeat" desc="Winners advance through the bracket — semifinals, finals — until one player remains." />
+              <StepCard step={6} title="Claim prize" desc="The tournament winner can claim the full prize pool (minus 5% platform fee) directly to their wallet." />
+            </Box>
+
+            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1 }}>TOURNAMENT DETAILS</Typography>
+            <Box sx={{ bgcolor: '#0D1219', mb: 2 }}>
+              <DataRow label="Format" value="Single elimination" />
+              <DataRow label="Match type" value="1v1 price prediction" />
+              <DataRow label="Winning condition" value="Closest to final price" />
+              <DataRow label="Prediction window" value="Set per tournament" />
+              <DataRow label="Match duration" value="Set per tournament" />
+              <DataRow label="Platform fee" value="5% of prize pool" bold />
+              <DataRow label="Prize payout" value="USDC on-chain" />
+              <DataRow label="Missed prediction" value="Opponent advances" />
+            </Box>
+
+            <Box sx={{ bgcolor: '#0D1219', borderLeft: '3px solid rgba(255,255,255,0.15)', px: 2, py: 1.5, mb: 2 }}>
+              <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', lineHeight: 1.6 }}>
+                <strong style={{ color: '#fff' }}>Example:</strong> An 8-player tournament with a $10 entry fee creates an $80 prize pool. After 3 rounds of 1v1 matches, the winner claims <strong style={{ color: '#fff' }}>$76.00 USDC</strong> (pool minus 5% fee).
+              </Typography>
+            </Box>
+
             {/* ── Referral Program ────────────────────────────────────── */}
             <SectionTitle id="referrals">Referral Program</SectionTitle>
             <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
@@ -614,6 +648,7 @@ export default function DocsPage() {
                 { title: 'Pool Detail', desc: 'Live price chart, strike vs final, UP/DOWN arena, bet form with presets, payout preview.' },
                 { title: 'Squad Pools', desc: 'Private pools for friends. Create squads, invite with codes, squad chat & leaderboard.' },
                 { title: 'Referral Program', desc: 'Earn 1% USDC commission on referred users bets. Claimable on-chain.' },
+                { title: 'Tournaments', desc: 'Single-elimination brackets. 1v1 price predictions, closest to final price wins. Prize pool on-chain.' },
                 { title: 'Profile', desc: 'Stats, level badge, XP progress, USDC & UP Coins balance, bet history.' },
                 { title: 'Leaderboard', desc: 'Rankings by XP, Coins, or Level. Gold/Silver/Bronze medals.' },
                 { title: 'AI Analyzer Bot', desc: 'Draggable bot on pool pages. RSI, MACD, EMA, Bollinger analysis.' },
