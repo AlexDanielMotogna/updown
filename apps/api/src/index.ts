@@ -4,7 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { poolsRouter } from './routes/pools';
 import { betsRouter } from './routes/bets';
-import { healthRouter } from './routes/health';
+import { healthRouter, startUptimeCron } from './routes/health';
 import { transactionsRouter } from './routes/transactions';
 import { usersRouter } from './routes/users';
 import { adminRouter } from './routes/admin';
@@ -73,6 +73,13 @@ httpServer.listen(PORT, async () => {
     await scheduler.start();
   } catch (error) {
     console.error('Failed to start scheduler:', error);
+  }
+
+  // Start uptime monitoring cron
+  try {
+    await startUptimeCron();
+  } catch (error) {
+    console.error('Failed to start uptime cron:', error);
   }
 });
 

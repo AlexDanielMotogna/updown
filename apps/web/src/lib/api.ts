@@ -572,3 +572,23 @@ export interface SystemStatus {
 export async function fetchSystemStatus(): Promise<ApiResponse<SystemStatus>> {
   return fetchApi<SystemStatus>('/api/health/status');
 }
+
+export interface DayStatus {
+  date: string;
+  status: 'operational' | 'degraded' | 'down' | 'no_data';
+  uptime: number;
+}
+
+export interface ServiceHistory {
+  name: string;
+  days: DayStatus[];
+  uptimePercent: number;
+}
+
+export interface UptimeHistory {
+  history: ServiceHistory[];
+}
+
+export async function fetchUptimeHistory(): Promise<ApiResponse<UptimeHistory>> {
+  return fetchApi<UptimeHistory>('/api/health/history');
+}

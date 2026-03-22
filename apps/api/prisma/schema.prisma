@@ -196,6 +196,16 @@ model EventLog {
   @@map("event_log")
 }
 
+model UptimeCheck {
+  id        String   @id @default(uuid())
+  status    String   // operational, degraded, partial_outage
+  services  Json     // array of { name, status, latency?, details? }
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("uptime_checks")
+}
+
 // ─── Referral System ──────────────────────────────────────────────────────────
 
 model Referral {

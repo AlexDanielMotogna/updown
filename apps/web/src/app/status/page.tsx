@@ -1,35 +1,37 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Box, Container, Typography, CircularProgress } from '@mui/material';
-import { AppShell } from '@/components';
-import { fetchSystemStatus, type SystemStatus, type ServiceStatus } from '@/lib/api';
+import { Box, Container, Typography, CircularProgress, Tooltip } from '@mui/material';
+import {
+  fetchSystemStatus,
+  fetchUptimeHistory,
+  type SystemStatus,
+  type ServiceHistory,
+} from '@/lib/api';
 import { UP_COLOR, ACCENT_COLOR, DOWN_COLOR } from '@/lib/constants';
 
-const STATUS_CONFIG = {
-  operational: { label: 'Operational', color: UP_COLOR },
-  degraded: { label: 'Degraded', color: ACCENT_COLOR },
-  down: { label: 'Down', color: DOWN_COLOR },
-  partial_outage: { label: 'Partial Outage', color: ACCENT_COLOR },
+const STATUS_COLORS: Record<string, string> = {
+  operational: UP_COLOR,
+  degraded: ACCENT_COLOR,
+  down: DOWN_COLOR,
+  no_data: 'rgba(255,255,255,0.08)',
 };
 
-function formatUptime(seconds: number): string {
-  const d = Math.floor(seconds / 86400);
-  const h = Math.floor((seconds % 86400) / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (d > 0) return `${d}d ${h}h ${m}m`;
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
-}
+const OVERALL_LABELS: Record<string, { label: string; color: string }> = {
+  operational: { label: 'All Systems Operational', color: UP_COLOR },
+  degraded: { label: 'Some Services Degraded', color: ACCENT_COLOR },
+  partial_outage: { label: 'Partial Outage', color: DOWN_COLOR },
+};
 
-function StatusDot({ status }: { status: 'operational' | 'degraded' | 'down' }) {
-  const color = STATUS_CONFIG[status].color;
+function StatusDot({ status }: { status: string }) {
+  const color = STATUS_COLORS[status] || UP_COLOR;
   return (
-    <Box sx={{ position: 'relative', width: 10, height: 10, flexShrink: 0 }}>
+    <Box sx={{ position: 'relative', width: 12, height: 12, flexShrink: 0 }}>
       {status === 'operational' && (
         <Box
           sx={{
-            position: 'absolute', inset: -2,
+            position: 'absolute',
+            inset: -2,
             borderRadius: '50%',
             bgcolor: `${color}30`,
             animation: 'statusPulse 2s infinite',
@@ -40,95 +42,141 @@ function StatusDot({ status }: { status: 'operational' | 'degraded' | 'down' }) 
           }}
         />
       )}
-      <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: color, position: 'relative' }} />
+      <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: color, position: 'relative' }} />
     </Box>
   );
 }
 
-function ServiceRow({ service }: { service: ServiceStatus }) {
-  const cfg = STATUS_CONFIG[service.status];
+function UptimeBars({ service }: { service: ServiceHistory }) {
+  const currentStatus = service.days.length > 0
+    ? service.days[service.days.length - 1].status
+    : 'no_data';
+  const statusLabel = currentStatus === 'operational' ? 'Operational'
+    : currentStatus === 'degraded' ? 'Degraded'
+    : currentStatus === 'down' ? 'Down'
+    : 'No Data';
+
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 2,
-        px: { xs: 2, md: 2.5 },
-        py: 1.5,
-        bgcolor: '#0D1219',
-        transition: 'background 0.15s ease',
-        '&:hover': { background: 'rgba(255,255,255,0.03)' },
-      }}
-    >
-      <StatusDot status={service.status} />
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: '0.9rem', fontWeight: 600 }}>
-          {service.name}
-        </Typography>
-        {service.details && (
-          <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
-            {service.details}
+    <Box sx={{ py: 2.5 }}>
+      {/* Header: dot + name + uptime % */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <StatusDot status={currentStatus} />
+          <Typography sx={{ fontSize: '0.9rem', fontWeight: 600 }}>
+            {service.name}
           </Typography>
-        )}
-      </Box>
-      {service.latency !== undefined && (
-        <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
-          {service.latency}ms
+        </Box>
+        <Typography
+          sx={{
+            fontSize: '0.8rem',
+            fontWeight: 600,
+            color: UP_COLOR,
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {service.uptimePercent === 100 ? '100' : service.uptimePercent.toFixed(3)}% uptime
         </Typography>
-      )}
-      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: cfg.color, flexShrink: 0 }}>
-        {cfg.label}
-      </Typography>
+      </Box>
+
+      {/* 90-day bar grid */}
+      <Box
+        sx={{
+          display: 'flex',
+          gap: '2px',
+          height: 32,
+          alignItems: 'stretch',
+        }}
+      >
+        {service.days.map((day, i) => (
+          <Tooltip
+            key={day.date}
+            title={
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>{day.date}</Typography>
+                <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.7)', textTransform: 'capitalize' }}>
+                  {day.status === 'no_data' ? 'No data' : day.status}
+                </Typography>
+              </Box>
+            }
+            arrow
+            placement="top"
+            slotProps={{
+              tooltip: {
+                sx: {
+                  bgcolor: '#1a1f2e',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  '& .MuiTooltip-arrow': { color: '#1a1f2e' },
+                },
+              },
+            }}
+          >
+            <Box
+              sx={{
+                flex: 1,
+                borderRadius: '2px',
+                bgcolor: STATUS_COLORS[day.status] || STATUS_COLORS.no_data,
+                opacity: day.status === 'no_data' ? 1 : 0.85,
+                transition: 'opacity 0.15s',
+                cursor: 'pointer',
+                '&:hover': { opacity: 1 },
+              }}
+            />
+          </Tooltip>
+        ))}
+      </Box>
+
+      {/* Labels: 90 days ago — Today */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+        <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)' }}>
+          90 days ago
+        </Typography>
+        <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)' }}>
+          Today
+        </Typography>
+      </Box>
     </Box>
   );
 }
 
 export default function StatusPage() {
-  const [data, setData] = useState<SystemStatus | null>(null);
+  const [live, setLive] = useState<SystemStatus | null>(null);
+  const [history, setHistory] = useState<ServiceHistory[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [lastChecked, setLastChecked] = useState<Date | null>(null);
 
-  const fetchStatus = async () => {
+  const fetchAll = async () => {
     try {
-      const res = await fetchSystemStatus();
-      if (res.data) {
-        setData(res.data);
+      const [statusRes, historyRes] = await Promise.all([
+        fetchSystemStatus(),
+        fetchUptimeHistory(),
+      ]);
+      if (statusRes.data) {
+        setLive(statusRes.data);
         setError(false);
       } else {
         setError(true);
+      }
+      if (historyRes.data) {
+        setHistory(historyRes.data.history);
       }
     } catch {
       setError(true);
     } finally {
       setLoading(false);
-      setLastChecked(new Date());
     }
   };
 
   useEffect(() => {
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 30_000);
+    fetchAll();
+    const interval = setInterval(fetchAll, 30_000);
     return () => clearInterval(interval);
   }, []);
 
-  const overallCfg = data ? STATUS_CONFIG[data.overall] : null;
+  const overallCfg = live ? OVERALL_LABELS[live.overall] : null;
 
   return (
-    <AppShell>
-      <Container maxWidth="md" sx={{ py: { xs: 3, md: 5 }, pb: { xs: 6, md: 8 }, px: { xs: 0, sm: 3 } }}>
-
-        {/* Header */}
-        <Box sx={{ px: { xs: 1.5, sm: 0 }, mb: 4 }}>
-          <Typography sx={{ fontSize: { xs: '1.1rem', md: '1.3rem' }, fontWeight: 700, mb: 1 }}>
-            System Status
-          </Typography>
-          {lastChecked && (
-            <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)' }}>
-              Last checked: {lastChecked.toLocaleTimeString()} — auto-refreshes every 30s
-            </Typography>
-          )}
-        </Box>
+    <Box sx={{ minHeight: '100vh', bgcolor: '#080B11' }}>
+      <Container maxWidth={false} sx={{ py: { xs: 3, md: 5 }, pb: { xs: 6, md: 8 }, px: { xs: 1.5, sm: 4, md: 6, lg: 10 } }}>
 
         {/* Loading */}
         {loading && (
@@ -139,7 +187,15 @@ export default function StatusPage() {
 
         {/* Error — API unreachable */}
         {!loading && error && (
-          <Box sx={{ bgcolor: '#0D1219', px: { xs: 2, md: 2.5 }, py: 4, textAlign: 'center' }}>
+          <Box
+            sx={{
+              bgcolor: '#0D1219',
+              borderRadius: 2,
+              px: { xs: 2.5, md: 3.5 },
+              py: 4,
+              textAlign: 'center',
+            }}
+          >
             <StatusDot status="down" />
             <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: DOWN_COLOR, mt: 2 }}>
               Unable to reach API
@@ -151,7 +207,7 @@ export default function StatusPage() {
         )}
 
         {/* Status loaded */}
-        {!loading && data && (
+        {!loading && live && (
           <>
             {/* Overall banner */}
             <Box
@@ -159,43 +215,71 @@ export default function StatusPage() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 2,
-                px: { xs: 2, md: 2.5 },
+                px: { xs: 2.5, md: 3.5 },
                 py: 2.5,
                 bgcolor: '#0D1219',
-                mb: '3px',
+                borderRadius: 2,
+                mb: 3,
               }}
             >
-              <StatusDot status={data.overall === 'partial_outage' ? 'degraded' : data.overall as 'operational' | 'degraded'} />
-              <Box sx={{ flex: 1 }}>
-                <Typography sx={{ fontSize: '1.05rem', fontWeight: 700, color: overallCfg?.color }}>
-                  {data.overall === 'operational' ? 'All Systems Operational' : data.overall === 'degraded' ? 'Some Services Degraded' : 'Partial Outage'}
-                </Typography>
-              </Box>
-              <Box sx={{ textAlign: 'right' }}>
-                <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)' }}>Uptime</Typography>
-                <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                  {formatUptime(data.uptime)}
-                </Typography>
-              </Box>
+              <StatusDot status={live.overall === 'partial_outage' ? 'down' : live.overall} />
+              <Typography sx={{ fontSize: { xs: '1rem', md: '1.15rem' }, fontWeight: 700, color: overallCfg?.color }}>
+                {overallCfg?.label}
+              </Typography>
             </Box>
 
-            {/* Services */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px', mb: 4 }}>
-              {data.services.map((service) => (
-                <ServiceRow key={service.name} service={service} />
+            {/* Service uptime bars */}
+            <Box
+              sx={{
+                bgcolor: '#0D1219',
+                borderRadius: 2,
+                px: { xs: 2, md: 3.5 },
+                py: 1,
+              }}
+            >
+              {(history || []).map((service, i) => (
+                <Box key={service.name}>
+                  <UptimeBars service={service} />
+                  {i < (history?.length ?? 0) - 1 && (
+                    <Box sx={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }} />
+                  )}
+                </Box>
+              ))}
+
+              {/* Fallback: if no history yet, show live services as bars with just today */}
+              {!history && live.services.map((svc, i) => (
+                <Box key={svc.name}>
+                  <UptimeBars
+                    service={{
+                      name: svc.name,
+                      uptimePercent: svc.status === 'operational' ? 100 : svc.status === 'degraded' ? 99 : 0,
+                      days: Array.from({ length: 90 }, (_, j) => ({
+                        date: new Date(Date.now() - (89 - j) * 86400000).toISOString().slice(0, 10),
+                        status: j === 89 ? svc.status : 'no_data' as const,
+                        uptime: 100,
+                      })),
+                    }}
+                  />
+                  {i < live.services.length - 1 && (
+                    <Box sx={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }} />
+                  )}
+                </Box>
               ))}
             </Box>
 
-            {/* Response time */}
-            <Box sx={{ px: { xs: 1.5, sm: 0 } }}>
-              <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)' }}>
-                Status check completed in {data.responseTime}ms
+            {/* Footer info */}
+            <Box sx={{ mt: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)' }}>
+                Checked every 5 minutes · Auto-refreshes every 30s
+              </Typography>
+              <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', fontVariantNumeric: 'tabular-nums' }}>
+                Response: {live.responseTime}ms
               </Typography>
             </Box>
           </>
         )}
 
       </Container>
-    </AppShell>
+    </Box>
   );
 }

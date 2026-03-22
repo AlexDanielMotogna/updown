@@ -17,10 +17,19 @@ function Footer() {
         px: 4,
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 1200, mx: 'auto' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
-          <Box component="img" src="/updown-logos/Logo_text_white_796x277.png" alt="UpDown" sx={{ height: 20, opacity: 0.4 }} />
-          <Typography
+          <Box
+            component="a"
+            href="/status"
+            sx={{ display: 'flex', alignItems: 'center', gap: 0.75, textDecoration: 'none', '&:hover .status-label': { color: 'rgba(255,255,255,0.7)' }, transition: 'color 0.15s' }}
+          >
+            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#4ADE80', flexShrink: 0, boxShadow: '0 0 6px rgba(74,222,128,0.4)' }} />
+            <Typography className="status-label" sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', transition: 'color 0.15s' }}>
+              Status
+            </Typography>
+          </Box>
+<Typography
             component="a"
             href="/docs"
             sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', textDecoration: 'none', '&:hover': { color: 'rgba(255,255,255,0.7)' }, transition: 'color 0.15s' }}
@@ -33,13 +42,6 @@ function Footer() {
             sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', textDecoration: 'none', '&:hover': { color: 'rgba(255,255,255,0.7)' }, transition: 'color 0.15s' }}
           >
             Privacy & Disclaimer
-          </Typography>
-          <Typography
-            component="a"
-            href="/status"
-            sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', textDecoration: 'none', '&:hover': { color: 'rgba(255,255,255,0.7)' }, transition: 'color 0.15s' }}
-          >
-            Status
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
