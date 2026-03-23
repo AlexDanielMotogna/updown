@@ -686,6 +686,8 @@ export async function fetchActiveTournamentBanner(): Promise<ApiResponse<Tournam
 
 export interface TournamentRegisterAccounts {
   entryFee: string;
+  asset: string;
+  name: string;
   accounts: {
     authorityTokenAccount: string;
     userTokenAccount: string;

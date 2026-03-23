@@ -35,6 +35,8 @@ const SEVERITY_COLORS: Record<NotificationSeverity, string> = {
 function getSeverityIcon(severity: NotificationSeverity, type: string) {
   if (type === 'POOL_WON' || type === 'POOL_CLAIMABLE')
     return <EmojiEvents sx={{ fontSize: 18, color: GAIN_COLOR }} />;
+  if (type === 'TOURNAMENT_ENTRY_PAID' || type === 'DEPOSIT_SUCCESS')
+    return <Typography sx={{ fontSize: 16, fontWeight: 800, color: GAIN_COLOR, width: 18, textAlign: 'center' }}>$</Typography>;
   if (type === 'CLAIM_SUCCESS' || type === 'REFUND_RECEIVED')
     return <Box component="img" src="/coins/usdc-coin.png" alt="USDC" sx={{ width: 18, height: 18 }} />;
   switch (severity) {
@@ -212,6 +214,10 @@ export function NotificationPanel() {
                             <UserLevelBadge level={n.level} title="" size="sm" variant="icon-only" />
                           ) : n.type === 'COINS_EARNED' ? (
                             <Box component="img" src="/token/Token_16px_Gold.png" alt="UP Coin" sx={{ width: 18, height: 18 }} />
+                          ) : (n.type === 'DEPOSIT_SUCCESS' || n.type === 'TOURNAMENT_ENTRY_PAID') ? (
+                            getSeverityIcon(n.severity, n.type)
+                          ) : n.type.startsWith('TOURNAMENT_') && n.asset ? (
+                            <Box component="img" src={`/tournaments/tournament-${n.asset.toLowerCase()}.png`} alt={n.asset} sx={{ width: 22, height: 22, objectFit: 'contain' }} />
                           ) : n.asset ? (
                             <AssetIcon asset={n.asset} size={18} />
                           ) : (

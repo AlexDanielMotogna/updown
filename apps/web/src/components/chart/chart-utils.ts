@@ -12,8 +12,8 @@ export const INTERVALS = [
 ] as const;
 
 export function formatChartPrice(price: number): string {
-  if (price >= 10000) return price.toLocaleString('en-US', { maximumFractionDigits: 0 });
-  if (price >= 100) return price.toLocaleString('en-US', { maximumFractionDigits: 2 });
+  if (price >= 10000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (price >= 100) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return price.toLocaleString('en-US', { maximumFractionDigits: 4 });
 }
 
