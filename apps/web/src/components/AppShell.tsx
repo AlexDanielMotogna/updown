@@ -1,11 +1,27 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Box, Typography } from '@mui/material';
 import { Header } from './Header';
 import { LiveResultsSidebar } from './LiveResultsSidebar';
 import { RewardPopup } from './RewardPopup';
 
-function Footer() {
+function useScrollDirection() {
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    let lastY = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      setVisible(y < 100 || y < lastY);
+      lastY = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+  return visible;
+}
+
+function Footer({ visible }: { visible: boolean }) {
   return (
     <Box
       component="footer"
@@ -13,8 +29,11 @@ function Footer() {
         display: { xs: 'none', lg: 'block' },
         borderTop: '1px solid rgba(255,255,255,0.04)',
         bgcolor: '#0B0F14',
-        py: 3,
+        py: 1.25,
         px: 4,
+        transform: visible ? 'translateY(0)' : 'translateY(100%)',
+        opacity: visible ? 1 : 0,
+        transition: 'transform 0.25s ease, opacity 0.25s ease',
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -35,6 +54,13 @@ function Footer() {
             sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', textDecoration: 'none', '&:hover': { color: 'rgba(255,255,255,0.7)' }, transition: 'color 0.15s' }}
           >
             Docs
+          </Typography>
+          <Typography
+            component="a"
+            href="/faucet"
+            sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', textDecoration: 'none', '&:hover': { color: 'rgba(255,255,255,0.7)' }, transition: 'color 0.15s' }}
+          >
+            Faucet
           </Typography>
           <Typography
             component="a"
@@ -70,6 +96,7 @@ function Footer() {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const footerVisible = useScrollDirection();
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: { xs: 'calc(72px + env(safe-area-inset-bottom, 0px))', lg: 0 } }}>
       <Header />
@@ -80,7 +107,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Box sx={{ flex: 1 }}>
             {children}
           </Box>
-          <Footer />
+          <Footer visible={footerVisible} />
         </Box>
       </Box>
     </Box>

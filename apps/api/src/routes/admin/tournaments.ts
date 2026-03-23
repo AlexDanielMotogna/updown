@@ -167,3 +167,33 @@ adminTournamentsRouter.post('/:id/update-schedule', async (req, res) => {
     res.status(400).json({ success: false, error: { code: 'UPDATE_ERROR', message } });
   }
 });
+
+// POST /api/admin/tournaments/:id/update — update tournament fields (only while REGISTERING)
+adminTournamentsRouter.post('/:id/update', async (req, res) => {
+  try {
+    const existing = await prisma.tournament.findUniqueOrThrow({ where: { id: req.params.id } });
+    if (existing.status !== 'REGISTERING') {
+      return res.status(400).json({ success: false, error: { code: 'NOT_REGISTERING', message: 'Can only edit tournaments in REGISTERING status' } });
+    }
+
+    const { name, asset, entryFee, size, matchDuration, predictionWindow, scheduledAt } = req.body;
+    const data: Record<string, unknown> = {};
+    if (name !== undefined) data.name = name;
+    if (asset !== undefined) data.asset = asset;
+    if (entryFee !== undefined) data.entryFee = BigInt(entryFee);
+    if (size !== undefined) { data.size = size; data.totalRounds = Math.log2(size); }
+    if (matchDuration !== undefined) data.matchDuration = matchDuration;
+    if (predictionWindow !== undefined) data.predictionWindow = predictionWindow;
+    if (scheduledAt !== undefined) data.scheduledAt = scheduledAt ? new Date(scheduledAt) : null;
+
+    const tournament = await prisma.tournament.update({ where: { id: req.params.id }, data });
+    res.json({
+      success: true,
+      data: { ...tournament, entryFee: tournament.entryFee.toString(), prizePool: tournament.prizePool.toString() },
+    });
+  } catch (error) {
+    console.error('[Admin] Update tournament error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to update tournament';
+    res.status(400).json({ success: false, error: { code: 'UPDATE_ERROR', message } });
+  }
+});

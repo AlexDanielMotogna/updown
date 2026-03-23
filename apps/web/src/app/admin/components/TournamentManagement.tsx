@@ -16,6 +16,7 @@ interface Tournament {
   entryFee: string;
   size: number;
   matchDuration: number;
+  predictionWindow: number;
   status: string;
   currentRound: number;
   totalRounds: number;
@@ -51,9 +52,15 @@ export function TournamentManagement() {
   const [predictionWindow, setPredictionWindow] = useState(300);
   const [scheduledAt, setScheduledAt] = useState('');
 
-  // Edit schedule
-  const [editScheduleId, setEditScheduleId] = useState<string | null>(null);
-  const [editScheduleValue, setEditScheduleValue] = useState('');
+  // Edit tournament
+  const [editTournament, setEditTournament] = useState<Tournament | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editAsset, setEditAsset] = useState('BTC');
+  const [editEntryFee, setEditEntryFee] = useState('');
+  const [editSize, setEditSize] = useState(8);
+  const [editMatchDuration, setEditMatchDuration] = useState(300);
+  const [editPredictionWindow, setEditPredictionWindow] = useState(300);
+  const [editScheduledAt, setEditScheduledAt] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-tournaments'],
@@ -85,12 +92,30 @@ export function TournamentManagement() {
     },
   });
 
-  const scheduleMutation = useMutation({
-    mutationFn: ({ id, scheduledAt: val }: { id: string; scheduledAt: string | null }) =>
-      adminPost(`/tournaments/${id}/update-schedule`, { scheduledAt: val }),
+  const openEdit = (t: Tournament) => {
+    setEditTournament(t);
+    setEditName(t.name);
+    setEditAsset(t.asset);
+    setEditEntryFee((Number(t.entryFee) / USDC_DIVISOR).toString());
+    setEditSize(t.size);
+    setEditMatchDuration(t.matchDuration);
+    setEditPredictionWindow(t.predictionWindow ?? 300);
+    setEditScheduledAt(t.scheduledAt ? new Date(t.scheduledAt).toISOString().slice(0, 16) : '');
+  };
+
+  const updateMutation = useMutation({
+    mutationFn: () => adminPost(`/tournaments/${editTournament!.id}/update`, {
+      name: editName,
+      asset: editAsset,
+      entryFee: Math.round(parseFloat(editEntryFee) * USDC_DIVISOR),
+      size: editSize,
+      matchDuration: editMatchDuration,
+      predictionWindow: editPredictionWindow,
+      scheduledAt: editScheduledAt || null,
+    }),
     onSuccess: () => {
-      setResult({ type: 'success', message: 'Schedule updated' });
-      setEditScheduleId(null);
+      setResult({ type: 'success', message: 'Tournament updated' });
+      setEditTournament(null);
       qc.invalidateQueries({ queryKey: ['admin-tournaments'] });
     },
     onError: (err) => {
@@ -244,30 +269,9 @@ export function TournamentManagement() {
                 <Typography variant="caption" color="text.secondary">
                   {t.asset} · ${(Number(t.entryFee) / USDC_DIVISOR).toFixed(2)} entry · {t._count.participants}/{t.size} players · Round {t.currentRound}/{t.totalRounds}
                 </Typography>
-                {editScheduleId === t.id ? (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                    <TextField
-                      size="small"
-                      type="datetime-local"
-                      value={editScheduleValue}
-                      onChange={(e) => setEditScheduleValue(e.target.value)}
-                      InputLabelProps={{ shrink: true }}
-                      sx={{ '& .MuiInputBase-root': { height: 28, fontSize: '0.7rem' } }}
-                    />
-                    <Button size="small" sx={{ fontSize: '0.65rem', minWidth: 0 }} onClick={() => scheduleMutation.mutate({ id: t.id, scheduledAt: editScheduleValue || null })}>
-                      Save
-                    </Button>
-                    <Button size="small" sx={{ fontSize: '0.65rem', minWidth: 0 }} onClick={() => setEditScheduleId(null)}>
-                      X
-                    </Button>
-                  </Box>
-                ) : (
-                  <Typography
-                    variant="caption"
-                    sx={{ color: 'text.secondary', cursor: 'pointer', '&:hover': { color: '#fff' }, display: 'block', mt: 0.25 }}
-                    onClick={() => { setEditScheduleId(t.id); setEditScheduleValue(t.scheduledAt ? new Date(t.scheduledAt).toISOString().slice(0, 16) : ''); }}
-                  >
-                    {t.scheduledAt ? `Starts: ${new Date(t.scheduledAt).toLocaleString()}` : '+ Set start time'}
+                {t.scheduledAt && (
+                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
+                    Starts: {new Date(t.scheduledAt).toLocaleString()}
                   </Typography>
                 )}
               </Box>
@@ -279,6 +283,14 @@ export function TournamentManagement() {
               <Box sx={{ display: 'flex', gap: 0.5 }}>
                 {t.status === 'REGISTERING' && (
                   <>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => openEdit(t)}
+                      sx={{ fontSize: '0.7rem', borderColor: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)', '&:hover': { borderColor: 'rgba(255,255,255,0.3)', bgcolor: 'rgba(255,255,255,0.04)' } }}
+                    >
+                      Edit
+                    </Button>
                     <Button
                       size="small"
                       variant="contained"
@@ -344,6 +356,71 @@ export function TournamentManagement() {
             disabled={actionMutation.isPending}
           >
             {actionMutation.isPending ? <CircularProgress size={18} /> : 'Confirm'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Tournament Dialog */}
+      <Dialog open={!!editTournament} onClose={() => setEditTournament(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit Tournament</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+            <TextField label="Name" size="small" value={editName} onChange={(e) => setEditName(e.target.value)} />
+            <FormControl size="small">
+              <InputLabel>Asset</InputLabel>
+              <Select value={editAsset} onChange={(e) => setEditAsset(e.target.value)} label="Asset">
+                <MenuItem value="BTC">BTC</MenuItem>
+                <MenuItem value="ETH">ETH</MenuItem>
+                <MenuItem value="SOL">SOL</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField label="Entry Fee (USDC)" size="small" type="number" value={editEntryFee} onChange={(e) => setEditEntryFee(e.target.value)} />
+            <FormControl size="small">
+              <InputLabel>Size</InputLabel>
+              <Select value={editSize} onChange={(e) => setEditSize(Number(e.target.value))} label="Size">
+                <MenuItem value={8}>8 players</MenuItem>
+                <MenuItem value={16}>16 players</MenuItem>
+                <MenuItem value={32}>32 players</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl size="small">
+              <InputLabel>Prediction Window</InputLabel>
+              <Select value={editPredictionWindow} onChange={(e) => setEditPredictionWindow(Number(e.target.value))} label="Prediction Window">
+                <MenuItem value={60}>1 min</MenuItem>
+                <MenuItem value={120}>2 min</MenuItem>
+                <MenuItem value={300}>5 min</MenuItem>
+                <MenuItem value={600}>10 min</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl size="small">
+              <InputLabel>Match Duration</InputLabel>
+              <Select value={editMatchDuration} onChange={(e) => setEditMatchDuration(Number(e.target.value))} label="Match Duration">
+                <MenuItem value={60}>1 min</MenuItem>
+                <MenuItem value={180}>3 min</MenuItem>
+                <MenuItem value={300}>5 min</MenuItem>
+                <MenuItem value={900}>15 min</MenuItem>
+                <MenuItem value={3600}>1 hour</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              label="Estimated Start"
+              size="small"
+              type="datetime-local"
+              value={editScheduledAt}
+              onChange={(e) => setEditScheduledAt(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditTournament(null)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={() => updateMutation.mutate()}
+            disabled={!editName || !editEntryFee || updateMutation.isPending}
+            sx={{ bgcolor: '#4ADE80', color: '#000', fontWeight: 700, '&:hover': { bgcolor: '#22C55E' } }}
+          >
+            {updateMutation.isPending ? <CircularProgress size={18} /> : 'Save Changes'}
           </Button>
         </DialogActions>
       </Dialog>

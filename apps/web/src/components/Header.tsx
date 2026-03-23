@@ -9,7 +9,7 @@ import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { UP_COLOR, GAIN_COLOR, UP_COINS_DIVISOR } from '@/lib/constants';
-import { NAV_ITEMS } from '@/lib/navigation';
+import { NAV_ITEMS, DESKTOP_NAV_ITEMS } from '@/lib/navigation';
 import { UserLevelBadge } from './UserLevelBadge';
 import { NotificationPanel } from './header/NotificationPanel';
 import { MobileBottomNav } from './header/MobileBottomNav';
@@ -68,25 +68,27 @@ export function Header() {
             left: '50%',
             transform: 'translateX(-50%)',
             alignItems: 'center',
-            gap: 1,
+            gap: 0,
           }}
         >
-          {NAV_ITEMS.map((item) => {
+          {DESKTOP_NAV_ITEMS.map((item) => {
             const active = isActive(item.href);
             return (
               <Link key={item.href} href={item.href} style={{ textDecoration: 'none' }}>
                 <Button
                   sx={{
                     color: active ? '#FFFFFF' : 'text.secondary',
-                    px: 2,
+                    px: { lg: 1, xl: 1.5 },
+                    fontSize: { lg: '0.75rem', xl: '0.8125rem' },
                     borderBottom: active ? `2px solid ${UP_COLOR}` : '2px solid transparent',
                     borderRadius: 0,
+                    whiteSpace: 'nowrap',
+                    minWidth: 0,
                     '&:hover': {
                       color: '#FFFFFF',
                       backgroundColor: 'transparent',
                     },
                   }}
-                  startIcon={<item.icon sx={{ fontSize: 18 }} />}
                 >
                   {item.label}
                 </Button>
