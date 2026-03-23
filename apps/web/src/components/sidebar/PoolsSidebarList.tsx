@@ -1,0 +1,101 @@
+'use client';
+
+import { Box, Typography } from '@mui/material';
+import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
+import { formatUSDC } from '@/lib/format';
+import { UP_COLOR, DOWN_COLOR, GAIN_COLOR, INTERVAL_TAG_IMAGES, INTERVAL_LABELS } from '@/lib/constants';
+import { AssetIcon } from '@/components/AssetIcon';
+import type { Pool } from '@/lib/api';
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+interface PoolsSidebarListProps {
+  pools: Pool[];
+  newIds: Set<string>;
+}
+
+export function PoolsSidebarList({ pools, newIds }: PoolsSidebarListProps) {
+  if (pools.length === 0) {
+    return (
+      <Box sx={{ p: 2, textAlign: 'center' }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
+          No resolved pools yet
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+      <AnimatePresence>
+        {pools.map((pool, i) => {
+          const isNew = newIds.has(pool.id);
+          return (
+            <motion.div
+              key={pool.id}
+              initial={isNew ? { opacity: 0, scale: 0.96, y: -10 } : false}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30, delay: isNew ? i * 0.05 : 0 }}
+              layout
+            >
+              <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                <Box
+                  sx={{
+                    px: 2,
+                    py: 1.5,
+                    bgcolor: '#0D1219',
+                    cursor: 'pointer',
+                    transition: 'background 0.15s ease',
+                    '&:hover': { background: 'rgba(255,255,255,0.04)' },
+                  }}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                      <AssetIcon asset={pool.asset} size={22} />
+                      <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                        {pool.asset}/USD
+                      </Typography>
+                    </Box>
+                    <Box
+                      component="img"
+                      src={INTERVAL_TAG_IMAGES[pool.interval] || '/assets/hourly-tag.png'}
+                      alt={INTERVAL_LABELS[pool.interval] || pool.interval}
+                      sx={{ height: { xs: 32, md: 36 }, imageRendering: '-webkit-optimize-contrast' }}
+                    />
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                    <Box
+                      component="img"
+                      src={pool.winner === 'UP' ? '/assets/up-icon-64x64.png' : '/assets/down-icon-64x64.png'}
+                      alt=""
+                      sx={{ width: 14, height: 14 }}
+                    />
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR }}>
+                      {pool.winner} WINS
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: GAIN_COLOR, ml: 'auto' }}>
+                      {formatUSDC(pool.totalPool)}
+                    </Typography>
+                  </Box>
+                  <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
+                    {timeAgo(pool.endTime)}
+                  </Typography>
+                </Box>
+              </Link>
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
+    </Box>
+  );
+}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { formatDate } from '@/lib/format';
 import {
   Box, Card, Typography, CircularProgress, TextField,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
@@ -72,7 +73,7 @@ export function EventLog() {
             <TableBody>
               {(data?.data ?? []).map(e => (
                 <TableRow key={e.id}>
-                  <TableCell sx={{ fontSize: 11, whiteSpace: 'nowrap' }}>{new Date(e.createdAt).toLocaleString()}</TableCell>
+                  <TableCell sx={{ fontSize: 11, whiteSpace: 'nowrap' }}>{formatDate(e.createdAt)}</TableCell>
                   <TableCell sx={{ fontSize: 12 }}>{e.eventType}</TableCell>
                   <TableCell sx={{ fontSize: 12 }}>{e.entityType}</TableCell>
                   <TableCell sx={{ fontSize: 11, cursor: 'pointer', '&:hover': { color: '#F59E0B' } }} onClick={() => navigator.clipboard.writeText(e.entityId)} title="Click to copy">{e.entityId}</TableCell>

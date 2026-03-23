@@ -107,7 +107,7 @@ export default function SquadDetailPage() {
   if (isLoading) {
     return (
       <AppShell>
-        <Container maxWidth="xl">
+        <Container maxWidth={false} sx={{ px: { xs: 2, md: 3 } }}>
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
             <CircularProgress size={32} sx={{ color: UP_COLOR }} />
           </Box>
@@ -119,7 +119,7 @@ export default function SquadDetailPage() {
   if (!squad) {
     return (
       <AppShell>
-        <Container maxWidth="xl">
+        <Container maxWidth={false} sx={{ px: { xs: 2, md: 3 } }}>
           <Box sx={{ textAlign: 'center', py: 12, px: 4 }}>
             <Typography color="text.secondary" sx={{ fontSize: '1rem' }}>
               Squad not found or you{"'"}re not a member
@@ -138,7 +138,7 @@ export default function SquadDetailPage() {
 
   return (
     <AppShell>
-      <Container maxWidth="xl">
+      <Container maxWidth={false} sx={{ px: { xs: 2, md: 3 } }}>
         {/* Back button */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: { xs: 1.5, md: 2 }, mb: 1 }}>
           <IconButton onClick={() => router.push('/squads')} size="small" sx={{ color: 'text.secondary' }}>

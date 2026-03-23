@@ -7,6 +7,7 @@ import {
   Button, Dialog, DialogTitle, DialogContent, DialogActions, Select, MenuItem, FormControl, InputLabel,
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { formatDate } from '@/lib/format';
 import { adminFetch, adminPost } from '../lib/adminApi';
 
 interface PoolRow {
@@ -151,7 +152,7 @@ export function PoolManagement() {
                   <TableCell>{p.asset}</TableCell>
                   <TableCell>{p.interval}</TableCell>
                   <TableCell><Chip label={p.status} size="small" sx={{ bgcolor: (statusColors[p.status] || '#666') + '22', color: statusColors[p.status] || '#666' }} /></TableCell>
-                  <TableCell sx={{ fontSize: 12 }}>{new Date(p.endTime).toLocaleString()}</TableCell>
+                  <TableCell sx={{ fontSize: 12 }}>{formatDate(p.endTime)}</TableCell>
                   <TableCell>{p.totalUp} / {p.totalDown}</TableCell>
                   <TableCell>{p.betCount}</TableCell>
                 </TableRow>

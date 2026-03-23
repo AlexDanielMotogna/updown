@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
   Box,
@@ -11,20 +11,23 @@ import {
   Alert,
   Button,
   CircularProgress,
-  Tooltip,
 } from '@mui/material';
-import { InfoOutlined } from '@mui/icons-material';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useInfiniteBets, useClaimableBets, useClaim, useIntersectionObserver } from '@/hooks';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { TransactionModal, AppShell } from '@/components';
-import { formatUSDC, USDC_DIVISOR } from '@/lib/format';
+import { formatUSDC } from '@/lib/format';
 import { GAIN_COLOR, UP_COLOR } from '@/lib/constants';
-import { BetRow, BetRowSkeleton } from '@/components/profile/BetRow';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
+import { PoolsBetTable } from '@/components/profile/PoolsBetTable';
+import { TournamentPrizes } from '@/components/profile/TournamentPrizes';
+import {
+  fetchMyTournamentPrizes,
+  type TournamentPrize,
+} from '@/lib/api';
 
-const TAB_KEYS = ['active', 'resolved', 'claimed'] as const;
+const TAB_KEYS = ['pools', 'tournaments'] as const;
 
 export default function MyBetsPage() {
   const searchParams = useSearchParams();
@@ -33,12 +36,24 @@ export default function MyBetsPage() {
   const { connected, walletAddress } = useWalletBridge();
   const { data: userProfile } = useUserProfile();
   const { data: balance } = useUsdcBalance();
-  const tabParam = searchParams.get('tab') ?? 'active';
+  const tabParam = searchParams.get('tab') ?? 'pools';
   const tabIndex = TAB_KEYS.indexOf(tabParam as typeof TAB_KEYS[number]);
   const tab = tabIndex >= 0 ? tabIndex : 0;
   const [claimingBetId, setClaimingBetId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [claimAllProgress, setClaimAllProgress] = useState<{ current: number; total: number } | null>(null);
+
+  // Tournament prizes
+  const [prizes, setPrizes] = useState<TournamentPrize[]>([]);
+  const [prizesLoading, setPrizesLoading] = useState(false);
+
+  useEffect(() => {
+    if (!walletAddress) return;
+    setPrizesLoading(true);
+    fetchMyTournamentPrizes(walletAddress)
+      .then(res => { if (res.success && res.data) setPrizes(res.data); })
+      .finally(() => setPrizesLoading(false));
+  }, [walletAddress]);
 
   const {
     data: betsData,
@@ -54,7 +69,7 @@ export default function MyBetsPage() {
   const handleTabChange = useCallback((_: React.SyntheticEvent, newValue: number) => {
     const params = new URLSearchParams(searchParams.toString());
     const key = TAB_KEYS[newValue]!;
-    if (key === 'active') {
+    if (key === 'pools') {
       params.delete('tab');
     } else {
       params.set('tab', key);
@@ -114,16 +129,6 @@ export default function MyBetsPage() {
   }, [betsData]);
   const claimable = claimableData?.data;
 
-  const activeBets = bets.filter(
-    (bet) => bet.pool.status === 'JOINING' || bet.pool.status === 'ACTIVE'
-  );
-  const resolvedBets = bets.filter(
-    (bet) => (bet.pool.status === 'RESOLVED' || bet.pool.status === 'CLAIMABLE') && !bet.claimed
-  );
-  const claimedBets = bets.filter((bet) => bet.claimed);
-
-  const displayBets = tab === 0 ? activeBets : tab === 1 ? resolvedBets : claimedBets;
-
   const wonBets = bets.filter((b) => b.isWinner === true && !(b.claimed && b.payoutAmount != null && b.payoutAmount === b.amount));
   const lostBets = bets.filter((b) => b.isWinner === false);
   const totalStaked = useMemo(() => bets.reduce((sum, b) => sum + Number(b.amount), 0), [bets]);
@@ -152,7 +157,7 @@ export default function MyBetsPage() {
       <Container maxWidth={false} sx={{ pb: { xs: 3, md: 6 }, pt: { xs: 2, md: 3 }, px: { xs: 2, md: 3 } }}>
         {connected && (
           <>
-            {/* ─── Claim All Banner ─── */}
+            {/* Claim All Banner */}
             {hasClaimable && (
               <Box
                 sx={{
@@ -192,12 +197,7 @@ export default function MyBetsPage() {
             )}
 
             {/* Tabs */}
-            <Box
-              sx={{
-                borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-                mb: 3,
-              }}
-            >
+            <Box sx={{ borderBottom: '1px solid rgba(255, 255, 255, 0.06)', mb: 3 }}>
               <Tabs
                 value={tab}
                 onChange={handleTabChange}
@@ -205,10 +205,7 @@ export default function MyBetsPage() {
                 scrollButtons={false}
                 sx={{
                   minHeight: 44,
-                  '& .MuiTabs-indicator': {
-                    backgroundColor: UP_COLOR,
-                    height: 2,
-                  },
+                  '& .MuiTabs-indicator': { backgroundColor: UP_COLOR, height: 2 },
                   '& .MuiTab-root': {
                     color: 'text.secondary',
                     fontWeight: 500,
@@ -217,15 +214,12 @@ export default function MyBetsPage() {
                     px: { xs: 1.5, sm: 2.5 },
                     minHeight: 44,
                     minWidth: 'auto',
-                    '&.Mui-selected': {
-                      color: '#FFFFFF',
-                    },
+                    '&.Mui-selected': { color: '#FFFFFF' },
                   },
                 }}
               >
-                <Tab label={`Active (${activeBets.length})`} />
-                <Tab label={`Resolved (${resolvedBets.length})`} />
-                <Tab label={`Claimed (${claimedBets.length})`} />
+                <Tab label={`Pools (${bets.length})`} />
+                <Tab label={`Tournaments${prizes.length > 0 ? ` (${prizes.length})` : ''}`} />
               </Tabs>
             </Box>
 
@@ -233,101 +227,40 @@ export default function MyBetsPage() {
             {betsError && (
               <Alert
                 severity="error"
-                sx={{
-                  mb: 4,
-                  backgroundColor: 'rgba(255, 82, 82, 0.1)',
-                  border: 'none',
-                  borderRadius: 0,
-                }}
+                sx={{ mb: 4, backgroundColor: 'rgba(255, 82, 82, 0.1)', border: 'none', borderRadius: 0 }}
               >
                 Failed to load predictions
               </Alert>
             )}
 
-            {/* Loading */}
-            {betsLoading && (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <BetRowSkeleton key={i} />
-                ))}
-              </Box>
-            )}
-
-            {/* Predictions Table */}
-            {!betsLoading && displayBets.length === 0 ? (
-              <Box
-                sx={{
-                  textAlign: 'center',
-                  py: 12,
-                  px: 4,
-                }}
-              >
-                <Typography sx={{ color: 'text.secondary', fontSize: '1rem' }}>
-                  No predictions found in this category
-                </Typography>
-              </Box>
-            ) : !betsLoading && (
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '3px',
-                }}
-              >
-                {/* Table header (desktop only) */}
-                <Box
-                  sx={{
-                    display: { xs: 'none', md: 'grid' },
-                    gridTemplateColumns: '80px 2.5fr 1fr 1fr 1fr 2fr 1fr 1fr 1.2fr',
-                    px: 0,
-                    py: 1,
-                    bgcolor: '#0D1219',
-                  }}
-                >
-                  {[
-                    { label: '', tip: '' },
-                    { label: 'Asset', tip: 'Cryptocurrency and pool timeframe' },
-                    { label: 'Result', tip: 'Whether your prediction was correct' },
-                    { label: 'Stake', tip: 'USDC amount you placed on this pool' },
-                    { label: 'Payout', tip: 'USDC received after fees (winners only)' },
-                    { label: 'Price', tip: 'Strike price at open vs final price at close' },
-                    { label: 'Time', tip: 'When the pool was resolved' },
-                    { label: 'Action', tip: '' },
-                    { label: 'Tx', tip: 'View transaction on Solana Explorer' },
-                  ].map((h, i) => (
-                    <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
-                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '12px', fontWeight: 600, letterSpacing: '0.08em' }}>
-                        {h.label}
-                      </Typography>
-                      {h.tip && (
-                        <Tooltip title={h.tip} arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
-                          <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
-                        </Tooltip>
-                      )}
-                    </Box>
-                  ))}
-                </Box>
-
-                {/* Rows */}
-                {displayBets.map((bet) => (
-                  <BetRow
-                    key={bet.id}
-                    bet={bet}
-                    onClaim={() => handleClaim(bet.pool.id, bet.id)}
-                    isClaiming={claimingBetId === bet.id}
-                  />
-                ))}
-              </Box>
+            {/* Pools Tab */}
+            {tab === 0 && (
+              <PoolsBetTable
+                bets={bets}
+                betsLoading={betsLoading}
+                claimingBetId={claimingBetId}
+                onClaim={handleClaim}
+              />
             )}
 
             {/* Sentinel for infinite scroll */}
-            <Box ref={sentinelRef} />
+            {tab !== 3 && <Box ref={sentinelRef} />}
 
             {/* Loading next page */}
-            {isFetchingNextPage && (
+            {tab !== 3 && isFetchingNextPage && (
               <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, pb: 4 }}>
                 <CircularProgress size={32} sx={{ color: '#FFFFFF' }} />
               </Box>
+            )}
+
+            {/* Tournaments Tab */}
+            {tab === 1 && (
+              <TournamentPrizes
+                walletAddress={walletAddress}
+                prizes={prizes}
+                setPrizes={setPrizes}
+                prizesLoading={prizesLoading}
+              />
             )}
           </>
         )}

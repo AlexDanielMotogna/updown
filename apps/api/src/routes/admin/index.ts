@@ -6,6 +6,7 @@ import { adminFinanceRouter } from './finance';
 import { adminUsersRouter } from './users';
 import { adminEventsRouter } from './events';
 import { adminActionsRouter } from './actions';
+import { adminTournamentsRouter } from './tournaments';
 
 export const adminRouter: RouterType = Router();
 
@@ -23,3 +24,4 @@ adminRouter.use('/finance', adminFinanceRouter);
 adminRouter.use('/users', adminUsersRouter);
 adminRouter.use('/events', adminEventsRouter);
 adminRouter.use('/actions', adminActionsRouter);
+adminRouter.use('/tournaments', adminTournamentsRouter);

@@ -240,6 +240,25 @@ export function emitUserReward(walletAddress: string, data: {
 }
 
 /**
+ * Emit tournament match result (broadcast globally, frontend filters by wallet)
+ */
+export function emitTournamentMatchResult(data: {
+  tournamentId: string;
+  tournamentName: string;
+  matchId: string;
+  round: number;
+  winnerWallet: string;
+  loserWallet: string | null;
+  asset: string;
+  completed?: boolean;
+  prizePool?: string;
+}): void {
+  if (io) {
+    io.emit('tournament:match:result', data);
+  }
+}
+
+/**
  * Emit a squad chat message to squad room
  */
 export function emitSquadMessage(squadId: string, message: {

@@ -109,7 +109,7 @@ export default function SquadsPage() {
   if (!connected) {
     return (
       <AppShell>
-        <Container maxWidth="xl">
+        <Container maxWidth={false} sx={{ px: { xs: 2, md: 3 } }}>
           <Box sx={{ py: 12, textAlign: 'center' }}>
             <Typography sx={{ fontSize: '1.3rem', fontWeight: 700, mb: 1 }}>
               Squad Pools
@@ -139,7 +139,7 @@ export default function SquadsPage() {
 
   return (
     <AppShell>
-      <Container maxWidth="xl">
+      <Container maxWidth={false} sx={{ px: { xs: 2, md: 3 } }}>
         {/* Title */}
         <Typography sx={{ fontSize: { xs: '1.1rem', md: '1.3rem' }, fontWeight: 700, mt: { xs: 2, md: 3 }, mb: 3 }}>
           My Squads

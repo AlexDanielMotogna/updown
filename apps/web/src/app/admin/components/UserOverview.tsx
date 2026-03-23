@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import { useQuery } from '@tanstack/react-query';
+import { formatDate } from '@/lib/format';
 import { adminFetch } from '../lib/adminApi';
 
 interface UserOverviewData {
@@ -181,7 +182,7 @@ export function UserOverview() {
             </Box>
             <Box>
               <Typography variant="caption" color="text.secondary">Joined</Typography>
-              <Typography variant="body2" sx={{ fontSize: 11 }}>{new Date(searchResult.data.profile.createdAt).toLocaleDateString()}</Typography>
+              <Typography variant="body2" sx={{ fontSize: 11 }}>{formatDate(searchResult.data.profile.createdAt)}</Typography>
             </Box>
           </Box>
 
@@ -205,7 +206,7 @@ export function UserOverview() {
                   <TableBody>
                     {searchResult.data.recentBets.map(b => (
                       <TableRow key={b.id}>
-                        <TableCell sx={{ fontSize: 11, whiteSpace: 'nowrap' }}>{new Date(b.createdAt).toLocaleString()}</TableCell>
+                        <TableCell sx={{ fontSize: 11, whiteSpace: 'nowrap' }}>{formatDate(b.createdAt)}</TableCell>
                         <TableCell>{b.pool.asset}</TableCell>
                         <TableCell>{b.pool.interval}</TableCell>
                         <TableCell>

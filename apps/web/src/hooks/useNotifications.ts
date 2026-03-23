@@ -4,6 +4,7 @@ import { getSocket, connectSocket } from '@/lib/socket';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { buildNotification } from '@/lib/notifications';
 import { showRewardPopup } from '@/components/RewardPopup';
+import { fireWinConfetti } from '@/lib/confetti';
 import { useBets } from './useBets';
 import { useWalletBridge } from './useWalletBridge';
 
@@ -119,14 +120,54 @@ export function useNotifications() {
       queryClient.invalidateQueries({ queryKey: ['userProfile'] });
     };
 
+    const onTournamentMatchResult = (data: {
+      tournamentId: string;
+      tournamentName: string;
+      matchId: string;
+      round: number;
+      winnerWallet: string;
+      loserWallet: string | null;
+      asset: string;
+      completed?: boolean;
+      prizePool?: string;
+    }) => {
+      if (!walletAddress) return;
+      const isWinner = data.winnerWallet === walletAddress;
+      const isLoser = data.loserWallet === walletAddress;
+      if (!isWinner && !isLoser) return;
+
+      if (data.completed && isWinner) {
+        // Tournament champion!
+        push(buildNotification('TOURNAMENT_WON', {
+          tournamentName: data.tournamentName,
+          prizePool: (Number(data.prizePool || 0) * 0.95 / 1_000_000).toFixed(2),
+        }));
+        fireWinConfetti();
+        setTimeout(() => fireWinConfetti(), 500);
+      } else if (isWinner) {
+        push(buildNotification('TOURNAMENT_MATCH_WON', {
+          tournamentName: data.tournamentName,
+          round: data.round,
+        }));
+        fireWinConfetti();
+      } else if (isLoser) {
+        push(buildNotification('TOURNAMENT_MATCH_LOST', {
+          tournamentName: data.tournamentName,
+          round: data.round,
+        }));
+      }
+    };
+
     socket.on('pool:status', onPoolStatus);
     socket.on('wallet:refund', onRefund);
     socket.on('user:reward', onUserReward);
+    socket.on('tournament:match:result', onTournamentMatchResult);
 
     return () => {
       socket.off('pool:status', onPoolStatus);
       socket.off('wallet:refund', onRefund);
       socket.off('user:reward', onUserReward);
+      socket.off('tournament:match:result', onTournamentMatchResult);
     };
   // betsQuery.data is intentionally in deps so the listener closure
   // picks up the latest bets for win/loss determination

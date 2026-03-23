@@ -22,11 +22,21 @@ function isSameDay(a: Date, b: Date): boolean {
  * Get or create a User record (upsert on wallet connect).
  */
 export async function registerUser(walletAddress: string) {
-  const user = await prisma.user.upsert({
-    where: { walletAddress },
-    update: {},
-    create: { walletAddress },
-  });
+  let user;
+  try {
+    user = await prisma.user.upsert({
+      where: { walletAddress },
+      update: {},
+      create: { walletAddress },
+    });
+  } catch (err: unknown) {
+    // Race condition: another request created the user between our check and insert
+    if ((err as { code?: string }).code === 'P2002') {
+      user = await prisma.user.findUniqueOrThrow({ where: { walletAddress } });
+    } else {
+      throw err;
+    }
+  }
 
   // Generate referral code if missing (fire-and-forget)
   ensureReferralCode(walletAddress).catch((err) =>

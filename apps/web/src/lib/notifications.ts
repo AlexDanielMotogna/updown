@@ -124,6 +124,30 @@ export const NOTIFICATION_DEFS: Record<NotificationType, NotificationDef> = {
       message: (ctx.error as string) || 'Could not process the referral payout',
     }),
   },
+  TOURNAMENT_MATCH_WON: {
+    severity: 'success',
+    autoHideDuration: 8000,
+    build: (ctx) => ({
+      title: 'Match Won!',
+      message: `${ctx.tournamentName ?? 'Tournament'} · Round ${ctx.round ?? ''} · You advance!`,
+    }),
+  },
+  TOURNAMENT_MATCH_LOST: {
+    severity: 'warning',
+    autoHideDuration: 6000,
+    build: (ctx) => ({
+      title: 'Match Lost',
+      message: `${ctx.tournamentName ?? 'Tournament'} · Round ${ctx.round ?? ''} · Eliminated`,
+    }),
+  },
+  TOURNAMENT_WON: {
+    severity: 'success',
+    autoHideDuration: 12000,
+    build: (ctx) => ({
+      title: 'Tournament Champion!',
+      message: `You won ${ctx.tournamentName ?? 'the tournament'}! Claim your $${ctx.prizePool ?? ''} USDC prize.`,
+    }),
+  },
 };
 
 /** Helper to build a full NotificationInput from a type + context */
