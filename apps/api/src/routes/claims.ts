@@ -339,9 +339,12 @@ claimsRouter.post('/confirm-claim', async (req, res) => {
       },
     });
 
-    // Award win + claim rewards (fire-and-forget)
-    awardBetWin(bet.walletAddress, bet.amount).catch(() => {});
-    awardClaimCompleted(bet.walletAddress).catch(() => {});
+    // Award win + claim rewards — skip for refunds (payout == bet amount means refund)
+    const isRefund = payout === bet.amount;
+    if (!isRefund) {
+      awardBetWin(bet.walletAddress, bet.amount).catch(() => {});
+      awardClaimCompleted(bet.walletAddress).catch(() => {});
+    }
 
     res.json({
       success: true,

@@ -1,4 +1,4 @@
-import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, keepPreviousData } from '@tanstack/react-query';
 import { useWalletBridge } from './useWalletBridge';
 import { fetchBets, fetchClaimableBets } from '@/lib/api';
 
@@ -31,6 +31,7 @@ export function useInfiniteBets() {
     },
     enabled: !!wallet,
     refetchInterval: 10000,
+    placeholderData: keepPreviousData,
   });
 }
 

@@ -176,11 +176,15 @@ export class PoolResolver {
 
           this.closeFailures.delete(pool.id);
           await this.deps.prisma.priceSnapshot.deleteMany({ where: { poolId: pool.id } });
-          await this.deps.prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: pool.id } });
-          await this.deps.prisma.bet.deleteMany({ where: { poolId: pool.id } });
-          await this.deps.prisma.pool.deleteMany({ where: { id: pool.id } });
-
-          console.log(`[Scheduler] Pool ${pool.id} closed on-chain & cleaned up (rent: +${(rentReclaimed / 1e9).toFixed(6)} SOL)`);
+          if (betCount === 0) {
+            // No participants — safe to delete entirely
+            await this.deps.prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: pool.id } });
+            await this.deps.prisma.pool.deleteMany({ where: { id: pool.id } });
+            console.log(`[Scheduler] Pool ${pool.id} closed on-chain & deleted (empty, rent: +${(rentReclaimed / 1e9).toFixed(6)} SOL)`);
+          } else {
+            // Had participants — keep pool + bets for history
+            console.log(`[Scheduler] Pool ${pool.id} closed on-chain (${betCount} bets kept, rent: +${(rentReclaimed / 1e9).toFixed(6)} SOL)`);
+          }
         } catch (error) {
           const errMsg = error instanceof Error ? error.message : String(error);
 
@@ -196,10 +200,13 @@ export class PoolResolver {
             });
             this.closeFailures.delete(pool.id);
             await this.deps.prisma.priceSnapshot.deleteMany({ where: { poolId: pool.id } });
-            await this.deps.prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: pool.id } });
-            await this.deps.prisma.bet.deleteMany({ where: { poolId: pool.id } });
-            await this.deps.prisma.pool.deleteMany({ where: { id: pool.id } });
-            console.log(`[Scheduler] Pool ${pool.id} DB records cleaned up (was already closed on-chain)`);
+            if (betCount === 0) {
+              await this.deps.prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: pool.id } });
+              await this.deps.prisma.pool.deleteMany({ where: { id: pool.id } });
+              console.log(`[Scheduler] Pool ${pool.id} already closed — deleted (empty)`);
+            } else {
+              console.log(`[Scheduler] Pool ${pool.id} already closed — kept (${betCount} bets)`);
+            }
             continue;
           }
 

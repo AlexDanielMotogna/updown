@@ -244,10 +244,10 @@ export default function MyBetsPage() {
             )}
 
             {/* Sentinel for infinite scroll */}
-            {tab !== 3 && <Box ref={sentinelRef} />}
+            {tab === 0 && <Box ref={sentinelRef} />}
 
             {/* Loading next page */}
-            {tab !== 3 && isFetchingNextPage && (
+            {tab === 0 && isFetchingNextPage && (
               <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, pb: 4 }}>
                 <CircularProgress size={32} sx={{ color: '#FFFFFF' }} />
               </Box>

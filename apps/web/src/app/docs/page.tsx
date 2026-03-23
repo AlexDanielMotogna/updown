@@ -142,14 +142,37 @@ const LEVELS = [
 ];
 
 const ALLOCATIONS = [
-  { label: 'Play-to-Earn', pct: 40, tokens: '4,000,000,000', desc: 'Distributed to players through gameplay' },
-  { label: 'Liquidity', pct: 15, tokens: '1,500,000,000', desc: 'DEX liquidity on Raydium / Orca' },
-  { label: 'Team', pct: 15, tokens: '1,500,000,000', desc: '24-month vesting, 6-month cliff' },
-  { label: 'Treasury', pct: 10, tokens: '1,000,000,000', desc: 'Protocol growth & partnerships' },
-  { label: 'Community', pct: 10, tokens: '1,000,000,000', desc: 'Community initiatives & early adopters' },
-  { label: 'Marketing', pct: 5, tokens: '500,000,000', desc: 'Exchange listings, campaigns, KOLs' },
-  { label: 'Advisors', pct: 5, tokens: '500,000,000', desc: '18-month vesting, 3-month cliff' },
+  { label: 'Play-to-Earn', pct: 40, tokens: '4,000,000,000', color: '#22C55E', desc: 'Distributed to players through gameplay' },
+  { label: 'Liquidity', pct: 15, tokens: '1,500,000,000', color: '#4ADE80', desc: 'DEX liquidity on Raydium / Orca' },
+  { label: 'Team', pct: 15, tokens: '1,500,000,000', color: '#F59E0B', desc: '24-month vesting, 6-month cliff' },
+  { label: 'Treasury', pct: 10, tokens: '1,000,000,000', color: '#A78BFA', desc: 'Protocol growth & partnerships' },
+  { label: 'Community', pct: 10, tokens: '1,000,000,000', color: '#F472B6', desc: 'Community initiatives & early adopters' },
+  { label: 'Marketing', pct: 5, tokens: '500,000,000', color: '#FB923C', desc: 'Exchange listings, campaigns, KOLs' },
+  { label: 'Advisors', pct: 5, tokens: '500,000,000', color: '#E879F9', desc: '18-month vesting, 3-month cliff' },
 ];
+
+const VESTING = [
+  { label: 'Play-to-Earn', color: '#22C55E', cliff: 0, end: 30, note: 'Ongoing via gameplay' },
+  { label: 'Liquidity', color: '#4ADE80', cliff: 0, end: 1, note: '100% at TGE' },
+  { label: 'Team', color: '#F59E0B', cliff: 6, end: 30, note: '6mo cliff, 24mo linear' },
+  { label: 'Treasury', color: '#A78BFA', cliff: 0, end: 12, note: '12mo linear' },
+  { label: 'Community', color: '#F472B6', cliff: 0, end: 24, note: 'Airdrop waves' },
+  { label: 'Marketing', color: '#FB923C', cliff: 0, end: 24, note: 'Per milestone' },
+  { label: 'Advisors', color: '#E879F9', cliff: 3, end: 21, note: '3mo cliff, 18mo linear' },
+];
+
+const DONUT_R = 70;
+const DONUT_CIRC = 2 * Math.PI * DONUT_R;
+const DONUT_SEGMENTS = (() => {
+  let offset = 0;
+  return ALLOCATIONS.map((a) => {
+    const dashLen = (a.pct / 100) * DONUT_CIRC;
+    const seg = { ...a, dashLen, offset };
+    offset += dashLen;
+    return seg;
+  });
+})();
+const VESTING_MAX = 30;
 
 const NAV_SECTIONS = [
   { id: 'quick-start', label: 'Getting Started' },
@@ -568,9 +591,89 @@ export default function DocsPage() {
             </Box>
 
             <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1 }}>TOKEN DISTRIBUTION</Typography>
-            <Box sx={{ bgcolor: '#0D1219', mb: 2 }}>
-              {ALLOCATIONS.map((a) => (
-                <DataRow key={a.label} label={`${a.label} (${a.pct}%)`} value={`${a.tokens} UP`} />
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center', gap: { xs: 2, md: 4 }, bgcolor: '#0D1219', p: { xs: 2, md: 3 }, mb: '3px' }}>
+              {/* Donut Chart */}
+              <Box sx={{ position: 'relative', flexShrink: 0, width: { xs: 170, sm: 200, md: 220 }, height: { xs: 170, sm: 200, md: 220 } }}>
+                <svg viewBox="0 0 220 220" width="100%" height="100%">
+                  {DONUT_SEGMENTS.map((seg) => (
+                    <Tooltip
+                      key={seg.label}
+                      title={<Box sx={{ textAlign: 'center', py: 0.5 }}>
+                        <Typography sx={{ fontWeight: 700, fontSize: '0.85rem', color: seg.color }}>{seg.label}</Typography>
+                        <Typography sx={{ fontSize: '0.8rem' }}>{seg.pct}% &middot; {seg.tokens} UP</Typography>
+                        <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)' }}>{seg.desc}</Typography>
+                      </Box>}
+                      arrow
+                      slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', maxWidth: 220 } }, arrow: { sx: { color: '#1a1f2e' } } }}
+                    >
+                      <circle
+                        cx="110"
+                        cy="110"
+                        r={DONUT_R}
+                        fill="none"
+                        stroke={seg.color}
+                        strokeWidth="28"
+                        strokeDasharray={`${seg.dashLen} ${DONUT_CIRC}`}
+                        strokeDashoffset={-seg.offset}
+                        style={{ transform: 'rotate(-90deg)', transformOrigin: '110px 110px', cursor: 'pointer', transition: 'stroke-width 0.15s' }}
+                      />
+                    </Tooltip>
+                  ))}
+                </svg>
+                <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+                  <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.08em' }}>TOTAL</Typography>
+                  <Typography sx={{ fontSize: { xs: '1rem', md: '1.2rem' }, fontWeight: 800, color: '#FACC15' }}>10B</Typography>
+                  <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)' }}>$UP</Typography>
+                </Box>
+              </Box>
+              {/* Legend */}
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1.25, width: '100%' }}>
+                {ALLOCATIONS.map((a) => (
+                  <Tooltip key={a.label} title={`${a.tokens} UP - ${a.desc}`} placement="left" arrow slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.78rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer', py: 0.25, mx: -0.5, px: 0.5, borderRadius: '4px', transition: 'background 0.15s', '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' } }}>
+                      <Box sx={{ width: 10, height: 10, borderRadius: '2px', bgcolor: a.color, flexShrink: 0 }} />
+                      <Typography sx={{ fontSize: { xs: '0.82rem', md: '0.88rem' }, fontWeight: 600, color: a.color, flex: 1 }}>{a.label}</Typography>
+                      <Typography sx={{ fontSize: { xs: '0.82rem', md: '0.88rem' }, fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>{a.pct}%</Typography>
+                    </Box>
+                  </Tooltip>
+                ))}
+              </Box>
+            </Box>
+
+            {/* Vesting Timeline */}
+            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1, mt: 2 }}>VESTING SCHEDULE</Typography>
+            <Box sx={{ bgcolor: '#0D1219', p: { xs: 1.5, md: 2.5 }, mb: '3px' }}>
+              <Box sx={{ display: 'flex', ml: { xs: '65px', sm: '80px', md: '100px' }, mr: { xs: '70px', sm: '90px', md: '120px' }, mb: 1 }}>
+                {[0, 6, 12, 18, 24, 30].map((m) => (
+                  <Typography key={m} sx={{ fontSize: { xs: '0.58rem', md: '0.68rem' }, color: 'rgba(255,255,255,0.3)', flex: 1 }}>
+                    {m === 0 ? 'TGE' : `${m}mo`}
+                  </Typography>
+                ))}
+              </Box>
+              {VESTING.map((v) => (
+                <Tooltip
+                  key={v.label}
+                  title={<Box sx={{ py: 0.5 }}>
+                    <Typography sx={{ fontWeight: 700, fontSize: '0.82rem', color: v.color }}>{v.label}</Typography>
+                    {v.cliff > 0 && <Typography sx={{ fontSize: '0.78rem' }}>Cliff: {v.cliff} months</Typography>}
+                    <Typography sx={{ fontSize: '0.78rem' }}>Vesting: month {v.cliff} to {v.end}</Typography>
+                    <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)' }}>{v.note}</Typography>
+                  </Box>}
+                  arrow
+                  placement="top"
+                  slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', maxWidth: 200 } }, arrow: { sx: { color: '#1a1f2e' } } }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.75, gap: { xs: 0.75, md: 1.5 }, cursor: 'pointer', py: 0.25, borderRadius: '4px', transition: 'background 0.15s', '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }}>
+                    <Typography sx={{ fontSize: { xs: '0.65rem', md: '0.78rem' }, color: v.color, fontWeight: 600, width: { xs: 55, sm: 70, md: 90 }, flexShrink: 0, textAlign: 'right' }}>{v.label}</Typography>
+                    <Box sx={{ flex: 1, height: { xs: 14, md: 18 }, bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '3px', position: 'relative', overflow: 'hidden' }}>
+                      {v.cliff > 0 && (
+                        <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${(v.cliff / VESTING_MAX) * 100}%`, bgcolor: `${v.color}10`, borderRight: `1px dashed ${v.color}50` }} />
+                      )}
+                      <Box sx={{ position: 'absolute', top: 0, bottom: 0, left: `${(v.cliff / VESTING_MAX) * 100}%`, width: `${((v.end - v.cliff) / VESTING_MAX) * 100}%`, background: `linear-gradient(90deg, ${v.color}90, ${v.color}50)`, borderRadius: '3px' }} />
+                    </Box>
+                    <Typography sx={{ fontSize: { xs: '0.55rem', md: '0.68rem' }, color: 'rgba(255,255,255,0.4)', width: { xs: 65, sm: 80, md: 110 }, flexShrink: 0 }}>{v.note}</Typography>
+                  </Box>
+                </Tooltip>
               ))}
             </Box>
 
