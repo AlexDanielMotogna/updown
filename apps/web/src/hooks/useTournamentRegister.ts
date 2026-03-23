@@ -85,7 +85,7 @@ export function useTournamentRegister() {
       }
 
       setStatus('success');
-      push(buildNotification('DEPOSIT_SUCCESS', { side: 'Entry', asset: `Tournament · ${feeUsdc} USDC` }));
+      push(buildNotification('TOURNAMENT_REGISTERED', { entryFee: feeUsdc }));
       return true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Registration failed';

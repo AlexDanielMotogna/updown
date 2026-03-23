@@ -124,6 +124,14 @@ export const NOTIFICATION_DEFS: Record<NotificationType, NotificationDef> = {
       message: (ctx.error as string) || 'Could not process the referral payout',
     }),
   },
+  TOURNAMENT_REGISTERED: {
+    severity: 'success',
+    autoHideDuration: 5000,
+    build: (ctx) => ({
+      title: 'Tournament Joined',
+      message: `Registered for ${ctx.tournamentName ?? 'tournament'}. Entry: $${ctx.entryFee ?? ''}. Good luck!`,
+    }),
+  },
   TOURNAMENT_MATCH_WON: {
     severity: 'success',
     autoHideDuration: 8000,
