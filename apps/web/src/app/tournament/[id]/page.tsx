@@ -121,6 +121,10 @@ export default function TournamentBracketPage() {
   return (
     <AppShell>
     <Box sx={{
+      bgcolor: '#0D1219',
+      display: 'flex',
+      flexDirection: 'column',
+      minHeight: 'calc(100vh - 64px)',
       '&::-webkit-scrollbar': { width: 3 },
       '&::-webkit-scrollbar-track': { bgcolor: 'transparent' },
       '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 0 },
@@ -173,7 +177,7 @@ export default function TournamentBracketPage() {
             onMouseLeave={onMouseUp}
             sx={{
               overflow: 'auto',
-              maxHeight: 'calc(100vh - 250px)',
+              flex: 1,
               px: { xs: 1.5, md: 4 },
               py: { xs: 2, md: 4 },
               cursor: 'grab',

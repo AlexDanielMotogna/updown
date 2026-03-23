@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { AppShell, AssetIcon } from '@/components';
 import { fetchTournaments, type TournamentSummary } from '@/lib/api';
 import { UP_COLOR, ACCENT_COLOR, GAIN_COLOR } from '@/lib/constants';
+import { formatDate } from '@/lib/format';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useTournamentRegister, type RegisterStatus } from '@/hooks/useTournamentRegister';
 
@@ -96,6 +97,9 @@ function TournamentCard({ t, onRegistered }: { t: TournamentSummary; onRegistere
         <InfoItem label="Entry Fee" value={`$${entryFeeUsdc}`} />
         <InfoItem label="Players" value={`${filled} / ${t.size}`} />
         <InfoItem label="Prize Pool" value={`$${prizePoolUsdc}`} color={GAIN_COLOR} />
+        {t.scheduledAt && (
+          <InfoItem label="Starts" value={formatDate(t.scheduledAt)} />
+        )}
       </Box>
 
       {/* Round info */}

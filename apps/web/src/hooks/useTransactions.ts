@@ -159,11 +159,8 @@ export function useDeposit() {
         // Register pool for notifications + push success toast
         const notifStore = useNotificationStore.getState();
         notifStore.addUserPoolId(poolId);
-        notifStore.push(buildNotification('DEPOSIT_SUCCESS', {
-          poolId,
-          side,
-          asset: response.data.pool.asset,
-        }));
+        notifStore.push({ ...buildNotification('DEPOSIT_SUCCESS', { asset: response.data.pool.asset }), poolId, asset: response.data.pool.asset });
+        notifStore.push({ ...buildNotification('PREDICTION_PLACED', { side, asset: response.data.pool.asset }), poolId, asset: response.data.pool.asset });
 
         // Invalidate queries
         queryClient.invalidateQueries({ queryKey: ['pools'] });

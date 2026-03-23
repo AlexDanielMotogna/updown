@@ -50,6 +50,8 @@ tournamentActionRouter.post('/:id/prepare-register', async (req, res) => {
       success: true,
       data: {
         entryFee: tournament.entryFee.toString(),
+        asset: tournament.asset,
+        name: tournament.name,
         accounts: {
           authorityTokenAccount: authorityTokenAccount.toBase58(),
           userTokenAccount: userTokenAccount.toBase58(),

@@ -260,18 +260,6 @@ export async function resolvePool(
     const finalPrice = priceTick.price;
     const strikePrice = pool.strikePrice;
 
-    // Store price snapshot (non-blocking)
-    deps.prisma.priceSnapshot.create({
-      data: {
-        poolId: pool.id,
-        type: 'FINAL',
-        price: finalPrice,
-        timestamp: priceTick.timestamp,
-        source: priceTick.source,
-        rawHash: priceTick.rawHash || '',
-      },
-    }).catch((err) => console.error(`[Scheduler] Failed to save price snapshot:`, err));
-
     console.log(
       `[Scheduler] Pool ${pool.id} resolution: strike=${strikePrice} final=${finalPrice} diff=${finalPrice - strikePrice}`,
     );
@@ -291,6 +279,18 @@ export async function resolvePool(
       console.log(`[Scheduler] Pool ${pool.id} → CLAIMABLE (empty, no bets)`);
       return;
     }
+
+    // Store price snapshot (only for pools with bets)
+    deps.prisma.priceSnapshot.create({
+      data: {
+        poolId: pool.id,
+        type: 'FINAL',
+        price: finalPrice,
+        timestamp: priceTick.timestamp,
+        source: priceTick.source,
+        rawHash: priceTick.rawHash || '',
+      },
+    }).catch((err) => console.error(`[Scheduler] Failed to save price snapshot:`, err));
 
     // Single bettor — resolve on-chain with prices that make their side win, then auto-refund
     if (betCount === 1) {

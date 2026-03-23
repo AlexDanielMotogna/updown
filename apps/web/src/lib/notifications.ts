@@ -49,11 +49,19 @@ export const NOTIFICATION_DEFS: Record<NotificationType, NotificationDef> = {
     }),
   },
   DEPOSIT_SUCCESS: {
+    severity: 'info',
+    autoHideDuration: 4000,
+    build: (ctx) => ({
+      title: 'Payment Sent',
+      message: `USDC sent for ${ctx.asset ?? 'pool'} prediction.`,
+    }),
+  },
+  PREDICTION_PLACED: {
     severity: 'success',
     autoHideDuration: 5000,
     build: (ctx) => ({
       title: 'Prediction Placed',
-      message: `${ctx.side ?? ''} on ${ctx.asset ?? 'pool'}  Good luck!`,
+      message: `${ctx.side ?? ''} on ${ctx.asset ?? 'pool'}. Good luck!`,
     }),
   },
   DEPOSIT_FAILED: {
@@ -122,6 +130,22 @@ export const NOTIFICATION_DEFS: Record<NotificationType, NotificationDef> = {
     build: (ctx) => ({
       title: 'Referral Claim Failed',
       message: (ctx.error as string) || 'Could not process the referral payout',
+    }),
+  },
+  TOURNAMENT_REGISTERED: {
+    severity: 'success',
+    autoHideDuration: 5000,
+    build: (ctx) => ({
+      title: 'Tournament Joined',
+      message: `You are in${ctx.tournamentName ? ` ${ctx.tournamentName}` : ''}. Good luck!`,
+    }),
+  },
+  TOURNAMENT_ENTRY_PAID: {
+    severity: 'info',
+    autoHideDuration: 4000,
+    build: (ctx) => ({
+      title: 'Entry Fee Paid',
+      message: `${ctx.entryFee ?? ''} sent for tournament registration.`,
     }),
   },
   TOURNAMENT_MATCH_WON: {

@@ -34,9 +34,9 @@ export function useTournamentRegister() {
         throw new Error(prepRes.error?.message || 'Failed to prepare registration');
       }
 
-      const { entryFee, accounts } = prepRes.data;
+      const { entryFee, accounts, asset, name: tournamentName } = prepRes.data;
       const amount = BigInt(entryFee);
-      const feeUsdc = `$${(Number(entryFee) / 1_000_000).toFixed(2)}`;
+      const feeUsdc = `${(Number(entryFee) / 1_000_000).toFixed(2)}`;
 
       setStatus('signing');
 
@@ -85,7 +85,8 @@ export function useTournamentRegister() {
       }
 
       setStatus('success');
-      push(buildNotification('DEPOSIT_SUCCESS', { side: 'Entry', asset: `Tournament · ${feeUsdc} USDC` }));
+      push({ ...buildNotification('TOURNAMENT_ENTRY_PAID', { entryFee: `$${feeUsdc}` }), asset });
+      push({ ...buildNotification('TOURNAMENT_REGISTERED', { tournamentName }), asset });
       return true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Registration failed';
