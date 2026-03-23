@@ -163,12 +163,12 @@ export function buildClaimIx(
   ]);
 
   const keys = [
-    { pubkey: pool, isSigner: false, isWritable: false },
+    { pubkey: pool, isSigner: false, isWritable: true },
     { pubkey: userBet, isSigner: false, isWritable: true },
     { pubkey: vault, isSigner: false, isWritable: true },
     { pubkey: userTokenAccount, isSigner: false, isWritable: true },
     { pubkey: user, isSigner: true, isWritable: true },
-    { pubkey: authority, isSigner: true, isWritable: false },
+    { pubkey: authority, isSigner: true, isWritable: true },
     { pubkey: feeWallet, isSigner: false, isWritable: true },
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
   ];
@@ -189,12 +189,12 @@ export function buildRefundIx(
   authority: PublicKey,
 ): TransactionInstruction {
   const keys = [
-    { pubkey: pool, isSigner: false, isWritable: false },
+    { pubkey: pool, isSigner: false, isWritable: true },
     { pubkey: userBet, isSigner: false, isWritable: true },
     { pubkey: vault, isSigner: false, isWritable: true },
     { pubkey: userTokenAccount, isSigner: false, isWritable: true },
-    { pubkey: user, isSigner: false, isWritable: false },
-    { pubkey: authority, isSigner: true, isWritable: false },
+    { pubkey: user, isSigner: false, isWritable: true },
+    { pubkey: authority, isSigner: true, isWritable: true },
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
   ];
 

@@ -266,6 +266,7 @@ export function useClaim() {
 
         // Invalidate queries
         queryClient.invalidateQueries({ queryKey: ['bets'] });
+        queryClient.invalidateQueries({ queryKey: ['infiniteBets'] });
         queryClient.invalidateQueries({ queryKey: ['claimableBets'] });
         queryClient.invalidateQueries({ queryKey: ['usdc-balance'] });
 
