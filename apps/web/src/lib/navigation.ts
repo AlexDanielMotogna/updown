@@ -19,4 +19,4 @@ export const NAV_ITEMS: NavItem[] = [
 ];
 
 // Items shown in desktop header (keep compact to avoid overlap)
-export const DESKTOP_NAV_ITEMS = NAV_ITEMS.slice(0, 6);
+export const DESKTOP_NAV_ITEMS = NAV_ITEMS.slice(0, 7);
