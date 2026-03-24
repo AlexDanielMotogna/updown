@@ -86,12 +86,12 @@ export default function MarketsPage() {
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }, [searchParams, router, pathname]);
 
-  // Show all live pools (JOINING = open for betting)
+  // Show all live pools; for sports include recently resolved pools
   const filters = useMemo(() => ({
     asset: assetFilter === 'ALL' ? undefined : assetFilter,
     interval: intervalFilter === 'ALL' ? undefined : intervalFilter,
     type: marketType,
-    status: 'JOINING',
+    status: marketType === 'SPORTS' ? 'JOINING,ACTIVE,CLAIMABLE,RESOLVED' : 'JOINING',
   }), [assetFilter, intervalFilter, marketType]);
 
   const {

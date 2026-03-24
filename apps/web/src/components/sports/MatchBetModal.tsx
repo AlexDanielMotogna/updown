@@ -6,6 +6,7 @@ import { Close } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { ThreeWaySelector } from './ThreeWaySelector';
+import { MatchAnalysis } from './MatchAnalysis';
 import { useDeposit } from '@/hooks/useTransactions';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
@@ -122,6 +123,10 @@ export function MatchBetModal({ pool, onClose }: Props) {
 
   if (!pool) return null;
 
+  const isResolved = pool.status === 'CLAIMABLE' || pool.status === 'RESOLVED';
+  const winnerLabel = isResolved ? (pool.winner === 'UP' ? pool.homeTeam : pool.winner === 'DOWN' ? pool.awayTeam : pool.winner === 'DRAW' ? 'Draw' : null) : null;
+  const winnerColor = pool.winner === 'UP' ? HOME_COLOR : pool.winner === 'DOWN' ? AWAY_COLOR : DRAW_COLOR;
+
   return (
     <>
       <Drawer
@@ -170,94 +175,118 @@ export function MatchBetModal({ pool, onClose }: Props) {
               {pool.homeTeamCrest && (
                 <Box component="img" src={pool.homeTeamCrest} alt="" sx={{ width: 48, height: 48, objectFit: 'contain', mb: 1 }} />
               )}
-              <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: '#fff' }}>
+              <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: isResolved && pool.winner === 'UP' ? HOME_COLOR : '#fff' }}>
                 {pool.homeTeam}
               </Typography>
             </Box>
-            <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(255,255,255,0.15)' }}>vs</Typography>
+            {isResolved && pool.homeScore != null && pool.awayScore != null ? (
+              <Typography sx={{ fontSize: '1.3rem', fontWeight: 700, color: '#fff' }}>
+                {pool.homeScore} - {pool.awayScore}
+              </Typography>
+            ) : (
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(255,255,255,0.15)' }}>vs</Typography>
+            )}
             <Box sx={{ textAlign: 'center', flex: 1 }}>
               {pool.awayTeamCrest && (
                 <Box component="img" src={pool.awayTeamCrest} alt="" sx={{ width: 48, height: 48, objectFit: 'contain', mb: 1 }} />
               )}
-              <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: '#fff' }}>
+              <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: isResolved && pool.winner === 'DOWN' ? AWAY_COLOR : '#fff' }}>
                 {pool.awayTeam}
               </Typography>
             </Box>
           </Box>
 
-          {/* Side selector */}
+          {/* Winner result */}
+          {isResolved && winnerLabel && (
+            <Box sx={{ mx: 2, mb: 2, textAlign: 'center' }}>
+              <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}>
+                Final Result
+              </Typography>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: winnerColor }}>
+                {winnerLabel} wins
+              </Typography>
+            </Box>
+          )}
+
+          {/* Side selector (show as read-only when resolved) */}
           <Box sx={{ px: 2, mb: 2 }}>
             <ThreeWaySelector
               side={side}
-              onSideChange={setSide}
+              onSideChange={isResolved ? () => {} : setSide}
               totalUp={Number(liveTotals?.totalUp ?? pool.totalUp)}
               totalDown={Number(liveTotals?.totalDown ?? pool.totalDown)}
               totalDraw={Number(liveTotals?.totalDraw ?? pool.totalDraw)}
               homeTeam={pool.homeTeam || undefined}
               awayTeam={pool.awayTeam || undefined}
+              disabled={isResolved}
             />
           </Box>
 
-          {/* Amount */}
-          <Box sx={{ px: 2, mb: 2 }}>
-            <Box sx={{ display: 'flex', gap: 0.5, mb: 1 }}>
-              {PRESETS.map(p => (
-                <Button
-                  key={p}
+          {/* Bet form - only show when pool is open */}
+          {!isResolved && (
+            <>
+              {/* Amount */}
+              <Box sx={{ px: 2, mb: 2 }}>
+                <Box sx={{ display: 'flex', gap: 0.5, mb: 1 }}>
+                  {PRESETS.map(p => (
+                    <Button
+                      key={p}
+                      size="small"
+                      onClick={() => setAmount(String(p))}
+                      sx={{
+                        flex: 1, minWidth: 0, py: 0.5,
+                        fontSize: '0.75rem', fontWeight: 600,
+                        bgcolor: amountNum === p ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
+                        color: amountNum === p ? '#fff' : 'rgba(255,255,255,0.5)',
+                        textTransform: 'none', borderRadius: '5px',
+                        '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' },
+                      }}
+                    >
+                      ${p}
+                    </Button>
+                  ))}
+                </Box>
+                <TextField
+                  fullWidth
                   size="small"
-                  onClick={() => setAmount(String(p))}
+                  placeholder="Amount (USDC)"
+                  type="number"
+                  value={amount}
+                  onChange={e => setAmount(e.target.value)}
+                  inputProps={{ min: 1, step: 'any' }}
                   sx={{
-                    flex: 1, minWidth: 0, py: 0.5,
-                    fontSize: '0.75rem', fontWeight: 600,
-                    bgcolor: amountNum === p ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
-                    color: amountNum === p ? '#fff' : 'rgba(255,255,255,0.5)',
-                    textTransform: 'none', borderRadius: '5px',
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' },
+                    '& .MuiInputBase-root': { bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '5px' },
+                    '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
+                    '& .MuiInputBase-input': {
+                      color: '#fff', fontSize: '0.9rem',
+                      MozAppearance: 'textfield',
+                      '&::-webkit-outer-spin-button, &::-webkit-inner-spin-button': { WebkitAppearance: 'none', margin: 0 },
+                    },
                   }}
-                >
-                  ${p}
-                </Button>
-              ))}
-            </Box>
-            <TextField
-              fullWidth
-              size="small"
-              placeholder="Amount (USDC)"
-              type="number"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              inputProps={{ min: 1, step: 'any' }}
-              sx={{
-                '& .MuiInputBase-root': { bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '5px' },
-                '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
-                '& .MuiInputBase-input': {
-                  color: '#fff', fontSize: '0.9rem',
-                  MozAppearance: 'textfield',
-                  '&::-webkit-outer-spin-button, &::-webkit-inner-spin-button': { WebkitAppearance: 'none', margin: 0 },
-                },
-              }}
-            />
-            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.55)', mt: 0.75 }}>
-              Balance: ${balanceNum.toFixed(2)} USDC
-            </Typography>
-          </Box>
+                />
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.55)', mt: 0.75 }}>
+                  Balance: ${balanceNum.toFixed(2)} USDC
+                </Typography>
+              </Box>
 
-          {/* Payout preview */}
-          {side && amountNum > 0 && (
-            <Box sx={{ px: 2, mb: 2, py: 1.5, bgcolor: 'rgba(255,255,255,0.03)' }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>Estimated payout</Typography>
-                <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: GAIN_COLOR }}>
-                  ${estimatedPayout.toFixed(2)}
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>Multiplier</Typography>
-                <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>
-                  {amountNum > 0 ? (estimatedPayout / amountNum).toFixed(2) : '0.00'}x
-                </Typography>
-              </Box>
-            </Box>
+              {/* Payout preview */}
+              {side && amountNum > 0 && (
+                <Box sx={{ px: 2, mb: 2, py: 1.5, bgcolor: 'rgba(255,255,255,0.03)' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>Estimated payout</Typography>
+                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: GAIN_COLOR }}>
+                      ${estimatedPayout.toFixed(2)}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>Multiplier</Typography>
+                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>
+                      {amountNum > 0 ? (estimatedPayout / amountNum).toFixed(2) : '0.00'}x
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+            </>
           )}
 
           {/* Activity log */}
@@ -297,27 +326,45 @@ export function MatchBetModal({ pool, onClose }: Props) {
             </Box>
           )}
 
-          {/* Submit */}
+          {/* Submit / Result footer */}
           <Box sx={{ px: 2, mt: 'auto', pb: 1.5 }}>
-            <Button
-              fullWidth
-              variant="contained"
-              disabled={!canSubmit}
-              onClick={handleSubmit}
-              sx={{
-                bgcolor: UP_COLOR, color: '#000', fontWeight: 700, fontSize: '0.8rem',
-                py: 1, borderRadius: '5px', textTransform: 'none',
-                '&:hover': { bgcolor: UP_COLOR, filter: 'brightness(1.15)' },
-                '&:disabled': { bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)' },
-              }}
-            >
-              {!connected ? 'Connect Wallet' : !side ? 'Select Side' : amountNum <= 0 ? 'Enter Amount' : 'Place Prediction'}
-            </Button>
-            <Link href={`/match/${pool.id}`} style={{ textDecoration: 'none' }}>
-              <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', mt: 1.5, '&:hover': { color: '#fff' } }}>
-                View full details &rarr;
-              </Typography>
-            </Link>
+            {isResolved ? (
+              <Link href={`/match/${pool.id}`} style={{ textDecoration: 'none' }}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  sx={{
+                    bgcolor: 'rgba(255,255,255,0.06)', color: '#fff', fontWeight: 700, fontSize: '0.8rem',
+                    py: 1, borderRadius: '5px', textTransform: 'none',
+                    '&:hover': { bgcolor: 'rgba(255,255,255,0.10)' },
+                  }}
+                >
+                  View Results
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  disabled={!canSubmit}
+                  onClick={handleSubmit}
+                  sx={{
+                    bgcolor: UP_COLOR, color: '#000', fontWeight: 700, fontSize: '0.8rem',
+                    py: 1, borderRadius: '5px', textTransform: 'none',
+                    '&:hover': { bgcolor: UP_COLOR, filter: 'brightness(1.15)' },
+                    '&:disabled': { bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)' },
+                  }}
+                >
+                  {!connected ? 'Connect Wallet' : !side ? 'Select Side' : amountNum <= 0 ? 'Enter Amount' : 'Place Prediction'}
+                </Button>
+                <Link href={`/match/${pool.id}`} style={{ textDecoration: 'none' }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', mt: 1.5, '&:hover': { color: '#fff' } }}>
+                    View full details &rarr;
+                  </Typography>
+                </Link>
+              </>
+            )}
           </Box>
         </Box>
       </Drawer>

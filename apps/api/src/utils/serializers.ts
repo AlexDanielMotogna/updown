@@ -28,6 +28,9 @@ export function serializePool(pool: {
   homeTeamCrest?: string | null;
   awayTeamCrest?: string | null;
   league?: string | null;
+  matchAnalysis?: string | null;
+  homeScore?: number | null;
+  awayScore?: number | null;
   winner: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -60,6 +63,9 @@ export function serializePool(pool: {
     homeTeamCrest: pool.homeTeamCrest ?? null,
     awayTeamCrest: pool.awayTeamCrest ?? null,
     league: pool.league ?? null,
+    matchAnalysis: pool.matchAnalysis ?? null,
+    homeScore: pool.homeScore ?? null,
+    awayScore: pool.awayScore ?? null,
     createdAt: pool.createdAt.toISOString(),
     updatedAt: pool.updatedAt.toISOString(),
   };

@@ -45,6 +45,9 @@ export interface Pool {
   homeTeamCrest?: string | null;
   awayTeamCrest?: string | null;
   league?: string | null;
+  matchAnalysis?: string | null;
+  homeScore?: number | null;
+  awayScore?: number | null;
   createdAt: string;
   updatedAt: string;
 }

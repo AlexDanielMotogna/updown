@@ -6,6 +6,7 @@ import { derivePoolSeed, getUsdcMint, getConnection, getAuthorityKeypair } from 
 import { Transaction } from '@solana/web3.js';
 import crypto from 'crypto';
 import { emitPoolStatus } from '../websocket';
+import { generateMatchAnalysis } from '../services/sports/match-analysis';
 
 const LEAGUES = ['CL', 'PL', 'PD', 'SA', 'BL1', 'FL1']; // UCL, Premier, La Liga, Serie A, Bundesliga, Ligue 1
 const POOL_OPEN_HOURS_BEFORE = 720; // Open pool 30 days before kickoff
@@ -183,6 +184,17 @@ async function createSportsPool(match: Match, leagueCode: string): Promise<void>
     });
 
     console.log(`[Sports] Created pool for ${match.homeTeam} vs ${match.awayTeam} (${leagueCode}, kickoff: ${kickoff.toISOString()})`);
+
+    // Generate match analysis in background (non-blocking)
+    generateMatchAnalysis(match.id, match.homeTeam, match.awayTeam)
+      .then(analysis => {
+        if (analysis) {
+          prisma.pool.update({ where: { id: poolId }, data: { matchAnalysis: analysis } })
+            .then(() => console.log(`[Sports] Analysis saved for ${match.homeTeam} vs ${match.awayTeam}`))
+            .catch(() => {});
+        }
+      })
+      .catch(() => {});
   } catch (error) {
     console.error(`[Sports] Failed to create pool for ${match.homeTeam} vs ${match.awayTeam}:`, error);
   }

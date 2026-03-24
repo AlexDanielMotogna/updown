@@ -28,6 +28,7 @@ export function MatchCard({ pool, onClick }: { pool: Pool; onClick?: () => void 
   const isJoining = pool.status === 'JOINING';
   const isResolved = pool.status === 'CLAIMABLE' || pool.status === 'RESOLVED';
   const league = pool.league || '';
+  const winnerLabel = isResolved && pool.winner === 'UP' ? pool.homeTeam : pool.winner === 'DOWN' ? pool.awayTeam : pool.winner === 'DRAW' ? 'Draw' : null;
 
   return (
       <Box
@@ -69,40 +70,55 @@ export function MatchCard({ pool, onClick }: { pool: Pool; onClick?: () => void 
         {/* Teams */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
           <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
-            <Typography sx={{ fontSize: { xs: '0.9rem', md: '1rem' }, fontWeight: 700, textAlign: 'right' }}>
+            <Typography sx={{ fontSize: { xs: '0.9rem', md: '1rem' }, fontWeight: 700, textAlign: 'right', color: isResolved && pool.winner === 'UP' ? UP_COLOR : '#fff' }}>
               {pool.homeTeam || 'Home'}
             </Typography>
             {pool.homeTeamCrest && (
               <Box component="img" src={pool.homeTeamCrest} alt={pool.homeTeam || ''} sx={{ width: 24, height: 24, objectFit: 'contain' }} />
             )}
           </Box>
-          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.15)' }}>
-            vs
-          </Typography>
+          {isResolved && pool.homeScore != null && pool.awayScore != null ? (
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#fff', minWidth: 40, textAlign: 'center' }}>
+              {pool.homeScore} - {pool.awayScore}
+            </Typography>
+          ) : (
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.15)' }}>
+              vs
+            </Typography>
+          )}
           <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
             {pool.awayTeamCrest && (
               <Box component="img" src={pool.awayTeamCrest} alt={pool.awayTeam || ''} sx={{ width: 24, height: 24, objectFit: 'contain' }} />
             )}
-            <Typography sx={{ fontSize: { xs: '0.9rem', md: '1rem' }, fontWeight: 700, textAlign: 'left' }}>
+            <Typography sx={{ fontSize: { xs: '0.9rem', md: '1rem' }, fontWeight: 700, textAlign: 'left', color: isResolved && pool.winner === 'DOWN' ? DOWN_COLOR : '#fff' }}>
               {pool.awayTeam || 'Away'}
             </Typography>
           </Box>
         </Box>
 
+        {/* Result label */}
+        {isResolved && winnerLabel && (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 0.5 }}>
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: pool.winner === 'UP' ? UP_COLOR : pool.winner === 'DOWN' ? DOWN_COLOR : DRAW_COLOR }}>
+              {winnerLabel} wins
+            </Typography>
+          </Box>
+        )}
+
         {/* 3-way odds bar */}
         <Box sx={{ display: 'flex', gap: '2px', height: 28 }}>
-          <Box sx={{ flex: homePct, bgcolor: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'flex 0.3s ease' }}>
-            <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: '#fff' }}>
+          <Box sx={{ flex: homePct, bgcolor: isResolved && pool.winner === 'UP' ? `${UP_COLOR}30` : 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'flex 0.3s ease' }}>
+            <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: isResolved && pool.winner === 'UP' ? UP_COLOR : '#fff' }}>
               {isResolved && pool.winner === 'UP' ? '\u2713 ' : ''}{homePct}%
             </Typography>
           </Box>
-          <Box sx={{ flex: drawPct, bgcolor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'flex 0.3s ease' }}>
-            <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: 'rgba(255,255,255,0.5)' }}>
+          <Box sx={{ flex: drawPct, bgcolor: isResolved && pool.winner === 'DRAW' ? `${DRAW_COLOR}25` : 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'flex 0.3s ease' }}>
+            <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: isResolved && pool.winner === 'DRAW' ? DRAW_COLOR : 'rgba(255,255,255,0.5)' }}>
               {isResolved && pool.winner === 'DRAW' ? '\u2713 ' : ''}{drawPct}%
             </Typography>
           </Box>
-          <Box sx={{ flex: awayPct, bgcolor: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'flex 0.3s ease' }}>
-            <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: '#fff' }}>
+          <Box sx={{ flex: awayPct, bgcolor: isResolved && pool.winner === 'DOWN' ? `${DOWN_COLOR}25` : 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'flex 0.3s ease' }}>
+            <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: isResolved && pool.winner === 'DOWN' ? DOWN_COLOR : '#fff' }}>
               {isResolved && pool.winner === 'DOWN' ? '\u2713 ' : ''}{awayPct}%
             </Typography>
           </Box>
@@ -110,9 +126,9 @@ export function MatchCard({ pool, onClick }: { pool: Pool; onClick?: () => void 
 
         {/* Labels under odds bar */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 0.5 }}>
-          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.55)' }}>Home</Typography>
-          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.55)' }}>Draw</Typography>
-          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.55)' }}>Away</Typography>
+          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: isResolved && pool.winner === 'UP' ? UP_COLOR : 'rgba(255,255,255,0.55)' }}>Home</Typography>
+          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: isResolved && pool.winner === 'DRAW' ? DRAW_COLOR : 'rgba(255,255,255,0.55)' }}>Draw</Typography>
+          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: isResolved && pool.winner === 'DOWN' ? DOWN_COLOR : 'rgba(255,255,255,0.55)' }}>Away</Typography>
         </Box>
 
         {/* Pool info */}
