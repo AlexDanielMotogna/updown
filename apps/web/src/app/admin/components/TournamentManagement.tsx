@@ -26,8 +26,24 @@ interface Tournament {
   createdAt: string;
   startedAt: string | null;
   completedAt: string | null;
+  tournamentType: string;
+  sport: string | null;
+  league: string | null;
   _count: { participants: number };
 }
+
+const SPORT_OPTIONS = [
+  { value: 'FOOTBALL', label: 'Soccer' },
+];
+
+const LEAGUE_OPTIONS = [
+  { value: 'CL', label: 'Champions League' },
+  { value: 'PL', label: 'Premier League' },
+  { value: 'PD', label: 'La Liga' },
+  { value: 'SA', label: 'Serie A' },
+  { value: 'BL1', label: 'Bundesliga' },
+  { value: 'FL1', label: 'Ligue 1' },
+];
 
 const STATUS_COLORS: Record<string, string> = {
   REGISTERING: '#4ADE80',
@@ -42,10 +58,19 @@ export function TournamentManagement() {
   const qc = useQueryClient();
   const [result, setResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ label: string; id: string; action: string } | null>(null);
+  const [assignDialog, setAssignDialog] = useState<{ id: string; totalRounds: number; league: string | null } | null>(null);
+  const [assignRound, setAssignRound] = useState(1);
+  const [assignSelected, setAssignSelected] = useState<string | null>(null);
+  const [assignHome, setAssignHome] = useState('');
+  const [assignAway, setAssignAway] = useState('');
+  const [resolveDialog, setResolveDialog] = useState<{ id: string; round: number } | null>(null);
 
   // Create form
+  const [tournamentType, setTournamentType] = useState<'CRYPTO' | 'SPORTS'>('CRYPTO');
   const [name, setName] = useState('');
   const [asset, setAsset] = useState('BTC');
+  const [sport, setSport] = useState('FOOTBALL');
+  const [league, setLeague] = useState('CL');
   const [entryFee, setEntryFee] = useState('');
   const [size, setSize] = useState(8);
   const [matchDuration, setMatchDuration] = useState(300);
@@ -73,12 +98,15 @@ export function TournamentManagement() {
   const createMutation = useMutation({
     mutationFn: () => adminPost('/tournaments/create', {
       name,
-      asset,
+      asset: tournamentType === 'SPORTS' ? `${sport}:${league}` : asset,
       entryFee: Math.round(parseFloat(entryFee) * USDC_DIVISOR),
       size,
-      matchDuration,
+      matchDuration: tournamentType === 'SPORTS' ? 0 : matchDuration,
       predictionWindow,
       scheduledAt: scheduledAt || undefined,
+      tournamentType,
+      sport: tournamentType === 'SPORTS' ? sport : undefined,
+      league: tournamentType === 'SPORTS' ? league : undefined,
     }),
     onSuccess: () => {
       setResult({ type: 'success', message: 'Tournament created' });
@@ -123,6 +151,35 @@ export function TournamentManagement() {
     },
   });
 
+  const { data: upcomingData, isLoading: upcomingLoading } = useQuery({
+    queryKey: ['admin-upcoming-matches', assignDialog?.league],
+    queryFn: () => adminFetch<{ data: Array<{ id: string; homeTeam: string; awayTeam: string; homeTeamCrest: string | null; awayTeamCrest: string | null; kickoff: string }> }>(`/tournaments/upcoming-matches?league=${assignDialog?.league || 'CL'}`),
+    enabled: !!assignDialog,
+  });
+  const upcomingMatches = (upcomingData as any)?.data ?? [];
+
+  const assignMutation = useMutation({
+    mutationFn: (data: { id: string; homeTeam: string; awayTeam: string; homeTeamCrest?: string | null; awayTeamCrest?: string | null; footballMatchId?: string; round?: number }) =>
+      adminPost(`/tournaments/${data.id}/assign-match`, data),
+    onSuccess: () => {
+      setResult({ type: 'success', message: 'Match assigned to round' });
+      setAssignDialog(null); setAssignSelected(null); setAssignHome(''); setAssignAway('');
+      qc.invalidateQueries({ queryKey: ['admin-tournaments'] });
+    },
+    onError: (err) => setResult({ type: 'error', message: err instanceof Error ? err.message : 'Failed' }),
+  });
+
+  const resolveMutation = useMutation({
+    mutationFn: ({ id, result }: { id: string; result: string }) =>
+      adminPost(`/tournaments/${id}/resolve-match`, { result }),
+    onSuccess: () => {
+      setResult({ type: 'success', message: 'Round resolved' });
+      setResolveDialog(null);
+      qc.invalidateQueries({ queryKey: ['admin-tournaments'] });
+    },
+    onError: (err) => setResult({ type: 'error', message: err instanceof Error ? err.message : 'Failed' }),
+  });
+
   const actionMutation = useMutation({
     mutationFn: ({ id, action }: { id: string; action: string }) =>
       adminPost(`/tournaments/${id}/${action}`),
@@ -148,22 +205,50 @@ export function TournamentManagement() {
       {/* Create Tournament */}
       <Card sx={{ p: 2.5 }}>
         <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>Create Tournament</Typography>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2, mb: 2 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr 1fr' }, gap: 2, mb: 2 }}>
+          <FormControl size="small">
+            <InputLabel>Type</InputLabel>
+            <Select value={tournamentType} onChange={(e) => setTournamentType(e.target.value as 'CRYPTO' | 'SPORTS')} label="Type">
+              <MenuItem value="CRYPTO">Crypto</MenuItem>
+              <MenuItem value="SPORTS">Sports</MenuItem>
+            </Select>
+          </FormControl>
           <TextField
             label="Name"
             size="small"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="BTC Showdown #1"
+            placeholder={tournamentType === 'SPORTS' ? 'UCL Bracket Challenge' : 'BTC Showdown #1'}
           />
-          <FormControl size="small">
-            <InputLabel>Asset</InputLabel>
-            <Select value={asset} onChange={(e) => setAsset(e.target.value)} label="Asset">
-              <MenuItem value="BTC">BTC</MenuItem>
-              <MenuItem value="ETH">ETH</MenuItem>
-              <MenuItem value="SOL">SOL</MenuItem>
-            </Select>
-          </FormControl>
+          {tournamentType === 'CRYPTO' ? (
+            <FormControl size="small">
+              <InputLabel>Asset</InputLabel>
+              <Select value={asset} onChange={(e) => setAsset(e.target.value)} label="Asset">
+                <MenuItem value="BTC">BTC</MenuItem>
+                <MenuItem value="ETH">ETH</MenuItem>
+                <MenuItem value="SOL">SOL</MenuItem>
+              </Select>
+            </FormControl>
+          ) : (
+            <>
+              <FormControl size="small">
+                <InputLabel>Sport</InputLabel>
+                <Select value={sport} onChange={(e) => setSport(e.target.value)} label="Sport">
+                  {SPORT_OPTIONS.map(s => (
+                    <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl size="small">
+                <InputLabel>League</InputLabel>
+                <Select value={league} onChange={(e) => setLeague(e.target.value)} label="League">
+                  {LEAGUE_OPTIONS.map(l => (
+                    <MenuItem key={l.value} value={l.value}>{l.label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </>
+          )}
           <TextField
             label="Entry Fee (USDC)"
             size="small"
@@ -191,16 +276,18 @@ export function TournamentManagement() {
               <MenuItem value={600}>10 min</MenuItem>
             </Select>
           </FormControl>
-          <FormControl size="small">
-            <InputLabel>Match Duration</InputLabel>
-            <Select value={matchDuration} onChange={(e) => setMatchDuration(Number(e.target.value))} label="Match Duration">
-              <MenuItem value={60}>1 min</MenuItem>
-              <MenuItem value={180}>3 min</MenuItem>
-              <MenuItem value={300}>5 min</MenuItem>
-              <MenuItem value={900}>15 min</MenuItem>
-              <MenuItem value={3600}>1 hour</MenuItem>
-            </Select>
-          </FormControl>
+          {tournamentType === 'CRYPTO' && (
+            <FormControl size="small">
+              <InputLabel>Match Duration</InputLabel>
+              <Select value={matchDuration} onChange={(e) => setMatchDuration(Number(e.target.value))} label="Match Duration">
+                <MenuItem value={60}>1 min</MenuItem>
+                <MenuItem value={180}>3 min</MenuItem>
+                <MenuItem value={300}>5 min</MenuItem>
+                <MenuItem value={900}>15 min</MenuItem>
+                <MenuItem value={3600}>1 hour</MenuItem>
+              </Select>
+            </FormControl>
+          )}
           <TextField
             label="Estimated Start"
             size="small"
@@ -267,7 +354,7 @@ export function TournamentManagement() {
                   />
                 </Box>
                 <Typography variant="caption" color="text.secondary">
-                  {t.asset} · ${(Number(t.entryFee) / USDC_DIVISOR).toFixed(2)} entry · {t._count.participants}/{t.size} players · Round {t.currentRound}/{t.totalRounds}
+                  {t.tournamentType === 'SPORTS' ? `${t.sport === 'FOOTBALL' ? 'Soccer' : t.sport} · ${t.league}` : t.asset} · ${(Number(t.entryFee) / USDC_DIVISOR).toFixed(2)} entry · {t._count.participants}/{t.size} players · Round {t.currentRound}/{t.totalRounds}
                 </Typography>
                 {t.scheduledAt && (
                   <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
@@ -283,6 +370,16 @@ export function TournamentManagement() {
               <Box sx={{ display: 'flex', gap: 0.5 }}>
                 {t.status === 'REGISTERING' && (
                   <>
+                    {t.tournamentType === 'SPORTS' && (
+                      <Button
+                        size="small"
+                        variant="contained"
+                        onClick={() => { setAssignDialog({ id: t.id, totalRounds: t.totalRounds, league: t.league }); setAssignRound(1); setAssignSelected(null); setAssignHome(''); setAssignAway(''); }}
+                        sx={{ fontSize: '0.7rem', bgcolor: '#818CF8', color: '#fff', '&:hover': { bgcolor: '#6366F1' } }}
+                      >
+                        Setup Matches
+                      </Button>
+                    )}
                     <Button
                       size="small"
                       variant="outlined"
@@ -312,6 +409,26 @@ export function TournamentManagement() {
                 )}
                 {t.status === 'ACTIVE' && (
                   <>
+                    {t.tournamentType === 'SPORTS' && (
+                      <>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          onClick={() => { setAssignDialog({ id: t.id, totalRounds: t.totalRounds, league: t.league }); setAssignRound(Math.max(t.currentRound, 1)); setAssignSelected(null); setAssignHome(''); setAssignAway(''); }}
+                          sx={{ fontSize: '0.7rem', bgcolor: '#818CF8', color: '#fff', '&:hover': { bgcolor: '#6366F1' } }}
+                        >
+                          Assign Match
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          onClick={() => setResolveDialog({ id: t.id, round: t.currentRound })}
+                          sx={{ fontSize: '0.7rem', bgcolor: '#4ADE80', color: '#000', '&:hover': { bgcolor: '#22C55E' } }}
+                        >
+                          Resolve
+                        </Button>
+                      </>
+                    )}
                     <Button
                       size="small"
                       variant="outlined"
@@ -423,6 +540,102 @@ export function TournamentManagement() {
             {updateMutation.isPending ? <CircularProgress size={18} /> : 'Save Changes'}
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Assign Match Dialog */}
+      <Dialog open={!!assignDialog} onClose={() => setAssignDialog(null)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          Assign Match —
+          <FormControl size="small" sx={{ minWidth: 130 }}>
+            <Select value={assignRound} onChange={(e) => { setAssignRound(Number(e.target.value)); setAssignSelected(null); }}>
+              {Array.from({ length: assignDialog?.totalRounds || 1 }, (_, i) => i + 1).map(r => (
+                <MenuItem key={r} value={r}>Round {r}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </DialogTitle>
+        <DialogContent>
+          {upcomingLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}><CircularProgress size={24} /></Box>
+          ) : upcomingMatches.length > 0 ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, pt: 1 }}>
+              {upcomingMatches.map((m: any) => {
+                const selected = assignSelected === m.id;
+                const kickoff = new Date(m.kickoff).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+                return (
+                  <Box
+                    key={m.id}
+                    onClick={() => setAssignSelected(m.id)}
+                    sx={{
+                      display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, borderRadius: 1, cursor: 'pointer',
+                      bgcolor: selected ? 'rgba(129,140,248,0.12)' : 'rgba(255,255,255,0.03)',
+                      border: selected ? '1px solid rgba(129,140,248,0.4)' : '1px solid transparent',
+                      '&:hover': { bgcolor: selected ? 'rgba(129,140,248,0.15)' : 'rgba(255,255,255,0.06)' },
+                    }}
+                  >
+                    {m.homeTeamCrest && <Box component="img" src={m.homeTeamCrest} alt="" sx={{ width: 24, height: 24, objectFit: 'contain' }} />}
+                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, flex: 1 }}>{m.homeTeam} vs {m.awayTeam}</Typography>
+                    {m.awayTeamCrest && <Box component="img" src={m.awayTeamCrest} alt="" sx={{ width: 24, height: 24, objectFit: 'contain' }} />}
+                    <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>{kickoff}</Typography>
+                  </Box>
+                );
+              })}
+            </Box>
+          ) : (
+            <Box sx={{ py: 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>No upcoming matches found. Enter manually:</Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <TextField label="Home Team" size="small" value={assignHome} onChange={(e) => setAssignHome(e.target.value)} placeholder="Real Madrid" />
+                <TextField label="Away Team" size="small" value={assignAway} onChange={(e) => setAssignAway(e.target.value)} placeholder="Bayern Munich" />
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAssignDialog(null)}>Cancel</Button>
+          <Button
+            variant="contained"
+            disabled={(!assignSelected && (!assignHome || !assignAway)) || assignMutation.isPending}
+            onClick={() => {
+              if (!assignDialog) return;
+              if (assignSelected) {
+                const m = upcomingMatches.find((x: any) => x.id === assignSelected);
+                if (m) assignMutation.mutate({ id: assignDialog.id, homeTeam: m.homeTeam, awayTeam: m.awayTeam, homeTeamCrest: m.homeTeamCrest, awayTeamCrest: m.awayTeamCrest, footballMatchId: m.id, round: assignRound } as any);
+              } else {
+                assignMutation.mutate({ id: assignDialog.id, homeTeam: assignHome, awayTeam: assignAway, round: assignRound } as any);
+              }
+            }}
+            sx={{ bgcolor: '#818CF8', '&:hover': { bgcolor: '#6366F1' } }}
+          >
+            {assignMutation.isPending ? <CircularProgress size={18} /> : 'Assign'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Resolve Match Dialog */}
+      <Dialog open={!!resolveDialog} onClose={() => setResolveDialog(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Resolve Round {resolveDialog?.round}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>Select the match result:</Typography>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {['HOME', 'DRAW', 'AWAY'].map((r) => (
+              <Button
+                key={r}
+                fullWidth
+                variant="contained"
+                disabled={resolveMutation.isPending}
+                onClick={() => resolveDialog && resolveMutation.mutate({ id: resolveDialog.id, result: r })}
+                sx={{
+                  bgcolor: r === 'HOME' ? '#4ADE80' : r === 'AWAY' ? '#F87171' : '#FBBF24',
+                  color: '#000', fontWeight: 700, fontSize: '0.85rem',
+                  '&:hover': { filter: 'brightness(0.9)' },
+                }}
+              >
+                {r}
+              </Button>
+            ))}
+          </Box>
+        </DialogContent>
       </Dialog>
     </Box>
   );

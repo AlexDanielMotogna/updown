@@ -145,7 +145,11 @@ const ToastItem = memo(function ToastItem({ notification, onDismiss }: ToastItem
           ) : (notification.type === 'DEPOSIT_SUCCESS' || notification.type === 'TOURNAMENT_ENTRY_PAID') ? (
             getSeverityIcon(notification.severity, notification.type)
           ) : notification.type.startsWith('TOURNAMENT_') && notification.asset ? (
-            <Box component="img" src={`/tournaments/tournament-${notification.asset.toLowerCase()}.png`} alt={notification.asset} sx={{ width: 22, height: 22, objectFit: 'contain' }} />
+            notification.asset.includes(':') ? (
+              <Box component="img" src={`https://crests.football-data.org/${notification.asset.split(':')[1]}.png`} alt="" sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
+            ) : (
+              <Box component="img" src={`/tournaments/tournament-${notification.asset.toLowerCase()}.png`} alt={notification.asset} sx={{ width: 22, height: 22, objectFit: 'contain' }} />
+            )
           ) : notification.asset && !notification.asset.includes(':') ? (
             <AssetIcon asset={notification.asset} size={22} />
           ) : (

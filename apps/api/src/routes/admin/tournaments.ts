@@ -6,6 +6,7 @@ import {
   generateRoundMatches,
 } from '../../services/tournament';
 import { prisma } from '../../db';
+import { getAdapter } from '../../services/sports';
 
 export const adminTournamentsRouter: RouterType = Router();
 
@@ -31,22 +32,50 @@ adminTournamentsRouter.get('/', async (_req, res) => {
   }
 });
 
+// GET /api/admin/tournaments/upcoming-matches?league=CL — fetch upcoming matches from football API
+adminTournamentsRouter.get('/upcoming-matches', async (req, res) => {
+  try {
+    const league = (req.query.league as string) || 'CL';
+    const adapter = getAdapter('FOOTBALL');
+    const matches = await adapter.fetchUpcomingMatches(league);
+
+    res.json({
+      success: true,
+      data: matches.map(m => ({
+        id: m.id,
+        homeTeam: m.homeTeam,
+        awayTeam: m.awayTeam,
+        homeTeamCrest: m.homeTeamCrest,
+        awayTeamCrest: m.awayTeamCrest,
+        kickoff: m.kickoff.toISOString(),
+        status: m.status,
+      })),
+    });
+  } catch (error) {
+    console.error('[Admin] Fetch upcoming matches error:', error);
+    res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: error instanceof Error ? error.message : 'Failed to fetch matches' } });
+  }
+});
+
 // POST /api/admin/tournaments/create — create tournament
 adminTournamentsRouter.post('/create', async (req, res) => {
   try {
-    const { name, asset, entryFee, size, matchDuration, predictionWindow, scheduledAt } = req.body;
-    if (!name || !asset || !entryFee || !size || !matchDuration) {
-      return res.status(400).json({ success: false, error: { code: 'MISSING_FIELDS', message: 'name, asset, entryFee, size, matchDuration required' } });
+    const { name, asset, entryFee, size, matchDuration, predictionWindow, scheduledAt, tournamentType, sport, league } = req.body;
+    if (!name || !entryFee || !size) {
+      return res.status(400).json({ success: false, error: { code: 'MISSING_FIELDS', message: 'name, entryFee, size required' } });
     }
 
     const tournament = await createTournament({
       name,
-      asset,
+      asset: asset || (tournamentType === 'SPORTS' ? `${sport || 'FOOTBALL'}:${league || 'ALL'}` : 'BTC'),
       entryFee: BigInt(entryFee),
       size,
-      matchDuration,
+      matchDuration: matchDuration || 0,
       predictionWindow,
       scheduledAt,
+      tournamentType,
+      sport,
+      league,
     });
 
     res.status(201).json({
@@ -176,7 +205,7 @@ adminTournamentsRouter.post('/:id/update', async (req, res) => {
       return res.status(400).json({ success: false, error: { code: 'NOT_REGISTERING', message: 'Can only edit tournaments in REGISTERING status' } });
     }
 
-    const { name, asset, entryFee, size, matchDuration, predictionWindow, scheduledAt } = req.body;
+    const { name, asset, entryFee, size, matchDuration, predictionWindow, scheduledAt, tournamentType, sport, league } = req.body;
     const data: Record<string, unknown> = {};
     if (name !== undefined) data.name = name;
     if (asset !== undefined) data.asset = asset;
@@ -185,6 +214,9 @@ adminTournamentsRouter.post('/:id/update', async (req, res) => {
     if (matchDuration !== undefined) data.matchDuration = matchDuration;
     if (predictionWindow !== undefined) data.predictionWindow = predictionWindow;
     if (scheduledAt !== undefined) data.scheduledAt = scheduledAt ? new Date(scheduledAt) : null;
+    if (tournamentType !== undefined) data.tournamentType = tournamentType;
+    if (sport !== undefined) data.sport = sport;
+    if (league !== undefined) data.league = league;
 
     const tournament = await prisma.tournament.update({ where: { id: req.params.id }, data });
     res.json({
@@ -195,5 +227,85 @@ adminTournamentsRouter.post('/:id/update', async (req, res) => {
     console.error('[Admin] Update tournament error:', error);
     const message = error instanceof Error ? error.message : 'Failed to update tournament';
     res.status(400).json({ success: false, error: { code: 'UPDATE_ERROR', message } });
+  }
+});
+
+// POST /api/admin/tournaments/:id/assign-match — set football match for a specific round
+adminTournamentsRouter.post('/:id/assign-match', async (req, res) => {
+  try {
+    const { homeTeam, awayTeam, homeTeamCrest, awayTeamCrest, footballMatchId, round } = req.body;
+    if (!homeTeam || !awayTeam) {
+      return res.status(400).json({ success: false, error: { code: 'MISSING_FIELDS', message: 'homeTeam and awayTeam required' } });
+    }
+    const tournament = await prisma.tournament.findUniqueOrThrow({ where: { id: req.params.id } });
+    const targetRound = round || tournament.currentRound;
+
+    // Allow assigning for REGISTERING (pre-config) or ACTIVE tournaments
+    if (tournament.status !== 'ACTIVE' && tournament.status !== 'REGISTERING') {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_STATUS', message: 'Tournament must be REGISTERING or ACTIVE' } });
+    }
+
+    // For REGISTERING: store in matchConfig JSON (matches don't exist yet)
+    if (tournament.status === 'REGISTERING') {
+      const existing = JSON.parse(tournament.matchConfig || '{}');
+      existing[String(targetRound)] = { homeTeam, awayTeam, homeTeamCrest: homeTeamCrest || null, awayTeamCrest: awayTeamCrest || null, footballMatchId: footballMatchId || null };
+      await prisma.tournament.update({ where: { id: req.params.id }, data: { matchConfig: JSON.stringify(existing) } });
+      console.log(`[Admin] Pre-configured round ${targetRound}: ${homeTeam} vs ${awayTeam}`);
+      res.json({ success: true, data: { round: targetRound, homeTeam, awayTeam, preConfigured: true } });
+      return;
+    }
+
+    const updated = await prisma.tournamentMatch.updateMany({
+      where: { tournamentId: tournament.id, round: targetRound },
+      data: { homeTeam, awayTeam, homeTeamCrest: homeTeamCrest || null, awayTeamCrest: awayTeamCrest || null, footballMatchId: footballMatchId || `manual-${Date.now()}` },
+    });
+    console.log(`[Admin] Assigned ${homeTeam} vs ${awayTeam} to round ${targetRound} (${updated.count} matches)`);
+    res.json({ success: true, data: { matchesUpdated: updated.count, round: targetRound, homeTeam, awayTeam } });
+  } catch (error) {
+    console.error('[Admin] Assign match error:', error);
+    res.status(400).json({ success: false, error: { code: 'ASSIGN_ERROR', message: error instanceof Error ? error.message : 'Failed' } });
+  }
+});
+
+// POST /api/admin/tournaments/:id/resolve-match — manually resolve with HOME/DRAW/AWAY
+adminTournamentsRouter.post('/:id/resolve-match', async (req, res) => {
+  try {
+    const { result } = req.body;
+    if (!['HOME', 'DRAW', 'AWAY'].includes(result)) {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_RESULT', message: 'result must be HOME, DRAW, or AWAY' } });
+    }
+    const tournament = await prisma.tournament.findUniqueOrThrow({ where: { id: req.params.id } });
+    if (tournament.status !== 'ACTIVE') {
+      return res.status(400).json({ success: false, error: { code: 'NOT_ACTIVE', message: 'Tournament is not active' } });
+    }
+    const resultMap: Record<string, bigint> = { HOME: 1n, DRAW: 2n, AWAY: 3n };
+    const actualResult = resultMap[result];
+    const now = new Date();
+    const activeMatches = await prisma.tournamentMatch.findMany({
+      where: { tournamentId: tournament.id, round: tournament.currentRound, status: 'ACTIVE' },
+    });
+    if (activeMatches.length === 0) {
+      return res.status(400).json({ success: false, error: { code: 'NO_ACTIVE', message: 'No active matches to resolve' } });
+    }
+    let resolved = 0;
+    for (const match of activeMatches) {
+      if (!match.player1Prediction || !match.player2Prediction) continue;
+      const p1Correct = match.player1Prediction === actualResult;
+      const p2Correct = match.player2Prediction === actualResult;
+      let winnerWallet: string;
+      if (p1Correct && !p2Correct) winnerWallet = match.player1Wallet!;
+      else if (p2Correct && !p1Correct) winnerWallet = match.player2Wallet!;
+      else winnerWallet = (match.player1PredictedAt! <= match.player2PredictedAt!) ? match.player1Wallet! : match.player2Wallet!;
+      await prisma.tournamentMatch.update({
+        where: { id: match.id },
+        data: { finalPrice: actualResult, winnerWallet, status: 'RESOLVED', resolvedAt: now },
+      });
+      resolved++;
+    }
+    console.log(`[Admin] Resolved ${resolved} matches in round ${tournament.currentRound}: ${result}`);
+    res.json({ success: true, data: { resolved, result, round: tournament.currentRound } });
+  } catch (error) {
+    console.error('[Admin] Resolve match error:', error);
+    res.status(400).json({ success: false, error: { code: 'RESOLVE_ERROR', message: error instanceof Error ? error.message : 'Failed' } });
   }
 });

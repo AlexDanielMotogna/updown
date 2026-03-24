@@ -205,6 +205,7 @@ export default function TournamentBracketPage() {
                       asset={t.asset}
                       livePrice={livePrice}
                       onRefresh={load}
+                      isSports={t.tournamentType === 'SPORTS'}
                     />
                     {!isLast && expectedMatches > 1 && <Connectors matchCount={expectedMatches} roundNum={rn} />}
                   </Box>

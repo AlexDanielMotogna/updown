@@ -21,6 +21,7 @@ export { serializeBigInt, requireAdmin } from './tournament-helpers';
 // GET / — list tournaments with optional status filter
 const listFilterSchema = z.object({
   status: z.string().optional(),
+  type: z.enum(['CRYPTO', 'SPORTS']).optional(),
 });
 
 tournamentRouter.get('/', async (req, res) => {
@@ -33,10 +34,13 @@ tournamentRouter.get('/', async (req, res) => {
       });
     }
 
-    const { status } = parsed.data;
+    const { status, type } = parsed.data;
     const where: any = {};
     if (status) {
       where.status = status.toUpperCase();
+    }
+    if (type) {
+      where.tournamentType = type;
     }
 
     const tournaments = await prisma.tournament.findMany({

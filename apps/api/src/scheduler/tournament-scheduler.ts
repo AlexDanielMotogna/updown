@@ -3,6 +3,8 @@ import { PacificaProvider } from 'market-data';
 import { prisma } from '../db';
 import { checkAndAdvanceRound } from '../services/tournament';
 import { emitTournamentMatchResult } from '../websocket';
+import { processSportsTournament } from './tournament-sports-resolver';
+import { assignMatchToRound } from '../services/tournament-sports';
 
 const priceProvider = new PacificaProvider();
 
@@ -22,9 +24,16 @@ async function processTournaments(): Promise<void> {
 
   for (const tournament of tournaments) {
     try {
+      // Delegate sports tournaments to dedicated resolver
+      if (tournament.tournamentType === 'SPORTS') {
+        await processSportsTournament(tournament);
+        await checkAndAdvanceRound(tournament.id);
+        continue;
+      }
+
       const now = new Date();
 
-      // ── 1. Handle prediction deadline timeouts ──────────────────────────
+      // ── 1. Handle prediction deadline timeouts (CRYPTO) ─────────────────
       const pendingMatches = await prisma.tournamentMatch.findMany({
         where: {
           tournamentId: tournament.id,
@@ -163,7 +172,23 @@ async function processTournaments(): Promise<void> {
       }
 
       // ── 3. Advance round ───────────────────────────────────────────────
-      await checkAndAdvanceRound(tournament.id);
+      const advResult = await checkAndAdvanceRound(tournament.id);
+      if (advResult?.advanced && !advResult.completed && advResult.tournamentType === 'SPORTS') {
+        // Apply pre-configured match or fetch from API
+        const config = tournament.matchConfig ? JSON.parse(tournament.matchConfig) : {};
+        const roundConfig = config[String(advResult.nextRound)];
+        if (roundConfig) {
+          await prisma.tournamentMatch.updateMany({
+            where: { tournamentId: tournament.id, round: advResult.nextRound! },
+            data: { homeTeam: roundConfig.homeTeam, awayTeam: roundConfig.awayTeam, homeTeamCrest: roundConfig.homeTeamCrest || null, awayTeamCrest: roundConfig.awayTeamCrest || null, footballMatchId: roundConfig.footballMatchId || `manual-${Date.now()}` },
+          });
+          console.log(`[Tournament] Applied pre-configured match for round ${advResult.nextRound}: ${roundConfig.homeTeam} vs ${roundConfig.awayTeam}`);
+        } else if (advResult.league) {
+          await assignMatchToRound(tournament.id, advResult.nextRound!, advResult.league).catch(err =>
+            console.error(`[Tournament] Failed to assign match to round ${advResult.nextRound}:`, err)
+          );
+        }
+      }
     } catch (err) {
       console.error(`[Tournament] Error processing tournament ${tournament.id}:`, err instanceof Error ? err.message : err);
     }

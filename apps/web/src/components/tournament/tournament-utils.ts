@@ -34,3 +34,18 @@ export function formatDistance(prediction: string, finalPrice: string): string {
   const prefix = diff >= 0 ? '+' : '-';
   return `${prefix}$${abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
+
+// ─── Sports helpers ─────────────────────────────────────────────────────────
+
+export function formatOutcome(prediction: string | null | undefined): string {
+  if (!prediction) return '—';
+  const n = Number(prediction);
+  if (n === 1) return 'Home';
+  if (n === 2) return 'Draw';
+  if (n === 3) return 'Away';
+  return '—';
+}
+
+export function isSportsTournament(tournament: { tournamentType?: string } | null): boolean {
+  return tournament?.tournamentType === 'SPORTS';
+}

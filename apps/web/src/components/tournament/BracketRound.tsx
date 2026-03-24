@@ -15,6 +15,7 @@ export function BracketRound({
   asset,
   livePrice,
   onRefresh,
+  isSports,
 }: {
   roundNum: number;
   expectedMatchCount: number;
@@ -25,6 +26,7 @@ export function BracketRound({
   asset: string;
   livePrice: string | null;
   onRefresh: () => void;
+  isSports?: boolean;
 }) {
   const rn = Number(roundNum);
   const tr = Number(totalRounds);
@@ -76,6 +78,7 @@ export function BracketRound({
                   asset={asset}
                   livePrice={livePrice}
                   onRefresh={onRefresh}
+                  isSports={isSports}
                 />
               ) : (
                 <EmptyMatchCard matchLabel={`Match ${rn}.${i + 1}`} />

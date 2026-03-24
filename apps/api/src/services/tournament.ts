@@ -1,5 +1,6 @@
 import { prisma } from '../db';
 import { generateRoundMatchesTx } from './tournament-bracket';
+import { assignMatchToRound } from './tournament-sports';
 
 // Re-export everything from tournament-bracket so existing imports keep working
 export {
@@ -36,8 +37,11 @@ export async function createTournament(data: {
   matchDuration: number;
   predictionWindow?: number;
   scheduledAt?: string;
+  tournamentType?: string;
+  sport?: string;
+  league?: string;
 }) {
-  const { name, asset, entryFee, size, matchDuration, predictionWindow, scheduledAt } = data;
+  const { name, asset, entryFee, size, matchDuration, predictionWindow, scheduledAt, tournamentType, sport, league } = data;
 
   if (!VALID_SIZES.includes(size)) {
     throw new Error(`Invalid tournament size: ${size}. Must be one of ${VALID_SIZES.join(', ')}`);
@@ -58,6 +62,9 @@ export async function createTournament(data: {
       currentRound: 0,
       prizePool: BigInt(0),
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+      tournamentType: tournamentType || 'CRYPTO',
+      sport: sport || null,
+      league: league || null,
     },
   });
 }
@@ -122,7 +129,7 @@ export async function registerParticipant(
 // ─── 3. Start Tournament ─────────────────────────────────────────────────────
 
 export async function startTournament(tournamentId: string) {
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const tournament = await tx.tournament.findUniqueOrThrow({
       where: { id: tournamentId },
     });
@@ -166,8 +173,33 @@ export async function startTournament(tournamentId: string) {
     const playerWallets = shuffled.map((p) => p.walletAddress);
     const matches = await generateRoundMatchesTx(tx, tournamentId, 1, playerWallets, tournament.predictionWindow);
 
-    return matches;
+    return { matches, tournamentType: tournament.tournamentType, league: tournament.league, matchConfig: tournament.matchConfig };
   });
+
+  // For sports tournaments, apply pre-configured match for round 1
+  if (result.tournamentType === 'SPORTS') {
+    const config = result.matchConfig ? JSON.parse(result.matchConfig) : {};
+    const round1Config = config['1'];
+    if (round1Config) {
+      await prisma.tournamentMatch.updateMany({
+        where: { tournamentId, round: 1 },
+        data: {
+          homeTeam: round1Config.homeTeam,
+          awayTeam: round1Config.awayTeam,
+          homeTeamCrest: round1Config.homeTeamCrest || null,
+          awayTeamCrest: round1Config.awayTeamCrest || null,
+          footballMatchId: round1Config.footballMatchId || `manual-${Date.now()}`,
+        },
+      });
+      console.log(`[Tournament] Applied pre-configured match for round 1: ${round1Config.homeTeam} vs ${round1Config.awayTeam}`);
+    } else if (result.league) {
+      await assignMatchToRound(tournamentId, 1, result.league).catch(err =>
+        console.error('[Tournament] Failed to assign match to round 1:', err)
+      );
+    }
+  }
+
+  return result.matches;
 }
 
 // ─── 4. Cancel Tournament ────────────────────────────────────────────────────

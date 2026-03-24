@@ -37,10 +37,10 @@ const LEAGUE_FILTERS = [
 ];
 
 const ASSET_FILTERS = [
-  { value: 'ALL', label: 'All' },
-  { value: 'BTC', label: 'BTC' },
-  { value: 'ETH', label: 'ETH' },
-  { value: 'SOL', label: 'SOL' },
+  { value: 'ALL', label: 'All', img: null, icon: <GridView sx={{ fontSize: 18 }} /> },
+  { value: 'BTC', label: 'BTC', img: '/coins/btc-coin.png' },
+  { value: 'ETH', label: 'ETH', img: '/coins/eth-coin.png' },
+  { value: 'SOL', label: 'SOL', img: '/coins/sol-coin.png' },
 ];
 
 const STATUS_COLORS: Record<string, string> = {
@@ -65,6 +65,11 @@ const STATUS_BUTTON_LABEL: Record<RegisterStatus, string> = {
   error: 'Try Again',
 };
 
+const LEAGUE_NAMES: Record<string, string> = {
+  CL: 'Champions League', PL: 'Premier League', PD: 'La Liga',
+  SA: 'Serie A', BL1: 'Bundesliga', FL1: 'Ligue 1',
+};
+
 function TournamentCard({ t, onRegistered }: { t: TournamentSummary; onRegistered: () => void }) {
   const { connected, walletAddress } = useWalletBridge();
   const { register, status: regStatus, error: regError, reset } = useTournamentRegister();
@@ -77,6 +82,7 @@ function TournamentCard({ t, onRegistered }: { t: TournamentSummary; onRegistere
   const alreadyRegistered = !!(walletAddress && t.participantWallets?.includes(walletAddress));
   const isRegistered = alreadyRegistered || regStatus === 'success';
   const isBusy = regStatus !== 'idle' && regStatus !== 'success' && regStatus !== 'error';
+  const isSports = t.tournamentType === 'SPORTS';
 
   return (
     <Box
@@ -94,12 +100,21 @@ function TournamentCard({ t, onRegistered }: { t: TournamentSummary; onRegistere
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Box
-            component="img"
-            src={`/tournaments/tournament-${t.asset.toLowerCase()}.png`}
-            alt={t.asset}
-            sx={{ width: 36, height: 36, objectFit: 'contain' }}
-          />
+          {isSports && t.league ? (
+            <Box
+              component="img"
+              src={`https://crests.football-data.org/${t.league}.png`}
+              alt={t.league}
+              sx={{ width: 32, height: 32, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '3px' }}
+            />
+          ) : (
+            <Box
+              component="img"
+              src={`/tournaments/tournament-${t.asset.toLowerCase()}.png`}
+              alt={t.asset}
+              sx={{ width: 36, height: 36, objectFit: 'contain' }}
+            />
+          )}
           <Typography sx={{ fontWeight: 700, fontSize: '0.95rem' }}>{t.name}</Typography>
         </Box>
         <Chip
@@ -111,13 +126,28 @@ function TournamentCard({ t, onRegistered }: { t: TournamentSummary; onRegistere
 
       {/* Info grid */}
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1 }}>
-        <Box>
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>Asset</Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <AssetIcon asset={t.asset} size={20} />
-            <Typography sx={{ fontSize: '0.85rem', fontWeight: 700 }}>{t.asset}</Typography>
+        {isSports ? (
+          <Box>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>League</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box
+                component="img"
+                src={`https://crests.football-data.org/${t.league}.png`}
+                alt={t.league || ''}
+                sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }}
+              />
+              <Typography sx={{ fontSize: '0.85rem', fontWeight: 700 }}>{LEAGUE_NAMES[t.league || ''] || t.league}</Typography>
+            </Box>
           </Box>
-        </Box>
+        ) : (
+          <Box>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>Asset</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <AssetIcon asset={t.asset} size={20} />
+              <Typography sx={{ fontSize: '0.85rem', fontWeight: 700 }}>{t.asset}</Typography>
+            </Box>
+          </Box>
+        )}
         <InfoItem label="Entry Fee" value={`$${entryFeeUsdc}`} />
         <InfoItem label="Players" value={`${filled} / ${t.size}`} />
         <InfoItem label="Prize Pool" value={`$${prizePoolUsdc}`} color={GAIN_COLOR} />
@@ -228,7 +258,7 @@ export default function TournamentsPage() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetchTournaments();
+      const res = await fetchTournaments(undefined, marketType);
       if (res.success && res.data) {
         setTournaments(res.data);
         setError(null);
@@ -240,7 +270,7 @@ export default function TournamentsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [marketType]);
 
   useEffect(() => {
     load();
@@ -249,11 +279,14 @@ export default function TournamentsPage() {
   }, [load]);
 
   const filtered = useMemo(() => {
-    // TODO: when sports tournaments exist, filter by tournament type + league
-    // For now, all existing tournaments are crypto
-    if (marketType === 'SPORTS') return [];
-    if (assetFilter === 'ALL') return tournaments;
-    return tournaments.filter(t => t.asset === assetFilter);
+    let result = tournaments;
+    if (assetFilter !== 'ALL' && marketType === 'CRYPTO') {
+      result = result.filter(t => t.asset === assetFilter);
+    }
+    if (leagueFilter !== 'ALL' && marketType === 'SPORTS') {
+      result = result.filter(t => t.league === leagueFilter);
+    }
+    return result;
   }, [tournaments, marketType, assetFilter, leagueFilter]);
 
   const tabColor = marketType === 'CRYPTO' ? UP_COLOR : DRAW_COLOR;
@@ -320,7 +353,7 @@ export default function TournamentsPage() {
               <FilterDropdown
                 value={assetFilter}
                 label="Asset"
-                options={ASSET_FILTERS.map(f => ({ ...f, img: null }))}
+                options={ASSET_FILTERS}
                 onChange={setAssetFilter}
                 color={UP_COLOR}
               />

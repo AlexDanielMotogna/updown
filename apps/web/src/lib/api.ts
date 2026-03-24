@@ -646,6 +646,9 @@ export interface TournamentSummary {
   participantCount: number;
   participantWallets?: string[];
   _count?: { participants: number };
+  tournamentType?: string;
+  sport?: string | null;
+  league?: string | null;
 }
 
 export interface TournamentMatchData {
@@ -665,6 +668,11 @@ export interface TournamentMatchData {
   finalPrice: string | null;
   winnerWallet: string | null;
   status: string;
+  footballMatchId?: string | null;
+  homeTeam?: string | null;
+  awayTeam?: string | null;
+  homeTeamCrest?: string | null;
+  awayTeamCrest?: string | null;
 }
 
 export interface TournamentBracket {
@@ -673,8 +681,11 @@ export interface TournamentBracket {
   rounds: Record<number, TournamentMatchData[]>;
 }
 
-export async function fetchTournaments(status?: string): Promise<ApiResponse<TournamentSummary[]>> {
-  const query = status ? `?status=${status}` : '';
+export async function fetchTournaments(status?: string, type?: string): Promise<ApiResponse<TournamentSummary[]>> {
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (type) params.set('type', type);
+  const query = params.toString() ? `?${params.toString()}` : '';
   return fetchApi<TournamentSummary[]>(`/api/tournaments${query}`);
 }
 

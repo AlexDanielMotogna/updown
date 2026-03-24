@@ -330,6 +330,10 @@ model Tournament {
   createdAt     DateTime  @default(now()) @map("created_at")
   startedAt     DateTime? @map("started_at")
   completedAt   DateTime? @map("completed_at")
+  tournamentType String   @default("CRYPTO") @map("tournament_type") // CRYPTO | SPORTS
+  sport          String?                             // FOOTBALL
+  league         String?                             // CL, PL, PD, etc.
+  matchConfig    String?  @map("match_config")       // JSON: pre-configured matches per round
 
   participants TournamentParticipant[]
   matches      TournamentMatch[]
@@ -374,6 +378,11 @@ model TournamentMatch {
   status              String    @default("PENDING") // PENDING, ACTIVE, RESOLVED, BYE
   createdAt           DateTime  @default(now()) @map("created_at")
   resolvedAt          DateTime? @map("resolved_at")
+  footballMatchId     String?   @map("football_match_id")
+  homeTeam            String?   @map("home_team")
+  awayTeam            String?   @map("away_team")
+  homeTeamCrest       String?   @map("home_team_crest")
+  awayTeamCrest       String?   @map("away_team_crest")
 
   tournament Tournament @relation(fields: [tournamentId], references: [id])
 
