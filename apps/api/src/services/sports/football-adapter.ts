@@ -1,17 +1,5 @@
 import { SportAdapter, Match, MatchResult, MatchStatus } from './types';
-
-const API_BASE = 'https://api.football-data.org/v4';
-
-async function footballFetch(path: string): Promise<any> {
-  const token = process.env.FOOTBALL_DATA_API_KEY || '';
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'X-Auth-Token': token },
-  });
-  if (!res.ok) {
-    throw new Error(`Football API error: ${res.status} ${res.statusText}`);
-  }
-  return res.json();
-}
+import { footballFetch } from './football-fetch';
 
 function mapStatus(apiStatus: string): MatchStatus {
   switch (apiStatus) {

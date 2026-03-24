@@ -1,3 +1,5 @@
+import { footballFetch } from './football-fetch';
+
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 
 interface H2HMatch {
@@ -19,21 +21,8 @@ export async function generateMatchAnalysis(
   awayTeam: string,
 ): Promise<string | null> {
   try {
-    // 1. Fetch head2head from football-data.org
-    const footballToken = process.env.FOOTBALL_DATA_API_KEY;
-    if (!footballToken) return null;
-
-    const h2hRes = await fetch(
-      `https://api.football-data.org/v4/matches/${matchId}/head2head?limit=20`,
-      { headers: { 'X-Auth-Token': footballToken } },
-    );
-
-    if (!h2hRes.ok) {
-      console.warn(`[Analysis] Football API error: ${h2hRes.status}`);
-      return null;
-    }
-
-    const h2hData = await h2hRes.json();
+    // 1. Fetch head2head from football-data.org (uses key rotation)
+    const h2hData = await footballFetch(`/matches/${matchId}/head2head?limit=20`);
     const matches: H2HMatch[] = (h2hData.matches || []).map((m: any) => ({
       date: m.utcDate?.slice(0, 10) || '',
       home: m.homeTeam?.shortName || m.homeTeam?.name || '',
