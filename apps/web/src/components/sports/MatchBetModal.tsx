@@ -137,8 +137,8 @@ export function MatchBetModal({ pool, onClose }: Props) {
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '100%', sm: 400 },
-            height: { xs: '55vh', sm: '100vh' },
-            maxHeight: { xs: '55vh', sm: '100vh' },
+            height: { xs: '75vh', sm: '100vh' },
+            maxHeight: { xs: '75vh', sm: '100vh' },
             right: { sm: 0 },
             left: { sm: 'auto' },
             top: { sm: 0 },

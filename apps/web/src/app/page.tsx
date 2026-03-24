@@ -41,7 +41,7 @@ const INTERVAL_FILTERS = [
   { value: '1h', label: '1 hour', icon: <Schedule sx={{ fontSize: 16 }} /> },
 ];
 
-const HOW_TO_PLAY = [
+const HOW_TO_PLAY_CRYPTO = [
   {
     image: '/assets/asset-card-1.png',
     title: 'Pick a Pool',
@@ -51,13 +51,34 @@ const HOW_TO_PLAY = [
   {
     image: '/assets/asset-card-2.png',
     title: 'Go UP or DOWN',
-    desc: 'Stake USDC on your prediction. All bets go into the pool  winner takes all.',
+    desc: 'Stake USDC on your prediction. All bets go into the pool — winner takes all.',
     gradient: `linear-gradient(135deg, ${UP_COLOR}15, ${UP_COLOR}05)`,
   },
   {
     image: '/assets/asset-card-3.png',
     title: 'Collect Winnings',
     desc: 'Price moves your way? Claim your share of the entire pool. Instant payout.',
+    gradient: `linear-gradient(135deg, ${GAIN_COLOR}15, ${GAIN_COLOR}05)`,
+  },
+];
+
+const HOW_TO_PLAY_SPORTS = [
+  {
+    image: '/assets/asset-card-1.png',
+    title: 'Pick a Match',
+    desc: 'Browse upcoming football matches across Champions League, Premier League, La Liga & more.',
+    gradient: `linear-gradient(135deg, ${ACCENT_COLOR}15, ${ACCENT_COLOR}05)`,
+  },
+  {
+    image: '/assets/asset-card-2.png',
+    title: 'Home, Draw or Away',
+    desc: 'Stake USDC on your prediction. All bets go into the pool — winner takes all.',
+    gradient: `linear-gradient(135deg, ${UP_COLOR}15, ${UP_COLOR}05)`,
+  },
+  {
+    image: '/assets/asset-card-3.png',
+    title: 'Collect Winnings',
+    desc: 'Your team wins? Claim your share of the entire pool. Payout after full time.',
     gradient: `linear-gradient(135deg, ${GAIN_COLOR}15, ${GAIN_COLOR}05)`,
   },
 ];
@@ -172,7 +193,7 @@ export default function MarketsPage() {
                 mb: 3,
               }}
             >
-              {HOW_TO_PLAY.map((card) => (
+              {(marketType === 'SPORTS' ? HOW_TO_PLAY_SPORTS : HOW_TO_PLAY_CRYPTO).map((card) => (
                 <Box
                   key={card.title}
                   sx={{
