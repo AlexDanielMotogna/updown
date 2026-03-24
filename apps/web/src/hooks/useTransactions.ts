@@ -110,7 +110,7 @@ export function useDeposit() {
         const userBetPubkey = new PublicKey(accounts.userBet);
         const vaultPubkey = new PublicKey(accounts.vault);
         const userTokenAccount = new PublicKey(accounts.userTokenAccount);
-        const sideValue = side === 'UP' ? 0 : 1;
+        const sideValue = side === 'UP' ? 0 : side === 'DOWN' ? 1 : 2;
 
         const ix = buildDepositIx(
           poolPubkey,

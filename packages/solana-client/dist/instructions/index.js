@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildInitializePoolIx = buildInitializePoolIx;
 exports.buildDepositIx = buildDepositIx;
 exports.buildResolveIx = buildResolveIx;
+exports.buildResolveWithWinnerIx = buildResolveWithWinnerIx;
 exports.buildClaimIx = buildClaimIx;
 exports.buildRefundIx = buildRefundIx;
 exports.buildClosePoolIx = buildClosePoolIx;
@@ -32,19 +33,20 @@ function encodeU16(value) {
     buf.writeUInt16LE(value);
     return buf;
 }
-// ── Discriminators (from IDL) ──────────────────────────────────────────────────
+// ── Discriminators (from IDL / sha256("global:<instruction_name>")[0..8]) ─────
 const INITIALIZE_POOL_DISC = Buffer.from([95, 180, 10, 172, 84, 174, 232, 40]);
 const DEPOSIT_DISC = Buffer.from([242, 35, 198, 137, 82, 225, 242, 182]);
 const RESOLVE_DISC = Buffer.from([246, 150, 236, 206, 108, 63, 58, 10]);
+const RESOLVE_WITH_WINNER_DISC = Buffer.from([200, 87, 85, 170, 63, 238, 116, 50]);
 const CLAIM_DISC = Buffer.from([62, 198, 214, 193, 213, 159, 108, 210]);
 const REFUND_DISC = Buffer.from([2, 96, 183, 251, 63, 208, 46, 46]);
 const CLOSE_POOL_DISC = Buffer.from([140, 189, 209, 23, 239, 62, 239, 11]);
 // ── Instruction Builders ───────────────────────────────────────────────────────
 /**
  * Build `initializePool` TransactionInstruction.
- * Accounts order matches IDL: pool, vault, usdcMint, authority, systemProgram, tokenProgram, rent
+ * Accounts: pool, vault, usdcMint, authority, systemProgram, tokenProgram, rent
  */
-function buildInitializePoolIx(pool, vault, usdcMint, authority, poolId, asset, startTime, endTime, lockTime, strikePrice) {
+function buildInitializePoolIx(pool, vault, usdcMint, authority, poolId, asset, startTime, endTime, lockTime, strikePrice, numSides = 2) {
     const data = Buffer.concat([
         INITIALIZE_POOL_DISC,
         Buffer.from(poolId), // [u8; 32]
@@ -53,6 +55,7 @@ function buildInitializePoolIx(pool, vault, usdcMint, authority, poolId, asset, 
         encodeI64(endTime), // i64
         encodeI64(lockTime), // i64
         encodeU64(strikePrice), // u64
+        Buffer.from([numSides]), // u8
     ]);
     const keys = [
         { pubkey: pool, isSigner: false, isWritable: true },
@@ -67,14 +70,14 @@ function buildInitializePoolIx(pool, vault, usdcMint, authority, poolId, asset, 
 }
 /**
  * Build `deposit` TransactionInstruction.
- * Accounts order matches IDL: pool, userBet, vault, userTokenAccount, user, tokenProgram, systemProgram
+ * Accounts: pool, userBet, vault, userTokenAccount, user, tokenProgram, systemProgram
  */
-function buildDepositIx(pool, userBet, vault, userTokenAccount, user, side, // 0=Up, 1=Down
+function buildDepositIx(pool, userBet, vault, userTokenAccount, user, side, // 0=Up/Home, 1=Down/Away, 2=Draw
 amount) {
     // Side is a Borsh enum: single byte index
     const data = Buffer.concat([
         DEPOSIT_DISC,
-        Buffer.from([side]), // enum Side { Up=0, Down=1 }
+        Buffer.from([side]), // enum Side { Up=0, Down=1, Draw=2 }
         encodeU64(amount), // u64
     ]);
     const keys = [
@@ -89,8 +92,8 @@ amount) {
     return new web3_js_1.TransactionInstruction({ keys, programId: accounts_1.PROGRAM_ID, data });
 }
 /**
- * Build `resolve` TransactionInstruction.
- * Accounts order matches IDL: pool, authority
+ * Build `resolve` TransactionInstruction (crypto pools — resolve by price).
+ * Accounts: pool, authority
  */
 function buildResolveIx(pool, authority, strikePrice, finalPrice) {
     const data = Buffer.concat([
@@ -105,9 +108,23 @@ function buildResolveIx(pool, authority, strikePrice, finalPrice) {
     return new web3_js_1.TransactionInstruction({ keys, programId: accounts_1.PROGRAM_ID, data });
 }
 /**
+ * Build `resolve_with_winner` TransactionInstruction (sports pools — explicit winner).
+ * Accounts: pool, authority
+ */
+function buildResolveWithWinnerIx(pool, authority, winner) {
+    const data = Buffer.concat([
+        RESOLVE_WITH_WINNER_DISC,
+        Buffer.from([winner]), // enum Side { Up=0, Down=1, Draw=2 }
+    ]);
+    const keys = [
+        { pubkey: pool, isSigner: false, isWritable: true },
+        { pubkey: authority, isSigner: true, isWritable: false },
+    ];
+    return new web3_js_1.TransactionInstruction({ keys, programId: accounts_1.PROGRAM_ID, data });
+}
+/**
  * Build `claim` TransactionInstruction (with fee).
  * Accounts: pool, userBet, vault, userTokenAccount, user, authority, feeWallet, tokenProgram
- * Args: fee_bps (u16)
  */
 function buildClaimIx(pool, userBet, vault, userTokenAccount, user, authority, feeWallet, feeBps) {
     const data = Buffer.concat([

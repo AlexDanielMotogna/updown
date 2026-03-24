@@ -30,11 +30,19 @@ export interface Pool {
   finalPrice: string | null;
   totalUp: string;
   totalDown: string;
+  totalDraw: string;
   totalPool: string;
-  winner: 'UP' | 'DOWN' | null;
+  winner: 'UP' | 'DOWN' | 'DRAW' | null;
   betCount: number;
   upCount: number;
   downCount: number;
+  drawCount: number;
+  numSides: number;
+  poolType: 'CRYPTO' | 'SPORTS';
+  matchId?: string | null;
+  homeTeam?: string | null;
+  awayTeam?: string | null;
+  league?: string | null;
   createdAt: string;
   updatedAt: string;
 }

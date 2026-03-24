@@ -19,6 +19,7 @@ enum PoolStatus {
 enum Side {
   UP
   DOWN
+  DRAW
 }
 
 enum SquadRole {
@@ -40,6 +41,13 @@ model Pool {
   finalPrice      BigInt?    @map("final_price")
   totalUp         BigInt     @default(0) @map("total_up")
   totalDown       BigInt     @default(0) @map("total_down")
+  totalDraw       BigInt     @default(0) @map("total_draw")
+  numSides        Int        @default(2) @map("num_sides")
+  poolType        String     @default("CRYPTO") @map("pool_type")
+  matchId         String?    @map("match_id")
+  homeTeam        String?    @map("home_team")
+  awayTeam        String?    @map("away_team")
+  league          String?
   winner          Side?
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
@@ -52,6 +60,7 @@ model Pool {
   priceSnapshots     PriceSnapshot[]
   @@index([asset, interval, status])
   @@index([squadId, status])
+  @@index([poolType])
   @@map("pools")
 }
 

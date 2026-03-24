@@ -4,7 +4,6 @@ use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use crate::errors::PoolError;
 use crate::events::Refunded;
 use crate::state::{Pool, PoolStatus, UserBet};
-use crate::Side;
 
 /// Authority-signed refund: returns funds to a user without requiring the user's signature.
 /// Used for single-bettor and one-sided pools where the pool is resolved with synthetic prices
@@ -59,11 +58,8 @@ pub fn handler(ctx: Context<Refund>) -> Result<()> {
     require!(user_bet.side == winner, PoolError::NotWinner);
 
     // Calculate payout — same formula as claim, no fee
-    let total_pool = pool.total_up.checked_add(pool.total_down).ok_or(PoolError::Overflow)?;
-    let total_winning_side = match winner {
-        Side::Up => pool.total_up,
-        Side::Down => pool.total_down,
-    };
+    let total_pool = pool.total_pool()?;
+    let total_winning_side = pool.total_for_side(winner);
 
     require!(total_winning_side > 0, PoolError::NoWinningBets);
 

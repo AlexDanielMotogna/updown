@@ -19,12 +19,14 @@ export function serializePool(pool: {
   finalPrice: bigint | null;
   totalUp: bigint;
   totalDown: bigint;
+  totalDraw?: bigint;
   winner: string | null;
   createdAt: Date;
   updatedAt: Date;
   squadId?: string | null;
   maxBettors?: number | null;
 }) {
+  const totalDraw = pool.totalDraw ?? 0n;
   return {
     id: pool.id,
     poolId: pool.poolId,
@@ -39,7 +41,8 @@ export function serializePool(pool: {
     finalPrice: pool.finalPrice?.toString() ?? null,
     totalUp: pool.totalUp.toString(),
     totalDown: pool.totalDown.toString(),
-    totalPool: (pool.totalUp + pool.totalDown).toString(),
+    totalDraw: totalDraw.toString(),
+    totalPool: (pool.totalUp + pool.totalDown + totalDraw).toString(),
     winner: pool.winner,
     createdAt: pool.createdAt.toISOString(),
     updatedAt: pool.updatedAt.toISOString(),
@@ -73,6 +76,7 @@ export function serializeBet(bet: {
     finalPrice: bigint | null;
     totalUp: bigint;
     totalDown: bigint;
+    totalDraw?: bigint;
     winner: Side | null;
   };
 }, feeBps: number = DEFAULT_FEE_BPS) {
@@ -85,6 +89,7 @@ export function serializeBet(bet: {
       betAmount: bet.amount,
       totalUp: bet.pool.totalUp,
       totalDown: bet.pool.totalDown,
+      totalDraw: bet.pool.totalDraw,
       side: bet.side,
       betCount: bet.pool._count.bets,
       feeBps,

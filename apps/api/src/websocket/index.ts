@@ -175,6 +175,7 @@ export function emitPoolUpdate(poolId: string, data: {
   id: string;
   totalUp: string;
   totalDown: string;
+  totalDraw?: string;
 }): void {
   if (io) {
     io.to(`pool:${poolId}`).emit('pool:updated', data);

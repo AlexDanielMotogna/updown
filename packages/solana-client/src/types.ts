@@ -4,6 +4,7 @@ import { BN } from '@coral-xyz/anchor';
 export enum Side {
   Up = 0,
   Down = 1,
+  Draw = 2,
 }
 
 export enum PoolStatus {
@@ -26,6 +27,8 @@ export interface PoolAccount {
   finalPrice: BN;
   totalUp: BN;
   totalDown: BN;
+  totalDraw: BN;
+  numSides: number;
   status: PoolStatus;
   winner: Side | null;
   bump: number;

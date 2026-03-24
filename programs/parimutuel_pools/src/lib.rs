@@ -13,7 +13,7 @@ declare_id!("HnqB6ahdTEGwJ624D6kaeoSxUS2YwNoq1Cn5Kt9KQBTD");
 pub mod parimutuel_pools {
     use super::*;
 
-    /// Initialize a new pool
+    /// Initialize a new pool (2-way for crypto, 3-way for sports)
     pub fn initialize_pool(
         ctx: Context<InitializePool>,
         pool_id: [u8; 32],
@@ -22,22 +22,31 @@ pub mod parimutuel_pools {
         end_time: i64,
         lock_time: i64,
         strike_price: u64,
+        num_sides: u8,
     ) -> Result<()> {
-        instructions::initialize_pool::handler(ctx, pool_id, asset, start_time, end_time, lock_time, strike_price)
+        instructions::initialize_pool::handler(ctx, pool_id, asset, start_time, end_time, lock_time, strike_price, num_sides)
     }
 
-    /// Deposit USDC to a pool (UP or DOWN side)
+    /// Deposit USDC to a pool (side 0=UP/HOME, 1=DOWN/AWAY, 2=DRAW)
     pub fn deposit(ctx: Context<Deposit>, side: Side, amount: u64) -> Result<()> {
         instructions::deposit::handler(ctx, side, amount)
     }
 
-    /// Resolve pool with final price (authority only)
+    /// Resolve pool — for crypto: by price, for sports: by winner index
     pub fn resolve(
         ctx: Context<Resolve>,
         strike_price: u64,
         final_price: u64,
     ) -> Result<()> {
         instructions::resolve::handler(ctx, strike_price, final_price)
+    }
+
+    /// Resolve pool with explicit winner (for sports pools)
+    pub fn resolve_with_winner(
+        ctx: Context<Resolve>,
+        winner: Side,
+    ) -> Result<()> {
+        instructions::resolve::handler_with_winner(ctx, winner)
     }
 
     /// Claim payout from resolved pool (user + authority co-sign, with fee)
@@ -60,4 +69,5 @@ pub mod parimutuel_pools {
 pub enum Side {
     Up,
     Down,
+    Draw,
 }

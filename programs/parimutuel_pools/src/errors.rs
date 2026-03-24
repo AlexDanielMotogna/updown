@@ -52,4 +52,10 @@ pub enum PoolError {
 
     #[msg("Vault still has tokens — all claims/refunds must be processed first")]
     VaultNotEmpty,
+
+    #[msg("Invalid side for this pool (e.g., Draw on a 2-side pool)")]
+    InvalidSide,
+
+    #[msg("Invalid number of sides: must be 2 or 3")]
+    InvalidNumSides,
 }
