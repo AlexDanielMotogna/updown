@@ -41,12 +41,7 @@ interface BetFormProps {
   existingBetSide?: 'UP' | 'DOWN';
 }
 
-const PRESET_AMOUNTS = [
-  { value: 10, img: '/assets/button-10dollars.png' },
-  { value: 50, img: '/assets/button-50dollars.png' },
-  { value: 100, img: '/assets/button-100dollars.png' },
-  { value: 500, img: '/assets/button-500dollars.png' },
-];
+const PRESET_AMOUNTS = [10, 50, 100, 500];
 
 export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, controlledSide, hideToggle, existingBetSide }: BetFormProps) {
   const { connected } = useWalletBridge();
@@ -126,34 +121,25 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
       {/* Preset Amounts  image buttons */}
       <Box sx={{ display: 'flex', gap: 0.75, mb: 1.5 }}>
         {PRESET_AMOUNTS.map((preset) => {
-          const isActive = amount === preset.value.toString();
+          const isActive = amount === preset.toString();
           return (
-            <Box
-              key={preset.value}
-              component={motion.div}
-              {...({ whileTap: { scale: 0.92 } } as Record<string, unknown>)}
-              onClick={() => canInteract && handlePresetClick(preset.value)}
+            <Button
+              key={preset}
+              size="small"
+              onClick={() => canInteract && handlePresetClick(preset)}
+              disabled={!canInteract}
               sx={{
-                flex: 1,
-                cursor: canInteract ? 'pointer' : 'default',
-                transition: 'all 0.2s ease',
-                opacity: canInteract ? (isActive ? 1 : 0.6) : 0.3,
-                filter: isActive ? `drop-shadow(0 0 8px ${sideColor}40)` : 'none',
-                transform: isActive ? 'translateY(-2px)' : 'none',
-                '&:hover': canInteract ? {
-                  opacity: 1,
-                  transform: 'translateY(-2px)',
-                  filter: `drop-shadow(0 0 6px ${sideColor}30)`,
-                } : {},
+                flex: 1, minWidth: 0, py: 0.75,
+                fontSize: '0.8rem', fontWeight: 600,
+                bgcolor: isActive ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
+                color: isActive ? '#fff' : 'rgba(255,255,255,0.5)',
+                textTransform: 'none', borderRadius: '5px',
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' },
+                '&:disabled': { bgcolor: 'rgba(255,255,255,0.02)', color: 'rgba(255,255,255,0.2)' },
               }}
             >
-              <Box
-                component="img"
-                src={preset.img}
-                alt={`$${preset.value}`}
-                sx={{ width: '100%', height: 'auto', display: 'block' }}
-              />
-            </Box>
+              ${preset}
+            </Button>
           );
         })}
       </Box>
@@ -284,7 +270,7 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
         animate={canBet ? { boxShadow: [`0 0 0 0px ${sideColor}40`, `0 0 0 10px ${sideColor}00`, `0 0 0 0px ${sideColor}40`] } : {}}
         transition={canBet ? { duration: 2, repeat: Infinity, ease: 'easeInOut' } : {}}
         whileTap={canBet ? { scale: 0.95 } : undefined}
-        style={{ borderRadius: 12 }}
+        style={{ borderRadius: 5 }}
       >
       <Button
         type="submit"
@@ -292,11 +278,11 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
         fullWidth
         disabled={!canBet}
         sx={{
-          py: 1.25,
-          fontSize: '0.85rem',
+          py: 1,
+          fontSize: '0.8rem',
           fontWeight: 700,
           letterSpacing: '0.06em',
-          borderRadius: 2,
+          borderRadius: '5px',
           textTransform: 'uppercase',
           background: side === 'UP'
             ? `linear-gradient(135deg, ${UP_COLOR}, #16A34A)`

@@ -11,12 +11,13 @@ import { PoolRowDesktop } from './PoolRowDesktop';
 
 interface PoolRowProps {
   pool: Pool;
-  userBet?: { side: 'UP' | 'DOWN'; isWinner: boolean | null };
+  userBet?: { side: 'UP' | 'DOWN' | 'DRAW'; isWinner: boolean | null };
   getPrice: (a: string) => string | null;
   index: number;
   isNew?: boolean;
   isPopular?: boolean;
   alwaysShowView?: boolean;
+  onClick?: () => void;
 }
 
 export function PoolRow({
@@ -27,6 +28,7 @@ export function PoolRow({
   isNew,
   isPopular,
   alwaysShowView,
+  onClick,
 }: PoolRowProps) {
   const totalUp = Number(pool.totalUp);
   const totalDown = Number(pool.totalDown);
@@ -89,6 +91,7 @@ export function PoolRow({
     isHot,
     isPopular,
     alwaysShowView,
+    onClick,
     upPct,
     downPct,
     countdownTarget,
@@ -105,6 +108,7 @@ export function PoolRow({
       layout
     >
     <Box
+      onClick={onClick}
       sx={{
         position: 'relative',
         overflow: 'hidden',
@@ -115,6 +119,7 @@ export function PoolRow({
         pl: 0,
         py: 0,
         bgcolor: '#0D1219',
+        cursor: onClick ? 'pointer' : undefined,
         transition: 'background 0.15s ease',
         '&:hover': {
           background: 'rgba(255,255,255,0.04)',

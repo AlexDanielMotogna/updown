@@ -30,6 +30,7 @@ const BORDER_COLORS: Record<NotificationSeverity, string> = {
 
 function getSeverityIcon(severity: NotificationSeverity, type: string) {
   if (type === 'POOL_WON' || type === 'POOL_CLAIMABLE') return <EmojiEventsIcon sx={{ fontSize: 22, color: GAIN_COLOR }} />;
+  if (type === 'TOURNAMENT_ENTRY_PAID' || type === 'DEPOSIT_SUCCESS') return <Typography sx={{ fontSize: 18, fontWeight: 800, color: GAIN_COLOR, width: 22, textAlign: 'center' }}>$</Typography>;
   if (type === 'CLAIM_SUCCESS' || type === 'REFUND_RECEIVED') return <Box component="img" src="/coins/usdc-coin.png" alt="USDC" sx={{ width: 22, height: 22 }} />;
   switch (severity) {
     case 'success':
@@ -141,7 +142,11 @@ const ToastItem = memo(function ToastItem({ notification, onDismiss }: ToastItem
             <UserLevelBadge level={notification.level} title="" size="sm" variant="icon-only" />
           ) : notification.type === 'COINS_EARNED' ? (
             <Box component="img" src="/token/Token_16px_Gold.png" alt="UP Coin" sx={{ width: 22, height: 22 }} />
-          ) : notification.asset ? (
+          ) : (notification.type === 'DEPOSIT_SUCCESS' || notification.type === 'TOURNAMENT_ENTRY_PAID') ? (
+            getSeverityIcon(notification.severity, notification.type)
+          ) : notification.type.startsWith('TOURNAMENT_') && notification.asset ? (
+            <Box component="img" src={`/tournaments/tournament-${notification.asset.toLowerCase()}.png`} alt={notification.asset} sx={{ width: 22, height: 22, objectFit: 'contain' }} />
+          ) : notification.asset && !notification.asset.includes(':') ? (
             <AssetIcon asset={notification.asset} size={22} />
           ) : (
             getSeverityIcon(notification.severity, notification.type)

@@ -20,6 +20,14 @@ export function serializePool(pool: {
   totalUp: bigint;
   totalDown: bigint;
   totalDraw?: bigint;
+  numSides?: number;
+  poolType?: string;
+  matchId?: string | null;
+  homeTeam?: string | null;
+  awayTeam?: string | null;
+  homeTeamCrest?: string | null;
+  awayTeamCrest?: string | null;
+  league?: string | null;
   winner: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -44,6 +52,14 @@ export function serializePool(pool: {
     totalDraw: totalDraw.toString(),
     totalPool: (pool.totalUp + pool.totalDown + totalDraw).toString(),
     winner: pool.winner,
+    numSides: pool.numSides ?? 2,
+    poolType: pool.poolType ?? 'CRYPTO',
+    matchId: pool.matchId ?? null,
+    homeTeam: pool.homeTeam ?? null,
+    awayTeam: pool.awayTeam ?? null,
+    homeTeamCrest: pool.homeTeamCrest ?? null,
+    awayTeamCrest: pool.awayTeamCrest ?? null,
+    league: pool.league ?? null,
     createdAt: pool.createdAt.toISOString(),
     updatedAt: pool.updatedAt.toISOString(),
   };

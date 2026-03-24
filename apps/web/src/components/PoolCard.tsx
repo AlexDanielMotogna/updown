@@ -12,7 +12,7 @@ import { AssetIcon } from './AssetIcon';
 interface PoolCardProps {
   pool: Pool;
   livePrice?: string | null;
-  userBet?: { side: 'UP' | 'DOWN'; isWinner: boolean | null };
+  userBet?: { side: 'UP' | 'DOWN' | 'DRAW'; isWinner: boolean | null };
 }
 
 export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {

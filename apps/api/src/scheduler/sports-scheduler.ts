@@ -7,9 +7,8 @@ import { Transaction } from '@solana/web3.js';
 import crypto from 'crypto';
 import { emitPoolStatus } from '../websocket';
 
-const LEAGUES = ['CL']; // Champions League - expand later
-const POOL_OPEN_HOURS_BEFORE = 24; // Open pool 24h before kickoff
-const MATCH_BUFFER_MINUTES = 130; // 90min + 30min halftime/extra + 10min buffer
+const LEAGUES = ['CL', 'PL', 'PD', 'SA', 'BL1', 'FL1']; // UCL, Premier, La Liga, Serie A, Bundesliga, Ligue 1
+const POOL_OPEN_HOURS_BEFORE = 720; // Open pool 30 days before kickoff
 
 /**
  * Create pools for upcoming matches that don't have pools yet.
@@ -42,7 +41,7 @@ export async function createMatchPools(): Promise<void> {
 
 /**
  * Check finished matches and resolve their pools.
- * Runs every 5 minutes.
+ * Runs every 5 minutes. Does NOT rely on endTime — only checks the real match result from API.
  */
 export async function resolveMatchPools(): Promise<void> {
   const unresolved = await prisma.pool.findMany({
@@ -50,7 +49,7 @@ export async function resolveMatchPools(): Promise<void> {
       poolType: 'SPORTS',
       status: { in: ['ACTIVE', 'JOINING'] },
       matchId: { not: null },
-      endTime: { lte: new Date() },
+      startTime: { lte: new Date() }, // Kickoff has passed
     },
   });
 
@@ -116,8 +115,9 @@ async function createSportsPool(match: Match, leagueCode: string): Promise<void>
 
   const kickoff = match.kickoff;
   const lockTime = new Date(kickoff.getTime() - 60 * 1000); // Lock 1 min before kickoff
-  const endTime = new Date(kickoff.getTime() + MATCH_BUFFER_MINUTES * 60 * 1000);
-  const startTime = kickoff; // For display purposes
+  const startTime = kickoff;
+  // endTime is set far ahead — resolution is driven by actual match result, not a timer
+  const endTime = new Date(kickoff.getTime() + 6 * 60 * 60 * 1000); // kickoff + 6h (generous buffer for on-chain constraint)
 
   try {
     // Create on-chain
@@ -162,7 +162,7 @@ async function createSportsPool(match: Match, leagueCode: string): Promise<void>
         poolId: poolPda.toBase58(),
         asset,
         interval: 'match',
-        durationSeconds: MATCH_BUFFER_MINUTES * 60,
+        durationSeconds: 6 * 60 * 60, // Not used for resolution — match result drives it
         status: 'JOINING',
         startTime,
         endTime,
@@ -176,6 +176,8 @@ async function createSportsPool(match: Match, leagueCode: string): Promise<void>
         matchId: match.id,
         homeTeam: match.homeTeam,
         awayTeam: match.awayTeam,
+        homeTeamCrest: match.homeTeamCrest || null,
+        awayTeamCrest: match.awayTeamCrest || null,
         league: leagueCode,
       },
     });

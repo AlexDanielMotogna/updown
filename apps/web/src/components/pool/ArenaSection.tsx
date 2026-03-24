@@ -67,7 +67,6 @@ function JoinButton({ side, selected, onSelect, position, pct }: {
 }) {
   const color = side === 'UP' ? UP_COLOR : DOWN_COLOR;
   const icon = side === 'UP' ? '/assets/up-icon-64x64.png' : '/assets/down-icon-64x64.png';
-  const radius = position === 'left' ? '10px 0 0 10px' : '0 10px 10px 0';
 
   return (
     <Box
@@ -79,21 +78,13 @@ function JoinButton({ side, selected, onSelect, position, pct }: {
         py: 1.25, px: 1,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         gap: 0.75,
-        borderRadius: radius, transition: 'all 0.2s ease',
+        borderRadius: '5px', transition: 'all 0.2s ease',
         position: 'relative', overflow: 'hidden',
-        ...(selected
-          ? {
-              background: `${color}18`,
-              border: `1.5px solid ${color}50`,
-            }
-          : {
-              background: 'rgba(255,255,255,0.03)',
-              border: '1.5px solid rgba(255,255,255,0.08)',
-              '&:hover': { background: 'rgba(255,255,255,0.06)' },
-            }),
+        background: selected ? `${color}18` : 'rgba(255,255,255,0.03)',
+        '&:hover': selected ? {} : { background: 'rgba(255,255,255,0.06)' },
       }}
     >
-      <Box component="img" src={icon} alt="" sx={{ width: 16, height: 16, opacity: selected ? 1 : 0.4 }} />
+      <Box component="img" src={icon} alt="" sx={{ width: 18, height: 18, opacity: selected ? 1 : 0.4 }} />
       <Typography sx={{ fontWeight: 700, fontSize: '0.8rem', color: selected ? color : 'rgba(255,255,255,0.5)' }}>
         {side} {pct}%
       </Typography>

@@ -50,7 +50,7 @@ export function SideSelector({
           gridTemplateColumns: '1fr auto 1fr',
           '& .MuiToggleButtonGroup-grouped': {
             border: 'none !important',
-            borderRadius: '4px !important',
+            borderRadius: '5px !important',
           },
         }}
       >

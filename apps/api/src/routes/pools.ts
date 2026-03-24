@@ -89,23 +89,25 @@ poolsRouter.get('/', async (req, res) => {
         })
       : [];
 
-    const sideCountMap = new Map<string, { upCount: number; downCount: number }>();
+    const sideCountMap = new Map<string, { upCount: number; downCount: number; drawCount: number }>();
     for (const row of sideCounts) {
-      const existing = sideCountMap.get(row.poolId) || { upCount: 0, downCount: 0 };
+      const existing = sideCountMap.get(row.poolId) || { upCount: 0, downCount: 0, drawCount: 0 };
       if (row.side === 'UP') existing.upCount = row._count;
-      else existing.downCount = row._count;
+      else if (row.side === 'DOWN') existing.downCount = row._count;
+      else if (row.side === 'DRAW') existing.drawCount = row._count;
       sideCountMap.set(row.poolId, existing);
     }
 
     res.json({
       success: true,
       data: pools.map(pool => {
-        const counts = sideCountMap.get(pool.id) || { upCount: 0, downCount: 0 };
+        const counts = sideCountMap.get(pool.id) || { upCount: 0, downCount: 0, drawCount: 0 };
         return {
           ...serializePool(pool),
           betCount: pool._count.bets,
           upCount: counts.upCount,
           downCount: counts.downCount,
+          drawCount: counts.drawCount,
         };
       }),
       meta: {
@@ -195,6 +197,31 @@ poolsRouter.get('/:id', async (req, res) => {
         message: 'Failed to fetch pool',
       },
     });
+  }
+});
+
+// GET /api/pools/:id/bets - Get bets for a pool (public, truncated wallets)
+poolsRouter.get('/:id/bets', async (req, res) => {
+  try {
+    const bets = await prisma.bet.findMany({
+      where: { poolId: req.params.id },
+      select: { walletAddress: true, side: true, amount: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    res.json({
+      success: true,
+      data: bets.map(b => ({
+        wallet: `${b.walletAddress.slice(0, 4)}...${b.walletAddress.slice(-4)}`,
+        side: b.side,
+        amount: b.amount.toString(),
+        createdAt: b.createdAt.toISOString(),
+      })),
+    });
+  } catch (error) {
+    console.error('Error fetching pool bets:', error);
+    res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: 'Failed to fetch bets' } });
   }
 });
 

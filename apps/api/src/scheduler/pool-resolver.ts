@@ -182,8 +182,9 @@ export class PoolResolver {
             await this.deps.prisma.pool.deleteMany({ where: { id: pool.id } });
             console.log(`[Scheduler] Pool ${pool.id} closed on-chain & deleted (empty, rent: +${(rentReclaimed / 1e9).toFixed(6)} SOL)`);
           } else {
-            // Had participants — keep pool + bets for history
-            console.log(`[Scheduler] Pool ${pool.id} closed on-chain (${betCount} bets kept, rent: +${(rentReclaimed / 1e9).toFixed(6)} SOL)`);
+            // Had participants — keep pool + bets for history, mark RESOLVED so it's not retried
+            await this.deps.prisma.pool.update({ where: { id: pool.id }, data: { status: 'RESOLVED' } });
+            console.log(`[Scheduler] Pool ${pool.id} closed on-chain (${betCount} bets kept, marked RESOLVED, rent: +${(rentReclaimed / 1e9).toFixed(6)} SOL)`);
           }
         } catch (error) {
           const errMsg = error instanceof Error ? error.message : String(error);
@@ -205,7 +206,9 @@ export class PoolResolver {
               await this.deps.prisma.pool.deleteMany({ where: { id: pool.id } });
               console.log(`[Scheduler] Pool ${pool.id} already closed — deleted (empty)`);
             } else {
-              console.log(`[Scheduler] Pool ${pool.id} already closed — kept (${betCount} bets)`);
+              // Mark as RESOLVED so it won't be picked up for closure again
+              await this.deps.prisma.pool.update({ where: { id: pool.id }, data: { status: 'RESOLVED' } });
+              console.log(`[Scheduler] Pool ${pool.id} already closed — kept (${betCount} bets, marked RESOLVED)`);
             }
             continue;
           }

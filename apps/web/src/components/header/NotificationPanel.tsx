@@ -218,7 +218,7 @@ export function NotificationPanel() {
                             getSeverityIcon(n.severity, n.type)
                           ) : n.type.startsWith('TOURNAMENT_') && n.asset ? (
                             <Box component="img" src={`/tournaments/tournament-${n.asset.toLowerCase()}.png`} alt={n.asset} sx={{ width: 22, height: 22, objectFit: 'contain' }} />
-                          ) : n.asset ? (
+                          ) : n.asset && !n.asset.includes(':') ? (
                             <AssetIcon asset={n.asset} size={18} />
                           ) : (
                             getSeverityIcon(n.severity, n.type)

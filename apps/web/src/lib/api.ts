@@ -42,6 +42,8 @@ export interface Pool {
   matchId?: string | null;
   homeTeam?: string | null;
   awayTeam?: string | null;
+  homeTeamCrest?: string | null;
+  awayTeamCrest?: string | null;
   league?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -65,7 +67,7 @@ export interface Bet {
   id: string;
   poolId: string;
   walletAddress: string;
-  side: 'UP' | 'DOWN';
+  side: 'UP' | 'DOWN' | 'DRAW';
   amount: string;
   depositTx: string | null;
   claimed: boolean;
@@ -196,7 +198,7 @@ export async function fetchClaimableBets(
 export async function prepareDeposit(params: {
   poolId: string;
   walletAddress: string;
-  side: 'UP' | 'DOWN';
+  side: 'UP' | 'DOWN' | 'DRAW';
   amount: number;
 }): Promise<ApiResponse<DepositAccounts>> {
   return fetchApi<DepositAccounts>('/api/transactions/deposit', {
@@ -209,7 +211,7 @@ export async function confirmDeposit(params: {
   poolId: string;
   walletAddress: string;
   txSignature: string;
-  side: 'UP' | 'DOWN';
+  side: 'UP' | 'DOWN' | 'DRAW';
 }): Promise<ApiResponse<{ betId: string; status: string }>> {
   return fetchApi('/api/transactions/confirm-deposit', {
     method: 'POST',

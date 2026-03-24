@@ -1,11 +1,11 @@
 import { SportAdapter, Match, MatchResult, MatchStatus } from './types';
 
 const API_BASE = 'https://api.football-data.org/v4';
-const API_TOKEN = process.env.FOOTBALL_DATA_API_KEY || '';
 
 async function footballFetch(path: string): Promise<any> {
+  const token = process.env.FOOTBALL_DATA_API_KEY || '';
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'X-Auth-Token': API_TOKEN },
+    headers: { 'X-Auth-Token': token },
   });
   if (!res.ok) {
     throw new Error(`Football API error: ${res.status} ${res.statusText}`);
@@ -42,7 +42,17 @@ export class FootballAdapter implements SportAdapter {
   async fetchUpcomingMatches(league: string): Promise<Match[]> {
     const data = await footballFetch(`/competitions/${league}/matches?status=SCHEDULED,TIMED&limit=20`);
 
-    return (data.matches || []).map((m: any) => ({
+    // Only return the next matchday (e.g., just leg 1 or just leg 2)
+    const matches = data.matches || [];
+    const nextMatchday = matches.length > 0
+      ? Math.min(...matches.filter((m: any) => m.matchday != null).map((m: any) => m.matchday))
+      : null;
+
+    const filtered = nextMatchday != null
+      ? matches.filter((m: any) => m.matchday === nextMatchday && m.homeTeam?.id != null)
+      : matches.filter((m: any) => m.homeTeam?.id != null);
+
+    return filtered.map((m: any) => ({
       id: String(m.id),
       sport: 'FOOTBALL',
       league,

@@ -90,7 +90,7 @@ export default function SquadDetailPage() {
 
   // Map user bets for PoolTable
   const userBetByPoolId = useMemo(() => {
-    const map = new Map<string, { side: 'UP' | 'DOWN'; isWinner: boolean | null }>();
+    const map = new Map<string, { side: 'UP' | 'DOWN' | 'DRAW'; isWinner: boolean | null }>();
     for (const bet of betsData?.data || []) {
       map.set(bet.pool.id, { side: bet.side, isWinner: bet.isWinner });
     }

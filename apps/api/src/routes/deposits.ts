@@ -416,6 +416,9 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
           totalDown: side === 'DOWN'
             ? { increment: betAmount }
             : undefined,
+          totalDraw: side === 'DRAW'
+            ? { increment: betAmount }
+            : undefined,
         },
       });
 
@@ -442,6 +445,7 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
       id: pool.id,
       totalUp: updatedPool.totalUp.toString(),
       totalDown: updatedPool.totalDown.toString(),
+      totalDraw: updatedPool.totalDraw.toString(),
     });
 
     // Award XP + coins (fire-and-forget, non-blocking)

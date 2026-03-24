@@ -47,6 +47,8 @@ model Pool {
   matchId         String?    @map("match_id")
   homeTeam        String?    @map("home_team")
   awayTeam        String?    @map("away_team")
+  homeTeamCrest   String?    @map("home_team_crest")
+  awayTeamCrest   String?    @map("away_team_crest")
   league          String?
   winner          Side?
   createdAt       DateTime   @default(now()) @map("created_at")

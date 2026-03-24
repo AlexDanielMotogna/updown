@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
   Box,
@@ -20,8 +20,10 @@ import {
 import { useInfinitePools, useBets, usePriceStream, useIntersectionObserver, type PoolFilters } from '@/hooks';
 import { PoolTable, AppShell } from '@/components';
 import { MatchCard } from '@/components/sports/MatchCard';
-import { SportsFilter } from '@/components/sports/SportsFilter';
+import { MatchBetModal } from '@/components/sports/MatchBetModal';
+import { MarketFilter } from '@/components/sports/MarketFilter';
 import { TournamentBanner } from '@/components/tournament/TournamentBanner';
+import { CryptoPoolModal } from '@/components/pool/CryptoPoolModal';
 import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR } from '@/lib/constants';
 
 const ASSET_FILTERS = [
@@ -66,13 +68,12 @@ export default function MarketsPage() {
   const pathname = usePathname();
 
   // Read filters from URL (fallback to defaults)
-  const poolTypeValues = ['ALL', 'CRYPTO', 'SPORTS'] as const;
   const assetValues = ASSET_FILTERS.map(f => f.value);
   const intervalValues = INTERVAL_FILTERS.map(f => f.value);
-  const poolTypeParam = searchParams.get('type') ?? '';
-  const poolType = (poolTypeValues as readonly string[]).includes(poolTypeParam) ? poolTypeParam as 'ALL' | 'CRYPTO' | 'SPORTS' : 'ALL';
+  const marketType = (searchParams.get('type') === 'SPORTS' ? 'SPORTS' : 'CRYPTO') as 'CRYPTO' | 'SPORTS';
   const assetFilter = assetValues.includes(searchParams.get('asset') ?? '') ? searchParams.get('asset')! : 'ALL';
   const intervalFilter = intervalValues.includes(searchParams.get('interval') ?? '') ? searchParams.get('interval')! : 'ALL';
+  const leagueFilter = searchParams.get('league') ?? 'ALL';
 
   const updateParam = useCallback((key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -89,9 +90,9 @@ export default function MarketsPage() {
   const filters = useMemo(() => ({
     asset: assetFilter === 'ALL' ? undefined : assetFilter,
     interval: intervalFilter === 'ALL' ? undefined : intervalFilter,
-    type: poolType === 'ALL' ? undefined : poolType,
+    type: marketType,
     status: 'JOINING',
-  }), [assetFilter, intervalFilter, poolType]);
+  }), [assetFilter, intervalFilter, marketType]);
 
   const {
     data,
@@ -131,7 +132,7 @@ export default function MarketsPage() {
   }, [allPools]);
 
   const userBetByPoolId = useMemo(() => {
-    const map = new Map<string, { side: 'UP' | 'DOWN'; isWinner: boolean | null }>();
+    const map = new Map<string, { side: 'UP' | 'DOWN' | 'DRAW'; isWinner: boolean | null }>();
     for (const bet of betsData?.data || []) {
       map.set(bet.pool.id, { side: bet.side, isWinner: bet.isWinner });
     }
@@ -145,8 +146,16 @@ export default function MarketsPage() {
 
   // Split pools by type for conditional rendering
   const cryptoPools = useMemo(() => sortedPools.filter(p => p.poolType !== 'SPORTS'), [sortedPools]);
-  const sportsPools = useMemo(() => sortedPools.filter(p => p.poolType === 'SPORTS'), [sortedPools]);
+  const sportsPools = useMemo(() => {
+    const sports = sortedPools.filter(p => p.poolType === 'SPORTS');
+    if (leagueFilter === 'ALL') return sports;
+    return sports.filter(p => p.league === leagueFilter);
+  }, [sortedPools, leagueFilter]);
   const pools = sortedPools;
+
+  // Modal states
+  const [selectedSportsPool, setSelectedSportsPool] = useState<typeof allPools[number] | null>(null);
+  const [selectedCryptoPool, setSelectedCryptoPool] = useState<typeof allPools[number] | null>(null);
 
   return (
     <AppShell>
@@ -207,47 +216,23 @@ export default function MarketsPage() {
             </Box>
 
             {/* Filters */}
-            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'stretch', sm: 'center' }, justifyContent: 'space-between', mb: 3, gap: { xs: 1, sm: 1 } }}>
-              <SportsFilter value={poolType} onChange={(v) => updateParam('type', v)} />
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflowX: 'auto', WebkitOverflowScrolling: 'touch', '&::-webkit-scrollbar': { display: 'none' }, scrollbarWidth: 'none' }}>
-                {ASSET_FILTERS.map((f) => (
-                  <Chip
-                    key={f.value}
-                    label={f.label}
-                    size="small"
-                    icon={f.img ? (
-                      <Box component="img" src={f.img} alt={f.label} sx={{ width: 16, height: 16, borderRadius: '50%' }} />
-                    ) : f.icon}
-                    onClick={() => updateParam('asset', f.value)}
-                    sx={{
-                      fontWeight: 600, fontSize: { xs: '0.72rem', sm: '0.8rem' }, border: 'none', flexShrink: 0,
-                      height: { xs: 28, sm: 32 },
-                      backgroundColor: assetFilter === f.value ? `${UP_COLOR}20` : 'rgba(255,255,255,0.04)',
-                      color: assetFilter === f.value ? UP_COLOR : 'text.secondary',
-                      '&:hover': { backgroundColor: assetFilter === f.value ? `${UP_COLOR}28` : 'rgba(255,255,255,0.08)' },
-                    }}
-                  />
-                ))}
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflowX: 'auto', WebkitOverflowScrolling: 'touch', '&::-webkit-scrollbar': { display: 'none' }, scrollbarWidth: 'none' }}>
-                {INTERVAL_FILTERS.map((f) => (
-                  <Chip
-                    key={f.value}
-                    label={f.label}
-                    size="small"
-                    icon={f.icon}
-                    onClick={() => updateParam('interval', f.value)}
-                    sx={{
-                      fontWeight: 600, fontSize: { xs: '0.72rem', sm: '0.8rem' }, border: 'none', flexShrink: 0,
-                      height: { xs: 28, sm: 32 },
-                      backgroundColor: intervalFilter === f.value ? `${UP_COLOR}20` : 'rgba(255,255,255,0.04)',
-                      color: intervalFilter === f.value ? UP_COLOR : 'text.secondary',
-                      '&:hover': { backgroundColor: intervalFilter === f.value ? `${UP_COLOR}28` : 'rgba(255,255,255,0.08)' },
-                    }}
-                  />
-                ))}
-              </Box>
-            </Box>
+            <MarketFilter
+              marketType={marketType}
+              onMarketTypeChange={(v) => {
+                const params = new URLSearchParams();
+                if (v === 'SPORTS') params.set('type', 'SPORTS');
+                const qs = params.toString();
+                router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+              }}
+              assetFilter={assetFilter}
+              intervalFilter={intervalFilter}
+              onAssetChange={(v) => updateParam('asset', v)}
+              onIntervalChange={(v) => updateParam('interval', v)}
+              assetOptions={ASSET_FILTERS}
+              intervalOptions={INTERVAL_FILTERS}
+              leagueFilter={leagueFilter}
+              onLeagueChange={(v) => updateParam('league', v)}
+            />
 
             {/* Error State */}
             {error && (
@@ -274,30 +259,31 @@ export default function MarketsPage() {
             {/* Pool Table + Sports Cards */}
             {!isLoading && (
               <>
-                {/* Sports match cards (shown when ALL or SPORTS) */}
-                {poolType !== 'CRYPTO' && sportsPools.length > 0 && (
+                {/* Sports match cards */}
+                {marketType === 'SPORTS' && sportsPools.length > 0 && (
                   <Box
                     sx={{
                       display: 'grid',
                       gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
                       gap: '3px',
-                      mb: cryptoPools.length > 0 && poolType === 'ALL' ? 3 : 0,
+                      mb: 0,
                     }}
                   >
                     {sportsPools.map((pool) => (
-                      <MatchCard key={pool.id} pool={pool} />
+                      <MatchCard key={pool.id} pool={pool} onClick={() => setSelectedSportsPool(pool)} />
                     ))}
                   </Box>
                 )}
 
-                {/* Crypto pool table (shown when ALL or CRYPTO) */}
-                {poolType !== 'SPORTS' && (
+                {/* Crypto pool table */}
+                {marketType === 'CRYPTO' && (
                   <PoolTable
                     pools={cryptoPools}
                     userBetByPoolId={userBetByPoolId}
                     getPrice={getPrice}
                     isPlaceholderData={isPlaceholderData}
                     popularPoolIds={popularPoolIds}
+                    onPoolClick={(pool) => setSelectedCryptoPool(pool)}
                   />
                 )}
 
@@ -325,6 +311,9 @@ export default function MarketsPage() {
               </>
             )}
       </Container>
+
+      <MatchBetModal pool={selectedSportsPool} onClose={() => setSelectedSportsPool(null)} />
+      <CryptoPoolModal pool={selectedCryptoPool} onClose={() => setSelectedCryptoPool(null)} />
     </AppShell>
   );
 }

@@ -40,6 +40,9 @@ export function initWebSocket(httpServer: HttpServer): Server {
       if (!Array.isArray(data?.assets)) return;
 
       for (const asset of data.assets) {
+        // Skip sports assets (league codes contain ':')
+        if (asset.includes(':')) continue;
+
         const room = `prices:${asset}`;
         socket.join(room);
 
@@ -125,6 +128,8 @@ const priceIntervals = new Map<string, NodeJS.Timeout>();
 
 async function startPriceStream(asset: string): Promise<void> {
   if (priceIntervals.has(asset)) return;
+  // Skip sports assets (league codes contain ':')
+  if (asset.includes(':')) return;
 
   console.log(`[WS] Starting price stream for ${asset}`);
 
