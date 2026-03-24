@@ -7,6 +7,7 @@ export interface PoolFilters {
   asset?: string;
   interval?: string;
   status?: string;
+  type?: string;
   page?: number;
   limit?: number;
 }

@@ -19,6 +19,8 @@ import {
 } from '@mui/icons-material';
 import { useInfinitePools, useBets, usePriceStream, useIntersectionObserver, type PoolFilters } from '@/hooks';
 import { PoolTable, AppShell } from '@/components';
+import { MatchCard } from '@/components/sports/MatchCard';
+import { SportsFilter } from '@/components/sports/SportsFilter';
 import { TournamentBanner } from '@/components/tournament/TournamentBanner';
 import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR } from '@/lib/constants';
 
@@ -64,8 +66,11 @@ export default function MarketsPage() {
   const pathname = usePathname();
 
   // Read filters from URL (fallback to defaults)
+  const poolTypeValues = ['ALL', 'CRYPTO', 'SPORTS'] as const;
   const assetValues = ASSET_FILTERS.map(f => f.value);
   const intervalValues = INTERVAL_FILTERS.map(f => f.value);
+  const poolTypeParam = searchParams.get('type') ?? '';
+  const poolType = (poolTypeValues as readonly string[]).includes(poolTypeParam) ? poolTypeParam as 'ALL' | 'CRYPTO' | 'SPORTS' : 'ALL';
   const assetFilter = assetValues.includes(searchParams.get('asset') ?? '') ? searchParams.get('asset')! : 'ALL';
   const intervalFilter = intervalValues.includes(searchParams.get('interval') ?? '') ? searchParams.get('interval')! : 'ALL';
 
@@ -84,8 +89,9 @@ export default function MarketsPage() {
   const filters = useMemo(() => ({
     asset: assetFilter === 'ALL' ? undefined : assetFilter,
     interval: intervalFilter === 'ALL' ? undefined : intervalFilter,
+    type: poolType === 'ALL' ? undefined : poolType,
     status: 'JOINING',
-  }), [assetFilter, intervalFilter]);
+  }), [assetFilter, intervalFilter, poolType]);
 
   const {
     data,
@@ -137,7 +143,9 @@ export default function MarketsPage() {
     hasNextPage && !isFetchingNextPage
   );
 
-  // Filters are now fully handled server-side; use sorted list with popular pools first
+  // Split pools by type for conditional rendering
+  const cryptoPools = useMemo(() => sortedPools.filter(p => p.poolType !== 'SPORTS'), [sortedPools]);
+  const sportsPools = useMemo(() => sortedPools.filter(p => p.poolType === 'SPORTS'), [sortedPools]);
   const pools = sortedPools;
 
   return (
@@ -200,6 +208,7 @@ export default function MarketsPage() {
 
             {/* Filters */}
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'stretch', sm: 'center' }, justifyContent: 'space-between', mb: 3, gap: { xs: 1, sm: 1 } }}>
+              <SportsFilter value={poolType} onChange={(v) => updateParam('type', v)} />
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflowX: 'auto', WebkitOverflowScrolling: 'touch', '&::-webkit-scrollbar': { display: 'none' }, scrollbarWidth: 'none' }}>
                 {ASSET_FILTERS.map((f) => (
                   <Chip
@@ -262,16 +271,35 @@ export default function MarketsPage() {
               </Box>
             )}
 
-            {/* Pool Table */}
+            {/* Pool Table + Sports Cards */}
             {!isLoading && (
               <>
-                <PoolTable
-                  pools={pools}
-                  userBetByPoolId={userBetByPoolId}
-                  getPrice={getPrice}
-                  isPlaceholderData={isPlaceholderData}
-                  popularPoolIds={popularPoolIds}
-                />
+                {/* Sports match cards (shown when ALL or SPORTS) */}
+                {poolType !== 'CRYPTO' && sportsPools.length > 0 && (
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+                      gap: '3px',
+                      mb: cryptoPools.length > 0 && poolType === 'ALL' ? 3 : 0,
+                    }}
+                  >
+                    {sportsPools.map((pool) => (
+                      <MatchCard key={pool.id} pool={pool} />
+                    ))}
+                  </Box>
+                )}
+
+                {/* Crypto pool table (shown when ALL or CRYPTO) */}
+                {poolType !== 'SPORTS' && (
+                  <PoolTable
+                    pools={cryptoPools}
+                    userBetByPoolId={userBetByPoolId}
+                    getPrice={getPrice}
+                    isPlaceholderData={isPlaceholderData}
+                    popularPoolIds={popularPoolIds}
+                  />
+                )}
 
                 {/* Sentinel for infinite scroll */}
                 <Box ref={sentinelRef} />
