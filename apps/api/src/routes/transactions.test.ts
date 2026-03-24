@@ -47,6 +47,21 @@ const VALID_TX_SIG = '5UfDuX7WXKtCpHMsNc2FMnuLMSxJz1YNxrRNYdGYk7r8g4ZhKzJWDFP3Fz
 const VALID_POOL_ID = '550e8400-e29b-41d4-a716-446655440000';
 const VALID_BET_ID = '660e8400-e29b-41d4-a716-446655440001';
 
+const SPORTS_FIELDS = {
+  totalDraw: BigInt(0),
+  numSides: 2,
+  poolType: 'CRYPTO' as const,
+  matchId: null,
+  homeTeam: null,
+  awayTeam: null,
+  homeTeamCrest: null,
+  awayTeamCrest: null,
+  league: null,
+  matchAnalysis: null,
+  homeScore: null,
+  awayScore: null,
+};
+
 describe('Transactions API', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -67,6 +82,7 @@ describe('Transactions API', () => {
       finalPrice: null,
       totalUp: BigInt(0),
       totalDown: BigInt(0),
+      ...SPORTS_FIELDS,
       winner: null,
       squadId: null,
       maxBettors: null,
@@ -186,6 +202,7 @@ describe('Transactions API', () => {
       finalPrice: null,
       totalUp: BigInt(0),
       totalDown: BigInt(0),
+      ...SPORTS_FIELDS,
       winner: null,
       squadId: null,
       maxBettors: null,
@@ -263,6 +280,7 @@ describe('Transactions API', () => {
       finalPrice: BigInt(51000_000000),
       totalUp: BigInt(1000_000000),
       totalDown: BigInt(500_000000),
+      ...SPORTS_FIELDS,
       winner: 'UP' as const,
       squadId: null,
       maxBettors: null,

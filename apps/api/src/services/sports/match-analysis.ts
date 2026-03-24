@@ -81,7 +81,7 @@ Write a concise analysis in 2-3 sentences. Include the head-to-head record, any 
       return null;
     }
 
-    const aiData = await aiRes.json();
+    const aiData: any = await aiRes.json();
     const text = aiData.content?.[0]?.text?.trim();
 
     if (!text) return null;
