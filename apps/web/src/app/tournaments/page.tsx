@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Box,
   Container,
@@ -9,15 +9,39 @@ import {
   Alert,
   Button,
   Chip,
+  IconButton,
+  Collapse,
 } from '@mui/material';
-import { EmojiEvents } from '@mui/icons-material';
+import { EmojiEvents, ShowChart, SportsSoccer, FilterList, GridView } from '@mui/icons-material';
+import { FilterDropdown } from '@/components/sports/MarketFilter';
 import Link from 'next/link';
 import { AppShell, AssetIcon } from '@/components';
 import { fetchTournaments, type TournamentSummary } from '@/lib/api';
-import { UP_COLOR, ACCENT_COLOR, GAIN_COLOR } from '@/lib/constants';
+import { UP_COLOR, ACCENT_COLOR, GAIN_COLOR, DRAW_COLOR } from '@/lib/constants';
 import { formatDate } from '@/lib/format';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useTournamentRegister, type RegisterStatus } from '@/hooks/useTournamentRegister';
+
+const SPORT_FILTERS = [
+  { value: 'SOCCER', label: 'Soccer' },
+];
+
+const LEAGUE_FILTERS = [
+  { value: 'ALL', label: 'All', img: null, icon: <GridView sx={{ fontSize: 18 }} /> },
+  { value: 'CL', label: 'UCL', img: 'https://crests.football-data.org/CL.png' },
+  { value: 'PL', label: 'Premier', img: 'https://crests.football-data.org/PL.png' },
+  { value: 'PD', label: 'La Liga', img: 'https://crests.football-data.org/PD.png' },
+  { value: 'SA', label: 'Serie A', img: 'https://crests.football-data.org/SA.png' },
+  { value: 'BL1', label: 'Bundesliga', img: 'https://crests.football-data.org/BL1.png' },
+  { value: 'FL1', label: 'Ligue 1', img: 'https://crests.football-data.org/FL1.png' },
+];
+
+const ASSET_FILTERS = [
+  { value: 'ALL', label: 'All' },
+  { value: 'BTC', label: 'BTC' },
+  { value: 'ETH', label: 'ETH' },
+  { value: 'SOL', label: 'SOL' },
+];
 
 const STATUS_COLORS: Record<string, string> = {
   REGISTERING: UP_COLOR,
@@ -197,6 +221,10 @@ export default function TournamentsPage() {
   const [tournaments, setTournaments] = useState<TournamentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [marketType, setMarketType] = useState<'CRYPTO' | 'SPORTS'>('CRYPTO');
+  const [showFilters, setShowFilters] = useState(false);
+  const [assetFilter, setAssetFilter] = useState('ALL');
+  const [leagueFilter, setLeagueFilter] = useState('ALL');
 
   const load = useCallback(async () => {
     try {
@@ -220,6 +248,16 @@ export default function TournamentsPage() {
     return () => clearInterval(interval);
   }, [load]);
 
+  const filtered = useMemo(() => {
+    // TODO: when sports tournaments exist, filter by tournament type + league
+    // For now, all existing tournaments are crypto
+    if (marketType === 'SPORTS') return [];
+    if (assetFilter === 'ALL') return tournaments;
+    return tournaments.filter(t => t.asset === assetFilter);
+  }, [tournaments, marketType, assetFilter, leagueFilter]);
+
+  const tabColor = marketType === 'CRYPTO' ? UP_COLOR : DRAW_COLOR;
+
   return (
     <AppShell>
       <Container maxWidth={false} sx={{ py: { xs: 2, md: 3 }, px: { xs: 2, md: 3 } }}>
@@ -232,6 +270,81 @@ export default function TournamentsPage() {
             Compete head-to-head in bracket-style elimination tournaments.
           </Typography>
         </Box>
+
+        {/* Crypto / Sports tabs + filter icon */}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+          <Box sx={{ display: 'flex', gap: 0 }}>
+            {[
+              { key: 'CRYPTO' as const, label: 'Crypto', icon: <ShowChart sx={{ fontSize: 16 }} />, color: UP_COLOR },
+              { key: 'SPORTS' as const, label: 'Sports', icon: <SportsSoccer sx={{ fontSize: 16 }} />, color: DRAW_COLOR },
+            ].map((tab) => {
+              const active = marketType === tab.key;
+              return (
+                <Box
+                  key={tab.key}
+                  onClick={() => { setMarketType(tab.key); setShowFilters(false); }}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.75,
+                    px: 2,
+                    py: 1,
+                    cursor: 'pointer',
+                    borderBottom: active ? `2px solid ${tab.color}` : '2px solid transparent',
+                    color: active ? tab.color : 'rgba(255,255,255,0.35)',
+                    transition: 'all 0.15s ease',
+                    '&:hover': { color: tab.color },
+                  }}
+                >
+                  {tab.icon}
+                  <Typography sx={{ fontSize: '0.85rem', fontWeight: active ? 700 : 500 }}>
+                    {tab.label}
+                  </Typography>
+                </Box>
+              );
+            })}
+          </Box>
+          <IconButton
+            onClick={() => setShowFilters(!showFilters)}
+            size="small"
+            sx={{ color: showFilters ? tabColor : 'rgba(255,255,255,0.35)', '&:hover': { color: tabColor } }}
+          >
+            <FilterList sx={{ fontSize: 20 }} />
+          </IconButton>
+        </Box>
+
+        {/* Collapsible filter dropdowns */}
+        <Collapse in={showFilters}>
+          <Box sx={{ display: 'flex', gap: 1, mb: 2, py: 0.5 }}>
+            {marketType === 'CRYPTO' ? (
+              <FilterDropdown
+                value={assetFilter}
+                label="Asset"
+                options={ASSET_FILTERS.map(f => ({ ...f, img: null }))}
+                onChange={setAssetFilter}
+                color={UP_COLOR}
+              />
+            ) : (
+              <>
+                <FilterDropdown
+                  value="SOCCER"
+                  label="Sport"
+                  icon={<SportsSoccer sx={{ fontSize: 18 }} />}
+                  options={SPORT_FILTERS.map(f => ({ ...f, img: null, icon: <SportsSoccer sx={{ fontSize: 18 }} /> }))}
+                  onChange={() => {}}
+                  color={DRAW_COLOR}
+                />
+                <FilterDropdown
+                  value={leagueFilter}
+                  label="League"
+                  options={LEAGUE_FILTERS}
+                  onChange={setLeagueFilter}
+                  color={DRAW_COLOR}
+                />
+              </>
+            )}
+          </Box>
+        </Collapse>
 
         {/* Error */}
         {error && (
@@ -256,16 +369,18 @@ export default function TournamentsPage() {
         )}
 
         {/* Tournament cards */}
-        {!loading && tournaments.length === 0 && !error && (
+        {!loading && filtered.length === 0 && !error && (
           <Box sx={{ textAlign: 'center', py: 8 }}>
             <EmojiEvents sx={{ fontSize: 48, color: 'rgba(255,255,255,0.1)', mb: 2 }} />
             <Typography sx={{ color: 'text.secondary', fontSize: '0.9rem' }}>
-              No tournaments available right now. Check back soon!
+              {marketType === 'SPORTS'
+                ? 'Sports tournaments coming soon! Stay tuned.'
+                : 'No tournaments available right now. Check back soon!'}
             </Typography>
           </Box>
         )}
 
-        {!loading && tournaments.length > 0 && (
+        {!loading && filtered.length > 0 && (
           <Box
             sx={{
               display: 'grid',
@@ -273,7 +388,7 @@ export default function TournamentsPage() {
               gap: 2,
             }}
           >
-            {tournaments.map((t) => (
+            {filtered.map((t) => (
               <TournamentCard key={t.id} t={t} onRegistered={load} />
             ))}
           </Box>
