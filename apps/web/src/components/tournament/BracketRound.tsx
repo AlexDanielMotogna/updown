@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Typography } from '@mui/material';
-import { type TournamentMatchData } from '@/lib/api';
+import { type TournamentMatchData, type TournamentFixture } from '@/lib/api';
 import { CARD_H, CARD_GAP, getRoundLabel } from './tournament-utils';
 import { MatchCard, EmptyMatchCard } from './MatchCard';
 
@@ -16,6 +16,7 @@ export function BracketRound({
   livePrice,
   onRefresh,
   isSports,
+  fixtureCount,
 }: {
   roundNum: number;
   expectedMatchCount: number;
@@ -27,6 +28,8 @@ export function BracketRound({
   livePrice: string | null;
   onRefresh: () => void;
   isSports?: boolean;
+  fixtureCount?: number;
+  fixtures?: TournamentFixture[];
 }) {
   const rn = Number(roundNum);
   const tr = Number(totalRounds);
@@ -79,6 +82,8 @@ export function BracketRound({
                   livePrice={livePrice}
                   onRefresh={onRefresh}
                   isSports={isSports}
+                  fixtureCount={fixtureCount}
+                  fixtures={fixtures}
                 />
               ) : (
                 <EmptyMatchCard matchLabel={`Match ${rn}.${i + 1}`} />

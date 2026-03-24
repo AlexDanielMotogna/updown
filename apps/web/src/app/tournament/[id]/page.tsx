@@ -206,6 +206,8 @@ export default function TournamentBracketPage() {
                       livePrice={livePrice}
                       onRefresh={load}
                       isSports={t.tournamentType === 'SPORTS'}
+                      fixtureCount={bracket?.fixtures?.[rn]?.length || 0}
+                      fixtures={bracket?.fixtures?.[rn]}
                     />
                     {!isLast && expectedMatches > 1 && <Connectors matchCount={expectedMatches} roundNum={rn} />}
                   </Box>

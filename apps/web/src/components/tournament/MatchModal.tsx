@@ -3,13 +3,14 @@
 import { Box, Typography, Chip, Dialog, IconButton } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import { UP_COLOR, ACCENT_COLOR } from '@/lib/constants';
-import { type TournamentMatchData } from '@/lib/api';
+import { type TournamentMatchData, type TournamentFixture } from '@/lib/api';
 import { InlineChart } from '@/components/pool/InlineChart';
-import { BG, BORDER, PREDICT_COLOR, formatPrice, formatDistance, formatOutcome } from './tournament-utils';
+import { BG, BORDER, PREDICT_COLOR, formatPrice, formatDistance, formatScore, parseMatchdayPrediction } from './tournament-utils';
 import { Countdown } from './Countdown';
 import { PlayerRow } from './PlayerRow';
 import { PredictionInput } from './PredictionInput';
-import { OutcomePicker } from './OutcomePicker';
+import { MatchdayPredictionForm } from './MatchdayPredictionForm';
+import { MatchdayFixtureRow } from './MatchdayFixtureRow';
 
 export function MatchModal({
   open,
@@ -22,6 +23,8 @@ export function MatchModal({
   livePrice,
   onRefresh,
   isSports,
+  fixtureCount,
+  fixtures,
 }: {
   open: boolean;
   onClose: () => void;
@@ -33,6 +36,8 @@ export function MatchModal({
   livePrice: string | null;
   onRefresh: () => void;
   isSports?: boolean;
+  fixtureCount?: number;
+  fixtures?: TournamentFixture[];
 }) {
   const isResolved = match.status === 'RESOLVED';
   const isActive = match.status === 'ACTIVE';
@@ -94,27 +99,42 @@ export function MatchModal({
         </IconButton>
       </Box>
 
-      {/* Sports match context */}
-      {isSports && match.homeTeam && (
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, px: 2, py: 1.5, borderBottom: `1px solid ${BORDER}` }}>
-          {match.homeTeamCrest && <Box component="img" src={match.homeTeamCrest} alt="" sx={{ width: 28, height: 28, objectFit: 'contain' }} />}
-          <Typography sx={{ fontSize: '0.85rem', fontWeight: 700 }}>{match.homeTeam}</Typography>
-          <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.2)' }}>vs</Typography>
-          <Typography sx={{ fontSize: '0.85rem', fontWeight: 700 }}>{match.awayTeam}</Typography>
-          {match.awayTeamCrest && <Box component="img" src={match.awayTeamCrest} alt="" sx={{ width: 28, height: 28, objectFit: 'contain' }} />}
-        </Box>
-      )}
-
       {/* Players */}
       <Box sx={{ px: 2, py: 1.5, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-        <PlayerRow wallet={match.player1Wallet} prediction={match.player1Prediction} distance={p1Distance} isWinner={p1Won} isLoser={isResolved && !p1Won && !!match.player1Wallet} isPending={isPending || isActive} isSports={isSports} />
+        <PlayerRow wallet={match.player1Wallet} prediction={match.player1Prediction} distance={p1Distance} isWinner={p1Won} isLoser={isResolved && !p1Won && !!match.player1Wallet} isPending={isPending || isActive} isSports={isSports} score={match.player1Score} fixtureCount={fixtureCount} />
         <Box sx={{ height: '1px', bgcolor: BORDER, position: 'relative', my: 0.25 }}>
           <Typography sx={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', fontSize: '0.5rem', fontWeight: 700, color: isResolved && match.finalPrice ? ACCENT_COLOR : 'rgba(255,255,255,0.15)', bgcolor: BG, px: 0.75, lineHeight: 1 }}>
-            {isResolved && match.finalPrice ? (isSports ? formatOutcome(match.finalPrice) : formatPrice(match.finalPrice)) : 'VS'}
+            {isResolved && match.finalPrice ? (isSports ? 'Done' : formatPrice(match.finalPrice)) : 'VS'}
           </Typography>
         </Box>
-        <PlayerRow wallet={match.player2Wallet} prediction={match.player2Prediction} distance={p2Distance} isWinner={p2Won} isLoser={isResolved && !p2Won && !!match.player2Wallet} isPending={isPending || isActive} isSports={isSports} />
+        <PlayerRow wallet={match.player2Wallet} prediction={match.player2Prediction} distance={p2Distance} isWinner={p2Won} isLoser={isResolved && !p2Won && !!match.player2Wallet} isPending={isPending || isActive} isSports={isSports} score={match.player2Score} fixtureCount={fixtureCount} />
       </Box>
+
+      {/* Fixtures list (sports — show results if resolved) */}
+      {isSports && fixtures && fixtures.length > 0 && (isResolved || isActive) && (
+        <Box sx={{ borderTop: `1px solid ${BORDER}`, px: 2, py: 1 }}>
+          <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5 }}>
+            Matchday Results
+          </Typography>
+          {fixtures.map((f, i) => {
+            const myPred = isP1 ? parseMatchdayPrediction(match.player1Prediction) : isP2 ? parseMatchdayPrediction(match.player2Prediction) : null;
+            return (
+              <MatchdayFixtureRow
+                key={f.id}
+                homeTeam={f.homeTeam}
+                awayTeam={f.awayTeam}
+                homeTeamCrest={f.homeTeamCrest}
+                awayTeamCrest={f.awayTeamCrest}
+                selected={myPred?.outcomes[i] || null}
+                result={f.resultOutcome}
+                resultHome={f.resultHome}
+                resultAway={f.resultAway}
+                disabled
+              />
+            );
+          })}
+        </Box>
+      )}
 
       {/* Chart (crypto only) */}
       {!isSports && (
@@ -126,29 +146,22 @@ export function MatchModal({
       {/* Prediction input */}
       {needsToPredict && (
         <Box sx={{ borderTop: `1px solid ${BORDER}`, p: 2 }}>
-          {isSports ? (
-            <OutcomePicker
-              homeTeam={match.homeTeam}
-              awayTeam={match.awayTeam}
-              onSubmit={async (prediction) => {
-                const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
-                await fetch(`${API}/api/tournaments/${tournamentId}/matches/${match.id}/predict`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ walletAddress, prediction }),
-                });
-                onRefresh();
-                onClose();
-              }}
+          {isSports && fixtures && fixtures.length > 0 ? (
+            <MatchdayPredictionForm
+              fixtures={fixtures}
+              tournamentId={tournamentId}
+              matchId={match.id}
+              walletAddress={walletAddress!}
+              onSubmitted={() => { onRefresh(); onClose(); }}
             />
-          ) : (
+          ) : !isSports ? (
             <>
               <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: PREDICT_COLOR, mb: 1 }}>
                 Submit Your Price Prediction
               </Typography>
               <PredictionInput matchId={match.id} tournamentId={tournamentId} currentPrice={livePrice} onSubmitted={() => { onRefresh(); onClose(); }} />
             </>
-          )}
+          ) : null}
         </Box>
       )}
 

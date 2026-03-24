@@ -37,13 +37,37 @@ export function formatDistance(prediction: string, finalPrice: string): string {
 
 // ─── Sports helpers ─────────────────────────────────────────────────────────
 
-export function formatOutcome(prediction: string | null | undefined): string {
-  if (!prediction) return '—';
-  const n = Number(prediction);
+export interface MatchdayPrediction {
+  outcomes: string[];
+  totalGoals: number;
+}
+
+export function parseMatchdayPrediction(raw: string | null): MatchdayPrediction | null {
+  if (!raw) return null;
+  try {
+    const p = JSON.parse(raw);
+    return { outcomes: p.outcomes || [], totalGoals: p.totalGoals ?? 0 };
+  } catch {
+    return null;
+  }
+}
+
+export function formatOutcome(outcome: string | null | undefined): string {
+  if (!outcome) return '—';
+  if (outcome === 'HOME') return 'Home';
+  if (outcome === 'DRAW') return 'Draw';
+  if (outcome === 'AWAY') return 'Away';
+  // Legacy single-value format
+  const n = Number(outcome);
   if (n === 1) return 'Home';
   if (n === 2) return 'Draw';
   if (n === 3) return 'Away';
   return '—';
+}
+
+export function formatScore(correct: number | null | undefined, total: number): string {
+  if (correct == null) return '—';
+  return `${correct}/${total}`;
 }
 
 export function isSportsTournament(tournament: { tournamentType?: string } | null): boolean {

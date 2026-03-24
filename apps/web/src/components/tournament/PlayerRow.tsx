@@ -2,7 +2,7 @@
 
 import { Box, Typography, Avatar } from '@mui/material';
 import { UP_COLOR, DOWN_COLOR, getAvatarUrl } from '@/lib/constants';
-import { truncate, formatPrice, formatOutcome } from './tournament-utils';
+import { truncate, formatPrice, formatScore } from './tournament-utils';
 
 export function PlayerRow({
   wallet,
@@ -20,6 +20,8 @@ export function PlayerRow({
   isLoser: boolean;
   isPending: boolean;
   isSports?: boolean;
+  score?: number | null;
+  fixtureCount?: number;
 }) {
   return (
     <Box
@@ -67,11 +69,11 @@ export function PlayerRow({
         {truncate(wallet)}
       </Typography>
 
-      {/* Prediction + distance */}
+      {/* Prediction + distance/score */}
       {prediction ? (
         <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
           <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>
-            {isSports ? formatOutcome(prediction) : formatPrice(prediction)}
+            {isSports ? formatScore(score, fixtureCount || 0) : formatPrice(prediction)}
           </Typography>
           {distance && !isSports && (
             <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: isWinner ? UP_COLOR : DOWN_COLOR, fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>

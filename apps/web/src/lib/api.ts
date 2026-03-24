@@ -661,6 +661,10 @@ export interface TournamentMatchData {
   player2Prediction: string | null;
   player1PredictedAt: string | null;
   player2PredictedAt: string | null;
+  player1TotalGoals?: number | null;
+  player2TotalGoals?: number | null;
+  player1Score?: number | null;
+  player2Score?: number | null;
   predictionDeadline: string | null;
   startTime: string | null;
   endTime: string | null;
@@ -668,17 +672,29 @@ export interface TournamentMatchData {
   finalPrice: string | null;
   winnerWallet: string | null;
   status: string;
-  footballMatchId?: string | null;
-  homeTeam?: string | null;
-  awayTeam?: string | null;
+}
+
+export interface TournamentFixture {
+  id: string;
+  round: number;
+  fixtureIndex: number;
+  footballMatchId: string;
+  homeTeam: string;
+  awayTeam: string;
   homeTeamCrest?: string | null;
   awayTeamCrest?: string | null;
+  kickoff?: string | null;
+  resultHome?: number | null;
+  resultAway?: number | null;
+  resultOutcome?: string | null;
+  status: string;
 }
 
 export interface TournamentBracket {
   tournament: TournamentSummary;
   participants: Array<{ walletAddress: string; seed: number; eliminatedRound: number | null }>;
   rounds: Record<number, TournamentMatchData[]>;
+  fixtures?: Record<number, TournamentFixture[]>;
 }
 
 export async function fetchTournaments(status?: string, type?: string): Promise<ApiResponse<TournamentSummary[]>> {

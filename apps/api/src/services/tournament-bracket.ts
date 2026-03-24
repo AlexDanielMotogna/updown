@@ -230,7 +230,7 @@ export async function getTournamentBracket(tournamentId: string) {
     where: { id: tournamentId },
   });
 
-  const [participants, matches] = await Promise.all([
+  const [participants, matches, fixtureRows] = await Promise.all([
     prisma.tournamentParticipant.findMany({
       where: { tournamentId },
       orderBy: { seed: 'asc' },
@@ -239,21 +239,31 @@ export async function getTournamentBracket(tournamentId: string) {
       where: { tournamentId },
       orderBy: [{ round: 'asc' }, { matchIndex: 'asc' }],
     }),
+    prisma.tournamentRoundFixture.findMany({
+      where: { tournamentId },
+      orderBy: [{ round: 'asc' }, { fixtureIndex: 'asc' }],
+    }),
   ]);
 
   // Group matches by round
   const rounds: Record<number, typeof matches> = {};
   for (const match of matches) {
-    if (!rounds[match.round]) {
-      rounds[match.round] = [];
-    }
+    if (!rounds[match.round]) rounds[match.round] = [];
     rounds[match.round].push(match);
+  }
+
+  // Group fixtures by round
+  const fixtures: Record<number, typeof fixtureRows> = {};
+  for (const f of fixtureRows) {
+    if (!fixtures[f.round]) fixtures[f.round] = [];
+    fixtures[f.round].push(f);
   }
 
   return {
     tournament,
     participants,
     rounds,
+    fixtures,
   };
 }
 

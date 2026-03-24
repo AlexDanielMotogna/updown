@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import { UP_COLOR, ACCENT_COLOR } from '@/lib/constants';
-import { type TournamentMatchData } from '@/lib/api';
-import { MATCH_W, CARD_H, SURFACE, BORDER, PREDICT_COLOR, formatPrice, formatDistance, formatOutcome } from './tournament-utils';
+import { type TournamentMatchData, type TournamentFixture } from '@/lib/api';
+import { MATCH_W, CARD_H, SURFACE, BORDER, PREDICT_COLOR, formatPrice, formatDistance } from './tournament-utils';
 import { Countdown } from './Countdown';
 import { PlayerRow } from './PlayerRow';
 import { MatchModal } from './MatchModal';
@@ -27,6 +27,8 @@ export function MatchCard({
   livePrice: string | null;
   onRefresh: () => void;
   isSports?: boolean;
+  fixtureCount?: number;
+  fixtures?: TournamentFixture[];
 }) {
   const [modalOpen, setModalOpen] = useState(false);
   const isResolved = match.status === 'RESOLVED';
@@ -84,26 +86,24 @@ export function MatchCard({
           )}
         </Box>
 
-        {/* Match context (sports: show teams) */}
-        {isSports && match.homeTeam && (
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, py: 0.5, borderBottom: `1px solid ${BORDER}` }}>
-            {match.homeTeamCrest && <Box component="img" src={match.homeTeamCrest} alt="" sx={{ width: 16, height: 16, objectFit: 'contain' }} />}
-            <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>
-              {match.homeTeam} vs {match.awayTeam}
+        {/* Match context (sports: show fixture count) */}
+        {isSports && fixtureCount && fixtureCount > 0 && (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 0.5, borderBottom: `1px solid ${BORDER}` }}>
+            <Typography sx={{ fontSize: '0.6rem', fontWeight: 600, color: 'rgba(255,255,255,0.35)' }}>
+              {fixtureCount} matches
             </Typography>
-            {match.awayTeamCrest && <Box component="img" src={match.awayTeamCrest} alt="" sx={{ width: 16, height: 16, objectFit: 'contain' }} />}
           </Box>
         )}
 
         {/* Players */}
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <PlayerRow wallet={match.player1Wallet} prediction={match.player1Prediction} distance={p1Distance} isWinner={p1Won} isLoser={isResolved && !p1Won && !!match.player1Wallet} isPending={isPending || isActive} isSports={isSports} />
+          <PlayerRow wallet={match.player1Wallet} prediction={match.player1Prediction} distance={p1Distance} isWinner={p1Won} isLoser={isResolved && !p1Won && !!match.player1Wallet} isPending={isPending || isActive} isSports={isSports} score={match.player1Score} fixtureCount={fixtureCount} />
           <Box sx={{ height: '1px', bgcolor: BORDER, position: 'relative' }}>
             <Typography sx={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', fontSize: '0.6rem', fontWeight: 700, color: isResolved && match.finalPrice ? ACCENT_COLOR : 'rgba(255,255,255,0.1)', bgcolor: SURFACE, px: 1, lineHeight: 1 }}>
-              {isResolved && match.finalPrice ? (isSports ? formatOutcome(match.finalPrice) : formatPrice(match.finalPrice)) : 'vs'}
+              {isResolved && match.finalPrice ? (isSports ? 'Done' : formatPrice(match.finalPrice)) : 'vs'}
             </Typography>
           </Box>
-          <PlayerRow wallet={match.player2Wallet} prediction={match.player2Prediction} distance={p2Distance} isWinner={p2Won} isLoser={isResolved && !p2Won && !!match.player2Wallet} isPending={isPending || isActive} isSports={isSports} />
+          <PlayerRow wallet={match.player2Wallet} prediction={match.player2Prediction} distance={p2Distance} isWinner={p2Won} isLoser={isResolved && !p2Won && !!match.player2Wallet} isPending={isPending || isActive} isSports={isSports} score={match.player2Score} fixtureCount={fixtureCount} />
         </Box>
       </Box>
 
@@ -118,6 +118,8 @@ export function MatchCard({
         livePrice={livePrice}
         onRefresh={onRefresh}
         isSports={isSports}
+        fixtureCount={fixtureCount}
+        fixtures={fixtures}
       />
     </>
   );
