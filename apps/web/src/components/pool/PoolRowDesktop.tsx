@@ -11,7 +11,7 @@ import { Countdown } from '../Countdown';
 
 export interface PoolRowDesktopProps {
   pool: Pool;
-  userBet?: { side: 'UP' | 'DOWN'; isWinner: boolean | null };
+  userBet?: { side: 'UP' | 'DOWN' | 'DRAW'; isWinner: boolean | null };
   status: string;
   statusStyle: Record<string, unknown>;
   isJoining: boolean;

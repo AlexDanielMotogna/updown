@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { Box, Typography, Alert, Chip } from '@mui/material';
 import { Circle, ArrowBack } from '@mui/icons-material';
 import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
 import { usePool, useDeposit, usePriceStream, usePacificaPrices } from '@/hooks';
 import {
   TransactionModal,
@@ -13,7 +14,7 @@ import {
   AiAnalyzerBot,
   AssetIcon,
 } from '@/components';
-import { statusStyles } from '@/lib/format';
+import { statusStyles, USDC_DIVISOR } from '@/lib/format';
 import { UP_COLOR, DOWN_COLOR, GAIN_COLOR, INTERVAL_TAG_IMAGES, INTERVAL_LABELS } from '@/lib/constants';
 import { PoolStatsStrip } from '@/components/pool/PoolStatsStrip';
 import { PoolInfoCards } from '@/components/pool/PoolInfoCards';
@@ -58,6 +59,41 @@ export default function PoolDetailPage() {
     !!pool?.asset,
   );
   const priceData = pool?.asset ? getPriceData(pool.asset) : null;
+
+  // Activity log: fetch bets with polling every 5s
+  const [bets, setBets] = useState<Array<{ wallet: string; side: string; amount: string; createdAt: string }>>([]);
+  const knownBetsRef = useRef<Set<string>>(new Set());
+  const [newBetKeys, setNewBetKeys] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!poolId) { setBets([]); knownBetsRef.current.clear(); return; }
+    let active = true;
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
+    const url = `${apiBase}/api/pools/${poolId}/bets`;
+    const fetchBets = async () => {
+      try {
+        const r = await fetch(url);
+        const d = await r.json();
+        if (!active || !d.success) return;
+        const freshKeys = new Set<string>();
+        for (const b of d.data) {
+          const key = `${b.wallet}-${b.createdAt}`;
+          if (!knownBetsRef.current.has(key)) {
+            freshKeys.add(key);
+            knownBetsRef.current.add(key);
+          }
+        }
+        setBets(d.data);
+        if (freshKeys.size > 0 && freshKeys.size <= 5) {
+          setNewBetKeys(freshKeys);
+          setTimeout(() => setNewBetKeys(new Set()), 2000);
+        }
+      } catch { /* ignore */ }
+    };
+    fetchBets();
+    const iv = setInterval(fetchBets, 5000);
+    return () => { active = false; clearInterval(iv); };
+  }, [poolId]);
 
   useEffect(() => {
     if (initialSide && betFormRef.current && pool?.status === 'JOINING') {
@@ -177,6 +213,51 @@ export default function PoolDetailPage() {
           betFormRef={betFormRef}
         />
       </Box>
+
+      {/* Activity log */}
+      {bets.length > 0 && (
+        <Box sx={{
+          px: { xs: 2, md: 3 },
+          py: 1.5,
+          maxHeight: 300,
+          overflowY: 'auto',
+          '&::-webkit-scrollbar': { display: 'none' },
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+        }}>
+          <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 1 }}>
+            Activity
+          </Typography>
+          <AnimatePresence>
+            {bets.map((b) => {
+              const key = `${b.wallet}-${b.createdAt}`;
+              const isNew = newBetKeys.has(key);
+              const sideColor = b.side === 'UP' ? UP_COLOR : DOWN_COLOR;
+              const sideLabel = b.side === 'UP' ? 'UP' : 'DOWN';
+              const amt = (Number(b.amount) / USDC_DIVISOR).toFixed(2);
+              const ago = Math.floor((Date.now() - new Date(b.createdAt).getTime()) / 60000);
+              const timeStr = ago < 1 ? 'now' : ago < 60 ? `${ago}m` : `${Math.floor(ago / 60)}h`;
+              return (
+                <motion.div
+                  key={key}
+                  initial={isNew ? { opacity: 0, scale: 0.96, y: -10 } : false}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                  layout
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 0.75, fontSize: '0.75rem', fontWeight: 600 }}>
+                    <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: 'rgba(255,255,255,0.45)', width: 75, flexShrink: 0 }}>{b.wallet}</Typography>
+                    <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: sideColor, width: 55, flexShrink: 0 }}>{sideLabel}</Typography>
+                    <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: '#fff', flex: 1, textAlign: 'right' }}>${amt}</Typography>
+                    <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: 'rgba(255,255,255,0.25)', width: 25, textAlign: 'right', flexShrink: 0 }}>{timeStr}</Typography>
+                  </Box>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </Box>
+      )}
 
       {pool && (
         <AiAnalyzerBot asset={pool.asset} poolStatus={pool.status} startTime={pool.startTime} endTime={pool.endTime} winner={pool.winner} priceData={priceData} />

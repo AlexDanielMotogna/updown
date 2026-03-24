@@ -9,14 +9,15 @@ import { PoolRow } from './pool/PoolRow';
 
 interface PoolTableProps {
   pools: Pool[];
-  userBetByPoolId: Map<string, { side: 'UP' | 'DOWN'; isWinner: boolean | null }>;
+  userBetByPoolId: Map<string, { side: 'UP' | 'DOWN' | 'DRAW'; isWinner: boolean | null }>;
   getPrice: (asset: string) => string | null;
   isPlaceholderData?: boolean;
   popularPoolIds?: Set<string>;
   alwaysShowView?: boolean;
+  onPoolClick?: (pool: Pool) => void;
 }
 
-export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData, popularPoolIds, alwaysShowView }: PoolTableProps) {
+export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData, popularPoolIds, alwaysShowView, onPoolClick }: PoolTableProps) {
   const knownIdsRef = useRef<Set<string>>(new Set());
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
 
@@ -95,6 +96,7 @@ export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData,
             isNew={newIds.has(pool.id)}
             isPopular={popularPoolIds?.has(pool.id)}
             alwaysShowView={alwaysShowView}
+            onClick={onPoolClick ? () => onPoolClick(pool) : undefined}
           />
         ))}
       </AnimatePresence>

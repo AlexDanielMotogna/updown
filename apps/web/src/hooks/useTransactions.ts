@@ -81,7 +81,7 @@ export function useDeposit() {
   const [state, setState] = useState<TransactionState>({ status: 'idle' });
 
   const deposit = useCallback(
-    async (poolId: string, side: 'UP' | 'DOWN', amount: number) => {
+    async (poolId: string, side: 'UP' | 'DOWN' | 'DRAW', amount: number) => {
       if (!publicKey) {
         setState({ status: 'error', error: 'Wallet not connected' });
         return;
@@ -110,7 +110,7 @@ export function useDeposit() {
         const userBetPubkey = new PublicKey(accounts.userBet);
         const vaultPubkey = new PublicKey(accounts.vault);
         const userTokenAccount = new PublicKey(accounts.userTokenAccount);
-        const sideValue = side === 'UP' ? 0 : 1;
+        const sideValue = side === 'UP' ? 0 : side === 'DOWN' ? 1 : 2;
 
         const ix = buildDepositIx(
           poolPubkey,
@@ -118,7 +118,7 @@ export function useDeposit() {
           vaultPubkey,
           userTokenAccount,
           publicKey,
-          sideValue as 0 | 1,
+          sideValue as 0 | 1 | 2,
           BigInt(amount),
         );
 
@@ -169,6 +169,7 @@ export function useDeposit() {
 
         return signature;
       } catch (error) {
+        console.error('[Deposit] Transaction error:', error);
         let message = error instanceof Error ? error.message : 'Transaction failed';
 
         // Session expired — trigger re-authentication automatically

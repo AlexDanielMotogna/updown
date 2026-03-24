@@ -45,11 +45,18 @@ pub fn handler(
     end_time: i64,
     lock_time: i64,
     strike_price: u64,
+    num_sides: u8,
 ) -> Result<()> {
     // Validate time configuration
     require!(
         lock_time < end_time,
         PoolError::InvalidTimeConfig
+    );
+
+    // Validate num_sides
+    require!(
+        num_sides == 2 || num_sides == 3,
+        PoolError::InvalidNumSides
     );
 
     let pool = &mut ctx.accounts.pool;
@@ -66,6 +73,8 @@ pub fn handler(
     pool.final_price = 0;
     pool.total_up = 0;
     pool.total_down = 0;
+    pool.total_draw = 0;
+    pool.num_sides = num_sides;
     pool.status = PoolStatus::Joining;
     pool.winner = None;
     pool.bump = ctx.bumps.pool;
@@ -79,6 +88,7 @@ pub fn handler(
         end_time,
         lock_time,
         strike_price,
+        num_sides,
     });
 
     Ok(())

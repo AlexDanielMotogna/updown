@@ -86,8 +86,12 @@ function useChartLayout(candles: Candle[], chartType: ChartType) {
       min = Math.min(...parsed.map((p) => p.c));
       max = Math.max(...parsed.map((p) => p.c));
     }
-    const pad = (max - min) * 0.08 || max * 0.01;
-    return { maxPrice: max + pad, priceRange: max - min + pad * 2 };
+    // Center around the current (last) price
+    const currentPrice = parsed[parsed.length - 1]?.c ?? (min + max) / 2;
+    const distFromCurrent = Math.max(max - currentPrice, currentPrice - min, (max - min) * 0.1);
+    const centeredMax = currentPrice + distFromCurrent * 1.3;
+    const centeredMin = currentPrice - distFromCurrent * 1.3;
+    return { maxPrice: centeredMax, priceRange: centeredMax - centeredMin };
   }, [parsed, chartType]);
 
   const chartW = dims.width - PADDING.left - PADDING.right;

@@ -4,7 +4,8 @@ interface PayoutParams {
   betAmount: bigint;
   totalUp: bigint;
   totalDown: bigint;
-  side: 'UP' | 'DOWN';
+  totalDraw?: bigint;
+  side: 'UP' | 'DOWN' | 'DRAW';
   betCount: number;
   feeBps: number;
 }
@@ -23,12 +24,13 @@ export function calculatePayout({
   betAmount,
   totalUp,
   totalDown,
+  totalDraw,
   side,
   betCount,
   feeBps,
 }: PayoutParams): PayoutResult {
-  const totalPool = totalUp + totalDown;
-  const winnerPool = side === 'UP' ? totalUp : totalDown;
+  const totalPool = totalUp + totalDown + (totalDraw ?? 0n);
+  const winnerPool = side === 'UP' ? totalUp : side === 'DOWN' ? totalDown : (totalDraw ?? 0n);
   const grossPayout = winnerPool > 0n
     ? (betAmount * totalPool) / winnerPool
     : 0n;

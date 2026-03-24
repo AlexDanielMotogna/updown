@@ -16,7 +16,7 @@ export const depositsRouter: RouterType = Router();
 const depositRequestSchema = z.object({
   poolId: z.string().uuid(),
   walletAddress: z.string().min(32).max(44),
-  side: z.enum(['UP', 'DOWN']),
+  side: z.enum(['UP', 'DOWN', 'DRAW']),
   amount: z.number().positive().max(100000_000000), // Max 100k USDC
 });
 
@@ -24,7 +24,7 @@ const confirmDepositSchema = z.object({
   poolId: z.string().uuid(),
   walletAddress: z.string().min(32).max(44),
   txSignature: z.string().min(64).max(128),
-  side: z.enum(['UP', 'DOWN']), // Side comes from frontend (verified by user signing)
+  side: z.enum(['UP', 'DOWN', 'DRAW']), // Side comes from frontend (verified by user signing)
   // NOTE: amount is NOT accepted from frontend - we verify on-chain
 });
 
@@ -161,7 +161,7 @@ depositsRouter.post('/deposit', async (req, res) => {
           systemProgram: '11111111111111111111111111111111',
         },
         args: {
-          side: side === 'UP' ? { up: {} } : { down: {} },
+          side: side === 'UP' ? { up: {} } : side === 'DOWN' ? { down: {} } : { draw: {} },
           amount: amount.toString(),
         },
         programId: PROGRAM_ID.toBase58(),
@@ -416,6 +416,9 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
           totalDown: side === 'DOWN'
             ? { increment: betAmount }
             : undefined,
+          totalDraw: side === 'DRAW'
+            ? { increment: betAmount }
+            : undefined,
         },
       });
 
@@ -442,6 +445,7 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
       id: pool.id,
       totalUp: updatedPool.totalUp.toString(),
       totalDown: updatedPool.totalDown.toString(),
+      totalDraw: updatedPool.totalDraw.toString(),
     });
 
     // Award XP + coins (fire-and-forget, non-blocking)

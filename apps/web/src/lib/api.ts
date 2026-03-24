@@ -30,11 +30,24 @@ export interface Pool {
   finalPrice: string | null;
   totalUp: string;
   totalDown: string;
+  totalDraw: string;
   totalPool: string;
-  winner: 'UP' | 'DOWN' | null;
+  winner: 'UP' | 'DOWN' | 'DRAW' | null;
   betCount: number;
   upCount: number;
   downCount: number;
+  drawCount: number;
+  numSides: number;
+  poolType: 'CRYPTO' | 'SPORTS';
+  matchId?: string | null;
+  homeTeam?: string | null;
+  awayTeam?: string | null;
+  homeTeamCrest?: string | null;
+  awayTeamCrest?: string | null;
+  league?: string | null;
+  matchAnalysis?: string | null;
+  homeScore?: number | null;
+  awayScore?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -57,7 +70,7 @@ export interface Bet {
   id: string;
   poolId: string;
   walletAddress: string;
-  side: 'UP' | 'DOWN';
+  side: 'UP' | 'DOWN' | 'DRAW';
   amount: string;
   depositTx: string | null;
   claimed: boolean;
@@ -146,6 +159,7 @@ export async function fetchPools(params?: {
   asset?: string;
   interval?: string;
   status?: string;
+  type?: string;
   page?: number;
   limit?: number;
 }): Promise<ApiResponse<Pool[]>> {
@@ -153,6 +167,7 @@ export async function fetchPools(params?: {
   if (params?.asset) searchParams.set('asset', params.asset);
   if (params?.interval) searchParams.set('interval', params.interval);
   if (params?.status) searchParams.set('status', params.status);
+  if (params?.type) searchParams.set('type', params.type);
   if (params?.page) searchParams.set('page', params.page.toString());
   if (params?.limit) searchParams.set('limit', params.limit.toString());
 
@@ -186,7 +201,7 @@ export async function fetchClaimableBets(
 export async function prepareDeposit(params: {
   poolId: string;
   walletAddress: string;
-  side: 'UP' | 'DOWN';
+  side: 'UP' | 'DOWN' | 'DRAW';
   amount: number;
 }): Promise<ApiResponse<DepositAccounts>> {
   return fetchApi<DepositAccounts>('/api/transactions/deposit', {
@@ -199,7 +214,7 @@ export async function confirmDeposit(params: {
   poolId: string;
   walletAddress: string;
   txSignature: string;
-  side: 'UP' | 'DOWN';
+  side: 'UP' | 'DOWN' | 'DRAW';
 }): Promise<ApiResponse<{ betId: string; status: string }>> {
   return fetchApi('/api/transactions/confirm-deposit', {
     method: 'POST',

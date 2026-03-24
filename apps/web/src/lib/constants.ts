@@ -9,6 +9,7 @@ export const PACIFICA_WS_URL = 'wss://ws.pacifica.fi/ws';
 // Colors
 export const UP_COLOR = '#4ADE80';
 export const DOWN_COLOR = '#F87171';
+export const DRAW_COLOR = '#FBBF24';
 export const GAIN_COLOR = '#22C55E';
 export const ACCENT_COLOR = '#F59E0B';
 

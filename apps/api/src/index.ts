@@ -13,6 +13,7 @@ import { squadsRouter } from './routes/squads';
 import { tournamentRouter } from './routes/tournaments';
 import { getScheduler } from './scheduler';
 import { startTournamentScheduler } from './scheduler/tournament-scheduler';
+import { startSportsScheduler } from './scheduler/sports-scheduler';
 import { initWebSocket, shutdownWebSocket } from './websocket';
 
 dotenv.config();
@@ -90,6 +91,12 @@ httpServer.listen(PORT, async () => {
     startTournamentScheduler();
   } catch (error) {
     console.error('Failed to start tournament scheduler:', error);
+  }
+
+  try {
+    startSportsScheduler();
+  } catch (error) {
+    console.error('Failed to start sports scheduler:', error);
   }
 });
 

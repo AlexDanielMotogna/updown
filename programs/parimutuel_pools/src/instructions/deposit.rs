@@ -55,6 +55,11 @@ pub fn handler(ctx: Context<Deposit>, side: Side, amount: u64) -> Result<()> {
         PoolError::DepositDeadlinePassed
     );
 
+    // Validate side is allowed for this pool
+    if side == Side::Draw {
+        require!(pool.num_sides == 3, PoolError::InvalidSide);
+    }
+
     // Transfer USDC from user to vault
     let cpi_accounts = Transfer {
         from: ctx.accounts.user_token_account.to_account_info(),
@@ -72,6 +77,9 @@ pub fn handler(ctx: Context<Deposit>, side: Side, amount: u64) -> Result<()> {
         }
         Side::Down => {
             pool.total_down = pool.total_down.checked_add(amount).ok_or(PoolError::Overflow)?;
+        }
+        Side::Draw => {
+            pool.total_draw = pool.total_draw.checked_add(amount).ok_or(PoolError::Overflow)?;
         }
     }
 
@@ -98,6 +106,7 @@ pub fn handler(ctx: Context<Deposit>, side: Side, amount: u64) -> Result<()> {
         amount,
         total_up: pool.total_up,
         total_down: pool.total_down,
+        total_draw: pool.total_draw,
     });
 
     Ok(())

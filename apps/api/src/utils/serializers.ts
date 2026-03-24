@@ -19,12 +19,25 @@ export function serializePool(pool: {
   finalPrice: bigint | null;
   totalUp: bigint;
   totalDown: bigint;
+  totalDraw?: bigint;
+  numSides?: number;
+  poolType?: string;
+  matchId?: string | null;
+  homeTeam?: string | null;
+  awayTeam?: string | null;
+  homeTeamCrest?: string | null;
+  awayTeamCrest?: string | null;
+  league?: string | null;
+  matchAnalysis?: string | null;
+  homeScore?: number | null;
+  awayScore?: number | null;
   winner: string | null;
   createdAt: Date;
   updatedAt: Date;
   squadId?: string | null;
   maxBettors?: number | null;
 }) {
+  const totalDraw = pool.totalDraw ?? 0n;
   return {
     id: pool.id,
     poolId: pool.poolId,
@@ -39,8 +52,20 @@ export function serializePool(pool: {
     finalPrice: pool.finalPrice?.toString() ?? null,
     totalUp: pool.totalUp.toString(),
     totalDown: pool.totalDown.toString(),
-    totalPool: (pool.totalUp + pool.totalDown).toString(),
+    totalDraw: totalDraw.toString(),
+    totalPool: (pool.totalUp + pool.totalDown + totalDraw).toString(),
     winner: pool.winner,
+    numSides: pool.numSides ?? 2,
+    poolType: pool.poolType ?? 'CRYPTO',
+    matchId: pool.matchId ?? null,
+    homeTeam: pool.homeTeam ?? null,
+    awayTeam: pool.awayTeam ?? null,
+    homeTeamCrest: pool.homeTeamCrest ?? null,
+    awayTeamCrest: pool.awayTeamCrest ?? null,
+    league: pool.league ?? null,
+    matchAnalysis: pool.matchAnalysis ?? null,
+    homeScore: pool.homeScore ?? null,
+    awayScore: pool.awayScore ?? null,
     createdAt: pool.createdAt.toISOString(),
     updatedAt: pool.updatedAt.toISOString(),
   };
@@ -73,6 +98,7 @@ export function serializeBet(bet: {
     finalPrice: bigint | null;
     totalUp: bigint;
     totalDown: bigint;
+    totalDraw?: bigint;
     winner: Side | null;
   };
 }, feeBps: number = DEFAULT_FEE_BPS) {
@@ -85,6 +111,7 @@ export function serializeBet(bet: {
       betAmount: bet.amount,
       totalUp: bet.pool.totalUp,
       totalDown: bet.pool.totalDown,
+      totalDraw: bet.pool.totalDraw,
       side: bet.side,
       betCount: bet.pool._count.bets,
       feeBps,

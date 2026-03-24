@@ -35,11 +35,12 @@ function encodeU16(value: number): Buffer {
   return buf;
 }
 
-// ── Discriminators (from IDL) ──────────────────────────────────────────────────
+// ── Discriminators (from IDL / sha256("global:<instruction_name>")[0..8]) ─────
 
 const INITIALIZE_POOL_DISC = Buffer.from([95, 180, 10, 172, 84, 174, 232, 40]);
 const DEPOSIT_DISC = Buffer.from([242, 35, 198, 137, 82, 225, 242, 182]);
 const RESOLVE_DISC = Buffer.from([246, 150, 236, 206, 108, 63, 58, 10]);
+const RESOLVE_WITH_WINNER_DISC = Buffer.from([200, 87, 85, 170, 63, 238, 116, 50]);
 const CLAIM_DISC = Buffer.from([62, 198, 214, 193, 213, 159, 108, 210]);
 const REFUND_DISC = Buffer.from([2, 96, 183, 251, 63, 208, 46, 46]);
 const CLOSE_POOL_DISC = Buffer.from([140, 189, 209, 23, 239, 62, 239, 11]);
@@ -48,7 +49,7 @@ const CLOSE_POOL_DISC = Buffer.from([140, 189, 209, 23, 239, 62, 239, 11]);
 
 /**
  * Build `initializePool` TransactionInstruction.
- * Accounts order matches IDL: pool, vault, usdcMint, authority, systemProgram, tokenProgram, rent
+ * Accounts: pool, vault, usdcMint, authority, systemProgram, tokenProgram, rent
  */
 export function buildInitializePoolIx(
   pool: PublicKey,
@@ -61,6 +62,7 @@ export function buildInitializePoolIx(
   endTime: number | bigint,
   lockTime: number | bigint,
   strikePrice: number | bigint,
+  numSides: number = 2,
 ): TransactionInstruction {
   const data = Buffer.concat([
     INITIALIZE_POOL_DISC,
@@ -70,6 +72,7 @@ export function buildInitializePoolIx(
     encodeI64(endTime),           // i64
     encodeI64(lockTime),          // i64
     encodeU64(strikePrice),       // u64
+    Buffer.from([numSides]),      // u8
   ]);
 
   const keys = [
@@ -87,7 +90,7 @@ export function buildInitializePoolIx(
 
 /**
  * Build `deposit` TransactionInstruction.
- * Accounts order matches IDL: pool, userBet, vault, userTokenAccount, user, tokenProgram, systemProgram
+ * Accounts: pool, userBet, vault, userTokenAccount, user, tokenProgram, systemProgram
  */
 export function buildDepositIx(
   pool: PublicKey,
@@ -95,13 +98,13 @@ export function buildDepositIx(
   vault: PublicKey,
   userTokenAccount: PublicKey,
   user: PublicKey,
-  side: 0 | 1, // 0=Up, 1=Down
+  side: 0 | 1 | 2, // 0=Up/Home, 1=Down/Away, 2=Draw
   amount: bigint | number,
 ): TransactionInstruction {
   // Side is a Borsh enum: single byte index
   const data = Buffer.concat([
     DEPOSIT_DISC,
-    Buffer.from([side]),          // enum Side { Up=0, Down=1 }
+    Buffer.from([side]),          // enum Side { Up=0, Down=1, Draw=2 }
     encodeU64(amount),            // u64
   ]);
 
@@ -119,8 +122,8 @@ export function buildDepositIx(
 }
 
 /**
- * Build `resolve` TransactionInstruction.
- * Accounts order matches IDL: pool, authority
+ * Build `resolve` TransactionInstruction (crypto pools — resolve by price).
+ * Accounts: pool, authority
  */
 export function buildResolveIx(
   pool: PublicKey,
@@ -143,9 +146,30 @@ export function buildResolveIx(
 }
 
 /**
+ * Build `resolve_with_winner` TransactionInstruction (sports pools — explicit winner).
+ * Accounts: pool, authority
+ */
+export function buildResolveWithWinnerIx(
+  pool: PublicKey,
+  authority: PublicKey,
+  winner: 0 | 1 | 2, // 0=Up/Home, 1=Down/Away, 2=Draw
+): TransactionInstruction {
+  const data = Buffer.concat([
+    RESOLVE_WITH_WINNER_DISC,
+    Buffer.from([winner]),        // enum Side { Up=0, Down=1, Draw=2 }
+  ]);
+
+  const keys = [
+    { pubkey: pool, isSigner: false, isWritable: true },
+    { pubkey: authority, isSigner: true, isWritable: false },
+  ];
+
+  return new TransactionInstruction({ keys, programId: PROGRAM_ID, data });
+}
+
+/**
  * Build `claim` TransactionInstruction (with fee).
  * Accounts: pool, userBet, vault, userTokenAccount, user, authority, feeWallet, tokenProgram
- * Args: fee_bps (u16)
  */
 export function buildClaimIx(
   pool: PublicKey,

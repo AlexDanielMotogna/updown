@@ -4,7 +4,6 @@ use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use crate::errors::PoolError;
 use crate::events::PayoutClaimed;
 use crate::state::{Pool, PoolStatus, UserBet};
-use crate::Side;
 
 #[derive(Accounts)]
 pub struct Claim<'info> {
@@ -65,12 +64,9 @@ pub fn handler(ctx: Context<Claim>, fee_bps: u16) -> Result<()> {
     let winner = pool.winner.ok_or(PoolError::NotResolved)?;
     require!(user_bet.side == winner, PoolError::NotWinner);
 
-    // Calculate gross payout
-    let total_pool = pool.total_up.checked_add(pool.total_down).ok_or(PoolError::Overflow)?;
-    let total_winning_side = match winner {
-        Side::Up => pool.total_up,
-        Side::Down => pool.total_down,
-    };
+    // Calculate gross payout using helper methods
+    let total_pool = pool.total_pool()?;
+    let total_winning_side = pool.total_for_side(winner);
 
     require!(total_winning_side > 0, PoolError::NoWinningBets);
 
