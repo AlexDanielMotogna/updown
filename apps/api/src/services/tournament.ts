@@ -1,6 +1,6 @@
 import { prisma } from '../db';
 import { generateRoundMatchesTx } from './tournament-bracket';
-import { assignMatchToRound } from './tournament-sports';
+import { assignMatchdayToRound } from './tournament-sports';
 
 // Re-export everything from tournament-bracket so existing imports keep working
 export {
@@ -176,27 +176,11 @@ export async function startTournament(tournamentId: string) {
     return { matches, tournamentType: tournament.tournamentType, league: tournament.league, matchConfig: tournament.matchConfig };
   });
 
-  // For sports tournaments, apply pre-configured match for round 1
-  if (result.tournamentType === 'SPORTS') {
-    const config = result.matchConfig ? JSON.parse(result.matchConfig) : {};
-    const round1Config = config['1'];
-    if (round1Config) {
-      await prisma.tournamentMatch.updateMany({
-        where: { tournamentId, round: 1 },
-        data: {
-          homeTeam: round1Config.homeTeam,
-          awayTeam: round1Config.awayTeam,
-          homeTeamCrest: round1Config.homeTeamCrest || null,
-          awayTeamCrest: round1Config.awayTeamCrest || null,
-          footballMatchId: round1Config.footballMatchId || `manual-${Date.now()}`,
-        },
-      });
-      console.log(`[Tournament] Applied pre-configured match for round 1: ${round1Config.homeTeam} vs ${round1Config.awayTeam}`);
-    } else if (result.league) {
-      await assignMatchToRound(tournamentId, 1, result.league).catch(err =>
-        console.error('[Tournament] Failed to assign match to round 1:', err)
-      );
-    }
+  // For sports tournaments, assign matchday fixtures to round 1
+  if (result.tournamentType === 'SPORTS' && result.league) {
+    await assignMatchdayToRound(tournamentId, 1, result.league).catch(err =>
+      console.error('[Tournament] Failed to assign matchday to round 1:', err)
+    );
   }
 
   return result.matches;

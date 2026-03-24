@@ -7,6 +7,8 @@ import {
 } from '../../services/tournament';
 import { prisma } from '../../db';
 import { getAdapter } from '../../services/sports';
+import { assignFixturesToRound } from '../../services/tournament-sports';
+import { buildActualOutcomes, computeTotalGoals, determineMatchdayWinner, parseMatchdayPrediction } from '../../services/tournament-sports-scoring';
 
 export const adminTournamentsRouter: RouterType = Router();
 
@@ -230,82 +232,94 @@ adminTournamentsRouter.post('/:id/update', async (req, res) => {
   }
 });
 
-// POST /api/admin/tournaments/:id/assign-match — set football match for a specific round
-adminTournamentsRouter.post('/:id/assign-match', async (req, res) => {
+// POST /api/admin/tournaments/:id/assign-matchday — assign fixtures to a round
+adminTournamentsRouter.post('/:id/assign-matchday', async (req, res) => {
   try {
-    const { homeTeam, awayTeam, homeTeamCrest, awayTeamCrest, footballMatchId, round } = req.body;
-    if (!homeTeam || !awayTeam) {
-      return res.status(400).json({ success: false, error: { code: 'MISSING_FIELDS', message: 'homeTeam and awayTeam required' } });
+    const { round, fixtures } = req.body;
+    if (!fixtures || !Array.isArray(fixtures) || fixtures.length === 0) {
+      return res.status(400).json({ success: false, error: { code: 'MISSING_FIELDS', message: 'fixtures array required' } });
     }
     const tournament = await prisma.tournament.findUniqueOrThrow({ where: { id: req.params.id } });
-    const targetRound = round || tournament.currentRound;
+    const targetRound = round || tournament.currentRound || 1;
 
-    // Allow assigning for REGISTERING (pre-config) or ACTIVE tournaments
     if (tournament.status !== 'ACTIVE' && tournament.status !== 'REGISTERING') {
       return res.status(400).json({ success: false, error: { code: 'INVALID_STATUS', message: 'Tournament must be REGISTERING or ACTIVE' } });
     }
 
-    // For REGISTERING: store in matchConfig JSON (matches don't exist yet)
-    if (tournament.status === 'REGISTERING') {
-      const existing = JSON.parse(tournament.matchConfig || '{}');
-      existing[String(targetRound)] = { homeTeam, awayTeam, homeTeamCrest: homeTeamCrest || null, awayTeamCrest: awayTeamCrest || null, footballMatchId: footballMatchId || null };
-      await prisma.tournament.update({ where: { id: req.params.id }, data: { matchConfig: JSON.stringify(existing) } });
-      console.log(`[Admin] Pre-configured round ${targetRound}: ${homeTeam} vs ${awayTeam}`);
-      res.json({ success: true, data: { round: targetRound, homeTeam, awayTeam, preConfigured: true } });
-      return;
-    }
-
-    const updated = await prisma.tournamentMatch.updateMany({
-      where: { tournamentId: tournament.id, round: targetRound },
-      data: { homeTeam, awayTeam, homeTeamCrest: homeTeamCrest || null, awayTeamCrest: awayTeamCrest || null, footballMatchId: footballMatchId || `manual-${Date.now()}` },
-    });
-    console.log(`[Admin] Assigned ${homeTeam} vs ${awayTeam} to round ${targetRound} (${updated.count} matches)`);
-    res.json({ success: true, data: { matchesUpdated: updated.count, round: targetRound, homeTeam, awayTeam } });
+    const count = await assignFixturesToRound(tournament.id, targetRound, fixtures);
+    console.log(`[Admin] Assigned ${count} fixtures to round ${targetRound}`);
+    res.json({ success: true, data: { fixturesAssigned: count, round: targetRound } });
   } catch (error) {
-    console.error('[Admin] Assign match error:', error);
+    console.error('[Admin] Assign matchday error:', error);
     res.status(400).json({ success: false, error: { code: 'ASSIGN_ERROR', message: error instanceof Error ? error.message : 'Failed' } });
   }
 });
 
-// POST /api/admin/tournaments/:id/resolve-match — manually resolve with HOME/DRAW/AWAY
-adminTournamentsRouter.post('/:id/resolve-match', async (req, res) => {
+// Keep old endpoint as alias
+adminTournamentsRouter.post('/:id/assign-match', async (req, res) => {
+  const { homeTeam, awayTeam, homeTeamCrest, awayTeamCrest, footballMatchId, round } = req.body;
+  if (!homeTeam || !awayTeam) return res.status(400).json({ success: false, error: { code: 'MISSING_FIELDS', message: 'homeTeam and awayTeam required' } });
+  const fixtures = [{ footballMatchId: footballMatchId || `manual-${Date.now()}`, homeTeam, awayTeam, homeTeamCrest, awayTeamCrest }];
+  req.body = { round, fixtures };
+  return adminTournamentsRouter.handle(req, res, () => {});
+});
+
+// POST /api/admin/tournaments/:id/resolve-matchday — manually set fixture results and resolve
+adminTournamentsRouter.post('/:id/resolve-matchday', async (req, res) => {
   try {
-    const { result } = req.body;
-    if (!['HOME', 'DRAW', 'AWAY'].includes(result)) {
-      return res.status(400).json({ success: false, error: { code: 'INVALID_RESULT', message: 'result must be HOME, DRAW, or AWAY' } });
+    const { results } = req.body; // Array of { fixtureIndex, resultHome, resultAway }
+    if (!results || !Array.isArray(results)) {
+      return res.status(400).json({ success: false, error: { code: 'MISSING_FIELDS', message: 'results array required' } });
     }
     const tournament = await prisma.tournament.findUniqueOrThrow({ where: { id: req.params.id } });
     if (tournament.status !== 'ACTIVE') {
       return res.status(400).json({ success: false, error: { code: 'NOT_ACTIVE', message: 'Tournament is not active' } });
     }
-    const resultMap: Record<string, bigint> = { HOME: 1n, DRAW: 2n, AWAY: 3n };
-    const actualResult = resultMap[result];
+
+    // Update fixture results
+    for (const r of results) {
+      const outcome = r.resultHome > r.resultAway ? 'HOME' : r.resultAway > r.resultHome ? 'AWAY' : 'DRAW';
+      await prisma.tournamentRoundFixture.updateMany({
+        where: { tournamentId: tournament.id, round: tournament.currentRound, fixtureIndex: r.fixtureIndex },
+        data: { resultHome: r.resultHome, resultAway: r.resultAway, resultOutcome: outcome, status: 'FINISHED' },
+      });
+    }
+
+    // Resolve active bracket matches
+    const fixtures = await prisma.tournamentRoundFixture.findMany({
+      where: { tournamentId: tournament.id, round: tournament.currentRound },
+      orderBy: { fixtureIndex: 'asc' },
+    });
+    const actualOutcomes = buildActualOutcomes(fixtures);
+    const actualTotalGoals = computeTotalGoals(fixtures);
+    const resultsJson = JSON.stringify({ outcomes: actualOutcomes, totalGoals: actualTotalGoals });
     const now = new Date();
+
     const activeMatches = await prisma.tournamentMatch.findMany({
       where: { tournamentId: tournament.id, round: tournament.currentRound, status: 'ACTIVE' },
     });
-    if (activeMatches.length === 0) {
-      return res.status(400).json({ success: false, error: { code: 'NO_ACTIVE', message: 'No active matches to resolve' } });
-    }
+
     let resolved = 0;
     for (const match of activeMatches) {
-      if (!match.player1Prediction || !match.player2Prediction) continue;
-      const p1Correct = match.player1Prediction === actualResult;
-      const p2Correct = match.player2Prediction === actualResult;
-      let winnerWallet: string;
-      if (p1Correct && !p2Correct) winnerWallet = match.player1Wallet!;
-      else if (p2Correct && !p1Correct) winnerWallet = match.player2Wallet!;
-      else winnerWallet = (match.player1PredictedAt! <= match.player2PredictedAt!) ? match.player1Wallet! : match.player2Wallet!;
+      const p1 = parseMatchdayPrediction(match.player1Prediction);
+      const p2 = parseMatchdayPrediction(match.player2Prediction);
+      if (!p1 || !p2) continue;
+      const { winner, p1Score, p2Score } = determineMatchdayWinner(
+        { prediction: p1, predictedAt: match.player1PredictedAt!, wallet: match.player1Wallet! },
+        { prediction: p2, predictedAt: match.player2PredictedAt!, wallet: match.player2Wallet! },
+        actualOutcomes, actualTotalGoals,
+      );
       await prisma.tournamentMatch.update({
         where: { id: match.id },
-        data: { finalPrice: actualResult, winnerWallet, status: 'RESOLVED', resolvedAt: now },
+        data: { finalPrice: resultsJson, winnerWallet: winner, player1Score: p1Score, player2Score: p2Score, status: 'RESOLVED', resolvedAt: now },
       });
       resolved++;
     }
-    console.log(`[Admin] Resolved ${resolved} matches in round ${tournament.currentRound}: ${result}`);
-    res.json({ success: true, data: { resolved, result, round: tournament.currentRound } });
+
+    console.log(`[Admin] Resolved ${resolved} bracket matches in round ${tournament.currentRound}`);
+    res.json({ success: true, data: { resolved, round: tournament.currentRound, actualOutcomes, actualTotalGoals } });
   } catch (error) {
-    console.error('[Admin] Resolve match error:', error);
+    console.error('[Admin] Resolve matchday error:', error);
     res.status(400).json({ success: false, error: { code: 'RESOLVE_ERROR', message: error instanceof Error ? error.message : 'Failed' } });
   }
 });

@@ -96,10 +96,12 @@ tournamentActionRouter.post('/:id/register', async (req, res) => {
   }
 });
 
-// POST /:id/matches/:matchId/predict — submit price prediction
+// POST /:id/matches/:matchId/predict — submit prediction (crypto: price, sports: matchday)
 const predictSchema = z.object({
   walletAddress: z.string().min(1),
-  prediction: z.number().positive(),
+  prediction: z.number().positive().optional(),
+  outcomes: z.array(z.string()).optional(),
+  totalGoals: z.number().int().min(0).optional(),
 });
 
 tournamentActionRouter.post('/:id/matches/:matchId/predict', async (req, res) => {
@@ -113,25 +115,29 @@ tournamentActionRouter.post('/:id/matches/:matchId/predict', async (req, res) =>
       });
     }
 
-    const { walletAddress, prediction } = parsed.data;
-    const predictionBigInt = BigInt(Math.round(prediction * 1_000_000));
+    const { walletAddress, prediction, outcomes, totalGoals } = parsed.data;
+    let predictionStr: string;
+    let totalGoalsVal: number | undefined;
 
-    const result = await submitPrediction(matchId, walletAddress, predictionBigInt);
+    if (outcomes && outcomes.length > 0) {
+      predictionStr = JSON.stringify({ outcomes, totalGoals: totalGoals ?? 0 });
+      totalGoalsVal = totalGoals;
+    } else if (prediction) {
+      predictionStr = BigInt(Math.round(prediction * 1_000_000)).toString();
+    } else {
+      return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Either prediction or outcomes required' } });
+    }
+
+    const result = await submitPrediction(matchId, walletAddress, predictionStr, totalGoalsVal);
 
     res.json({
       success: true,
-      data: {
-        started: result.started,
-        match: serializeBigInt(result.match),
-      },
+      data: { started: result.started, match: serializeBigInt(result.match) },
     });
   } catch (error) {
     console.error('Error submitting prediction:', error);
     const message = error instanceof Error ? error.message : 'Failed to submit prediction';
-    res.status(400).json({
-      success: false,
-      error: { code: 'PREDICTION_ERROR', message },
-    });
+    res.status(400).json({ success: false, error: { code: 'PREDICTION_ERROR', message } });
   }
 });
 

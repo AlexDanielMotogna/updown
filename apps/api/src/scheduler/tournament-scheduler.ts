@@ -4,7 +4,7 @@ import { prisma } from '../db';
 import { checkAndAdvanceRound } from '../services/tournament';
 import { emitTournamentMatchResult } from '../websocket';
 import { processSportsTournament } from './tournament-sports-resolver';
-import { assignMatchToRound } from '../services/tournament-sports';
+import { assignMatchdayToRound } from '../services/tournament-sports';
 
 const priceProvider = new PacificaProvider();
 
@@ -74,7 +74,7 @@ async function processTournaments(): Promise<void> {
             await prisma.tournamentMatch.update({
               where: { id: match.id },
               data: {
-                strikePrice: priceTick.price,
+                strikePrice: priceTick.price.toString(),
                 startTime: now,
                 endTime: new Date(now.getTime() + tournament.matchDuration * 1000),
                 status: 'ACTIVE',
@@ -121,8 +121,8 @@ async function processTournaments(): Promise<void> {
           const priceTick = await priceProvider.getSpotPrice(tournament.asset);
           const finalPrice = priceTick.price;
 
-          const p1Pred = match.player1Prediction;
-          const p2Pred = match.player2Prediction;
+          const p1Pred = match.player1Prediction ? BigInt(match.player1Prediction) : null;
+          const p2Pred = match.player2Prediction ? BigInt(match.player2Prediction) : null;
 
           if (p1Pred === null || p2Pred === null) {
             console.error(`[Tournament] Match ${match.id}: missing prediction(s) in ACTIVE match`);
@@ -147,7 +147,7 @@ async function processTournaments(): Promise<void> {
 
           await prisma.tournamentMatch.update({
             where: { id: match.id },
-            data: { finalPrice, winnerWallet, status: 'RESOLVED', resolvedAt: now },
+            data: { finalPrice: finalPrice.toString(), winnerWallet, status: 'RESOLVED', resolvedAt: now },
           });
 
           const loser = winnerWallet === match.player1Wallet ? match.player2Wallet : match.player1Wallet;
@@ -173,21 +173,10 @@ async function processTournaments(): Promise<void> {
 
       // ── 3. Advance round ───────────────────────────────────────────────
       const advResult = await checkAndAdvanceRound(tournament.id);
-      if (advResult?.advanced && !advResult.completed && advResult.tournamentType === 'SPORTS') {
-        // Apply pre-configured match or fetch from API
-        const config = tournament.matchConfig ? JSON.parse(tournament.matchConfig) : {};
-        const roundConfig = config[String(advResult.nextRound)];
-        if (roundConfig) {
-          await prisma.tournamentMatch.updateMany({
-            where: { tournamentId: tournament.id, round: advResult.nextRound! },
-            data: { homeTeam: roundConfig.homeTeam, awayTeam: roundConfig.awayTeam, homeTeamCrest: roundConfig.homeTeamCrest || null, awayTeamCrest: roundConfig.awayTeamCrest || null, footballMatchId: roundConfig.footballMatchId || `manual-${Date.now()}` },
-          });
-          console.log(`[Tournament] Applied pre-configured match for round ${advResult.nextRound}: ${roundConfig.homeTeam} vs ${roundConfig.awayTeam}`);
-        } else if (advResult.league) {
-          await assignMatchToRound(tournament.id, advResult.nextRound!, advResult.league).catch(err =>
-            console.error(`[Tournament] Failed to assign match to round ${advResult.nextRound}:`, err)
-          );
-        }
+      if (advResult?.advanced && !advResult.completed && advResult.tournamentType === 'SPORTS' && advResult.league) {
+        await assignMatchdayToRound(tournament.id, advResult.nextRound!, advResult.league).catch(err =>
+          console.error(`[Tournament] Failed to assign matchday to round ${advResult.nextRound}:`, err)
+        );
       }
     } catch (err) {
       console.error(`[Tournament] Error processing tournament ${tournament.id}:`, err instanceof Error ? err.message : err);

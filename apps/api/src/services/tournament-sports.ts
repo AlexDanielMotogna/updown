@@ -1,88 +1,101 @@
 import { prisma } from '../db';
 import { getAdapter } from './sports';
 
-// Prediction encoding: Home=1, Draw=2, Away=3
-export const PREDICTION_HOME = 1n;
-export const PREDICTION_DRAW = 2n;
-export const PREDICTION_AWAY = 3n;
-
-export function encodePrediction(side: 'HOME' | 'DRAW' | 'AWAY'): bigint {
-  switch (side) {
-    case 'HOME': return PREDICTION_HOME;
-    case 'DRAW': return PREDICTION_DRAW;
-    case 'AWAY': return PREDICTION_AWAY;
-  }
-}
-
-export function decodePrediction(prediction: bigint | null): string | null {
-  if (prediction === PREDICTION_HOME) return 'Home';
-  if (prediction === PREDICTION_DRAW) return 'Draw';
-  if (prediction === PREDICTION_AWAY) return 'Away';
-  return null;
-}
+// Re-export scoring utilities for convenience
+export {
+  parseMatchdayPrediction,
+  serializeMatchdayPrediction,
+  determineMatchdayWinner,
+  scoreOutcomes,
+  computeTotalGoals,
+  buildActualOutcomes,
+  POINTS_PER_CORRECT,
+} from './tournament-sports-scoring';
+export type { MatchdayPrediction } from './tournament-sports-scoring';
 
 /**
- * Determine bracket match winner based on football match result.
- * If one predicted correctly and the other didn't → correct wins.
- * If both correct or both wrong → whoever predicted first wins.
+ * Assign all upcoming matchday fixtures to a tournament round.
+ * Creates TournamentRoundFixture rows for the next matchday in the league.
  */
-export function determineSportsWinner(
-  p1Prediction: bigint,
-  p2Prediction: bigint,
-  actualResult: bigint,
-  p1PredictedAt: Date,
-  p2PredictedAt: Date,
-  p1Wallet: string,
-  p2Wallet: string,
-): string {
-  const p1Correct = p1Prediction === actualResult;
-  const p2Correct = p2Prediction === actualResult;
-
-  if (p1Correct && !p2Correct) return p1Wallet;
-  if (p2Correct && !p1Correct) return p2Wallet;
-  // Both correct or both wrong → tiebreaker: first to predict
-  return p1PredictedAt <= p2PredictedAt ? p1Wallet : p2Wallet;
-}
-
-/**
- * Encode football match result as BigInt prediction format.
- */
-export function encodeMatchResult(homeScore: number, awayScore: number): bigint {
-  if (homeScore > awayScore) return PREDICTION_HOME;
-  if (awayScore > homeScore) return PREDICTION_AWAY;
-  return PREDICTION_DRAW;
-}
-
-/**
- * Assign a real football match to all bracket matches in a given round.
- * Picks the next upcoming match from the tournament's league.
- */
-export async function assignMatchToRound(
+export async function assignMatchdayToRound(
   tournamentId: string,
   round: number,
   league: string,
 ): Promise<void> {
-  const adapter = getAdapter('FOOTBALL');
-  const upcoming = await adapter.fetchUpcomingMatches(league);
+  // Check if fixtures already exist for this round
+  const existing = await prisma.tournamentRoundFixture.count({
+    where: { tournamentId, round },
+  });
+  if (existing > 0) {
+    console.log(`[Sports Tournament] Round ${round} already has ${existing} fixtures, skipping`);
+    return;
+  }
 
-  if (upcoming.length === 0) {
+  const adapter = getAdapter('FOOTBALL');
+  const matches = await adapter.fetchUpcomingMatches(league);
+
+  if (matches.length === 0) {
     console.warn(`[Sports Tournament] No upcoming matches for ${league}`);
     return;
   }
 
-  // Pick the soonest match
-  const match = upcoming.sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())[0];
+  // Create fixture rows
+  for (let i = 0; i < matches.length; i++) {
+    const m = matches[i];
+    await prisma.tournamentRoundFixture.create({
+      data: {
+        tournamentId,
+        round,
+        fixtureIndex: i,
+        footballMatchId: m.id,
+        homeTeam: m.homeTeam,
+        awayTeam: m.awayTeam,
+        homeTeamCrest: m.homeTeamCrest || null,
+        awayTeamCrest: m.awayTeamCrest || null,
+        kickoff: m.kickoff,
+      },
+    });
+  }
 
-  await prisma.tournamentMatch.updateMany({
+  console.log(`[Sports Tournament] Assigned ${matches.length} fixtures to round ${round} (${league})`);
+}
+
+/**
+ * Manually assign fixtures to a round from admin-provided data.
+ */
+export async function assignFixturesToRound(
+  tournamentId: string,
+  round: number,
+  fixtures: Array<{
+    footballMatchId: string;
+    homeTeam: string;
+    awayTeam: string;
+    homeTeamCrest?: string | null;
+    awayTeamCrest?: string | null;
+    kickoff?: string | null;
+  }>,
+): Promise<number> {
+  // Delete existing fixtures for this round
+  await prisma.tournamentRoundFixture.deleteMany({
     where: { tournamentId, round },
-    data: {
-      footballMatchId: match.id,
-      homeTeam: match.homeTeam,
-      awayTeam: match.awayTeam,
-      homeTeamCrest: match.homeTeamCrest || null,
-      awayTeamCrest: match.awayTeamCrest || null,
-    },
   });
 
-  console.log(`[Sports Tournament] Assigned ${match.homeTeam} vs ${match.awayTeam} to round ${round}`);
+  for (let i = 0; i < fixtures.length; i++) {
+    const f = fixtures[i];
+    await prisma.tournamentRoundFixture.create({
+      data: {
+        tournamentId,
+        round,
+        fixtureIndex: i,
+        footballMatchId: f.footballMatchId,
+        homeTeam: f.homeTeam,
+        awayTeam: f.awayTeam,
+        homeTeamCrest: f.homeTeamCrest || null,
+        awayTeamCrest: f.awayTeamCrest || null,
+        kickoff: f.kickoff ? new Date(f.kickoff) : null,
+      },
+    });
+  }
+
+  return fixtures.length;
 }

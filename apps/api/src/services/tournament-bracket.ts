@@ -70,10 +70,16 @@ export async function generateRoundMatches(
 
 // ─── Submit Prediction ──────────────────────────────────────────────────────
 
+/**
+ * Submit prediction for a bracket match.
+ * Crypto: prediction is a stringified BigInt (price).
+ * Sports: prediction is a JSON string {outcomes: string[], totalGoals: number}.
+ */
 export async function submitPrediction(
   matchId: string,
   walletAddress: string,
-  prediction: bigint,
+  prediction: string,
+  totalGoals?: number,
 ) {
   return prisma.$transaction(async (tx) => {
     const match = await tx.tournamentMatch.findUniqueOrThrow({
@@ -87,10 +93,6 @@ export async function submitPrediction(
 
     if (match.predictionDeadline && new Date() > match.predictionDeadline) {
       throw new Error('Prediction deadline has passed');
-    }
-
-    if (prediction <= 0n) {
-      throw new Error('Prediction must be positive');
     }
 
     const isPlayer1 = match.player1Wallet === walletAddress;
@@ -109,10 +111,9 @@ export async function submitPrediction(
 
     const now = new Date();
     const updateData: Record<string, unknown> = isPlayer1
-      ? { player1Prediction: prediction, player1PredictedAt: now }
-      : { player2Prediction: prediction, player2PredictedAt: now };
+      ? { player1Prediction: prediction, player1PredictedAt: now, ...(totalGoals != null && { player1TotalGoals: totalGoals }) }
+      : { player2Prediction: prediction, player2PredictedAt: now, ...(totalGoals != null && { player2TotalGoals: totalGoals }) };
 
-    // Prediction locked. Scheduler starts the match when prediction window ends.
     const updated = await tx.tournamentMatch.update({
       where: { id: matchId },
       data: updateData,
