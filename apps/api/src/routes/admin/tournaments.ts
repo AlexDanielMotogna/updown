@@ -274,13 +274,15 @@ adminTournamentsRouter.post('/:id/assign-matchday', async (req, res) => {
   }
 });
 
-// Keep old endpoint as alias
+// Keep old endpoint as alias — redirect to assign-matchday
 adminTournamentsRouter.post('/:id/assign-match', async (req, res) => {
   const { homeTeam, awayTeam, homeTeamCrest, awayTeamCrest, footballMatchId, round } = req.body;
   if (!homeTeam || !awayTeam) return res.status(400).json({ success: false, error: { code: 'MISSING_FIELDS', message: 'homeTeam and awayTeam required' } });
+  const tournament = await prisma.tournament.findUniqueOrThrow({ where: { id: req.params.id } });
+  const targetRound = round || tournament.currentRound || 1;
   const fixtures = [{ footballMatchId: footballMatchId || `manual-${Date.now()}`, homeTeam, awayTeam, homeTeamCrest, awayTeamCrest }];
-  req.body = { round, fixtures };
-  return adminTournamentsRouter.handle(req, res, () => {});
+  const count = await assignFixturesToRound(tournament.id, targetRound, fixtures);
+  res.json({ success: true, data: { fixturesAssigned: count, round: targetRound } });
 });
 
 // POST /api/admin/tournaments/:id/resolve-matchday — manually set fixture results and resolve
