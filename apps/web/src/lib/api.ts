@@ -48,6 +48,8 @@ export interface Pool {
   matchAnalysis?: string | null;
   homeScore?: number | null;
   awayScore?: number | null;
+  marketOdds?: number | null;
+  clobTokenIds?: string | null;
   createdAt: string;
   updatedAt: string;
 }

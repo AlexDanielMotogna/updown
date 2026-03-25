@@ -54,6 +54,9 @@ model Pool {
   homeScore       Int?       @map("home_score")
   awayScore       Int?       @map("away_score")
   winner          Side?
+  marketOdds      Float?     @map("market_odds")
+  groupItemTitle  String?    @map("group_item_title")
+  clobTokenIds    String?    @map("clob_token_ids")
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
 
@@ -431,11 +434,14 @@ model SportsFixtureCache {
   status        String   @default("SCHEDULED")
   homeScore     Int?     @map("home_score")
   awayScore     Int?     @map("away_score")
-  winner        String?
-  apiSource     String   @default("football-data") @map("api_source")
-  lastSyncedAt  DateTime @map("last_synced_at")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  winner          String?
+  marketOdds      Float?           @map("market_odds")
+  groupItemTitle  String?          @map("group_item_title")
+  clobTokenIds    String?          @map("clob_token_ids")
+  apiSource       String   @default("football-data") @map("api_source")
+  lastSyncedAt    DateTime @map("last_synced_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@unique([externalId, sport, apiSource])
   @@index([sport, league, kickoff])

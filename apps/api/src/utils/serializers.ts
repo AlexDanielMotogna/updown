@@ -5,7 +5,7 @@ import { calculatePayout } from './payout';
 
 /* ─── Pool Serializer ─── */
 
-export function serializePool(pool: {
+export function serializePool(pool: Record<string, any> & {
   id: string;
   poolId: string;
   asset: string;
@@ -19,23 +19,9 @@ export function serializePool(pool: {
   finalPrice: bigint | null;
   totalUp: bigint;
   totalDown: bigint;
-  totalDraw?: bigint;
-  numSides?: number;
-  poolType?: string;
-  matchId?: string | null;
-  homeTeam?: string | null;
-  awayTeam?: string | null;
-  homeTeamCrest?: string | null;
-  awayTeamCrest?: string | null;
-  league?: string | null;
-  matchAnalysis?: string | null;
-  homeScore?: number | null;
-  awayScore?: number | null;
   winner: string | null;
   createdAt: Date;
   updatedAt: Date;
-  squadId?: string | null;
-  maxBettors?: number | null;
 }) {
   const totalDraw = pool.totalDraw ?? 0n;
   return {
@@ -66,6 +52,8 @@ export function serializePool(pool: {
     matchAnalysis: pool.matchAnalysis ?? null,
     homeScore: pool.homeScore ?? null,
     awayScore: pool.awayScore ?? null,
+    marketOdds: pool.marketOdds ?? null,
+    clobTokenIds: pool.clobTokenIds ?? null,
     createdAt: pool.createdAt.toISOString(),
     updatedAt: pool.updatedAt.toISOString(),
   };

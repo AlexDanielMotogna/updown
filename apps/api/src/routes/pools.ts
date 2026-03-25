@@ -225,3 +225,58 @@ poolsRouter.get('/:id/bets', async (req, res) => {
   }
 });
 
+// GET /api/pools/:id/odds-history - Get Polymarket price history for chart
+poolsRouter.get('/:id/odds-history', async (req, res) => {
+  try {
+    const pool = await prisma.pool.findUnique({ where: { id: req.params.id } });
+    if (!pool) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Pool not found' } });
+
+    // Try pool first, fallback to fixture cache for older pools
+    let rawTokenIds = pool.clobTokenIds;
+    if (!rawTokenIds && pool.matchId) {
+      const cached = await prisma.sportsFixtureCache.findFirst({
+        where: { externalId: pool.matchId },
+        select: { clobTokenIds: true },
+      });
+      rawTokenIds = cached?.clobTokenIds ?? null;
+    }
+    if (!rawTokenIds) return res.json({ success: true, data: { history: [] } });
+
+    let tokenIds: string[];
+    try {
+      tokenIds = JSON.parse(rawTokenIds);
+    } catch {
+      return res.json({ success: true, data: { history: [] } });
+    }
+
+    if (!tokenIds.length) return res.json({ success: true, data: { history: [] } });
+
+    const yesTokenId = tokenIds[0];
+    const interval = (req.query.interval as string) || 'max';
+    const fidelity = (req.query.fidelity as string) || '60'; // hourly by default
+
+    const clobRes = await fetch(
+      `https://clob.polymarket.com/prices-history?market=${yesTokenId}&interval=${interval}&fidelity=${fidelity}`,
+    );
+
+    if (!clobRes.ok) {
+      console.warn(`[OddsHistory] CLOB API error: ${clobRes.status}`);
+      return res.json({ success: true, data: { history: [] } });
+    }
+
+    const data: any = await clobRes.json();
+
+    res.json({
+      success: true,
+      data: {
+        history: data.history || [],
+        question: pool.homeTeam,
+        currentOdds: pool.marketOdds,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching odds history:', error);
+    res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: 'Failed to fetch odds history' } });
+  }
+});
+
