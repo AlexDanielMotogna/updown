@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
   Box,
   Container,
@@ -248,15 +249,38 @@ function InfoItem({ label, value, color }: { label: string; value: string; color
   );
 }
 
+type TabType = 'CRYPTO' | 'SPORTS' | 'PM_POLITICS' | 'PM_GEO' | 'PM_CULTURE' | 'PM_FINANCE';
+const VALID_TABS: TabType[] = ['CRYPTO', 'SPORTS', 'PM_POLITICS', 'PM_GEO', 'PM_CULTURE', 'PM_FINANCE'];
+
 export default function TournamentsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const [tournaments, setTournaments] = useState<TournamentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  type TabType = 'CRYPTO' | 'SPORTS' | 'PM_POLITICS' | 'PM_GEO' | 'PM_CULTURE' | 'PM_FINANCE';
-  const [marketType, setMarketType] = useState<TabType>('CRYPTO');
+
+  const rawType = searchParams.get('type');
+  const marketType: TabType = VALID_TABS.includes(rawType as TabType) ? rawType as TabType : 'CRYPTO';
+  const assetFilter = searchParams.get('asset') ?? 'ALL';
+  const leagueFilter = searchParams.get('league') ?? 'ALL';
   const [showFilters, setShowFilters] = useState(false);
-  const [assetFilter, setAssetFilter] = useState('ALL');
-  const [leagueFilter, setLeagueFilter] = useState('ALL');
+
+  const updateParam = useCallback((key: string, value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === 'ALL' || value === 'CRYPTO') {
+      params.delete(key);
+    } else {
+      params.set(key, value);
+    }
+    // Clean irrelevant params when switching type
+    if (key === 'type') {
+      params.delete('asset');
+      params.delete('league');
+    }
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }, [searchParams, router, pathname]);
 
   const load = useCallback(async () => {
     try {
@@ -328,7 +352,7 @@ export default function TournamentsPage() {
               return (
                 <Box
                   key={tab.key}
-                  onClick={() => { setMarketType(tab.key); setShowFilters(false); }}
+                  onClick={() => { updateParam('type', tab.key); setShowFilters(false); }}
                   sx={{
                     display: 'flex',
                     alignItems: 'center',
@@ -370,7 +394,7 @@ export default function TournamentsPage() {
                 value={assetFilter}
                 label="Asset"
                 options={ASSET_FILTERS}
-                onChange={setAssetFilter}
+                onChange={(v) => updateParam('asset', v)}
                 color={UP_COLOR}
               />
             ) : (
@@ -387,7 +411,7 @@ export default function TournamentsPage() {
                   value={leagueFilter}
                   label="League"
                   options={LEAGUE_FILTERS}
-                  onChange={setLeagueFilter}
+                  onChange={(v) => updateParam('league', v)}
                   color={DRAW_COLOR}
                 />
               </>
