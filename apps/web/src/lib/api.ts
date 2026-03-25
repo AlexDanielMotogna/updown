@@ -739,10 +739,15 @@ export interface TournamentRegisterAccounts {
   entryFee: string;
   asset: string;
   name: string;
+  usePda?: boolean;
   accounts: {
-    authorityTokenAccount: string;
+    authorityTokenAccount?: string;
     userTokenAccount: string;
     usdcMint: string;
+    tournamentPda?: string;
+    vaultPda?: string;
+    participantPda?: string;
+    programId?: string;
   };
 }
 

@@ -97,3 +97,66 @@ impl Pool {
 impl UserBet {
     pub const SEED_PREFIX: &'static [u8] = b"bet";
 }
+
+// ── Tournament State ────────────────────────────────────────────────────────
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace)]
+pub enum TournamentStatus {
+    Registering,
+    Active,
+    Completed,
+    Cancelled,
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct Tournament {
+    /// 32-byte ID (SHA-256 of DB UUID)
+    pub tournament_id: [u8; 32],
+    /// Authority that can resolve/cancel
+    pub authority: Pubkey,
+    /// USDC mint address
+    pub usdc_mint: Pubkey,
+    /// Vault PDA for holding USDC entry fees
+    pub vault: Pubkey,
+    /// Entry fee per participant (USDC lamports)
+    pub entry_fee: u64,
+    /// Maximum number of participants
+    pub max_participants: u16,
+    /// Current number of registered participants
+    pub participant_count: u16,
+    /// Accumulated prize pool (should match vault balance)
+    pub prize_pool: u64,
+    /// Tournament status
+    pub status: TournamentStatus,
+    /// Winner pubkey (set when status = Completed)
+    pub winner: Option<Pubkey>,
+    /// Bump for Tournament PDA
+    pub bump: u8,
+    /// Bump for Vault PDA
+    pub vault_bump: u8,
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct TournamentParticipant {
+    /// Tournament this participant belongs to
+    pub tournament: Pubkey,
+    /// User's wallet pubkey
+    pub user: Pubkey,
+    /// Whether entry fee has been refunded
+    pub refunded: bool,
+    /// Whether prize has been claimed
+    pub claimed: bool,
+    /// Bump seed
+    pub bump: u8,
+}
+
+impl Tournament {
+    pub const SEED_PREFIX: &'static [u8] = b"tournament";
+    pub const VAULT_SEED_PREFIX: &'static [u8] = b"tournament_vault";
+}
+
+impl TournamentParticipant {
+    pub const SEED_PREFIX: &'static [u8] = b"participant";
+}

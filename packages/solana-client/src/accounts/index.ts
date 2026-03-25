@@ -33,3 +33,26 @@ export function getUserBetPDA(pool: PublicKey, user: PublicKey): [PublicKey, num
     PROGRAM_ID
   );
 }
+
+// ── Tournament PDAs ──
+
+export function getTournamentPDA(tournamentId: Uint8Array): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('tournament'), tournamentId],
+    PROGRAM_ID
+  );
+}
+
+export function getTournamentVaultPDA(tournamentId: Uint8Array): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('tournament_vault'), tournamentId],
+    PROGRAM_ID
+  );
+}
+
+export function getTournamentParticipantPDA(tournament: PublicKey, user: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('participant'), tournament.toBuffer(), user.toBuffer()],
+    PROGRAM_ID
+  );
+}

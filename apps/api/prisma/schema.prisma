@@ -337,6 +337,8 @@ model Tournament {
   sport          String?                             // FOOTBALL
   league         String?                             // CL, PL, PD, etc.
   matchConfig    String?  @map("match_config")       // JSON: pre-configured matches per round
+  onChainPda     String?  @map("on_chain_pda")       // Tournament PDA address (null = legacy)
+  onChainVault   String?  @map("on_chain_vault")     // Vault PDA address
 
   participants TournamentParticipant[]
   matches      TournamentMatch[]

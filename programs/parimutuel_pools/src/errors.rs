@@ -58,4 +58,30 @@ pub enum PoolError {
 
     #[msg("Invalid number of sides: must be 2 or 3")]
     InvalidNumSides,
+
+    // ── Tournament errors ──
+
+    #[msg("Tournament is not in registering status")]
+    TournamentNotRegistering,
+
+    #[msg("Tournament is full")]
+    TournamentFull,
+
+    #[msg("Tournament is not completed")]
+    TournamentNotCompleted,
+
+    #[msg("User is not the tournament winner")]
+    TournamentNotWinner,
+
+    #[msg("Tournament prize already claimed")]
+    TournamentAlreadyClaimed,
+
+    #[msg("Tournament is not cancelled")]
+    TournamentNotCancelled,
+
+    #[msg("Tournament participant already refunded")]
+    TournamentAlreadyRefunded,
+
+    #[msg("Tournament vault still has tokens")]
+    TournamentVaultNotEmpty,
 }
