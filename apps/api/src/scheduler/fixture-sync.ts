@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { prisma } from '../db';
 import { getAdapter } from '../services/sports';
+import { createMatchPools } from './sports-scheduler';
 import {
   getFixturesNeedingPoll,
   getStalePreMatchFixtures,
@@ -8,7 +9,7 @@ import {
 } from '../services/sports/fixture-cache';
 import type { Match, MatchResult } from '../services/sports/types';
 
-const LEAGUES = ['CL', 'PL', 'PD', 'SA', 'BL1', 'FL1'];
+const LEAGUES = ['CL', 'PL', 'PD', 'SA', 'BL1', 'FL1', 'BSA'];
 const RATE_LIMIT_DELAY_MS = 7_000; // 7s between API calls (stays under 10/min)
 const API_SOURCE = 'football-data';
 
@@ -213,12 +214,16 @@ export function startFixtureSyncScheduler(): void {
     preMatchRefresh().catch(e => console.error('[FixtureSync] Pre-match error:', e));
   }, 30 * 60 * 1000);
 
-  // Seed cache on startup
+  // Seed cache on startup, then trigger pool creation for football
   dailySync()
-    .then(() => markFixtureCacheReady())
+    .then(() => {
+      markFixtureCacheReady();
+      console.log('[FixtureSync] Cache ready — triggering football pool creation');
+      return createMatchPools();
+    })
+    .then(() => console.log('[FixtureSync] Initial football pool creation complete'))
     .catch(e => {
       console.error('[FixtureSync] Initial sync error:', e);
-      // Mark ready anyway so the app doesn't hang — cache will be empty but functional
       markFixtureCacheReady();
     });
 

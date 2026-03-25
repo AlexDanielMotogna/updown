@@ -10,7 +10,7 @@ import crypto from 'crypto';
 import { emitPoolStatus } from '../websocket';
 import { generateMatchAnalysis } from '../services/sports/match-analysis';
 
-const LEAGUES = ['CL', 'PL', 'PD', 'SA', 'BL1', 'FL1']; // UCL, Premier, La Liga, Serie A, Bundesliga, Ligue 1
+const LEAGUES = ['CL', 'PL', 'PD', 'SA', 'BL1', 'FL1', 'BSA']; // UCL, Premier, La Liga, Serie A, Bundesliga, Ligue 1, Brasileirão
 const POOL_OPEN_HOURS_BEFORE = 720; // Open pool 30 days before kickoff
 
 /** Derive the correct adapter based on the pool's league code. */

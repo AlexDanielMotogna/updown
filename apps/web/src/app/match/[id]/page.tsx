@@ -39,6 +39,7 @@ function leagueName(code: string): string {
     case 'SA': return 'Serie A';
     case 'BL1': return 'Bundesliga';
     case 'FL1': return 'Ligue 1';
+    case 'BSA': return 'Brasileirão';
     default: return code;
   }
 }

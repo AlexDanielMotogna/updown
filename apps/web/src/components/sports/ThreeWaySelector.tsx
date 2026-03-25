@@ -14,15 +14,18 @@ interface Props {
   homeTeam?: string;
   awayTeam?: string;
   disabled?: boolean;
+  numSides?: number;
 }
 
-export function ThreeWaySelector({ side, onSideChange, totalUp, totalDown, totalDraw, homeTeam, awayTeam, disabled }: Props) {
+export function ThreeWaySelector({ side, onSideChange, totalUp, totalDown, totalDraw, homeTeam, awayTeam, disabled, numSides = 3 }: Props) {
   const total = totalUp + totalDown + totalDraw;
-  const sides = [
-    { key: 'UP' as const, label: homeTeam || 'Home', total: totalUp, color: UP_COLOR },
-    { key: 'DRAW' as const, label: 'Draw', total: totalDraw, color: DRAW_COLOR },
-    { key: 'DOWN' as const, label: awayTeam || 'Away', total: totalDown, color: DOWN_COLOR },
+  const isTwoWay = numSides === 2;
+  const allSides = [
+    { key: 'UP' as const, label: isTwoWay ? (homeTeam || 'Yes') : (homeTeam || 'Home'), total: totalUp, color: UP_COLOR },
+    ...(!isTwoWay ? [{ key: 'DRAW' as const, label: 'Draw', total: totalDraw, color: DRAW_COLOR }] : []),
+    { key: 'DOWN' as const, label: isTwoWay ? (awayTeam || 'No') : (awayTeam || 'Away'), total: totalDown, color: DOWN_COLOR },
   ];
+  const sides = allSides;
 
   return (
     <Box sx={{ display: 'flex', gap: '3px' }}>
