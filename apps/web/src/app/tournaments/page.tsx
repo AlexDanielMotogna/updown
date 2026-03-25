@@ -12,7 +12,7 @@ import {
   IconButton,
   Collapse,
 } from '@mui/material';
-import { EmojiEvents, ShowChart, SportsSoccer, FilterList, GridView } from '@mui/icons-material';
+import { EmojiEvents, ShowChart, SportsSoccer, FilterList, GridView, Gavel, Public, TheaterComedy, AccountBalance } from '@mui/icons-material';
 import { FilterDropdown } from '@/components/sports/MarketFilter';
 import Link from 'next/link';
 import { AppShell, AssetIcon } from '@/components';
@@ -34,6 +34,7 @@ const LEAGUE_FILTERS = [
   { value: 'SA', label: 'Serie A', img: 'https://crests.football-data.org/SA.png' },
   { value: 'BL1', label: 'Bundesliga', img: 'https://crests.football-data.org/BL1.png' },
   { value: 'FL1', label: 'Ligue 1', img: 'https://crests.football-data.org/FL1.png' },
+  { value: 'BSA', label: 'Brasileirao', img: 'https://crests.football-data.org/bsa.png' },
 ];
 
 const ASSET_FILTERS = [
@@ -67,7 +68,7 @@ const STATUS_BUTTON_LABEL: Record<RegisterStatus, string> = {
 
 const LEAGUE_NAMES: Record<string, string> = {
   CL: 'Champions League', PL: 'Premier League', PD: 'La Liga',
-  SA: 'Serie A', BL1: 'Bundesliga', FL1: 'Ligue 1',
+  SA: 'Serie A', BL1: 'Bundesliga', FL1: 'Ligue 1', BSA: 'Brasileirao',
 };
 
 function TournamentCard({ t, onRegistered }: { t: TournamentSummary; onRegistered: () => void }) {
@@ -251,14 +252,16 @@ export default function TournamentsPage() {
   const [tournaments, setTournaments] = useState<TournamentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [marketType, setMarketType] = useState<'CRYPTO' | 'SPORTS'>('CRYPTO');
+  type TabType = 'CRYPTO' | 'SPORTS' | 'PM_POLITICS' | 'PM_GEO' | 'PM_CULTURE' | 'PM_FINANCE';
+  const [marketType, setMarketType] = useState<TabType>('CRYPTO');
   const [showFilters, setShowFilters] = useState(false);
   const [assetFilter, setAssetFilter] = useState('ALL');
   const [leagueFilter, setLeagueFilter] = useState('ALL');
 
   const load = useCallback(async () => {
     try {
-      const res = await fetchTournaments(undefined, marketType);
+      const fetchType = marketType.startsWith('PM_') ? 'SPORTS' : marketType;
+      const res = await fetchTournaments(undefined, fetchType);
       if (res.success && res.data) {
         setTournaments(res.data);
         setError(null);
@@ -278,18 +281,24 @@ export default function TournamentsPage() {
     return () => clearInterval(interval);
   }, [load]);
 
+  const isPM = marketType.startsWith('PM_');
   const filtered = useMemo(() => {
     let result = tournaments;
-    if (assetFilter !== 'ALL' && marketType === 'CRYPTO') {
+    if (isPM) {
+      result = result.filter(t => t.league === marketType);
+    } else if (assetFilter !== 'ALL' && marketType === 'CRYPTO') {
       result = result.filter(t => t.asset === assetFilter);
-    }
-    if (leagueFilter !== 'ALL' && marketType === 'SPORTS') {
+    } else if (leagueFilter !== 'ALL' && marketType === 'SPORTS') {
       result = result.filter(t => t.league === leagueFilter);
     }
     return result;
-  }, [tournaments, marketType, assetFilter, leagueFilter]);
+  }, [tournaments, marketType, assetFilter, leagueFilter, isPM]);
 
-  const tabColor = marketType === 'CRYPTO' ? UP_COLOR : DRAW_COLOR;
+  const TAB_COLORS: Record<string, string> = {
+    CRYPTO: UP_COLOR, SPORTS: DRAW_COLOR,
+    PM_POLITICS: '#A78BFA', PM_GEO: '#60A5FA', PM_CULTURE: '#F472B6', PM_FINANCE: '#34D399',
+  };
+  const tabColor = TAB_COLORS[marketType] || UP_COLOR;
 
   return (
     <AppShell>
@@ -306,10 +315,14 @@ export default function TournamentsPage() {
 
         {/* Crypto / Sports tabs + filter icon */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-          <Box sx={{ display: 'flex', gap: 0 }}>
+          <Box sx={{ display: 'flex', gap: 0, overflow: 'auto', '&::-webkit-scrollbar': { display: 'none' } }}>
             {[
-              { key: 'CRYPTO' as const, label: 'Crypto', icon: <ShowChart sx={{ fontSize: 16 }} />, color: UP_COLOR },
-              { key: 'SPORTS' as const, label: 'Sports', icon: <SportsSoccer sx={{ fontSize: 16 }} />, color: DRAW_COLOR },
+              { key: 'CRYPTO' as TabType, label: 'Crypto', icon: <ShowChart sx={{ fontSize: 16 }} />, color: UP_COLOR },
+              { key: 'SPORTS' as TabType, label: 'Sports', icon: <SportsSoccer sx={{ fontSize: 16 }} />, color: DRAW_COLOR },
+              { key: 'PM_POLITICS' as TabType, label: 'Politics', icon: <Gavel sx={{ fontSize: 16 }} />, color: '#A78BFA' },
+              { key: 'PM_GEO' as TabType, label: 'Geopolitics', icon: <Public sx={{ fontSize: 16 }} />, color: '#60A5FA' },
+              { key: 'PM_CULTURE' as TabType, label: 'Culture', icon: <TheaterComedy sx={{ fontSize: 16 }} />, color: '#F472B6' },
+              { key: 'PM_FINANCE' as TabType, label: 'Finance', icon: <AccountBalance sx={{ fontSize: 16 }} />, color: '#34D399' },
             ].map((tab) => {
               const active = marketType === tab.key;
               return (
@@ -320,9 +333,10 @@ export default function TournamentsPage() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: 0.75,
-                    px: 2,
+                    px: { xs: 1.25, md: 2 },
                     py: 1,
                     cursor: 'pointer',
+                    whiteSpace: 'nowrap',
                     borderBottom: active ? `2px solid ${tab.color}` : '2px solid transparent',
                     color: active ? tab.color : 'rgba(255,255,255,0.35)',
                     transition: 'all 0.15s ease',
@@ -330,20 +344,22 @@ export default function TournamentsPage() {
                   }}
                 >
                   {tab.icon}
-                  <Typography sx={{ fontSize: '0.85rem', fontWeight: active ? 700 : 500 }}>
+                  <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: active ? 700 : 500 }}>
                     {tab.label}
                   </Typography>
                 </Box>
               );
             })}
           </Box>
-          <IconButton
-            onClick={() => setShowFilters(!showFilters)}
-            size="small"
-            sx={{ color: showFilters ? tabColor : 'rgba(255,255,255,0.35)', '&:hover': { color: tabColor } }}
-          >
-            <FilterList sx={{ fontSize: 20 }} />
-          </IconButton>
+          {!isPM && (
+            <IconButton
+              onClick={() => setShowFilters(!showFilters)}
+              size="small"
+              sx={{ color: showFilters ? tabColor : 'rgba(255,255,255,0.35)', '&:hover': { color: tabColor }, flexShrink: 0 }}
+            >
+              <FilterList sx={{ fontSize: 20 }} />
+            </IconButton>
+          )}
         </Box>
 
         {/* Collapsible filter dropdowns */}
