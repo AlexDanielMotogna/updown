@@ -174,33 +174,69 @@ const DONUT_SEGMENTS = (() => {
 })();
 const VESTING_MAX = 30;
 
-const NAV_SECTIONS = [
-  { id: 'quick-start', label: 'Getting Started' },
-  { id: 'how-pools-work', label: 'Pool Lifecycle' },
-  { id: 'assets-timeframes', label: 'Assets & Timeframes' },
-  { id: 'odds-payouts', label: 'Odds & Payouts' },
-  { id: 'claiming', label: 'Claiming Payouts' },
-  { id: 'squad-pools', label: 'Squad Pools' },
-  { id: 'tournaments', label: 'Tournaments' },
-  { id: 'referrals', label: 'Referral Program' },
-  { id: 'xp-rewards', label: 'XP & Rewards' },
-  { id: 'levels', label: 'Level Progression' },
-  { id: 'up-coins', label: 'UP Coins' },
-  { id: 'tokenomics', label: 'UP Token' },
-  { id: 'security', label: 'Security' },
-  { id: 'features', label: 'Features' },
-  { id: 'tips', label: 'Tips' },
+interface NavItem { id: string; label: string }
+interface NavGroup { group: string; items: NavItem[] }
+
+const NAV_GROUPS: NavGroup[] = [
+  { group: 'Getting Started', items: [
+    { id: 'quick-start', label: 'Quick Start' },
+    { id: 'how-pools-work', label: 'Pool Lifecycle' },
+  ]},
+  { group: 'Markets', items: [
+    { id: 'assets-timeframes', label: 'Crypto Pools' },
+    { id: 'sports-markets', label: 'Sports Markets' },
+    { id: 'prediction-markets', label: 'Prediction Markets' },
+    { id: 'odds-payouts', label: 'Odds & Payouts' },
+    { id: 'claiming', label: 'Claiming Payouts' },
+  ]},
+  { group: 'Competitions', items: [
+    { id: 'tournaments', label: 'Tournaments' },
+    { id: 'squad-pools', label: 'Squad Pools' },
+  ]},
+  { group: 'Rewards', items: [
+    { id: 'xp-rewards', label: 'XP & Rewards' },
+    { id: 'levels', label: 'Level Progression' },
+    { id: 'up-coins', label: 'UP Coins' },
+    { id: 'referrals', label: 'Referral Program' },
+  ]},
+  { group: 'Platform', items: [
+    { id: 'tokenomics', label: 'UP Token' },
+    { id: 'security', label: 'Security' },
+    { id: 'features', label: 'Features' },
+    { id: 'tips', label: 'Tips' },
+  ]},
 ];
+
+const NAV_SECTIONS = NAV_GROUPS.flatMap(g => g.items);
 
 /* ── Sidebar nav ─────────────────────────────────────────────────── */
 
-function DocsSidebar({ activeId, onClose }: { activeId: string; onClose?: () => void }) {
+function SidebarGroup({ group, items, activeId, onClose }: NavGroup & { activeId: string; onClose?: () => void }) {
+  const hasActive = items.some(i => i.id === activeId);
+  const [open, setOpen] = useState(hasActive);
+
+  useEffect(() => {
+    if (hasActive) setOpen(true);
+  }, [hasActive]);
+
   return (
-    <Box sx={{ py: 2, display: 'flex', flexDirection: 'column', gap: 0.25 }}>
-      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', textTransform: 'uppercase', px: 2, mb: 1 }}>
-        Documentation
-      </Typography>
-      {NAV_SECTIONS.map((s) => (
+    <Box sx={{ mb: 0.5 }}>
+      <Box
+        onClick={() => setOpen(!open)}
+        sx={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          px: 2, py: 0.75, cursor: 'pointer',
+          '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' },
+        }}
+      >
+        <Typography sx={{ fontSize: '0.72rem', fontWeight: 600, color: hasActive ? '#fff' : 'rgba(255,255,255,0.4)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+          {group}
+        </Typography>
+        <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.2)', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>
+          {'>'}
+        </Typography>
+      </Box>
+      {open && items.map((s) => (
         <Box
           key={s.id}
           component="a"
@@ -208,12 +244,11 @@ function DocsSidebar({ activeId, onClose }: { activeId: string; onClose?: () => 
           onClick={onClose}
           sx={{
             display: 'block',
-            px: 2,
-            py: 0.75,
+            pl: 3.5, pr: 2, py: 0.5,
             textDecoration: 'none',
-            fontSize: '0.82rem',
+            fontSize: '0.8rem',
             fontWeight: activeId === s.id ? 600 : 400,
-            color: activeId === s.id ? '#fff' : 'rgba(255,255,255,0.5)',
+            color: activeId === s.id ? '#fff' : 'rgba(255,255,255,0.45)',
             borderLeft: activeId === s.id ? '2px solid #fff' : '2px solid transparent',
             transition: 'all 0.15s ease',
             '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.03)' },
@@ -221,6 +256,19 @@ function DocsSidebar({ activeId, onClose }: { activeId: string; onClose?: () => 
         >
           {s.label}
         </Box>
+      ))}
+    </Box>
+  );
+}
+
+function DocsSidebar({ activeId, onClose }: { activeId: string; onClose?: () => void }) {
+  return (
+    <Box sx={{ py: 2, display: 'flex', flexDirection: 'column', gap: 0 }}>
+      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', textTransform: 'uppercase', px: 2, mb: 1.5 }}>
+        Documentation
+      </Typography>
+      {NAV_GROUPS.map((g) => (
+        <SidebarGroup key={g.group} {...g} activeId={activeId} onClose={onClose} />
       ))}
     </Box>
   );
@@ -389,6 +437,63 @@ export default function DocsPage() {
                   <Box key={t.key} component="img" src={t.img} alt={t.key} sx={{ width: { xs: 80, sm: 100, md: 120 }, height: { xs: 80, sm: 100, md: 120 }, objectFit: 'contain' }} />
                 ))}
               </Box>
+            </Box>
+
+            {/* ── Sports Markets ──────────────────────────────────────── */}
+            <SectionTitle id="sports-markets">Sports Markets</SectionTitle>
+            <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
+              Predict football match outcomes: <strong style={{ color: UP_COLOR }}>Home</strong>, <strong style={{ color: DOWN_COLOR }}>Away</strong>, or <strong style={{ color: ACCENT_COLOR }}>Draw</strong> (3-way parimutuel).
+            </Typography>
+            <Box sx={{ bgcolor: '#0D1219', p: { xs: 2, md: 3 }, mb: 2 }}>
+              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 2 }}>LEAGUES</Typography>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                {[
+                  { code: 'CL', name: 'Champions League' },
+                  { code: 'PL', name: 'Premier League' },
+                  { code: 'PD', name: 'La Liga' },
+                  { code: 'SA', name: 'Serie A' },
+                  { code: 'BL1', name: 'Bundesliga' },
+                  { code: 'FL1', name: 'Ligue 1' },
+                  { code: 'bsa', name: 'Brasileirao' },
+                ].map((l) => (
+                  <Box key={l.code} sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(255,255,255,0.04)', px: 1.5, py: 0.75, borderRadius: '6px' }}>
+                    <Box component="img" src={`https://crests.football-data.org/${l.code}.png`} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>{l.name}</Typography>
+                  </Box>
+                ))}
+              </Box>
+              <Box sx={{ mt: 3 }}>
+                <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Fixtures synced daily from football-data.org (14 days ahead)</Typography>
+                <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Results checked every 5 min during match windows</Typography>
+                <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>AI-generated H2H analysis for each match</Typography>
+                <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Pools resolve automatically when the match finishes</Typography>
+              </Box>
+            </Box>
+
+            {/* ── Prediction Markets ─────────────────────────────────────── */}
+            <SectionTitle id="prediction-markets">Prediction Markets</SectionTitle>
+            <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
+              Predict real-world events: <strong style={{ color: UP_COLOR }}>Yes</strong> or <strong style={{ color: DOWN_COLOR }}>No</strong>. Powered by Polymarket data with on-chain USDC pools.
+            </Typography>
+            <Box sx={{ bgcolor: '#0D1219', p: { xs: 2, md: 3 }, mb: 2 }}>
+              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 2 }}>CATEGORIES</Typography>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3 }}>
+                {[
+                  { name: 'Politics', color: '#A78BFA' },
+                  { name: 'Geopolitics', color: '#60A5FA' },
+                  { name: 'Culture', color: '#F472B6' },
+                  { name: 'Finance', color: '#34D399' },
+                ].map((c) => (
+                  <Box key={c.name} sx={{ px: 2, py: 0.75, borderRadius: '6px', bgcolor: `${c.color}15`, border: `1px solid ${c.color}30` }}>
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: c.color }}>{c.name}</Typography>
+                  </Box>
+                ))}
+              </Box>
+              <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Global odds chart from Polymarket (auto-refreshes every 30s)</Typography>
+              <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>UpDown platform odds chart (live via WebSocket)</Typography>
+              <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Toggle between Polymarket and UpDown data sources</Typography>
+              <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Market Rules and Context tabs show resolution criteria</Typography>
+              <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Pools resolve when Polymarket marks the event as resolved (~10 min check)</Typography>
             </Box>
 
             {/* ── Odds & Payouts ──────────────────────────────────────── */}
