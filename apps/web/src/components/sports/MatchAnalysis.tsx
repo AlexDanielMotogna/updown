@@ -72,8 +72,8 @@ export function MatchAnalysis({ matchAnalysis, homeTeam, awayTeam }: Props) {
 
       {/* AI Analysis */}
       <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '5px', p: 1.5 }}>
-        <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)', lineHeight: 1.6 }}>
-          {analysis}
+        <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: 'rgba(255,255,255,0.75)', lineHeight: 1.6 }}>
+          {analysis.replace(/^#\s*.+\n?/, '')}
         </Typography>
       </Box>
     </Box>

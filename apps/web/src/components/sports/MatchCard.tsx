@@ -108,13 +108,13 @@ export function MatchCard({ pool, onClick, isPopular }: { pool: Pool; onClick?: 
             ) : (
               <Box
                 component="img"
-                src={`https://crests.football-data.org/${league}.png`}
+                src={`https://crests.football-data.org/${league.toLowerCase()}.png`}
                 alt={league}
                 sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }}
               />
             )}
             <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: isPrediction ? (PM_CATEGORY_COLORS[league] || '#A78BFA') : 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              {PM_CATEGORY_LABELS[league] || (league === 'CL' ? 'Champions League' : league === 'PL' ? 'Premier League' : league === 'PD' ? 'La Liga' : league === 'SA' ? 'Serie A' : league === 'BL1' ? 'Bundesliga' : league === 'FL1' ? 'Ligue 1' : league)}
+              {PM_CATEGORY_LABELS[league] || (league === 'CL' ? 'Champions League' : league === 'PL' ? 'Premier League' : league === 'PD' ? 'La Liga' : league === 'SA' ? 'Serie A' : league === 'BL1' ? 'Bundesliga' : league === 'FL1' ? 'Ligue 1' : league === 'BSA' ? 'Brasileirão' : league)}
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>

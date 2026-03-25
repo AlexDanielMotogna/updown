@@ -19,6 +19,7 @@ const LEAGUE_OPTIONS = [
   { value: 'SA', label: 'Serie A', img: 'https://crests.football-data.org/SA.png' },
   { value: 'BL1', label: 'Bundesliga', img: 'https://crests.football-data.org/BL1.png' },
   { value: 'FL1', label: 'Ligue 1', img: 'https://crests.football-data.org/FL1.png' },
+  { value: 'BSA', label: 'Brasileirão', img: 'https://crests.football-data.org/bsa.png' },
 ];
 
 export const PM_CATEGORY_OPTIONS = [

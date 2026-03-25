@@ -16,6 +16,13 @@ import { GAIN_COLOR, UP_COLOR } from '@/lib/constants';
 import { USDC_DIVISOR } from '@/lib/format';
 import type { Pool } from '@/lib/api';
 
+const PM_CATEGORY_LABELS: Record<string, string> = {
+  PM_POLITICS: 'Politics',
+  PM_GEO: 'Geopolitics',
+  PM_CULTURE: 'Culture & Entertainment',
+  PM_FINANCE: 'Finance & Economy',
+};
+
 const PRESETS = [10, 50, 100, 500];
 
 function formatKickoff(dateStr: string): string {
@@ -123,9 +130,11 @@ export function MatchBetModal({ pool, onClose }: Props) {
 
   if (!pool) return null;
 
+  const isPrediction = pool.league?.startsWith('PM_');
   const isResolved = pool.status === 'CLAIMABLE' || pool.status === 'RESOLVED';
-  const winnerLabel = isResolved ? (pool.winner === 'UP' ? pool.homeTeam : pool.winner === 'DOWN' ? pool.awayTeam : pool.winner === 'DRAW' ? 'Draw' : null) : null;
+  const winnerLabel = isResolved ? (pool.winner === 'UP' ? (isPrediction && !pool.awayTeam ? 'Yes' : pool.homeTeam) : pool.winner === 'DOWN' ? (isPrediction && !pool.awayTeam ? 'No' : pool.awayTeam) : pool.winner === 'DRAW' ? 'Draw' : null) : null;
   const winnerColor = pool.winner === 'UP' ? HOME_COLOR : pool.winner === 'DOWN' ? AWAY_COLOR : DRAW_COLOR;
+  const leagueLabel = PM_CATEGORY_LABELS[pool.league || ''] || (pool.league === 'CL' ? 'Champions League' : pool.league === 'PL' ? 'Premier League' : pool.league === 'PD' ? 'La Liga' : pool.league === 'SA' ? 'Serie A' : pool.league === 'BL1' ? 'Bundesliga' : pool.league === 'FL1' ? 'Ligue 1' : pool.league);
 
   return (
     <>
@@ -158,7 +167,7 @@ export function MatchBetModal({ pool, onClose }: Props) {
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.5 }}>
             <Box>
               <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                {pool.league === 'CL' ? 'Champions League' : pool.league}
+                {leagueLabel}
               </Typography>
               <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
                 {formatKickoff(pool.startTime)}
@@ -169,32 +178,40 @@ export function MatchBetModal({ pool, onClose }: Props) {
             </IconButton>
           </Box>
 
-          {/* Teams */}
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, py: 3, px: 2 }}>
-            <Box sx={{ textAlign: 'center', flex: 1 }}>
-              {pool.homeTeamCrest && (
-                <Box component="img" src={pool.homeTeamCrest} alt="" sx={{ width: 48, height: 48, objectFit: 'contain', mb: 1 }} />
-              )}
-              <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: isResolved && pool.winner === 'UP' ? HOME_COLOR : '#fff' }}>
-                {pool.homeTeam}
+          {/* Teams / Question */}
+          {isPrediction ? (
+            <Box sx={{ py: 3, px: 3, textAlign: 'center' }}>
+              <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', lineHeight: 1.4 }}>
+                {pool.awayTeam ? `${pool.homeTeam} vs ${pool.awayTeam}` : pool.homeTeam}
               </Typography>
             </Box>
-            {isResolved && pool.homeScore != null && pool.awayScore != null ? (
-              <Typography sx={{ fontSize: '1.3rem', fontWeight: 700, color: '#fff' }}>
-                {pool.homeScore} - {pool.awayScore}
-              </Typography>
-            ) : (
-              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(255,255,255,0.15)' }}>vs</Typography>
-            )}
-            <Box sx={{ textAlign: 'center', flex: 1 }}>
-              {pool.awayTeamCrest && (
-                <Box component="img" src={pool.awayTeamCrest} alt="" sx={{ width: 48, height: 48, objectFit: 'contain', mb: 1 }} />
+          ) : (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, py: 3, px: 2 }}>
+              <Box sx={{ textAlign: 'center', flex: 1 }}>
+                {pool.homeTeamCrest && (
+                  <Box component="img" src={pool.homeTeamCrest} alt="" sx={{ width: 48, height: 48, objectFit: 'contain', mb: 1 }} />
+                )}
+                <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: isResolved && pool.winner === 'UP' ? HOME_COLOR : '#fff' }}>
+                  {pool.homeTeam}
+                </Typography>
+              </Box>
+              {isResolved && pool.homeScore != null && pool.awayScore != null ? (
+                <Typography sx={{ fontSize: '1.3rem', fontWeight: 700, color: '#fff' }}>
+                  {pool.homeScore} - {pool.awayScore}
+                </Typography>
+              ) : (
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(255,255,255,0.15)' }}>vs</Typography>
               )}
-              <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: isResolved && pool.winner === 'DOWN' ? AWAY_COLOR : '#fff' }}>
-                {pool.awayTeam}
-              </Typography>
+              <Box sx={{ textAlign: 'center', flex: 1 }}>
+                {pool.awayTeamCrest && (
+                  <Box component="img" src={pool.awayTeamCrest} alt="" sx={{ width: 48, height: 48, objectFit: 'contain', mb: 1 }} />
+                )}
+                <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: isResolved && pool.winner === 'DOWN' ? AWAY_COLOR : '#fff' }}>
+                  {pool.awayTeam}
+                </Typography>
+              </Box>
             </Box>
-          </Box>
+          )}
 
           {/* Winner result */}
           {isResolved && winnerLabel && (
@@ -216,9 +233,10 @@ export function MatchBetModal({ pool, onClose }: Props) {
               totalUp={Number(liveTotals?.totalUp ?? pool.totalUp)}
               totalDown={Number(liveTotals?.totalDown ?? pool.totalDown)}
               totalDraw={Number(liveTotals?.totalDraw ?? pool.totalDraw)}
-              homeTeam={pool.homeTeam || undefined}
-              awayTeam={pool.awayTeam || undefined}
+              homeTeam={isPrediction ? (pool.awayTeam ? pool.homeTeam || undefined : 'Yes') : (pool.homeTeam || undefined)}
+              awayTeam={isPrediction ? (pool.awayTeam || 'No') : (pool.awayTeam || undefined)}
               disabled={isResolved}
+              numSides={pool.numSides}
             />
           </Box>
 
@@ -300,7 +318,8 @@ export function MatchBetModal({ pool, onClose }: Props) {
                   const key = `${b.wallet}-${b.createdAt}`;
                   const isNew = newBetKeys.has(key);
                   const sideColor = b.side === 'UP' ? HOME_COLOR : b.side === 'DOWN' ? AWAY_COLOR : DRAW_COLOR;
-                  const sideLabel = b.side === 'UP' ? (pool?.homeTeam || 'Home') : b.side === 'DOWN' ? (pool?.awayTeam || 'Away') : 'Draw';
+                  const rawLabel = b.side === 'UP' ? (isPrediction && !pool?.awayTeam ? 'Yes' : pool?.homeTeam || 'Home') : b.side === 'DOWN' ? (isPrediction && !pool?.awayTeam ? 'No' : pool?.awayTeam || 'Away') : 'Draw';
+                  const sideLabel = rawLabel.length > 6 ? rawLabel.slice(0, 5) + '…' : rawLabel;
                   const amt = (Number(b.amount) / USDC_DIVISOR).toFixed(2);
                   const ago = Math.floor((Date.now() - new Date(b.createdAt).getTime()) / 60000);
                   const timeStr = ago < 1 ? 'now' : ago < 60 ? `${ago}m` : `${Math.floor(ago / 60)}h`;
