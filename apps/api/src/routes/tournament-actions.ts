@@ -38,27 +38,58 @@ tournamentActionRouter.post('/:id/prepare-register', async (req, res) => {
       return res.status(400).json({ success: false, error: { code: 'ALREADY_REGISTERED', message: 'Already registered' } });
     }
 
-    const { getAuthorityKeypair, getUsdcMint } = await import('../utils/solana');
+    const { getAuthorityKeypair, getUsdcMint, deriveTournamentSeed } = await import('../utils/solana');
     const { getAssociatedTokenAddress } = await import('@solana/spl-token');
+    const { PublicKey } = await import('@solana/web3.js');
+    const { getTournamentPDA, getTournamentVaultPDA, getTournamentParticipantPDA, PROGRAM_ID } = await import('solana-client');
 
     const authority = getAuthorityKeypair();
     const usdcMint = getUsdcMint();
-    const authorityTokenAccount = await getAssociatedTokenAddress(usdcMint, authority.publicKey);
-    const userTokenAccount = await getAssociatedTokenAddress(usdcMint, new (await import('@solana/web3.js')).PublicKey(walletAddress));
+    const userPubkey = new PublicKey(walletAddress);
+    const userTokenAccount = await getAssociatedTokenAddress(usdcMint, userPubkey);
 
-    res.json({
-      success: true,
-      data: {
-        entryFee: tournament.entryFee.toString(),
-        asset: tournament.asset,
-        name: tournament.name,
-        accounts: {
-          authorityTokenAccount: authorityTokenAccount.toBase58(),
-          userTokenAccount: userTokenAccount.toBase58(),
-          usdcMint: usdcMint.toBase58(),
+    // If tournament has on-chain PDA, return PDA accounts for program instruction
+    if (tournament.onChainPda) {
+      const tournamentPda = new PublicKey(tournament.onChainPda);
+      const vaultPda = new PublicKey(tournament.onChainVault!);
+      const [participantPda] = getTournamentParticipantPDA(tournamentPda, userPubkey);
+
+      res.json({
+        success: true,
+        data: {
+          entryFee: tournament.entryFee.toString(),
+          asset: tournament.asset,
+          name: tournament.name,
+          usePda: true,
+          accounts: {
+            tournamentPda: tournamentPda.toBase58(),
+            vaultPda: vaultPda.toBase58(),
+            participantPda: participantPda.toBase58(),
+            userTokenAccount: userTokenAccount.toBase58(),
+            usdcMint: usdcMint.toBase58(),
+            programId: PROGRAM_ID.toBase58(),
+          },
         },
-      },
-    });
+      });
+    } else {
+      // Legacy: direct transfer to authority ATA
+      const authorityTokenAccount = await getAssociatedTokenAddress(usdcMint, authority.publicKey);
+
+      res.json({
+        success: true,
+        data: {
+          entryFee: tournament.entryFee.toString(),
+          asset: tournament.asset,
+          name: tournament.name,
+          usePda: false,
+          accounts: {
+            authorityTokenAccount: authorityTokenAccount.toBase58(),
+            userTokenAccount: userTokenAccount.toBase58(),
+            usdcMint: usdcMint.toBase58(),
+          },
+        },
+      });
+    }
   } catch (error) {
     console.error('Error preparing registration:', error);
     res.status(500).json({ success: false, error: { code: 'PREPARE_ERROR', message: 'Failed to prepare registration' } });
@@ -164,12 +195,10 @@ tournamentActionRouter.post('/:id/claim-prize', async (req, res) => {
       return res.status(400).json({ success: false, error: { code: 'ALREADY_CLAIMED', message: 'Prize already claimed' } });
     }
 
-    // Calculate prize (after 5% platform fee)
     const prizePool = tournament.prizePool;
     const feeAmount = (prizePool * BigInt(500)) / BigInt(10000);
     const prizeAmount = prizePool - feeAmount;
 
-    // Transfer USDC from authority to winner
     const { getAuthorityKeypair, getUsdcMint, getConnection } = await import('../utils/solana');
     const { getAssociatedTokenAddress, createTransferInstruction, getAccount } = await import('@solana/spl-token');
     const { PublicKey, Transaction } = await import('@solana/web3.js');
@@ -177,26 +206,62 @@ tournamentActionRouter.post('/:id/claim-prize', async (req, res) => {
     const authority = getAuthorityKeypair();
     const usdcMint = getUsdcMint();
     const connection = getConnection();
-
-    const authorityAta = await getAssociatedTokenAddress(usdcMint, authority.publicKey);
     const winnerPubkey = new PublicKey(walletAddress);
     const winnerAta = await getAssociatedTokenAddress(usdcMint, winnerPubkey);
 
-    // Check authority has enough balance
-    const authorityAccount = await getAccount(connection, authorityAta);
-    if (authorityAccount.amount < BigInt(prizeAmount)) {
-      return res.status(500).json({ success: false, error: { code: 'INSUFFICIENT_BALANCE', message: 'Authority wallet has insufficient USDC balance' } });
+    let signature: string;
+
+    if (tournament.onChainPda) {
+      // ── PDA vault flow: build claim_tournament_prize, authority pre-signs, return for user co-sign ──
+      const { getTournamentParticipantPDA, buildClaimTournamentPrizeIx } = await import('solana-client');
+
+      const tournamentPda = new PublicKey(tournament.onChainPda);
+      const vaultPda = new PublicKey(tournament.onChainVault!);
+      const [participantPda] = getTournamentParticipantPDA(tournamentPda, winnerPubkey);
+      const feeWallet = await getAssociatedTokenAddress(usdcMint, authority.publicKey);
+
+      const ix = buildClaimTournamentPrizeIx(
+        tournamentPda, participantPda, vaultPda,
+        winnerAta, winnerPubkey, authority.publicKey, feeWallet,
+      );
+
+      const tx = new Transaction().add(ix);
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = winnerPubkey;
+      tx.partialSign(authority);
+
+      // Return partially-signed tx for user to co-sign
+      const serialized = tx.serialize({ requireAllSignatures: false }).toString('base64');
+
+      return res.json({
+        success: true,
+        data: {
+          prizeAmount: prizeAmount.toString(),
+          feeAmount: feeAmount.toString(),
+          transaction: serialized,
+          usePda: true,
+        },
+      });
+    } else {
+      // ── Legacy flow: authority sends directly from ATA ──
+      const authorityAta = await getAssociatedTokenAddress(usdcMint, authority.publicKey);
+
+      const authorityAccount = await getAccount(connection, authorityAta);
+      if (authorityAccount.amount < BigInt(prizeAmount)) {
+        return res.status(500).json({ success: false, error: { code: 'INSUFFICIENT_BALANCE', message: 'Authority wallet has insufficient USDC balance' } });
+      }
+
+      const ix = createTransferInstruction(authorityAta, winnerAta, authority.publicKey, BigInt(prizeAmount));
+      const tx = new Transaction().add(ix);
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = authority.publicKey;
+      tx.sign(authority);
+
+      signature = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: true });
+      await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
     }
-
-    const ix = createTransferInstruction(authorityAta, winnerAta, authority.publicKey, BigInt(prizeAmount));
-    const tx = new Transaction().add(ix);
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-    tx.recentBlockhash = blockhash;
-    tx.feePayer = authority.publicKey;
-    tx.sign(authority);
-
-    const signature = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: true });
-    await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
 
     // Mark as claimed
     await prisma.tournament.update({

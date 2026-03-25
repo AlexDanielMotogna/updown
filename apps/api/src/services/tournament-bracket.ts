@@ -226,9 +226,10 @@ export async function checkAndAdvanceRound(tournamentId: string) {
 // ─── Get Tournament Bracket ─────────────────────────────────────────────────
 
 export async function getTournamentBracket(tournamentId: string) {
-  const tournament = await prisma.tournament.findUniqueOrThrow({
+  const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
   });
+  if (!tournament) return null;
 
   const [participants, matches, fixtureRows] = await Promise.all([
     prisma.tournamentParticipant.findMany({

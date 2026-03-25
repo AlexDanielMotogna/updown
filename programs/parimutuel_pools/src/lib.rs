@@ -68,6 +68,43 @@ pub mod parimutuel_pools {
     pub fn force_close_pool(ctx: Context<ForceClosePool>) -> Result<()> {
         instructions::force_close_pool::handler(ctx)
     }
+
+    // ── Tournament instructions ──
+
+    /// Initialize a tournament with vault for entry fees
+    pub fn initialize_tournament(
+        ctx: Context<InitializeTournament>,
+        tournament_id: [u8; 32],
+        entry_fee: u64,
+        max_participants: u16,
+    ) -> Result<()> {
+        instructions::initialize_tournament::handler(ctx, tournament_id, entry_fee, max_participants)
+    }
+
+    /// Register as tournament participant (deposits entry fee to vault)
+    pub fn register_participant(ctx: Context<RegisterParticipant>) -> Result<()> {
+        instructions::register_participant::handler(ctx)
+    }
+
+    /// Winner claims prize from tournament vault (5% fee on-chain)
+    pub fn claim_tournament_prize(ctx: Context<ClaimTournamentPrize>) -> Result<()> {
+        instructions::claim_tournament_prize::handler(ctx)
+    }
+
+    /// Cancel tournament (authority only, enables refunds)
+    pub fn cancel_tournament(ctx: Context<CancelTournament>) -> Result<()> {
+        instructions::cancel_tournament::handler(ctx)
+    }
+
+    /// Refund participant entry fee (cancelled tournaments, authority-signed)
+    pub fn refund_participant(ctx: Context<RefundParticipant>) -> Result<()> {
+        instructions::refund_participant::handler(ctx)
+    }
+
+    /// Close tournament + vault, reclaim rent
+    pub fn close_tournament(ctx: Context<CloseTournament>) -> Result<()> {
+        instructions::close_tournament::handler(ctx)
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace)]

@@ -11,7 +11,7 @@ import {
   resolveInviteCode,
   getSquadLeaderboard,
 } from '../services/squads';
-import { createSquadPool } from '../services/squad-pools';
+import { createSquadPool, prepareSquadPool, confirmSquadPool, cancelSquadPool } from '../services/squad-pools';
 import { emitSquadMessage, emitSquadPoolNew, emitSquadMemberJoined } from '../websocket';
 
 export const squadsRouter: RouterType = Router();
@@ -391,6 +391,117 @@ squadsRouter.post('/:id/pools', async (req, res) => {
     }
     console.error('Error creating squad pool:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to create squad pool' } });
+  }
+});
+
+// ─── POST /api/squads/:id/pools/prepare — Prepare pool tx (user pays rent) ──
+
+squadsRouter.post('/:id/pools/prepare', async (req, res) => {
+  try {
+    const body = z.object({
+      wallet: walletSchema,
+      asset: z.string().min(1),
+      durationSeconds: z.number().int().min(60).max(86400),
+      maxBettors: z.number().int().min(2).max(100).optional(),
+    }).safeParse(req.body);
+
+    if (!body.success) {
+      return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid request' } });
+    }
+
+    const result = await prepareSquadPool({
+      wallet: body.data.wallet,
+      squadId: req.params.id,
+      asset: body.data.asset,
+      durationSeconds: body.data.durationSeconds,
+      maxBettors: body.data.maxBettors,
+    });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : '';
+    if (msg === 'NOT_MEMBER') return res.status(403).json({ success: false, error: { code: 'NOT_MEMBER', message: 'Not a member of this squad' } });
+    if (msg === 'INVALID_ASSET') return res.status(400).json({ success: false, error: { code: 'INVALID_ASSET', message: 'Asset must be BTC, ETH, or SOL' } });
+    if (msg === 'INVALID_DURATION') return res.status(400).json({ success: false, error: { code: 'INVALID_DURATION', message: 'Duration must be between 60 and 86400 seconds' } });
+    if (msg === 'INSUFFICIENT_SOL') return res.status(400).json({ success: false, error: { code: 'INSUFFICIENT_SOL', message: 'You need at least 0.01 SOL to create a pool (covers rent + tx fee)' } });
+    console.error('Error preparing squad pool:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to prepare pool' } });
+  }
+});
+
+// ─── POST /api/squads/:id/pools/confirm — Confirm pool after user tx ────────
+
+squadsRouter.post('/:id/pools/confirm', async (req, res) => {
+  try {
+    const body = z.object({
+      wallet: walletSchema,
+      txSignature: z.string().min(1),
+      poolId: z.string().min(1),
+      asset: z.string().min(1),
+      intervalKey: z.string().min(1),
+      durationSeconds: z.number().int(),
+      startTime: z.number().int(),
+      endTime: z.number().int(),
+      lockTime: z.number().int(),
+      strikePrice: z.string().min(1),
+      maxBettors: z.number().int().optional(),
+    }).safeParse(req.body);
+
+    if (!body.success) {
+      return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid request' } });
+    }
+
+    const poolId = await confirmSquadPool({
+      ...body.data,
+      squadId: req.params.id,
+    });
+
+    const pool = await prisma.pool.findUnique({
+      where: { id: poolId },
+      include: { _count: { select: { bets: true } } },
+    });
+
+    if (pool) {
+      emitSquadPoolNew(req.params.id, {
+        ...serializePool(pool),
+        squadId: pool.squadId,
+        maxBettors: pool.maxBettors,
+        betCount: pool._count.bets,
+        upCount: 0,
+        downCount: 0,
+      });
+    }
+
+    res.json({ success: true, data: { poolId } });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : '';
+    if (msg === 'TX_NOT_CONFIRMED') return res.status(400).json({ success: false, error: { code: 'TX_NOT_CONFIRMED', message: 'Transaction not confirmed on-chain' } });
+    console.error('Error confirming squad pool:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to confirm pool' } });
+  }
+});
+
+// ─── POST /api/squads/:id/pools/:poolId/cancel — Creator cancels pool ───────
+
+squadsRouter.post('/:id/pools/:poolId/cancel', async (req, res) => {
+  try {
+    const { wallet } = req.body;
+    if (!wallet) return res.status(400).json({ success: false, error: { code: 'MISSING_WALLET', message: 'wallet required' } });
+
+    await cancelSquadPool({
+      wallet,
+      squadId: req.params.id,
+      poolId: req.params.poolId,
+    });
+
+    res.json({ success: true, data: { message: 'Pool cancelled and rent reclaimed' } });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : '';
+    if (msg === 'NOT_CREATOR') return res.status(403).json({ success: false, error: { code: 'NOT_CREATOR', message: 'Only the pool creator can cancel' } });
+    if (msg === 'HAS_BETS') return res.status(400).json({ success: false, error: { code: 'HAS_BETS', message: 'Cannot cancel pool with existing predictions' } });
+    if (msg === 'WRONG_SQUAD') return res.status(400).json({ success: false, error: { code: 'WRONG_SQUAD', message: 'Pool does not belong to this squad' } });
+    console.error('Error cancelling squad pool:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to cancel pool' } });
   }
 });
 
