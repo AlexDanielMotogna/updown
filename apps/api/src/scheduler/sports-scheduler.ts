@@ -2,6 +2,7 @@ import { prisma } from '../db';
 import { getAdapter } from '../services/sports';
 import type { Match } from '../services/sports/types';
 import { getCachedUpcomingFixtures, getCachedFixtureResults, isFixtureCacheReady } from '../services/sports/fixture-cache';
+import { PM_CATEGORIES } from '../services/sports/polymarket-adapter';
 import { getPoolPDA, getVaultPDA, buildInitializePoolIx, buildResolveWithWinnerIx } from 'solana-client';
 import { derivePoolSeed, getUsdcMint, getConnection, getAuthorityKeypair } from '../utils/solana';
 import { Transaction } from '@solana/web3.js';
@@ -12,28 +13,31 @@ import { generateMatchAnalysis } from '../services/sports/match-analysis';
 const LEAGUES = ['CL', 'PL', 'PD', 'SA', 'BL1', 'FL1']; // UCL, Premier, La Liga, Serie A, Bundesliga, Ligue 1
 const POOL_OPEN_HOURS_BEFORE = 720; // Open pool 30 days before kickoff
 
+/** Derive the correct adapter based on the pool's league code. */
+function getAdapterForLeague(league: string | null | undefined) {
+  if (league?.startsWith('PM_')) return getAdapter('POLYMARKET');
+  return getAdapter('FOOTBALL');
+}
+
 /**
  * Create pools for upcoming matches that don't have pools yet.
  * Runs every 6 hours.
  */
 export async function createMatchPools(): Promise<void> {
+  // ── Football leagues (only if fixture cache is ready) ──
   if (!isFixtureCacheReady()) {
-    console.log('[Sports] Fixture cache not ready yet, skipping this cycle');
-    return;
-  }
-
+    console.log('[Sports] Fixture cache not ready yet, skipping football pools');
+  } else {
   for (const leagueCode of LEAGUES) {
     try {
       const matches = await getCachedUpcomingFixtures('FOOTBALL', leagueCode);
 
       for (const match of matches) {
-        // Skip if pool already exists for this match
         const existing = await prisma.pool.findFirst({
           where: { matchId: match.id, poolType: 'SPORTS' },
         });
         if (existing) continue;
 
-        // Skip if kickoff is more than POOL_OPEN_HOURS_BEFORE away
         const hoursUntilKickoff = (match.kickoff.getTime() - Date.now()) / (1000 * 60 * 60);
         if (hoursUntilKickoff > POOL_OPEN_HOURS_BEFORE || hoursUntilKickoff < 0) continue;
 
@@ -41,6 +45,29 @@ export async function createMatchPools(): Promise<void> {
       }
     } catch (error) {
       console.error(`[Sports] Failed to fetch matches for ${leagueCode}:`, error);
+    }
+  }
+  } // end isFixtureCacheReady
+
+  // ── Polymarket categories (independent of football cache) ──
+  for (const cat of PM_CATEGORIES) {
+    try {
+      const matches = await getCachedUpcomingFixtures('POLYMARKET', cat.code);
+      const maxHours = cat.maxDaysAhead * 24;
+
+      for (const match of matches) {
+        const existing = await prisma.pool.findFirst({
+          where: { matchId: match.id, poolType: 'SPORTS' },
+        });
+        if (existing) continue;
+
+        const hoursUntilKickoff = (match.kickoff.getTime() - Date.now()) / (1000 * 60 * 60);
+        if (hoursUntilKickoff > maxHours || hoursUntilKickoff < 0) continue;
+
+        await createSportsPool(match, cat.code);
+      }
+    } catch (error) {
+      console.error(`[Sports] Failed to create PM pools for ${cat.code}:`, error);
     }
   }
 }
@@ -61,10 +88,8 @@ export async function resolveMatchPools(): Promise<void> {
 
   if (unresolved.length === 0) return;
 
-  const adapter = getAdapter('FOOTBALL');
-
   // Batch read all results from cache (0 API calls!)
-  const matchIds = [...new Set(unresolved.map(p => p.matchId!).filter(Boolean))];
+  const matchIds = [...new Set(unresolved.map((p: { matchId: string | null }) => p.matchId!).filter(Boolean))] as string[];
   const resultMap = await getCachedFixtureResults(matchIds);
 
   for (const pool of unresolved) {
@@ -77,6 +102,8 @@ export async function resolveMatchPools(): Promise<void> {
         continue;
       }
 
+      // Use the correct adapter based on pool league (Football vs Polymarket)
+      const adapter = getAdapterForLeague(pool.league);
       const winnerSide = adapter.resolveWinner(result);
       const winnerLabel = (['UP', 'DOWN', 'DRAW'] as const)[winnerSide];
 
@@ -122,12 +149,19 @@ export async function resolveMatchPools(): Promise<void> {
 async function createSportsPool(match: Match, leagueCode: string): Promise<void> {
   const poolId = crypto.randomUUID();
   const asset = `${leagueCode}:${match.homeTeam}-${match.awayTeam}`.slice(0, 32);
+  const adapter = getAdapterForLeague(leagueCode);
+  const isPolymarket = leagueCode.startsWith('PM_');
 
   const kickoff = match.kickoff;
-  const lockTime = new Date(kickoff.getTime() - 60 * 1000); // Lock 1 min before kickoff
+  const lockTime = isPolymarket
+    ? new Date(kickoff.getTime() - 60 * 60 * 1000) // PM: lock 1h before endDate
+    : new Date(kickoff.getTime() - 60 * 1000);      // Football: lock 1min before kickoff
   const startTime = kickoff;
-  // endTime is set far ahead — resolution is driven by actual match result, not a timer
-  const endTime = new Date(kickoff.getTime() + 6 * 60 * 60 * 1000); // kickoff + 6h (generous buffer for on-chain constraint)
+  const endTime = isPolymarket
+    ? new Date(kickoff.getTime() + 48 * 60 * 60 * 1000) // PM: +48h buffer for UMA resolution
+    : new Date(kickoff.getTime() + 6 * 60 * 60 * 1000); // Football: +6h
+  const durationSeconds = isPolymarket ? 48 * 60 * 60 : 6 * 60 * 60;
+  const interval = isPolymarket ? 'prediction' : 'match';
 
   try {
     const connection = getConnection();
@@ -137,14 +171,19 @@ async function createSportsPool(match: Match, leagueCode: string): Promise<void>
     const [vaultPda] = getVaultPDA(seed);
     const usdcMint = getUsdcMint();
 
+    // Look up cache entry for extra fields (marketOdds, clobTokenIds)
+    const cacheEntry = isPolymarket
+      ? await prisma.sportsFixtureCache.findFirst({ where: { externalId: match.id, sport: 'POLYMARKET' } })
+      : null;
+
     // ── DB-first: insert before on-chain to prevent orphans ──
     await prisma.pool.create({
       data: {
         id: poolId,
         poolId: poolPda.toBase58(),
         asset,
-        interval: 'match',
-        durationSeconds: 6 * 60 * 60,
+        interval,
+        durationSeconds,
         status: 'JOINING',
         startTime,
         endTime,
@@ -153,7 +192,7 @@ async function createSportsPool(match: Match, leagueCode: string): Promise<void>
         totalUp: BigInt(0),
         totalDown: BigInt(0),
         totalDraw: BigInt(0),
-        numSides: 3,
+        numSides: adapter.numSides,
         poolType: 'SPORTS',
         matchId: match.id,
         homeTeam: match.homeTeam,
@@ -161,6 +200,9 @@ async function createSportsPool(match: Match, leagueCode: string): Promise<void>
         homeTeamCrest: match.homeTeamCrest || null,
         awayTeamCrest: match.awayTeamCrest || null,
         league: leagueCode,
+        marketOdds: cacheEntry?.marketOdds ?? null,
+        clobTokenIds: cacheEntry?.clobTokenIds ?? null,
+        matchAnalysis: cacheEntry?.groupItemTitle ?? null, // PM description/rules
       },
     });
 
@@ -175,8 +217,8 @@ async function createSportsPool(match: Match, leagueCode: string): Promise<void>
       Math.floor(startTime.getTime() / 1000),
       Math.floor(endTime.getTime() / 1000),
       Math.floor(lockTime.getTime() / 1000),
-      BigInt(0), // No strike price for sports
-      3,         // 3-way: Home, Away, Draw
+      BigInt(0),
+      adapter.numSides,
     );
 
     const tx = new Transaction().add(ix);
@@ -201,16 +243,18 @@ async function createSportsPool(match: Match, leagueCode: string): Promise<void>
 
     console.log(`[Sports] Created pool for ${match.homeTeam} vs ${match.awayTeam} (${leagueCode}, kickoff: ${kickoff.toISOString()})`);
 
-    // Generate match analysis in background (non-blocking)
-    generateMatchAnalysis(match.id, match.homeTeam, match.awayTeam)
-      .then(analysis => {
-        if (analysis) {
-          prisma.pool.update({ where: { id: poolId }, data: { matchAnalysis: analysis } })
-            .then(() => console.log(`[Sports] Analysis saved for ${match.homeTeam} vs ${match.awayTeam}`))
-            .catch(() => {});
-        }
-      })
-      .catch(() => {});
+    // Generate match analysis in background (non-blocking) — football only
+    if (!isPolymarket) {
+      generateMatchAnalysis(match.id, match.homeTeam, match.awayTeam)
+        .then(analysis => {
+          if (analysis) {
+            prisma.pool.update({ where: { id: poolId }, data: { matchAnalysis: analysis } })
+              .then(() => console.log(`[Sports] Analysis saved for ${match.homeTeam} vs ${match.awayTeam}`))
+              .catch(() => {});
+          }
+        })
+        .catch(() => {});
+    }
   } catch (error) {
     console.error(`[Sports] Failed to create pool for ${match.homeTeam} vs ${match.awayTeam}:`, error);
   }

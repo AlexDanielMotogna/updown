@@ -21,10 +21,11 @@ import { useInfinitePools, useBets, usePriceStream, useIntersectionObserver, typ
 import { PoolTable, AppShell } from '@/components';
 import { MatchCard } from '@/components/sports/MatchCard';
 import { MatchBetModal } from '@/components/sports/MatchBetModal';
-import { MarketFilter } from '@/components/sports/MarketFilter';
+import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter';
 import { TournamentBanner } from '@/components/tournament/TournamentBanner';
 import { CryptoPoolModal } from '@/components/pool/CryptoPoolModal';
 import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR } from '@/lib/constants';
+import { PREDICTION_COLOR } from '@/components/sports/MarketFilter';
 
 const ASSET_FILTERS = [
   { value: 'ALL', label: 'All', icon: <GridView sx={{ fontSize: 16 }} /> },
@@ -83,6 +84,27 @@ const HOW_TO_PLAY_SPORTS = [
   },
 ];
 
+const HOW_TO_PLAY_PREDICTIONS = [
+  {
+    image: '/assets/asset-card-1.png',
+    title: 'Pick a Market',
+    desc: 'Politics, geopolitics, culture, sports futures — real-world events with real odds.',
+    gradient: `linear-gradient(135deg, ${PREDICTION_COLOR}15, ${PREDICTION_COLOR}05)`,
+  },
+  {
+    image: '/assets/asset-card-2.png',
+    title: 'Yes or No',
+    desc: 'Stake USDC on your prediction. All bets go into the pool — winner takes all.',
+    gradient: `linear-gradient(135deg, ${UP_COLOR}15, ${UP_COLOR}05)`,
+  },
+  {
+    image: '/assets/asset-card-3.png',
+    title: 'Collect Winnings',
+    desc: 'Event resolves your way? Claim your share of the entire pool.',
+    gradient: `linear-gradient(135deg, ${GAIN_COLOR}15, ${GAIN_COLOR}05)`,
+  },
+];
+
 export default function MarketsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -91,7 +113,10 @@ export default function MarketsPage() {
   // Read filters from URL (fallback to defaults)
   const assetValues = ASSET_FILTERS.map(f => f.value);
   const intervalValues = INTERVAL_FILTERS.map(f => f.value);
-  const marketType = (searchParams.get('type') === 'SPORTS' ? 'SPORTS' : 'CRYPTO') as 'CRYPTO' | 'SPORTS';
+  const rawType = searchParams.get('type');
+  const validTypes: MarketType[] = ['CRYPTO', 'SPORTS', 'PM_POLITICS', 'PM_GEO', 'PM_CULTURE', 'PM_FINANCE'];
+  const marketType: MarketType = validTypes.includes(rawType as MarketType) ? rawType as MarketType : 'CRYPTO';
+  const isPM = marketType.startsWith('PM_');
   const assetFilter = assetValues.includes(searchParams.get('asset') ?? '') ? searchParams.get('asset')! : 'ALL';
   const intervalFilter = intervalValues.includes(searchParams.get('interval') ?? '') ? searchParams.get('interval')! : 'ALL';
   const leagueFilter = searchParams.get('league') ?? 'ALL';
@@ -111,9 +136,9 @@ export default function MarketsPage() {
   const filters = useMemo(() => ({
     asset: assetFilter === 'ALL' ? undefined : assetFilter,
     interval: intervalFilter === 'ALL' ? undefined : intervalFilter,
-    type: marketType,
-    status: marketType === 'SPORTS' ? 'JOINING,ACTIVE,CLAIMABLE,RESOLVED' : 'JOINING',
-  }), [assetFilter, intervalFilter, marketType]);
+    type: isPM ? 'SPORTS' : marketType,
+    status: marketType === 'SPORTS' || isPM ? 'JOINING,ACTIVE,CLAIMABLE,RESOLVED' : 'JOINING',
+  }), [assetFilter, intervalFilter, marketType, isPM]);
 
   const {
     data,
@@ -168,10 +193,15 @@ export default function MarketsPage() {
   // Split pools by type for conditional rendering
   const cryptoPools = useMemo(() => sortedPools.filter(p => p.poolType !== 'SPORTS'), [sortedPools]);
   const sportsPools = useMemo(() => {
-    const sports = sortedPools.filter(p => p.poolType === 'SPORTS');
+    // Football pools: poolType SPORTS with non-PM league
+    const sports = sortedPools.filter(p => p.poolType === 'SPORTS' && !p.league?.startsWith('PM_'));
     if (leagueFilter === 'ALL') return sports;
     return sports.filter(p => p.league === leagueFilter);
   }, [sortedPools, leagueFilter]);
+  const predictionPools = useMemo(() => {
+    if (!isPM) return [];
+    return sortedPools.filter(p => p.poolType === 'SPORTS' && p.league === marketType);
+  }, [sortedPools, marketType, isPM]);
   const pools = sortedPools;
 
   // Modal states
@@ -193,7 +223,7 @@ export default function MarketsPage() {
                 mb: 3,
               }}
             >
-              {(marketType === 'SPORTS' ? HOW_TO_PLAY_SPORTS : HOW_TO_PLAY_CRYPTO).map((card) => (
+              {(isPM ? HOW_TO_PLAY_PREDICTIONS : marketType === 'SPORTS' ? HOW_TO_PLAY_SPORTS : HOW_TO_PLAY_CRYPTO).map((card) => (
                 <Box
                   key={card.title}
                   sx={{
@@ -239,9 +269,9 @@ export default function MarketsPage() {
             {/* Filters */}
             <MarketFilter
               marketType={marketType}
-              onMarketTypeChange={(v) => {
+              onMarketTypeChange={(v: MarketType) => {
                 const params = new URLSearchParams();
-                if (v === 'SPORTS') params.set('type', 'SPORTS');
+                if (v !== 'CRYPTO') params.set('type', v);
                 const qs = params.toString();
                 router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
               }}
@@ -291,7 +321,23 @@ export default function MarketsPage() {
                     }}
                   >
                     {sportsPools.map((pool) => (
-                      <MatchCard key={pool.id} pool={pool} onClick={() => setSelectedSportsPool(pool)} />
+                      <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} onClick={() => setSelectedSportsPool(pool)} />
+                    ))}
+                  </Box>
+                )}
+
+                {/* Prediction market cards */}
+                {isPM && predictionPools.length > 0 && (
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+                      gap: '3px',
+                      mb: 0,
+                    }}
+                  >
+                    {predictionPools.map((pool) => (
+                      <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} onClick={() => setSelectedSportsPool(pool)} />
                     ))}
                   </Box>
                 )}

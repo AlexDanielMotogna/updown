@@ -2,8 +2,10 @@
 
 import { useState, useRef } from 'react';
 import { Box, Typography, IconButton, Collapse, Popover } from '@mui/material';
-import { ShowChart, SportsSoccer, FilterList, KeyboardArrowDown, Schedule, GridView } from '@mui/icons-material';
+import { ShowChart, SportsSoccer, FilterList, KeyboardArrowDown, Schedule, GridView, TrendingUp, Gavel, Public, TheaterComedy, AccountBalance } from '@mui/icons-material';
 import { UP_COLOR, DRAW_COLOR } from '@/lib/constants';
+
+export const PREDICTION_COLOR = '#A78BFA'; // violet for predictions tab
 
 const SPORT_OPTIONS = [
   { value: 'SOCCER', label: 'Soccer', icon: <SportsSoccer sx={{ fontSize: 18 }} /> },
@@ -17,6 +19,14 @@ const LEAGUE_OPTIONS = [
   { value: 'SA', label: 'Serie A', img: 'https://crests.football-data.org/SA.png' },
   { value: 'BL1', label: 'Bundesliga', img: 'https://crests.football-data.org/BL1.png' },
   { value: 'FL1', label: 'Ligue 1', img: 'https://crests.football-data.org/FL1.png' },
+];
+
+export const PM_CATEGORY_OPTIONS = [
+  { value: 'ALL', label: 'All', img: null, icon: <GridView sx={{ fontSize: 18 }} /> },
+  { value: 'PM_POLITICS', label: 'Politics', img: null, icon: <Gavel sx={{ fontSize: 18 }} /> },
+  { value: 'PM_GEO', label: 'Geopolitics', img: null, icon: <Public sx={{ fontSize: 18 }} /> },
+  { value: 'PM_CULTURE', label: 'Culture', img: null, icon: <TheaterComedy sx={{ fontSize: 18 }} /> },
+  { value: 'PM_FINANCE', label: 'Finance', img: null, icon: <AccountBalance sx={{ fontSize: 18 }} /> },
 ];
 
 interface DropdownProps {
@@ -120,9 +130,11 @@ export function FilterDropdown({ value, label, icon, options, onChange, color }:
   );
 }
 
+export type MarketType = 'CRYPTO' | 'SPORTS' | 'PM_POLITICS' | 'PM_GEO' | 'PM_CULTURE' | 'PM_FINANCE';
+
 interface Props {
-  marketType: 'CRYPTO' | 'SPORTS';
-  onMarketTypeChange: (type: 'CRYPTO' | 'SPORTS') => void;
+  marketType: MarketType;
+  onMarketTypeChange: (type: MarketType) => void;
   assetFilter: string;
   intervalFilter: string;
   onAssetChange: (value: string) => void;
@@ -133,6 +145,15 @@ interface Props {
   onLeagueChange: (value: string) => void;
 }
 
+const TABS: Array<{ key: MarketType; label: string; icon: React.ReactNode; color: string }> = [
+  { key: 'CRYPTO', label: 'Crypto', icon: <ShowChart sx={{ fontSize: 16 }} />, color: UP_COLOR },
+  { key: 'SPORTS', label: 'Sports', icon: <SportsSoccer sx={{ fontSize: 16 }} />, color: DRAW_COLOR },
+  { key: 'PM_POLITICS', label: 'Politics', icon: <Gavel sx={{ fontSize: 16 }} />, color: '#A78BFA' },
+  { key: 'PM_GEO', label: 'Geopolitics', icon: <Public sx={{ fontSize: 16 }} />, color: '#60A5FA' },
+  { key: 'PM_CULTURE', label: 'Culture', icon: <TheaterComedy sx={{ fontSize: 16 }} />, color: '#F472B6' },
+  { key: 'PM_FINANCE', label: 'Finance', icon: <AccountBalance sx={{ fontSize: 16 }} />, color: '#34D399' },
+];
+
 export function MarketFilter({
   marketType, onMarketTypeChange,
   assetFilter, intervalFilter, onAssetChange, onIntervalChange,
@@ -140,20 +161,19 @@ export function MarketFilter({
   leagueFilter, onLeagueChange,
 }: Props) {
   const [showFilters, setShowFilters] = useState(false);
-  const tabColor = marketType === 'CRYPTO' ? UP_COLOR : DRAW_COLOR;
+  const currentTab = TABS.find(t => t.key === marketType) || TABS[0];
+  const tabColor = currentTab.color;
+  const isPM = marketType.startsWith('PM_');
 
   const assetOpts = assetOptions.map(o => ({ ...o, img: o.img || null }));
   const intervalOpts = intervalOptions.map(o => ({ ...o, img: null }));
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 3 }}>
-      {/* Primary tabs: Crypto | Sports + filter icon */}
+      {/* Primary tabs */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Box sx={{ display: 'flex', gap: 0 }}>
-          {[
-            { key: 'CRYPTO' as const, label: 'Crypto', icon: <ShowChart sx={{ fontSize: 16 }} />, color: UP_COLOR },
-            { key: 'SPORTS' as const, label: 'Sports', icon: <SportsSoccer sx={{ fontSize: 16 }} />, color: DRAW_COLOR },
-          ].map((tab) => {
+        <Box sx={{ display: 'flex', gap: 0, overflow: 'auto', '&::-webkit-scrollbar': { display: 'none' } }}>
+          {TABS.map((tab) => {
             const active = marketType === tab.key;
             return (
               <Box
@@ -163,72 +183,49 @@ export function MarketFilter({
                   display: 'flex',
                   alignItems: 'center',
                   gap: 0.75,
-                  px: 2,
+                  px: { xs: 1.25, md: 2 },
                   py: 1,
                   cursor: 'pointer',
                   borderBottom: active ? `2px solid ${tab.color}` : '2px solid transparent',
                   color: active ? tab.color : 'rgba(255,255,255,0.35)',
                   transition: 'all 0.15s ease',
+                  whiteSpace: 'nowrap',
                   '&:hover': { color: tab.color },
                 }}
               >
                 {tab.icon}
-                <Typography sx={{ fontSize: '0.85rem', fontWeight: active ? 700 : 500 }}>
+                <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: active ? 700 : 500 }}>
                   {tab.label}
                 </Typography>
               </Box>
             );
           })}
         </Box>
-        <IconButton
-          onClick={() => setShowFilters(!showFilters)}
-          size="small"
-          sx={{ color: showFilters ? tabColor : 'rgba(255,255,255,0.35)', '&:hover': { color: tabColor } }}
-        >
-          <FilterList sx={{ fontSize: 20 }} />
-        </IconButton>
+        {!isPM && (
+          <IconButton
+            onClick={() => setShowFilters(!showFilters)}
+            size="small"
+            sx={{ color: showFilters ? tabColor : 'rgba(255,255,255,0.35)', '&:hover': { color: tabColor }, flexShrink: 0 }}
+          >
+            <FilterList sx={{ fontSize: 20 }} />
+          </IconButton>
+        )}
       </Box>
 
-      {/* Collapsible filter dropdowns */}
-      <Collapse in={showFilters}>
+      {/* Collapsible filter dropdowns (crypto + sports only) */}
+      <Collapse in={showFilters && !isPM}>
         <Box sx={{ display: 'flex', gap: 1, py: 0.5 }}>
           {marketType === 'CRYPTO' ? (
             <>
-              <FilterDropdown
-                value={assetFilter}
-                label="Asset"
-                options={assetOpts}
-                onChange={onAssetChange}
-                color={UP_COLOR}
-              />
-              <FilterDropdown
-                value={intervalFilter}
-                label="Interval"
-                icon={<Schedule sx={{ fontSize: 18, color: 'rgba(255,255,255,0.5)' }} />}
-                options={intervalOpts}
-                onChange={onIntervalChange}
-                color={UP_COLOR}
-              />
+              <FilterDropdown value={assetFilter} label="Asset" options={assetOpts} onChange={onAssetChange} color={UP_COLOR} />
+              <FilterDropdown value={intervalFilter} label="Interval" icon={<Schedule sx={{ fontSize: 18, color: 'rgba(255,255,255,0.5)' }} />} options={intervalOpts} onChange={onIntervalChange} color={UP_COLOR} />
             </>
-          ) : (
+          ) : marketType === 'SPORTS' ? (
             <>
-              <FilterDropdown
-                value="SOCCER"
-                label="Sport"
-                icon={<SportsSoccer sx={{ fontSize: 18 }} />}
-                options={SPORT_OPTIONS}
-                onChange={() => {}}
-                color={DRAW_COLOR}
-              />
-              <FilterDropdown
-                value={leagueFilter}
-                label="League"
-                options={LEAGUE_OPTIONS}
-                onChange={onLeagueChange}
-                color={DRAW_COLOR}
-              />
+              <FilterDropdown value="SOCCER" label="Sport" icon={<SportsSoccer sx={{ fontSize: 18 }} />} options={SPORT_OPTIONS} onChange={() => {}} color={DRAW_COLOR} />
+              <FilterDropdown value={leagueFilter} label="League" options={LEAGUE_OPTIONS} onChange={onLeagueChange} color={DRAW_COLOR} />
             </>
-          )}
+          ) : null}
         </Box>
       </Collapse>
     </Box>
