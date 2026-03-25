@@ -30,6 +30,7 @@ import { SquadChat } from '@/components/squad/SquadChat';
 import { SquadMemberList } from '@/components/squad/SquadMemberList';
 import { SquadLeaderboard } from '@/components/squad/SquadLeaderboard';
 import { CreateSquadPoolForm } from '@/components/squad/CreateSquadPoolForm';
+import { cancelSquadPool } from '@/lib/api';
 import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR, getAvatarUrl } from '@/lib/constants';
 import {
   useSquad,
@@ -310,13 +311,39 @@ export default function SquadDetailPage() {
                 </Typography>
               </Box>
             ) : (
-              <PoolTable
-                pools={poolList}
-                userBetByPoolId={userBetByPoolId}
-                getPrice={getPrice}
-                popularPoolIds={new Set()}
-                alwaysShowView
-              />
+              <>
+                <PoolTable
+                  pools={poolList}
+                  userBetByPoolId={userBetByPoolId}
+                  getPrice={getPrice}
+                  popularPoolIds={new Set()}
+                  alwaysShowView
+                />
+                {/* Cancel buttons for user's empty pools */}
+                {pools?.filter(p => p.betCount === 0 && p.status === 'JOINING').map(p => (
+                  <Box key={p.id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1, bgcolor: 'rgba(255,255,255,0.02)' }}>
+                    <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>
+                      {p.asset} · {p.interval} · No predictions yet
+                    </Typography>
+                    <Button
+                      size="small"
+                      color="error"
+                      onClick={async () => {
+                        if (!walletAddress) return;
+                        try {
+                          await cancelSquadPool(id, p.id, walletAddress);
+                          window.location.reload();
+                        } catch (err) {
+                          alert(err instanceof Error ? err.message : 'Failed to cancel');
+                        }
+                      }}
+                      sx={{ fontSize: '0.7rem', textTransform: 'none' }}
+                    >
+                      Cancel Pool
+                    </Button>
+                  </Box>
+                ))}
+              </>
             )}
           </Box>
         )}

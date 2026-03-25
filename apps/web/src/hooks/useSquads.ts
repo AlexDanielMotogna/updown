@@ -187,8 +187,6 @@ export function useJoinSquad() {
 export function useCreateSquadPool(squadId: string) {
   const { walletAddress, sendTransaction } = useWalletBridge();
   const queryClient = useQueryClient();
-  const { useSolanaConnection } = require('@/app/providers');
-  const connection = useSolanaConnection();
 
   return useMutation({
     mutationFn: async (params: { asset: string; durationSeconds: number; maxBettors?: number }) => {
@@ -201,14 +199,16 @@ export function useCreateSquadPool(squadId: string) {
       }
 
       // Step 2: User signs + sends
-      const { Transaction } = await import('@solana/web3.js');
+      const { Transaction, Connection } = await import('@solana/web3.js');
       const tx = Transaction.from(Buffer.from(prepRes.data.transaction, 'base64'));
       const signature = await sendTransaction(tx);
 
       // Step 3: Wait for confirmation
+      const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
+      const conn = new Connection(rpcUrl, 'confirmed');
       const startTime = Date.now();
       while (Date.now() - startTime < 60_000) {
-        const status = await connection.getSignatureStatus(signature, { searchTransactionHistory: true });
+        const status = await conn.getSignatureStatus(signature, { searchTransactionHistory: true });
         if (status?.value?.confirmationStatus === 'confirmed' || status?.value?.confirmationStatus === 'finalized') break;
         if (status?.value?.err) throw new Error('Transaction failed on-chain');
         await new Promise(r => setTimeout(r, 3000));
