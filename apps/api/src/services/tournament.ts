@@ -1,5 +1,6 @@
 import { prisma } from '../db';
 import { generateRoundMatchesTx } from './tournament-bracket';
+import { assignMatchdayToRound } from './tournament-sports';
 
 // Re-export everything from tournament-bracket so existing imports keep working
 export {
@@ -36,8 +37,11 @@ export async function createTournament(data: {
   matchDuration: number;
   predictionWindow?: number;
   scheduledAt?: string;
+  tournamentType?: string;
+  sport?: string;
+  league?: string;
 }) {
-  const { name, asset, entryFee, size, matchDuration, predictionWindow, scheduledAt } = data;
+  const { name, asset, entryFee, size, matchDuration, predictionWindow, scheduledAt, tournamentType, sport, league } = data;
 
   if (!VALID_SIZES.includes(size)) {
     throw new Error(`Invalid tournament size: ${size}. Must be one of ${VALID_SIZES.join(', ')}`);
@@ -58,6 +62,9 @@ export async function createTournament(data: {
       currentRound: 0,
       prizePool: BigInt(0),
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+      tournamentType: tournamentType || 'CRYPTO',
+      sport: sport || null,
+      league: league || null,
     },
   });
 }
@@ -122,7 +129,7 @@ export async function registerParticipant(
 // ─── 3. Start Tournament ─────────────────────────────────────────────────────
 
 export async function startTournament(tournamentId: string) {
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const tournament = await tx.tournament.findUniqueOrThrow({
       where: { id: tournamentId },
     });
@@ -166,8 +173,17 @@ export async function startTournament(tournamentId: string) {
     const playerWallets = shuffled.map((p) => p.walletAddress);
     const matches = await generateRoundMatchesTx(tx, tournamentId, 1, playerWallets, tournament.predictionWindow);
 
-    return matches;
+    return { matches, tournamentType: tournament.tournamentType, league: tournament.league, sport: tournament.sport, matchConfig: tournament.matchConfig };
   });
+
+  // For sports tournaments, assign matchday fixtures to round 1
+  if (result.tournamentType === 'SPORTS' && result.league) {
+    await assignMatchdayToRound(tournamentId, 1, result.league, result.sport || 'FOOTBALL').catch(err =>
+      console.error('[Tournament] Failed to assign matchday to round 1:', err)
+    );
+  }
+
+  return result.matches;
 }
 
 // ─── 4. Cancel Tournament ────────────────────────────────────────────────────

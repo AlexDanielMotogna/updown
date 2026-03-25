@@ -19,18 +19,28 @@ const BANNER_THEMES = [
   { bg: 'linear-gradient(135deg, rgba(244,63,94,0.08), rgba(244,63,94,0.02))', border: 'rgba(244,63,94,0.2)', accent: '#F43F5E' },
 ];
 
+const LEAGUE_LABELS: Record<string, string> = {
+  CL: 'Champions League', PL: 'Premier League', PD: 'La Liga',
+  SA: 'Serie A', BL1: 'Bundesliga', FL1: 'Ligue 1',
+};
+
 function BannerSlide({ t, theme }: { t: TournamentSummary; theme: typeof BANNER_THEMES[0] }) {
   const entryFeeUsdc = (Number(t.entryFee) / 1_000_000).toFixed(2);
   const totalPot = (Number(t.entryFee) * t.size / 1_000_000).toFixed(2);
   const filled = t.participantCount ?? t._count?.participants ?? 0;
-  const matchMins = Math.floor(Number(t.matchDuration) / 60);
   const isRegistering = t.status === 'REGISTERING';
+  const isSports = t.tournamentType === 'SPORTS';
+  const leagueName = isSports && t.league ? (LEAGUE_LABELS[t.league] || t.league) : t.asset;
+  const matchInfo = isSports ? 'real match results' : `${Math.floor(Number(t.matchDuration) / 60)}min matches`;
+  const imgSrc = isSports && t.league
+    ? `https://crests.football-data.org/${t.league}.png`
+    : `/tournaments/tournament-${t.asset.toLowerCase()}.png`;
 
   const title = isRegistering ? `$${totalPot} tournament now open` : `$${totalPot} tournament in progress`;
   const scheduledStr = t.scheduledAt ? formatDate(t.scheduledAt) : null;
   const subtitle = isRegistering
-    ? `${t.size}-player ${t.asset} bracket with ${matchMins}min matches. ${filled} registered, ${t.size - filled} spots left.${scheduledStr ? ` Starts ${scheduledStr}.` : ''}`
-    : `${t.size}-player ${t.asset} bracket with ${matchMins}min matches. Round ${t.currentRound} of ${t.totalRounds}.`;
+    ? `${t.size}-player ${leagueName} bracket with ${matchInfo}. ${filled} registered, ${t.size - filled} spots left.${scheduledStr ? ` Starts ${scheduledStr}.` : ''}`
+    : `${t.size}-player ${leagueName} bracket with ${matchInfo}. Round ${t.currentRound} of ${t.totalRounds}.`;
 
   return (
     <Link href={`/tournament/${t.id}`} style={{ textDecoration: 'none' }}>
@@ -49,9 +59,9 @@ function BannerSlide({ t, theme }: { t: TournamentSummary; theme: typeof BANNER_
         <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 1.5, px: 1.5, py: 0.75 }}>
           <Box
             component="img"
-            src={`/tournaments/tournament-${t.asset.toLowerCase()}.png`}
+            src={imgSrc}
             alt={t.asset}
-            sx={{ width: 80, height: 80, objectFit: 'contain', flexShrink: 0 }}
+            sx={{ width: 80, height: 80, objectFit: 'contain', flexShrink: 0, ...(isSports && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '8px', width: 56, height: 56 }) }}
           />
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: '#fff' }}>{title}</Typography>
@@ -76,9 +86,9 @@ function BannerSlide({ t, theme }: { t: TournamentSummary; theme: typeof BANNER_
         <Box sx={{ display: { xs: 'flex', md: 'none' }, alignItems: 'center', gap: 1, px: 1, py: 0.75 }}>
           <Box
             component="img"
-            src={`/tournaments/tournament-${t.asset.toLowerCase()}.png`}
+            src={imgSrc}
             alt={t.asset}
-            sx={{ width: 52, height: 52, objectFit: 'contain', flexShrink: 0 }}
+            sx={{ width: 52, height: 52, objectFit: 'contain', flexShrink: 0, ...(isSports && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '6px', width: 40, height: 40 }) }}
           />
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography sx={{ fontWeight: 800, fontSize: '0.82rem', color: '#fff', lineHeight: 1.3 }}>{title}</Typography>

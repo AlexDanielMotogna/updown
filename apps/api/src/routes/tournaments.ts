@@ -5,6 +5,7 @@ import {
   getTournamentBracket,
   getActiveBanner,
 } from '../services/tournament';
+import { getSideLabels } from '../services/sports';
 import { serializeBigInt } from './tournament-helpers';
 import { tournamentActionRouter } from './tournament-actions';
 
@@ -21,6 +22,7 @@ export { serializeBigInt, requireAdmin } from './tournament-helpers';
 // GET / — list tournaments with optional status filter
 const listFilterSchema = z.object({
   status: z.string().optional(),
+  type: z.enum(['CRYPTO', 'SPORTS']).optional(),
 });
 
 tournamentRouter.get('/', async (req, res) => {
@@ -33,10 +35,13 @@ tournamentRouter.get('/', async (req, res) => {
       });
     }
 
-    const { status } = parsed.data;
+    const { status, type } = parsed.data;
     const where: any = {};
     if (status) {
       where.status = status.toUpperCase();
+    }
+    if (type) {
+      where.tournamentType = type;
     }
 
     const tournaments = await prisma.tournament.findMany({
@@ -54,6 +59,7 @@ tournamentRouter.get('/', async (req, res) => {
         ...t,
         participantCount: t._count.participants,
         participantWallets: t.participants.map(p => p.walletAddress),
+        sideLabels: t.tournamentType === 'SPORTS' ? getSideLabels(t.sport) : undefined,
         participants: undefined,
         _count: undefined,
       })),
@@ -71,6 +77,9 @@ tournamentRouter.get('/', async (req, res) => {
 tournamentRouter.get('/active-banner', async (_req, res) => {
   try {
     const banner = await getActiveBanner();
+    if (banner && banner.tournamentType === 'SPORTS') {
+      (banner as any).sideLabels = getSideLabels(banner.sport);
+    }
     res.json({ success: true, data: banner ? serializeBigInt(banner) : null });
   } catch (error) {
     console.error('Error fetching active banner:', error);
@@ -139,6 +148,7 @@ tournamentRouter.get('/:id', async (req, res) => {
       data: serializeBigInt({
         ...tournament,
         participantCount: tournament._count.participants,
+        sideLabels: tournament.tournamentType === 'SPORTS' ? getSideLabels(tournament.sport) : undefined,
         _count: undefined,
       }),
     });
@@ -191,7 +201,13 @@ tournamentRouter.get('/:id/bracket', async (req, res) => {
       }
     }
 
-    res.json({ success: true, data: serializeBigInt(bracket) });
+    const sideLabels = bracket.tournament.tournamentType === 'SPORTS'
+      ? getSideLabels(bracket.tournament.sport)
+      : undefined;
+    res.json({ success: true, data: serializeBigInt({
+      ...bracket,
+      tournament: { ...bracket.tournament, sideLabels },
+    }) });
   } catch (error) {
     console.error('Error fetching bracket:', error);
     res.status(500).json({

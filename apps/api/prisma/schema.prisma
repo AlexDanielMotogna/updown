@@ -330,9 +330,14 @@ model Tournament {
   createdAt     DateTime  @default(now()) @map("created_at")
   startedAt     DateTime? @map("started_at")
   completedAt   DateTime? @map("completed_at")
+  tournamentType String   @default("CRYPTO") @map("tournament_type") // CRYPTO | SPORTS
+  sport          String?                             // FOOTBALL
+  league         String?                             // CL, PL, PD, etc.
+  matchConfig    String?  @map("match_config")       // JSON: pre-configured matches per round
 
   participants TournamentParticipant[]
   matches      TournamentMatch[]
+  fixtures     TournamentRoundFixture[]
 
   @@index([status])
   @@map("tournaments")
@@ -361,15 +366,19 @@ model TournamentMatch {
   matchIndex          Int       @map("match_index")
   player1Wallet       String?   @map("player1_wallet")
   player2Wallet       String?   @map("player2_wallet")
-  player1Prediction   BigInt?   @map("player1_prediction")
-  player2Prediction   BigInt?   @map("player2_prediction")
+  player1Prediction   String?   @map("player1_prediction")   // Crypto: numeric string. Sports: JSON {outcomes, totalGoals}
+  player2Prediction   String?   @map("player2_prediction")
   player1PredictedAt  DateTime? @map("player1_predicted_at")
   player2PredictedAt  DateTime? @map("player2_predicted_at")
+  player1TotalGoals   Int?      @map("player1_total_goals")  // Sports tiebreaker
+  player2TotalGoals   Int?      @map("player2_total_goals")
+  player1Score        Int?      @map("player1_score")         // Sports: correct predictions count
+  player2Score        Int?      @map("player2_score")
   predictionDeadline  DateTime? @map("prediction_deadline")
   startTime           DateTime? @map("start_time")
   endTime             DateTime? @map("end_time")
-  strikePrice         BigInt?   @map("strike_price")
-  finalPrice          BigInt?   @map("final_price")
+  strikePrice         String?   @map("strike_price")          // Crypto only
+  finalPrice          String?   @map("final_price")           // Crypto: numeric. Sports: JSON outcomes
   winnerWallet        String?   @map("winner_wallet")
   status              String    @default("PENDING") // PENDING, ACTIVE, RESOLVED, BYE
   createdAt           DateTime  @default(now()) @map("created_at")
@@ -380,4 +389,58 @@ model TournamentMatch {
   @@unique([tournamentId, round, matchIndex])
   @@index([tournamentId, round])
   @@map("tournament_matches")
+}
+
+model TournamentRoundFixture {
+  id              String    @id @default(uuid())
+  tournamentId    String    @map("tournament_id")
+  round           Int
+  fixtureIndex    Int       @map("fixture_index")
+  footballMatchId String    @map("football_match_id")
+  homeTeam        String    @map("home_team")
+  awayTeam        String    @map("away_team")
+  homeTeamCrest   String?   @map("home_team_crest")
+  awayTeamCrest   String?   @map("away_team_crest")
+  kickoff         DateTime?
+  resultHome      Int?      @map("result_home")
+  resultAway      Int?      @map("result_away")
+  resultOutcome   String?   @map("result_outcome")  // HOME | DRAW | AWAY
+  status          String    @default("SCHEDULED")    // SCHEDULED | LIVE | FINISHED
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id])
+
+  @@unique([tournamentId, round, fixtureIndex])
+  @@index([tournamentId, round])
+  @@map("tournament_round_fixtures")
+}
+
+model SportsFixtureCache {
+  id            String   @id @default(uuid())
+  externalId    String   @map("external_id")
+  sport         String
+  league        String
+  leagueName    String   @map("league_name")
+  season        Int?
+  matchday      Int?
+  homeTeam      String   @map("home_team")
+  awayTeam      String   @map("away_team")
+  homeTeamCrest String?  @map("home_team_crest")
+  awayTeamCrest String?  @map("away_team_crest")
+  kickoff       DateTime
+  status        String   @default("SCHEDULED")
+  homeScore     Int?     @map("home_score")
+  awayScore     Int?     @map("away_score")
+  winner        String?
+  apiSource     String   @default("football-data") @map("api_source")
+  lastSyncedAt  DateTime @map("last_synced_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([externalId, sport, apiSource])
+  @@index([sport, league, kickoff])
+  @@index([sport, league, status])
+  @@index([status, kickoff])
+  @@index([externalId])
+  @@map("sports_fixture_cache")
 }

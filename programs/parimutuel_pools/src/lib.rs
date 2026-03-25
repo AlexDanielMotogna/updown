@@ -63,6 +63,11 @@ pub mod parimutuel_pools {
     pub fn close_pool(ctx: Context<ClosePool>) -> Result<()> {
         instructions::close_pool::handler(ctx)
     }
+
+    /// Force-close a resolved pool bypassing vault seeds check (orphan recovery)
+    pub fn force_close_pool(ctx: Context<ForceClosePool>) -> Result<()> {
+        instructions::force_close_pool::handler(ctx)
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace)]

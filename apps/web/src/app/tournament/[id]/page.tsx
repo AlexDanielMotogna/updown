@@ -11,7 +11,7 @@ import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { usePriceStream } from '@/hooks/usePriceStream';
 import { useTournamentRegister } from '@/hooks/useTournamentRegister';
 import { AppShell } from '@/components';
-import { SURFACE, BORDER, MATCH_W, CARD_H, truncate } from '@/components/tournament/tournament-utils';
+import { SURFACE, BORDER, MATCH_W, CARD_H, truncate, getHeaderHeight } from '@/components/tournament/tournament-utils';
 import { BracketRound, Connectors } from '@/components/tournament/BracketRound';
 import { TournamentHeader } from '@/components/tournament/TournamentHeader';
 import { TournamentRulesDialog } from '@/components/tournament/TournamentRulesDialog';
@@ -157,6 +157,7 @@ export default function TournamentBracketPage() {
         tournament={t}
         entryFee={entryFee}
         prizePool={prizePool}
+        sideLabels={t.sideLabels}
       />
 
       {/* ══════ BRACKET VISUALIZATION ══════ */}
@@ -205,15 +206,19 @@ export default function TournamentBracketPage() {
                       asset={t.asset}
                       livePrice={livePrice}
                       onRefresh={load}
+                      isSports={t.tournamentType === 'SPORTS'}
+                      fixtureCount={bracket?.fixtures?.[rn]?.length || 0}
+                      fixtures={bracket?.fixtures?.[rn]}
+                      sideLabels={t.sideLabels}
                     />
-                    {!isLast && expectedMatches > 1 && <Connectors matchCount={expectedMatches} roundNum={rn} />}
+                    {!isLast && expectedMatches > 1 && <Connectors matchCount={expectedMatches} roundNum={rn} headerHeight={getHeaderHeight(t.tournamentType === 'SPORTS' ? (bracket?.fixtures?.[rn]?.length || 0) : 0)} />}
                   </Box>
                 );
               })}
 
               {/* Champion card — same style as match cards */}
               <Box sx={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-                <Box sx={{ height: 20, mb: 2 }} />
+                <Box sx={{ height: getHeaderHeight(t.tournamentType === 'SPORTS' ? (bracket?.fixtures?.[allRounds[allRounds.length - 1]]?.length || 0) : 0) - 18 }} />
                 <Box sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
                   <Box sx={{ width: 32, display: 'flex', alignItems: 'center', flexShrink: 0, mx: 0.5 }}>
                     <Box sx={{ width: '100%', borderTop: `1px solid rgba(255,255,255,0.08)` }} />

@@ -8,6 +8,18 @@ export const CARD_H = 124;
 export const CARD_GAP = 32;
 export const PREDICT_COLOR = '#818CF8';
 
+// Header = label (20px) + gap (16px) + optional fixtures info
+const LABEL_H = 20;
+const LABEL_GAP = 16;
+const FIXTURE_ROW_H = 18; // each fixture row ~18px
+const FIXTURE_GAP = 12;   // gap after fixtures block
+
+export function getHeaderHeight(fixtureCount: number): number {
+  const base = LABEL_H + LABEL_GAP;
+  if (fixtureCount <= 0) return base;
+  return base + fixtureCount * FIXTURE_ROW_H + FIXTURE_GAP;
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 export function truncate(w: string | null) {
@@ -33,4 +45,52 @@ export function formatDistance(prediction: string, finalPrice: string): string {
   const abs = Math.abs(diff);
   const prefix = diff >= 0 ? '+' : '-';
   return `${prefix}$${abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+// ─── Sports helpers ─────────────────────────────────────────────────────────
+
+export interface MatchdayPrediction {
+  outcomes: string[];
+  totalGoals: number;
+}
+
+export function parseMatchdayPrediction(raw: string | null): MatchdayPrediction | null {
+  if (!raw) return null;
+  try {
+    const p = JSON.parse(raw);
+    return { outcomes: p.outcomes || [], totalGoals: p.totalGoals ?? 0 };
+  } catch {
+    return null;
+  }
+}
+
+export function formatOutcome(outcome: string | null | undefined, sideLabels?: string[]): string {
+  if (!outcome) return '—';
+  // Dynamic: map key back to display label
+  if (sideLabels) {
+    const idx = sideLabels.findIndex(l => l.toUpperCase() === outcome);
+    if (idx >= 0) return sideLabels[idx];
+  }
+  // Default fallback
+  if (outcome === 'HOME') return 'Home';
+  if (outcome === 'DRAW') return 'Draw';
+  if (outcome === 'AWAY') return 'Away';
+  // Legacy single-value format
+  const n = Number(outcome);
+  if (n === 1) return 'Home';
+  if (n === 2) return 'Draw';
+  if (n === 3) return 'Away';
+  return '—';
+}
+
+/** Default sideLabels for 3-way sports (football) */
+export const DEFAULT_SIDE_LABELS = ['Home', 'Draw', 'Away'];
+
+export function formatScore(correct: number | null | undefined, total: number): string {
+  if (correct == null) return '—';
+  return `${correct}/${total}`;
+}
+
+export function isSportsTournament(tournament: { tournamentType?: string } | null): boolean {
+  return tournament?.tournamentType === 'SPORTS';
 }

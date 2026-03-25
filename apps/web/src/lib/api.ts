@@ -646,6 +646,10 @@ export interface TournamentSummary {
   participantCount: number;
   participantWallets?: string[];
   _count?: { participants: number };
+  tournamentType?: string;
+  sport?: string | null;
+  league?: string | null;
+  sideLabels?: string[];
 }
 
 export interface TournamentMatchData {
@@ -658,6 +662,10 @@ export interface TournamentMatchData {
   player2Prediction: string | null;
   player1PredictedAt: string | null;
   player2PredictedAt: string | null;
+  player1TotalGoals?: number | null;
+  player2TotalGoals?: number | null;
+  player1Score?: number | null;
+  player2Score?: number | null;
   predictionDeadline: string | null;
   startTime: string | null;
   endTime: string | null;
@@ -667,14 +675,34 @@ export interface TournamentMatchData {
   status: string;
 }
 
+export interface TournamentFixture {
+  id: string;
+  round: number;
+  fixtureIndex: number;
+  footballMatchId: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeTeamCrest?: string | null;
+  awayTeamCrest?: string | null;
+  kickoff?: string | null;
+  resultHome?: number | null;
+  resultAway?: number | null;
+  resultOutcome?: string | null;
+  status: string;
+}
+
 export interface TournamentBracket {
   tournament: TournamentSummary;
   participants: Array<{ walletAddress: string; seed: number; eliminatedRound: number | null }>;
   rounds: Record<number, TournamentMatchData[]>;
+  fixtures?: Record<number, TournamentFixture[]>;
 }
 
-export async function fetchTournaments(status?: string): Promise<ApiResponse<TournamentSummary[]>> {
-  const query = status ? `?status=${status}` : '';
+export async function fetchTournaments(status?: string, type?: string): Promise<ApiResponse<TournamentSummary[]>> {
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (type) params.set('type', type);
+  const query = params.toString() ? `?${params.toString()}` : '';
   return fetchApi<TournamentSummary[]>(`/api/tournaments${query}`);
 }
 

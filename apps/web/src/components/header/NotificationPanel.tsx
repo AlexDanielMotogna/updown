@@ -217,7 +217,11 @@ export function NotificationPanel() {
                           ) : (n.type === 'DEPOSIT_SUCCESS' || n.type === 'TOURNAMENT_ENTRY_PAID') ? (
                             getSeverityIcon(n.severity, n.type)
                           ) : n.type.startsWith('TOURNAMENT_') && n.asset ? (
-                            <Box component="img" src={`/tournaments/tournament-${n.asset.toLowerCase()}.png`} alt={n.asset} sx={{ width: 22, height: 22, objectFit: 'contain' }} />
+                            n.asset.includes(':') ? (
+                              <Box component="img" src={`https://crests.football-data.org/${n.asset.split(':')[1]}.png`} alt="" sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
+                            ) : (
+                              <Box component="img" src={`/tournaments/tournament-${n.asset.toLowerCase()}.png`} alt={n.asset} sx={{ width: 22, height: 22, objectFit: 'contain' }} />
+                            )
                           ) : n.asset && !n.asset.includes(':') ? (
                             <AssetIcon asset={n.asset} size={18} />
                           ) : (

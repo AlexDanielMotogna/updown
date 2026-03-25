@@ -11,6 +11,8 @@ export interface Match {
   status: MatchStatus;
   homeScore?: number;
   awayScore?: number;
+  matchday?: number;
+  season?: number;
 }
 
 export type MatchStatus = 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'POSTPONED' | 'CANCELLED';
@@ -30,4 +32,9 @@ export interface SportAdapter {
   fetchUpcomingMatches(league: string): Promise<Match[]>;
   fetchMatchResult(matchId: string): Promise<MatchResult | null>;
   resolveWinner(result: MatchResult): number; // 0=home, 1=away, 2=draw
+
+  /** Fetch fixtures in a date range. Used by fixture sync job. */
+  fetchMatchesByDateRange(league: string, dateFrom: string, dateTo: string): Promise<Match[]>;
+  /** Batch fetch multiple match results (optional — API-Football supports it). */
+  fetchMatchResultsBatch?(matchIds: string[]): Promise<MatchResult[]>;
 }

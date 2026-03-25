@@ -1,8 +1,8 @@
 'use client';
 
 import { Box, Typography } from '@mui/material';
-import { type TournamentMatchData } from '@/lib/api';
-import { CARD_H, CARD_GAP, getRoundLabel } from './tournament-utils';
+import { type TournamentMatchData, type TournamentFixture } from '@/lib/api';
+import { CARD_H, CARD_GAP, getRoundLabel, getHeaderHeight } from './tournament-utils';
 import { MatchCard, EmptyMatchCard } from './MatchCard';
 
 export function BracketRound({
@@ -15,6 +15,10 @@ export function BracketRound({
   asset,
   livePrice,
   onRefresh,
+  isSports,
+  fixtureCount,
+  fixtures,
+  sideLabels,
 }: {
   roundNum: number;
   expectedMatchCount: number;
@@ -25,35 +29,54 @@ export function BracketRound({
   asset: string;
   livePrice: string | null;
   onRefresh: () => void;
+  isSports?: boolean;
+  fixtureCount?: number;
+  fixtures?: TournamentFixture[];
+  sideLabels?: string[];
 }) {
   const rn = Number(roundNum);
   const tr = Number(totalRounds);
   const label = getRoundLabel(rn, tr);
-
   const sorted = [...matches].sort((a, b) => a.matchIndex - b.matchIndex);
-
-  // Each card occupies a "slot". In round 1, slot = CARD_H.
-  // In round 2, each card is centered between 2 round-1 slots, so slot = 2 * round1Slot.
-  // Slot height for round r: CARD_H * 2^(r-1) + CARD_GAP * (2^(r-1) - 1)
   const slotH = CARD_H * Math.pow(2, rn - 1) + CARD_GAP * (Math.pow(2, rn - 1) - 1);
+  const headerH = getHeaderHeight(isSports ? (fixtureCount || 0) : 0);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-      <Typography
-        sx={{
-          fontSize: '0.68rem',
-          fontWeight: 600,
-          color: 'rgba(255,255,255,0.3)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-          textAlign: 'center',
-          mb: 2,
-          height: 20,
-        }}
-      >
-        {label}
-      </Typography>
+      {/* Fixed-height header: label + optional fixtures */}
+      <Box sx={{ height: headerH, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+        <Typography
+          sx={{
+            fontSize: '0.68rem',
+            fontWeight: 600,
+            color: 'rgba(255,255,255,0.3)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            textAlign: 'center',
+            height: 20,
+            lineHeight: '20px',
+          }}
+        >
+          {label}
+        </Typography>
 
+        {isSports && fixtures && fixtures.length > 0 && (
+          <Box sx={{ mt: '4px', textAlign: 'center' }}>
+            {fixtures.map((f, i) => (
+              <Box key={i} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, height: 18 }}>
+                {f.homeTeamCrest && <Box component="img" src={f.homeTeamCrest} alt="" sx={{ width: 12, height: 12, objectFit: 'contain' }} />}
+                <Typography sx={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.6)', fontWeight: 600, lineHeight: 1 }}>
+                  {f.homeTeam} vs {f.awayTeam}
+                  {f.resultHome != null ? ` (${f.resultHome}-${f.resultAway})` : ''}
+                </Typography>
+                {f.awayTeamCrest && <Box component="img" src={f.awayTeamCrest} alt="" sx={{ width: 12, height: 12, objectFit: 'contain' }} />}
+              </Box>
+            ))}
+          </Box>
+        )}
+      </Box>
+
+      {/* Match cards */}
       <Box sx={{ display: 'flex', flexDirection: 'column' }}>
         {Array.from({ length: expectedMatchCount }).map((_, i) => {
           const match = sorted.find(m => m.matchIndex === i);
@@ -76,6 +99,10 @@ export function BracketRound({
                   asset={asset}
                   livePrice={livePrice}
                   onRefresh={onRefresh}
+                  isSports={isSports}
+                  fixtureCount={fixtureCount}
+                  fixtures={fixtures}
+                  sideLabels={sideLabels}
                 />
               ) : (
                 <EmptyMatchCard matchLabel={`Match ${rn}.${i + 1}`} />
@@ -90,14 +117,12 @@ export function BracketRound({
 
 // ─── Connector Lines ─────────────────────────────────────────────────────────
 
-export function Connectors({ matchCount, roundNum }: { matchCount: number; roundNum: number }) {
+export function Connectors({ matchCount, roundNum, headerHeight }: { matchCount: number; roundNum: number; headerHeight: number }) {
   const pairs = Math.floor(matchCount / 2);
   if (pairs === 0) return null;
 
-  // Slot height matches BracketRound's calculation
   const rn = Number(roundNum);
   const slotH = CARD_H * Math.pow(2, rn - 1) + CARD_GAP * (Math.pow(2, rn - 1) - 1);
-  // Each connector pair spans 2 slots + the gap between them
   const pairH = slotH * 2 + CARD_GAP;
 
   return (
@@ -108,7 +133,7 @@ export function Connectors({ matchCount, roundNum }: { matchCount: number; round
         width: 32,
         flexShrink: 0,
         mx: 0.5,
-        pt: '36px', // 20px label height + 16px mb:2
+        pt: `${headerHeight}px`,
       }}
     >
       {Array.from({ length: pairs }).map((_, i) => (
@@ -120,13 +145,9 @@ export function Connectors({ matchCount, roundNum }: { matchCount: number; round
             mb: i < pairs - 1 ? `${CARD_GAP}px` : 0,
           }}
         >
-          {/* Top arm: from center of top card to middle */}
           <Box sx={{ position: 'absolute', top: slotH / 2, left: 0, width: '50%', borderTop: '1px solid rgba(255,255,255,0.08)' }} />
-          {/* Bottom arm: from center of bottom card to middle */}
           <Box sx={{ position: 'absolute', top: slotH + CARD_GAP + slotH / 2, left: 0, width: '50%', borderTop: '1px solid rgba(255,255,255,0.08)' }} />
-          {/* Vertical: connecting top and bottom arms */}
           <Box sx={{ position: 'absolute', top: slotH / 2, left: '50%', height: slotH + CARD_GAP, borderLeft: '1px solid rgba(255,255,255,0.08)' }} />
-          {/* Output: from vertical midpoint to right */}
           <Box sx={{ position: 'absolute', top: pairH / 2, left: '50%', width: '50%', borderTop: '1px solid rgba(255,255,255,0.08)' }} />
         </Box>
       ))}

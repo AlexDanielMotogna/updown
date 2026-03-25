@@ -46,8 +46,13 @@ export function TournamentHeader({
     localStorage.setItem('tournament-stats-open', next ? '1' : '0');
   };
 
-  const cards = [
-    { label: 'Asset', value: t.asset, color: '#fff', icon: true },
+  const isSports = t.tournamentType === 'SPORTS';
+  const leagueNames: Record<string, string> = { CL: 'UCL', PL: 'Premier', PD: 'La Liga', SA: 'Serie A', BL1: 'Bundesliga', FL1: 'Ligue 1' };
+
+  const cards: Array<{ label: string; value: string; color: string; icon?: boolean; leagueCode?: string | null }> = [
+    isSports
+      ? { label: 'League', value: leagueNames[t.league || ''] || t.league || 'Soccer', color: '#fff', leagueCode: t.league }
+      : { label: 'Asset', value: t.asset, color: '#fff', icon: true },
     { label: 'Prize', value: `$${prizePool}`, color: GAIN_COLOR },
     { label: 'Entry', value: `$${entryFee}`, color: '#fff' },
     { label: 'Players', value: `${filled}/${t.size}`, color: '#fff' },
@@ -85,7 +90,7 @@ export function TournamentHeader({
       {/* Stats grid — collapsible */}
       {statsOpen && (
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(4, 1fr)', md: 'repeat(8, 1fr)' }, gap: 0.5, px: { xs: 0.5, md: 2 }, py: { xs: 0.5, md: 1.25 } }}>
-            {cards.map(({ label, value, color, icon }) => (
+            {cards.map(({ label, value, color, icon, leagueCode }) => (
               <Box key={label} sx={{ bgcolor: 'rgba(255,255,255,0.03)', px: { xs: 0.75, md: 1.5 }, py: { xs: 0.5, md: 1 }, display: 'flex', alignItems: 'center' }}>
                 <Box sx={{ width: '100%' }}>
                   <Typography sx={{ fontSize: { xs: '0.55rem', md: '0.65rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.35)', mb: 0.25 }}>{label}</Typography>
@@ -99,9 +104,13 @@ export function TournamentHeader({
                     </Button>
                   ) : (
                     <>
-                      {icon ? (
+                      {(icon || leagueCode) ? (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <AssetIcon asset={value} size={14} />
+                          {leagueCode ? (
+                            <Box component="img" src={`https://crests.football-data.org/${leagueCode}.png`} alt="" sx={{ width: 14, height: 14, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '1px' }} />
+                          ) : (
+                            <AssetIcon asset={value} size={14} />
+                          )}
                           <Typography sx={{ fontSize: { xs: '0.7rem', md: '1rem' }, fontWeight: 700, color }}>{value}</Typography>
                         </Box>
                       ) : (

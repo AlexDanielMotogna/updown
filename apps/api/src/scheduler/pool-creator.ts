@@ -137,14 +137,10 @@ export class PoolCreator {
       const [vaultPda] = getVaultPDA(seed);
       const usdcMint = getUsdcMint();
 
-      // Send on-chain initializePool transaction with strike price
-      // If this fails, we abort entirely (no DB insert). Scheduler retries next tick.
-      await this.initializePoolOnChain(
-        seed, template.asset,
-        startTime, endTime, lockTime, strikePrice,
-        usdcMint, poolPda, vaultPda,
-      );
-
+      // ── DB-first: insert DB row BEFORE on-chain to prevent orphans ──
+      // If on-chain fails, we roll back the DB row. If the server crashes
+      // after DB insert but before on-chain, we get a harmless DB-only row
+      // (cleaned up on next startup) instead of an unrecoverable chain orphan.
       const pool = await this.deps.prisma.pool.create({
         data: {
           id: uuid,
@@ -161,6 +157,21 @@ export class PoolCreator {
           totalDown: BigInt(0),
         },
       });
+
+      try {
+        await this.initializePoolOnChain(
+          seed, template.asset,
+          startTime, endTime, lockTime, strikePrice,
+          usdcMint, poolPda, vaultPda,
+        );
+      } catch (chainError) {
+        // On-chain failed — roll back DB to prevent stale DB-only pool
+        await this.deps.prisma.priceSnapshot.deleteMany({ where: { poolId: pool.id } }).catch(() => {});
+        await this.deps.prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: pool.id } }).catch(() => {});
+        await this.deps.prisma.pool.delete({ where: { id: pool.id } }).catch(() => {});
+        console.warn(`[Scheduler] On-chain creation failed, rolled back DB row ${pool.id}`);
+        throw chainError;
+      }
 
       // Create STRIKE PriceSnapshot at creation time
       await this.deps.prisma.priceSnapshot.create({

@@ -2,7 +2,7 @@
 
 import { Box, Typography, Dialog, IconButton } from '@mui/material';
 import { Close } from '@mui/icons-material';
-import { UP_COLOR } from '@/lib/constants';
+import { UP_COLOR, DRAW_COLOR } from '@/lib/constants';
 import type { TournamentSummary } from '@/lib/api';
 
 interface Props {
@@ -11,11 +11,49 @@ interface Props {
   tournament: TournamentSummary;
   entryFee: string;
   prizePool: string;
+  sideLabels?: string[];
 }
 
-export function TournamentRulesDialog({ open, onClose, tournament: t, entryFee, prizePool }: Props) {
+const LEAGUE_NAMES: Record<string, string> = {
+  CL: 'Champions League', PL: 'Premier League', PD: 'La Liga',
+  SA: 'Serie A', BL1: 'Bundesliga', FL1: 'Ligue 1',
+};
+
+export function TournamentRulesDialog({ open, onClose, tournament: t, entryFee, prizePool, sideLabels }: Props) {
+  const isSports = t.tournamentType === 'SPORTS';
   const predMins = Math.floor(Number(t.predictionWindow) / 60);
-  const matchMins = Math.floor(Number(t.matchDuration) / 60);
+  const accent = isSports ? DRAW_COLOR : UP_COLOR;
+  const leagueName = isSports ? (LEAGUE_NAMES[t.league || ''] || t.league || 'Football') : null;
+
+  const stats = isSports ? [
+    { label: 'Players', value: `${t.size}` },
+    { label: 'Rounds', value: `${t.totalRounds}` },
+    { label: 'League', value: leagueName },
+    { label: 'Prediction window', value: `${predMins}min` },
+    { label: 'Entry fee', value: `$${entryFee}` },
+    { label: 'Prize pool', value: `$${prizePool}` },
+  ] : [
+    { label: 'Players', value: `${t.size}` },
+    { label: 'Rounds', value: `${t.totalRounds}` },
+    { label: 'Prediction window', value: `${predMins}min` },
+    { label: 'Match duration', value: `${Math.floor(Number(t.matchDuration) / 60)}min` },
+    { label: 'Entry fee', value: `$${entryFee}` },
+    { label: 'Prize pool', value: `$${prizePool}` },
+  ];
+
+  const steps = isSports ? [
+    { step: '1', title: 'Register', desc: `Pay $${entryFee} entry fee. All fees go to the prize pool.` },
+    { step: '2', title: 'Predict the Matchday', desc: `Each round, predict ${(sideLabels || ['Home', 'Draw', 'Away']).join('/')} for every real ${leagueName} fixture, plus a total goals tiebreaker. You have ${predMins} minutes.` },
+    { step: '3', title: 'Wait for Results', desc: 'Matches are resolved automatically when the real football fixtures finish. The admin can also resolve manually.' },
+    { step: '4', title: 'Most Correct Wins', desc: 'The player with the most correct predictions advances. Tied? Closest total goals prediction wins. Still tied? First to predict wins.' },
+    { step: '5', title: 'Prize', desc: `Last player standing wins $${prizePool} (minus 5% platform fee).` },
+  ] : [
+    { step: '1', title: 'Register', desc: `Pay $${entryFee} entry fee. All fees go to the prize pool.` },
+    { step: '2', title: 'Predict', desc: `Each round you have ${predMins} minutes to predict the closing price of ${t.asset}/USD.` },
+    { step: '3', title: 'Wait', desc: `After predictions close, the match runs for ${Math.floor(Number(t.matchDuration) / 60)} minutes while the price moves.` },
+    { step: '4', title: 'Closest Wins', desc: 'The player whose prediction is closest to the final price advances to the next round.' },
+    { step: '5', title: 'Prize', desc: `Last player standing wins $${prizePool} (minus 5% platform fee).` },
+  ];
 
   return (
     <Dialog
@@ -33,14 +71,7 @@ export function TournamentRulesDialog({ open, onClose, tournament: t, entryFee, 
       </Box>
       <Box sx={{ px: { xs: 1.5, md: 2.5 }, pb: { xs: 1.5, md: 2.5 }, display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1 }}>
-          {[
-            { label: 'Players', value: `${t.size}` },
-            { label: 'Rounds', value: `${t.totalRounds}` },
-            { label: 'Prediction window', value: `${predMins}min` },
-            { label: 'Match duration', value: `${matchMins}min` },
-            { label: 'Entry fee', value: `$${entryFee}` },
-            { label: 'Prize pool', value: `$${prizePool}` },
-          ].map(({ label, value }) => (
+          {stats.map(({ label, value }) => (
             <Box key={label} sx={{ bgcolor: 'rgba(255,255,255,0.03)', px: 1.5, py: 1 }}>
               <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', mb: 0.25 }}>{label}</Typography>
               <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{value}</Typography>
@@ -48,15 +79,9 @@ export function TournamentRulesDialog({ open, onClose, tournament: t, entryFee, 
           ))}
         </Box>
 
-        {[
-          { step: '1', title: 'Register', desc: `Pay $${entryFee} entry fee. All fees go to the prize pool.` },
-          { step: '2', title: 'Predict', desc: `Each round you have ${predMins} minutes to predict the closing price of ${t.asset}/USD.` },
-          { step: '3', title: 'Wait', desc: `After predictions close, the match runs for ${matchMins} minutes while the price moves.` },
-          { step: '4', title: 'Closest wins', desc: 'The player whose prediction is closest to the final price advances to the next round.' },
-          { step: '5', title: 'Prize', desc: `Last player standing wins $${prizePool} (minus 5% platform fee).` },
-        ].map(({ step, title, desc }) => (
+        {steps.map(({ step, title, desc }) => (
           <Box key={step} sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
-            <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: UP_COLOR, bgcolor: `${UP_COLOR}15`, width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{step}</Typography>
+            <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: accent, bgcolor: `${accent}15`, width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{step}</Typography>
             <Box>
               <Typography sx={{ fontWeight: 700, fontSize: '0.85rem', mb: 0.25 }}>{title}</Typography>
               <Typography sx={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>{desc}</Typography>
@@ -66,7 +91,9 @@ export function TournamentRulesDialog({ open, onClose, tournament: t, entryFee, 
 
         <Box sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
           <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', lineHeight: 1.6 }}>
-            If you don&apos;t predict before the deadline, your opponent advances automatically.
+            {isSports
+              ? 'If you don\u2019t predict before the deadline, your opponent advances automatically. All fixtures must finish before the round is resolved.'
+              : 'If you don\u2019t predict before the deadline, your opponent advances automatically.'}
           </Typography>
         </Box>
       </Box>

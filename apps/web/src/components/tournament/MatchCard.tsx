@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import { UP_COLOR, ACCENT_COLOR } from '@/lib/constants';
-import { type TournamentMatchData } from '@/lib/api';
+import { type TournamentMatchData, type TournamentFixture } from '@/lib/api';
 import { MATCH_W, CARD_H, SURFACE, BORDER, PREDICT_COLOR, formatPrice, formatDistance } from './tournament-utils';
 import { Countdown } from './Countdown';
 import { PlayerRow } from './PlayerRow';
@@ -17,6 +17,10 @@ export function MatchCard({
   asset,
   livePrice,
   onRefresh,
+  isSports,
+  fixtureCount,
+  fixtures,
+  sideLabels,
 }: {
   match: TournamentMatchData;
   matchLabel: string;
@@ -25,6 +29,10 @@ export function MatchCard({
   asset: string;
   livePrice: string | null;
   onRefresh: () => void;
+  isSports?: boolean;
+  fixtureCount?: number;
+  fixtures?: TournamentFixture[];
+  sideLabels?: string[];
 }) {
   const [modalOpen, setModalOpen] = useState(false);
   const isResolved = match.status === 'RESOLVED';
@@ -84,13 +92,13 @@ export function MatchCard({
 
         {/* Players */}
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <PlayerRow wallet={match.player1Wallet} prediction={match.player1Prediction} distance={p1Distance} isWinner={p1Won} isLoser={isResolved && !p1Won && !!match.player1Wallet} isPending={isPending || isActive} />
+          <PlayerRow wallet={match.player1Wallet} prediction={match.player1Prediction} distance={p1Distance} isWinner={p1Won} isLoser={isResolved && !p1Won && !!match.player1Wallet} isPending={isPending || isActive} isSports={isSports} score={match.player1Score} fixtureCount={fixtureCount} isMe={isP1} />
           <Box sx={{ height: '1px', bgcolor: BORDER, position: 'relative' }}>
             <Typography sx={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', fontSize: '0.6rem', fontWeight: 700, color: isResolved && match.finalPrice ? ACCENT_COLOR : 'rgba(255,255,255,0.1)', bgcolor: SURFACE, px: 1, lineHeight: 1 }}>
-              {isResolved && match.finalPrice ? formatPrice(match.finalPrice) : 'vs'}
+              {isResolved && match.finalPrice ? (isSports ? 'Done' : formatPrice(match.finalPrice)) : 'vs'}
             </Typography>
           </Box>
-          <PlayerRow wallet={match.player2Wallet} prediction={match.player2Prediction} distance={p2Distance} isWinner={p2Won} isLoser={isResolved && !p2Won && !!match.player2Wallet} isPending={isPending || isActive} />
+          <PlayerRow wallet={match.player2Wallet} prediction={match.player2Prediction} distance={p2Distance} isWinner={p2Won} isLoser={isResolved && !p2Won && !!match.player2Wallet} isPending={isPending || isActive} isSports={isSports} score={match.player2Score} fixtureCount={fixtureCount} isMe={isP2} />
         </Box>
       </Box>
 
@@ -104,6 +112,10 @@ export function MatchCard({
         tournamentId={tournamentId}
         livePrice={livePrice}
         onRefresh={onRefresh}
+        isSports={isSports}
+        fixtureCount={fixtureCount}
+        fixtures={fixtures}
+        sideLabels={sideLabels}
       />
     </>
   );

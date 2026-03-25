@@ -47,9 +47,9 @@ export function TournamentSidebarList({ tournaments }: TournamentSidebarListProp
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
                 <Box
                   component="img"
-                  src={`/tournaments/tournament-${t.asset.toLowerCase()}.png`}
+                  src={t.asset.includes(':') ? `https://crests.football-data.org/${t.asset.split(':')[1]}.png` : `/tournaments/tournament-${t.asset.toLowerCase()}.png`}
                   alt={t.asset}
-                  sx={{ width: 22, height: 22, objectFit: 'contain' }}
+                  sx={{ width: 22, height: 22, objectFit: 'contain', ...(t.asset.includes(':') && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }) }}
                 />
                 <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {t.name}

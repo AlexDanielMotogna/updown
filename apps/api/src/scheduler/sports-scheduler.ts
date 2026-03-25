@@ -1,6 +1,7 @@
 import { prisma } from '../db';
 import { getAdapter } from '../services/sports';
 import type { Match } from '../services/sports/types';
+import { getCachedUpcomingFixtures, getCachedFixtureResults, isFixtureCacheReady } from '../services/sports/fixture-cache';
 import { getPoolPDA, getVaultPDA, buildInitializePoolIx, buildResolveWithWinnerIx } from 'solana-client';
 import { derivePoolSeed, getUsdcMint, getConnection, getAuthorityKeypair } from '../utils/solana';
 import { Transaction } from '@solana/web3.js';
@@ -16,10 +17,14 @@ const POOL_OPEN_HOURS_BEFORE = 720; // Open pool 30 days before kickoff
  * Runs every 6 hours.
  */
 export async function createMatchPools(): Promise<void> {
+  if (!isFixtureCacheReady()) {
+    console.log('[Sports] Fixture cache not ready yet, skipping this cycle');
+    return;
+  }
+
   for (const leagueCode of LEAGUES) {
     try {
-      const adapter = getAdapter('FOOTBALL');
-      const matches = await adapter.fetchUpcomingMatches(leagueCode);
+      const matches = await getCachedUpcomingFixtures('FOOTBALL', leagueCode);
 
       for (const match of matches) {
         // Skip if pool already exists for this match
@@ -58,13 +63,17 @@ export async function resolveMatchPools(): Promise<void> {
 
   const adapter = getAdapter('FOOTBALL');
 
+  // Batch read all results from cache (0 API calls!)
+  const matchIds = [...new Set(unresolved.map(p => p.matchId!).filter(Boolean))];
+  const resultMap = await getCachedFixtureResults(matchIds);
+
   for (const pool of unresolved) {
     if (!pool.matchId) continue;
 
     try {
-      const result = await adapter.fetchMatchResult(pool.matchId);
+      const result = resultMap.get(pool.matchId);
       if (!result) {
-        // Match not finished yet - skip
+        // Match not finished yet in cache - skip
         continue;
       }
 
@@ -121,7 +130,6 @@ async function createSportsPool(match: Match, leagueCode: string): Promise<void>
   const endTime = new Date(kickoff.getTime() + 6 * 60 * 60 * 1000); // kickoff + 6h (generous buffer for on-chain constraint)
 
   try {
-    // Create on-chain
     const connection = getConnection();
     const wallet = getAuthorityKeypair();
     const seed = derivePoolSeed(poolId);
@@ -129,6 +137,34 @@ async function createSportsPool(match: Match, leagueCode: string): Promise<void>
     const [vaultPda] = getVaultPDA(seed);
     const usdcMint = getUsdcMint();
 
+    // ── DB-first: insert before on-chain to prevent orphans ──
+    await prisma.pool.create({
+      data: {
+        id: poolId,
+        poolId: poolPda.toBase58(),
+        asset,
+        interval: 'match',
+        durationSeconds: 6 * 60 * 60,
+        status: 'JOINING',
+        startTime,
+        endTime,
+        lockTime,
+        strikePrice: BigInt(0),
+        totalUp: BigInt(0),
+        totalDown: BigInt(0),
+        totalDraw: BigInt(0),
+        numSides: 3,
+        poolType: 'SPORTS',
+        matchId: match.id,
+        homeTeam: match.homeTeam,
+        awayTeam: match.awayTeam,
+        homeTeamCrest: match.homeTeamCrest || null,
+        awayTeamCrest: match.awayTeamCrest || null,
+        league: leagueCode,
+      },
+    });
+
+    // Create on-chain
     const ix = buildInitializePoolIx(
       poolPda,
       vaultPda,
@@ -149,39 +185,19 @@ async function createSportsPool(match: Match, leagueCode: string): Promise<void>
     tx.feePayer = wallet.publicKey;
     tx.sign(wallet);
 
-    const signature = await connection.sendRawTransaction(tx.serialize(), {
-      skipPreflight: false,
-      preflightCommitment: 'confirmed',
-    });
+    try {
+      const signature = await connection.sendRawTransaction(tx.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      });
 
-    await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
-
-    // Create in DB
-    await prisma.pool.create({
-      data: {
-        id: poolId,
-        poolId: poolPda.toBase58(),
-        asset,
-        interval: 'match',
-        durationSeconds: 6 * 60 * 60, // Not used for resolution — match result drives it
-        status: 'JOINING',
-        startTime,
-        endTime,
-        lockTime,
-        strikePrice: BigInt(0),
-        totalUp: BigInt(0),
-        totalDown: BigInt(0),
-        totalDraw: BigInt(0),
-        numSides: 3,
-        poolType: 'SPORTS',
-        matchId: match.id,
-        homeTeam: match.homeTeam,
-        awayTeam: match.awayTeam,
-        homeTeamCrest: match.homeTeamCrest || null,
-        awayTeamCrest: match.awayTeamCrest || null,
-        league: leagueCode,
-      },
-    });
+      await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
+    } catch (chainError) {
+      // On-chain failed — roll back DB to prevent stale DB-only pool
+      await prisma.pool.delete({ where: { id: poolId } }).catch(() => {});
+      console.warn(`[Sports] On-chain creation failed, rolled back DB row ${poolId}`);
+      throw chainError;
+    }
 
     console.log(`[Sports] Created pool for ${match.homeTeam} vs ${match.awayTeam} (${leagueCode}, kickoff: ${kickoff.toISOString()})`);
 
