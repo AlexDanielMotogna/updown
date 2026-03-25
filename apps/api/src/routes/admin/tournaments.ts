@@ -141,6 +141,27 @@ adminTournamentsRouter.post('/:id/cancel', async (req, res) => {
   }
 });
 
+// POST /api/admin/tournaments/:id/delete — permanently delete a tournament and all related data
+adminTournamentsRouter.post('/:id/delete', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const tournament = await prisma.tournament.findUniqueOrThrow({ where: { id } });
+
+    // Delete all related data in order (FK constraints)
+    await prisma.tournamentRoundFixture.deleteMany({ where: { tournamentId: id } });
+    await prisma.tournamentMatch.deleteMany({ where: { tournamentId: id } });
+    await prisma.tournamentParticipant.deleteMany({ where: { tournamentId: id } });
+    await prisma.tournament.delete({ where: { id } });
+
+    console.log(`[Admin] Deleted tournament ${id} (${tournament.name})`);
+    res.json({ success: true, data: { message: `Tournament "${tournament.name}" deleted` } });
+  } catch (error) {
+    console.error('[Admin] Delete tournament error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to delete tournament';
+    res.status(400).json({ success: false, error: { code: 'DELETE_ERROR', message } });
+  }
+});
+
 // POST /api/admin/tournaments/:id/reset-round — delete current round matches and recreate them
 adminTournamentsRouter.post('/:id/reset-round', async (req, res) => {
   try {

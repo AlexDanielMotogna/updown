@@ -472,6 +472,15 @@ export function TournamentManagement() {
                     >
                       Cancel
                     </Button>
+                    <Button
+                      size="small"
+                      color="error"
+                      variant="contained"
+                      onClick={() => setConfirmAction({ label: `DELETE "${t.name}" permanently`, id: t.id, action: 'delete' })}
+                      sx={{ fontSize: '0.7rem' }}
+                    >
+                      Delete
+                    </Button>
                   </>
                 )}
                 {t.status === 'ACTIVE' && (

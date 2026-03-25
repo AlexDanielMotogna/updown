@@ -119,3 +119,9 @@ export function derivePoolSeed(poolUuid: string): Buffer {
   const crypto = require('crypto');
   return crypto.createHash('sha256').update(poolUuid).digest();
 }
+
+/** Derive deterministic 32-byte seed from a tournament UUID via SHA-256. */
+export function deriveTournamentSeed(tournamentUuid: string): Buffer {
+  const crypto = require('crypto');
+  return crypto.createHash('sha256').update(`tournament:${tournamentUuid}`).digest();
+}

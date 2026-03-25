@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Transaction, PublicKey } from '@solana/web3.js';
 import { createTransferInstruction } from '@solana/spl-token';
+import { buildRegisterParticipantIx } from 'solana-client';
 import { useWalletBridge } from './useWalletBridge';
 import { useSolanaConnection } from '@/app/providers';
 import { prepareTournamentRegister, registerForTournament } from '@/lib/api';
@@ -34,18 +35,31 @@ export function useTournamentRegister() {
         throw new Error(prepRes.error?.message || 'Failed to prepare registration');
       }
 
-      const { entryFee, accounts, asset, name: tournamentName } = prepRes.data;
+      const { entryFee, accounts, asset, name: tournamentName, usePda } = prepRes.data;
       const amount = BigInt(entryFee);
       const feeUsdc = `${(Number(entryFee) / 1_000_000).toFixed(2)}`;
 
       setStatus('signing');
 
-      const ix = createTransferInstruction(
-        new PublicKey(accounts.userTokenAccount),
-        new PublicKey(accounts.authorityTokenAccount),
-        publicKey,
-        amount,
-      );
+      let ix;
+      if (usePda && accounts.tournamentPda) {
+        // PDA vault: use program instruction
+        ix = buildRegisterParticipantIx(
+          new PublicKey(accounts.tournamentPda),
+          new PublicKey(accounts.participantPda!),
+          new PublicKey(accounts.vaultPda!),
+          new PublicKey(accounts.userTokenAccount),
+          publicKey,
+        );
+      } else {
+        // Legacy: direct transfer to authority
+        ix = createTransferInstruction(
+          new PublicKey(accounts.userTokenAccount),
+          new PublicKey(accounts.authorityTokenAccount!),
+          publicKey,
+          amount,
+        );
+      }
 
       const tx = new Transaction().add(ix);
       const { blockhash } = await connection.getLatestBlockhash();

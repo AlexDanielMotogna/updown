@@ -1,6 +1,9 @@
 import { prisma } from '../db';
+import { Transaction } from '@solana/web3.js';
 import { generateRoundMatchesTx } from './tournament-bracket';
 import { assignMatchdayToRound } from './tournament-sports';
+import { getTournamentPDA, getTournamentVaultPDA, buildInitializeTournamentIx } from 'solana-client';
+import { deriveTournamentSeed, getUsdcMint, getConnection, getAuthorityKeypair } from '../utils/solana';
 
 // Re-export everything from tournament-bracket so existing imports keep working
 export {
@@ -49,7 +52,7 @@ export async function createTournament(data: {
 
   const totalRounds = Math.log2(size);
 
-  return prisma.tournament.create({
+  const tournament = await prisma.tournament.create({
     data: {
       name,
       asset,
@@ -67,6 +70,44 @@ export async function createTournament(data: {
       league: league || null,
     },
   });
+
+  // Initialize on-chain tournament PDA + vault
+  try {
+    const seed = deriveTournamentSeed(tournament.id);
+    const [tournamentPda] = getTournamentPDA(seed);
+    const [vaultPda] = getTournamentVaultPDA(seed);
+    const authority = getAuthorityKeypair();
+    const usdcMint = getUsdcMint();
+    const connection = getConnection();
+
+    const ix = buildInitializeTournamentIx(
+      tournamentPda, vaultPda, usdcMint, authority.publicKey,
+      seed, entryFee, size,
+    );
+
+    const tx = new Transaction().add(ix);
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+    tx.recentBlockhash = blockhash;
+    tx.feePayer = authority.publicKey;
+    tx.sign(authority);
+
+    await connection.sendRawTransaction(tx.serialize(), { skipPreflight: false, preflightCommitment: 'confirmed' });
+
+    await prisma.tournament.update({
+      where: { id: tournament.id },
+      data: {
+        onChainPda: tournamentPda.toBase58(),
+        onChainVault: vaultPda.toBase58(),
+      },
+    });
+
+    console.log(`[Tournament] On-chain PDA created: ${tournamentPda.toBase58()}`);
+  } catch (err) {
+    console.error(`[Tournament] Failed to create on-chain PDA (tournament ${tournament.id}):`, err instanceof Error ? err.message : err);
+    // Tournament still works via legacy flow if PDA creation fails
+  }
+
+  return tournament;
 }
 
 // ─── 2. Register Participant ─────────────────────────────────────────────────

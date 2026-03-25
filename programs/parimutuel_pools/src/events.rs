@@ -58,3 +58,50 @@ pub struct PoolClosed {
     pub authority: Pubkey,
     pub rent_reclaimed: u64,
 }
+
+// ── Tournament events ──
+
+#[event]
+pub struct TournamentCreated {
+    pub tournament_id: [u8; 32],
+    pub authority: Pubkey,
+    pub entry_fee: u64,
+    pub max_participants: u16,
+}
+
+#[event]
+pub struct ParticipantRegistered {
+    pub tournament_id: [u8; 32],
+    pub user: Pubkey,
+    pub entry_fee: u64,
+    pub prize_pool: u64,
+    pub participant_count: u16,
+}
+
+#[event]
+pub struct TournamentPrizeClaimed {
+    pub tournament_id: [u8; 32],
+    pub winner: Pubkey,
+    pub prize_amount: u64,
+    pub fee: u64,
+}
+
+#[event]
+pub struct TournamentCancelled {
+    pub tournament_id: [u8; 32],
+    pub authority: Pubkey,
+}
+
+#[event]
+pub struct ParticipantRefunded {
+    pub tournament_id: [u8; 32],
+    pub user: Pubkey,
+    pub amount: u64,
+}
+
+#[event]
+pub struct TournamentClosed {
+    pub tournament_id: [u8; 32],
+    pub authority: Pubkey,
+    pub rent_reclaimed: u64,
+}
