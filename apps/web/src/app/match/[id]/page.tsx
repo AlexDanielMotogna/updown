@@ -514,7 +514,6 @@ export default function MatchDetailPage() {
             homeTeam={isPrediction ? (pool.awayTeam ? pool.homeTeam || undefined : 'Yes') : (pool.homeTeam || undefined)}
             awayTeam={isPrediction ? (pool.awayTeam || 'No') : (pool.awayTeam || undefined)}
             disabled={isResolved || pool.status !== 'JOINING'}
-            numSides={pool.numSides}
           />
 
           {/* Bet form - only when pool is open */}
