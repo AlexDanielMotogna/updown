@@ -130,6 +130,12 @@ export function serializeBet(bet: {
       strikePrice: bet.pool.strikePrice?.toString() ?? null,
       finalPrice: bet.pool.finalPrice?.toString() ?? null,
       winner: bet.pool.winner,
+      poolType: (bet.pool as any).poolType ?? 'CRYPTO',
+      league: (bet.pool as any).league ?? null,
+      homeTeam: (bet.pool as any).homeTeam ?? null,
+      awayTeam: (bet.pool as any).awayTeam ?? null,
+      homeTeamCrest: (bet.pool as any).homeTeamCrest ?? null,
+      awayTeamCrest: (bet.pool as any).awayTeamCrest ?? null,
     },
   };
 }

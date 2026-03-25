@@ -1,14 +1,17 @@
 export { FootballAdapter } from './football-adapter';
 export { BasketballAdapter } from './basketball-adapter';
+export { PolymarketAdapter } from './polymarket-adapter';
 export type { SportAdapter, Match, MatchResult, MatchStatus } from './types';
 
 import { FootballAdapter } from './football-adapter';
 import { BasketballAdapter } from './basketball-adapter';
+import { PolymarketAdapter } from './polymarket-adapter';
 import type { SportAdapter } from './types';
 
 const adapters: Record<string, SportAdapter> = {
   FOOTBALL: new FootballAdapter(),
   BASKETBALL: new BasketballAdapter(),
+  POLYMARKET: new PolymarketAdapter(),
 };
 
 export function getAdapter(sport: string): SportAdapter {

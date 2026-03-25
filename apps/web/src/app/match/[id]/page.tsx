@@ -372,9 +372,9 @@ export default function MatchDetailPage() {
       }}>
         {/* ── Left column: Chart + H2H Analysis + Activity ── */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', minHeight: { md: 400 } }}>
-          {/* Polymarket odds chart */}
+          {/* Odds chart with Polymarket / UpDown toggle */}
           {isPrediction && (
-            <OddsChart poolId={pool.id} question={pool.homeTeam} currentOdds={pool.marketOdds} />
+            <OddsChart poolId={pool.id} question={pool.homeTeam} currentOdds={pool.marketOdds} totalUp={pool.totalUp} totalDown={pool.totalDown} />
           )}
 
           {/* Market Rules / Context tabs (Polymarket) */}
