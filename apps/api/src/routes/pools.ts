@@ -200,25 +200,51 @@ poolsRouter.get('/:id', async (req, res) => {
   }
 });
 
-// GET /api/pools/:id/bets - Get bets for a pool (public, truncated wallets)
+// GET /api/pools/:id/bets - Get individual predictions for a pool (from event log)
 poolsRouter.get('/:id/bets', async (req, res) => {
   try {
-    const bets = await prisma.bet.findMany({
-      where: { poolId: req.params.id },
-      select: { walletAddress: true, side: true, amount: true, createdAt: true },
+    // Use eventLog for individual deposit entries (bet table merges same-wallet deposits)
+    const events = await prisma.eventLog.findMany({
+      where: {
+        eventType: 'DEPOSIT_CONFIRMED',
+        entityType: 'bet',
+        payload: { path: ['poolId'], equals: req.params.id },
+      },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
 
-    res.json({
-      success: true,
-      data: bets.map(b => ({
-        wallet: `${b.walletAddress.slice(0, 4)}...${b.walletAddress.slice(-4)}`,
-        side: b.side,
-        amount: b.amount.toString(),
-        createdAt: b.createdAt.toISOString(),
-      })),
+    const data = events.map(e => {
+      const p = e.payload as { walletAddress?: string; side?: string; amount?: string };
+      const w = p.walletAddress || '';
+      return {
+        wallet: `${w.slice(0, 4)}...${w.slice(-4)}`,
+        side: p.side || 'UP',
+        amount: p.amount || '0',
+        createdAt: e.createdAt.toISOString(),
+      };
     });
+
+    // Fallback: if no event logs (old pools), use bet table
+    if (data.length === 0) {
+      const bets = await prisma.bet.findMany({
+        where: { poolId: req.params.id },
+        select: { walletAddress: true, side: true, amount: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      });
+      return res.json({
+        success: true,
+        data: bets.map(b => ({
+          wallet: `${b.walletAddress.slice(0, 4)}...${b.walletAddress.slice(-4)}`,
+          side: b.side,
+          amount: b.amount.toString(),
+          createdAt: b.createdAt.toISOString(),
+        })),
+      });
+    }
+
+    res.json({ success: true, data });
   } catch (error) {
     console.error('Error fetching pool bets:', error);
     res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: 'Failed to fetch bets' } });

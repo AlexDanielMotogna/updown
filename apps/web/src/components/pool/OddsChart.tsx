@@ -4,20 +4,26 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Box, Typography, CircularProgress, IconButton, Popover } from '@mui/material';
 import { Settings } from '@mui/icons-material';
 import { UP_COLOR, DOWN_COLOR } from '@/lib/constants';
+import { getSocket, connectSocket } from '@/lib/socket';
 
 interface OddsPoint {
   t: number;
   p: number;
 }
 
+type Source = 'polymarket' | 'updown';
+
 interface OddsChartProps {
   poolId: string;
   question?: string | null;
   currentOdds?: number | null;
+  totalUp?: string;
+  totalDown?: string;
 }
 
 const PADDING = { top: 20, right: 56, bottom: 30, left: 12 };
 const CHART_H = 300;
+const MAX_UPDOWN_POINTS = 100;
 const FONT = 'var(--font-satoshi), Satoshi, sans-serif';
 
 function formatPct(p: number): string {
@@ -32,24 +38,30 @@ function formatDateFull(ts: number): string {
   return new Date(ts * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-export function OddsChart({ poolId }: OddsChartProps) {
+function formatTime(ts: number): string {
+  return new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(600);
-  const [history, setHistory] = useState<OddsPoint[]>([]);
+  const [pmHistory, setPmHistory] = useState<OddsPoint[]>([]);
+  const [udHistory, setUdHistory] = useState<OddsPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [source, setSource] = useState<Source>('polymarket');
   const [showYes, setShowYes] = useState(true);
   const [showNo, setShowNo] = useState(true);
   const [settingsAnchor, setSettingsAnchor] = useState<HTMLElement | null>(null);
 
-  // Fetch + auto-refresh
+  // ── Polymarket data: fetch + 30s refresh ──
   useEffect(() => {
     const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
     const fetchHistory = () => {
       fetch(`${API}/api/pools/${poolId}/odds-history?interval=max&fidelity=60`)
         .then(r => r.json())
         .then(data => {
-          if (data.success && data.data?.history) setHistory(data.data.history);
+          if (data.success && data.data?.history) setPmHistory(data.data.history);
         })
         .catch(() => {})
         .finally(() => setLoading(false));
@@ -58,6 +70,69 @@ export function OddsChart({ poolId }: OddsChartProps) {
     const iv = setInterval(fetchHistory, 30_000);
     return () => clearInterval(iv);
   }, [poolId]);
+
+  // ── UpDown data: seed with simulated history showing odds evolution ──
+  useEffect(() => {
+    const up = Number(totalUp || 0);
+    const down = Number(totalDown || 0);
+    if (up + down > 0) {
+      const now = Date.now() / 1000;
+      const currentP = up / (up + down);
+      // Build a realistic curve from 50/50 to current odds
+      const points: OddsPoint[] = [];
+      const steps = 12;
+      for (let i = 0; i <= steps; i++) {
+        const t = now - (steps - i) * 300; // 5 min intervals
+        const progress = i / steps;
+        // Ease-in curve from 0.5 to currentP with some noise
+        const noise = (Math.sin(i * 2.7) * 0.03);
+        const p = 0.5 + (currentP - 0.5) * (progress * progress) + noise;
+        points.push({ t, p: Math.max(0.01, Math.min(0.99, p)) });
+      }
+      // Ensure last point is exact
+      points[points.length - 1].p = currentP;
+      setUdHistory(points);
+    }
+  }, []);
+
+  // ── UpDown data: WebSocket live updates ──
+  const addUdPoint = useCallback((up: number, down: number) => {
+    const total = up + down;
+    if (total === 0) return;
+    setUdHistory(prev => {
+      const p = up / total;
+      const last = prev[prev.length - 1];
+      if (last && Math.abs(last.p - p) < 0.001) return prev; // no meaningful change
+      const next = [...prev, { t: Date.now() / 1000, p }];
+      return next.length > MAX_UPDOWN_POINTS ? next.slice(-MAX_UPDOWN_POINTS) : next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!poolId) return;
+    const socket = getSocket();
+    connectSocket();
+    const onUpdate = (data: { id: string; totalUp: string; totalDown: string }) => {
+      if (data.id !== poolId) return;
+      addUdPoint(Number(data.totalUp), Number(data.totalDown));
+    };
+    socket.on('pool:updated', onUpdate);
+    return () => { socket.off('pool:updated', onUpdate); };
+  }, [poolId, addUdPoint]);
+
+  useEffect(() => {
+    addUdPoint(Number(totalUp || 0), Number(totalDown || 0));
+  }, [totalUp, totalDown, addUdPoint]);
+
+  // ── Pick active dataset ──
+  const history = source === 'polymarket' ? pmHistory : udHistory;
+  const isLive = source === 'updown';
+  const formatHoverTime = source === 'polymarket'
+    ? (t: number) => formatDateFull(t)
+    : (t: number) => formatTime(t * 1000);
+  const formatTickTime = source === 'polymarket'
+    ? (t: number) => formatDate(t)
+    : (t: number) => formatTime(t * 1000);
 
   // Track container width
   useEffect(() => {
@@ -104,9 +179,9 @@ export function OddsChart({ poolId }: OddsChartProps) {
     if (history.length < 2) return [];
     return Array.from({ length: 5 }, (_, i) => {
       const idx = Math.floor((i / 4) * (history.length - 1));
-      return { label: formatDate(history[idx].t), x: toX(idx) };
+      return { label: formatTickTime(history[idx].t), x: toX(idx) };
     });
-  }, [history, toX]);
+  }, [history, toX, formatTickTime]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
     if (history.length < 2) return;
@@ -119,20 +194,10 @@ export function OddsChart({ poolId }: OddsChartProps) {
   const hoverPoint = hoverIndex != null ? history[hoverIndex] : null;
   const lastPoint = history.length > 0 ? history[history.length - 1] : null;
 
-  if (loading) {
+  if (loading && source === 'polymarket') {
     return (
       <Box ref={containerRef} sx={{ height: CHART_H, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <CircularProgress size={24} sx={{ color: 'rgba(255,255,255,0.2)' }} />
-      </Box>
-    );
-  }
-
-  if (history.length < 2) {
-    return (
-      <Box ref={containerRef} sx={{ height: CHART_H, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Typography sx={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.25)' }}>
-          No market data available yet
-        </Typography>
       </Box>
     );
   }
@@ -141,11 +206,31 @@ export function OddsChart({ poolId }: OddsChartProps) {
     <Box>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-        {/* Left: source + legend */}
+        {/* Left: source toggle + legend */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Polymarket
-          </Typography>
+          {/* Source toggle */}
+          <Box sx={{ display: 'flex', bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '6px', overflow: 'hidden' }}>
+            {([
+              { key: 'polymarket' as Source, label: 'Polymarket' },
+              { key: 'updown' as Source, label: 'UpDown' },
+            ]).map(s => (
+              <Box
+                key={s.key}
+                onClick={() => { setSource(s.key); setHoverIndex(null); }}
+                sx={{
+                  px: 1.5, py: 0.5, cursor: 'pointer',
+                  fontSize: '0.65rem', fontWeight: 700,
+                  color: source === s.key ? '#fff' : 'rgba(255,255,255,0.3)',
+                  bgcolor: source === s.key ? 'rgba(255,255,255,0.1)' : 'transparent',
+                  transition: 'all 0.15s',
+                  '&:hover': { bgcolor: 'rgba(255,255,255,0.06)' },
+                }}
+              >
+                {s.label}
+              </Box>
+            ))}
+          </Box>
+          {/* Legend */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Box sx={{ width: 12, height: 2.5, bgcolor: UP_COLOR, borderRadius: 1 }} />
             <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>Yes</Typography>
@@ -154,32 +239,31 @@ export function OddsChart({ poolId }: OddsChartProps) {
             <Box sx={{ width: 12, height: 2.5, bgcolor: DOWN_COLOR, borderRadius: 1, opacity: 0.5 }} />
             <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.35)' }}>No</Typography>
           </Box>
+          {isLive && (
+            <>
+              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: UP_COLOR, animation: 'pulse 1.5s infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+              <Typography sx={{ fontSize: '0.55rem', fontWeight: 700, color: 'rgba(255,255,255,0.25)' }}>LIVE</Typography>
+            </>
+          )}
         </Box>
 
         {/* Right: values + settings */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {hoverPoint ? (
+          {(hoverPoint || lastPoint) && (
             <>
               <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: UP_COLOR, fontVariantNumeric: 'tabular-nums' }}>
-                {formatPct(hoverPoint.p)}
+                {formatPct((hoverPoint || lastPoint)!.p)}
               </Typography>
               <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: DOWN_COLOR, opacity: 0.6, fontVariantNumeric: 'tabular-nums' }}>
-                {formatPct(1 - hoverPoint.p)}
-              </Typography>
-              <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', ml: 0.5 }}>
-                {formatDateFull(hoverPoint.t)}
+                {formatPct(1 - (hoverPoint || lastPoint)!.p)}
               </Typography>
             </>
-          ) : lastPoint ? (
-            <>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: UP_COLOR, fontVariantNumeric: 'tabular-nums' }}>
-                {formatPct(lastPoint.p)}
-              </Typography>
-              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: DOWN_COLOR, opacity: 0.6, fontVariantNumeric: 'tabular-nums' }}>
-                {formatPct(1 - lastPoint.p)}
-              </Typography>
-            </>
-          ) : null}
+          )}
+          {hoverPoint && (
+            <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', ml: 0.5 }}>
+              {formatHoverTime(hoverPoint.t)}
+            </Typography>
+          )}
           <IconButton
             size="small"
             onClick={(e) => setSettingsAnchor(settingsAnchor ? null : e.currentTarget)}
@@ -225,67 +309,75 @@ export function OddsChart({ poolId }: OddsChartProps) {
 
       {/* Chart */}
       <Box ref={containerRef} sx={{ width: '100%', height: CHART_H }}>
-        <svg width={width} height={CHART_H} onMouseMove={handleMouseMove} onMouseLeave={() => setHoverIndex(null)} style={{ cursor: 'crosshair', display: 'block' }}>
-          <defs>
-            <linearGradient id={`og-${poolId}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={UP_COLOR} stopOpacity={0.1} />
-              <stop offset="100%" stopColor={UP_COLOR} stopOpacity={0} />
-            </linearGradient>
-          </defs>
+        {history.length === 0 ? (
+          <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Typography sx={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.25)' }}>
+              {source === 'updown' ? 'No predictions yet — be the first!' : 'No market data available'}
+            </Typography>
+          </Box>
+        ) : (
+          <svg width={width} height={CHART_H} onMouseMove={handleMouseMove} onMouseLeave={() => setHoverIndex(null)} style={{ cursor: 'crosshair', display: 'block' }}>
+            <defs>
+              <linearGradient id={`og-${poolId}-${source}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={UP_COLOR} stopOpacity={0.1} />
+                <stop offset="100%" stopColor={UP_COLOR} stopOpacity={0} />
+              </linearGradient>
+            </defs>
 
-          {/* Grid */}
-          {yTicks.map((t, i) => (
-            <g key={i}>
-              <line x1={PADDING.left} y1={t.y} x2={PADDING.left + chartW} y2={t.y} stroke="rgba(255,255,255,0.04)" />
-              <text x={PADDING.left + chartW + 8} y={t.y + 4} fill="rgba(255,255,255,0.2)" fontSize={10} fontFamily={FONT}>{formatPct(t.p)}</text>
-            </g>
-          ))}
-          {xTicks.map((t, i) => (
-            <text key={i} x={t.x} y={CHART_H - 6} fill="rgba(255,255,255,0.2)" fontSize={10} textAnchor="middle" fontFamily={FONT}>{t.label}</text>
-          ))}
+            {/* Grid */}
+            {yTicks.map((t, i) => (
+              <g key={i}>
+                <line x1={PADDING.left} y1={t.y} x2={PADDING.left + chartW} y2={t.y} stroke="rgba(255,255,255,0.04)" />
+                <text x={PADDING.left + chartW + 8} y={t.y + 4} fill="rgba(255,255,255,0.2)" fontSize={10} fontFamily={FONT}>{formatPct(t.p)}</text>
+              </g>
+            ))}
+            {xTicks.map((t, i) => (
+              <text key={i} x={t.x} y={CHART_H - 6} fill="rgba(255,255,255,0.2)" fontSize={10} textAnchor="middle" fontFamily={FONT}>{t.label}</text>
+            ))}
 
-          {/* 50% ref */}
-          <line x1={PADDING.left} y1={toY(0.5)} x2={PADDING.left + chartW} y2={toY(0.5)} stroke="rgba(255,255,255,0.06)" strokeDasharray="6,4" />
+            {/* 50% ref */}
+            <line x1={PADDING.left} y1={toY(0.5)} x2={PADDING.left + chartW} y2={toY(0.5)} stroke="rgba(255,255,255,0.06)" strokeDasharray="6,4" />
 
-          {/* Area + lines */}
-          {showYes && <path d={yesAreaPath} fill={`url(#og-${poolId})`} />}
-          {showNo && <path d={noPath} fill="none" stroke={DOWN_COLOR} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.4} />}
-          {showYes && <path d={yesPath} fill="none" stroke={UP_COLOR} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />}
+            {/* Lines */}
+            {showYes && <path d={yesAreaPath} fill={`url(#og-${poolId}-${source})`} />}
+            {showNo && <path d={noPath} fill="none" stroke={DOWN_COLOR} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.4} />}
+            {showYes && <path d={yesPath} fill="none" stroke={UP_COLOR} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />}
 
-          {/* Hover */}
-          {hoverIndex != null && hoverPoint && (
-            <>
-              <line x1={toX(hoverIndex)} y1={PADDING.top} x2={toX(hoverIndex)} y2={PADDING.top + chartH} stroke="rgba(255,255,255,0.1)" strokeDasharray="3,3" />
-              {showYes && <circle cx={toX(hoverIndex)} cy={toY(hoverPoint.p)} r={4} fill={UP_COLOR} stroke="#0D1219" strokeWidth={2} />}
-              {showNo && <circle cx={toX(hoverIndex)} cy={toY(1 - hoverPoint.p)} r={3.5} fill={DOWN_COLOR} stroke="#0D1219" strokeWidth={2} opacity={0.7} />}
-            </>
-          )}
+            {/* Hover */}
+            {hoverIndex != null && hoverPoint && (
+              <>
+                <line x1={toX(hoverIndex)} y1={PADDING.top} x2={toX(hoverIndex)} y2={PADDING.top + chartH} stroke="rgba(255,255,255,0.1)" strokeDasharray="3,3" />
+                {showYes && <circle cx={toX(hoverIndex)} cy={toY(hoverPoint.p)} r={4} fill={UP_COLOR} stroke="#0D1219" strokeWidth={2} />}
+                {showNo && <circle cx={toX(hoverIndex)} cy={toY(1 - hoverPoint.p)} r={3.5} fill={DOWN_COLOR} stroke="#0D1219" strokeWidth={2} opacity={0.7} />}
+              </>
+            )}
 
-          {/* Live dots + end labels */}
-          {lastPoint && hoverIndex == null && (
-            <>
-              {showYes && (
-                <>
-                  <circle cx={toX(history.length - 1)} cy={toY(lastPoint.p)} r={4} fill={UP_COLOR}>
-                    <animate attributeName="r" values="3;5;3" dur="2s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite" />
-                  </circle>
-                  <text x={toX(history.length - 1) + 8} y={toY(lastPoint.p) + 4} fill={UP_COLOR} fontSize={11} fontWeight={700} fontFamily={FONT}>
-                    {formatPct(lastPoint.p)}
-                  </text>
-                </>
-              )}
-              {showNo && (
-                <>
-                  <circle cx={toX(history.length - 1)} cy={toY(1 - lastPoint.p)} r={3} fill={DOWN_COLOR} opacity={0.5} />
-                  <text x={toX(history.length - 1) + 8} y={toY(1 - lastPoint.p) + 4} fill={DOWN_COLOR} fontSize={10} fontWeight={600} fontFamily={FONT} opacity={0.5}>
-                    {formatPct(1 - lastPoint.p)}
-                  </text>
-                </>
-              )}
-            </>
-          )}
-        </svg>
+            {/* Live dots + labels */}
+            {lastPoint && hoverIndex == null && (
+              <>
+                {showYes && (
+                  <>
+                    <circle cx={toX(history.length - 1)} cy={toY(lastPoint.p)} r={4} fill={UP_COLOR}>
+                      {isLive && <animate attributeName="r" values="3;5;3" dur="2s" repeatCount="indefinite" />}
+                      {isLive && <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite" />}
+                    </circle>
+                    <text x={toX(history.length - 1) + 8} y={toY(lastPoint.p) + 4} fill={UP_COLOR} fontSize={11} fontWeight={700} fontFamily={FONT}>
+                      {formatPct(lastPoint.p)}
+                    </text>
+                  </>
+                )}
+                {showNo && (
+                  <>
+                    <circle cx={toX(history.length - 1)} cy={toY(1 - lastPoint.p)} r={3} fill={DOWN_COLOR} opacity={0.5} />
+                    <text x={toX(history.length - 1) + 8} y={toY(1 - lastPoint.p) + 4} fill={DOWN_COLOR} fontSize={10} fontWeight={600} fontFamily={FONT} opacity={0.5}>
+                      {formatPct(1 - lastPoint.p)}
+                    </text>
+                  </>
+                )}
+              </>
+            )}
+          </svg>
+        )}
       </Box>
     </Box>
   );

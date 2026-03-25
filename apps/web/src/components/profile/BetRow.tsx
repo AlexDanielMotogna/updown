@@ -12,12 +12,26 @@ import {
   TrendingUp,
   TrendingDown,
   OpenInNew,
+  Gavel,
+  Public,
+  TheaterComedy,
+  AccountBalance,
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { formatUSDC, formatDate, formatPrice, getExplorerTxUrl, statusStyles, USDC_DIVISOR } from '@/lib/format';
 import { GAIN_COLOR, UP_COLOR, DOWN_COLOR, ACCENT_COLOR, getBoxImage } from '@/lib/constants';
 import { Countdown, AssetIcon } from '@/components';
 import type { Bet } from '@/lib/api';
+
+const PM_COLORS: Record<string, string> = {
+  PM_POLITICS: '#A78BFA', PM_GEO: '#60A5FA', PM_CULTURE: '#F472B6', PM_FINANCE: '#34D399',
+};
+const PM_MUI_ICONS: Record<string, React.ReactNode> = {
+  PM_POLITICS: <Gavel sx={{ fontSize: 28 }} />,
+  PM_GEO: <Public sx={{ fontSize: 28 }} />,
+  PM_CULTURE: <TheaterComedy sx={{ fontSize: 28 }} />,
+  PM_FINANCE: <AccountBalance sx={{ fontSize: 28 }} />,
+};
 
 /* ─── Table Row for a single prediction ─── */
 
@@ -38,7 +52,21 @@ export function BetRow({
   const isResolving = bet.pool.status === 'ACTIVE' && new Date(bet.pool.endTime).getTime() <= Date.now();
   const statusStyle = statusStyles[bet.pool.status] || statusStyles.UPCOMING;
   const sideColor = bet.side === 'UP' ? UP_COLOR : DOWN_COLOR;
-  const boxImageUrl = getBoxImage(bet.pool.asset, bet.pool.interval);
+  const isSports = bet.pool.poolType === 'SPORTS';
+  const isPM = bet.pool.league?.startsWith('PM_');
+  const poolLink = isSports ? `/match/${bet.pool.id}` : `/pool/${bet.pool.id}`;
+  const poolName = isPM
+    ? (bet.pool.homeTeam || bet.pool.asset).slice(0, 40)
+    : isSports
+    ? `${bet.pool.homeTeam || ''} vs ${bet.pool.awayTeam || ''}`.trim()
+    : `${bet.pool.asset}/USD`;
+  const sideLabel = isPM
+    ? (bet.side === 'UP' ? 'Yes' : 'No')
+    : isSports
+    ? (bet.side === 'UP' ? (bet.pool.homeTeam || 'Home') : bet.side === 'DOWN' ? (bet.pool.awayTeam || 'Away') : 'Draw')
+    : bet.side;
+  const boxImageUrl = isSports ? null : getBoxImage(bet.pool.asset, bet.pool.interval);
+  const teamCrest = isSports && !isPM ? bet.pool.homeTeamCrest : null;
 
   // Result chip
   const resultLabel = bet.claimed
@@ -119,17 +147,16 @@ export function BetRow({
               transition: 'transform 0.2s ease, filter 0.2s ease',
             }}
           />
+        ) : teamCrest ? (
+          <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Box component="img" src={teamCrest} alt="" sx={{ width: 40, height: 40, objectFit: 'contain' }} />
+          </Box>
+        ) : isPM ? (
+          <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: PM_COLORS[bet.pool.league || ''] || '#A78BFA' }}>
+            {PM_MUI_ICONS[bet.pool.league || ''] || <TrendingUp sx={{ fontSize: 28 }} />}
+          </Box>
         ) : (
-          <Box
-            sx={{
-              width: '100%',
-              height: '100%',
-              bgcolor: 'rgba(255,255,255,0.05)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
+          <Box sx={{ width: '100%', height: '100%', bgcolor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <AssetIcon asset={bet.pool.asset} size={24} />
           </Box>
         )}
@@ -147,6 +174,12 @@ export function BetRow({
                 alt={`${bet.pool.asset} box`}
                 sx={{ width: 40, height: 40, objectFit: 'contain', flexShrink: 0 }}
               />
+            ) : teamCrest ? (
+              <Box component="img" src={teamCrest} alt="" sx={{ width: 40, height: 40, objectFit: 'contain', flexShrink: 0 }} />
+            ) : isPM ? (
+              <Box sx={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: PM_COLORS[bet.pool.league || ''] || '#A78BFA' }}>
+                {PM_MUI_ICONS[bet.pool.league || ''] || <TrendingUp sx={{ fontSize: 24 }} />}
+              </Box>
             ) : (
               <Box sx={{ width: 40, height: 40, bgcolor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px', flexShrink: 0 }}>
                 <AssetIcon asset={bet.pool.asset} size={20} />
@@ -154,11 +187,11 @@ export function BetRow({
             )}
             <Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                <Link href={`/pool/${bet.pool.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                  <Typography sx={{ fontWeight: 600, fontSize: '0.95rem' }}>{bet.pool.asset}/USD</Typography>
+                <Link href={poolLink} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <Typography sx={{ fontWeight: 600, fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>{poolName}</Typography>
                 </Link>
                 <Chip
-                  icon={bet.side === 'UP' ? <TrendingUp sx={{ fontSize: 12 }} /> : <TrendingDown sx={{ fontSize: 12 }} />}
+                  icon={<Box component="img" src={bet.side === 'UP' ? '/assets/up-icon-64x64.png' : '/assets/down-icon-64x64.png'} alt="" sx={{ width: 12, height: 12 }} />}
                   label={bet.side}
                   size="small"
                   sx={{
@@ -243,7 +276,7 @@ export function BetRow({
               {isClaiming ? 'Claiming...' : 'Claim'}
             </Button>
           ) : (
-            <Link href={`/pool/${bet.pool.id}`} style={{ flex: 1, textDecoration: 'none' }}>
+            <Link href={poolLink} style={{ flex: 1, textDecoration: 'none' }}>
               <Button
                 fullWidth
                 size="small"
@@ -280,14 +313,14 @@ export function BetRow({
 
       {/* Asset + Side */}
       <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', alignSelf: 'center', gap: 0.75, pl: 1.5 }}>
-        <Link href={`/pool/${bet.pool.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-          <Typography sx={{ fontWeight: 600, fontSize: '0.85rem', '&:hover': { color: 'rgba(255,255,255,0.7)' } }}>
-            {bet.pool.asset}/USD
+        <Link href={poolLink} style={{ textDecoration: 'none', color: 'inherit' }}>
+          <Typography sx={{ fontWeight: 600, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180, '&:hover': { color: 'rgba(255,255,255,0.7)' } }}>
+            {poolName}
           </Typography>
         </Link>
         <Chip
-          icon={bet.side === 'UP' ? <TrendingUp sx={{ fontSize: 12 }} /> : <TrendingDown sx={{ fontSize: 12 }} />}
-          label={bet.side}
+          icon={<Box component="img" src={bet.side === 'UP' ? '/assets/up-icon-64x64.png' : '/assets/down-icon-64x64.png'} alt="" sx={{ width: 12, height: 12 }} />}
+          label={sideLabel}
           size="small"
           sx={{
             height: 20,
@@ -383,7 +416,7 @@ export function BetRow({
             {isClaiming ? 'Claiming...' : 'Claim'}
           </Button>
         ) : (
-          <Link href={`/pool/${bet.pool.id}`} style={{ textDecoration: 'none' }}>
+          <Link href={poolLink} style={{ textDecoration: 'none' }}>
             <Button
               size="small"
               sx={{

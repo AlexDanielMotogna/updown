@@ -15,6 +15,7 @@ import { getScheduler } from './scheduler';
 import { startTournamentScheduler } from './scheduler/tournament-scheduler';
 import { startSportsScheduler } from './scheduler/sports-scheduler';
 import { startFixtureSyncScheduler } from './scheduler/fixture-sync';
+import { startPolymarketSyncScheduler } from './scheduler/polymarket-sync';
 import { initWebSocket, shutdownWebSocket } from './websocket';
 
 dotenv.config();
@@ -98,6 +99,12 @@ httpServer.listen(PORT, async () => {
     startFixtureSyncScheduler();
   } catch (error) {
     console.error('Failed to start fixture sync scheduler:', error);
+  }
+
+  try {
+    startPolymarketSyncScheduler();
+  } catch (error) {
+    console.error('Failed to start Polymarket sync scheduler:', error);
   }
 
   try {

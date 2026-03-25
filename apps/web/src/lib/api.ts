@@ -91,6 +91,12 @@ export interface Bet {
     strikePrice: string | null;
     finalPrice: string | null;
     winner: 'UP' | 'DOWN' | null;
+    poolType?: string;
+    league?: string | null;
+    homeTeam?: string | null;
+    awayTeam?: string | null;
+    homeTeamCrest?: string | null;
+    awayTeamCrest?: string | null;
   };
 }
 
