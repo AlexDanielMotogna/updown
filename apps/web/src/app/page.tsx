@@ -326,6 +326,22 @@ export default function MarketsPage() {
                   </Box>
                 )}
 
+                {/* Empty state for sports/PM (only show after data loaded) */}
+                {!isPlaceholderData && marketType === 'SPORTS' && sportsPools.length === 0 && (
+                  <Box sx={{ textAlign: 'center', py: 8 }}>
+                    <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.9rem' }}>
+                      No sports matches available right now
+                    </Typography>
+                  </Box>
+                )}
+                {!isPlaceholderData && isPM && predictionPools.length === 0 && (
+                  <Box sx={{ textAlign: 'center', py: 8 }}>
+                    <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.9rem' }}>
+                      No predictions available in this category
+                    </Typography>
+                  </Box>
+                )}
+
                 {/* Prediction market cards */}
                 {isPM && predictionPools.length > 0 && (
                   <Box
