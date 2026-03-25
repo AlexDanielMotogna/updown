@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Typography, Avatar } from '@mui/material';
-import { UP_COLOR, DOWN_COLOR, getAvatarUrl } from '@/lib/constants';
+import { UP_COLOR, DOWN_COLOR, ACCENT_COLOR, getAvatarUrl } from '@/lib/constants';
 import { truncate, formatPrice, formatScore } from './tournament-utils';
 
 export function PlayerRow({
@@ -12,6 +12,9 @@ export function PlayerRow({
   isLoser,
   isPending,
   isSports,
+  score,
+  fixtureCount,
+  isMe,
 }: {
   wallet: string | null;
   prediction: string | null;
@@ -22,6 +25,7 @@ export function PlayerRow({
   isSports?: boolean;
   score?: number | null;
   fixtureCount?: number;
+  isMe?: boolean;
 }) {
   return (
     <Box
@@ -33,7 +37,7 @@ export function PlayerRow({
         py: 1,
         height: 40,
         position: 'relative',
-        bgcolor: isWinner ? `${UP_COLOR}08` : 'transparent',
+        bgcolor: isWinner ? `${UP_COLOR}08` : isMe ? 'rgba(129,140,248,0.06)' : 'transparent',
         opacity: isLoser ? 0.35 : 1,
         transition: 'opacity 0.2s',
       }}
@@ -42,12 +46,16 @@ export function PlayerRow({
       {isWinner && (
         <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, bgcolor: UP_COLOR }} />
       )}
+      {/* "You" indicator bar */}
+      {isMe && !isWinner && (
+        <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, bgcolor: ACCENT_COLOR }} />
+      )}
 
       {/* Avatar */}
       {wallet ? (
         <Avatar
           src={getAvatarUrl(wallet)}
-          sx={{ width: 22, height: 22, flexShrink: 0 }}
+          sx={{ width: 22, height: 22, flexShrink: 0, border: isMe ? `2px solid ${ACCENT_COLOR}` : 'none' }}
         />
       ) : (
         <Box sx={{ width: 22, height: 22, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.04)', flexShrink: 0 }} />
@@ -58,15 +66,15 @@ export function PlayerRow({
         sx={{
           flex: 1,
           fontSize: '0.8rem',
-          fontWeight: isWinner ? 700 : 500,
-          color: isWinner ? '#fff' : wallet ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.12)',
+          fontWeight: isWinner || isMe ? 700 : 500,
+          color: isMe ? ACCENT_COLOR : isWinner ? '#fff' : wallet ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.12)',
           fontVariantNumeric: 'tabular-nums',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
         }}
       >
-        {truncate(wallet)}
+        {isMe ? 'You' : truncate(wallet)}
       </Typography>
 
       {/* Prediction + distance/score */}
@@ -82,7 +90,7 @@ export function PlayerRow({
           )}
         </Box>
       ) : isPending && wallet ? (
-        <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.12)', flexShrink: 0 }}>
+        <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', flexShrink: 0 }}>
           --
         </Typography>
       ) : null}
