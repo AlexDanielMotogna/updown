@@ -10,6 +10,8 @@ import {
   createSquad as apiCreateSquad,
   joinSquad as apiJoinSquad,
   createSquadPool as apiCreateSquadPool,
+  prepareSquadPool as apiPrepareSquadPool,
+  confirmSquadPool as apiConfirmSquadPool,
   sendSquadMessage as apiSendSquadMessage,
   leaveSquad as apiLeaveSquad,
   kickSquadMember as apiKickSquadMember,
@@ -183,12 +185,54 @@ export function useJoinSquad() {
 }
 
 export function useCreateSquadPool(squadId: string) {
-  const { walletAddress } = useWalletBridge();
+  const { walletAddress, sendTransaction } = useWalletBridge();
   const queryClient = useQueryClient();
+  const { useSolanaConnection } = require('@/app/providers');
+  const connection = useSolanaConnection();
 
   return useMutation({
-    mutationFn: (params: { asset: string; durationSeconds: number; maxBettors?: number }) =>
-      apiCreateSquadPool({ squadId, wallet: walletAddress!, ...params }),
+    mutationFn: async (params: { asset: string; durationSeconds: number; maxBettors?: number }) => {
+      if (!walletAddress) throw new Error('Wallet not connected');
+
+      // Step 1: Prepare (server builds tx, authority partial-signs)
+      const prepRes = await apiPrepareSquadPool({ squadId, wallet: walletAddress, ...params });
+      if (!prepRes.success || !prepRes.data) {
+        throw new Error(prepRes.error?.message || 'Failed to prepare pool');
+      }
+
+      // Step 2: User signs + sends
+      const { Transaction } = await import('@solana/web3.js');
+      const tx = Transaction.from(Buffer.from(prepRes.data.transaction, 'base64'));
+      const signature = await sendTransaction(tx);
+
+      // Step 3: Wait for confirmation
+      const startTime = Date.now();
+      while (Date.now() - startTime < 60_000) {
+        const status = await connection.getSignatureStatus(signature, { searchTransactionHistory: true });
+        if (status?.value?.confirmationStatus === 'confirmed' || status?.value?.confirmationStatus === 'finalized') break;
+        if (status?.value?.err) throw new Error('Transaction failed on-chain');
+        await new Promise(r => setTimeout(r, 3000));
+      }
+
+      // Step 4: Confirm (server creates DB record)
+      const confirmRes = await apiConfirmSquadPool({
+        squadId,
+        wallet: walletAddress,
+        txSignature: signature,
+        poolId: prepRes.data.poolId,
+        asset: prepRes.data.asset,
+        intervalKey: prepRes.data.intervalKey,
+        durationSeconds: params.durationSeconds,
+        startTime: prepRes.data.startTime,
+        endTime: prepRes.data.endTime,
+        lockTime: prepRes.data.lockTime,
+        strikePrice: prepRes.data.strikePrice,
+        maxBettors: params.maxBettors,
+      });
+
+      if (!confirmRes.success) throw new Error(confirmRes.error?.message || 'Failed to confirm pool');
+      return confirmRes;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['squadPools', squadId] });
     },

@@ -547,6 +547,57 @@ export async function createSquadPool(params: {
   });
 }
 
+export async function prepareSquadPool(params: {
+  squadId: string;
+  wallet: string;
+  asset: string;
+  durationSeconds: number;
+  maxBettors?: number;
+}): Promise<ApiResponse<{
+  transaction: string;
+  poolId: string;
+  strikePrice: string;
+  asset: string;
+  intervalKey: string;
+  startTime: number;
+  endTime: number;
+  lockTime: number;
+}>> {
+  const { squadId, ...body } = params;
+  return fetchApi(`/api/squads/${squadId}/pools/prepare`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function confirmSquadPool(params: {
+  squadId: string;
+  wallet: string;
+  txSignature: string;
+  poolId: string;
+  asset: string;
+  intervalKey: string;
+  durationSeconds: number;
+  startTime: number;
+  endTime: number;
+  lockTime: number;
+  strikePrice: string;
+  maxBettors?: number;
+}): Promise<ApiResponse<{ poolId: string }>> {
+  const { squadId, ...body } = params;
+  return fetchApi(`/api/squads/${squadId}/pools/confirm`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function cancelSquadPool(squadId: string, poolId: string, wallet: string): Promise<ApiResponse<unknown>> {
+  return fetchApi(`/api/squads/${squadId}/pools/${poolId}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify({ wallet }),
+  });
+}
+
 export async function fetchSquadMessages(
   squadId: string,
   wallet: string,
