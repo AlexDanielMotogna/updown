@@ -1,5 +1,5 @@
 import { prisma } from '../db';
-import { getAdapter } from './sports';
+import { getCachedUpcomingFixtures } from './sports/fixture-cache';
 
 // Re-export scoring utilities for convenience
 export {
@@ -21,6 +21,7 @@ export async function assignMatchdayToRound(
   tournamentId: string,
   round: number,
   league: string,
+  sport: string = 'FOOTBALL',
 ): Promise<void> {
   // Check if fixtures already exist for this round
   const existing = await prisma.tournamentRoundFixture.count({
@@ -31,8 +32,7 @@ export async function assignMatchdayToRound(
     return;
   }
 
-  const adapter = getAdapter('FOOTBALL');
-  const matches = await adapter.fetchUpcomingMatches(league);
+  const matches = await getCachedUpcomingFixtures(sport, league);
 
   if (matches.length === 0) {
     console.warn(`[Sports Tournament] No upcoming matches for ${league}`);

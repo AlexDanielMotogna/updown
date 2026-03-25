@@ -6,7 +6,8 @@ import {
   generateRoundMatches,
 } from '../../services/tournament';
 import { prisma } from '../../db';
-import { getAdapter } from '../../services/sports';
+import { getAdapter, getSideLabels, listSports } from '../../services/sports';
+import { getCachedUpcomingFixtures } from '../../services/sports/fixture-cache';
 import { assignFixturesToRound } from '../../services/tournament-sports';
 import { buildActualOutcomes, computeTotalGoals, determineMatchdayWinner, parseMatchdayPrediction } from '../../services/tournament-sports-scoring';
 
@@ -17,16 +18,29 @@ adminTournamentsRouter.get('/', async (_req, res) => {
   try {
     const tournaments = await prisma.tournament.findMany({
       orderBy: { createdAt: 'desc' },
-      include: { _count: { select: { participants: true } } },
+      include: {
+        _count: { select: { participants: true } },
+        fixtures: { orderBy: [{ round: 'asc' }, { fixtureIndex: 'asc' }] },
+      },
     });
 
     res.json({
       success: true,
-      data: tournaments.map(t => ({
-        ...t,
-        entryFee: t.entryFee.toString(),
-        prizePool: t.prizePool.toString(),
-      })),
+      data: tournaments.map(t => {
+        // Group fixtures by round
+        const fixturesByRound: Record<number, Array<{ homeTeam: string; awayTeam: string; fixtureIndex: number; status: string }>> = {};
+        for (const f of t.fixtures) {
+          if (!fixturesByRound[f.round]) fixturesByRound[f.round] = [];
+          fixturesByRound[f.round].push({ homeTeam: f.homeTeam, awayTeam: f.awayTeam, fixtureIndex: f.fixtureIndex, status: f.status });
+        }
+        return {
+          ...t,
+          entryFee: t.entryFee.toString(),
+          prizePool: t.prizePool.toString(),
+          fixtures: undefined,
+          fixturesByRound,
+        };
+      }),
     });
   } catch (error) {
     console.error('[Admin] List tournaments error:', error);
@@ -34,12 +48,17 @@ adminTournamentsRouter.get('/', async (_req, res) => {
   }
 });
 
-// GET /api/admin/tournaments/upcoming-matches?league=CL — fetch upcoming matches from football API
+// GET /api/admin/tournaments/sports — list available sport adapters
+adminTournamentsRouter.get('/sports', (_req, res) => {
+  res.json({ success: true, data: listSports() });
+});
+
+// GET /api/admin/tournaments/upcoming-matches?league=CL&sport=FOOTBALL — fetch upcoming matches
 adminTournamentsRouter.get('/upcoming-matches', async (req, res) => {
   try {
     const league = (req.query.league as string) || 'CL';
-    const adapter = getAdapter('FOOTBALL');
-    const matches = await adapter.fetchUpcomingMatches(league);
+    const sport = (req.query.sport as string) || 'FOOTBALL';
+    const matches = await getCachedUpcomingFixtures(sport, league);
 
     res.json({
       success: true,

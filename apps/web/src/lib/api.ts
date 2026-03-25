@@ -649,6 +649,7 @@ export interface TournamentSummary {
   tournamentType?: string;
   sport?: string | null;
   league?: string | null;
+  sideLabels?: string[];
 }
 
 export interface TournamentMatchData {

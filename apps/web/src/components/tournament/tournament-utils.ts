@@ -8,6 +8,18 @@ export const CARD_H = 124;
 export const CARD_GAP = 32;
 export const PREDICT_COLOR = '#818CF8';
 
+// Header = label (20px) + gap (16px) + optional fixtures info
+const LABEL_H = 20;
+const LABEL_GAP = 16;
+const FIXTURE_ROW_H = 18; // each fixture row ~18px
+const FIXTURE_GAP = 12;   // gap after fixtures block
+
+export function getHeaderHeight(fixtureCount: number): number {
+  const base = LABEL_H + LABEL_GAP;
+  if (fixtureCount <= 0) return base;
+  return base + fixtureCount * FIXTURE_ROW_H + FIXTURE_GAP;
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 export function truncate(w: string | null) {
@@ -52,8 +64,14 @@ export function parseMatchdayPrediction(raw: string | null): MatchdayPrediction 
   }
 }
 
-export function formatOutcome(outcome: string | null | undefined): string {
+export function formatOutcome(outcome: string | null | undefined, sideLabels?: string[]): string {
   if (!outcome) return '—';
+  // Dynamic: map key back to display label
+  if (sideLabels) {
+    const idx = sideLabels.findIndex(l => l.toUpperCase() === outcome);
+    if (idx >= 0) return sideLabels[idx];
+  }
+  // Default fallback
   if (outcome === 'HOME') return 'Home';
   if (outcome === 'DRAW') return 'Draw';
   if (outcome === 'AWAY') return 'Away';
@@ -64,6 +82,9 @@ export function formatOutcome(outcome: string | null | undefined): string {
   if (n === 3) return 'Away';
   return '—';
 }
+
+/** Default sideLabels for 3-way sports (football) */
+export const DEFAULT_SIDE_LABELS = ['Home', 'Draw', 'Away'];
 
 export function formatScore(correct: number | null | undefined, total: number): string {
   if (correct == null) return '—';

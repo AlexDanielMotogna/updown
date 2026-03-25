@@ -25,7 +25,7 @@ function mapStatus(apiStatus: string): MatchStatus {
 export class FootballAdapter implements SportAdapter {
   sport = 'FOOTBALL';
   numSides = 3;
-  sideLabels = ['Home', 'Away', 'Draw'];
+  sideLabels = ['Home', 'Draw', 'Away'];
 
   async fetchUpcomingMatches(league: string): Promise<Match[]> {
     const data = await footballFetch(`/competitions/${league}/matches?status=SCHEDULED,TIMED&limit=20`);
@@ -76,6 +76,31 @@ export class FootballAdapter implements SportAdapter {
     } catch {
       return null;
     }
+  }
+
+  async fetchMatchesByDateRange(league: string, dateFrom: string, dateTo: string): Promise<Match[]> {
+    const data = await footballFetch(
+      `/competitions/${league}/matches?dateFrom=${dateFrom}&dateTo=${dateTo}`
+    );
+
+    return (data.matches || [])
+      .filter((m: any) => m.homeTeam?.id != null)
+      .map((m: any) => ({
+        id: String(m.id),
+        sport: 'FOOTBALL',
+        league,
+        leagueName: data.competition?.name || league,
+        homeTeam: m.homeTeam?.shortName || m.homeTeam?.name || 'Home',
+        awayTeam: m.awayTeam?.shortName || m.awayTeam?.name || 'Away',
+        homeTeamCrest: m.homeTeam?.crest || null,
+        awayTeamCrest: m.awayTeam?.crest || null,
+        kickoff: new Date(m.utcDate),
+        status: mapStatus(m.status),
+        homeScore: m.score?.fullTime?.home ?? undefined,
+        awayScore: m.score?.fullTime?.away ?? undefined,
+        matchday: m.matchday ?? undefined,
+        season: m.season?.id ?? undefined,
+      }));
   }
 
   resolveWinner(result: MatchResult): number {

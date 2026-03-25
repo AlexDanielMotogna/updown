@@ -4,24 +4,28 @@ import { useState } from 'react';
 import { Box, Typography, Button, CircularProgress } from '@mui/material';
 import { UP_COLOR, DOWN_COLOR, DRAW_COLOR } from '@/lib/constants';
 
-const OUTCOMES = [
-  { value: 1, label: 'Home', color: UP_COLOR },
-  { value: 2, label: 'Draw', color: DRAW_COLOR },
-  { value: 3, label: 'Away', color: DOWN_COLOR },
-] as const;
-
 interface Props {
   homeTeam?: string | null;
   awayTeam?: string | null;
   onSubmit: (prediction: number) => Promise<void>;
   disabled?: boolean;
+  sideLabels?: string[];
 }
 
-export function OutcomePicker({ homeTeam, awayTeam, onSubmit, disabled }: Props) {
+const COLOR_MAP: Record<string, string> = { HOME: UP_COLOR, AWAY: DOWN_COLOR, DRAW: DRAW_COLOR };
+
+export function OutcomePicker({ homeTeam, awayTeam, onSubmit, disabled, sideLabels = ['Home', 'Draw', 'Away'] }: Props) {
   const [selected, setSelected] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const labels = [homeTeam || 'Home', 'Draw', awayTeam || 'Away'];
+  const OUTCOMES = sideLabels.map((sl, i) => {
+    const key = sl.toUpperCase();
+    return {
+      value: i + 1,
+      label: key === 'HOME' ? (homeTeam || 'Home') : key === 'AWAY' ? (awayTeam || 'Away') : sl,
+      color: COLOR_MAP[key] || DRAW_COLOR,
+    };
+  });
 
   const handleSubmit = async () => {
     if (selected === null) return;
@@ -39,7 +43,7 @@ export function OutcomePicker({ homeTeam, awayTeam, onSubmit, disabled }: Props)
         Your Prediction
       </Typography>
       <Box sx={{ display: 'flex', gap: 0.75 }}>
-        {OUTCOMES.map((o, i) => {
+        {OUTCOMES.map((o) => {
           const active = selected === o.value;
           return (
             <Box
@@ -58,7 +62,7 @@ export function OutcomePicker({ homeTeam, awayTeam, onSubmit, disabled }: Props)
               }}
             >
               <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: active ? o.color : 'rgba(255,255,255,0.5)' }}>
-                {labels[i]}
+                {o.label}
               </Typography>
             </Box>
           );

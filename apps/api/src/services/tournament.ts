@@ -173,12 +173,12 @@ export async function startTournament(tournamentId: string) {
     const playerWallets = shuffled.map((p) => p.walletAddress);
     const matches = await generateRoundMatchesTx(tx, tournamentId, 1, playerWallets, tournament.predictionWindow);
 
-    return { matches, tournamentType: tournament.tournamentType, league: tournament.league, matchConfig: tournament.matchConfig };
+    return { matches, tournamentType: tournament.tournamentType, league: tournament.league, sport: tournament.sport, matchConfig: tournament.matchConfig };
   });
 
   // For sports tournaments, assign matchday fixtures to round 1
   if (result.tournamentType === 'SPORTS' && result.league) {
-    await assignMatchdayToRound(tournamentId, 1, result.league).catch(err =>
+    await assignMatchdayToRound(tournamentId, 1, result.league, result.sport || 'FOOTBALL').catch(err =>
       console.error('[Tournament] Failed to assign matchday to round 1:', err)
     );
   }

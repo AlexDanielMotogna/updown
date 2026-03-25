@@ -14,6 +14,7 @@ import { tournamentRouter } from './routes/tournaments';
 import { getScheduler } from './scheduler';
 import { startTournamentScheduler } from './scheduler/tournament-scheduler';
 import { startSportsScheduler } from './scheduler/sports-scheduler';
+import { startFixtureSyncScheduler } from './scheduler/fixture-sync';
 import { initWebSocket, shutdownWebSocket } from './websocket';
 
 dotenv.config();
@@ -91,6 +92,12 @@ httpServer.listen(PORT, async () => {
     startTournamentScheduler();
   } catch (error) {
     console.error('Failed to start tournament scheduler:', error);
+  }
+
+  try {
+    startFixtureSyncScheduler();
+  } catch (error) {
+    console.error('Failed to start fixture sync scheduler:', error);
   }
 
   try {

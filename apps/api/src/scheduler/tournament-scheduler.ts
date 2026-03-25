@@ -174,7 +174,7 @@ async function processTournaments(): Promise<void> {
       // ── 3. Advance round ───────────────────────────────────────────────
       const advResult = await checkAndAdvanceRound(tournament.id);
       if (advResult?.advanced && !advResult.completed && advResult.tournamentType === 'SPORTS' && advResult.league) {
-        await assignMatchdayToRound(tournament.id, advResult.nextRound!, advResult.league).catch(err =>
+        await assignMatchdayToRound(tournament.id, advResult.nextRound!, advResult.league, advResult.sport || tournament.sport || 'FOOTBALL').catch(err =>
           console.error(`[Tournament] Failed to assign matchday to round ${advResult.nextRound}:`, err)
         );
       }

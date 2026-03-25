@@ -12,9 +12,10 @@ interface Props {
   matchId: string;
   walletAddress: string;
   onSubmitted: () => void;
+  sideLabels?: string[];
 }
 
-export function MatchdayPredictionForm({ fixtures, tournamentId, matchId, walletAddress, onSubmitted }: Props) {
+export function MatchdayPredictionForm({ fixtures, tournamentId, matchId, walletAddress, onSubmitted, sideLabels }: Props) {
   const [outcomes, setOutcomes] = useState<Record<number, string>>({});
   const [totalGoals, setTotalGoals] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -61,6 +62,7 @@ export function MatchdayPredictionForm({ fixtures, tournamentId, matchId, wallet
           awayTeamCrest={f.awayTeamCrest}
           selected={outcomes[i] || null}
           onSelect={(v) => setOutcomes(prev => ({ ...prev, [i]: v }))}
+          sideLabels={sideLabels}
         />
       ))}
 

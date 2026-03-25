@@ -219,7 +219,7 @@ export async function checkAndAdvanceRound(tournamentId: string) {
 
     await generateRoundMatchesTx(tx, tournamentId, nextRound, winners, tournament.predictionWindow);
 
-    return { advanced: true, completed: false, nextRound, tournamentType: tournament.tournamentType, league: tournament.league };
+    return { advanced: true, completed: false, nextRound, tournamentType: tournament.tournamentType, league: tournament.league, sport: tournament.sport };
   });
 }
 

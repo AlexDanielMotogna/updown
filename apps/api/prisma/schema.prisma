@@ -414,3 +414,33 @@ model TournamentRoundFixture {
   @@index([tournamentId, round])
   @@map("tournament_round_fixtures")
 }
+
+model SportsFixtureCache {
+  id            String   @id @default(uuid())
+  externalId    String   @map("external_id")
+  sport         String
+  league        String
+  leagueName    String   @map("league_name")
+  season        Int?
+  matchday      Int?
+  homeTeam      String   @map("home_team")
+  awayTeam      String   @map("away_team")
+  homeTeamCrest String?  @map("home_team_crest")
+  awayTeamCrest String?  @map("away_team_crest")
+  kickoff       DateTime
+  status        String   @default("SCHEDULED")
+  homeScore     Int?     @map("home_score")
+  awayScore     Int?     @map("away_score")
+  winner        String?
+  apiSource     String   @default("football-data") @map("api_source")
+  lastSyncedAt  DateTime @map("last_synced_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([externalId, sport, apiSource])
+  @@index([sport, league, kickoff])
+  @@index([sport, league, status])
+  @@index([status, kickoff])
+  @@index([externalId])
+  @@map("sports_fixture_cache")
+}

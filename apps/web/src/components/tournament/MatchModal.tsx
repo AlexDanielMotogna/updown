@@ -2,10 +2,10 @@
 
 import { Box, Typography, Chip, Dialog, IconButton } from '@mui/material';
 import { Close } from '@mui/icons-material';
-import { UP_COLOR, ACCENT_COLOR } from '@/lib/constants';
+import { UP_COLOR, DOWN_COLOR, DRAW_COLOR, ACCENT_COLOR } from '@/lib/constants';
 import { type TournamentMatchData, type TournamentFixture } from '@/lib/api';
 import { InlineChart } from '@/components/pool/InlineChart';
-import { BG, BORDER, PREDICT_COLOR, formatPrice, formatDistance, formatScore, parseMatchdayPrediction } from './tournament-utils';
+import { BG, BORDER, PREDICT_COLOR, formatPrice, formatDistance, parseMatchdayPrediction, formatOutcome, truncate } from './tournament-utils';
 import { Countdown } from './Countdown';
 import { PlayerRow } from './PlayerRow';
 import { PredictionInput } from './PredictionInput';
@@ -25,6 +25,7 @@ export function MatchModal({
   isSports,
   fixtureCount,
   fixtures,
+  sideLabels,
 }: {
   open: boolean;
   onClose: () => void;
@@ -38,6 +39,7 @@ export function MatchModal({
   isSports?: boolean;
   fixtureCount?: number;
   fixtures?: TournamentFixture[];
+  sideLabels?: string[];
 }) {
   const isResolved = match.status === 'RESOLVED';
   const isActive = match.status === 'ACTIVE';
@@ -99,40 +101,132 @@ export function MatchModal({
         </IconButton>
       </Box>
 
+      {/* Result banner */}
+      {isResolved && isMyMatch && (() => {
+        const iWon = (isP1 && p1Won) || (isP2 && p2Won);
+        const myScore = isP1 ? match.player1Score : match.player2Score;
+        const oppScore = isP1 ? match.player2Score : match.player1Score;
+        return (
+          <Box sx={{ px: 2, py: 1.5, textAlign: 'center', borderBottom: `1px solid ${BORDER}`, bgcolor: iWon ? `${UP_COLOR}08` : 'rgba(248,113,113,0.05)' }}>
+            <Typography sx={{ fontSize: '1.1rem', fontWeight: 800, color: iWon ? UP_COLOR : '#F87171', mb: 0.25 }}>
+              {iWon ? 'YOU WIN' : 'YOU LOST'}
+            </Typography>
+            {myScore != null && oppScore != null && (
+              <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255,255,255,0.6)' }}>
+                Score: {myScore} – {oppScore}
+              </Typography>
+            )}
+          </Box>
+        );
+      })()}
+
       {/* Players */}
       <Box sx={{ px: 2, py: 1.5, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-        <PlayerRow wallet={match.player1Wallet} prediction={match.player1Prediction} distance={p1Distance} isWinner={p1Won} isLoser={isResolved && !p1Won && !!match.player1Wallet} isPending={isPending || isActive} isSports={isSports} score={match.player1Score} fixtureCount={fixtureCount} />
+        <PlayerRow wallet={match.player1Wallet} prediction={match.player1Prediction} distance={p1Distance} isWinner={p1Won} isLoser={isResolved && !p1Won && !!match.player1Wallet} isPending={isPending || isActive} isSports={isSports} score={match.player1Score} fixtureCount={fixtureCount} isMe={isP1} />
         <Box sx={{ height: '1px', bgcolor: BORDER, position: 'relative', my: 0.25 }}>
           <Typography sx={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', fontSize: '0.5rem', fontWeight: 700, color: isResolved && match.finalPrice ? ACCENT_COLOR : 'rgba(255,255,255,0.15)', bgcolor: BG, px: 0.75, lineHeight: 1 }}>
             {isResolved && match.finalPrice ? (isSports ? 'Done' : formatPrice(match.finalPrice)) : 'VS'}
           </Typography>
         </Box>
-        <PlayerRow wallet={match.player2Wallet} prediction={match.player2Prediction} distance={p2Distance} isWinner={p2Won} isLoser={isResolved && !p2Won && !!match.player2Wallet} isPending={isPending || isActive} isSports={isSports} score={match.player2Score} fixtureCount={fixtureCount} />
+        <PlayerRow wallet={match.player2Wallet} prediction={match.player2Prediction} distance={p2Distance} isWinner={p2Won} isLoser={isResolved && !p2Won && !!match.player2Wallet} isPending={isPending || isActive} isSports={isSports} score={match.player2Score} fixtureCount={fixtureCount} isMe={isP2} />
       </Box>
 
-      {/* Fixtures list (sports — show results if resolved) */}
-      {isSports && fixtures && fixtures.length > 0 && (isResolved || isActive) && (
-        <Box sx={{ borderTop: `1px solid ${BORDER}`, px: 2, py: 1 }}>
-          <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5 }}>
-            Matchday Results
+      {/* Fixtures breakdown — card per match */}
+      {isSports && fixtures && fixtures.length > 0 && (match.player1Prediction || match.player2Prediction) && (
+        <Box sx={{ borderTop: `1px solid ${BORDER}`, px: 2, py: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {isResolved ? 'Matchday Results' : 'Predictions'}
           </Typography>
+
           {fixtures.map((f, i) => {
-            const myPred = isP1 ? parseMatchdayPrediction(match.player1Prediction) : isP2 ? parseMatchdayPrediction(match.player2Prediction) : null;
+            const p1Pred = parseMatchdayPrediction(match.player1Prediction);
+            const p2Pred = parseMatchdayPrediction(match.player2Prediction);
+            const p1Pick = p1Pred?.outcomes[i];
+            const p2Pick = p2Pred?.outcomes[i];
+            const result = f.resultOutcome;
+            const p1Correct = result && p1Pick === result;
+            const p2Correct = result && p2Pick === result;
+            const myPick = isP1 ? p1Pick : isP2 ? p2Pick : null;
+            const oppPick = isP1 ? p2Pick : isP2 ? p1Pick : null;
+            const myCorrect = isP1 ? p1Correct : p2Correct;
+            const oppCorrect = isP1 ? p2Correct : p1Correct;
+
+            // Convert HOME/DRAW/AWAY to team name
+            const pickToName = (pick: string | undefined | null) => {
+              if (!pick) return '—';
+              if (pick === 'HOME') return f.homeTeam;
+              if (pick === 'AWAY') return f.awayTeam;
+              return 'Draw';
+            };
+
+            const hasScore = f.resultHome != null && f.resultAway != null;
+            const homeWon = result === 'HOME';
+            const awayWon = result === 'AWAY';
+
             return (
-              <MatchdayFixtureRow
-                key={f.id}
-                homeTeam={f.homeTeam}
-                awayTeam={f.awayTeam}
-                homeTeamCrest={f.homeTeamCrest}
-                awayTeamCrest={f.awayTeamCrest}
-                selected={myPred?.outcomes[i] || null}
-                result={f.resultOutcome}
-                resultHome={f.resultHome}
-                resultAway={f.resultAway}
-                disabled
-              />
+              <Box key={f.id} sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '8px', p: 1.5 }}>
+                {/* Match header: crests + teams + score inline */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
+                  {f.homeTeamCrest && <Box component="img" src={f.homeTeamCrest} alt="" sx={{ width: 20, height: 20, objectFit: 'contain' }} />}
+                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: homeWon ? UP_COLOR : '#fff' }}>
+                    {f.homeTeam}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>
+                    {hasScore ? `${f.resultHome} - ${f.resultAway}` : 'vs'}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: awayWon ? UP_COLOR : '#fff' }}>
+                    {f.awayTeam}
+                  </Typography>
+                  {f.awayTeamCrest && <Box component="img" src={f.awayTeamCrest} alt="" sx={{ width: 20, height: 20, objectFit: 'contain' }} />}
+                </Box>
+
+                {/* Predictions with team names */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  {myPick && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: ACCENT_COLOR, width: 70 }}>You:</Typography>
+                      <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: myCorrect ? UP_COLOR : result ? '#F87171' : '#fff' }}>
+                        {pickToName(myPick)}
+                      </Typography>
+                    </Box>
+                  )}
+                  {oppPick && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)', width: 70 }}>Opponent:</Typography>
+                      <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: oppCorrect ? UP_COLOR : result ? '#F87171' : 'rgba(255,255,255,0.7)' }}>
+                        {pickToName(oppPick)}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
             );
           })}
+
+          {/* Total goals tiebreaker */}
+          {(match.player1TotalGoals != null || match.player2TotalGoals != null) && (() => {
+            const actualTg = match.finalPrice ? parseMatchdayPrediction(match.finalPrice)?.totalGoals : null;
+            return (
+              <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '8px', p: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: actualTg != null ? 1 : 0 }}>
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>Total Goals Tiebreaker</Typography>
+                  {actualTg != null && (
+                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>
+                      Actual: {actualTg}
+                    </Typography>
+                  )}
+                </Box>
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: isP1 ? ACCENT_COLOR : 'rgba(255,255,255,0.7)' }}>
+                    {isP1 ? 'You' : 'Opponent'}: {match.player1TotalGoals ?? '—'}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: isP2 ? ACCENT_COLOR : 'rgba(255,255,255,0.7)' }}>
+                    {isP2 ? 'You' : 'Opponent'}: {match.player2TotalGoals ?? '—'}
+                  </Typography>
+                </Box>
+              </Box>
+            );
+          })()}
         </Box>
       )}
 
@@ -153,6 +247,7 @@ export function MatchModal({
               matchId={match.id}
               walletAddress={walletAddress!}
               onSubmitted={() => { onRefresh(); onClose(); }}
+              sideLabels={sideLabels}
             />
           ) : !isSports ? (
             <>

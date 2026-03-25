@@ -10,7 +10,7 @@ pub struct Resolve<'info> {
     #[account(
         mut,
         constraint = pool.authority == authority.key() @ PoolError::Unauthorized,
-        constraint = pool.status == PoolStatus::Joining || pool.status == PoolStatus::Active @ PoolError::InvalidPoolStatus
+        constraint = pool.status != PoolStatus::Resolved @ PoolError::InvalidPoolStatus
     )]
     pub pool: Account<'info, Pool>,
 

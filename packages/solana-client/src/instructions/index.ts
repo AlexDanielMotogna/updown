@@ -244,3 +244,23 @@ export function buildClosePoolIx(
 
   return new TransactionInstruction({ keys, programId: PROGRAM_ID, data: CLOSE_POOL_DISC });
 }
+
+const FORCE_CLOSE_POOL_DISC = Buffer.from([113, 203, 148, 102, 142, 248, 118, 240]);
+
+/**
+ * Build `force_close_pool` TransactionInstruction.
+ * Closes pool account only (no vault) — for orphan recovery of old pools
+ * where vault bump is corrupted from struct layout changes.
+ * Accounts: pool, authority
+ */
+export function buildForceClosePoolIx(
+  pool: PublicKey,
+  authority: PublicKey,
+): TransactionInstruction {
+  const keys = [
+    { pubkey: pool, isSigner: false, isWritable: true },
+    { pubkey: authority, isSigner: true, isWritable: true },
+  ];
+
+  return new TransactionInstruction({ keys, programId: PROGRAM_ID, data: FORCE_CLOSE_POOL_DISC });
+}
