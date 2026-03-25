@@ -230,15 +230,6 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
               </Box>
             ))}
           </Box>
-          {/* Legend */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Box sx={{ width: 12, height: 2.5, bgcolor: UP_COLOR, borderRadius: 1 }} />
-            <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>Yes</Typography>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Box sx={{ width: 12, height: 2.5, bgcolor: DOWN_COLOR, borderRadius: 1, opacity: 0.5 }} />
-            <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.35)' }}>No</Typography>
-          </Box>
           {isLive && (
             <>
               <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: UP_COLOR, animation: 'pulse 1.5s infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
