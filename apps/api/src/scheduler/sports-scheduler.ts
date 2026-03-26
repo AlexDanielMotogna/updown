@@ -266,7 +266,7 @@ async function createSportsPool(match: Match, leagueCode: string): Promise<void>
       await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
     } catch (chainError) {
       // On-chain failed — roll back DB to prevent stale DB-only pool
-      await prisma.pool.delete({ where: { id: poolId } }).catch(() => {});
+      await prisma.pool.delete({ where: { id: poolId } }).catch(e => console.warn('[Sports] DB rollback failed:', e instanceof Error ? e.message : e));
       console.warn(`[Sports] On-chain creation failed, rolled back DB row ${poolId}`);
       throw chainError;
     }
@@ -280,10 +280,10 @@ async function createSportsPool(match: Match, leagueCode: string): Promise<void>
           if (analysis) {
             prisma.pool.update({ where: { id: poolId }, data: { matchAnalysis: analysis } })
               .then(() => console.log(`[Sports] Analysis saved for ${match.homeTeam} vs ${match.awayTeam}`))
-              .catch(() => {});
+              .catch(e => console.warn('[Sports] Analysis save failed:', e instanceof Error ? e.message : e));
           }
         })
-        .catch(() => {});
+        .catch(e => console.warn('[Sports] Analysis generation failed:', e instanceof Error ? e.message : e));
     }
   } catch (error) {
     console.error(`[Sports] Failed to create pool for ${match.homeTeam} vs ${match.awayTeam}:`, error);

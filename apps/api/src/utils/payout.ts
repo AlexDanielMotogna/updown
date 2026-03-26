@@ -34,7 +34,8 @@ export function calculatePayout({
   const grossPayout = winnerPool > 0n
     ? (betAmount * totalPool) / winnerPool
     : 0n;
-  const fee = betCount <= 1 ? 0n : (grossPayout * BigInt(feeBps)) / 10000n;
+  const FEE_BASIS_DIVISOR = 10_000n;
+  const fee = betCount <= 1 ? 0n : (grossPayout * BigInt(feeBps)) / FEE_BASIS_DIVISOR;
   const payout = grossPayout - fee;
   return { grossPayout, fee, payout };
 }

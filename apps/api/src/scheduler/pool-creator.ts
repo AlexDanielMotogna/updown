@@ -166,9 +166,9 @@ export class PoolCreator {
         );
       } catch (chainError) {
         // On-chain failed — roll back DB to prevent stale DB-only pool
-        await this.deps.prisma.priceSnapshot.deleteMany({ where: { poolId: pool.id } }).catch(() => {});
-        await this.deps.prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: pool.id } }).catch(() => {});
-        await this.deps.prisma.pool.delete({ where: { id: pool.id } }).catch(() => {});
+        await this.deps.prisma.priceSnapshot.deleteMany({ where: { poolId: pool.id } }).catch(e => console.warn('[Scheduler] rollback priceSnapshot failed:', e instanceof Error ? e.message : e));
+        await this.deps.prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: pool.id } }).catch(e => console.warn('[Scheduler] rollback eventLog failed:', e instanceof Error ? e.message : e));
+        await this.deps.prisma.pool.delete({ where: { id: pool.id } }).catch(e => console.warn('[Scheduler] rollback pool failed:', e instanceof Error ? e.message : e));
         console.warn(`[Scheduler] On-chain creation failed, rolled back DB row ${pool.id}`);
         throw chainError;
       }

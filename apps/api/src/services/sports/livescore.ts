@@ -41,7 +41,8 @@ function normalizeTeam(name: string): string {
 export function getLiveScore(eventId: string): LiveScore | null {
   const entry = cache.get(eventId);
   if (!entry) return null;
-  if (Date.now() - entry.updatedAt > 120_000) return null;
+  const STALE_MS = 120_000;
+  if (Date.now() - entry.updatedAt > STALE_MS) return null;
   return entry;
 }
 
@@ -114,7 +115,8 @@ async function pollLiveScores(): Promise<void> {
     // Clean stale entries from cache (older than 3 min)
     const now = Date.now();
     for (const [key, val] of cache) {
-      if (now - val.updatedAt > 180_000) cache.delete(key);
+      const CLEANUP_MS = 180_000;
+      if (now - val.updatedAt > CLEANUP_MS) cache.delete(key);
     }
 
     const summary = Object.entries(sportCounts).map(([s, n]) => `${s}:${n}`).join(', ');
@@ -134,11 +136,11 @@ export function startLiveScorePolling(): void {
   polling = true;
 
   // Initial poll
-  pollLiveScores().catch(() => {});
+  pollLiveScores().catch(e => console.warn('[LiveScore] poll failed:', e instanceof Error ? e.message : e));
 
   // Poll every 30s
   pollInterval = setInterval(() => {
-    pollLiveScores().catch(() => {});
+    pollLiveScores().catch(e => console.warn('[LiveScore] poll failed:', e instanceof Error ? e.message : e));
   }, 30_000);
 
   console.log('[LiveScore] Polling started (every 30s)');
