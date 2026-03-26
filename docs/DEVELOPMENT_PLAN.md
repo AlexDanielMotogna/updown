@@ -178,15 +178,22 @@ parimutuel-pools/
 ## Pool Lifecycle States
 
 ```
-JOINING → RESOLVED → CLAIMABLE → CLOSED
-    │         │           │          │
-    │         │           │          └── Pool account closed, rent reclaimed
-    │         │           └── Winners claim payouts / one-sided pools refunded
-    │         └── Final price captured, winner determined (UP if final > strike)
-    └── Pool created with strike price, users deposit USDC until lockTime
+JOINING → ACTIVE → RESOLVED → CLAIMABLE → CLOSED
+    │         │         │           │          └── Pool account closed, rent reclaimed
+    │         │         │           └── Winners claim payouts / one-sided pools refunded
+    │         │         └── Winner determined, recorded on-chain
+    │         └── Predictions locked (lockTime passed), waiting for event to end
+    └── Pool open for predictions
 ```
 
-> **Note:** Pools no longer use UPCOMING or ACTIVE states. The scheduler creates JOINING pools continuously. Betting is open until 1 second before endTime. Resolution happens immediately after endTime.
+### Resolution by pool type:
+| Type | How winner is determined |
+|---|---|
+| **Crypto** | Strike price at creation, final price at end. final > strike → UP wins |
+| **Sports** | Match result from API (football-data.org / TheSportsDB). Home win → UP, Away → DOWN, Draw → DRAW |
+| **Predictions** | Polymarket resolution (UMA oracle). Yes → UP, No → DOWN |
+
+All pool types follow the same on-chain flow and the same `RESOLVED → CLAIMABLE` transition (2s delay via `processClaimableTransitions`).
 
 ---
 

@@ -127,12 +127,12 @@ sequenceDiagram
     W->>SC: Deposit USDC to Pool PDA (tx)
     BE->>DB: Save bet + deposit_tx (indexed later)
 
-    BE->>MD: At start_time => getSpotPrice(symbol)
-    BE->>DB: Store strike_price + timestamp + source + raw_hash
-    BE->>DB: Pool status = ACTIVE (lock deposits)
+    Note over BE: Resolution varies by pool type:
+    Note over BE: Crypto: strike vs final price
+    Note over BE: Sports: match result from API
+    Note over BE: Predictions: Polymarket resolution
 
-    BE->>MD: At end_time => getSpotPrice(symbol)
-    BE->>DB: Store final_price + timestamp + source + raw_hash
+    BE->>DB: Pool status = ACTIVE (lock deposits)
     BE->>DB: Pool status = RESOLVED + winner side
 
     UI->>BE: My Bets / Claimable pools
@@ -146,15 +146,19 @@ sequenceDiagram
 ## 5. Pool States
 
 ```
-┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
-│ UPCOMING │───►│ JOINING  │───►│  ACTIVE  │───►│ RESOLVED │───►│CLAIMABLE │
-└──────────┘    └──────────┘    └──────────┘    └──────────┘    └──────────┘
-     │               │               │               │               │
-     │               │               │               │               │
-     ▼               ▼               ▼               ▼               ▼
-  Created        Deposits        Deposits       Winner set      Payouts
-  by scheduler   allowed         locked         strike/final    claimed
-                                 strike set     prices stored
+┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
+│ JOINING  │───►│  ACTIVE  │───►│ RESOLVED │───►│CLAIMABLE │
+└──────────┘    └──────────┘    └──────────┘    └──────────┘
+     │               │               │               │
+     ▼               ▼               ▼               ▼
+  Predictions     Locked          Winner          Payouts
+  open            (lockTime)      determined      claimed
+                                  on-chain
+
+Resolution per type:
+  Crypto:      strike vs final price comparison
+  Sports:      match result from football-data.org / TheSportsDB
+  Predictions: Polymarket UMA oracle resolution
 ```
 
 ---
