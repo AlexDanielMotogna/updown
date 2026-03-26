@@ -1,13 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box, Card, Typography, Switch, Chip, CircularProgress,
   FormControlLabel, Alert, TextField, Select, MenuItem, Button,
   Dialog, DialogTitle, DialogContent, DialogActions, FormControl, InputLabel,
+  Checkbox,
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminFetch } from '../lib/adminApi';
+
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
 
 interface Category {
   id: string;
@@ -116,6 +119,132 @@ function CategoryCard({ cat, onToggle, onToggleComingSoon, onEdit }: {
   );
 }
 
+function PolymarketConfigFields({ selectedTags, onTagsChange, minVolume, onMinVolumeChange, maxDays, onMaxDaysChange }: {
+  selectedTags: string[];
+  onTagsChange: (tags: string[]) => void;
+  minVolume: string;
+  onMinVolumeChange: (v: string) => void;
+  maxDays: string;
+  onMaxDaysChange: (v: string) => void;
+}) {
+  const [availableTags, setAvailableTags] = useState<Array<{ label: string; count: number }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [tagFilter, setTagFilter] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    const seeds = selectedTags.length > 0 ? `?seeds=${encodeURIComponent(selectedTags.join(','))}` : '';
+    fetch(`${API}/api/config/polymarket-tags${seeds}`)
+      .then(r => r.json())
+      .then((d: { success: boolean; data: Array<{ label: string; count: number }> }) => {
+        if (!active) return;
+        if (d.success) setAvailableTags(d.data);
+      })
+      .catch(() => {})
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [selectedTags.join(',')]);
+
+  const filtered = tagFilter ? availableTags.filter(t => t.label.toLowerCase().includes(tagFilter.toLowerCase())) : availableTags.slice(0, 50);
+
+  return (
+    <>
+      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', mt: 1 }}>
+        Polymarket Tags
+      </Typography>
+      <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', mb: 0.5 }}>
+        {selectedTags.length} selected: {selectedTags.join(', ') || 'none'}
+      </Typography>
+      <TextField label="Search tags" size="small" value={tagFilter} onChange={e => setTagFilter(e.target.value)} placeholder="Filter tags..." />
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}><CircularProgress size={20} /></Box>
+      ) : (
+        <Box sx={{ maxHeight: 200, overflow: 'auto', bgcolor: 'rgba(255,255,255,0.02)', borderRadius: '4px', '&::-webkit-scrollbar': { width: 2 }, '&::-webkit-scrollbar-track': { bgcolor: 'transparent' }, '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.06)' } }}>
+          {filtered.map(t => {
+            const selected = selectedTags.includes(t.label);
+            return (
+              <Box key={t.label} onClick={() => onTagsChange(selected ? selectedTags.filter(s => s !== t.label) : [...selectedTags, t.label])}
+                sx={{ display: 'flex', alignItems: 'center', px: 1, py: 0.25, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' } }}
+              >
+                <Checkbox checked={selected} size="small" sx={{ p: 0.5, color: 'rgba(255,255,255,0.2)', '&.Mui-checked': { color: '#22C55E' } }} />
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: selected ? 600 : 400, color: selected ? '#fff' : 'rgba(255,255,255,0.6)', flex: 1 }}>
+                  {t.label}
+                </Typography>
+                <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)' }}>
+                  {t.count}
+                </Typography>
+              </Box>
+            );
+          })}
+        </Box>
+      )}
+      <Box sx={{ display: 'flex', gap: 2 }}>
+        <TextField label="Min Volume 24h ($)" size="small" type="number" value={minVolume} onChange={e => onMinVolumeChange(e.target.value)} sx={{ flex: 1 }} />
+        <TextField label="Max Days Ahead" size="small" type="number" value={maxDays} onChange={e => onMaxDaysChange(e.target.value)} sx={{ flex: 1 }} />
+      </Box>
+    </>
+  );
+}
+
+function SportsDbConfigFields({ sportQuery, onSportQueryChange, leagueFilter, onLeagueFilterChange }: {
+  sportQuery: string;
+  onSportQueryChange: (v: string) => void;
+  leagueFilter: string;
+  onLeagueFilterChange: (v: string) => void;
+}) {
+  const [sports, setSports] = useState<string[]>([]);
+  const [leagues, setLeagues] = useState<Array<{ id: string; name: string }>>([]);
+  const [loadingLeagues, setLoadingLeagues] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API}/api/config/sportsdb-sports`)
+      .then(r => r.json())
+      .then(d => { if (d.success) setSports(d.data); })
+      .catch(() => {
+        setSports(['Soccer', 'Basketball', 'Ice Hockey', 'American Football', 'Fighting', 'Baseball', 'Motorsport', 'Tennis', 'Rugby', 'Cricket', 'Golf', 'ESports']);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!sportQuery) return;
+    setLoadingLeagues(true);
+    fetch(`${API}/api/config/sportsdb-leagues?sport=${encodeURIComponent(sportQuery)}`)
+      .then(r => r.json())
+      .then(d => { if (d.success) setLeagues(d.data); })
+      .catch(() => setLeagues([]))
+      .finally(() => setLoadingLeagues(false));
+  }, [sportQuery]);
+
+  return (
+    <>
+      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', mt: 1 }}>
+        TheSportsDB Config
+      </Typography>
+      <FormControl size="small">
+        <InputLabel>Sport</InputLabel>
+        <Select value={sportQuery} onChange={e => { onSportQueryChange(e.target.value); onLeagueFilterChange(''); }} label="Sport">
+          {sports.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+        </Select>
+      </FormControl>
+      {loadingLeagues ? (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><CircularProgress size={16} /><Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>Loading leagues...</Typography></Box>
+      ) : leagues.length > 0 ? (
+        <FormControl size="small">
+          <InputLabel>League</InputLabel>
+          <Select value={leagueFilter} onChange={e => onLeagueFilterChange(e.target.value)} label="League">
+            {leagues.map(l => <MenuItem key={l.id} value={l.name}>{l.name}</MenuItem>)}
+          </Select>
+        </FormControl>
+      ) : sportQuery ? (
+        <TextField label="League Filter" size="small" value={leagueFilter} onChange={e => onLeagueFilterChange(e.target.value)}
+          placeholder="e.g. NBA, NHL, UFC" helperText="Type the exact league name"
+        />
+      ) : null}
+    </>
+  );
+}
+
 function EditDialog({ cat, open, onClose, onSave }: {
   cat: Category | null;
   open: boolean;
@@ -123,9 +252,34 @@ function EditDialog({ cat, open, onClose, onSave }: {
   onSave: (data: Partial<Category>) => void;
 }) {
   const [form, setForm] = useState<Partial<Category>>({});
+  const [configTags, setConfigTags] = useState('');
+  const [configMinVolume, setConfigMinVolume] = useState('');
+  const [configMaxDays, setConfigMaxDays] = useState('');
+  const [configSportQuery, setConfigSportQuery] = useState('');
+  const [configLeagueFilter, setConfigLeagueFilter] = useState('');
 
   const handleOpen = () => {
-    if (cat) setForm({ label: cat.label, shortLabel: cat.shortLabel, color: cat.color, badgeUrl: cat.badgeUrl, iconKey: cat.iconKey, sortOrder: cat.sortOrder, numSides: cat.numSides });
+    if (!cat) return;
+    setForm({ label: cat.label, shortLabel: cat.shortLabel, color: cat.color, badgeUrl: cat.badgeUrl, iconKey: cat.iconKey, sortOrder: cat.sortOrder, numSides: cat.numSides });
+    const cfg = cat.config as Record<string, unknown> | null;
+    setConfigTags(Array.isArray(cfg?.tags) ? (cfg.tags as string[]).join(', ') : '');
+    setConfigMinVolume(cfg?.minVolume24h != null ? String(cfg.minVolume24h) : '');
+    setConfigMaxDays(cfg?.maxDaysAhead != null ? String(cfg.maxDaysAhead) : '');
+    setConfigSportQuery(typeof cfg?.sportQuery === 'string' ? cfg.sportQuery : '');
+    setConfigLeagueFilter(typeof cfg?.leagueFilter === 'string' ? cfg.leagueFilter : '');
+  };
+
+  const handleSave = () => {
+    const config: Record<string, unknown> = {};
+    if (cat?.type === 'POLYMARKET') {
+      if (configTags) config.tags = configTags.split(',').map(t => t.trim()).filter(Boolean);
+      if (configMinVolume) config.minVolume24h = Number(configMinVolume);
+      if (configMaxDays) config.maxDaysAhead = Number(configMaxDays);
+    } else if (cat?.type === 'SPORTSDB_SPORT') {
+      if (configSportQuery) config.sportQuery = configSportQuery;
+      if (configLeagueFilter) config.leagueFilter = configLeagueFilter;
+    }
+    onSave({ ...form, config: Object.keys(config).length > 0 ? config : undefined });
   };
 
   return (
@@ -147,10 +301,39 @@ function EditDialog({ cat, open, onClose, onSave }: {
             <MenuItem value={3}>3-way (Home/Draw/Away)</MenuItem>
           </Select>
         </FormControl>
+
+        {/* API Config — Polymarket */}
+        {cat?.type === 'POLYMARKET' && (
+          <PolymarketConfigFields
+            selectedTags={configTags ? configTags.split(',').map(t => t.trim()).filter(Boolean) : []}
+            onTagsChange={(tags) => setConfigTags(tags.join(', '))}
+            minVolume={configMinVolume}
+            onMinVolumeChange={setConfigMinVolume}
+            maxDays={configMaxDays}
+            onMaxDaysChange={setConfigMaxDays}
+          />
+        )}
+
+        {/* API Config — TheSportsDB */}
+        {cat?.type === 'SPORTSDB_SPORT' && (
+          <SportsDbConfigFields
+            sportQuery={configSportQuery}
+            onSportQueryChange={setConfigSportQuery}
+            leagueFilter={configLeagueFilter}
+            onLeagueFilterChange={setConfigLeagueFilter}
+          />
+        )}
+
+        {/* Football leagues don't need extra config */}
+        {cat?.type === 'FOOTBALL_LEAGUE' && (
+          <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', mt: 1 }}>
+            Football leagues use the code ({cat.code}) as the football-data.org competition ID. No extra config needed.
+          </Typography>
+        )}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} sx={{ color: 'rgba(255,255,255,0.5)', textTransform: 'none' }}>Cancel</Button>
-        <Button onClick={() => onSave(form)} variant="contained" sx={{ bgcolor: '#22C55E', color: '#000', textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: '#16A34A' } }}>Save</Button>
+        <Button onClick={handleSave} variant="contained" sx={{ bgcolor: '#22C55E', color: '#000', textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: '#16A34A' } }}>Save</Button>
       </DialogActions>
     </Dialog>
   );
