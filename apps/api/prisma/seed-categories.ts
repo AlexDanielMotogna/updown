@@ -154,6 +154,7 @@ const CATEGORIES: CategorySeed[] = [
   {
     code: 'MLB', type: 'SPORTSDB_SPORT', enabled: false, comingSoon: true,
     label: 'MLB', shortLabel: 'MLB', color: '#DC2626',
+    badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/c5r83j1521893739.png',
     iconKey: 'SportsBaseball', apiSource: 'thesportsdb', adapterKey: 'MLB',
     numSides: 2, sideLabels: ['Home', 'Away'], sortOrder: 30,
     config: { sportQuery: 'Baseball', leagueFilter: 'MLB' },
@@ -161,6 +162,7 @@ const CATEGORIES: CategorySeed[] = [
   {
     code: 'F1', type: 'SPORTSDB_SPORT', enabled: false, comingSoon: true,
     label: 'Formula 1', shortLabel: 'F1', color: '#E10600',
+    badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/g8cofl1513623681.png',
     iconKey: 'DirectionsCar', apiSource: 'thesportsdb', adapterKey: 'F1',
     numSides: 2, sideLabels: ['Yes', 'No'], sortOrder: 31,
     config: { sportQuery: 'Motorsport', leagueFilter: 'Formula 1' },
@@ -168,6 +170,7 @@ const CATEGORIES: CategorySeed[] = [
   {
     code: 'TENNIS', type: 'SPORTSDB_SPORT', enabled: false, comingSoon: true,
     label: 'Tennis', shortLabel: 'Tennis', color: '#84CC16',
+    badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/q7aej51769857150.png',
     iconKey: 'SportsTennis', apiSource: 'thesportsdb', adapterKey: 'TENNIS',
     numSides: 2, sideLabels: ['Player 1', 'Player 2'], sortOrder: 32,
     config: { sportQuery: 'Tennis', leagueFilter: 'ATP' },
@@ -175,6 +178,7 @@ const CATEGORIES: CategorySeed[] = [
   {
     code: 'RUGBY', type: 'SPORTSDB_SPORT', enabled: false, comingSoon: true,
     label: 'Rugby', shortLabel: 'Rugby', color: '#7C3AED',
+    badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/7h1wr91738670253.png',
     iconKey: 'SportsRugby', apiSource: 'thesportsdb', adapterKey: 'RUGBY',
     numSides: 2, sideLabels: ['Home', 'Away'], sortOrder: 33,
     config: { sportQuery: 'Rugby', leagueFilter: 'Six Nations' },
@@ -182,6 +186,7 @@ const CATEGORIES: CategorySeed[] = [
   {
     code: 'CRICKET', type: 'SPORTSDB_SPORT', enabled: false, comingSoon: true,
     label: 'Cricket', shortLabel: 'Cricket', color: '#059669',
+    badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/gaiti11741709844.png',
     iconKey: 'SportsCricket', apiSource: 'thesportsdb', adapterKey: 'CRICKET',
     numSides: 2, sideLabels: ['Home', 'Away'], sortOrder: 34,
     config: { sportQuery: 'Cricket', leagueFilter: 'IPL' },
@@ -189,6 +194,7 @@ const CATEGORIES: CategorySeed[] = [
   {
     code: 'ESPORTS', type: 'SPORTSDB_SPORT', enabled: false, comingSoon: true,
     label: 'Esports', shortLabel: 'Esports', color: '#8B5CF6',
+    badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/v60b971706041095.png',
     iconKey: 'SportsEsports', apiSource: 'thesportsdb', adapterKey: 'ESPORTS',
     numSides: 2, sideLabels: ['Team 1', 'Team 2'], sortOrder: 35,
     config: { sportQuery: 'ESports', leagueFilter: 'League of Legends' },
@@ -196,6 +202,7 @@ const CATEGORIES: CategorySeed[] = [
   {
     code: 'BOXING', type: 'SPORTSDB_SPORT', enabled: false, comingSoon: true,
     label: 'Boxing', shortLabel: 'Boxing', color: '#B91C1C',
+    badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/6enin21740228549.png',
     iconKey: 'SportsMma', apiSource: 'thesportsdb', adapterKey: 'BOXING',
     numSides: 2, sideLabels: ['Fighter 1', 'Fighter 2'], sortOrder: 36,
     config: { sportQuery: 'Fighting', leagueFilter: 'Boxing' },
@@ -203,6 +210,7 @@ const CATEGORIES: CategorySeed[] = [
   {
     code: 'GOLF', type: 'SPORTSDB_SPORT', enabled: false, comingSoon: true,
     label: 'Golf', shortLabel: 'Golf', color: '#16A34A',
+    badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/quvqqr1423564787.png',
     iconKey: 'SportsGolf', apiSource: 'thesportsdb', adapterKey: 'GOLF',
     numSides: 2, sideLabels: ['Yes', 'No'], sortOrder: 37,
     config: { sportQuery: 'Golf', leagueFilter: 'PGA Tour' },
