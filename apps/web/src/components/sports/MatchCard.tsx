@@ -42,14 +42,16 @@ const PM_CATEGORY_ICONS: Record<string, React.ReactNode> = {
   PM_FINANCE: <AccountBalance sx={{ fontSize: 48 }} />,
 };
 
-function formatKickoff(dateStr: string): string {
+function formatKickoff(dateStr: string, isResolved: boolean): string {
   const d = new Date(dateStr);
   const now = new Date();
   const diff = d.getTime() - now.getTime();
-  if (diff < 0) return 'Live';
+  if (diff < 0) {
+    if (isResolved) return 'Ended';
+    return 'Live';
+  }
   if (diff < 3600000) return `${Math.floor(diff / 60000)}min`;
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
-  // Show year if not current year
   const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false };
   if (d.getFullYear() !== now.getFullYear()) opts.year = 'numeric';
   return d.toLocaleDateString('en-US', opts);
@@ -72,8 +74,8 @@ export function MatchCard({ pool, onClick, isPopular, liveScore }: { pool: Pool;
   const league = pool.league || '';
   const winnerLabel = isResolved && pool.winner === 'UP' ? (isPrediction ? 'Yes' : pool.homeTeam) : pool.winner === 'DOWN' ? (isPrediction ? 'No' : pool.awayTeam) : pool.winner === 'DRAW' ? 'Draw' : null;
 
-  // Live match data
-  const matchLive = liveScore && liveScore.status !== 'FT' && liveScore.status !== 'NS';
+  // Live match data — never show live if pool is already resolved
+  const matchLive = !isResolved && liveScore && liveScore.status !== 'FT' && liveScore.status !== 'NS';
   const isLocked = !isResolved && pool.lockTime && new Date(pool.lockTime).getTime() < Date.now();
 
   const catColor = PM_CATEGORY_COLORS[league] || '#A78BFA';
@@ -175,7 +177,7 @@ export function MatchCard({ pool, onClick, isPopular, liveScore }: { pool: Pool;
                   <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: DOWN_COLOR, animation: 'pulse 1.5s infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
                 )}
                 <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: isLive ? DOWN_COLOR : 'rgba(255,255,255,0.4)' }}>
-                  {formatKickoff(pool.startTime)}
+                  {formatKickoff(pool.startTime, isResolved)}
                 </Typography>
               </>
             )}

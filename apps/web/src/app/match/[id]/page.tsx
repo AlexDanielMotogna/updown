@@ -31,6 +31,13 @@ const PM_ICONS: Record<string, React.ReactNode> = {
   PM_CULTURE: <TheaterComedy sx={{ fontSize: 20 }} />, PM_FINANCE: <AccountBalance sx={{ fontSize: 20 }} />,
 };
 
+const SPORT_BADGES: Record<string, string> = {
+  NBA: 'https://r2.thesportsdb.com/images/media/league/badge/frdjqy1536585083.png',
+  NHL: 'https://r2.thesportsdb.com/images/media/league/badge/4cem2k1619616539.png',
+  NFL: 'https://r2.thesportsdb.com/images/media/league/badge/g85fqz1662057187.png',
+  MMA: 'https://r2.thesportsdb.com/images/media/league/badge/bewnz31717531281.png',
+};
+
 function leagueName(code: string): string {
   if (PM_LABELS[code]) return PM_LABELS[code];
   switch (code) {
@@ -41,6 +48,7 @@ function leagueName(code: string): string {
     case 'BL1': return 'Bundesliga';
     case 'FL1': return 'Ligue 1';
     case 'BSA': return 'Brasileirão';
+    case 'MMA': return 'UFC';
     default: return code;
   }
 }
@@ -291,10 +299,12 @@ export default function MatchDetailPage() {
               <Box sx={{ color: catColor, display: 'flex', alignItems: 'center' }}>
                 {PM_ICONS[league] || <TrendingUp sx={{ fontSize: 20 }} />}
               </Box>
+            ) : SPORT_BADGES[league] ? (
+              <Box component="img" src={SPORT_BADGES[league]} alt={league} sx={{ width: 22, height: 22, objectFit: 'contain' }} />
             ) : league ? (
               <Box
                 component="img"
-                src={`https://crests.football-data.org/${league}.png`}
+                src={`https://crests.football-data.org/${league === 'BSA' ? 'bsa' : league}.png`}
                 alt={league}
                 sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }}
               />
@@ -309,7 +319,7 @@ export default function MatchDetailPage() {
             )}
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {matchLive && (
+            {matchLive && !isResolved && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: '#22C55E', animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1, transform: 'scale(1)' }, '50%': { opacity: 0.4, transform: 'scale(0.8)' } } }} />
                 <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#22C55E' }}>
@@ -323,10 +333,10 @@ export default function MatchDetailPage() {
               </Typography>
             )}
             <Chip
-              label={matchLive ? 'LIVE' : pool.status === 'JOINING' ? 'OPEN' : pool.status === 'ACTIVE' ? 'LIVE' : pool.status}
+              label={matchLive && !isResolved ? 'LIVE' : pool.status === 'JOINING' ? 'OPEN' : pool.status === 'ACTIVE' ? 'LIVE' : pool.status}
               size="small"
               sx={{
-                ...(matchLive ? { bgcolor: 'rgba(34,197,94,0.12)', color: '#22C55E' } : statusStyle),
+                ...(matchLive && !isResolved ? { bgcolor: 'rgba(34,197,94,0.12)', color: '#22C55E' } : statusStyle),
                 fontWeight: 700,
                 fontSize: { xs: '0.6rem', md: '0.7rem' },
                 letterSpacing: '0.08em',
@@ -516,7 +526,7 @@ export default function MatchDetailPage() {
                 )}
                 <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: isResolved && pool.winner === 'UP' ? UP_COLOR : '#fff' }}>{pool.homeTeam || 'Home'}</Typography>
               </Box>
-              {matchLive ? (
+              {matchLive && !isResolved ? (
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography sx={{ fontSize: '1.4rem', fontWeight: 700, color: '#22C55E' }}>
                     {liveScore!.homeScore} - {liveScore!.awayScore}
