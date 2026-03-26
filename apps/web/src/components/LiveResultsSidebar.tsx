@@ -10,6 +10,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { usePools } from '@/hooks/usePools';
 import { fetchTournaments, type TournamentSummary } from '@/lib/api';
 import { GAIN_COLOR, ACCENT_COLOR } from '@/lib/constants';
+import { useLiveScores } from '@/hooks/useLiveScores';
 import { PoolsSidebarList } from './sidebar/PoolsSidebarList';
 import { TournamentSidebarList } from './tournament/TournamentSidebarList';
 
@@ -41,11 +42,25 @@ export function LiveResultsSidebar() {
     const savedTab = localStorage.getItem('sidebar-tab');
     if (savedTab === 'tournaments') _setSidebarTab('tournaments');
   }, []);
+  const liveScores = useLiveScores();
   const { data } = usePools({ limit: 50 });
-  const pools = (data?.data ?? []).filter(
-    (p) => (p.status === 'RESOLVED' || p.status === 'CLAIMABLE') &&
-           p.totalPool !== '0'
-  ).slice(0, MAX_VISIBLE);
+  const pools = (() => {
+    const all = data?.data ?? [];
+    // Active sports pools with live scores go first
+    const activeSports = all.filter(p => p.poolType === 'SPORTS' && p.status === 'ACTIVE' && (
+      (p.matchId && liveScores.has(p.matchId)) ||
+      (p.homeTeam && liveScores.has(p.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '')))
+    ));
+    // Then resolved/claimable pools
+    const resolved = all.filter(p => (p.status === 'RESOLVED' || p.status === 'CLAIMABLE') && p.totalPool !== '0');
+    // Deduplicate
+    const seen = new Set<string>();
+    const combined: typeof all = [];
+    for (const p of [...activeSports, ...resolved]) {
+      if (!seen.has(p.id)) { seen.add(p.id); combined.push(p); }
+    }
+    return combined.slice(0, MAX_VISIBLE);
+  })();
 
   // Track known pool IDs to detect genuinely new arrivals
   const knownIdsRef = useRef<Set<string>>(new Set());
@@ -127,7 +142,7 @@ export function LiveResultsSidebar() {
           WebkitMaskImage: 'linear-gradient(to bottom, black 85%, transparent 100%)',
         }}
       >
-        {sidebarTab === 'pools' && <PoolsSidebarList pools={pools} newIds={newIds} />}
+        {sidebarTab === 'pools' && <PoolsSidebarList pools={pools} newIds={newIds} liveScores={liveScores} />}
         {sidebarTab === 'tournaments' && <TournamentSidebarList tournaments={tournaments} />}
       </Box>
     </Box>

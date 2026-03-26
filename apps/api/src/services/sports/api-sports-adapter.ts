@@ -105,7 +105,7 @@ export class SportsDbAdapter implements SportAdapter {
         // Filter to specific league if configured
         if (this.config.leagueFilter) {
           const league = (m.leagueName || '').toUpperCase();
-          return league.includes(this.config.leagueFilter);
+          return league === this.config.leagueFilter;
         }
         return true;
       });
