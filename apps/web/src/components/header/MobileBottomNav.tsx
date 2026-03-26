@@ -98,6 +98,7 @@ export function MobileBottomNav() {
           display: { xs: 'block', lg: 'none' },
           '& .MuiDrawer-paper': {
             bgcolor: '#0B0F14',
+            backgroundImage: 'none',
             borderTop: '1px solid rgba(255,255,255,0.08)',
             borderTopLeftRadius: 12,
             borderTopRightRadius: 12,

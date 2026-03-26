@@ -13,7 +13,7 @@ interface DropdownProps {
   value: string;
   label: string;
   icon?: React.ReactNode;
-  options: Array<{ value: string; label: string; icon?: React.ReactNode; img?: string | null }>;
+  options: Array<{ value: string; label: string; icon?: React.ReactNode; img?: string | null; comingSoon?: boolean }>;
   onChange: (value: string) => void;
   color: string;
 }
@@ -48,18 +48,21 @@ export function FilterDropdown({ value, label, icon, options, onChange, color }:
         open={open} anchorEl={anchorRef.current} onClose={() => setOpen(false)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-        slotProps={{ paper: { sx: { bgcolor: '#0B0F14', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', mt: 0.75, py: 0.5, minWidth: 180, boxShadow: '0 8px 32px rgba(0,0,0,0.5)' } } }}
+        slotProps={{ paper: { sx: { bgcolor: '#0B0F14', backgroundImage: 'none', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', mt: 0.75, py: 0.5, minWidth: 180, maxHeight: 320, overflow: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', '&::-webkit-scrollbar': { width: 2 }, '&::-webkit-scrollbar-track': { bgcolor: 'transparent' }, '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 4 }, scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.06) transparent' } } }}
       >
         {options.map((opt) => {
           const active = opt.value === value;
+          const soon = opt.comingSoon;
           return (
             <Box
               key={opt.value}
-              onClick={() => { onChange(opt.value); setOpen(false); }}
+              onClick={() => { if (!soon) { onChange(opt.value); setOpen(false); } }}
               sx={{
-                display: 'flex', alignItems: 'center', gap: 1.25, px: 2, py: 1, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 1.25, px: 2, py: 1,
+                cursor: soon ? 'default' : 'pointer',
+                opacity: soon ? 0.4 : 1,
                 bgcolor: active ? `${color}12` : 'transparent', transition: 'background 0.1s',
-                '&:hover': { bgcolor: active ? `${color}18` : 'rgba(255,255,255,0.04)' },
+                '&:hover': soon ? {} : { bgcolor: active ? `${color}18` : 'rgba(255,255,255,0.04)' },
               }}
             >
               {opt.img ? (
@@ -69,9 +72,12 @@ export function FilterDropdown({ value, label, icon, options, onChange, color }:
                   {opt.icon}
                 </Box>
               ) : null}
-              <Typography sx={{ fontSize: '0.82rem', fontWeight: active ? 700 : 500, color: active ? color : 'rgba(255,255,255,0.7)' }}>
+              <Typography sx={{ fontSize: '0.82rem', fontWeight: active ? 700 : 500, color: soon ? 'rgba(255,255,255,0.3)' : active ? color : 'rgba(255,255,255,0.7)', flex: 1 }}>
                 {opt.label}
               </Typography>
+              {soon && (
+                <Chip label="Soon" size="small" sx={{ height: 14, fontSize: '0.5rem', fontWeight: 700, bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.25)' }} />
+              )}
             </Box>
           );
         })}
@@ -142,9 +148,9 @@ export function MarketFilter({
       })),
     ];
 
-    // Sport dropdown: All + Soccer + enabled TheSportsDB sports + coming soon
+    // Sport dropdown: MUI icons only (no badge images), same as Soccer
     const sportsComingSoon = cats.filter(c => c.type === 'SPORTSDB_SPORT' && !c.enabled && c.comingSoon);
-    const sportOptions: Array<{ value: string; label: string; icon?: React.ReactNode; comingSoon?: boolean }> = [
+    const sportOptions: Array<{ value: string; label: string; icon?: React.ReactNode; img?: string | null; comingSoon?: boolean }> = [
       { value: 'ALL', label: 'All Sports', icon: <GridView sx={{ fontSize: 18 }} /> },
       { value: 'SOCCER', label: 'Soccer', icon: <SportsSoccer sx={{ fontSize: 18 }} /> },
       ...sportsDbCats.map(c => ({
@@ -160,13 +166,22 @@ export function MarketFilter({
       })),
     ];
 
+    // League dropdown: All + enabled football leagues + coming soon (greyed out)
+    const footballComingSoon = cats.filter(c => c.type === 'FOOTBALL_LEAGUE' && !c.enabled && c.comingSoon);
+
     // League dropdown: All + enabled football leagues
-    const leagueOptions = [
-      { value: 'ALL', label: 'All', img: null as string | null, icon: <GridView sx={{ fontSize: 18 }} /> },
+    const leagueOptions: Array<{ value: string; label: string; img?: string | null; icon?: React.ReactNode; comingSoon?: boolean }> = [
+      { value: 'ALL', label: 'All', img: null, icon: <GridView sx={{ fontSize: 18 }} /> },
       ...footballCats.map(c => ({
         value: c.code,
         label: c.shortLabel || c.label,
         img: c.badgeUrl,
+      })),
+      ...footballComingSoon.map(c => ({
+        value: c.code,
+        label: c.shortLabel || c.label,
+        img: c.badgeUrl,
+        comingSoon: true,
       })),
     ];
 
