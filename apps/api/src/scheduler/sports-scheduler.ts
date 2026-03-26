@@ -154,17 +154,20 @@ export async function resolveMatchPools(): Promise<void> {
 
       await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
 
-      // Update DB
+      // Update DB — set RESOLVED first, processClaimableTransitions() will
+      // move it to CLAIMABLE after 2s (same flow as crypto pools)
       await prisma.pool.update({
         where: { id: pool.id },
         data: {
-          status: 'CLAIMABLE',
+          status: 'RESOLVED',
           winner: winnerLabel,
+          homeScore: result.homeScore,
+          awayScore: result.awayScore,
           finalPrice: BigInt(0), // Not applicable for sports
         },
       });
 
-      emitPoolStatus(pool.id, { id: pool.id, status: 'CLAIMABLE' });
+      emitPoolStatus(pool.id, { id: pool.id, status: 'RESOLVED', winner: winnerLabel });
 
       console.log(`[Sports] Resolved ${pool.homeTeam} vs ${pool.awayTeam}: ${result.homeScore}-${result.awayScore} → ${winnerLabel}`);
     } catch (error) {

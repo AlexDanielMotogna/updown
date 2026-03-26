@@ -155,18 +155,19 @@ async function matchWindowPoll(): Promise<void> {
   const fixtures = await getFixturesNeedingPoll();
   if (fixtures.length === 0) return;
 
-  const adapter = getAdapter('FOOTBALL');
   let updated = 0;
 
   for (const fix of fixtures) {
     try {
+      // Use the correct adapter based on the fixture's sport
+      const adapter = getAdapter(fix.sport === 'FOOTBALL' ? 'FOOTBALL' : fix.sport);
       const result = await adapter.fetchMatchResult(fix.externalId);
       if (result) {
         await updateCacheFromResult(result);
         updated++;
       }
     } catch (error) {
-      console.warn(`[FixtureSync] Poll failed for ${fix.externalId}:`, error instanceof Error ? error.message : error);
+      console.warn(`[FixtureSync] Poll failed for ${fix.externalId} (${fix.sport}):`, error instanceof Error ? error.message : error);
     }
 
     // Rate limit between calls

@@ -76,8 +76,13 @@ async function pollLiveScores(): Promise<void> {
     for (const e of events) {
       if (!e.idEvent) continue;
       const status = (e.strStatus || '').trim();
-      // Skip inactive events
-      if (!status || INACTIVE_STATUSES.has(status)) continue;
+      if (!status) continue;
+      // Remove finished/cancelled events from cache immediately
+      if (INACTIVE_STATUSES.has(status)) {
+        const eid = String(e.idEvent);
+        if (cache.has(eid)) cache.delete(eid);
+        continue;
+      }
 
       const sport = e.strSport || 'Unknown';
       sportCounts[sport] = (sportCounts[sport] || 0) + 1;
