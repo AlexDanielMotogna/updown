@@ -104,13 +104,14 @@ const CATEGORIES: CategorySeed[] = [
   {
     code: 'CLI', type: 'FOOTBALL_LEAGUE', enabled: false, comingSoon: true,
     label: 'Copa Libertadores', shortLabel: 'Libertadores',
+    badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/9shr931685425181.png',
     iconKey: 'SportsSoccer', apiSource: 'football-data', adapterKey: 'FOOTBALL',
     numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], sortOrder: 14,
   },
   {
     code: 'WC', type: 'FOOTBALL_LEAGUE', enabled: false, comingSoon: true,
     label: 'World Cup', shortLabel: 'WC',
-    badgeUrl: 'https://crests.football-data.org/WC.png',
+    badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/e7er5g1696521789.png',
     iconKey: 'SportsSoccer', apiSource: 'football-data', adapterKey: 'FOOTBALL',
     numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], sortOrder: 15,
   },
