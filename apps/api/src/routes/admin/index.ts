@@ -7,6 +7,7 @@ import { adminUsersRouter } from './users';
 import { adminEventsRouter } from './events';
 import { adminActionsRouter } from './actions';
 import { adminTournamentsRouter } from './tournaments';
+import { adminCategoriesRouter } from './categories';
 
 export const adminRouter: RouterType = Router();
 
@@ -25,3 +26,4 @@ adminRouter.use('/users', adminUsersRouter);
 adminRouter.use('/events', adminEventsRouter);
 adminRouter.use('/actions', adminActionsRouter);
 adminRouter.use('/tournaments', adminTournamentsRouter);
+adminRouter.use('/categories', adminCategoriesRouter);

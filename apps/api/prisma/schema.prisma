@@ -452,3 +452,27 @@ model SportsFixtureCache {
   @@index([externalId])
   @@map("sports_fixture_cache")
 }
+
+model PoolCategory {
+  id         String   @id @default(uuid())
+  code       String   @unique
+  type       String                                          // FOOTBALL_LEAGUE, SPORTSDB_SPORT, POLYMARKET
+  enabled    Boolean  @default(true)
+  comingSoon Boolean  @default(false) @map("coming_soon")
+  label      String
+  shortLabel String?  @map("short_label")
+  color      String?
+  badgeUrl   String?  @map("badge_url")
+  iconKey    String?  @map("icon_key")
+  apiSource  String?  @map("api_source")
+  adapterKey String?  @map("adapter_key")
+  numSides   Int      @default(3) @map("num_sides")
+  sideLabels String[] @default(["Home", "Draw", "Away"]) @map("side_labels")
+  config     Json?
+  sortOrder  Int      @default(0) @map("sort_order")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([type, enabled])
+  @@map("pool_categories")
+}
