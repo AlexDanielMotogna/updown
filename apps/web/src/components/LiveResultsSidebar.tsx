@@ -11,6 +11,7 @@ import { usePools } from '@/hooks/usePools';
 import { fetchTournaments, type TournamentSummary } from '@/lib/api';
 import { GAIN_COLOR, ACCENT_COLOR } from '@/lib/constants';
 import { useLiveScores } from '@/hooks/useLiveScores';
+import { useCategoryMap } from '@/hooks/useCategories';
 import { PoolsSidebarList } from './sidebar/PoolsSidebarList';
 import { TournamentSidebarList } from './tournament/TournamentSidebarList';
 
@@ -43,6 +44,7 @@ export function LiveResultsSidebar() {
     if (savedTab === 'tournaments') _setSidebarTab('tournaments');
   }, []);
   const liveScores = useLiveScores();
+  const categoryMap = useCategoryMap();
   const { data } = usePools({ limit: 50 });
   const pools = (() => {
     const all = data?.data ?? [];
@@ -142,7 +144,7 @@ export function LiveResultsSidebar() {
           WebkitMaskImage: 'linear-gradient(to bottom, black 85%, transparent 100%)',
         }}
       >
-        {sidebarTab === 'pools' && <PoolsSidebarList pools={pools} newIds={newIds} liveScores={liveScores} />}
+        {sidebarTab === 'pools' && <PoolsSidebarList pools={pools} newIds={newIds} liveScores={liveScores} categoryMap={categoryMap} />}
         {sidebarTab === 'tournaments' && <TournamentSidebarList tournaments={tournaments} />}
       </Box>
     </Box>

@@ -104,6 +104,7 @@ export default function MatchDetailPage() {
 
   const pool = poolData?.data;
   const liveScore = useLiveScore(pool?.id ?? null);
+  const categoryMap = useCategoryMap();
   const matchLive = liveScore && liveScore.status !== 'FT' && liveScore.status !== 'NS';
   const isLocked = pool && !pool.status?.match(/CLAIMABLE|RESOLVED/) && pool.lockTime && new Date(pool.lockTime).getTime() < Date.now();
 
@@ -243,7 +244,6 @@ export default function MatchDetailPage() {
 
   const league = pool.league || '';
   const isPrediction = league.startsWith('PM_');
-  const categoryMap = useCategoryMap();
   const category = categoryMap.get(league);
   const catColor = category?.color || (isPrediction ? '#A78BFA' : '#fff');
   const catLabel = category?.label || league;
@@ -488,34 +488,34 @@ export default function MatchDetailPage() {
               </Typography>
             </Box>
           ) : (
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, py: 1.5 }}>
-              <Box sx={{ textAlign: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, py: 1.5 }}>
+              <Box sx={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
                 {pool.homeTeamCrest && (
-                  <Box component="img" src={pool.homeTeamCrest} alt="" sx={{ width: 36, height: 36, objectFit: 'contain', mb: 0.5 }} />
+                  <Box component="img" src={pool.homeTeamCrest} alt="" sx={{ width: 32, height: 32, objectFit: 'contain', mb: 0.5, mx: 'auto', display: 'block' }} />
                 )}
-                <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: isResolved && pool.winner === 'UP' ? UP_COLOR : '#fff' }}>{pool.homeTeam || 'Home'}</Typography>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: isResolved && pool.winner === 'UP' ? UP_COLOR : '#fff' }}>{homeShort}</Typography>
               </Box>
               {matchLive && !isResolved ? (
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography sx={{ fontSize: '1.4rem', fontWeight: 700, color: '#22C55E' }}>
+                <Box sx={{ textAlign: 'center', flexShrink: 0 }}>
+                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#22C55E' }}>
                     {liveScore!.homeScore} - {liveScore!.awayScore}
                   </Typography>
-                  <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: '#22C55E', opacity: 0.8 }}>
+                  <Typography sx={{ fontSize: '0.55rem', fontWeight: 600, color: '#22C55E', opacity: 0.8 }}>
                     {liveScore!.status}{liveScore!.progress ? ` ${liveScore!.progress}'` : ''}
                   </Typography>
                 </Box>
               ) : isResolved && pool.homeScore != null && pool.awayScore != null ? (
-                <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff' }}>
+                <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
                   {pool.homeScore} - {pool.awayScore}
                 </Typography>
               ) : (
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.15)' }}>vs</Typography>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.15)', flexShrink: 0 }}>vs</Typography>
               )}
-              <Box sx={{ textAlign: 'center' }}>
+              <Box sx={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
                 {pool.awayTeamCrest && (
-                  <Box component="img" src={pool.awayTeamCrest} alt="" sx={{ width: 36, height: 36, objectFit: 'contain', mb: 0.5 }} />
+                  <Box component="img" src={pool.awayTeamCrest} alt="" sx={{ width: 32, height: 32, objectFit: 'contain', mb: 0.5, mx: 'auto', display: 'block' }} />
                 )}
-                <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: isResolved && pool.winner === 'DOWN' ? DOWN_COLOR : '#fff' }}>{pool.awayTeam || 'Away'}</Typography>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: isResolved && pool.winner === 'DOWN' ? DOWN_COLOR : '#fff' }}>{awayShort}</Typography>
               </Box>
             </Box>
           )}
@@ -526,7 +526,7 @@ export default function MatchDetailPage() {
               <Typography sx={{ fontSize: '0.6rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.25 }}>
                 Result
               </Typography>
-              <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: winnerColor }}>
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: winnerColor }}>
                 {winnerLabel} wins
               </Typography>
             </Box>
@@ -539,8 +539,8 @@ export default function MatchDetailPage() {
             totalUp={totalUp}
             totalDown={totalDown}
             totalDraw={totalDraw}
-            homeTeam={isPrediction ? (pool.awayTeam ? pool.homeTeam || undefined : 'Yes') : (pool.homeTeam || undefined)}
-            awayTeam={isPrediction ? (pool.awayTeam || 'No') : (pool.awayTeam || undefined)}
+            homeTeam={isPrediction ? (pool.awayTeam ? pool.homeTeam || undefined : 'Yes') : (homeShort || undefined)}
+            awayTeam={isPrediction ? (pool.awayTeam || 'No') : (awayShort || undefined)}
             disabled={isResolved || pool.status !== 'JOINING'}
             numSides={pool.numSides}
           />
