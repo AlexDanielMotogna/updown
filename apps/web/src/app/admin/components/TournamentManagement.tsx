@@ -35,7 +35,10 @@ interface Tournament {
 
 const SPORT_OPTIONS = [
   { value: 'FOOTBALL', label: 'Soccer' },
-  { value: 'BASKETBALL', label: 'Basketball' },
+  { value: 'NBA', label: 'NBA' },
+  { value: 'NHL', label: 'NHL' },
+  { value: 'NFL', label: 'NFL' },
+  { value: 'MMA', label: 'UFC / MMA' },
 ];
 
 const LEAGUE_OPTIONS = [
@@ -45,6 +48,11 @@ const LEAGUE_OPTIONS = [
   { value: 'SA', label: 'Serie A' },
   { value: 'BL1', label: 'Bundesliga' },
   { value: 'FL1', label: 'Ligue 1' },
+  { value: 'BSA', label: 'Brasileirao' },
+  { value: 'NBA', label: 'NBA' },
+  { value: 'NHL', label: 'NHL' },
+  { value: 'NFL', label: 'NFL' },
+  { value: 'MMA', label: 'UFC' },
 ];
 
 const STATUS_COLORS: Record<string, string> = {
@@ -89,6 +97,9 @@ export function TournamentManagement() {
   const [editMatchDuration, setEditMatchDuration] = useState(300);
   const [editPredictionWindow, setEditPredictionWindow] = useState(300);
   const [editScheduledAt, setEditScheduledAt] = useState('');
+  const [editType, setEditType] = useState<'CRYPTO' | 'SPORTS'>('CRYPTO');
+  const [editSport, setEditSport] = useState('FOOTBALL');
+  const [editLeague, setEditLeague] = useState('CL');
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-tournaments'],
@@ -132,12 +143,18 @@ export function TournamentManagement() {
     setEditMatchDuration(t.matchDuration);
     setEditPredictionWindow(t.predictionWindow ?? 300);
     setEditScheduledAt(t.scheduledAt ? new Date(t.scheduledAt).toISOString().slice(0, 16) : '');
+    setEditType(t.sport ? 'SPORTS' : 'CRYPTO');
+    setEditSport(t.sport || 'FOOTBALL');
+    setEditLeague(t.league || 'CL');
   };
 
   const updateMutation = useMutation({
     mutationFn: () => adminPost(`/tournaments/${editTournament!.id}/update`, {
       name: editName,
-      asset: editAsset,
+      asset: editType === 'CRYPTO' ? editAsset : editSport,
+      sport: editType === 'SPORTS' ? editSport : null,
+      league: editType === 'SPORTS' ? editLeague : null,
+      tournamentType: editType === 'SPORTS' ? 'PREDICT_MATCHDAY' : 'CRYPTO',
       entryFee: Math.round(parseFloat(editEntryFee) * USDC_DIVISOR),
       size: editSize,
       matchDuration: editMatchDuration,
@@ -560,13 +577,37 @@ export function TournamentManagement() {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
             <TextField label="Name" size="small" value={editName} onChange={(e) => setEditName(e.target.value)} />
             <FormControl size="small">
-              <InputLabel>Asset</InputLabel>
-              <Select value={editAsset} onChange={(e) => setEditAsset(e.target.value)} label="Asset">
-                <MenuItem value="BTC">BTC</MenuItem>
-                <MenuItem value="ETH">ETH</MenuItem>
-                <MenuItem value="SOL">SOL</MenuItem>
+              <InputLabel>Type</InputLabel>
+              <Select value={editType} onChange={(e) => setEditType(e.target.value as 'CRYPTO' | 'SPORTS')} label="Type">
+                <MenuItem value="CRYPTO">Crypto</MenuItem>
+                <MenuItem value="SPORTS">Sports</MenuItem>
               </Select>
             </FormControl>
+            {editType === 'CRYPTO' ? (
+              <FormControl size="small">
+                <InputLabel>Asset</InputLabel>
+                <Select value={editAsset} onChange={(e) => setEditAsset(e.target.value)} label="Asset">
+                  <MenuItem value="BTC">BTC</MenuItem>
+                  <MenuItem value="ETH">ETH</MenuItem>
+                  <MenuItem value="SOL">SOL</MenuItem>
+                </Select>
+              </FormControl>
+            ) : (
+              <>
+                <FormControl size="small">
+                  <InputLabel>Sport</InputLabel>
+                  <Select value={editSport} onChange={(e) => setEditSport(e.target.value)} label="Sport">
+                    {SPORT_OPTIONS.map(s => <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>)}
+                  </Select>
+                </FormControl>
+                <FormControl size="small">
+                  <InputLabel>League</InputLabel>
+                  <Select value={editLeague} onChange={(e) => setEditLeague(e.target.value)} label="League">
+                    {LEAGUE_OPTIONS.map(l => <MenuItem key={l.value} value={l.value}>{l.label}</MenuItem>)}
+                  </Select>
+                </FormControl>
+              </>
+            )}
             <TextField label="Entry Fee (USDC)" size="small" type="number" value={editEntryFee} onChange={(e) => setEditEntryFee(e.target.value)} />
             <FormControl size="small">
               <InputLabel>Size</InputLabel>
