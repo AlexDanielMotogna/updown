@@ -16,6 +16,7 @@ import { startTournamentScheduler } from './scheduler/tournament-scheduler';
 import { startSportsScheduler } from './scheduler/sports-scheduler';
 import { startFixtureSyncScheduler } from './scheduler/fixture-sync';
 import { startPolymarketSyncScheduler } from './scheduler/polymarket-sync';
+import { startLiveScorePolling } from './services/sports/livescore';
 import { initWebSocket, shutdownWebSocket } from './websocket';
 
 dotenv.config();
@@ -111,6 +112,12 @@ httpServer.listen(PORT, async () => {
     startSportsScheduler();
   } catch (error) {
     console.error('Failed to start sports scheduler:', error);
+  }
+
+  try {
+    startLiveScorePolling();
+  } catch (error) {
+    console.error('Failed to start livescore polling:', error);
   }
 });
 

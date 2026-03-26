@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../db';
 import type { PoolStatus, Prisma } from '@prisma/client';
 import { serializePool } from '../utils/serializers';
+import { getLiveScore, getLiveScoreByTeam, getAllLiveScores } from '../services/sports/livescore';
 
 export const poolsRouter: RouterType = Router();
 
@@ -127,6 +128,11 @@ poolsRouter.get('/', async (req, res) => {
       },
     });
   }
+});
+
+// GET /api/pools/livescores — all current live scores (must be before /:id)
+poolsRouter.get('/livescores', (_req, res) => {
+  res.json({ success: true, data: getAllLiveScores() });
 });
 
 // GET /api/pools/:id - Get single pool with details
@@ -303,6 +309,26 @@ poolsRouter.get('/:id/odds-history', async (req, res) => {
   } catch (error) {
     console.error('Error fetching odds history:', error);
     res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: 'Failed to fetch odds history' } });
+  }
+});
+
+// GET /api/pools/:id/livescore — live score for a specific pool's match
+poolsRouter.get('/:id/livescore', async (req, res) => {
+  try {
+    const pool = await prisma.pool.findUnique({
+      where: { id: req.params.id },
+      select: { matchId: true, homeTeam: true },
+    });
+    if (!pool?.matchId) return res.json({ success: true, data: null });
+    // Try by eventId first (works for TheSportsDB sports: NBA, NHL, NFL, MMA)
+    let score = getLiveScore(pool.matchId);
+    // Fallback: try by team name (works for football pools with football-data.org IDs)
+    if (!score && pool.homeTeam) {
+      score = getLiveScoreByTeam(pool.homeTeam);
+    }
+    res.json({ success: true, data: score });
+  } catch {
+    res.json({ success: true, data: null });
   }
 });
 

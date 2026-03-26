@@ -19,6 +19,7 @@ import {
   Schedule,
 } from '@mui/icons-material';
 import { useInfinitePools, useBets, usePriceStream, useIntersectionObserver, type PoolFilters } from '@/hooks';
+import { useLiveScores } from '@/hooks/useLiveScores';
 import { PoolTable, AppShell } from '@/components';
 import { MatchCard } from '@/components/sports/MatchCard';
 import { MatchBetModal } from '@/components/sports/MatchBetModal';
@@ -156,6 +157,7 @@ export default function MarketsPage() {
 
   const { data: betsData } = useBets();
   const { getPrice } = usePriceStream(['BTC', 'ETH', 'SOL']);
+  const liveScores = useLiveScores();
 
   const allPools = useMemo(() => {
     const flat = data?.pages.flatMap((p) => p.data ?? []) ?? [];
@@ -350,7 +352,7 @@ export default function MarketsPage() {
                       }}
                     >
                       {sportsPools.slice(0, sportsVisible).map((pool) => (
-                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} onClick={() => setSelectedSportsPool(pool)} />
+                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} liveScore={pool.matchId ? (liveScores.get(pool.matchId) || (pool.homeTeam ? liveScores.get(pool.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '')) : undefined)) : undefined} onClick={() => setSelectedSportsPool(pool)} />
                       ))}
                     </Box>
                     {sportsVisible < sportsPools.length && (
@@ -391,7 +393,7 @@ export default function MarketsPage() {
                       }}
                     >
                       {predictionPools.slice(0, predVisible).map((pool) => (
-                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} onClick={() => setSelectedSportsPool(pool)} />
+                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} liveScore={pool.matchId ? (liveScores.get(pool.matchId) || (pool.homeTeam ? liveScores.get(pool.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '')) : undefined)) : undefined} onClick={() => setSelectedSportsPool(pool)} />
                       ))}
                     </Box>
                     {predVisible < predictionPools.length && (

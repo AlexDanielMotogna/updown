@@ -7,6 +7,7 @@ import { formatUSDC } from '@/lib/format';
 import { UP_COLOR, DOWN_COLOR, GAIN_COLOR, INTERVAL_TAG_IMAGES, INTERVAL_LABELS } from '@/lib/constants';
 import { AssetIcon } from '@/components/AssetIcon';
 import type { Pool } from '@/lib/api';
+import type { LiveScore } from '@/hooks/useLiveScores';
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -21,9 +22,10 @@ function timeAgo(dateStr: string): string {
 interface PoolsSidebarListProps {
   pools: Pool[];
   newIds: Set<string>;
+  liveScores?: Map<string, LiveScore>;
 }
 
-export function PoolsSidebarList({ pools, newIds }: PoolsSidebarListProps) {
+export function PoolsSidebarList({ pools, newIds, liveScores }: PoolsSidebarListProps) {
   if (pools.length === 0) {
     return (
       <Box sx={{ p: 2, textAlign: 'center' }}>
@@ -48,49 +50,80 @@ export function PoolsSidebarList({ pools, newIds }: PoolsSidebarListProps) {
               transition={{ type: 'spring', stiffness: 300, damping: 30, delay: isNew ? i * 0.05 : 0 }}
               layout
             >
-              <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                <Box
-                  sx={{
-                    px: 2,
-                    py: 1.5,
-                    bgcolor: '#0D1219',
-                    cursor: 'pointer',
-                    transition: 'background 0.15s ease',
-                    '&:hover': { background: 'rgba(255,255,255,0.04)' },
-                  }}
-                >
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                      <AssetIcon asset={pool.asset} size={22} />
-                      <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
-                        {pool.asset}/USD
-                      </Typography>
+              <Link href={pool.poolType === 'SPORTS' ? `/match/${pool.id}` : `/pool/${pool.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                {(() => {
+                  const ls = liveScores ? (pool.matchId ? liveScores.get(pool.matchId) : undefined) || (pool.homeTeam ? liveScores.get(pool.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '')) : undefined) : undefined;
+                  const isMatchLive = ls && ls.status !== 'FT' && ls.status !== 'NS';
+                  return (
+                    <Box
+                      sx={{
+                        px: 2,
+                        py: 1.5,
+                        bgcolor: '#0D1219',
+                        cursor: 'pointer',
+                        transition: 'background 0.15s ease',
+                        '&:hover': { background: 'rgba(255,255,255,0.04)' },
+                        ...(isMatchLive && { borderLeft: '2px solid #22C55E' }),
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+                          <AssetIcon asset={pool.asset} size={22} />
+                          <Typography sx={{ fontSize: '0.8rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {pool.poolType === 'SPORTS' ? (pool.homeTeam || pool.asset) : `${pool.asset}/USD`}
+                          </Typography>
+                        </Box>
+                        {isMatchLive ? (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: '#22C55E', animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+                            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#22C55E' }}>
+                              {ls!.homeScore} - {ls!.awayScore}
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Box
+                            component="img"
+                            src={INTERVAL_TAG_IMAGES[pool.interval] || '/assets/hourly-tag.png'}
+                            alt={INTERVAL_LABELS[pool.interval] || pool.interval}
+                            sx={{ height: { xs: 32, md: 36 }, imageRendering: '-webkit-optimize-contrast' }}
+                          />
+                        )}
+                      </Box>
+                      {isMatchLive ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                          <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: '#22C55E' }}>
+                            {ls!.status}{ls!.progress ? ` ${ls!.progress}'` : ''}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: GAIN_COLOR }}>
+                            {formatUSDC(pool.totalPool)}
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                            <Box
+                              component="img"
+                              src={pool.winner === 'UP' ? '/assets/up-icon-64x64.png' : '/assets/down-icon-64x64.png'}
+                              alt=""
+                              sx={{ width: 14, height: 14 }}
+                            />
+                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {pool.poolType === 'SPORTS'
+                                ? (pool.winner === 'UP' ? (pool.homeTeam || 'Home') : pool.winner === 'DOWN' ? (pool.awayTeam || 'Away') : 'Draw') + ' WINS'
+                                : `${pool.winner} WINS`}
+                            </Typography>
+                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: GAIN_COLOR, ml: 'auto' }}>
+                              {formatUSDC(pool.totalPool)}
+                            </Typography>
+                          </Box>
+                          <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
+                            {timeAgo(pool.endTime)}
+                          </Typography>
+                        </>
+                      )}
                     </Box>
-                    <Box
-                      component="img"
-                      src={INTERVAL_TAG_IMAGES[pool.interval] || '/assets/hourly-tag.png'}
-                      alt={INTERVAL_LABELS[pool.interval] || pool.interval}
-                      sx={{ height: { xs: 32, md: 36 }, imageRendering: '-webkit-optimize-contrast' }}
-                    />
-                  </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-                    <Box
-                      component="img"
-                      src={pool.winner === 'UP' ? '/assets/up-icon-64x64.png' : '/assets/down-icon-64x64.png'}
-                      alt=""
-                      sx={{ width: 14, height: 14 }}
-                    />
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR }}>
-                      {pool.winner} WINS
-                    </Typography>
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: GAIN_COLOR, ml: 'auto' }}>
-                      {formatUSDC(pool.totalPool)}
-                    </Typography>
-                  </Box>
-                  <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
-                    {timeAgo(pool.endTime)}
-                  </Typography>
-                </Box>
+                  );
+                })()}
               </Link>
             </motion.div>
           );

@@ -16,6 +16,7 @@ import { MatchAnalysis } from '@/components/sports/MatchAnalysis';
 import { OddsChart } from '@/components/pool/OddsChart';
 import { UP_COLOR, DOWN_COLOR, DRAW_COLOR, GAIN_COLOR } from '@/lib/constants';
 import { formatUSDC, USDC_DIVISOR, statusStyles } from '@/lib/format';
+import { useLiveScore } from '@/hooks/useLiveScores';
 
 const PRESETS = [10, 50, 100, 500];
 
@@ -125,6 +126,9 @@ export default function MatchDetailPage() {
   } | null>(null);
 
   const pool = poolData?.data;
+  const liveScore = useLiveScore(pool?.id ?? null);
+  const matchLive = liveScore && liveScore.status !== 'FT' && liveScore.status !== 'NS';
+  const isLocked = pool && !pool.status?.match(/CLAIMABLE|RESOLVED/) && pool.lockTime && new Date(pool.lockTime).getTime() < Date.now();
 
   // Poll bets + pool totals every 5s
   const poolId = pool?.id;
@@ -304,19 +308,34 @@ export default function MatchDetailPage() {
               </Typography>
             )}
           </Box>
-          <Chip
-            label={pool.status === 'JOINING' ? 'OPEN' : pool.status === 'ACTIVE' ? 'LIVE' : pool.status}
-            size="small"
-            sx={{
-              ...statusStyle,
-              fontWeight: 700,
-              fontSize: { xs: '0.6rem', md: '0.7rem' },
-              letterSpacing: '0.08em',
-              px: 1,
-              borderRadius: '5px',
-              height: { xs: 22, md: 24 },
-            }}
-          />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {matchLive && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: '#22C55E', animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1, transform: 'scale(1)' }, '50%': { opacity: 0.4, transform: 'scale(0.8)' } } }} />
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#22C55E' }}>
+                  {liveScore!.status}{liveScore!.progress ? ` ${liveScore!.progress}'` : ''}
+                </Typography>
+              </Box>
+            )}
+            {isLocked && !matchLive && !isResolved && (
+              <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase' }}>
+                Locked
+              </Typography>
+            )}
+            <Chip
+              label={matchLive ? 'LIVE' : pool.status === 'JOINING' ? 'OPEN' : pool.status === 'ACTIVE' ? 'LIVE' : pool.status}
+              size="small"
+              sx={{
+                ...(matchLive ? { bgcolor: 'rgba(34,197,94,0.12)', color: '#22C55E' } : statusStyle),
+                fontWeight: 700,
+                fontSize: { xs: '0.6rem', md: '0.7rem' },
+                letterSpacing: '0.08em',
+                px: 1,
+                borderRadius: '5px',
+                height: { xs: 22, md: 24 },
+              }}
+            />
+          </Box>
         </Box>
       </Box>
 
@@ -342,6 +361,26 @@ export default function MatchDetailPage() {
           ))}
         </Box>
       </Box>
+
+      {/* ── Live score banner ── */}
+      {matchLive && !isResolved && (
+        <Box sx={{ px: { xs: 2, md: 3 }, py: 2, textAlign: 'center', bgcolor: 'rgba(34,197,94,0.04)' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 0.5 }}>
+            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#22C55E', animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1, transform: 'scale(1)' }, '50%': { opacity: 0.4, transform: 'scale(0.8)' } } }} />
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#22C55E', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              Live - {liveScore!.status}{liveScore!.progress ? ` ${liveScore!.progress}'` : ''}
+            </Typography>
+          </Box>
+          <Typography sx={{ fontSize: '1.6rem', fontWeight: 700, color: '#fff' }}>
+            {pool.homeTeam} {liveScore!.homeScore} - {liveScore!.awayScore} {pool.awayTeam}
+          </Typography>
+          {isLocked && (
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: '#F59E0B', mt: 0.5 }}>
+              Predictions locked
+            </Typography>
+          )}
+        </Box>
+      )}
 
       {/* ── Winner banner ── */}
       {isResolved && winnerLabel && (
@@ -477,7 +516,16 @@ export default function MatchDetailPage() {
                 )}
                 <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: isResolved && pool.winner === 'UP' ? UP_COLOR : '#fff' }}>{pool.homeTeam || 'Home'}</Typography>
               </Box>
-              {isResolved && pool.homeScore != null && pool.awayScore != null ? (
+              {matchLive ? (
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography sx={{ fontSize: '1.4rem', fontWeight: 700, color: '#22C55E' }}>
+                    {liveScore!.homeScore} - {liveScore!.awayScore}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: '#22C55E', opacity: 0.8 }}>
+                    {liveScore!.status}{liveScore!.progress ? ` ${liveScore!.progress}'` : ''}
+                  </Typography>
+                </Box>
+              ) : isResolved && pool.homeScore != null && pool.awayScore != null ? (
                 <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff' }}>
                   {pool.homeScore} - {pool.awayScore}
                 </Typography>

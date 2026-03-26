@@ -5,6 +5,7 @@ import { Gavel, Public, TheaterComedy, AccountBalance, TrendingUp, Star, SportsB
 import { UP_COLOR, DOWN_COLOR, DRAW_COLOR, GAIN_COLOR } from '@/lib/constants';
 import { AnimatedValue } from '@/components/AnimatedValue';
 import type { Pool } from '@/lib/api';
+import type { LiveScore } from '@/hooks/useLiveScores';
 
 const PM_CATEGORY_LABELS: Record<string, string> = {
   PM_POLITICS: 'Politics',
@@ -54,7 +55,7 @@ function formatKickoff(dateStr: string): string {
   return d.toLocaleDateString('en-US', opts);
 }
 
-export function MatchCard({ pool, onClick, isPopular }: { pool: Pool; onClick?: () => void; isPopular?: boolean }) {
+export function MatchCard({ pool, onClick, isPopular, liveScore }: { pool: Pool; onClick?: () => void; isPopular?: boolean; liveScore?: LiveScore | null }) {
   const isPrediction = pool.league?.startsWith('PM_');
   const totalUp = Number(pool.totalUp);
   const totalDown = Number(pool.totalDown);
@@ -70,6 +71,10 @@ export function MatchCard({ pool, onClick, isPopular }: { pool: Pool; onClick?: 
   const isResolved = pool.status === 'CLAIMABLE' || pool.status === 'RESOLVED';
   const league = pool.league || '';
   const winnerLabel = isResolved && pool.winner === 'UP' ? (isPrediction ? 'Yes' : pool.homeTeam) : pool.winner === 'DOWN' ? (isPrediction ? 'No' : pool.awayTeam) : pool.winner === 'DRAW' ? 'Draw' : null;
+
+  // Live match data
+  const matchLive = liveScore && liveScore.status !== 'FT' && liveScore.status !== 'NS';
+  const isLocked = !isResolved && pool.lockTime && new Date(pool.lockTime).getTime() < Date.now();
 
   const catColor = PM_CATEGORY_COLORS[league] || '#A78BFA';
 
@@ -151,12 +156,29 @@ export function MatchCard({ pool, onClick, isPopular }: { pool: Pool; onClick?: 
                 }}
               />
             )}
-            {isLive && (
-              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: DOWN_COLOR, animation: 'pulse 1.5s infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+            {isLocked && !matchLive && !isResolved && (
+              <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase' }}>
+                Locked
+              </Typography>
             )}
-            <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: isLive ? DOWN_COLOR : 'rgba(255,255,255,0.4)' }}>
-              {formatKickoff(pool.startTime)}
-            </Typography>
+            {matchLive && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#22C55E', animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1, transform: 'scale(1)' }, '50%': { opacity: 0.4, transform: 'scale(0.8)' } } }} />
+                <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: '#22C55E' }}>
+                  {liveScore!.status}{liveScore!.progress ? ` ${liveScore!.progress}'` : ''}
+                </Typography>
+              </Box>
+            )}
+            {!matchLive && (
+              <>
+                {isLive && (
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: DOWN_COLOR, animation: 'pulse 1.5s infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+                )}
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: isLive ? DOWN_COLOR : 'rgba(255,255,255,0.4)' }}>
+                  {formatKickoff(pool.startTime)}
+                </Typography>
+              </>
+            )}
           </Box>
         </Box>
 
@@ -178,7 +200,11 @@ export function MatchCard({ pool, onClick, isPopular }: { pool: Pool; onClick?: 
                 <Box component="img" src={pool.homeTeamCrest} alt={pool.homeTeam || ''} sx={{ width: 24, height: 24, objectFit: 'contain' }} />
               )}
             </Box>
-            {isResolved && pool.homeScore != null && pool.awayScore != null ? (
+            {matchLive ? (
+              <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: '#22C55E', minWidth: 40, textAlign: 'center' }}>
+                {liveScore!.homeScore} - {liveScore!.awayScore}
+              </Typography>
+            ) : isResolved && pool.homeScore != null && pool.awayScore != null ? (
               <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#fff', minWidth: 40, textAlign: 'center' }}>
                 {pool.homeScore} - {pool.awayScore}
               </Typography>
