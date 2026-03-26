@@ -90,7 +90,7 @@ const CATEGORIES: CategorySeed[] = [
   {
     code: 'DED', type: 'FOOTBALL_LEAGUE', enabled: false, comingSoon: true,
     label: 'Eredivisie', shortLabel: 'Eredivisie',
-    badgeUrl: 'https://crests.football-data.org/DED.png',
+    badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/5cdsu21725984946.png',
     iconKey: 'SportsSoccer', apiSource: 'football-data', adapterKey: 'FOOTBALL',
     numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], sortOrder: 12,
   },
