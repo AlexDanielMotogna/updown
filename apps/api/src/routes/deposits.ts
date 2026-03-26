@@ -449,7 +449,7 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
     });
 
     // Award XP + coins (fire-and-forget, non-blocking)
-    awardBetPlacement(walletAddress, betAmount).catch(() => {});
+    awardBetPlacement(walletAddress, betAmount).catch(e => console.warn('[Deposits] awardBetPlacement failed:', e instanceof Error ? e.message : e));
 
     res.json({
       success: true,

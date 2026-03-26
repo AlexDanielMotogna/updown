@@ -1,11 +1,9 @@
 export { FootballAdapter } from './football-adapter';
-export { BasketballAdapter } from './basketball-adapter';
 export { PolymarketAdapter } from './polymarket-adapter';
 export { SportsDbAdapter, SPORTSDB_CONFIGS } from './api-sports-adapter';
 export type { SportAdapter, Match, MatchResult, MatchStatus } from './types';
 
 import { FootballAdapter } from './football-adapter';
-import { BasketballAdapter } from './basketball-adapter';
 import { PolymarketAdapter } from './polymarket-adapter';
 import { SportsDbAdapter, SPORTSDB_CONFIGS } from './api-sports-adapter';
 import type { SportAdapter } from './types';
@@ -14,7 +12,6 @@ import { getSportsDbConfigs } from '../category-config';
 // Static adapters (always available)
 const staticAdapters: Record<string, SportAdapter> = {
   FOOTBALL: new FootballAdapter(),
-  BASKETBALL: new BasketballAdapter(),
   POLYMARKET: new PolymarketAdapter(),
 };
 
@@ -78,4 +75,4 @@ export function listSports(): Array<{ sport: string; numSides: number; sideLabel
 }
 
 // Eagerly refresh on startup
-refreshDynamic().catch(() => initFallback());
+refreshDynamic().catch(e => { console.warn('[Adapters] dynamic refresh failed, using fallback:', e instanceof Error ? e.message : e); initFallback(); });
