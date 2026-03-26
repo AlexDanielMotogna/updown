@@ -46,7 +46,7 @@ async function bulkSync(): Promise<void> {
   let totalSynced = 0;
 
   for (const event of events) {
-    const cat = categorizeEvent(event.tags ?? []);
+    const cat = await categorizeEvent(event.tags ?? []);
     if (!cat) continue;
 
     // Volume filter

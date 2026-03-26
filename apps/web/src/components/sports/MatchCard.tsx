@@ -1,46 +1,13 @@
 'use client';
 
 import { Box, Typography, Chip } from '@mui/material';
-import { Gavel, Public, TheaterComedy, AccountBalance, TrendingUp, Star, SportsBasketball, SportsFootball, SportsMma, SportsHockey } from '@mui/icons-material';
+import { TrendingUp, Star } from '@mui/icons-material';
 import { UP_COLOR, DOWN_COLOR, DRAW_COLOR, GAIN_COLOR } from '@/lib/constants';
 import { AnimatedValue } from '@/components/AnimatedValue';
+import { getIcon } from '@/lib/icon-registry';
 import type { Pool } from '@/lib/api';
 import type { LiveScore } from '@/hooks/useLiveScores';
-
-const PM_CATEGORY_LABELS: Record<string, string> = {
-  PM_POLITICS: 'Politics',
-  PM_GEO: 'Geopolitics',
-  PM_CULTURE: 'Culture',
-  PM_FINANCE: 'Finance',
-};
-
-const PM_CATEGORY_COLORS: Record<string, string> = {
-  PM_POLITICS: '#A78BFA',
-  PM_GEO: '#60A5FA',
-  PM_CULTURE: '#F472B6',
-  PM_FINANCE: '#34D399',
-};
-
-const SPORT_BADGES: Record<string, string> = {
-  NBA: 'https://r2.thesportsdb.com/images/media/league/badge/frdjqy1536585083.png',
-  NHL: 'https://r2.thesportsdb.com/images/media/league/badge/4cem2k1619616539.png',
-  NFL: 'https://r2.thesportsdb.com/images/media/league/badge/g85fqz1662057187.png',
-  MMA: 'https://r2.thesportsdb.com/images/media/league/badge/bewnz31717531281.png',
-};
-
-const SPORT_COLORS: Record<string, string> = {
-  NBA: '#F97316',
-  NFL: '#22C55E',
-  MMA: '#EF4444',
-  NHL: '#3B82F6',
-};
-
-const PM_CATEGORY_ICONS: Record<string, React.ReactNode> = {
-  PM_POLITICS: <Gavel sx={{ fontSize: 48 }} />,
-  PM_GEO: <Public sx={{ fontSize: 48 }} />,
-  PM_CULTURE: <TheaterComedy sx={{ fontSize: 48 }} />,
-  PM_FINANCE: <AccountBalance sx={{ fontSize: 48 }} />,
-};
+import type { CategoryConfig } from '@/hooks/useCategories';
 
 function formatKickoff(dateStr: string, isResolved: boolean): string {
   const d = new Date(dateStr);
@@ -57,8 +24,12 @@ function formatKickoff(dateStr: string, isResolved: boolean): string {
   return d.toLocaleDateString('en-US', opts);
 }
 
-export function MatchCard({ pool, onClick, isPopular, liveScore }: { pool: Pool; onClick?: () => void; isPopular?: boolean; liveScore?: LiveScore | null }) {
+export function MatchCard({ pool, onClick, isPopular, liveScore, category }: { pool: Pool; onClick?: () => void; isPopular?: boolean; liveScore?: LiveScore | null; category?: CategoryConfig | null }) {
   const isPrediction = pool.league?.startsWith('PM_');
+  const catColor = category?.color || (isPrediction ? '#A78BFA' : 'rgba(255,255,255,0.35)');
+  const catLabel = category?.label || pool.league || '';
+  const catBadge = category?.badgeUrl;
+  const CatIcon = getIcon(category?.iconKey);
   const totalUp = Number(pool.totalUp);
   const totalDown = Number(pool.totalDown);
   const totalDraw = Number(pool.totalDraw);
@@ -77,8 +48,6 @@ export function MatchCard({ pool, onClick, isPopular, liveScore }: { pool: Pool;
   // Live match data — never show live if pool is already resolved
   const matchLive = !isResolved && liveScore && liveScore.status !== 'FT' && liveScore.status !== 'NS';
   const isLocked = !isResolved && pool.lockTime && new Date(pool.lockTime).getTime() < Date.now();
-
-  const catColor = PM_CATEGORY_COLORS[league] || '#A78BFA';
 
   return (
       <Box
@@ -111,10 +80,8 @@ export function MatchCard({ pool, onClick, isPopular, liveScore }: { pool: Pool;
             transform: 'rotate(-15deg)',
             pointerEvents: 'none',
           }}>
-            {PM_CATEGORY_ICONS[league] ? (
-              <Box sx={{ '& .MuiSvgIcon-root': { fontSize: 90 } }}>
-                {PM_CATEGORY_ICONS[league]}
-              </Box>
+            {CatIcon ? (
+              <CatIcon sx={{ fontSize: 90 }} />
             ) : (
               <TrendingUp sx={{ fontSize: 90 }} />
             )}
@@ -123,22 +90,15 @@ export function MatchCard({ pool, onClick, isPopular, liveScore }: { pool: Pool;
         {/* Header: league/category + kickoff */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-            {isPrediction ? (
-              <Box sx={{ width: 22, height: 22, borderRadius: '50%', bgcolor: `${PM_CATEGORY_COLORS[league] || '#A78BFA'}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: PM_CATEGORY_COLORS[league] || '#A78BFA' }} />
+            {catBadge ? (
+              <Box component="img" src={catBadge} alt={league} sx={{ width: 22, height: 22, objectFit: 'contain', ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }) }} />
+            ) : isPrediction ? (
+              <Box sx={{ width: 22, height: 22, borderRadius: '50%', bgcolor: `${catColor}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: catColor }} />
               </Box>
-            ) : SPORT_BADGES[league] ? (
-              <Box component="img" src={SPORT_BADGES[league]} alt={league} sx={{ width: 22, height: 22, objectFit: 'contain' }} />
-            ) : (
-              <Box
-                component="img"
-                src={`https://crests.football-data.org/${league === 'BSA' ? 'bsa' : league}.png`}
-                alt={league}
-                sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }}
-              />
-            )}
-            <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: isPrediction ? (PM_CATEGORY_COLORS[league] || '#A78BFA') : SPORT_COLORS[league] || 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              {PM_CATEGORY_LABELS[league] || (league === 'CL' ? 'Champions League' : league === 'PL' ? 'Premier League' : league === 'PD' ? 'La Liga' : league === 'SA' ? 'Serie A' : league === 'BL1' ? 'Bundesliga' : league === 'FL1' ? 'Ligue 1' : league === 'BSA' ? 'Brasileirão' : league === 'NBA' ? 'NBA' : league === 'NFL' ? 'NFL' : league === 'MMA' ? 'UFC' : league === 'NHL' ? 'NHL' : league)}
+            ) : null}
+            <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: catColor, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              {catLabel}
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>

@@ -9,18 +9,54 @@ import { BasketballAdapter } from './basketball-adapter';
 import { PolymarketAdapter } from './polymarket-adapter';
 import { SportsDbAdapter, SPORTSDB_CONFIGS } from './api-sports-adapter';
 import type { SportAdapter } from './types';
+import { getSportsDbConfigs } from '../category-config';
 
-const adapters: Record<string, SportAdapter> = {
+// Static adapters (always available)
+const staticAdapters: Record<string, SportAdapter> = {
   FOOTBALL: new FootballAdapter(),
   BASKETBALL: new BasketballAdapter(),
   POLYMARKET: new PolymarketAdapter(),
-  ...Object.fromEntries(SPORTSDB_CONFIGS.map(c => [c.sport, new SportsDbAdapter(c)])),
 };
 
+// Dynamic adapters cache (created from DB config)
+const dynamicAdapters: Record<string, SportAdapter> = {};
+let dynamicInitialized = false;
+
+// Initialize dynamic adapters from hardcoded fallback on first use
+function initFallback(): void {
+  if (dynamicInitialized) return;
+  for (const c of SPORTSDB_CONFIGS) {
+    dynamicAdapters[c.sport] = new SportsDbAdapter(c);
+  }
+  dynamicInitialized = true;
+}
+
+// Refresh dynamic adapters from DB config
+async function refreshDynamic(): Promise<void> {
+  try {
+    const configs = await getSportsDbConfigs();
+    if (configs.length > 0) {
+      for (const c of configs) {
+        if (!dynamicAdapters[c.sport]) {
+          dynamicAdapters[c.sport] = new SportsDbAdapter(c);
+        }
+      }
+    }
+  } catch {
+    // Fall back to hardcoded
+    initFallback();
+  }
+}
+
 export function getAdapter(sport: string): SportAdapter {
-  const adapter = adapters[sport];
-  if (!adapter) throw new Error(`No adapter for sport: ${sport}`);
-  return adapter;
+  // Check static adapters first
+  if (staticAdapters[sport]) return staticAdapters[sport];
+  // Check dynamic adapters
+  if (dynamicAdapters[sport]) return dynamicAdapters[sport];
+  // Initialize from fallback if never done
+  initFallback();
+  if (dynamicAdapters[sport]) return dynamicAdapters[sport];
+  throw new Error(`No adapter for sport: ${sport}`);
 }
 
 export function getSideLabels(sport: string | null | undefined): string[] {
@@ -33,9 +69,13 @@ export function getSideLabels(sport: string | null | undefined): string[] {
 }
 
 export function getAllAdapters(): SportAdapter[] {
-  return Object.values(adapters);
+  initFallback();
+  return [...Object.values(staticAdapters), ...Object.values(dynamicAdapters)];
 }
 
 export function listSports(): Array<{ sport: string; numSides: number; sideLabels: string[] }> {
-  return Object.values(adapters).map(a => ({ sport: a.sport, numSides: a.numSides, sideLabels: a.sideLabels }));
+  return getAllAdapters().map(a => ({ sport: a.sport, numSides: a.numSides, sideLabels: a.sideLabels }));
 }
+
+// Eagerly refresh on startup
+refreshDynamic().catch(() => initFallback());

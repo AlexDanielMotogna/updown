@@ -20,6 +20,7 @@ import {
 } from '@mui/icons-material';
 import { useInfinitePools, useBets, usePriceStream, useIntersectionObserver, type PoolFilters } from '@/hooks';
 import { useLiveScores } from '@/hooks/useLiveScores';
+import { useCategoryMap } from '@/hooks/useCategories';
 import { PoolTable, AppShell } from '@/components';
 import { MatchCard } from '@/components/sports/MatchCard';
 import { MatchBetModal } from '@/components/sports/MatchBetModal';
@@ -116,8 +117,8 @@ export default function MarketsPage() {
   const assetValues = ASSET_FILTERS.map(f => f.value);
   const intervalValues = INTERVAL_FILTERS.map(f => f.value);
   const rawType = searchParams.get('type');
-  const validTypes: MarketType[] = ['CRYPTO', 'SPORTS', 'PM_POLITICS', 'PM_GEO', 'PM_CULTURE', 'PM_FINANCE'];
-  const marketType: MarketType = validTypes.includes(rawType as MarketType) ? rawType as MarketType : 'CRYPTO';
+  // Accept any type that starts with PM_ or is CRYPTO/SPORTS (dynamic from DB)
+  const marketType: MarketType = rawType && (rawType === 'CRYPTO' || rawType === 'SPORTS' || rawType.startsWith('PM_')) ? rawType : 'CRYPTO';
   const isPM = marketType.startsWith('PM_');
   const sportFilter = searchParams.get('sport') ?? 'ALL';
   const assetFilter = assetValues.includes(searchParams.get('asset') ?? '') ? searchParams.get('asset')! : 'ALL';
@@ -158,6 +159,7 @@ export default function MarketsPage() {
   const { data: betsData } = useBets();
   const { getPrice } = usePriceStream(['BTC', 'ETH', 'SOL']);
   const liveScores = useLiveScores();
+  const categoryMap = useCategoryMap();
 
   const allPools = useMemo(() => {
     const flat = data?.pages.flatMap((p) => p.data ?? []) ?? [];
@@ -210,8 +212,9 @@ export default function MarketsPage() {
     let filtered = allSports;
     // Filter by sport type
     if (sportFilter === 'SOCCER') {
-      const footballLeagues = ['CL', 'PL', 'PD', 'SA', 'BL1', 'FL1', 'BSA'];
-      filtered = filtered.filter(p => footballLeagues.includes(p.league || ''));
+      // Football leagues are those with a category of type FOOTBALL_LEAGUE
+      const footballCodes = new Set([...categoryMap.entries()].filter(([_, c]) => c.type === 'FOOTBALL_LEAGUE').map(([code]) => code));
+      filtered = filtered.filter(p => footballCodes.has(p.league || ''));
     } else if (sportFilter !== 'ALL') {
       filtered = filtered.filter(p => p.league === sportFilter);
     }
@@ -352,7 +355,7 @@ export default function MarketsPage() {
                       }}
                     >
                       {sportsPools.slice(0, sportsVisible).map((pool) => (
-                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} liveScore={pool.matchId ? (liveScores.get(pool.matchId) || (pool.homeTeam ? liveScores.get(pool.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '')) : undefined)) : undefined} onClick={() => setSelectedSportsPool(pool)} />
+                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} liveScore={pool.matchId ? (liveScores.get(pool.matchId) || (pool.homeTeam ? liveScores.get(pool.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '')) : undefined)) : undefined} category={pool.league ? categoryMap.get(pool.league) : undefined} onClick={() => setSelectedSportsPool(pool)} />
                       ))}
                     </Box>
                     {sportsVisible < sportsPools.length && (
@@ -393,7 +396,7 @@ export default function MarketsPage() {
                       }}
                     >
                       {predictionPools.slice(0, predVisible).map((pool) => (
-                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} liveScore={pool.matchId ? (liveScores.get(pool.matchId) || (pool.homeTeam ? liveScores.get(pool.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '')) : undefined)) : undefined} onClick={() => setSelectedSportsPool(pool)} />
+                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} liveScore={pool.matchId ? (liveScores.get(pool.matchId) || (pool.homeTeam ? liveScores.get(pool.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '')) : undefined)) : undefined} category={pool.league ? categoryMap.get(pool.league) : undefined} onClick={() => setSelectedSportsPool(pool)} />
                       ))}
                     </Box>
                     {predVisible < predictionPools.length && (

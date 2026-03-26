@@ -1,45 +1,16 @@
 import { SportAdapter, Match, MatchResult } from './types';
 import { polymarketFetch } from './polymarket-fetch';
+import { getPolymarketCategories, type PolymarketCategoryConfig } from '../category-config';
 
-// ── Category configuration ──────────────────────────────────────────────────
+// Re-export for backward compat
+export type PolymarketCategory = PolymarketCategoryConfig;
 
-export interface PolymarketCategory {
-  code: string;        // league code in DB: PM_POLITICS, PM_GEO, etc.
-  name: string;        // UI label
-  tags: string[];      // Polymarket event tags that match this category
-  minVolume24h: number; // minimum 24h volume in USD to qualify
-  maxDaysAhead: number; // how far ahead to create pools (days)
-}
-
-export const PM_CATEGORIES: PolymarketCategory[] = [
-  {
-    code: 'PM_FINANCE',
-    name: 'Finance & Economy',
-    tags: ['Business', 'Commodities', 'Economics', 'Gold', 'Oil', 'Stocks'],
-    minVolume24h: 10_000,
-    maxDaysAhead: 60,
-  },
-  {
-    code: 'PM_POLITICS',
-    name: 'Politics',
-    tags: ['Politics', 'Elections', 'Global Elections'],
-    minVolume24h: 10_000,
-    maxDaysAhead: 1100, // Political markets can be years ahead (e.g. 2028 elections)
-  },
-  {
-    code: 'PM_GEO',
-    name: 'Geopolitics',
-    tags: ['Geopolitics', 'Middle East'],
-    minVolume24h: 10_000,
-    maxDaysAhead: 90,
-  },
-  {
-    code: 'PM_CULTURE',
-    name: 'Culture & Entertainment',
-    tags: ['Culture', 'Entertainment', 'Pop Culture'],
-    minVolume24h: 5_000,
-    maxDaysAhead: 180,
-  },
+// Keep hardcoded fallback for PM_CATEGORIES export (used by polymarket-sync.ts)
+export const PM_CATEGORIES: PolymarketCategoryConfig[] = [
+  { code: 'PM_FINANCE', name: 'Finance & Economy', tags: ['Business', 'Commodities', 'Economics', 'Gold', 'Oil', 'Stocks'], minVolume24h: 10_000, maxDaysAhead: 60 },
+  { code: 'PM_POLITICS', name: 'Politics', tags: ['Politics', 'Elections', 'Global Elections'], minVolume24h: 10_000, maxDaysAhead: 1100 },
+  { code: 'PM_GEO', name: 'Geopolitics', tags: ['Geopolitics', 'Middle East'], minVolume24h: 10_000, maxDaysAhead: 90 },
+  { code: 'PM_CULTURE', name: 'Culture & Entertainment', tags: ['Culture', 'Entertainment', 'Pop Culture'], minVolume24h: 5_000, maxDaysAhead: 180 },
 ];
 
 const MAX_PER_CATEGORY = Number(process.env.POLYMARKET_MAX_MARKETS_PER_CATEGORY) || 10;
@@ -47,9 +18,10 @@ const MAX_PER_CATEGORY = Number(process.env.POLYMARKET_MAX_MARKETS_PER_CATEGORY)
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 /** Match an event's tags to one of our categories (first match wins). */
-export function categorizeEvent(eventTags: Array<{ label?: string; slug?: string }>): PolymarketCategory | null {
+export async function categorizeEvent(eventTags: Array<{ label?: string; slug?: string }>): Promise<PolymarketCategoryConfig | null> {
+  const cats = await getPolymarketCategories();
   const labels = new Set(eventTags.map(t => t.label).filter(Boolean));
-  for (const cat of PM_CATEGORIES) {
+  for (const cat of cats) {
     if (cat.tags.some(tag => labels.has(tag))) return cat;
   }
   return null;
@@ -119,7 +91,8 @@ export class PolymarketAdapter implements SportAdapter {
    * Fetches top events by volume from Gamma API, filters client-side by category tags.
    */
   async fetchUpcomingMatches(category: string): Promise<Match[]> {
-    const cat = PM_CATEGORIES.find(c => c.code === category);
+    const cats = await getPolymarketCategories();
+    const cat = cats.find(c => c.code === category);
     if (!cat) return [];
 
     const events: GammaEvent[] = await polymarketFetch(
@@ -132,7 +105,7 @@ export class PolymarketAdapter implements SportAdapter {
       if (matches.length >= MAX_PER_CATEGORY) break;
 
       // Must have tags that match this specific category
-      const eventCat = categorizeEvent(event.tags ?? []);
+      const eventCat = await categorizeEvent(event.tags ?? []);
       if (!eventCat || eventCat.code !== category) continue;
 
       // Volume filter
@@ -216,7 +189,7 @@ export class PolymarketAdapter implements SportAdapter {
     for (const event of events) {
       if (matches.length >= MAX_PER_CATEGORY) break;
 
-      const eventCat = categorizeEvent(event.tags ?? []);
+      const eventCat = await categorizeEvent(event.tags ?? []);
       if (!eventCat || eventCat.code !== category) continue;
       if ((event.volume24hr ?? 0) < cat.minVolume24h) continue;
 

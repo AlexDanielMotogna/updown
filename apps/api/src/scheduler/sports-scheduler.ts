@@ -2,16 +2,13 @@ import { prisma } from '../db';
 import { getAdapter } from '../services/sports';
 import type { Match } from '../services/sports/types';
 import { getCachedUpcomingFixtures, getCachedFixtureResults, isFixtureCacheReady } from '../services/sports/fixture-cache';
-import { PM_CATEGORIES } from '../services/sports/polymarket-adapter';
-import { SPORTSDB_CONFIGS } from '../services/sports/api-sports-adapter';
 import { getPoolPDA, getVaultPDA, buildInitializePoolIx, buildResolveWithWinnerIx } from 'solana-client';
 import { derivePoolSeed, getUsdcMint, getConnection, getAuthorityKeypair } from '../utils/solana';
 import { Transaction } from '@solana/web3.js';
 import crypto from 'crypto';
 import { emitPoolStatus } from '../websocket';
 import { generateMatchAnalysis } from '../services/sports/match-analysis';
-
-const LEAGUES = ['CL', 'PL', 'PD', 'SA', 'BL1', 'FL1', 'BSA']; // UCL, Premier, La Liga, Serie A, Bundesliga, Ligue 1, Brasileirão
+import { getFootballLeagueCodes, getSportsDbConfigs, getPolymarketCategories } from '../services/category-config';
 const POOL_OPEN_HOURS_BEFORE = 720; // Open pool 30 days before kickoff
 
 /** Derive the correct adapter based on the pool's league code. */
@@ -34,7 +31,8 @@ export async function createMatchPools(): Promise<void> {
   if (!isFixtureCacheReady()) {
     console.log('[Sports] Fixture cache not ready yet, skipping football pools');
   } else {
-  for (const leagueCode of LEAGUES) {
+  const leagues = await getFootballLeagueCodes();
+  for (const leagueCode of leagues) {
     try {
       const matches = await getCachedUpcomingFixtures('FOOTBALL', leagueCode);
 
@@ -56,7 +54,8 @@ export async function createMatchPools(): Promise<void> {
   } // end isFixtureCacheReady
 
   // ── Polymarket categories (independent of football cache) ──
-  for (const cat of PM_CATEGORIES) {
+  const pmCategories = await getPolymarketCategories();
+  for (const cat of pmCategories) {
     try {
       const matches = await getCachedUpcomingFixtures('POLYMARKET', cat.code);
       const maxHours = cat.maxDaysAhead * 24;
@@ -77,8 +76,9 @@ export async function createMatchPools(): Promise<void> {
     }
   }
 
-  // ── TheSportsDB (NBA, NHL, MMA, NFL) ──
-  for (const config of SPORTSDB_CONFIGS) {
+  // ── TheSportsDB (dynamic from DB config) ──
+  const sportsConfigs = await getSportsDbConfigs();
+  for (const config of sportsConfigs) {
     try {
       const matches = await getCachedUpcomingFixtures(config.sport, config.sport);
 

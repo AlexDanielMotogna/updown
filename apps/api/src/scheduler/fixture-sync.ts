@@ -1,15 +1,14 @@
 import cron from 'node-cron';
 import { prisma } from '../db';
-import { getAdapter, SPORTSDB_CONFIGS } from '../services/sports';
+import { getAdapter } from '../services/sports';
 import { createMatchPools } from './sports-scheduler';
 import {
   getFixturesNeedingPoll,
   getStalePreMatchFixtures,
   markFixtureCacheReady,
 } from '../services/sports/fixture-cache';
+import { getFootballLeagueCodes, getSportsDbConfigs } from '../services/category-config';
 import type { Match, MatchResult } from '../services/sports/types';
-
-const LEAGUES = ['CL', 'PL', 'PD', 'SA', 'BL1', 'FL1', 'BSA'];
 const RATE_LIMIT_DELAY_MS = 7_000; // 7s between API calls (stays under 10/min)
 const API_SOURCE = 'football-data';
 
@@ -105,7 +104,8 @@ async function dailySync(): Promise<void> {
   const dateTo = formatDate(addDays(today, 14));
   let totalSynced = 0;
 
-  for (const league of LEAGUES) {
+  const leagues = await getFootballLeagueCodes();
+  for (const league of leagues) {
     try {
       const adapter = getAdapter('FOOTBALL');
       const matches = await adapter.fetchMatchesByDateRange(league, dateFrom, dateTo);
@@ -124,8 +124,9 @@ async function dailySync(): Promise<void> {
     await sleep(RATE_LIMIT_DELAY_MS);
   }
 
-  // ── TheSportsDB sync (NBA, NHL, MMA, NFL) ──
-  for (const config of SPORTSDB_CONFIGS) {
+  // ── TheSportsDB sync (dynamic from DB config) ──
+  const sportsConfigs = await getSportsDbConfigs();
+  for (const config of sportsConfigs) {
     try {
       const adapter = getAdapter(config.sport);
       const matches = await adapter.fetchUpcomingMatches(config.sport);
@@ -143,7 +144,7 @@ async function dailySync(): Promise<void> {
     await sleep(RATE_LIMIT_DELAY_MS);
   }
 
-  console.log(`[FixtureSync] Daily sync complete: ${totalSynced} fixtures across ${LEAGUES.length + SPORTSDB_CONFIGS.length} sources`);
+  console.log(`[FixtureSync] Daily sync complete: ${totalSynced} fixtures across ${leagues.length + sportsConfigs.length} sources`);
 }
 
 /**

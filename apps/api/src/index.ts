@@ -11,6 +11,7 @@ import { adminRouter } from './routes/admin';
 import { referralsRouter } from './routes/referrals';
 import { squadsRouter } from './routes/squads';
 import { tournamentRouter } from './routes/tournaments';
+import { configRouter } from './routes/config';
 import { getScheduler } from './scheduler';
 import { startTournamentScheduler } from './scheduler/tournament-scheduler';
 import { startSportsScheduler } from './scheduler/sports-scheduler';
@@ -45,6 +46,7 @@ app.use('/api/admin', adminRouter);
 app.use('/api/referrals', referralsRouter);
 app.use('/api/squads', squadsRouter);
 app.use('/api/tournaments', tournamentRouter);
+app.use('/api/config', configRouter);
 
 // Scheduler status endpoint
 app.get('/api/scheduler/status', (req, res) => {

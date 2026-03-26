@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { Box, Typography, Chip, Button, TextField, CircularProgress } from '@mui/material';
-import { ArrowBack, Gavel, Public, TheaterComedy, AccountBalance, TrendingUp } from '@mui/icons-material';
+import { ArrowBack, TrendingUp } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { usePool } from '@/hooks/usePools';
@@ -17,41 +17,10 @@ import { OddsChart } from '@/components/pool/OddsChart';
 import { UP_COLOR, DOWN_COLOR, DRAW_COLOR, GAIN_COLOR } from '@/lib/constants';
 import { formatUSDC, USDC_DIVISOR, statusStyles } from '@/lib/format';
 import { useLiveScore } from '@/hooks/useLiveScores';
+import { useCategoryMap } from '@/hooks/useCategories';
+import { getIcon } from '@/lib/icon-registry';
 
 const PRESETS = [10, 50, 100, 500];
-
-const PM_LABELS: Record<string, string> = {
-  PM_POLITICS: 'Politics', PM_GEO: 'Geopolitics', PM_CULTURE: 'Culture & Entertainment', PM_FINANCE: 'Finance & Economy',
-};
-const PM_COLORS: Record<string, string> = {
-  PM_POLITICS: '#A78BFA', PM_GEO: '#60A5FA', PM_CULTURE: '#F472B6', PM_FINANCE: '#34D399',
-};
-const PM_ICONS: Record<string, React.ReactNode> = {
-  PM_POLITICS: <Gavel sx={{ fontSize: 20 }} />, PM_GEO: <Public sx={{ fontSize: 20 }} />,
-  PM_CULTURE: <TheaterComedy sx={{ fontSize: 20 }} />, PM_FINANCE: <AccountBalance sx={{ fontSize: 20 }} />,
-};
-
-const SPORT_BADGES: Record<string, string> = {
-  NBA: 'https://r2.thesportsdb.com/images/media/league/badge/frdjqy1536585083.png',
-  NHL: 'https://r2.thesportsdb.com/images/media/league/badge/4cem2k1619616539.png',
-  NFL: 'https://r2.thesportsdb.com/images/media/league/badge/g85fqz1662057187.png',
-  MMA: 'https://r2.thesportsdb.com/images/media/league/badge/bewnz31717531281.png',
-};
-
-function leagueName(code: string): string {
-  if (PM_LABELS[code]) return PM_LABELS[code];
-  switch (code) {
-    case 'CL': return 'Champions League';
-    case 'PL': return 'Premier League';
-    case 'PD': return 'La Liga';
-    case 'SA': return 'Serie A';
-    case 'BL1': return 'Bundesliga';
-    case 'FL1': return 'Ligue 1';
-    case 'BSA': return 'Brasileirão';
-    case 'MMA': return 'UFC';
-    default: return code;
-  }
-}
 
 interface PoolBet {
   wallet: string;
@@ -274,7 +243,12 @@ export default function MatchDetailPage() {
 
   const league = pool.league || '';
   const isPrediction = league.startsWith('PM_');
-  const catColor = PM_COLORS[league] || '#A78BFA';
+  const categoryMap = useCategoryMap();
+  const category = categoryMap.get(league);
+  const catColor = category?.color || (isPrediction ? '#A78BFA' : '#fff');
+  const catLabel = category?.label || league;
+  const catBadge = category?.badgeUrl;
+  const CatIcon = getIcon(category?.iconKey);
   const statusStyle = statusStyles[pool.status] || statusStyles.UPCOMING;
   const homeShort = isPrediction ? '' : (pool.homeTeam || 'Home').slice(0, 3).toUpperCase();
   const awayShort = isPrediction ? '' : (pool.awayTeam || 'Away').slice(0, 3).toUpperCase();
@@ -295,22 +269,17 @@ export default function MatchDetailPage() {
             <Link href={isPrediction ? '/?type=PREDICTIONS' : '/?type=SPORTS'} style={{ textDecoration: 'none', color: 'inherit', display: 'flex' }}>
               <ArrowBack sx={{ fontSize: 18, color: 'rgba(255,255,255,0.4)', '&:hover': { color: '#fff' }, cursor: 'pointer' }} />
             </Link>
-            {isPrediction ? (
+            {catBadge ? (
+              <Box component="img" src={catBadge} alt={league} sx={{ width: 22, height: 22, objectFit: 'contain', ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }) }} />
+            ) : CatIcon ? (
               <Box sx={{ color: catColor, display: 'flex', alignItems: 'center' }}>
-                {PM_ICONS[league] || <TrendingUp sx={{ fontSize: 20 }} />}
+                <CatIcon sx={{ fontSize: 20 }} />
               </Box>
-            ) : SPORT_BADGES[league] ? (
-              <Box component="img" src={SPORT_BADGES[league]} alt={league} sx={{ width: 22, height: 22, objectFit: 'contain' }} />
             ) : league ? (
-              <Box
-                component="img"
-                src={`https://crests.football-data.org/${league === 'BSA' ? 'bsa' : league}.png`}
-                alt={league}
-                sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }}
-              />
+              <TrendingUp sx={{ fontSize: 20, color: catColor }} />
             ) : null}
             <Typography sx={{ fontWeight: 700, fontSize: { xs: '0.9rem', md: '1rem' }, color: isPrediction ? catColor : '#fff' }}>
-              {leagueName(league)}
+              {catLabel}
             </Typography>
             {!isPrediction && (
               <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>

@@ -1,45 +1,19 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { Box, Typography, IconButton, Collapse, Popover } from '@mui/material';
-import { ShowChart, SportsSoccer, FilterList, KeyboardArrowDown, Schedule, GridView, TrendingUp, Gavel, Public, TheaterComedy, AccountBalance, SportsBasketball, SportsFootball, SportsMma, SportsHockey } from '@mui/icons-material';
+import React, { useState, useRef, useMemo } from 'react';
+import { Box, Typography, IconButton, Collapse, Popover, Chip } from '@mui/material';
+import { ShowChart, FilterList, KeyboardArrowDown, Schedule, GridView, SportsSoccer } from '@mui/icons-material';
 import { UP_COLOR, DRAW_COLOR } from '@/lib/constants';
+import { useCategories, type CategoryConfig } from '@/hooks/useCategories';
+import { getIcon } from '@/lib/icon-registry';
 
-export const PREDICTION_COLOR = '#A78BFA'; // violet for predictions tab
-
-const SPORT_OPTIONS = [
-  { value: 'ALL', label: 'All Sports', icon: <GridView sx={{ fontSize: 18 }} /> },
-  { value: 'SOCCER', label: 'Soccer', icon: <SportsSoccer sx={{ fontSize: 18 }} /> },
-  { value: 'NBA', label: 'NBA', icon: <SportsBasketball sx={{ fontSize: 18 }} /> },
-  { value: 'NFL', label: 'NFL', icon: <SportsFootball sx={{ fontSize: 18 }} /> },
-  { value: 'MMA', label: 'MMA', icon: <SportsMma sx={{ fontSize: 18 }} /> },
-  { value: 'NHL', label: 'NHL', icon: <SportsHockey sx={{ fontSize: 18 }} /> },
-];
-
-const LEAGUE_OPTIONS = [
-  { value: 'ALL', label: 'All', img: null, icon: <GridView sx={{ fontSize: 18 }} /> },
-  { value: 'CL', label: 'Champions League', img: 'https://crests.football-data.org/CL.png' },
-  { value: 'PL', label: 'Premier League', img: 'https://crests.football-data.org/PL.png' },
-  { value: 'PD', label: 'La Liga', img: 'https://crests.football-data.org/PD.png' },
-  { value: 'SA', label: 'Serie A', img: 'https://crests.football-data.org/SA.png' },
-  { value: 'BL1', label: 'Bundesliga', img: 'https://crests.football-data.org/BL1.png' },
-  { value: 'FL1', label: 'Ligue 1', img: 'https://crests.football-data.org/FL1.png' },
-  { value: 'BSA', label: 'Brasileirão', img: 'https://crests.football-data.org/bsa.png' },
-];
-
-export const PM_CATEGORY_OPTIONS = [
-  { value: 'ALL', label: 'All', img: null, icon: <GridView sx={{ fontSize: 18 }} /> },
-  { value: 'PM_POLITICS', label: 'Politics', img: null, icon: <Gavel sx={{ fontSize: 18 }} /> },
-  { value: 'PM_GEO', label: 'Geopolitics', img: null, icon: <Public sx={{ fontSize: 18 }} /> },
-  { value: 'PM_CULTURE', label: 'Culture', img: null, icon: <TheaterComedy sx={{ fontSize: 18 }} /> },
-  { value: 'PM_FINANCE', label: 'Finance', img: null, icon: <AccountBalance sx={{ fontSize: 18 }} /> },
-];
+export const PREDICTION_COLOR = '#A78BFA';
 
 interface DropdownProps {
   value: string;
   label: string;
   icon?: React.ReactNode;
-  options: Array<{ value: string; label: string; icon?: React.ReactNode; img?: string | null }>;
+  options: Array<{ value: string; label: string; icon?: React.ReactNode; img?: string | null; comingSoon?: boolean }>;
   onChange: (value: string) => void;
   color: string;
 }
@@ -55,14 +29,8 @@ export function FilterDropdown({ value, label, icon, options, onChange, color }:
         ref={anchorRef}
         onClick={() => setOpen(true)}
         sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          px: 1.5,
-          py: 0.75,
-          bgcolor: 'rgba(255,255,255,0.04)',
-          borderRadius: '8px',
-          cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 0.75,
+          bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '8px', cursor: 'pointer',
           transition: 'all 0.15s',
           border: open ? `1px solid ${color}30` : '1px solid transparent',
           '&:hover': { bgcolor: 'rgba(255,255,255,0.07)' },
@@ -77,41 +45,24 @@ export function FilterDropdown({ value, label, icon, options, onChange, color }:
         <KeyboardArrowDown sx={{ fontSize: 16, color: 'rgba(255,255,255,0.35)', transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'none' }} />
       </Box>
       <Popover
-        open={open}
-        anchorEl={anchorRef.current}
-        onClose={() => setOpen(false)}
+        open={open} anchorEl={anchorRef.current} onClose={() => setOpen(false)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-        slotProps={{
-          paper: {
-            sx: {
-              bgcolor: '#0B0F14',
-              border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: '10px',
-              mt: 0.75,
-              py: 0.5,
-              minWidth: 180,
-              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-            },
-          },
-        }}
+        slotProps={{ paper: { sx: { bgcolor: '#0B0F14', backgroundImage: 'none', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', mt: 0.75, py: 0.5, minWidth: 180, maxHeight: 320, overflow: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', '&::-webkit-scrollbar': { width: 2 }, '&::-webkit-scrollbar-track': { bgcolor: 'transparent' }, '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 4 }, scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.06) transparent' } } }}
       >
         {options.map((opt) => {
           const active = opt.value === value;
+          const soon = opt.comingSoon;
           return (
             <Box
               key={opt.value}
-              onClick={() => { onChange(opt.value); setOpen(false); }}
+              onClick={() => { if (!soon) { onChange(opt.value); setOpen(false); } }}
               sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1.25,
-                px: 2,
-                py: 1,
-                cursor: 'pointer',
-                bgcolor: active ? `${color}12` : 'transparent',
-                transition: 'background 0.1s',
-                '&:hover': { bgcolor: active ? `${color}18` : 'rgba(255,255,255,0.04)' },
+                display: 'flex', alignItems: 'center', gap: 1.25, px: 2, py: 1,
+                cursor: soon ? 'default' : 'pointer',
+                opacity: soon ? 0.4 : 1,
+                bgcolor: active ? `${color}12` : 'transparent', transition: 'background 0.1s',
+                '&:hover': soon ? {} : { bgcolor: active ? `${color}18` : 'rgba(255,255,255,0.04)' },
               }}
             >
               {opt.img ? (
@@ -120,14 +71,13 @@ export function FilterDropdown({ value, label, icon, options, onChange, color }:
                 <Box sx={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', color: active ? color : 'rgba(255,255,255,0.4)' }}>
                   {opt.icon}
                 </Box>
-              ) : (
-                <Box sx={{ width: 22, height: 22, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: 'rgba(255,255,255,0.3)' }}>All</Typography>
-                </Box>
-              )}
-              <Typography sx={{ fontSize: '0.82rem', fontWeight: active ? 700 : 500, color: active ? color : 'rgba(255,255,255,0.7)' }}>
+              ) : null}
+              <Typography sx={{ fontSize: '0.82rem', fontWeight: active ? 700 : 500, color: soon ? 'rgba(255,255,255,0.3)' : active ? color : 'rgba(255,255,255,0.7)', flex: 1 }}>
                 {opt.label}
               </Typography>
+              {soon && (
+                <Chip label="Soon" size="small" sx={{ height: 14, fontSize: '0.5rem', fontWeight: 700, bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.25)' }} />
+              )}
             </Box>
           );
         })}
@@ -136,7 +86,7 @@ export function FilterDropdown({ value, label, icon, options, onChange, color }:
   );
 }
 
-export type MarketType = 'CRYPTO' | 'SPORTS' | 'PM_POLITICS' | 'PM_GEO' | 'PM_CULTURE' | 'PM_FINANCE';
+export type MarketType = string; // 'CRYPTO' | 'SPORTS' | 'PM_POLITICS' | 'PM_GEO' | ...
 
 interface Props {
   marketType: MarketType;
@@ -153,14 +103,11 @@ interface Props {
   onLeagueChange: (value: string) => void;
 }
 
-const TABS: Array<{ key: MarketType; label: string; icon: React.ReactNode; color: string }> = [
-  { key: 'CRYPTO', label: 'Crypto', icon: <ShowChart sx={{ fontSize: 16 }} />, color: UP_COLOR },
-  { key: 'SPORTS', label: 'Sports', icon: <SportsSoccer sx={{ fontSize: 16 }} />, color: DRAW_COLOR },
-  { key: 'PM_POLITICS', label: 'Politics', icon: <Gavel sx={{ fontSize: 16 }} />, color: '#A78BFA' },
-  { key: 'PM_GEO', label: 'Geopolitics', icon: <Public sx={{ fontSize: 16 }} />, color: '#60A5FA' },
-  { key: 'PM_CULTURE', label: 'Culture', icon: <TheaterComedy sx={{ fontSize: 16 }} />, color: '#F472B6' },
-  { key: 'PM_FINANCE', label: 'Finance', icon: <AccountBalance sx={{ fontSize: 16 }} />, color: '#34D399' },
-];
+function buildIcon(cat: CategoryConfig, size: number = 16): React.ReactNode {
+  const Icon = getIcon(cat.iconKey);
+  if (Icon) return <Icon sx={{ fontSize: size }} />;
+  return null;
+}
 
 export function MarketFilter({
   marketType, onMarketTypeChange,
@@ -170,11 +117,81 @@ export function MarketFilter({
   leagueFilter, onLeagueChange,
 }: Props) {
   const [showFilters, setShowFilters] = useState(false);
-  const currentTab = TABS.find(t => t.key === marketType) || TABS[0];
+  const { data: categories } = useCategories();
+
+  // Build dynamic tabs from categories
+  const { tabs, sportOptions, leagueOptions } = useMemo(() => {
+    const cats = categories || [];
+    const pmCats = cats.filter(c => c.type === 'POLYMARKET' && c.enabled);
+    const sportsDbCats = cats.filter(c => c.type === 'SPORTSDB_SPORT' && c.enabled);
+    const footballCats = cats.filter(c => c.type === 'FOOTBALL_LEAGUE' && c.enabled);
+
+    // Coming soon PM categories
+    const pmComingSoon = cats.filter(c => c.type === 'POLYMARKET' && !c.enabled && c.comingSoon);
+
+    // Tabs: CRYPTO + SPORTS + enabled PM categories + coming soon PM
+    const tabs: Array<{ key: string; label: string; icon: React.ReactNode; color: string; comingSoon?: boolean }> = [
+      { key: 'CRYPTO', label: 'Crypto', icon: <ShowChart sx={{ fontSize: 16 }} />, color: UP_COLOR },
+      { key: 'SPORTS', label: 'Sports', icon: <SportsSoccer sx={{ fontSize: 16 }} />, color: DRAW_COLOR },
+      ...pmCats.map(c => ({
+        key: c.code,
+        label: c.shortLabel || c.label,
+        icon: buildIcon(c),
+        color: c.color || PREDICTION_COLOR,
+      })),
+      ...pmComingSoon.map(c => ({
+        key: c.code,
+        label: c.shortLabel || c.label,
+        icon: buildIcon(c),
+        color: c.color || '#666',
+        comingSoon: true,
+      })),
+    ];
+
+    // Sport dropdown: MUI icons only (no badge images), same as Soccer
+    const sportsComingSoon = cats.filter(c => c.type === 'SPORTSDB_SPORT' && !c.enabled && c.comingSoon);
+    const sportOptions: Array<{ value: string; label: string; icon?: React.ReactNode; img?: string | null; comingSoon?: boolean }> = [
+      { value: 'ALL', label: 'All Sports', icon: <GridView sx={{ fontSize: 18 }} /> },
+      { value: 'SOCCER', label: 'Soccer', icon: <SportsSoccer sx={{ fontSize: 18 }} /> },
+      ...sportsDbCats.map(c => ({
+        value: c.code,
+        label: c.shortLabel || c.label,
+        icon: buildIcon(c, 18),
+      })),
+      ...sportsComingSoon.map(c => ({
+        value: c.code,
+        label: c.shortLabel || c.label,
+        icon: buildIcon(c, 18),
+        comingSoon: true,
+      })),
+    ];
+
+    // League dropdown: All + enabled football leagues + coming soon (greyed out)
+    const footballComingSoon = cats.filter(c => c.type === 'FOOTBALL_LEAGUE' && !c.enabled && c.comingSoon);
+
+    // League dropdown: All + enabled football leagues
+    const leagueOptions: Array<{ value: string; label: string; img?: string | null; icon?: React.ReactNode; comingSoon?: boolean }> = [
+      { value: 'ALL', label: 'All', img: null, icon: <GridView sx={{ fontSize: 18 }} /> },
+      ...footballCats.map(c => ({
+        value: c.code,
+        label: c.shortLabel || c.label,
+        img: c.badgeUrl,
+      })),
+      ...footballComingSoon.map(c => ({
+        value: c.code,
+        label: c.shortLabel || c.label,
+        img: c.badgeUrl,
+        comingSoon: true,
+      })),
+    ];
+
+    return { tabs, sportOptions, leagueOptions };
+  }, [categories]);
+
+  const currentTab = tabs.find(t => t.key === marketType) || tabs[0];
   const tabColor = currentTab.color;
   const isPM = marketType.startsWith('PM_');
-  const isSingleSport = ['NBA', 'NFL', 'MMA', 'NHL'].includes(marketType);
-  const hideFilters = isPM || isSingleSport;
+  const hideFilters = isPM;
 
   const assetOpts = assetOptions.map(o => ({ ...o, img: o.img || null }));
   const intervalOpts = intervalOptions.map(o => ({ ...o, img: null }));
@@ -184,30 +201,32 @@ export function MarketFilter({
       {/* Primary tabs */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Box sx={{ display: 'flex', gap: 0, overflow: 'auto', '&::-webkit-scrollbar': { display: 'none' } }}>
-          {TABS.map((tab) => {
+          {tabs.map((tab) => {
             const active = marketType === tab.key;
             return (
               <Box
                 key={tab.key}
-                onClick={() => { onMarketTypeChange(tab.key); setShowFilters(false); }}
+                onClick={() => { if (!tab.comingSoon) { onMarketTypeChange(tab.key); setShowFilters(false); } }}
                 sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.75,
-                  px: { xs: 1.25, md: 2 },
-                  py: 1,
-                  cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 0.75,
+                  px: { xs: 1.25, md: 2 }, py: 1,
+                  cursor: tab.comingSoon ? 'default' : 'pointer',
                   borderBottom: active ? `2px solid ${tab.color}` : '2px solid transparent',
-                  color: active ? tab.color : 'rgba(255,255,255,0.35)',
+                  color: tab.comingSoon ? 'rgba(255,255,255,0.15)' : active ? tab.color : 'rgba(255,255,255,0.35)',
+                  opacity: tab.comingSoon ? 0.5 : 1,
                   transition: 'all 0.15s ease',
                   whiteSpace: 'nowrap',
-                  '&:hover': { color: tab.color },
+                  '&:hover': tab.comingSoon ? {} : { color: tab.color },
+                  position: 'relative',
                 }}
               >
                 {tab.icon}
                 <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: active ? 700 : 500 }}>
                   {tab.label}
                 </Typography>
+                {tab.comingSoon && (
+                  <Chip label="Soon" size="small" sx={{ height: 14, fontSize: '0.5rem', fontWeight: 700, bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)', ml: 0.25 }} />
+                )}
               </Box>
             );
           })}
@@ -223,7 +242,7 @@ export function MarketFilter({
         )}
       </Box>
 
-      {/* Collapsible filter dropdowns (crypto + sports only) */}
+      {/* Collapsible filter dropdowns */}
       <Collapse in={showFilters && !hideFilters}>
         <Box sx={{ display: 'flex', gap: 1, py: 0.5 }}>
           {marketType === 'CRYPTO' ? (
@@ -233,9 +252,9 @@ export function MarketFilter({
             </>
           ) : marketType === 'SPORTS' ? (
             <>
-              <FilterDropdown value={sportFilter} label="Sport" options={SPORT_OPTIONS} onChange={onSportChange || (() => {})} color={DRAW_COLOR} />
+              <FilterDropdown value={sportFilter} label="Sport" options={sportOptions} onChange={onSportChange || (() => {})} color={DRAW_COLOR} />
               {(sportFilter === 'ALL' || sportFilter === 'SOCCER') && (
-                <FilterDropdown value={leagueFilter} label="League" options={LEAGUE_OPTIONS} onChange={onLeagueChange} color={DRAW_COLOR} />
+                <FilterDropdown value={leagueFilter} label="League" options={leagueOptions} onChange={onLeagueChange} color={DRAW_COLOR} />
               )}
             </>
           ) : null}
