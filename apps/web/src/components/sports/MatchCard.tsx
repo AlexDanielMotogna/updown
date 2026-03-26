@@ -219,13 +219,13 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category }: { p
         {/* Labels under odds bar */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 0.5 }}>
           <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: isResolved && pool.winner === 'UP' ? UP_COLOR : 'rgba(255,255,255,0.55)' }}>
-            {isPrediction ? (pool.awayTeam ? pool.homeTeam : 'Yes') : 'Home'}
+            {isPrediction ? (pool.awayTeam ? pool.homeTeam : 'Yes') : (pool.homeTeam?.slice(0, 3).toUpperCase() || 'Home')}
           </Typography>
           {!isTwoWay && (
             <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: isResolved && pool.winner === 'DRAW' ? DRAW_COLOR : 'rgba(255,255,255,0.55)' }}>Draw</Typography>
           )}
           <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: isResolved && pool.winner === 'DOWN' ? DOWN_COLOR : 'rgba(255,255,255,0.55)' }}>
-            {isPrediction ? (pool.awayTeam || 'No') : 'Away'}
+            {isPrediction ? (pool.awayTeam || 'No') : (pool.awayTeam?.slice(0, 3).toUpperCase() || 'Away')}
           </Typography>
         </Box>
 

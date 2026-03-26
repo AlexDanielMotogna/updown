@@ -20,10 +20,14 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+function short(name: string | null | undefined): string {
+  return (name || '').slice(0, 3).toUpperCase();
+}
+
 function poolName(pool: Pool): string {
   if (pool.poolType !== 'SPORTS') return `${pool.asset}/USD`;
   if (pool.league?.startsWith('PM_')) return pool.homeTeam || 'Prediction';
-  if (pool.homeTeam && pool.awayTeam) return `${pool.homeTeam} vs ${pool.awayTeam}`;
+  if (pool.homeTeam && pool.awayTeam) return `${short(pool.homeTeam)} vs ${short(pool.awayTeam)}`;
   return pool.homeTeam || pool.asset;
 }
 
@@ -36,8 +40,8 @@ function winnerLabel(pool: Pool): string {
   if (pool.league?.startsWith('PM_')) {
     return pool.winner === 'UP' ? 'YES' : 'NO';
   }
-  if (pool.winner === 'UP') return (pool.homeTeam || 'Home') + ' WINS';
-  if (pool.winner === 'DOWN') return (pool.awayTeam || 'Away') + ' WINS';
+  if (pool.winner === 'UP') return short(pool.homeTeam) + ' WINS';
+  if (pool.winner === 'DOWN') return short(pool.awayTeam) + ' WINS';
   return 'DRAW';
 }
 
@@ -139,41 +143,52 @@ export function PoolsSidebarList({ pools, newIds, liveScores, categoryMap }: Poo
                     )}
                   </Box>
 
-                  {/* Row 2: Result / live status */}
-                  {isMatchLive ? (
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-                      <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: '#22C55E' }}>
-                        {ls!.status}{ls!.progress ? ` ${ls!.progress}'` : ''}
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: GAIN_COLOR }}>
-                        {formatUSDC(pool.totalPool)}
-                      </Typography>
-                    </Box>
-                  ) : pool.winner ? (
-                    <>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-                        {!isSports && (
-                          <Box
-                            component="img"
-                            src={pool.winner === 'UP' ? '/assets/up-icon-64x64.png' : '/assets/down-icon-64x64.png'}
-                            alt=""
-                            sx={{ width: 14, height: 14 }}
-                          />
-                        )}
-                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: winnerColor(pool), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {winnerLabel(pool)}
+                  {/* Row 2+3: Result / live status — fixed height so cards don't shift */}
+                  <Box sx={{ minHeight: 32 }}>
+                    {isMatchLive ? (
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: '#22C55E' }}>
+                          {ls!.status}{ls!.progress ? ` ${ls!.progress}'` : ''}
                         </Typography>
-                        {!isSports && (
-                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: GAIN_COLOR, ml: 'auto' }}>
-                            {formatUSDC(pool.totalPool)}
-                          </Typography>
-                        )}
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: GAIN_COLOR }}>
+                          {formatUSDC(pool.totalPool)}
+                        </Typography>
                       </Box>
-                      <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
-                        {timeAgo(pool.endTime)}
-                      </Typography>
-                    </>
-                  ) : null}
+                    ) : pool.winner ? (
+                      <>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          {!isSports && (
+                            <Box
+                              component="img"
+                              src={pool.winner === 'UP' ? '/assets/up-icon-64x64.png' : '/assets/down-icon-64x64.png'}
+                              alt=""
+                              sx={{ width: 14, height: 14 }}
+                            />
+                          )}
+                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: winnerColor(pool), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {winnerLabel(pool)}
+                          </Typography>
+                          {!isSports && (
+                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: GAIN_COLOR, ml: 'auto' }}>
+                              {formatUSDC(pool.totalPool)}
+                            </Typography>
+                          )}
+                        </Box>
+                        <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
+                          {timeAgo(pool.endTime)}
+                        </Typography>
+                      </>
+                    ) : (
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)' }}>
+                          {isSports ? 'In progress' : 'Open'}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: GAIN_COLOR }}>
+                          {formatUSDC(pool.totalPool)}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
                 </Box>
               </Link>
             </motion.div>
