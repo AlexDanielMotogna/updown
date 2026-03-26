@@ -3,6 +3,7 @@ import { getAdapter } from '../services/sports';
 import type { Match } from '../services/sports/types';
 import { getCachedUpcomingFixtures, getCachedFixtureResults, isFixtureCacheReady } from '../services/sports/fixture-cache';
 import { PM_CATEGORIES } from '../services/sports/polymarket-adapter';
+import { SPORTSDB_CONFIGS } from '../services/sports/api-sports-adapter';
 import { getPoolPDA, getVaultPDA, buildInitializePoolIx, buildResolveWithWinnerIx } from 'solana-client';
 import { derivePoolSeed, getUsdcMint, getConnection, getAuthorityKeypair } from '../utils/solana';
 import { Transaction } from '@solana/web3.js';
@@ -16,7 +17,12 @@ const POOL_OPEN_HOURS_BEFORE = 720; // Open pool 30 days before kickoff
 /** Derive the correct adapter based on the pool's league code. */
 function getAdapterForLeague(league: string | null | undefined) {
   if (league?.startsWith('PM_')) return getAdapter('POLYMARKET');
-  return getAdapter('FOOTBALL');
+  // Check if it's a registered sport adapter (NBA, NFL, MMA, NHL)
+  try {
+    return getAdapter(league || 'FOOTBALL');
+  } catch {
+    return getAdapter('FOOTBALL');
+  }
 }
 
 /**
@@ -68,6 +74,27 @@ export async function createMatchPools(): Promise<void> {
       }
     } catch (error) {
       console.error(`[Sports] Failed to create PM pools for ${cat.code}:`, error);
+    }
+  }
+
+  // ── TheSportsDB (NBA, NHL, MMA, NFL) ──
+  for (const config of SPORTSDB_CONFIGS) {
+    try {
+      const matches = await getCachedUpcomingFixtures(config.sport, config.sport);
+
+      for (const match of matches) {
+        const existing = await prisma.pool.findFirst({
+          where: { matchId: match.id, poolType: 'SPORTS' },
+        });
+        if (existing) continue;
+
+        const hoursUntilKickoff = (match.kickoff.getTime() - Date.now()) / (1000 * 60 * 60);
+        if (hoursUntilKickoff > POOL_OPEN_HOURS_BEFORE || hoursUntilKickoff < 0) continue;
+
+        await createSportsPool(match, config.sport);
+      }
+    } catch (error) {
+      console.error(`[Sports] Failed to create ${config.sport} pools:`, error);
     }
   }
 }
@@ -243,9 +270,9 @@ async function createSportsPool(match: Match, leagueCode: string): Promise<void>
 
     console.log(`[Sports] Created pool for ${match.homeTeam} vs ${match.awayTeam} (${leagueCode}, kickoff: ${kickoff.toISOString()})`);
 
-    // Generate match analysis in background (non-blocking) — football only
+    // Generate match analysis in background (non-blocking)
     if (!isPolymarket) {
-      generateMatchAnalysis(match.id, match.homeTeam, match.awayTeam)
+      generateMatchAnalysis(match.id, match.homeTeam, match.awayTeam, leagueCode)
         .then(analysis => {
           if (analysis) {
             prisma.pool.update({ where: { id: poolId }, data: { matchAnalysis: analysis } })

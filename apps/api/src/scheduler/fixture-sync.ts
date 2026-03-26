@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import { prisma } from '../db';
-import { getAdapter } from '../services/sports';
+import { getAdapter, SPORTSDB_CONFIGS } from '../services/sports';
 import { createMatchPools } from './sports-scheduler';
 import {
   getFixturesNeedingPoll,
@@ -124,7 +124,26 @@ async function dailySync(): Promise<void> {
     await sleep(RATE_LIMIT_DELAY_MS);
   }
 
-  console.log(`[FixtureSync] Daily sync complete: ${totalSynced} fixtures across ${LEAGUES.length} leagues`);
+  // ── TheSportsDB sync (NBA, NHL, MMA, NFL) ──
+  for (const config of SPORTSDB_CONFIGS) {
+    try {
+      const adapter = getAdapter(config.sport);
+      const matches = await adapter.fetchUpcomingMatches(config.sport);
+
+      for (const match of matches) {
+        await upsertMatch(match, 'thesportsdb');
+      }
+
+      totalSynced += matches.length;
+      console.log(`[FixtureSync] ${config.sport}: synced ${matches.length} fixtures`);
+    } catch (error) {
+      console.error(`[FixtureSync] Failed to sync ${config.sport}:`, error instanceof Error ? error.message : error);
+    }
+
+    await sleep(RATE_LIMIT_DELAY_MS);
+  }
+
+  console.log(`[FixtureSync] Daily sync complete: ${totalSynced} fixtures across ${LEAGUES.length + SPORTSDB_CONFIGS.length} sources`);
 }
 
 /**
