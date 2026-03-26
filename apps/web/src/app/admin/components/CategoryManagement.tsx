@@ -62,12 +62,14 @@ function CategoryCard({ cat, onToggle, onToggleComingSoon, onEdit }: {
     }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          {cat.badgeUrl && (
-            <Box component="img" src={cat.badgeUrl} alt="" sx={{ width: 28, height: 28, objectFit: 'contain', borderRadius: '4px' }} />
-          )}
-          {!cat.badgeUrl && cat.color && (
-            <Box sx={{ width: 28, height: 28, borderRadius: '4px', bgcolor: `${cat.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: cat.color }} />
+          {cat.badgeUrl ? (
+            <Box component="img" src={cat.badgeUrl} alt="" sx={{
+              width: 28, height: 28, objectFit: 'contain', borderRadius: '4px',
+              ...(cat.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(255,255,255,0.85)', p: '2px', borderRadius: '50%' }),
+            }} />
+          ) : (
+            <Box sx={{ width: 28, height: 28, borderRadius: '4px', bgcolor: `${cat.color || TYPE_COLORS[cat.type] || '#666'}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: cat.color || TYPE_COLORS[cat.type] || '#666' }} />
             </Box>
           )}
           <Box>
