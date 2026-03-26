@@ -397,8 +397,8 @@ export default function DocsPage() {
             {/* ── Pool Lifecycle ──────────────────────────────────────── */}
             <SectionTitle id="how-pools-work">Pool Lifecycle</SectionTitle>
             <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
-              A <strong style={{ color: '#fff' }}>strike price</strong> is captured when the pool opens. A <strong style={{ color: '#fff' }}>final price</strong> when it ends.
-              If final &gt; strike, <strong style={{ color: '#fff' }}>UP wins</strong>. If lower, <strong style={{ color: '#fff' }}>DOWN wins</strong>.
+              Every pool follows the same lifecycle. Resolution varies by type: <strong style={{ color: '#fff' }}>crypto</strong> compares strike vs final price,{' '}
+              <strong style={{ color: '#fff' }}>sports</strong> uses the match result, and <strong style={{ color: '#fff' }}>predictions</strong> resolve via Polymarket.
             </Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: '3px', mb: 2 }}>
               {[
@@ -442,11 +442,11 @@ export default function DocsPage() {
             {/* ── Sports Markets ──────────────────────────────────────── */}
             <SectionTitle id="sports-markets">Sports Markets</SectionTitle>
             <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
-              Predict football match outcomes: <strong style={{ color: UP_COLOR }}>Home</strong>, <strong style={{ color: DOWN_COLOR }}>Away</strong>, or <strong style={{ color: ACCENT_COLOR }}>Draw</strong> (3-way parimutuel).
+              Predict match outcomes across multiple sports. Football uses 3-way (<strong style={{ color: UP_COLOR }}>Home</strong> / <strong style={{ color: ACCENT_COLOR }}>Draw</strong> / <strong style={{ color: DOWN_COLOR }}>Away</strong>), other sports use 2-way (<strong style={{ color: UP_COLOR }}>Home</strong> / <strong style={{ color: DOWN_COLOR }}>Away</strong>).
             </Typography>
             <Box sx={{ bgcolor: '#0D1219', p: { xs: 2, md: 3 }, mb: 2 }}>
-              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 2 }}>LEAGUES</Typography>
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 2 }}>FOOTBALL LEAGUES</Typography>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3 }}>
                 {[
                   { code: 'CL', name: 'Champions League' },
                   { code: 'PL', name: 'Premier League' },
@@ -462,11 +462,60 @@ export default function DocsPage() {
                   </Box>
                 ))}
               </Box>
-              <Box sx={{ mt: 3 }}>
-                <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Fixtures synced daily from football-data.org (14 days ahead)</Typography>
+              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.08em', mb: 2 }}>COMING SOON</Typography>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3, opacity: 0.4 }}>
+                {[
+                  { name: 'Championship', badge: 'https://crests.football-data.org/ELC.png' },
+                  { name: 'Primeira Liga', badge: 'https://crests.football-data.org/PPL.png' },
+                  { name: 'Eredivisie', badge: 'https://r2.thesportsdb.com/images/media/league/badge/5cdsu21725984946.png' },
+                  { name: 'Europa League', badge: 'https://crests.football-data.org/EL.png' },
+                  { name: 'Copa Libertadores', badge: 'https://r2.thesportsdb.com/images/media/league/badge/9shr931685425181.png' },
+                  { name: 'World Cup', badge: 'https://r2.thesportsdb.com/images/media/league/badge/e7er5g1696521789.png' },
+                ].map((l) => (
+                  <Box key={l.name} sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(255,255,255,0.04)', px: 1.5, py: 0.75, borderRadius: '6px' }}>
+                    <Box component="img" src={l.badge} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>{l.name}</Typography>
+                  </Box>
+                ))}
+              </Box>
+              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 2 }}>OTHER SPORTS</Typography>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+                {[
+                  { name: 'NBA', badge: 'https://r2.thesportsdb.com/images/media/league/badge/frdjqy1536585083.png' },
+                  { name: 'NHL', badge: 'https://r2.thesportsdb.com/images/media/league/badge/4cem2k1619616539.png' },
+                  { name: 'NFL', badge: 'https://r2.thesportsdb.com/images/media/league/badge/g85fqz1662057187.png' },
+                  { name: 'UFC', badge: 'https://r2.thesportsdb.com/images/media/league/badge/bewnz31717531281.png' },
+                ].map((s) => (
+                  <Box key={s.name} sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(255,255,255,0.04)', px: 1.5, py: 0.75, borderRadius: '6px' }}>
+                    <Box component="img" src={s.badge} alt="" sx={{ width: 20, height: 20, objectFit: 'contain' }} />
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>{s.name}</Typography>
+                  </Box>
+                ))}
+              </Box>
+              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.08em', mb: 2 }}>COMING SOON</Typography>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3, opacity: 0.4 }}>
+                {[
+                  { name: 'MLB', badge: 'https://r2.thesportsdb.com/images/media/league/badge/c5r83j1521893739.png' },
+                  { name: 'Formula 1', badge: 'https://r2.thesportsdb.com/images/media/league/badge/g8cofl1513623681.png' },
+                  { name: 'Tennis', badge: 'https://r2.thesportsdb.com/images/media/league/badge/q7aej51769857150.png' },
+                  { name: 'Rugby', badge: 'https://r2.thesportsdb.com/images/media/league/badge/7h1wr91738670253.png' },
+                  { name: 'Cricket', badge: 'https://r2.thesportsdb.com/images/media/league/badge/gaiti11741709844.png' },
+                  { name: 'Esports', badge: 'https://r2.thesportsdb.com/images/media/league/badge/v60b971706041095.png' },
+                  { name: 'Boxing', badge: 'https://r2.thesportsdb.com/images/media/league/badge/6enin21740228549.png' },
+                  { name: 'Golf', badge: 'https://r2.thesportsdb.com/images/media/league/badge/quvqqr1423564787.png' },
+                ].map((s) => (
+                  <Box key={s.name} sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(255,255,255,0.04)', px: 1.5, py: 0.75, borderRadius: '6px' }}>
+                    <Box component="img" src={s.badge} alt="" sx={{ width: 20, height: 20, objectFit: 'contain' }} />
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>{s.name}</Typography>
+                  </Box>
+                ))}
+              </Box>
+              <Box>
+                <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Football from football-data.org, other sports from TheSportsDB</Typography>
+                <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Live scores updated every 30 seconds during matches</Typography>
                 <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Results checked every 5 min during match windows</Typography>
-                <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>AI-generated H2H analysis for each match</Typography>
-                <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Pools resolve automatically when the match finishes</Typography>
+                <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>AI-generated analysis for each match</Typography>
+                <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Categories managed from admin panel — new sports added without code</Typography>
               </Box>
             </Box>
 
@@ -483,6 +532,19 @@ export default function DocsPage() {
                   { name: 'Geopolitics', color: '#60A5FA' },
                   { name: 'Culture', color: '#F472B6' },
                   { name: 'Finance', color: '#34D399' },
+                ].map((c) => (
+                  <Box key={c.name} sx={{ px: 2, py: 0.75, borderRadius: '6px', bgcolor: `${c.color}15`, border: `1px solid ${c.color}30` }}>
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: c.color }}>{c.name}</Typography>
+                  </Box>
+                ))}
+              </Box>
+              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.08em', mb: 2 }}>COMING SOON</Typography>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3, opacity: 0.4 }}>
+                {[
+                  { name: 'Science & Tech', color: '#06B6D4' },
+                  { name: 'Sports Futures', color: '#F59E0B' },
+                  { name: 'Climate', color: '#10B981' },
+                  { name: 'Crypto Markets', color: '#F97316' },
                 ].map((c) => (
                   <Box key={c.name} sx={{ px: 2, py: 0.75, borderRadius: '6px', bgcolor: `${c.color}15`, border: `1px solid ${c.color}30` }}>
                     <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: c.color }}>{c.name}</Typography>
@@ -811,7 +873,7 @@ export default function DocsPage() {
                 { title: 'Pool Creation (On-Chain)', desc: 'Each pool creates a unique PDA and vault on Solana. Only the smart contract controls the vault.' },
                 { title: 'Market Data by Pacifica', desc: 'Strike and final prices from pacifica.fi, written on-chain and publicly verifiable.' },
                 { title: 'Deposits', desc: 'USDC transferred directly from your wallet to the on-chain vault. Platform never holds funds.' },
-                { title: 'Resolution', desc: 'Smart contract compares final vs strike price. Result recorded on-chain permanently.' },
+                { title: 'Resolution', desc: 'Winner determined by event outcome: price comparison (crypto), match result (sports), or market resolution (predictions). Recorded on-chain permanently.' },
                 { title: 'Payouts & Claims', desc: 'Smart contract transfers USDC from vault to your wallet. Fees are level-based (5% to 3%).' },
                 { title: 'Refunds', desc: 'One-sided pools are automatically refunded in full, no fees. No action required.' },
               ].map((item) => (

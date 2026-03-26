@@ -127,12 +127,12 @@ sequenceDiagram
     W->>SC: Deposit USDC to Pool PDA (tx)
     BE->>DB: Save bet + deposit_tx (indexed later)
 
-    BE->>MD: At start_time => getSpotPrice(symbol)
-    BE->>DB: Store strike_price + timestamp + source + raw_hash
-    BE->>DB: Pool status = ACTIVE (lock deposits)
+    Note over BE: Resolution varies by pool type:
+    Note over BE: Crypto: strike vs final price
+    Note over BE: Sports: match result from API
+    Note over BE: Predictions: Polymarket resolution
 
-    BE->>MD: At end_time => getSpotPrice(symbol)
-    BE->>DB: Store final_price + timestamp + source + raw_hash
+    BE->>DB: Pool status = ACTIVE (lock deposits)
     BE->>DB: Pool status = RESOLVED + winner side
 
     UI->>BE: My Bets / Claimable pools
@@ -146,15 +146,19 @@ sequenceDiagram
 ## 5. Pool States
 
 ```
-┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
-│ UPCOMING │───►│ JOINING  │───►│  ACTIVE  │───►│ RESOLVED │───►│CLAIMABLE │
-└──────────┘    └──────────┘    └──────────┘    └──────────┘    └──────────┘
-     │               │               │               │               │
-     │               │               │               │               │
-     ▼               ▼               ▼               ▼               ▼
-  Created        Deposits        Deposits       Winner set      Payouts
-  by scheduler   allowed         locked         strike/final    claimed
-                                 strike set     prices stored
+┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
+│ JOINING  │───►│  ACTIVE  │───►│ RESOLVED │───►│CLAIMABLE │
+└──────────┘    └──────────┘    └──────────┘    └──────────┘
+     │               │               │               │
+     ▼               ▼               ▼               ▼
+  Predictions     Locked          Winner          Payouts
+  open            (lockTime)      determined      claimed
+                                  on-chain
+
+Resolution per type:
+  Crypto:      strike vs final price comparison
+  Sports:      match result from football-data.org / TheSportsDB
+  Predictions: Polymarket UMA oracle resolution
 ```
 
 ---
@@ -316,3 +320,94 @@ pnpm lint && pnpm lint:program
 | `unsubscribe:pool` | `{ poolId: string }` | Leave `pool:{poolId}` room |
 | `subscribe:prices` | `{ assets: string[] }` | Join `prices:{asset}` rooms |
 | `unsubscribe:prices` | `{ assets: string[] }` | Leave price rooms |
+
+---
+
+## 10. Sports Data Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     External APIs                                │
+│                                                                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐   │
+│  │ football-    │  │ TheSportsDB  │  │ Polymarket Gamma     │   │
+│  │ data.org     │  │ V1 + V2      │  │ + CLOB API           │   │
+│  │ (football)   │  │ (NBA/NHL/    │  │ (predictions)        │   │
+│  │              │  │  NFL/MMA)    │  │                      │   │
+│  └──────┬───────┘  └──────┬───────┘  └──────────┬───────────┘   │
+│         │                  │                      │               │
+└─────────┼──────────────────┼──────────────────────┼───────────────┘
+          │                  │                      │
+          ▼                  ▼                      ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     Sport Adapters                                │
+│                                                                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐   │
+│  │ Football     │  │ SportsDb     │  │ Polymarket           │   │
+│  │ Adapter      │  │ Adapter      │  │ Adapter              │   │
+│  │ (3-way)      │  │ (2-way)      │  │ (2-way)              │   │
+│  └──────────────┘  └──────────────┘  └──────────────────────┘   │
+│         │                  │                      │               │
+│         └──────────────────┼──────────────────────┘               │
+│                            ▼                                      │
+│                   ┌────────────────┐                              │
+│                   │ SportAdapter   │ ← common interface           │
+│                   │ interface      │   fetchUpcomingMatches()     │
+│                   │                │   fetchMatchResult()         │
+│                   │                │   resolveWinner()            │
+│                   └────────────────┘                              │
+└─────────────────────────────────────────────────────────────────┘
+          │
+          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     Data Flow                                     │
+│                                                                   │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────────┐   │
+│  │ Fixture Sync │───►│ Fixture      │───►│ Sports           │   │
+│  │ (hourly)     │    │ Cache (DB)   │    │ Scheduler        │   │
+│  └──────────────┘    └──────┬───────┘    │ (creates pools)  │   │
+│                             │            └──────────────────┘   │
+│  ┌──────────────┐           │                                    │
+│  │ Match Window │───────────┘            ┌──────────────────┐   │
+│  │ Poll (5min)  │ updates results  ────► │ Pool Resolver    │   │
+│  └──────────────┘                        │ (resolves pools) │   │
+│                                          └──────────────────┘   │
+│  ┌──────────────┐                                                │
+│  │ Livescore    │ TheSportsDB V2 /livescore/all (every 30s)     │
+│  │ Polling      │ → in-memory cache → frontend via REST         │
+│  └──────────────┘                                                │
+└─────────────────────────────────────────────────────────────────┘
+
+## 11. Admin Category Config
+
+All categories stored in `pool_categories` table, managed via admin panel.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   pool_categories (DB)                        │
+│                                                               │
+│  code | type             | enabled | comingSoon | config     │
+│  ─────┼──────────────────┼─────────┼───────────┼──────────  │
+│  CL   | FOOTBALL_LEAGUE  | true    | false      | {}         │
+│  NBA  | SPORTSDB_SPORT   | true    | false      | {sport..}  │
+│  MLB  | SPORTSDB_SPORT   | false   | true       | {sport..}  │
+│  PM_  | POLYMARKET       | true    | false      | {tags..}   │
+└───────────────────────────┬─────────────────────────────────┘
+                            │
+              ┌─────────────┼─────────────┐
+              ▼             ▼             ▼
+     ┌──────────────┐ ┌─────────┐ ┌────────────┐
+     │ Config       │ │ Public  │ │ Admin      │
+     │ Service      │ │ API     │ │ CRUD       │
+     │ (60s cache)  │ │ /config │ │ /admin/    │
+     │ + fallback   │ │ /categ. │ │ categories │
+     └──────┬───────┘ └────┬────┘ └────────────┘
+            │              │
+     ┌──────┴──────┐  ┌───┴───────┐
+     │ Backend     │  │ Frontend  │
+     │ consumers   │  │ useCateg. │
+     │ (scheduler, │  │ hook      │
+     │  sync, etc) │  │ (5min     │
+     │             │  │  stale)   │
+     └─────────────┘  └───────────┘
+```
