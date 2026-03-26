@@ -237,16 +237,28 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category }: { p
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <IosShare
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.stopPropagation();
                 const url = `${window.location.origin}/match/${pool.id}`;
                 const text = isPrediction
                   ? pool.homeTeam || 'Prediction'
                   : `${pool.homeTeam || 'Home'} vs ${pool.awayTeam || 'Away'}`;
-                if (navigator.share) {
-                  navigator.share({ title: `UpDown - ${text}`, url }).catch(() => {});
-                } else {
-                  navigator.clipboard.writeText(url).catch(() => {});
+                try {
+                  if (navigator.share) {
+                    await navigator.share({ title: `UpDown - ${text}`, url });
+                  } else {
+                    await navigator.clipboard.writeText(url);
+                  }
+                } catch {
+                  // Fallback: copy via textarea (works on HTTP)
+                  const ta = document.createElement('textarea');
+                  ta.value = url;
+                  ta.style.position = 'fixed';
+                  ta.style.opacity = '0';
+                  document.body.appendChild(ta);
+                  ta.select();
+                  document.execCommand('copy');
+                  document.body.removeChild(ta);
                 }
               }}
               sx={{ fontSize: 15, color: 'rgba(255,255,255,0.55)', cursor: 'pointer', '&:hover': { color: '#fff' }, transition: 'color 0.15s' }}
