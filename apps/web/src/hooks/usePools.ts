@@ -50,7 +50,7 @@ const POOLS_PAGE_SIZE = 12;
 
 type InfinitePoolsData = InfiniteData<ApiResponse<Pool[]>, number>;
 
-export function useInfinitePools(filters?: Omit<PoolFilters, 'page' | 'limit'>) {
+export function useInfinitePools(filters?: Omit<PoolFilters, 'page' | 'limit'>, opts?: { refetchInterval?: number | false }) {
   const queryClient = useQueryClient();
   const queryKey = ['infinitePools', filters];
 
@@ -66,43 +66,9 @@ export function useInfinitePools(filters?: Omit<PoolFilters, 'page' | 'limit'>) 
     const socket = getSocket();
     connectSocket();
 
-    const onNewPool = (payload: { pool: Pool }) => {
-      const pool = payload.pool;
-      if (!pool?.id) return;
-
-      const { filters: f, queryKey: qk } = stableRef.current;
-
-      // Quick filter check
-      if (f?.asset && pool.asset !== f.asset) return;
-      if (f?.interval && pool.interval !== f.interval) return;
-
-      const normalized: Pool = {
-        ...pool,
-        betCount: pool.betCount ?? 0,
-        upCount: pool.upCount ?? 0,
-        downCount: pool.downCount ?? 0,
-        totalUp: pool.totalUp ?? '0',
-        totalDown: pool.totalDown ?? '0',
-        totalPool: pool.totalPool ?? '0',
-        strikePrice: pool.strikePrice ?? null,
-        finalPrice: pool.finalPrice ?? null,
-        winner: pool.winner ?? null,
-      };
-
-      queryClient.setQueryData<InfinitePoolsData>(qk, (old) => {
-        if (!old) return old;
-        const firstPage = old.pages[0];
-        if (!firstPage?.data) return old;
-        if (firstPage.data.some((p) => p.id === normalized.id)) return old;
-
-        return {
-          ...old,
-          pages: [
-            { ...firstPage, data: [normalized, ...firstPage.data] },
-            ...old.pages.slice(1),
-          ],
-        };
-      });
+    const onNewPool = (_payload: { pool: Pool }) => {
+      const { queryKey: qk } = stableRef.current;
+      queryClient.invalidateQueries({ queryKey: qk, refetchType: 'none' });
     };
 
     const onPoolStatus = (data: { id: string; status: string }) => {
@@ -116,7 +82,6 @@ export function useInfinitePools(filters?: Omit<PoolFilters, 'page' | 'limit'>) 
         (!f?.status && removedStatuses.includes(data.status));
 
       if (!shouldRemove) return;
-
       queryClient.setQueryData<InfinitePoolsData>(qk, (old) => {
         if (!old) return old;
         return {
@@ -151,7 +116,7 @@ export function useInfinitePools(filters?: Omit<PoolFilters, 'page' | 'limit'>) 
     },
     placeholderData: keepPreviousData,
     staleTime: 5_000,
-    refetchInterval: 10_000,
+    refetchInterval: opts?.refetchInterval ?? 10_000,
   });
 }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Typography, Chip } from '@mui/material';
-import { Gavel, Public, TheaterComedy, AccountBalance, TrendingUp, Star } from '@mui/icons-material';
+import { Gavel, Public, TheaterComedy, AccountBalance, TrendingUp, Star, SportsBasketball, SportsFootball, SportsMma, SportsHockey } from '@mui/icons-material';
 import { UP_COLOR, DOWN_COLOR, DRAW_COLOR, GAIN_COLOR } from '@/lib/constants';
 import { AnimatedValue } from '@/components/AnimatedValue';
 import type { Pool } from '@/lib/api';
@@ -18,6 +18,20 @@ const PM_CATEGORY_COLORS: Record<string, string> = {
   PM_GEO: '#60A5FA',
   PM_CULTURE: '#F472B6',
   PM_FINANCE: '#34D399',
+};
+
+const SPORT_BADGES: Record<string, string> = {
+  NBA: 'https://r2.thesportsdb.com/images/media/league/badge/frdjqy1536585083.png',
+  NHL: 'https://r2.thesportsdb.com/images/media/league/badge/4cem2k1619616539.png',
+  NFL: 'https://r2.thesportsdb.com/images/media/league/badge/g85fqz1662057187.png',
+  MMA: 'https://r2.thesportsdb.com/images/media/league/badge/bewnz31717531281.png',
+};
+
+const SPORT_COLORS: Record<string, string> = {
+  NBA: '#F97316',
+  NFL: '#22C55E',
+  MMA: '#EF4444',
+  NHL: '#3B82F6',
 };
 
 const PM_CATEGORY_ICONS: Record<string, React.ReactNode> = {
@@ -48,7 +62,8 @@ export function MatchCard({ pool, onClick, isPopular }: { pool: Pool; onClick?: 
   const total = totalUp + totalDown + totalDraw;
   const homePct = total > 0 ? Math.round((totalUp / total) * 100) : isPrediction ? 50 : 33;
   const awayPct = total > 0 ? Math.round((totalDown / total) * 100) : isPrediction ? 50 : 33;
-  const drawPct = isPrediction ? 0 : (total > 0 ? 100 - homePct - awayPct : 34);
+  const isTwoWay = isPrediction || pool.numSides === 2;
+  const drawPct = isTwoWay ? 0 : (total > 0 ? 100 - homePct - awayPct : 34);
 
   const isLive = pool.status === 'ACTIVE';
   const isJoining = pool.status === 'JOINING';
@@ -105,6 +120,8 @@ export function MatchCard({ pool, onClick, isPopular }: { pool: Pool; onClick?: 
               <Box sx={{ width: 22, height: 22, borderRadius: '50%', bgcolor: `${PM_CATEGORY_COLORS[league] || '#A78BFA'}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: PM_CATEGORY_COLORS[league] || '#A78BFA' }} />
               </Box>
+            ) : SPORT_BADGES[league] ? (
+              <Box component="img" src={SPORT_BADGES[league]} alt={league} sx={{ width: 22, height: 22, objectFit: 'contain' }} />
             ) : (
               <Box
                 component="img"
@@ -113,8 +130,8 @@ export function MatchCard({ pool, onClick, isPopular }: { pool: Pool; onClick?: 
                 sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }}
               />
             )}
-            <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: isPrediction ? (PM_CATEGORY_COLORS[league] || '#A78BFA') : 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              {PM_CATEGORY_LABELS[league] || (league === 'CL' ? 'Champions League' : league === 'PL' ? 'Premier League' : league === 'PD' ? 'La Liga' : league === 'SA' ? 'Serie A' : league === 'BL1' ? 'Bundesliga' : league === 'FL1' ? 'Ligue 1' : league === 'BSA' ? 'Brasileirão' : league)}
+            <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: isPrediction ? (PM_CATEGORY_COLORS[league] || '#A78BFA') : SPORT_COLORS[league] || 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              {PM_CATEGORY_LABELS[league] || (league === 'CL' ? 'Champions League' : league === 'PL' ? 'Premier League' : league === 'PD' ? 'La Liga' : league === 'SA' ? 'Serie A' : league === 'BL1' ? 'Bundesliga' : league === 'FL1' ? 'Ligue 1' : league === 'BSA' ? 'Brasileirão' : league === 'NBA' ? 'NBA' : league === 'NFL' ? 'NFL' : league === 'MMA' ? 'UFC' : league === 'NHL' ? 'NHL' : league)}
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
@@ -197,7 +214,7 @@ export function MatchCard({ pool, onClick, isPopular }: { pool: Pool; onClick?: 
               {isResolved && pool.winner === 'UP' ? '\u2713 ' : ''}{homePct}%
             </Typography>
           </Box>
-          {!isPrediction && (
+          {!isTwoWay && (
             <Box sx={{ flex: drawPct, bgcolor: isResolved && pool.winner === 'DRAW' ? `${DRAW_COLOR}25` : 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'flex 0.3s ease' }}>
               <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: isResolved && pool.winner === 'DRAW' ? DRAW_COLOR : 'rgba(255,255,255,0.5)' }}>
                 {isResolved && pool.winner === 'DRAW' ? '\u2713 ' : ''}{drawPct}%
@@ -216,7 +233,7 @@ export function MatchCard({ pool, onClick, isPopular }: { pool: Pool; onClick?: 
           <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: isResolved && pool.winner === 'UP' ? UP_COLOR : 'rgba(255,255,255,0.55)' }}>
             {isPrediction ? (pool.awayTeam ? pool.homeTeam : 'Yes') : 'Home'}
           </Typography>
-          {!isPrediction && (
+          {!isTwoWay && (
             <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: isResolved && pool.winner === 'DRAW' ? DRAW_COLOR : 'rgba(255,255,255,0.55)' }}>Draw</Typography>
           )}
           <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: isResolved && pool.winner === 'DOWN' ? DOWN_COLOR : 'rgba(255,255,255,0.55)' }}>

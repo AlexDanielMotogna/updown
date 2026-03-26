@@ -61,7 +61,7 @@ function BannerSlide({ t, theme }: { t: TournamentSummary; theme: typeof BANNER_
             component="img"
             src={imgSrc}
             alt={t.asset}
-            sx={{ width: 80, height: 80, objectFit: 'contain', flexShrink: 0, ...(isSports && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '8px', width: 56, height: 56 }) }}
+            sx={{ width: 56, height: 56, objectFit: 'contain', flexShrink: 0, ...(isSports && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '8px' }) }}
           />
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: '#fff' }}>{title}</Typography>
@@ -136,7 +136,7 @@ export function TournamentBanner() {
   const theme = BANNER_THEMES[safeIndex % BANNER_THEMES.length];
 
   return (
-    <Box sx={{ mb: 2, position: 'relative', overflow: 'hidden' }}>
+    <Box sx={{ mb: 2, position: 'relative', overflow: 'hidden', height: { xs: 100, md: 100 } }}>
       <AnimatePresence mode="wait">
         <motion.div
           key={current.id}

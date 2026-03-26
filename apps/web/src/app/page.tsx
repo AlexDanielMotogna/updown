@@ -7,6 +7,7 @@ import {
   Container,
   Typography,
   Alert,
+  Button,
   CircularProgress,
   Chip,
 } from '@mui/material';
@@ -117,6 +118,7 @@ export default function MarketsPage() {
   const validTypes: MarketType[] = ['CRYPTO', 'SPORTS', 'PM_POLITICS', 'PM_GEO', 'PM_CULTURE', 'PM_FINANCE'];
   const marketType: MarketType = validTypes.includes(rawType as MarketType) ? rawType as MarketType : 'CRYPTO';
   const isPM = marketType.startsWith('PM_');
+  const sportFilter = searchParams.get('sport') ?? 'ALL';
   const assetFilter = assetValues.includes(searchParams.get('asset') ?? '') ? searchParams.get('asset')! : 'ALL';
   const intervalFilter = intervalValues.includes(searchParams.get('interval') ?? '') ? searchParams.get('interval')! : 'ALL';
   const leagueFilter = searchParams.get('league') ?? 'ALL';
@@ -148,7 +150,9 @@ export default function MarketsPage() {
     hasNextPage,
     isFetchingNextPage,
     isPlaceholderData,
-  } = useInfinitePools(filters);
+  } = useInfinitePools(filters, {
+    refetchInterval: marketType === 'CRYPTO' ? 10_000 : 60_000,
+  });
 
   const { data: betsData } = useBets();
   const { getPrice } = usePriceStream(['BTC', 'ETH', 'SOL']);
@@ -163,18 +167,25 @@ export default function MarketsPage() {
     });
   }, [data]);
 
-  // Sort pools: those with bets first (by betCount desc), rest keep original order
+  // Sort pools: popular first, then by soonest start time
   const { sortedPools, popularPoolIds } = useMemo(() => {
     if (allPools.length === 0) return { sortedPools: allPools, popularPoolIds: new Set<string>() };
 
-    const withBets = allPools.filter(p => p.betCount >= 1).sort((a, b) => b.betCount - a.betCount);
-    const withoutBets = allPools.filter(p => p.betCount === 0);
-
     // Mark top 3 (with at least 2 bets) as "POPULAR"
-    const popularCandidates = withBets.filter(p => p.betCount >= 2);
+    const byBets = [...allPools].sort((a, b) => b.betCount - a.betCount);
+    const popularCandidates = byBets.filter(p => p.betCount >= 2);
     const top3Ids = new Set(popularCandidates.slice(0, 3).map(p => p.id));
 
-    return { sortedPools: [...withBets, ...withoutBets], popularPoolIds: top3Ids };
+    // Sort: popular first (by betCount desc), then by soonest start time
+    const sorted = [...allPools].sort((a, b) => {
+      const aPopular = top3Ids.has(a.id) ? 1 : 0;
+      const bPopular = top3Ids.has(b.id) ? 1 : 0;
+      if (aPopular !== bPopular) return bPopular - aPopular; // popular first
+      if (aPopular && bPopular) return b.betCount - a.betCount; // among popular, most bets first
+      return new Date(a.startTime).getTime() - new Date(b.startTime).getTime(); // then by time
+    });
+
+    return { sortedPools: sorted, popularPoolIds: top3Ids };
   }, [allPools]);
 
   const userBetByPoolId = useMemo(() => {
@@ -193,11 +204,21 @@ export default function MarketsPage() {
   // Split pools by type for conditional rendering
   const cryptoPools = useMemo(() => sortedPools.filter(p => p.poolType !== 'SPORTS'), [sortedPools]);
   const sportsPools = useMemo(() => {
-    // Football pools: poolType SPORTS with non-PM league
-    const sports = sortedPools.filter(p => p.poolType === 'SPORTS' && !p.league?.startsWith('PM_'));
-    if (leagueFilter === 'ALL') return sports;
-    return sports.filter(p => p.league === leagueFilter);
-  }, [sortedPools, leagueFilter]);
+    const allSports = sortedPools.filter(p => p.poolType === 'SPORTS' && !p.league?.startsWith('PM_'));
+    let filtered = allSports;
+    // Filter by sport type
+    if (sportFilter === 'SOCCER') {
+      const footballLeagues = ['CL', 'PL', 'PD', 'SA', 'BL1', 'FL1', 'BSA'];
+      filtered = filtered.filter(p => footballLeagues.includes(p.league || ''));
+    } else if (sportFilter !== 'ALL') {
+      filtered = filtered.filter(p => p.league === sportFilter);
+    }
+    // Filter by league (only for soccer)
+    if (leagueFilter !== 'ALL' && (sportFilter === 'ALL' || sportFilter === 'SOCCER')) {
+      filtered = filtered.filter(p => p.league === leagueFilter);
+    }
+    return filtered;
+  }, [sortedPools, sportFilter, leagueFilter]);
   const predictionPools = useMemo(() => {
     if (!isPM) return [];
     return sortedPools.filter(p => p.poolType === 'SPORTS' && p.league === marketType);
@@ -207,6 +228,9 @@ export default function MarketsPage() {
   // Modal states
   const [selectedSportsPool, setSelectedSportsPool] = useState<typeof allPools[number] | null>(null);
   const [selectedCryptoPool, setSelectedCryptoPool] = useState<typeof allPools[number] | null>(null);
+  const CARDS_PER_PAGE = 12;
+  const [sportsVisible, setSportsVisible] = useState(CARDS_PER_PAGE);
+  const [predVisible, setPredVisible] = useState(CARDS_PER_PAGE);
 
   return (
     <AppShell>
@@ -274,6 +298,8 @@ export default function MarketsPage() {
                 if (v !== 'CRYPTO') params.set('type', v);
                 const qs = params.toString();
                 router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+                setSportsVisible(CARDS_PER_PAGE);
+                setPredVisible(CARDS_PER_PAGE);
               }}
               assetFilter={assetFilter}
               intervalFilter={intervalFilter}
@@ -281,6 +307,8 @@ export default function MarketsPage() {
               onIntervalChange={(v) => updateParam('interval', v)}
               assetOptions={ASSET_FILTERS}
               intervalOptions={INTERVAL_FILTERS}
+              sportFilter={sportFilter}
+              onSportChange={(v) => updateParam('sport', v)}
               leagueFilter={leagueFilter}
               onLeagueChange={(v) => updateParam('league', v)}
             />
@@ -312,18 +340,27 @@ export default function MarketsPage() {
               <>
                 {/* Sports match cards */}
                 {marketType === 'SPORTS' && sportsPools.length > 0 && (
-                  <Box
-                    sx={{
-                      display: 'grid',
-                      gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
-                      gap: '3px',
-                      mb: 0,
-                    }}
-                  >
-                    {sportsPools.map((pool) => (
-                      <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} onClick={() => setSelectedSportsPool(pool)} />
-                    ))}
-                  </Box>
+                  <>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+                        gap: '3px',
+                        mb: 0,
+                      }}
+                    >
+                      {sportsPools.slice(0, sportsVisible).map((pool) => (
+                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} onClick={() => setSelectedSportsPool(pool)} />
+                      ))}
+                    </Box>
+                    {sportsVisible < sportsPools.length && (
+                      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                        <Button onClick={() => setSportsVisible(v => v + CARDS_PER_PAGE)} sx={{ color: 'rgba(255,255,255,0.5)', textTransform: 'none', fontSize: '0.85rem', '&:hover': { color: '#fff' } }}>
+                          Show more ({sportsPools.length - sportsVisible} remaining)
+                        </Button>
+                      </Box>
+                    )}
+                  </>
                 )}
 
                 {/* Empty state for sports/PM (only show after data loaded) */}
@@ -344,18 +381,27 @@ export default function MarketsPage() {
 
                 {/* Prediction market cards */}
                 {isPM && predictionPools.length > 0 && (
-                  <Box
-                    sx={{
-                      display: 'grid',
-                      gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
-                      gap: '3px',
-                      mb: 0,
-                    }}
-                  >
-                    {predictionPools.map((pool) => (
-                      <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} onClick={() => setSelectedSportsPool(pool)} />
-                    ))}
-                  </Box>
+                  <>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+                        gap: '3px',
+                        mb: 0,
+                      }}
+                    >
+                      {predictionPools.slice(0, predVisible).map((pool) => (
+                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} onClick={() => setSelectedSportsPool(pool)} />
+                      ))}
+                    </Box>
+                    {predVisible < predictionPools.length && (
+                      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                        <Button onClick={() => setPredVisible(v => v + CARDS_PER_PAGE)} sx={{ color: 'rgba(255,255,255,0.5)', textTransform: 'none', fontSize: '0.85rem', '&:hover': { color: '#fff' } }}>
+                          Show more ({predictionPools.length - predVisible} remaining)
+                        </Button>
+                      </Box>
+                    )}
+                  </>
                 )}
 
                 {/* Crypto pool table */}
@@ -381,13 +427,13 @@ export default function MarketsPage() {
                 )}
 
                 {/* End of results */}
-                {!hasNextPage && pools.length > 0 && (
+                {!hasNextPage && marketType === 'CRYPTO' && cryptoPools.length > 0 && (
                   <Box sx={{ textAlign: 'center', mt: 4, pb: 4 }}>
                     <Typography
                       variant="body2"
                       sx={{ color: 'text.secondary', fontWeight: 400 }}
                     >
-                      Showing all {pools.length} pools
+                      Showing all {cryptoPools.length} pools
                     </Typography>
                   </Box>
                 )}

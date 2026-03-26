@@ -38,9 +38,11 @@ export function ThreeWaySelector({ side, onSideChange, totalUp, totalDown, total
             onClick={() => !disabled && onSideChange(s.key)}
             sx={{
               flex: 1,
+              minWidth: 0,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
+              overflow: 'hidden',
               gap: 0.5,
               py: 1.5,
               cursor: disabled ? 'default' : 'pointer',
@@ -51,7 +53,7 @@ export function ThreeWaySelector({ side, onSideChange, totalUp, totalDown, total
               '&:hover': disabled ? {} : { bgcolor: `${s.color}12` },
             }}
           >
-            <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: active ? s.color : 'rgba(255,255,255,0.7)' }}>
+            <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: active ? s.color : 'rgba(255,255,255,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%', px: 0.5, textAlign: 'center' }}>
               {s.label}
             </Typography>
             <Typography sx={{ fontSize: '1rem', fontWeight: 800, color: active ? s.color : '#fff' }}>

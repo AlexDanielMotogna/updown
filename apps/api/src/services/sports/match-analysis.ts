@@ -1,6 +1,8 @@
 import { footballFetch } from './football-fetch';
+import { sportsDbFetch } from './api-sports-fetch';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+const FOOTBALL_LEAGUES = ['CL', 'PL', 'PD', 'SA', 'BL1', 'FL1', 'BSA'];
 
 interface H2HMatch {
   date: string;
@@ -19,18 +21,34 @@ export async function generateMatchAnalysis(
   matchId: string,
   homeTeam: string,
   awayTeam: string,
+  league?: string,
 ): Promise<string | null> {
   try {
-    // 1. Fetch head2head from football-data.org (uses key rotation)
-    const h2hData = await footballFetch(`/matches/${matchId}/head2head?limit=20`);
-    const matches: H2HMatch[] = (h2hData.matches || []).map((m: any) => ({
-      date: m.utcDate?.slice(0, 10) || '',
-      home: m.homeTeam?.shortName || m.homeTeam?.name || '',
-      away: m.awayTeam?.shortName || m.awayTeam?.name || '',
-      homeScore: m.score?.fullTime?.home ?? 0,
-      awayScore: m.score?.fullTime?.away ?? 0,
-      competition: m.competition?.name || '',
-    }));
+    let matches: H2HMatch[];
+
+    if (!league || FOOTBALL_LEAGUES.includes(league)) {
+      // Football: use football-data.org H2H
+      const h2hData = await footballFetch(`/matches/${matchId}/head2head?limit=20`);
+      matches = (h2hData.matches || []).map((m: any) => ({
+        date: m.utcDate?.slice(0, 10) || '',
+        home: m.homeTeam?.shortName || m.homeTeam?.name || '',
+        away: m.awayTeam?.shortName || m.awayTeam?.name || '',
+        homeScore: m.score?.fullTime?.home ?? 0,
+        awayScore: m.score?.fullTime?.away ?? 0,
+        competition: m.competition?.name || '',
+      }));
+    } else {
+      // Other sports: use TheSportsDB event lookup for past events
+      try {
+        const data = await sportsDbFetch(`lookupevent.php?id=${matchId}`);
+        const event = data?.events?.[0];
+        // TheSportsDB doesn't have a direct H2H endpoint for all sports,
+        // so we generate analysis from team names alone (AI will use general knowledge)
+        matches = [];
+      } catch {
+        matches = [];
+      }
+    }
 
     // Build context for Haiku
     const matchList = matches.length > 0
@@ -52,7 +70,12 @@ export async function generateMatchAnalysis(
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
     if (!anthropicKey) return null;
 
-    const prompt = `You are a football analyst. Give a brief, factual analysis of the upcoming match between ${homeTeam} and ${awayTeam}.
+    const isFootball = !league || FOOTBALL_LEAGUES.includes(league);
+    const sportName = league && !isFootball ? league : 'football';
+
+    let prompt: string;
+    if (isFootball && matches.length > 0) {
+      prompt = `You are a football analyst. Give a brief, factual analysis of the upcoming match between ${homeTeam} and ${awayTeam}.
 
 Head-to-head record (last ${totalMatches} meetings):
 ${homeTeam} wins: ${homeWins}, ${awayTeam} wins: ${awayWins}, Draws: ${draws}
@@ -61,6 +84,16 @@ Previous matches:
 ${matchList}
 
 Write a concise analysis in 2-3 sentences. Include the head-to-head record, any notable patterns, and a brief assessment. Be factual, no predictions. Keep it under 80 words.`;
+    } else {
+      prompt = `You are a ${sportName} analyst. Give a brief, factual analysis of the upcoming matchup between ${homeTeam} and ${awayTeam}.
+
+Using your knowledge of the last 10 years of ${sportName} history, provide:
+- Their head-to-head record if you know it
+- Current form and standings context
+- Key strengths of each team/fighter
+
+Write a concise analysis in 2-3 sentences. Be factual, no predictions. Keep it under 80 words.`;
+    }
 
     const aiRes = await fetch(ANTHROPIC_API_URL, {
       method: 'POST',

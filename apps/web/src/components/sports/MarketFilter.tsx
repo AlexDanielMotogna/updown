@@ -2,13 +2,18 @@
 
 import { useState, useRef } from 'react';
 import { Box, Typography, IconButton, Collapse, Popover } from '@mui/material';
-import { ShowChart, SportsSoccer, FilterList, KeyboardArrowDown, Schedule, GridView, TrendingUp, Gavel, Public, TheaterComedy, AccountBalance } from '@mui/icons-material';
+import { ShowChart, SportsSoccer, FilterList, KeyboardArrowDown, Schedule, GridView, TrendingUp, Gavel, Public, TheaterComedy, AccountBalance, SportsBasketball, SportsFootball, SportsMma, SportsHockey } from '@mui/icons-material';
 import { UP_COLOR, DRAW_COLOR } from '@/lib/constants';
 
 export const PREDICTION_COLOR = '#A78BFA'; // violet for predictions tab
 
 const SPORT_OPTIONS = [
+  { value: 'ALL', label: 'All Sports', icon: <GridView sx={{ fontSize: 18 }} /> },
   { value: 'SOCCER', label: 'Soccer', icon: <SportsSoccer sx={{ fontSize: 18 }} /> },
+  { value: 'NBA', label: 'NBA', icon: <SportsBasketball sx={{ fontSize: 18 }} /> },
+  { value: 'NFL', label: 'NFL', icon: <SportsFootball sx={{ fontSize: 18 }} /> },
+  { value: 'MMA', label: 'MMA', icon: <SportsMma sx={{ fontSize: 18 }} /> },
+  { value: 'NHL', label: 'NHL', icon: <SportsHockey sx={{ fontSize: 18 }} /> },
 ];
 
 const LEAGUE_OPTIONS = [
@@ -142,6 +147,8 @@ interface Props {
   onIntervalChange: (value: string) => void;
   assetOptions: Array<{ value: string; label: string; icon?: React.ReactNode; img?: string }>;
   intervalOptions: Array<{ value: string; label: string; icon?: React.ReactNode }>;
+  sportFilter?: string;
+  onSportChange?: (value: string) => void;
   leagueFilter: string;
   onLeagueChange: (value: string) => void;
 }
@@ -159,12 +166,15 @@ export function MarketFilter({
   marketType, onMarketTypeChange,
   assetFilter, intervalFilter, onAssetChange, onIntervalChange,
   assetOptions, intervalOptions,
+  sportFilter = 'ALL', onSportChange,
   leagueFilter, onLeagueChange,
 }: Props) {
   const [showFilters, setShowFilters] = useState(false);
   const currentTab = TABS.find(t => t.key === marketType) || TABS[0];
   const tabColor = currentTab.color;
   const isPM = marketType.startsWith('PM_');
+  const isSingleSport = ['NBA', 'NFL', 'MMA', 'NHL'].includes(marketType);
+  const hideFilters = isPM || isSingleSport;
 
   const assetOpts = assetOptions.map(o => ({ ...o, img: o.img || null }));
   const intervalOpts = intervalOptions.map(o => ({ ...o, img: null }));
@@ -202,7 +212,7 @@ export function MarketFilter({
             );
           })}
         </Box>
-        {!isPM && (
+        {!hideFilters && (
           <IconButton
             onClick={() => setShowFilters(!showFilters)}
             size="small"
@@ -214,7 +224,7 @@ export function MarketFilter({
       </Box>
 
       {/* Collapsible filter dropdowns (crypto + sports only) */}
-      <Collapse in={showFilters && !isPM}>
+      <Collapse in={showFilters && !hideFilters}>
         <Box sx={{ display: 'flex', gap: 1, py: 0.5 }}>
           {marketType === 'CRYPTO' ? (
             <>
@@ -223,8 +233,10 @@ export function MarketFilter({
             </>
           ) : marketType === 'SPORTS' ? (
             <>
-              <FilterDropdown value="SOCCER" label="Sport" icon={<SportsSoccer sx={{ fontSize: 18 }} />} options={SPORT_OPTIONS} onChange={() => {}} color={DRAW_COLOR} />
-              <FilterDropdown value={leagueFilter} label="League" options={LEAGUE_OPTIONS} onChange={onLeagueChange} color={DRAW_COLOR} />
+              <FilterDropdown value={sportFilter} label="Sport" options={SPORT_OPTIONS} onChange={onSportChange || (() => {})} color={DRAW_COLOR} />
+              {(sportFilter === 'ALL' || sportFilter === 'SOCCER') && (
+                <FilterDropdown value={leagueFilter} label="League" options={LEAGUE_OPTIONS} onChange={onLeagueChange} color={DRAW_COLOR} />
+              )}
             </>
           ) : null}
         </Box>
