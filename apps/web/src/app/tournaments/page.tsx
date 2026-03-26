@@ -13,7 +13,7 @@ import {
   IconButton,
   Collapse,
 } from '@mui/material';
-import { EmojiEvents, ShowChart, SportsSoccer, FilterList, GridView, Gavel, Public, TheaterComedy, AccountBalance } from '@mui/icons-material';
+import { EmojiEvents, ShowChart, SportsSoccer, FilterList, GridView } from '@mui/icons-material';
 import { FilterDropdown } from '@/components/sports/MarketFilter';
 import Link from 'next/link';
 import { AppShell, AssetIcon } from '@/components';
@@ -22,21 +22,14 @@ import { UP_COLOR, ACCENT_COLOR, GAIN_COLOR, DRAW_COLOR } from '@/lib/constants'
 import { formatDate } from '@/lib/format';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useTournamentRegister, type RegisterStatus } from '@/hooks/useTournamentRegister';
+import { useCategories, type CategoryConfig } from '@/hooks/useCategories';
+import { getIcon } from '@/lib/icon-registry';
 
 const SPORT_FILTERS = [
   { value: 'SOCCER', label: 'Soccer' },
 ];
 
-const LEAGUE_FILTERS = [
-  { value: 'ALL', label: 'All', img: null, icon: <GridView sx={{ fontSize: 18 }} /> },
-  { value: 'CL', label: 'UCL', img: 'https://crests.football-data.org/CL.png' },
-  { value: 'PL', label: 'Premier', img: 'https://crests.football-data.org/PL.png' },
-  { value: 'PD', label: 'La Liga', img: 'https://crests.football-data.org/PD.png' },
-  { value: 'SA', label: 'Serie A', img: 'https://crests.football-data.org/SA.png' },
-  { value: 'BL1', label: 'Bundesliga', img: 'https://crests.football-data.org/BL1.png' },
-  { value: 'FL1', label: 'Ligue 1', img: 'https://crests.football-data.org/FL1.png' },
-  { value: 'BSA', label: 'Brasileirao', img: 'https://crests.football-data.org/bsa.png' },
-];
+// League filters are now built dynamically from useCategories()
 
 const ASSET_FILTERS = [
   { value: 'ALL', label: 'All', img: null, icon: <GridView sx={{ fontSize: 18 }} /> },
@@ -67,10 +60,7 @@ const STATUS_BUTTON_LABEL: Record<RegisterStatus, string> = {
   error: 'Try Again',
 };
 
-const LEAGUE_NAMES: Record<string, string> = {
-  CL: 'Champions League', PL: 'Premier League', PD: 'La Liga',
-  SA: 'Serie A', BL1: 'Bundesliga', FL1: 'Ligue 1', BSA: 'Brasileirao',
-};
+// League names are now from useCategories()
 
 function TournamentCard({ t, onRegistered }: { t: TournamentSummary; onRegistered: () => void }) {
   const { connected, walletAddress } = useWalletBridge();
@@ -138,7 +128,7 @@ function TournamentCard({ t, onRegistered }: { t: TournamentSummary; onRegistere
                 alt={t.league || ''}
                 sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }}
               />
-              <Typography sx={{ fontSize: '0.85rem', fontWeight: 700 }}>{LEAGUE_NAMES[t.league || ''] || t.league}</Typography>
+              <Typography sx={{ fontSize: '0.85rem', fontWeight: 700 }}>{t.league}</Typography>
             </Box>
           </Box>
         ) : (
@@ -249,8 +239,13 @@ function InfoItem({ label, value, color }: { label: string; value: string; color
   );
 }
 
-type TabType = 'CRYPTO' | 'SPORTS' | 'PM_POLITICS' | 'PM_GEO' | 'PM_CULTURE' | 'PM_FINANCE';
-const VALID_TABS: TabType[] = ['CRYPTO', 'SPORTS', 'PM_POLITICS', 'PM_GEO', 'PM_CULTURE', 'PM_FINANCE'];
+type TabType = string;
+
+function buildIcon(cat: CategoryConfig, size: number = 16): React.ReactNode {
+  const Icon = getIcon(cat.iconKey);
+  if (Icon) return <Icon sx={{ fontSize: size }} />;
+  return null;
+}
 
 export default function TournamentsPage() {
   const searchParams = useSearchParams();
@@ -260,8 +255,10 @@ export default function TournamentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { data: categories } = useCategories();
+
   const rawType = searchParams.get('type');
-  const marketType: TabType = VALID_TABS.includes(rawType as TabType) ? rawType as TabType : 'CRYPTO';
+  const marketType: TabType = rawType && (rawType === 'CRYPTO' || rawType === 'SPORTS' || rawType.startsWith('PM_')) ? rawType : 'CRYPTO';
   const assetFilter = searchParams.get('asset') ?? 'ALL';
   const leagueFilter = searchParams.get('league') ?? 'ALL';
   const [showFilters, setShowFilters] = useState(false);
@@ -318,11 +315,25 @@ export default function TournamentsPage() {
     return result;
   }, [tournaments, marketType, assetFilter, leagueFilter, isPM]);
 
-  const TAB_COLORS: Record<string, string> = {
-    CRYPTO: UP_COLOR, SPORTS: DRAW_COLOR,
-    PM_POLITICS: '#A78BFA', PM_GEO: '#60A5FA', PM_CULTURE: '#F472B6', PM_FINANCE: '#34D399',
-  };
-  const tabColor = TAB_COLORS[marketType] || UP_COLOR;
+  const { tabs: dynamicTabs, leagueFilters, tabColorMap } = useMemo(() => {
+    const cats = categories || [];
+    const pmCats = cats.filter(c => c.type === 'POLYMARKET' && c.enabled);
+    const footballCats = cats.filter(c => c.type === 'FOOTBALL_LEAGUE' && c.enabled);
+    const tabs = [
+      { key: 'CRYPTO', label: 'Crypto', icon: <ShowChart sx={{ fontSize: 16 }} />, color: UP_COLOR },
+      { key: 'SPORTS', label: 'Sports', icon: <SportsSoccer sx={{ fontSize: 16 }} />, color: DRAW_COLOR },
+      ...pmCats.map(c => ({ key: c.code, label: c.shortLabel || c.label, icon: buildIcon(c), color: c.color || '#A78BFA' })),
+    ];
+    const leagueFilters = [
+      { value: 'ALL', label: 'All', img: null as string | null, icon: <GridView sx={{ fontSize: 18 }} /> },
+      ...footballCats.map(c => ({ value: c.code, label: c.shortLabel || c.label, img: c.badgeUrl })),
+    ];
+    const tabColorMap: Record<string, string> = { CRYPTO: UP_COLOR, SPORTS: DRAW_COLOR };
+    for (const c of pmCats) tabColorMap[c.code] = c.color || '#A78BFA';
+    return { tabs, leagueFilters, tabColorMap };
+  }, [categories]);
+
+  const tabColor = tabColorMap[marketType] || UP_COLOR;
 
   return (
     <AppShell>
@@ -340,14 +351,7 @@ export default function TournamentsPage() {
         {/* Crypto / Sports tabs + filter icon */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
           <Box sx={{ display: 'flex', gap: 0, overflow: 'auto', '&::-webkit-scrollbar': { display: 'none' } }}>
-            {[
-              { key: 'CRYPTO' as TabType, label: 'Crypto', icon: <ShowChart sx={{ fontSize: 16 }} />, color: UP_COLOR },
-              { key: 'SPORTS' as TabType, label: 'Sports', icon: <SportsSoccer sx={{ fontSize: 16 }} />, color: DRAW_COLOR },
-              { key: 'PM_POLITICS' as TabType, label: 'Politics', icon: <Gavel sx={{ fontSize: 16 }} />, color: '#A78BFA' },
-              { key: 'PM_GEO' as TabType, label: 'Geopolitics', icon: <Public sx={{ fontSize: 16 }} />, color: '#60A5FA' },
-              { key: 'PM_CULTURE' as TabType, label: 'Culture', icon: <TheaterComedy sx={{ fontSize: 16 }} />, color: '#F472B6' },
-              { key: 'PM_FINANCE' as TabType, label: 'Finance', icon: <AccountBalance sx={{ fontSize: 16 }} />, color: '#34D399' },
-            ].map((tab) => {
+            {dynamicTabs.map((tab) => {
               const active = marketType === tab.key;
               return (
                 <Box
@@ -410,7 +414,7 @@ export default function TournamentsPage() {
                 <FilterDropdown
                   value={leagueFilter}
                   label="League"
-                  options={LEAGUE_FILTERS}
+                  options={leagueFilters}
                   onChange={(v) => updateParam('league', v)}
                   color={DRAW_COLOR}
                 />
