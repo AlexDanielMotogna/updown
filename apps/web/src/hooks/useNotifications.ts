@@ -61,16 +61,13 @@ export function useNotifications() {
         winner: data.winner ?? null,
       };
 
-      if (data.status === 'RESOLVED' && data.winner) {
+      if ((data.status === 'RESOLVED' || data.status === 'CLAIMABLE') && data.winner) {
         if (userBet.side === data.winner) {
           push(buildNotification('POOL_WON', ctx));
+          push(buildNotification('POOL_CLAIMABLE', ctx));
         } else {
           push(buildNotification('POOL_LOST', ctx));
         }
-      }
-
-      if (data.status === 'CLAIMABLE' && data.winner && userBet.side === data.winner) {
-        push(buildNotification('POOL_CLAIMABLE', ctx));
       }
     };
 

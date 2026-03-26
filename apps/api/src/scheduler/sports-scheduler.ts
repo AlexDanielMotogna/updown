@@ -166,7 +166,7 @@ export async function resolveMatchPools(): Promise<void> {
         },
       });
 
-      emitPoolStatus(pool.id, { id: pool.id, status: 'CLAIMABLE' });
+      emitPoolStatus(pool.id, { id: pool.id, status: 'CLAIMABLE', winner: winnerLabel, asset: pool.asset });
 
       console.log(`[Sports] Resolved ${pool.homeTeam} vs ${pool.awayTeam}: ${result.homeScore}-${result.awayScore} → ${winnerLabel}`);
     } catch (error) {
