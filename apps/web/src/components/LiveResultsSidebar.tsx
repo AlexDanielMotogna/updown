@@ -53,8 +53,9 @@ export function LiveResultsSidebar() {
       (p.matchId && liveScores.has(p.matchId)) ||
       (p.homeTeam && liveScores.has(p.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '')))
     ));
-    // Then resolved/claimable pools
-    const resolved = all.filter(p => (p.status === 'RESOLVED' || p.status === 'CLAIMABLE') && p.totalPool !== '0');
+    // Then resolved/claimable pools (last 48h only)
+    const cutoff = Date.now() - 48 * 60 * 60 * 1000;
+    const resolved = all.filter(p => (p.status === 'RESOLVED' || p.status === 'CLAIMABLE') && p.totalPool !== '0' && new Date(p.updatedAt).getTime() > cutoff);
     // Deduplicate
     const seen = new Set<string>();
     const combined: typeof all = [];

@@ -164,9 +164,12 @@ export default function MarketsPage() {
   const allPools = useMemo(() => {
     const flat = data?.pages.flatMap((p) => p.data ?? []) ?? [];
     const seen = new Set<string>();
+    const cutoff = Date.now() - 48 * 60 * 60 * 1000; // 48h ago
     return flat.filter((pool) => {
       if (seen.has(pool.id)) return false;
       seen.add(pool.id);
+      // Hide resolved pools older than 48h from the feed
+      if ((pool.status === 'CLAIMABLE' || pool.status === 'RESOLVED') && new Date(pool.updatedAt).getTime() < cutoff) return false;
       return true;
     });
   }, [data]);
