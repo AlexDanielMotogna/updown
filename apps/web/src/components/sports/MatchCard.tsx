@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { Box, Typography, Chip } from '@mui/material';
-import { TrendingUp, Star } from '@mui/icons-material';
+import { TrendingUp, Star, IosShare } from '@mui/icons-material';
 import { UP_COLOR, DOWN_COLOR, DRAW_COLOR, GAIN_COLOR } from '@/lib/constants';
 import { AnimatedValue } from '@/components/AnimatedValue';
 import { getIcon } from '@/lib/icon-registry';
@@ -234,9 +235,26 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category }: { p
           <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: 'rgba(255,255,255,0.5)' }}>
             {pool.betCount} predictions
           </Typography>
-          <Typography component="span" sx={{ fontSize: '0.75rem', fontWeight: 700, color: GAIN_COLOR }}>
-            <AnimatedValue usdcValue={pool.totalPool} prefix="$" />
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <IosShare
+              onClick={(e) => {
+                e.stopPropagation();
+                const url = `${window.location.origin}/match/${pool.id}`;
+                const text = isPrediction
+                  ? pool.homeTeam || 'Prediction'
+                  : `${pool.homeTeam || 'Home'} vs ${pool.awayTeam || 'Away'}`;
+                if (navigator.share) {
+                  navigator.share({ title: `UpDown - ${text}`, url }).catch(() => {});
+                } else {
+                  navigator.clipboard.writeText(url).catch(() => {});
+                }
+              }}
+              sx={{ fontSize: 15, color: 'rgba(255,255,255,0.55)', cursor: 'pointer', '&:hover': { color: '#fff' }, transition: 'color 0.15s' }}
+            />
+            <Typography component="span" sx={{ fontSize: '0.75rem', fontWeight: 700, color: GAIN_COLOR }}>
+              <AnimatedValue usdcValue={pool.totalPool} prefix="$" />
+            </Typography>
+          </Box>
         </Box>
       </Box>
   );
