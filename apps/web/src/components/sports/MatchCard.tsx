@@ -268,6 +268,21 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category }: { p
             </Typography>
           </Box>
         </Box>
+
+        {/* CTA */}
+        {!isResolved && (
+          <Box sx={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            py: 0.75, borderRadius: '4px',
+            bgcolor: 'rgba(255,255,255,0.04)',
+            transition: 'background 0.15s',
+            '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' },
+          }}>
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: UP_COLOR, letterSpacing: '0.04em' }}>
+              Predict Now
+            </Typography>
+          </Box>
+        )}
       </Box>
   );
 }
