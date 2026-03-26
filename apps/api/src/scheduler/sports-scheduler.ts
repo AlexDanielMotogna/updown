@@ -160,6 +160,8 @@ export async function resolveMatchPools(): Promise<void> {
         data: {
           status: 'CLAIMABLE',
           winner: winnerLabel,
+          homeScore: result.homeScore,
+          awayScore: result.awayScore,
           finalPrice: BigInt(0), // Not applicable for sports
         },
       });
