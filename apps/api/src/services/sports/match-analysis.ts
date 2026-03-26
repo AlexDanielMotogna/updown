@@ -1,8 +1,8 @@
 import { footballFetch } from './football-fetch';
 import { sportsDbFetch } from './api-sports-fetch';
+import { getFootballLeagueCodes } from '../category-config';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const FOOTBALL_LEAGUES = ['CL', 'PL', 'PD', 'SA', 'BL1', 'FL1', 'BSA'];
 
 interface H2HMatch {
   date: string;
@@ -26,7 +26,8 @@ export async function generateMatchAnalysis(
   try {
     let matches: H2HMatch[];
 
-    if (!league || FOOTBALL_LEAGUES.includes(league)) {
+    const footballLeagues = await getFootballLeagueCodes();
+    if (!league || footballLeagues.includes(league)) {
       // Football: use football-data.org H2H
       const h2hData = await footballFetch(`/matches/${matchId}/head2head?limit=20`);
       matches = (h2hData.matches || []).map((m: any) => ({
@@ -70,7 +71,7 @@ export async function generateMatchAnalysis(
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
     if (!anthropicKey) return null;
 
-    const isFootball = !league || FOOTBALL_LEAGUES.includes(league);
+    const isFootball = !league || footballLeagues.includes(league);
     const sportName = league && !isFootball ? league : 'football';
 
     let prompt: string;
