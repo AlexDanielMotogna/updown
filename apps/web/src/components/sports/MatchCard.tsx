@@ -1,5 +1,4 @@
 'use client';
-
 import { useState } from 'react';
 import { Box, Typography, Chip } from '@mui/material';
 import { TrendingUp, Star, IosShare } from '@mui/icons-material';
@@ -121,7 +120,7 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category }: { p
             )}
             {isLocked && !matchLive && !isResolved && (
               <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase' }}>
-                Locked
+                Starting Soon
               </Typography>
             )}
             {matchLive && (
@@ -271,17 +270,24 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category }: { p
 
         {/* CTA */}
         {!isResolved && (
-          <Box sx={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            py: 0.75, borderRadius: '4px',
-            bgcolor: 'rgba(255,255,255,0.04)',
-            transition: 'background 0.15s',
-            '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' },
-          }}>
-            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: UP_COLOR, letterSpacing: '0.04em' }}>
-              Predict Now
-            </Typography>
-          </Box>
+          <Tooltip
+            title={matchLive ? 'This match is already in progress. Predictions are no longer accepted.' : isLocked ? 'This match is about to start. Predictions are closed.' : ''}
+            arrow
+            disableHoverListener={!isLocked && !matchLive}
+            slotProps={{ tooltip: { sx: { bgcolor: '#1A1F2B', color: '#fff', fontSize: '0.7rem', maxWidth: 220, p: 1.25 } }, arrow: { sx: { color: '#1A1F2B' } } }}
+          >
+            <Box sx={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              py: 0.75, borderRadius: '4px',
+              bgcolor: isLocked || matchLive ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)',
+              transition: 'background 0.15s',
+              ...(!isLocked && !matchLive && { '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' } }),
+            }}>
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.04em', color: isLocked || matchLive ? 'rgba(255,255,255,0.2)' : UP_COLOR }}>
+                {matchLive ? 'Predictions Closed' : isLocked ? 'Predictions Closed' : 'Predict Now'}
+              </Typography>
+            </Box>
+          </Tooltip>
         )}
       </Box>
   );
