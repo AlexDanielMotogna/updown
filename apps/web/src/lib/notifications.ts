@@ -188,6 +188,7 @@ export function buildNotification(
     severity: def.severity,
     autoHideDuration: def.autoHideDuration,
     poolId: ctx.poolId as string | undefined,
+    poolType: ctx.poolType as string | undefined,
     asset: ctx.asset as string | undefined,
     level: ctx.level as number | undefined,
   };

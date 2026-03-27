@@ -56,6 +56,7 @@ export function useNotifications() {
 
       const ctx = {
         poolId: data.id,
+        poolType: userBet.pool.poolType,
         asset: data.asset ?? userBet.pool.asset,
         interval: data.interval ?? '',
         winner: data.winner ?? null,

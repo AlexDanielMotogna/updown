@@ -81,7 +81,7 @@ export function NotificationPanel() {
   const handleNotifClick = useCallback(
     (n: Notification) => {
       if (n.poolId) {
-        router.push(`/pool/${n.poolId}`);
+        router.push(n.poolType === 'SPORTS' ? `/match/${n.poolId}` : `/pool/${n.poolId}`);
         setBellOpen(false);
       }
     },

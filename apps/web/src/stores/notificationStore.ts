@@ -32,6 +32,7 @@ export interface Notification {
   message: string;
   severity: NotificationSeverity;
   poolId?: string;
+  poolType?: string;
   asset?: string;
   level?: number;
   autoHideDuration: number;
