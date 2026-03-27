@@ -105,10 +105,13 @@ export default function MatchDetailPage() {
   const pool = poolData?.data;
   const liveScore = useLiveScore(pool?.id ?? null);
   const categoryMap = useCategoryMap();
+  const isResolved = pool ? (pool.status === 'CLAIMABLE' || pool.status === 'RESOLVED') : false;
   const matchLive = liveScore && isMatchActive(liveScore);
   const matchFinished = liveScore && isMatchFinished(liveScore.status);
-  const isLocked = pool && !pool.status?.match(/CLAIMABLE|RESOLVED/) && pool.lockTime && new Date(pool.lockTime).getTime() < Date.now();
+  const isLocked = pool && !isResolved && pool.lockTime && new Date(pool.lockTime).getTime() < Date.now();
   const hasStarted = pool && new Date(pool.startTime).getTime() < Date.now();
+  const hasScore = pool && pool.homeScore != null && pool.awayScore != null;
+  const awaitingResolution = pool && !isResolved && hasScore && !matchLive;
 
   // Poll bets + pool totals every 5s
   const poolId = pool?.id;
@@ -254,7 +257,6 @@ export default function MatchDetailPage() {
   const statusStyle = statusStyles[pool.status] || statusStyles.UPCOMING;
   const homeShort = isPrediction ? '' : (pool.homeTeam || 'Home').slice(0, 3).toUpperCase();
   const awayShort = isPrediction ? '' : (pool.awayTeam || 'Away').slice(0, 3).toUpperCase();
-  const isResolved = pool.status === 'CLAIMABLE' || pool.status === 'RESOLVED';
   const winnerLabel = isResolved ? (pool.winner === 'UP' ? (isPrediction && !pool.awayTeam ? 'Yes' : pool.homeTeam) : pool.winner === 'DOWN' ? (isPrediction && !pool.awayTeam ? 'No' : pool.awayTeam) : pool.winner === 'DRAW' ? 'Draw' : null) : null;
   const winnerColor = pool.winner === 'UP' ? UP_COLOR : pool.winner === 'DOWN' ? DOWN_COLOR : DRAW_COLOR;
 
@@ -303,9 +305,14 @@ export default function MatchDetailPage() {
                 Full Time
               </Typography>
             )}
-            {!matchLive && !matchFinished && !isResolved && hasStarted && (
+            {!matchLive && !matchFinished && !awaitingResolution && !isResolved && hasStarted && (
               <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase' }}>
                 In Progress
+              </Typography>
+            )}
+            {awaitingResolution && (
+              <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>
+                Full Time
               </Typography>
             )}
             {isLocked && !hasStarted && !matchLive && !matchFinished && !isResolved && (
@@ -314,10 +321,10 @@ export default function MatchDetailPage() {
               </Typography>
             )}
             <Chip
-              label={matchLive && !isResolved ? 'LIVE' : matchFinished && !isResolved ? 'ENDED' : hasStarted && !isResolved ? 'IN PLAY' : pool.status === 'JOINING' ? 'OPEN' : pool.status === 'ACTIVE' ? 'LIVE' : pool.status}
+              label={matchLive && !isResolved ? 'LIVE' : (matchFinished || awaitingResolution) && !isResolved ? 'ENDED' : hasStarted && !isResolved ? 'IN PLAY' : pool.status === 'JOINING' ? 'OPEN' : pool.status === 'ACTIVE' ? 'LIVE' : pool.status}
               size="small"
               sx={{
-                ...(matchLive && !isResolved ? { bgcolor: 'rgba(34,197,94,0.12)', color: '#22C55E' } : matchFinished && !isResolved ? { bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' } : statusStyle),
+                ...(matchLive && !isResolved ? { bgcolor: 'rgba(34,197,94,0.12)', color: '#22C55E' } : (matchFinished || awaitingResolution) && !isResolved ? { bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' } : statusStyle),
                 fontWeight: 700,
                 fontSize: { xs: '0.6rem', md: '0.7rem' },
                 letterSpacing: '0.08em',
@@ -353,17 +360,17 @@ export default function MatchDetailPage() {
         </Box>
       </Box>
 
-      {/* ── Live score banner ── */}
-      {(matchLive || matchFinished) && !isResolved && liveScore && (
+      {/* ── Live / Full Time score banner ── */}
+      {(matchLive || matchFinished || awaitingResolution) && !isResolved && (
         <Box sx={{ px: { xs: 2, md: 3 }, py: 2, textAlign: 'center', bgcolor: matchLive ? 'rgba(34,197,94,0.04)' : 'rgba(255,255,255,0.02)' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 0.5 }}>
             {matchLive && <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#22C55E', animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1, transform: 'scale(1)' }, '50%': { opacity: 0.4, transform: 'scale(0.8)' } } }} />}
             <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: matchLive ? '#22C55E' : 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              {matchLive ? `Live - ${formatLiveStatus(liveScore.status, liveScore.progress)}` : 'Full Time'}
+              {matchLive && liveScore ? `Live - ${formatLiveStatus(liveScore.status, liveScore.progress)}` : 'Full Time — Resolving'}
             </Typography>
           </Box>
           <Typography sx={{ fontSize: '1.6rem', fontWeight: 700, color: '#fff' }}>
-            {pool.homeTeam} {liveScore.homeScore} - {liveScore.awayScore} {pool.awayTeam}
+            {pool.homeTeam} {liveScore ? liveScore.homeScore : pool.homeScore} - {liveScore ? liveScore.awayScore : pool.awayScore} {pool.awayTeam}
           </Typography>
           {isLocked && matchLive && (
             <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: '#F59E0B', mt: 0.5 }}>
@@ -515,6 +522,17 @@ export default function MatchDetailPage() {
                   <Typography sx={{ fontSize: '0.55rem', fontWeight: 600, color: matchLive ? '#22C55E' : 'rgba(255,255,255,0.4)', opacity: 0.8 }}>
                     {formatLiveStatus(liveScore.status, liveScore.progress)}
                   </Typography>
+                </Box>
+              ) : hasScore ? (
+                <Box sx={{ textAlign: 'center', flexShrink: 0 }}>
+                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>
+                    {pool.homeScore} - {pool.awayScore}
+                  </Typography>
+                  {awaitingResolution && (
+                    <Typography sx={{ fontSize: '0.55rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>
+                      Full Time
+                    </Typography>
+                  )}
                 </Box>
               ) : isResolved && pool.homeScore != null && pool.awayScore != null ? (
                 <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', flexShrink: 0 }}>

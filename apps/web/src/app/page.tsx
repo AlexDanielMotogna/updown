@@ -194,7 +194,8 @@ export default function MarketsPage() {
     const tier = (p: typeof allPools[0]) => {
       const ls = getPoolLiveScore(p);
       const isLive = ls && !FINISHED.has(ls.status) && ls.status !== 'NS';
-      const isEnded = (ls && FINISHED.has(ls.status)) || p.status === 'RESOLVED' || p.status === 'CLAIMABLE';
+      const hasScore = p.homeScore != null && p.awayScore != null;
+      const isEnded = (ls && FINISHED.has(ls.status)) || p.status === 'RESOLVED' || p.status === 'CLAIMABLE' || hasScore;
       const isPopular = top3Ids.has(p.id);
       if (isLive) return 0;
       if (isPopular && !isEnded) return 1;
