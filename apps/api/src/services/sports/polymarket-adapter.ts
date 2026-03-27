@@ -5,14 +5,6 @@ import { getPolymarketCategories, type PolymarketCategoryConfig } from '../categ
 // Re-export for backward compat
 export type PolymarketCategory = PolymarketCategoryConfig;
 
-// Keep hardcoded fallback for PM_CATEGORIES export (used by polymarket-sync.ts)
-export const PM_CATEGORIES: PolymarketCategoryConfig[] = [
-  { code: 'PM_FINANCE', name: 'Finance & Economy', tags: ['Business', 'Commodities', 'Economics', 'Gold', 'Oil', 'Stocks'], minVolume24h: 10_000, maxDaysAhead: 60 },
-  { code: 'PM_POLITICS', name: 'Politics', tags: ['Politics', 'Elections', 'Global Elections'], minVolume24h: 10_000, maxDaysAhead: 1100 },
-  { code: 'PM_GEO', name: 'Geopolitics', tags: ['Geopolitics', 'Middle East'], minVolume24h: 10_000, maxDaysAhead: 90 },
-  { code: 'PM_CULTURE', name: 'Culture & Entertainment', tags: ['Culture', 'Entertainment', 'Pop Culture'], minVolume24h: 5_000, maxDaysAhead: 180 },
-];
-
 const MAX_PER_CATEGORY = Number(process.env.POLYMARKET_MAX_MARKETS_PER_CATEGORY) || 10;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -175,7 +167,8 @@ export class PolymarketAdapter implements SportAdapter {
   async fetchMatchesByDateRange(category: string, _dateFrom: string, _dateTo: string): Promise<Match[]> {
     // Gamma API doesn't support date range filtering, so we fetch all active
     // and filter by endDate client-side
-    const cat = PM_CATEGORIES.find(c => c.code === category);
+    const cats = await getPolymarketCategories();
+    const cat = cats.find(c => c.code === category);
     if (!cat) return [];
 
     const events: GammaEvent[] = await polymarketFetch(

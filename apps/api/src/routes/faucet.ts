@@ -99,10 +99,10 @@ faucetRouter.post('/faucet', async (req, res) => {
         solTxSignature = sig;
         solAmount = FAUCET_AMOUNT_SOL;
       } else {
-        console.warn('SOL transfer skipped: authority balance too low');
+        console.warn('[Faucet] SOL transfer skipped: authority balance too low');
       }
     } catch (solErr) {
-      console.warn('SOL transfer failed:', solErr instanceof Error ? solErr.message : solErr);
+      console.warn('[Faucet] SOL transfer failed:', solErr instanceof Error ? solErr.message : solErr);
     }
 
     // Set cooldown
@@ -117,7 +117,7 @@ faucetRouter.post('/faucet', async (req, res) => {
       walletAddress,
     });
   } catch (err: any) {
-    console.error('Faucet error:', err);
+    console.error('[Faucet] error:', err);
     return res.status(500).json({ error: err.message || 'Failed to mint USDC' });
   }
 });

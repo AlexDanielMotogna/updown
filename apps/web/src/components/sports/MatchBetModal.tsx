@@ -15,6 +15,7 @@ import { TransactionModal } from '@/components';
 import { GAIN_COLOR, UP_COLOR } from '@/lib/constants';
 import { USDC_DIVISOR } from '@/lib/format';
 import type { Pool } from '@/lib/api';
+import { getSocket, subscribePool, unsubscribePool } from '@/lib/socket';
 
 const PM_CATEGORY_LABELS: Record<string, string> = {
   PM_POLITICS: 'Politics',
@@ -87,7 +88,21 @@ export function MatchBetModal({ pool, onClose }: Props) {
     };
     fetchBets();
     const iv = setInterval(fetchBets, 5000);
-    return () => { active = false; clearInterval(iv); };
+
+    // Subscribe to WebSocket for instant updates
+    const socket = getSocket();
+    subscribePool(poolId);
+    const onPoolUpdated = (data: { id: string; totalUp?: string; totalDown?: string; totalDraw?: string; totalPool?: string }) => {
+      if (data.id !== poolId) return;
+      if (data.totalUp != null) {
+        setLiveTotals({ totalUp: data.totalUp!, totalDown: data.totalDown!, totalDraw: data.totalDraw ?? '0', totalPool: data.totalPool! });
+      }
+      // Also refetch bets list to show the new bet
+      fetchBets();
+    };
+    socket.on('pool:updated', onPoolUpdated);
+
+    return () => { active = false; clearInterval(iv); socket.off('pool:updated', onPoolUpdated); unsubscribePool(poolId); };
   }, [poolId]);
 
   const amountNum = parseFloat(amount) || 0;

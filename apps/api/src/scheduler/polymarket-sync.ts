@@ -1,7 +1,6 @@
 import cron from 'node-cron';
 import { prisma } from '../db';
 import { getAdapter } from '../services/sports';
-import { PM_CATEGORIES } from '../services/sports/polymarket-adapter';
 import { polymarketFetch } from '../services/sports/polymarket-fetch';
 import { categorizeEvent } from '../services/sports/polymarket-adapter';
 import type { MatchResult } from '../services/sports/types';

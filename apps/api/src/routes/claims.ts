@@ -342,8 +342,8 @@ claimsRouter.post('/confirm-claim', async (req, res) => {
     // Award win + claim rewards — skip for refunds (payout == bet amount means refund)
     const isRefund = payout === bet.amount;
     if (!isRefund) {
-      awardBetWin(bet.walletAddress, bet.amount).catch(() => {});
-      awardClaimCompleted(bet.walletAddress).catch(() => {});
+      awardBetWin(bet.walletAddress, bet.amount).catch(e => console.warn('[Claims] awardBetWin failed:', e instanceof Error ? e.message : e));
+      awardClaimCompleted(bet.walletAddress).catch(e => console.warn('[Claims] awardClaimCompleted failed:', e instanceof Error ? e.message : e));
     }
 
     res.json({

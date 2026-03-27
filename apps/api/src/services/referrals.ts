@@ -183,7 +183,8 @@ export async function recordReferralCommissions(
       });
       if (existing) continue;
 
-      const commissionAmount = (bet.amount * BigInt(COMMISSION_BPS)) / 10000n;
+      const FEE_BASIS_DIVISOR = 10_000n;
+      const commissionAmount = (bet.amount * BigInt(COMMISSION_BPS)) / FEE_BASIS_DIVISOR;
       if (commissionAmount <= 0n) continue;
 
       await prisma.referralEarning.create({

@@ -328,7 +328,7 @@ export async function resolvePool(
       where: { poolId: pool.id },
       select: { id: true, walletAddress: true, amount: true },
     });
-    recordReferralCommissions(pool.id, allBets).catch(() => {});
+    recordReferralCommissions(pool.id, allBets).catch(e => console.warn('[Resolver] referral commissions failed:', e instanceof Error ? e.message : e));
 
     // Reset streak for losers
     const losingSide = winner === Side.UP ? Side.DOWN : Side.UP;
@@ -362,6 +362,6 @@ export async function resolvePool(
     await deps.prisma.pool.update({
       where: { id: pool.id },
       data: { status: PoolStatus.JOINING },
-    }).catch(() => {});
+    }).catch(e => console.warn('[Resolver] rollback failed:', e instanceof Error ? e.message : e));
   }
 }
