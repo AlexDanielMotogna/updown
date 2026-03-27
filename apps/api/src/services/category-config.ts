@@ -131,6 +131,15 @@ export async function getPolymarketCategories(): Promise<PolymarketCategoryConfi
   }));
 }
 
+const DEFAULT_MATCH_DURATION_HOURS = 4; // fallback if not configured
+
+/** Get the match duration in hours for a given category code. */
+export async function getMatchDurationHours(leagueCode: string): Promise<number> {
+  await refreshCache();
+  const cat = cachedCategories.find(c => c.code === leagueCode);
+  return (cat?.config as any)?.matchDurationHours ?? DEFAULT_MATCH_DURATION_HOURS;
+}
+
 export function invalidateCache(): void {
   lastFetchedAt = 0;
 }
