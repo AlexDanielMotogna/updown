@@ -48,6 +48,8 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category }: { p
   const matchFinished = !isResolved && liveScore && isMatchFinished(liveScore.status);
   const isLocked = !isResolved && pool.lockTime && new Date(pool.lockTime).getTime() < Date.now();
   const hasStarted = new Date(pool.startTime).getTime() < Date.now();
+  const hasScore = pool.homeScore != null && pool.awayScore != null;
+  const awaitingResolution = !isResolved && hasScore && !matchLive;
 
   return (
       <Box
@@ -125,7 +127,7 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category }: { p
                   {formatLiveStatus(liveScore!.status, liveScore!.progress)}
                 </Typography>
               </Box>
-            ) : matchFinished ? (
+            ) : matchFinished || awaitingResolution ? (
               <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>
                 Full Time
               </Typography>
@@ -171,7 +173,7 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category }: { p
               <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: matchLive ? '#22C55E' : '#fff', minWidth: 40, textAlign: 'center' }}>
                 {liveScore.homeScore} - {liveScore.awayScore}
               </Typography>
-            ) : isResolved && pool.homeScore != null && pool.awayScore != null ? (
+            ) : hasScore ? (
               <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#fff', minWidth: 40, textAlign: 'center' }}>
                 {pool.homeScore} - {pool.awayScore}
               </Typography>

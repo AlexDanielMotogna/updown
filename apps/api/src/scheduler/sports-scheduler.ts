@@ -8,7 +8,7 @@ import { Transaction } from '@solana/web3.js';
 import crypto from 'crypto';
 import { emitPoolStatus } from '../websocket';
 import { generateMatchAnalysis } from '../services/sports/match-analysis';
-import { getFootballLeagueCodes, getSportsDbConfigs, getPolymarketCategories } from '../services/category-config';
+import { getFootballLeagueCodes, getSportsDbConfigs, getPolymarketCategories, getMatchDurationHours } from '../services/category-config';
 const POOL_OPEN_HOURS_BEFORE = 720; // Open pool 30 days before kickoff
 
 /** Derive the correct adapter based on the pool's league code. */
@@ -191,14 +191,14 @@ async function createSportsPool(match: Match, leagueCode: string): Promise<void>
   const isPolymarket = leagueCode.startsWith('PM_');
 
   const kickoff = match.kickoff;
+  const durationHours = await getMatchDurationHours(leagueCode);
+  const durationMs = durationHours * 60 * 60 * 1000;
   const lockTime = isPolymarket
     ? new Date(kickoff.getTime() - 60 * 60 * 1000) // PM: lock 1h before endDate
-    : new Date(kickoff.getTime() - 60 * 1000);      // Football: lock 1min before kickoff
+    : new Date(kickoff.getTime() - 60 * 1000);      // Sports: lock 1min before kickoff
   const startTime = kickoff;
-  const endTime = isPolymarket
-    ? new Date(kickoff.getTime() + 48 * 60 * 60 * 1000) // PM: +48h buffer for UMA resolution
-    : new Date(kickoff.getTime() + 6 * 60 * 60 * 1000); // Football: +6h
-  const durationSeconds = isPolymarket ? 48 * 60 * 60 : 6 * 60 * 60;
+  const endTime = new Date(kickoff.getTime() + durationMs);
+  const durationSeconds = durationHours * 60 * 60;
   const interval = isPolymarket ? 'prediction' : 'match';
 
   try {
