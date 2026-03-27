@@ -24,7 +24,7 @@ function formatKickoff(dateStr: string, isResolved: boolean): string {
   return d.toLocaleDateString('en-US', opts);
 }
 
-export function MatchCard({ pool, onClick, isPopular, liveScore, category }: { pool: Pool; onClick?: () => void; isPopular?: boolean; liveScore?: LiveScore | null; category?: CategoryConfig | null }) {
+export function MatchCard({ pool, onClick, isPopular, liveScore, category, userBet, onClaim }: { pool: Pool; onClick?: () => void; isPopular?: boolean; liveScore?: LiveScore | null; category?: CategoryConfig | null; userBet?: { side: string; isWinner: boolean | null; betId?: string } | null; onClaim?: (poolId: string, betId: string) => void }) {
   const isPrediction = pool.league?.startsWith('PM_');
   const catColor = category?.color || (isPrediction ? '#A78BFA' : 'rgba(255,255,255,0.35)');
   const catLabel = category?.label || pool.league || '';
@@ -276,7 +276,22 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category }: { p
         </Box>
 
         {/* CTA */}
-        {!isResolved && (
+        {isResolved && userBet?.isWinner && userBet.betId && onClaim ? (
+          <Box
+            onClick={(e) => { e.stopPropagation(); onClaim(pool.id, userBet.betId!); }}
+            sx={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              py: 0.75, borderRadius: '4px',
+              bgcolor: `${GAIN_COLOR}15`,
+              cursor: 'pointer',
+              transition: 'background 0.15s',
+              '&:hover': { bgcolor: `${GAIN_COLOR}25` },
+            }}>
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.04em', color: GAIN_COLOR }}>
+              Claim Winnings
+            </Typography>
+          </Box>
+        ) : !isResolved && (
           <Tooltip
             title={matchLive || matchFinished ? 'This match is already in progress. Predictions are no longer accepted.' : isLocked ? 'This match is about to start. Predictions are closed.' : ''}
             arrow

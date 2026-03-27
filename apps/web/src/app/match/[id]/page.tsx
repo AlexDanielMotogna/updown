@@ -7,7 +7,8 @@ import { ArrowBack, TrendingUp } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { usePool } from '@/hooks/usePools';
-import { useDeposit } from '@/hooks/useTransactions';
+import { useDeposit, useClaim } from '@/hooks/useTransactions';
+import { useClaimableBets } from '@/hooks/useBets';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { AppShell, TransactionModal } from '@/components';
@@ -83,6 +84,8 @@ export default function MatchDetailPage() {
   const { connected } = useWalletBridge();
   const { data: balance } = useUsdcBalance();
   const { deposit, state: depositState, reset: resetDeposit } = useDeposit();
+  const { claim, state: claimState, reset: resetClaim } = useClaim();
+  const { data: claimableData } = useClaimableBets();
 
   const [side, setSide] = useState<'UP' | 'DOWN' | 'DRAW' | null>(null);
   const [amount, setAmount] = useState('');
@@ -575,6 +578,35 @@ export default function MatchDetailPage() {
             numSides={pool.numSides}
           />
 
+          {/* Claim button for winners */}
+          {isResolved && (() => {
+            const claimableBet = (claimableData?.data?.bets || []).find((b: { pool: { id: string } }) => b.pool.id === pool.id);
+            if (!claimableBet) return null;
+            return (
+              <Button
+                fullWidth
+                variant="contained"
+                disabled={claimState.status === 'confirming'}
+                onClick={async () => {
+                  setShowTxModal(true);
+                  try { await claim(pool.id, claimableBet.id); } catch { /* handled in state */ }
+                }}
+                sx={{
+                  bgcolor: GAIN_COLOR,
+                  color: '#000',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  py: 1.25,
+                  borderRadius: '5px',
+                  textTransform: 'none',
+                  '&:hover': { bgcolor: GAIN_COLOR, filter: 'brightness(1.15)' },
+                }}
+              >
+                {claimState.status === 'confirming' ? 'Claiming...' : 'Claim Winnings'}
+              </Button>
+            );
+          })()}
+
           {/* Bet form - only when pool is open */}
           {!isResolved && (
             <>
@@ -673,12 +705,12 @@ export default function MatchDetailPage() {
 
       <TransactionModal
         open={showTxModal}
-        status={depositState.status}
-        title="Placing Prediction"
-        txSignature={depositState.txSignature}
-        error={depositState.error}
-        onClose={handleCloseTxModal}
-        onRetry={() => { resetDeposit(); setShowTxModal(false); }}
+        status={claimState.status !== 'idle' ? claimState.status : depositState.status}
+        title={claimState.status !== 'idle' ? 'Claiming Winnings' : 'Placing Prediction'}
+        txSignature={claimState.txSignature || depositState.txSignature}
+        error={claimState.error || depositState.error}
+        onClose={() => { setShowTxModal(false); resetDeposit(); resetClaim(); }}
+        onRetry={() => { resetDeposit(); resetClaim(); setShowTxModal(false); }}
       />
     </AppShell>
   );

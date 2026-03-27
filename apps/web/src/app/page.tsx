@@ -18,7 +18,7 @@ import {
   AvTimer,
   Schedule,
 } from '@mui/icons-material';
-import { useInfinitePools, useBets, usePriceStream, useIntersectionObserver, type PoolFilters } from '@/hooks';
+import { useInfinitePools, useBets, useClaimableBets, useClaim, usePriceStream, useIntersectionObserver, type PoolFilters } from '@/hooks';
 import { useLiveScores } from '@/hooks/useLiveScores';
 import { useCategoryMap } from '@/hooks/useCategories';
 import { PoolTable, AppShell } from '@/components';
@@ -157,6 +157,8 @@ export default function MarketsPage() {
   });
 
   const { data: betsData } = useBets();
+  const { data: claimableData } = useClaimableBets();
+  const { claim } = useClaim();
   const { getPrice } = usePriceStream(['BTC', 'ETH', 'SOL']);
   const liveScores = useLiveScores();
   const categoryMap = useCategoryMap();
@@ -216,12 +218,18 @@ export default function MarketsPage() {
   }, [allPools, liveScores]);
 
   const userBetByPoolId = useMemo(() => {
-    const map = new Map<string, { side: 'UP' | 'DOWN' | 'DRAW'; isWinner: boolean | null }>();
+    const map = new Map<string, { side: 'UP' | 'DOWN' | 'DRAW'; isWinner: boolean | null; betId?: string }>();
     for (const bet of betsData?.data || []) {
-      map.set(bet.pool.id, { side: bet.side, isWinner: bet.isWinner });
+      map.set(bet.pool.id, { side: bet.side, isWinner: bet.isWinner, betId: bet.id });
+    }
+    // Merge claimable info (betId needed for claim action)
+    for (const bet of claimableData?.data?.bets || []) {
+      const existing = map.get(bet.pool.id);
+      if (existing) existing.betId = bet.id;
+      else map.set(bet.pool.id, { side: bet.side, isWinner: true, betId: bet.id });
     }
     return map;
-  }, [betsData]);
+  }, [betsData, claimableData]);
 
   const sentinelRef = useIntersectionObserver(
     () => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); },
@@ -378,7 +386,7 @@ export default function MarketsPage() {
                       }}
                     >
                       {sportsPools.slice(0, sportsVisible).map((pool) => (
-                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} liveScore={pool.matchId ? (liveScores.get(pool.matchId) || (pool.homeTeam ? liveScores.get(pool.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '')) : undefined)) : undefined} category={pool.league ? categoryMap.get(pool.league) : undefined} onClick={() => setSelectedSportsPool(pool)} />
+                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} liveScore={pool.matchId ? (liveScores.get(pool.matchId) || (pool.homeTeam ? liveScores.get(pool.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '')) : undefined)) : undefined} category={pool.league ? categoryMap.get(pool.league) : undefined} userBet={userBetByPoolId.get(pool.id)} onClaim={(poolId, betId) => claim(poolId, betId)} onClick={() => setSelectedSportsPool(pool)} />
                       ))}
                     </Box>
                     {sportsVisible < sportsPools.length && (
@@ -419,7 +427,7 @@ export default function MarketsPage() {
                       }}
                     >
                       {predictionPools.slice(0, predVisible).map((pool) => (
-                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} liveScore={pool.matchId ? (liveScores.get(pool.matchId) || (pool.homeTeam ? liveScores.get(pool.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '')) : undefined)) : undefined} category={pool.league ? categoryMap.get(pool.league) : undefined} onClick={() => setSelectedSportsPool(pool)} />
+                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} liveScore={pool.matchId ? (liveScores.get(pool.matchId) || (pool.homeTeam ? liveScores.get(pool.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '')) : undefined)) : undefined} category={pool.league ? categoryMap.get(pool.league) : undefined} userBet={userBetByPoolId.get(pool.id)} onClaim={(poolId, betId) => claim(poolId, betId)} onClick={() => setSelectedSportsPool(pool)} />
                       ))}
                     </Box>
                     {predVisible < predictionPools.length && (
