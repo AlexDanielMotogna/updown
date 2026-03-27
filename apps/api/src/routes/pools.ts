@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../db';
 import type { PoolStatus, Prisma } from '@prisma/client';
 import { serializePool } from '../utils/serializers';
-import { getLiveScore, getLiveScoreByTeam, getAllLiveScores } from '../services/sports/livescore';
+import { getAllLiveScoresWithFallback, getLiveScoreWithFallback, getLiveScoreByTeamWithFallback } from '../services/sports/livescore';
 
 export const poolsRouter: RouterType = Router();
 
@@ -131,8 +131,9 @@ poolsRouter.get('/', async (req, res) => {
 });
 
 // GET /api/pools/livescores — all current live scores (must be before /:id)
-poolsRouter.get('/livescores', (_req, res) => {
-  res.json({ success: true, data: getAllLiveScores() });
+poolsRouter.get('/livescores', async (_req, res) => {
+  const data = await getAllLiveScoresWithFallback();
+  res.json({ success: true, data });
 });
 
 // GET /api/pools/:id - Get single pool with details
@@ -320,11 +321,11 @@ poolsRouter.get('/:id/livescore', async (req, res) => {
       select: { matchId: true, homeTeam: true },
     });
     if (!pool?.matchId) return res.json({ success: true, data: null });
-    // Try by eventId first (works for TheSportsDB sports: NBA, NHL, NFL, MMA)
-    let score = getLiveScore(pool.matchId);
-    // Fallback: try by team name (works for football pools with football-data.org IDs)
+    // Try by eventId first, then fallback to DB (TheSportsDB sports: NBA, NHL, NFL, MMA)
+    let score = await getLiveScoreWithFallback(pool.matchId);
+    // Fallback: try by team name (football pools with football-data.org IDs)
     if (!score && pool.homeTeam) {
-      score = getLiveScoreByTeam(pool.homeTeam);
+      score = await getLiveScoreByTeamWithFallback(pool.homeTeam);
     }
     res.json({ success: true, data: score });
   } catch {

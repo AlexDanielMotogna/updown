@@ -7,6 +7,13 @@ exports.buildResolveWithWinnerIx = buildResolveWithWinnerIx;
 exports.buildClaimIx = buildClaimIx;
 exports.buildRefundIx = buildRefundIx;
 exports.buildClosePoolIx = buildClosePoolIx;
+exports.buildForceClosePoolIx = buildForceClosePoolIx;
+exports.buildInitializeTournamentIx = buildInitializeTournamentIx;
+exports.buildRegisterParticipantIx = buildRegisterParticipantIx;
+exports.buildClaimTournamentPrizeIx = buildClaimTournamentPrizeIx;
+exports.buildCancelTournamentIx = buildCancelTournamentIx;
+exports.buildRefundParticipantIx = buildRefundParticipantIx;
+exports.buildCloseTournamentIx = buildCloseTournamentIx;
 const web3_js_1 = require("@solana/web3.js");
 const spl_token_1 = require("@solana/spl-token");
 const accounts_1 = require("../accounts");
@@ -172,4 +179,97 @@ function buildClosePoolIx(pool, vault, authority) {
         { pubkey: spl_token_1.TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     ];
     return new web3_js_1.TransactionInstruction({ keys, programId: accounts_1.PROGRAM_ID, data: CLOSE_POOL_DISC });
+}
+const FORCE_CLOSE_POOL_DISC = Buffer.from([113, 203, 148, 102, 142, 248, 118, 240]);
+/**
+ * Build `force_close_pool` TransactionInstruction.
+ * Closes pool account only (no vault) — for orphan recovery of old pools
+ * where vault bump is corrupted from struct layout changes.
+ * Accounts: pool, authority
+ */
+function buildForceClosePoolIx(pool, authority) {
+    const keys = [
+        { pubkey: pool, isSigner: false, isWritable: true },
+        { pubkey: authority, isSigner: true, isWritable: true },
+    ];
+    return new web3_js_1.TransactionInstruction({ keys, programId: accounts_1.PROGRAM_ID, data: FORCE_CLOSE_POOL_DISC });
+}
+// ── Tournament instruction discriminators ──────────────────────────────────
+const INIT_TOURNAMENT_DISC = Buffer.from([75, 218, 86, 80, 49, 127, 155, 186]);
+const REGISTER_PARTICIPANT_DISC = Buffer.from([248, 112, 38, 215, 226, 230, 249, 40]);
+const CLAIM_TOURNAMENT_PRIZE_DISC = Buffer.from([219, 207, 183, 94, 201, 32, 78, 193]);
+const CANCEL_TOURNAMENT_DISC = Buffer.from([249, 227, 133, 5, 9, 142, 29, 122]);
+const REFUND_PARTICIPANT_DISC = Buffer.from([149, 166, 93, 207, 122, 167, 154, 218]);
+const CLOSE_TOURNAMENT_DISC = Buffer.from([14, 80, 54, 9, 221, 239, 201, 35]);
+// ── Tournament instruction builders ────────────────────────────────────────
+function buildInitializeTournamentIx(tournament, vault, usdcMint, authority, tournamentId, entryFee, maxParticipants) {
+    const data = Buffer.concat([
+        INIT_TOURNAMENT_DISC,
+        Buffer.from(tournamentId), // [u8; 32]
+        encodeU64(entryFee), // u64
+        encodeU16(maxParticipants), // u16
+    ]);
+    const keys = [
+        { pubkey: tournament, isSigner: false, isWritable: true },
+        { pubkey: vault, isSigner: false, isWritable: true },
+        { pubkey: usdcMint, isSigner: false, isWritable: false },
+        { pubkey: authority, isSigner: true, isWritable: true },
+        { pubkey: web3_js_1.SystemProgram.programId, isSigner: false, isWritable: false },
+        { pubkey: spl_token_1.TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: web3_js_1.SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+    ];
+    return new web3_js_1.TransactionInstruction({ keys, programId: accounts_1.PROGRAM_ID, data });
+}
+function buildRegisterParticipantIx(tournament, participant, vault, userTokenAccount, user) {
+    const keys = [
+        { pubkey: tournament, isSigner: false, isWritable: true },
+        { pubkey: participant, isSigner: false, isWritable: true },
+        { pubkey: vault, isSigner: false, isWritable: true },
+        { pubkey: userTokenAccount, isSigner: false, isWritable: true },
+        { pubkey: user, isSigner: true, isWritable: true },
+        { pubkey: spl_token_1.TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: web3_js_1.SystemProgram.programId, isSigner: false, isWritable: false },
+    ];
+    return new web3_js_1.TransactionInstruction({ keys, programId: accounts_1.PROGRAM_ID, data: REGISTER_PARTICIPANT_DISC });
+}
+function buildClaimTournamentPrizeIx(tournament, participant, vault, userTokenAccount, user, authority, feeWallet) {
+    const keys = [
+        { pubkey: tournament, isSigner: false, isWritable: true },
+        { pubkey: participant, isSigner: false, isWritable: true },
+        { pubkey: vault, isSigner: false, isWritable: true },
+        { pubkey: userTokenAccount, isSigner: false, isWritable: true },
+        { pubkey: user, isSigner: true, isWritable: true },
+        { pubkey: authority, isSigner: true, isWritable: false },
+        { pubkey: feeWallet, isSigner: false, isWritable: true },
+        { pubkey: spl_token_1.TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    ];
+    return new web3_js_1.TransactionInstruction({ keys, programId: accounts_1.PROGRAM_ID, data: CLAIM_TOURNAMENT_PRIZE_DISC });
+}
+function buildCancelTournamentIx(tournament, authority) {
+    const keys = [
+        { pubkey: tournament, isSigner: false, isWritable: true },
+        { pubkey: authority, isSigner: true, isWritable: false },
+    ];
+    return new web3_js_1.TransactionInstruction({ keys, programId: accounts_1.PROGRAM_ID, data: CANCEL_TOURNAMENT_DISC });
+}
+function buildRefundParticipantIx(tournament, participant, vault, userTokenAccount, user, authority) {
+    const keys = [
+        { pubkey: tournament, isSigner: false, isWritable: true },
+        { pubkey: participant, isSigner: false, isWritable: true },
+        { pubkey: vault, isSigner: false, isWritable: true },
+        { pubkey: userTokenAccount, isSigner: false, isWritable: true },
+        { pubkey: user, isSigner: false, isWritable: false },
+        { pubkey: authority, isSigner: true, isWritable: false },
+        { pubkey: spl_token_1.TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    ];
+    return new web3_js_1.TransactionInstruction({ keys, programId: accounts_1.PROGRAM_ID, data: REFUND_PARTICIPANT_DISC });
+}
+function buildCloseTournamentIx(tournament, vault, authority) {
+    const keys = [
+        { pubkey: tournament, isSigner: false, isWritable: true },
+        { pubkey: vault, isSigner: false, isWritable: true },
+        { pubkey: authority, isSigner: true, isWritable: true },
+        { pubkey: spl_token_1.TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    ];
+    return new web3_js_1.TransactionInstruction({ keys, programId: accounts_1.PROGRAM_ID, data: CLOSE_TOURNAMENT_DISC });
 }

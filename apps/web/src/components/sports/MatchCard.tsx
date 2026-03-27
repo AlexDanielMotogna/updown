@@ -1,12 +1,12 @@
 'use client';
 import { useState } from 'react';
-import { Box, Typography, Chip } from '@mui/material';
+import { Box, Typography, Chip, Tooltip } from '@mui/material';
 import { TrendingUp, Star, IosShare } from '@mui/icons-material';
 import { UP_COLOR, DOWN_COLOR, DRAW_COLOR, GAIN_COLOR } from '@/lib/constants';
 import { AnimatedValue } from '@/components/AnimatedValue';
 import { getIcon } from '@/lib/icon-registry';
 import type { Pool } from '@/lib/api';
-import type { LiveScore } from '@/hooks/useLiveScores';
+import { isMatchActive, isMatchFinished, formatLiveStatus, type LiveScore } from '@/hooks/useLiveScores';
 import type { CategoryConfig } from '@/hooks/useCategories';
 
 function formatKickoff(dateStr: string, isResolved: boolean): string {
@@ -46,8 +46,10 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category }: { p
   const winnerLabel = isResolved && pool.winner === 'UP' ? (isPrediction ? 'Yes' : pool.homeTeam) : pool.winner === 'DOWN' ? (isPrediction ? 'No' : pool.awayTeam) : pool.winner === 'DRAW' ? 'Draw' : null;
 
   // Live match data — never show live if pool is already resolved
-  const matchLive = !isResolved && liveScore && liveScore.status !== 'FT' && liveScore.status !== 'NS';
+  const matchLive = !isResolved && liveScore && isMatchActive(liveScore);
+  const matchFinished = !isResolved && liveScore && isMatchFinished(liveScore.status);
   const isLocked = !isResolved && pool.lockTime && new Date(pool.lockTime).getTime() < Date.now();
+  const hasStarted = new Date(pool.startTime).getTime() < Date.now();
 
   return (
       <Box
@@ -118,28 +120,33 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category }: { p
                 }}
               />
             )}
-            {isLocked && !matchLive && !isResolved && (
-              <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase' }}>
-                Starting Soon
-              </Typography>
-            )}
-            {matchLive && (
+            {matchLive ? (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#22C55E', animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1, transform: 'scale(1)' }, '50%': { opacity: 0.4, transform: 'scale(0.8)' } } }} />
                 <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: '#22C55E' }}>
-                  {liveScore!.status}{liveScore!.progress ? ` ${liveScore!.progress}'` : ''}
+                  {formatLiveStatus(liveScore!.status, liveScore!.progress)}
                 </Typography>
               </Box>
-            )}
-            {!matchLive && (
-              <>
-                {isLive && (
-                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: DOWN_COLOR, animation: 'pulse 1.5s infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
-                )}
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: isLive ? DOWN_COLOR : 'rgba(255,255,255,0.4)' }}>
-                  {formatKickoff(pool.startTime, isResolved)}
-                </Typography>
-              </>
+            ) : matchFinished ? (
+              <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>
+                Full Time
+              </Typography>
+            ) : isResolved ? (
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>
+                Ended
+              </Typography>
+            ) : hasStarted ? (
+              <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase' }}>
+                In Progress
+              </Typography>
+            ) : isLocked ? (
+              <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase' }}>
+                Starting Soon
+              </Typography>
+            ) : (
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>
+                {formatKickoff(pool.startTime, false)}
+              </Typography>
             )}
           </Box>
         </Box>
@@ -162,9 +169,9 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category }: { p
                 <Box component="img" src={pool.homeTeamCrest} alt={pool.homeTeam || ''} sx={{ width: 24, height: 24, objectFit: 'contain' }} />
               )}
             </Box>
-            {matchLive ? (
-              <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: '#22C55E', minWidth: 40, textAlign: 'center' }}>
-                {liveScore!.homeScore} - {liveScore!.awayScore}
+            {(matchLive || matchFinished) && liveScore ? (
+              <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: matchLive ? '#22C55E' : '#fff', minWidth: 40, textAlign: 'center' }}>
+                {liveScore.homeScore} - {liveScore.awayScore}
               </Typography>
             ) : isResolved && pool.homeScore != null && pool.awayScore != null ? (
               <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#fff', minWidth: 40, textAlign: 'center' }}>
@@ -271,20 +278,20 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category }: { p
         {/* CTA */}
         {!isResolved && (
           <Tooltip
-            title={matchLive ? 'This match is already in progress. Predictions are no longer accepted.' : isLocked ? 'This match is about to start. Predictions are closed.' : ''}
+            title={matchLive || matchFinished ? 'This match is already in progress. Predictions are no longer accepted.' : isLocked ? 'This match is about to start. Predictions are closed.' : ''}
             arrow
-            disableHoverListener={!isLocked && !matchLive}
+            disableHoverListener={!isLocked && !matchLive && !matchFinished}
             slotProps={{ tooltip: { sx: { bgcolor: '#1A1F2B', color: '#fff', fontSize: '0.7rem', maxWidth: 220, p: 1.25 } }, arrow: { sx: { color: '#1A1F2B' } } }}
           >
             <Box sx={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               py: 0.75, borderRadius: '4px',
-              bgcolor: isLocked || matchLive ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)',
+              bgcolor: isLocked || matchLive || matchFinished ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)',
               transition: 'background 0.15s',
-              ...(!isLocked && !matchLive && { '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' } }),
+              ...(!isLocked && !matchLive && !matchFinished && { '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' } }),
             }}>
-              <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.04em', color: isLocked || matchLive ? 'rgba(255,255,255,0.2)' : UP_COLOR }}>
-                {matchLive ? 'Predictions Closed' : isLocked ? 'Predictions Closed' : 'Predict Now'}
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.04em', color: isLocked || matchLive || matchFinished ? 'rgba(255,255,255,0.2)' : UP_COLOR }}>
+                {matchLive || matchFinished ? 'Predictions Closed' : isLocked ? 'Predictions Closed' : 'Predict Now'}
               </Typography>
             </Box>
           </Tooltip>

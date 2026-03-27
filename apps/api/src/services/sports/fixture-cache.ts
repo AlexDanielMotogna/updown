@@ -1,5 +1,7 @@
 import { prisma } from '../../db';
 import type { Match, MatchResult, MatchStatus } from './types';
+import { sportsDbFetchV2 } from './api-sports-fetch';
+import { FINISHED_STATUSES } from './livescore';
 
 /**
  * Fixture cache read service.
@@ -115,25 +117,85 @@ export async function getCachedFixtureResult(
 
 /**
  * Batch fetch fixture results by external IDs.
- * Eliminates N+1 API calls in resolveMatchPools and tournament resolver.
+ * Three-tier fallback: SportsFixtureCache → live_scores DB → TheSportsDB API.
  */
 export async function getCachedFixtureResults(
   externalIds: string[],
 ): Promise<Map<string, MatchResult>> {
   if (externalIds.length === 0) return new Map();
 
-  const rows = await prisma.sportsFixtureCache.findMany({
-    where: {
-      externalId: { in: externalIds },
-      status: 'FINISHED',
-    },
-  });
-
   const map = new Map<string, MatchResult>();
+
+  // ── Source 1: SportsFixtureCache (primary) ──
+  const rows = await prisma.sportsFixtureCache.findMany({
+    where: { externalId: { in: externalIds }, status: 'FINISHED' },
+  });
   for (const row of rows) {
     const result = rowToResult(row);
     if (result) map.set(row.externalId, result);
   }
+
+  // ── Source 2: live_scores table (fallback — captures FT from livescore polling) ──
+  const missing1 = externalIds.filter(id => !map.has(id));
+  if (missing1.length > 0) {
+    try {
+      const liveRows = await prisma.liveScore.findMany({
+        where: { eventId: { in: missing1 }, status: { in: [...FINISHED_STATUSES] } },
+      });
+      for (const row of liveRows) {
+        const winner = row.homeScore > row.awayScore ? 'HOME' as const
+          : row.awayScore > row.homeScore ? 'AWAY' as const
+          : 'DRAW' as const;
+        map.set(row.eventId, {
+          matchId: row.eventId,
+          status: 'FINISHED',
+          homeScore: row.homeScore,
+          awayScore: row.awayScore,
+          winner,
+        });
+        // Sync back to SportsFixtureCache so next time it's found in primary
+        prisma.sportsFixtureCache.updateMany({
+          where: { externalId: row.eventId },
+          data: { status: 'FINISHED', homeScore: row.homeScore, awayScore: row.awayScore, winner, lastSyncedAt: new Date() },
+        }).catch(() => {});
+      }
+      if (liveRows.length > 0) {
+        console.log(`[FixtureCache] Resolved ${liveRows.length} result(s) from live_scores DB fallback`);
+      }
+    } catch { /* best-effort */ }
+  }
+
+  // ── Source 3: TheSportsDB /lookup/event API (final fallback, max 5 per cycle) ──
+  const missing2 = externalIds.filter(id => !map.has(id));
+  const toFetch = missing2.slice(0, 5); // rate limit
+  for (const eventId of toFetch) {
+    try {
+      const data = await sportsDbFetchV2(`lookup/event/${eventId}`);
+      const evt = data?.lookup?.[0];
+      if (!evt) continue;
+      const status = (evt.strStatus || '').trim();
+      const homeScore = Number(evt.intHomeScore);
+      const awayScore = Number(evt.intAwayScore);
+      // Only use if the API confirms the match is finished with valid scores
+      if (!FINISHED_STATUSES.has(status) || isNaN(homeScore) || isNaN(awayScore)) continue;
+      const winner = homeScore > awayScore ? 'HOME' as const
+        : awayScore > homeScore ? 'AWAY' as const
+        : 'DRAW' as const;
+      map.set(eventId, { matchId: eventId, status: 'FINISHED', homeScore, awayScore, winner });
+      // Sync to both caches
+      prisma.sportsFixtureCache.updateMany({
+        where: { externalId: eventId },
+        data: { status: 'FINISHED', homeScore, awayScore, winner, lastSyncedAt: new Date() },
+      }).catch(() => {});
+      prisma.liveScore.upsert({
+        where: { eventId },
+        create: { eventId, sport: evt.strSport || '', league: evt.strLeague || '', homeTeam: evt.strHomeTeam || '', awayTeam: evt.strAwayTeam || '', homeScore, awayScore, status, progress: '', homeTeamBadge: evt.strHomeTeamBadge || '', awayTeamBadge: evt.strAwayTeamBadge || '', homeTeamNorm: (evt.strHomeTeam || '').toLowerCase().replace(/[^a-z0-9]/g, '') },
+        update: { homeScore, awayScore, status },
+      }).catch(() => {});
+      console.log(`[FixtureCache] Resolved ${evt.strHomeTeam} ${homeScore}-${awayScore} ${evt.strAwayTeam} from API lookup`);
+    } catch { /* rate limit or network error — skip */ }
+  }
+
   return map;
 }
 
