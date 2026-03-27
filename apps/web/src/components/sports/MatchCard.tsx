@@ -39,8 +39,6 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category }: { p
   const isTwoWay = isPrediction || pool.numSides === 2;
   const drawPct = isTwoWay ? 0 : (total > 0 ? 100 - homePct - awayPct : 34);
 
-  const isLive = pool.status === 'ACTIVE';
-  const isJoining = pool.status === 'JOINING';
   const isResolved = pool.status === 'CLAIMABLE' || pool.status === 'RESOLVED';
   const league = pool.league || '';
   const winnerLabel = isResolved && pool.winner === 'UP' ? (isPrediction ? 'Yes' : pool.homeTeam) : pool.winner === 'DOWN' ? (isPrediction ? 'No' : pool.awayTeam) : pool.winner === 'DRAW' ? 'Draw' : null;

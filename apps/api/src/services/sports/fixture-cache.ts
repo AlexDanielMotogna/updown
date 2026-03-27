@@ -1,7 +1,7 @@
 import { prisma } from '../../db';
 import type { Match, MatchResult, MatchStatus } from './types';
 import { sportsDbFetchV2 } from './api-sports-fetch';
-import { FINISHED_STATUSES } from './livescore';
+import { FINISHED_STATUSES, API_LOOKUP_LIMIT } from './livescore';
 
 /**
  * Fixture cache read service.
@@ -167,7 +167,7 @@ export async function getCachedFixtureResults(
 
   // ── Source 3: TheSportsDB /lookup/event API (final fallback, max 5 per cycle) ──
   const missing2 = externalIds.filter(id => !map.has(id));
-  const toFetch = missing2.slice(0, 5); // rate limit
+  const toFetch = missing2.slice(0, API_LOOKUP_LIMIT);
   for (const eventId of toFetch) {
     try {
       const data = await sportsDbFetchV2(`lookup/event/${eventId}`);
