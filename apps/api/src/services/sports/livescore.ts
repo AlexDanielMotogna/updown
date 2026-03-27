@@ -78,26 +78,36 @@ function normalizeTeam(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-// ─── Public getters (sync — cache only, fast) ───────────────────────────────
+// ─── Cache getters (internal — used by the WithFallback functions below) ─────
 
-export function getLiveScore(eventId: string): LiveScore | null {
+const CACHE_TTL_MS = 1_200_000; // 20 min — survives NHL/NBA intermissions
+
+function getLiveScore(eventId: string): LiveScore | null {
   const entry = cache.get(eventId);
   if (!entry) return null;
-  if (Date.now() - entry.updatedAt > 1_200_000) return null; // 20 min TTL
+  if (Date.now() - entry.updatedAt > CACHE_TTL_MS) return null;
   return entry;
 }
 
-export function getLiveScoreByTeam(homeTeam: string): LiveScore | null {
+function getLiveScoreByTeam(homeTeam: string): LiveScore | null {
   const key = normalizeTeam(homeTeam);
   const eventId = teamNameIndex.get(key);
   if (!eventId) return null;
   return getLiveScore(eventId);
 }
 
-export function getAllLiveScores(): LiveScore[] {
+function getAllLiveScores(): LiveScore[] {
   const now = Date.now();
-  return Array.from(cache.values()).filter(e => now - e.updatedAt < 1_200_000);
+  return Array.from(cache.values()).filter(e => now - e.updatedAt < CACHE_TTL_MS);
 }
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const DB_FALLBACK_TTL_MS = 4 * 3_600_000;   // 4h — max age for DB fallback results
+const DB_CLEANUP_AGE_MS = 24 * 3_600_000;    // 24h — delete old DB entries
+const CACHE_CLEANUP_MS = 1_500_000;           // 25 min — stale cache eviction
+const POLL_INTERVAL_MS = 30_000;              // 30s — livescore polling interval
+export const API_LOOKUP_LIMIT = 5;             // Max API lookups per resolver cycle (rate limit)
 
 // ─── Public getters (async — cache + DB fallback) ────────────────────────────
 
@@ -110,7 +120,7 @@ export async function getLiveScoreWithFallback(eventId: string): Promise<LiveSco
   try {
     const row = await prisma.liveScore.findUnique({ where: { eventId } });
     if (!row) return null;
-    if (Date.now() - row.updatedAt.getTime() > 4 * 3_600_000) return null;
+    if (Date.now() - row.updatedAt.getTime() > DB_FALLBACK_TTL_MS) return null;
     return dbRowToLiveScore(row);
   } catch {
     return null;
@@ -128,7 +138,7 @@ export async function getLiveScoreByTeamWithFallback(homeTeam: string): Promise<
     const row = await prisma.liveScore.findFirst({
       where: {
         homeTeamNorm: norm,
-        updatedAt: { gt: new Date(Date.now() - 4 * 3_600_000) },
+        updatedAt: { gt: new Date(Date.now() - DB_FALLBACK_TTL_MS) },
       },
       orderBy: { updatedAt: 'desc' },
     });
@@ -147,7 +157,7 @@ export async function getAllLiveScoresWithFallback(): Promise<LiveScore[]> {
   // 2. Fallback to DB — return entries updated in the last 4h
   try {
     const rows = await prisma.liveScore.findMany({
-      where: { updatedAt: { gt: new Date(Date.now() - 4 * 3_600_000) } },
+      where: { updatedAt: { gt: new Date(Date.now() - DB_FALLBACK_TTL_MS) } },
     });
     return rows.map(dbRowToLiveScore);
   } catch {
@@ -250,7 +260,7 @@ async function syncFinishedToUi(entries: LiveScore[]): Promise<void> {
 async function cleanupOldDbEntries(): Promise<void> {
   try {
     await prisma.liveScore.deleteMany({
-      where: { updatedAt: { lt: new Date(Date.now() - 24 * 3_600_000) } },
+      where: { updatedAt: { lt: new Date(Date.now() - DB_CLEANUP_AGE_MS) } },
     });
   } catch { /* best-effort */ }
 }
@@ -312,7 +322,7 @@ async function pollLiveScores(): Promise<void> {
     // Clean stale entries from in-memory cache (older than 25 min)
     const now = Date.now();
     for (const [key, val] of cache) {
-      if (now - val.updatedAt > 1_500_000) cache.delete(key);
+      if (now - val.updatedAt > CACHE_CLEANUP_MS) cache.delete(key);
     }
 
     const summary = Object.entries(sportCounts).map(([s, n]) => `${s}:${n}`).join(', ');
@@ -336,12 +346,12 @@ export function startLiveScorePolling(): void {
   // Poll every 30s
   pollInterval = setInterval(() => {
     pollLiveScores().catch(() => {});
-  }, 30_000);
+  }, POLL_INTERVAL_MS);
 
   // Cleanup old DB entries once a day
   setInterval(() => {
     cleanupOldDbEntries().catch(() => {});
-  }, 24 * 3_600_000);
+  }, DB_CLEANUP_AGE_MS);
 
   console.log('[LiveScore] Polling started (every 30s, persisting to DB)');
 }
