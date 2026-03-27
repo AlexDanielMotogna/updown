@@ -453,6 +453,29 @@ model SportsFixtureCache {
   @@map("sports_fixture_cache")
 }
 
+// ─── Live Scores (DB fallback for TheSportsDB livescore cache) ────────────────
+
+model LiveScore {
+  eventId       String   @id @map("event_id")          // TheSportsDB idEvent
+  sport         String                                   // 'Soccer', 'Ice Hockey', 'Basketball', etc.
+  league        String                                   // 'NHL', 'NBA', 'English Premier League', etc.
+  homeTeam      String   @map("home_team")
+  awayTeam      String   @map("away_team")
+  homeScore     Int      @default(0) @map("home_score")
+  awayScore     Int      @default(0) @map("away_score")
+  status        String                                   // Raw TheSportsDB status code (P1, Q2, HT, FT, etc.)
+  progress      String   @default("")                    // '45', '90+3', 'Q3 8:42', etc.
+  homeTeamBadge String   @default("") @map("home_team_badge")
+  awayTeamBadge String   @default("") @map("away_team_badge")
+  homeTeamNorm  String   @default("") @map("home_team_norm") // normalized: lowercase alphanumeric only
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([sport, status])
+  @@index([homeTeamNorm])
+  @@map("live_scores")
+}
+
 model PoolCategory {
   id         String   @id @default(uuid())
   code       String   @unique

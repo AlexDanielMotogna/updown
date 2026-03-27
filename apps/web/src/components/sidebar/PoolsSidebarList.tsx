@@ -7,7 +7,7 @@ import { formatUSDC } from '@/lib/format';
 import { UP_COLOR, DOWN_COLOR, DRAW_COLOR, GAIN_COLOR, INTERVAL_TAG_IMAGES, INTERVAL_LABELS } from '@/lib/constants';
 import { AssetIcon } from '@/components/AssetIcon';
 import type { Pool } from '@/lib/api';
-import type { LiveScore } from '@/hooks/useLiveScores';
+import { isMatchActive, isMatchFinished, formatLiveStatus, type LiveScore } from '@/hooks/useLiveScores';
 import type { CategoryConfig } from '@/hooks/useCategories';
 
 function timeAgo(dateStr: string): string {
@@ -78,7 +78,8 @@ export function PoolsSidebarList({ pools, newIds, liveScores, categoryMap }: Poo
           const isPM = pool.league?.startsWith('PM_');
           const cat = pool.league && categoryMap ? categoryMap.get(pool.league) : undefined;
           const ls = liveScores ? (pool.matchId ? liveScores.get(pool.matchId) : undefined) || (pool.homeTeam ? liveScores.get(pool.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '')) : undefined) : undefined;
-          const isMatchLive = ls && ls.status !== 'FT' && ls.status !== 'NS';
+          const isMatchLive = ls && isMatchActive(ls);
+          const isMatchDone = ls && isMatchFinished(ls.status);
 
           return (
             <motion.div
@@ -129,6 +130,10 @@ export function PoolsSidebarList({ pools, newIds, liveScores, categoryMap }: Poo
                           {ls!.homeScore} - {ls!.awayScore}
                         </Typography>
                       </Box>
+                    ) : isMatchDone && ls ? (
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.6)', flexShrink: 0 }}>
+                        {ls.homeScore} - {ls.awayScore}
+                      </Typography>
                     ) : !isSports ? (
                       <Box
                         component="img"
@@ -148,7 +153,16 @@ export function PoolsSidebarList({ pools, newIds, liveScores, categoryMap }: Poo
                     {isMatchLive ? (
                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: '#22C55E' }}>
-                          {ls!.status}{ls!.progress ? ` ${ls!.progress}'` : ''}
+                          {formatLiveStatus(ls!.status, ls!.progress)}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: GAIN_COLOR }}>
+                          {formatUSDC(pool.totalPool)}
+                        </Typography>
+                      </Box>
+                    ) : isMatchDone ? (
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>
+                          Full Time
                         </Typography>
                         <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: GAIN_COLOR }}>
                           {formatUSDC(pool.totalPool)}

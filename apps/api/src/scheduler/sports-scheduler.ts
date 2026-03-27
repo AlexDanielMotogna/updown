@@ -124,17 +124,33 @@ export async function resolveMatchPools(): Promise<void> {
 
     try {
       const result = resultMap.get(pool.matchId);
-      if (!result) {
-        // Match not finished yet in cache - skip
-        continue;
-      }
+      if (!result) continue; // Match not finished yet — skip
 
-      // Use the correct adapter based on pool league (Football vs Polymarket)
       const adapter = getAdapterForLeague(pool.league);
       const winnerSide = adapter.resolveWinner(result);
       const winnerLabel = (['UP', 'DOWN', 'DRAW'] as const)[winnerSide];
 
-      // Resolve on-chain
+      // Always update scores immediately so the UI shows the final result
+      await prisma.pool.update({
+        where: { id: pool.id },
+        data: { homeScore: result.homeScore, awayScore: result.awayScore },
+      });
+
+      // Check if pool has any bets
+      const betCount = await prisma.bet.count({ where: { poolId: pool.id } });
+
+      if (betCount === 0) {
+        // Empty pool — no on-chain resolution needed, just mark as done
+        await prisma.pool.update({
+          where: { id: pool.id },
+          data: { status: 'RESOLVED', winner: winnerLabel, finalPrice: BigInt(0) },
+        });
+        emitPoolStatus(pool.id, { id: pool.id, status: 'RESOLVED', winner: winnerLabel });
+        console.log(`[Sports] Resolved (empty) ${pool.homeTeam} vs ${pool.awayTeam}: ${result.homeScore}-${result.awayScore} → ${winnerLabel}`);
+        continue;
+      }
+
+      // Pool has bets — resolve on-chain
       const connection = getConnection();
       const wallet = getAuthorityKeypair();
       const seed = derivePoolSeed(pool.id);
@@ -154,22 +170,14 @@ export async function resolveMatchPools(): Promise<void> {
 
       await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
 
-      // Update DB — set RESOLVED first, processClaimableTransitions() will
-      // move it to CLAIMABLE after 2s (same flow as crypto pools)
       await prisma.pool.update({
         where: { id: pool.id },
-        data: {
-          status: 'RESOLVED',
-          winner: winnerLabel,
-          homeScore: result.homeScore,
-          awayScore: result.awayScore,
-          finalPrice: BigInt(0), // Not applicable for sports
-        },
+        data: { status: 'RESOLVED', winner: winnerLabel, finalPrice: BigInt(0) },
       });
 
       emitPoolStatus(pool.id, { id: pool.id, status: 'RESOLVED', winner: winnerLabel });
 
-      console.log(`[Sports] Resolved ${pool.homeTeam} vs ${pool.awayTeam}: ${result.homeScore}-${result.awayScore} → ${winnerLabel}`);
+      console.log(`[Sports] Resolved ${pool.homeTeam} vs ${pool.awayTeam}: ${result.homeScore}-${result.awayScore} → ${winnerLabel} (${betCount} bets)`);
     } catch (error) {
       console.error(`[Sports] Failed to resolve pool ${pool.id}:`, error);
     }
@@ -315,5 +323,10 @@ export function startSportsScheduler(): void {
   // Run once on startup
   createMatchPools().catch(e => console.error('[Sports] Initial create error:', e));
 
-  console.log('[Sports] Scheduler started (create: 6h, resolve: 5m)');
+  // Resolve any stuck pools 15s after startup (gives livescore poll time to populate)
+  setTimeout(() => {
+    resolveMatchPools().catch(e => console.error('[Sports] Initial resolve error:', e));
+  }, 15_000);
+
+  console.log('[Sports] Scheduler started (create: 6h, resolve: 5m, initial resolve: 15s)');
 }

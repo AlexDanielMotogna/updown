@@ -36,4 +36,17 @@ export declare function buildRefundIx(pool: PublicKey, userBet: PublicKey, vault
  * Accounts: pool, vault, authority, tokenProgram
  */
 export declare function buildClosePoolIx(pool: PublicKey, vault: PublicKey, authority: PublicKey): TransactionInstruction;
+/**
+ * Build `force_close_pool` TransactionInstruction.
+ * Closes pool account only (no vault) — for orphan recovery of old pools
+ * where vault bump is corrupted from struct layout changes.
+ * Accounts: pool, authority
+ */
+export declare function buildForceClosePoolIx(pool: PublicKey, authority: PublicKey): TransactionInstruction;
+export declare function buildInitializeTournamentIx(tournament: PublicKey, vault: PublicKey, usdcMint: PublicKey, authority: PublicKey, tournamentId: Uint8Array, entryFee: bigint | number, maxParticipants: number): TransactionInstruction;
+export declare function buildRegisterParticipantIx(tournament: PublicKey, participant: PublicKey, vault: PublicKey, userTokenAccount: PublicKey, user: PublicKey): TransactionInstruction;
+export declare function buildClaimTournamentPrizeIx(tournament: PublicKey, participant: PublicKey, vault: PublicKey, userTokenAccount: PublicKey, user: PublicKey, authority: PublicKey, feeWallet: PublicKey): TransactionInstruction;
+export declare function buildCancelTournamentIx(tournament: PublicKey, authority: PublicKey): TransactionInstruction;
+export declare function buildRefundParticipantIx(tournament: PublicKey, participant: PublicKey, vault: PublicKey, userTokenAccount: PublicKey, user: PublicKey, authority: PublicKey): TransactionInstruction;
+export declare function buildCloseTournamentIx(tournament: PublicKey, vault: PublicKey, authority: PublicKey): TransactionInstruction;
 //# sourceMappingURL=index.d.ts.map

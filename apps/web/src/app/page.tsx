@@ -174,7 +174,7 @@ export default function MarketsPage() {
     });
   }, [data]);
 
-  // Sort pools: popular first, then by soonest start time
+  // Sort pools: live first, then popular+upcoming, then upcoming, then ended
   const { sortedPools, popularPoolIds } = useMemo(() => {
     if (allPools.length === 0) return { sortedPools: allPools, popularPoolIds: new Set<string>() };
 
@@ -183,17 +183,36 @@ export default function MarketsPage() {
     const popularCandidates = byBets.filter(p => p.betCount >= 2);
     const top3Ids = new Set(popularCandidates.slice(0, 3).map(p => p.id));
 
-    // Sort: popular first (by betCount desc), then by soonest start time
+    const getPoolLiveScore = (p: typeof allPools[0]) => {
+      if (!p.matchId) return undefined;
+      return liveScores.get(p.matchId) || (p.homeTeam ? liveScores.get(p.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '')) : undefined);
+    };
+
+    const FINISHED = new Set(['FT', 'AET', 'PEN', 'AOT', 'AP']);
+
+    // Priority tiers: 0=live, 1=popular+upcoming, 2=upcoming, 3=popular+ended, 4=ended
+    const tier = (p: typeof allPools[0]) => {
+      const ls = getPoolLiveScore(p);
+      const isLive = ls && !FINISHED.has(ls.status) && ls.status !== 'NS';
+      const isEnded = (ls && FINISHED.has(ls.status)) || p.status === 'RESOLVED' || p.status === 'CLAIMABLE';
+      const isPopular = top3Ids.has(p.id);
+      if (isLive) return 0;
+      if (isPopular && !isEnded) return 1;
+      if (!isEnded) return 2;
+      if (isPopular) return 3;
+      return 4;
+    };
+
     const sorted = [...allPools].sort((a, b) => {
-      const aPopular = top3Ids.has(a.id) ? 1 : 0;
-      const bPopular = top3Ids.has(b.id) ? 1 : 0;
-      if (aPopular !== bPopular) return bPopular - aPopular; // popular first
-      if (aPopular && bPopular) return b.betCount - a.betCount; // among popular, most bets first
-      return new Date(a.startTime).getTime() - new Date(b.startTime).getTime(); // then by time
+      const ta = tier(a), tb = tier(b);
+      if (ta !== tb) return ta - tb;
+      // Within same tier: popular by betCount, others by startTime
+      if (top3Ids.has(a.id) && top3Ids.has(b.id)) return b.betCount - a.betCount;
+      return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
     });
 
     return { sortedPools: sorted, popularPoolIds: top3Ids };
-  }, [allPools]);
+  }, [allPools, liveScores]);
 
   const userBetByPoolId = useMemo(() => {
     const map = new Map<string, { side: 'UP' | 'DOWN' | 'DRAW'; isWinner: boolean | null }>();
