@@ -77,7 +77,7 @@ export function PoolsSidebarList({ pools, newIds, liveScores, categoryMap }: Poo
           const isSports = pool.poolType === 'SPORTS';
           const isPM = pool.league?.startsWith('PM_');
           const cat = pool.league && categoryMap ? categoryMap.get(pool.league) : undefined;
-          const ls = liveScores ? (pool.matchId ? liveScores.get(pool.matchId) : undefined) || (pool.homeTeam ? liveScores.get(pool.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '')) : undefined) : undefined;
+          const ls = liveScores && pool.matchId ? liveScores.get(pool.matchId) : undefined;
           const isMatchLive = ls && isMatchActive(ls);
           const isMatchDone = ls && isMatchFinished(ls.status);
 

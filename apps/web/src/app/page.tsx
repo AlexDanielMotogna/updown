@@ -176,6 +176,19 @@ export default function MarketsPage() {
     });
   }, [data]);
 
+  // Resolve livescore for a pool: by matchId first, team name fallback only for football
+  const getPoolLiveScore = useCallback((p: typeof allPools[0]) => {
+    if (!p.matchId) return undefined;
+    const byId = liveScores.get(p.matchId);
+    if (byId) return byId;
+    // Team name fallback only for football pools (football-data.org uses different IDs than TheSportsDB)
+    const cat = p.league ? categoryMap.get(p.league) : undefined;
+    if (cat?.type === 'FOOTBALL_LEAGUE' && p.homeTeam) {
+      return liveScores.get(p.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, ''));
+    }
+    return undefined;
+  }, [liveScores, categoryMap]);
+
   // Sort pools: live first, then popular+upcoming, then upcoming, then ended
   const { sortedPools, popularPoolIds } = useMemo(() => {
     if (allPools.length === 0) return { sortedPools: allPools, popularPoolIds: new Set<string>() };
@@ -184,11 +197,6 @@ export default function MarketsPage() {
     const byBets = [...allPools].sort((a, b) => b.betCount - a.betCount);
     const popularCandidates = byBets.filter(p => p.betCount >= 2);
     const top3Ids = new Set(popularCandidates.slice(0, 3).map(p => p.id));
-
-    const getPoolLiveScore = (p: typeof allPools[0]) => {
-      if (!p.matchId) return undefined;
-      return liveScores.get(p.matchId) || (p.homeTeam ? liveScores.get(p.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '')) : undefined);
-    };
 
     const FINISHED = new Set(['FT', 'AET', 'PEN', 'AOT', 'AP']);
 
@@ -215,7 +223,7 @@ export default function MarketsPage() {
     });
 
     return { sortedPools: sorted, popularPoolIds: top3Ids };
-  }, [allPools, liveScores]);
+  }, [allPools, getPoolLiveScore]);
 
   const userBetByPoolId = useMemo(() => {
     const map = new Map<string, { side: 'UP' | 'DOWN' | 'DRAW'; isWinner: boolean | null; betId?: string }>();
@@ -386,7 +394,7 @@ export default function MarketsPage() {
                       }}
                     >
                       {sportsPools.slice(0, sportsVisible).map((pool) => (
-                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} liveScore={pool.matchId ? (liveScores.get(pool.matchId) || (pool.homeTeam ? liveScores.get(pool.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '')) : undefined)) : undefined} category={pool.league ? categoryMap.get(pool.league) : undefined} userBet={userBetByPoolId.get(pool.id)} onClaim={(poolId, betId) => claim(poolId, betId)} onClick={() => setSelectedSportsPool(pool)} />
+                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} liveScore={getPoolLiveScore(pool)} category={pool.league ? categoryMap.get(pool.league) : undefined} userBet={userBetByPoolId.get(pool.id)} onClaim={(poolId, betId) => claim(poolId, betId)} onClick={() => setSelectedSportsPool(pool)} />
                       ))}
                     </Box>
                     {sportsVisible < sportsPools.length && (
@@ -427,7 +435,7 @@ export default function MarketsPage() {
                       }}
                     >
                       {predictionPools.slice(0, predVisible).map((pool) => (
-                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} liveScore={pool.matchId ? (liveScores.get(pool.matchId) || (pool.homeTeam ? liveScores.get(pool.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '')) : undefined)) : undefined} category={pool.league ? categoryMap.get(pool.league) : undefined} userBet={userBetByPoolId.get(pool.id)} onClaim={(poolId, betId) => claim(poolId, betId)} onClick={() => setSelectedSportsPool(pool)} />
+                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} liveScore={getPoolLiveScore(pool)} category={pool.league ? categoryMap.get(pool.league) : undefined} userBet={userBetByPoolId.get(pool.id)} onClaim={(poolId, betId) => claim(poolId, betId)} onClick={() => setSelectedSportsPool(pool)} />
                       ))}
                     </Box>
                     {predVisible < predictionPools.length && (
