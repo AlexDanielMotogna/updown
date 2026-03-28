@@ -150,18 +150,20 @@ export async function getLiveScoreByTeamWithFallback(homeTeam: string): Promise<
 }
 
 export async function getAllLiveScoresWithFallback(): Promise<LiveScore[]> {
-  // 1. Cache first
+  // Merge cache + DB: cache is the primary source, DB fills gaps (lookup fallback, server restart)
   const cached = getAllLiveScores();
-  if (cached.length > 0) return cached;
+  const cacheIds = new Set(cached.map(e => e.eventId));
 
-  // 2. Fallback to DB — return entries updated in the last 4h
   try {
     const rows = await prisma.liveScore.findMany({
       where: { updatedAt: { gt: new Date(Date.now() - DB_FALLBACK_TTL_MS) } },
     });
-    return rows.map(dbRowToLiveScore);
+    const dbExtras = rows
+      .filter(r => !cacheIds.has(r.eventId))
+      .map(dbRowToLiveScore);
+    return [...cached, ...dbExtras];
   } catch {
-    return [];
+    return cached;
   }
 }
 
@@ -265,6 +267,68 @@ async function cleanupOldDbEntries(): Promise<void> {
   } catch { /* best-effort */ }
 }
 
+// ─── Active pool lookup fallback ──────────────────────────────────────────────
+
+/**
+ * /livescore/all is unreliable — some live games don't appear.
+ * For pools whose startTime passed but weren't in the livescore feed,
+ * do individual /lookup/event calls to get their scores.
+ */
+async function pollMissingPools(foundIds: Set<string>, toPersist: LiveScore[]): Promise<void> {
+  try {
+    const activePools = await prisma.pool.findMany({
+      where: {
+        poolType: 'SPORTS',
+        status: { in: ['JOINING', 'ACTIVE'] },
+        matchId: { not: null },
+        startTime: { lte: new Date() },
+      },
+      select: { matchId: true },
+    });
+
+    const missing = activePools
+      .map(p => p.matchId!)
+      .filter(id => !foundIds.has(id) && !cache.has(id));
+
+    if (missing.length === 0) return;
+
+    let fetched = 0;
+    for (const eventId of missing.slice(0, API_LOOKUP_LIMIT)) {
+      try {
+        const data = await sportsDbFetchV2(`lookup/event/${eventId}`);
+        const evt = data?.lookup?.[0];
+        if (!evt) continue;
+        const status = (evt.strStatus || '').trim();
+        if (!status || status === 'NS' || status === 'TBD') continue;
+
+        const entry: LiveScore = {
+          eventId: String(evt.idEvent),
+          homeScore: Number(evt.intHomeScore ?? 0),
+          awayScore: Number(evt.intAwayScore ?? 0),
+          status,
+          progress: (evt.strProgress || '').trim(),
+          homeTeam: evt.strHomeTeam || '',
+          awayTeam: evt.strAwayTeam || '',
+          league: evt.strLeague || '',
+          sport: evt.strSport || '',
+          homeTeamBadge: evt.strHomeTeamBadge || '',
+          awayTeamBadge: evt.strAwayTeamBadge || '',
+          updatedAt: Date.now(),
+        };
+
+        cache.set(entry.eventId, entry);
+        toPersist.push(entry);
+        if (evt.strHomeTeam) teamNameIndex.set(normalizeTeam(evt.strHomeTeam), entry.eventId);
+        fetched++;
+      } catch { /* skip individual failures */ }
+    }
+
+    if (fetched > 0) {
+      console.log(`[LiveScore] Fetched ${fetched} missing pool score(s) via individual lookup`);
+    }
+  } catch { /* best-effort */ }
+}
+
 // ─── Polling ─────────────────────────────────────────────────────────────────
 
 async function pollLiveScores(): Promise<void> {
@@ -315,14 +379,24 @@ async function pollLiveScores(): Promise<void> {
       }
     }
 
-    // Persist to DB (non-blocking)
+    // Fallback: lookup individual active pools not found in /livescore/all
+    // MUST await before persisting — pollMissingPools mutates toPersist
+    await pollMissingPools(new Set(toPersist.map(e => e.eventId)), toPersist);
+
+    // Persist to DB + sync finished to UI (non-blocking, toPersist is now complete)
     persistToDb(toPersist).catch(() => {});
     syncFinishedToUi(toPersist).catch(() => {});
 
-    // Clean stale entries from in-memory cache (older than 25 min)
+    // Clean stale entries from in-memory cache + team name index
     const now = Date.now();
     for (const [key, val] of cache) {
-      if (now - val.updatedAt > CACHE_CLEANUP_MS) cache.delete(key);
+      if (now - val.updatedAt > CACHE_CLEANUP_MS) {
+        cache.delete(key);
+        // Clean corresponding team name index entries
+        for (const [team, eid] of teamNameIndex) {
+          if (eid === key) teamNameIndex.delete(team);
+        }
+      }
     }
 
     const summary = Object.entries(sportCounts).map(([s, n]) => `${s}:${n}`).join(', ');
@@ -339,6 +413,18 @@ async function pollLiveScores(): Promise<void> {
 export function startLiveScorePolling(): void {
   if (polling) return;
   polling = true;
+
+  // Preload cache from DB so data is available immediately after restart
+  prisma.liveScore.findMany({
+    where: { updatedAt: { gt: new Date(Date.now() - DB_FALLBACK_TTL_MS) } },
+  }).then(rows => {
+    for (const row of rows) {
+      const entry = dbRowToLiveScore(row);
+      cache.set(entry.eventId, entry);
+      if (row.homeTeam) teamNameIndex.set(normalizeTeam(row.homeTeam), entry.eventId);
+    }
+    if (rows.length > 0) console.log(`[LiveScore] Preloaded ${rows.length} entries from DB`);
+  }).catch(() => {});
 
   // Initial poll
   pollLiveScores().catch(() => {});
