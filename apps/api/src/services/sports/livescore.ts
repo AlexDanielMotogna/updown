@@ -286,9 +286,16 @@ async function pollMissingPools(foundIds: Set<string>, toPersist: LiveScore[]): 
       select: { matchId: true },
     });
 
+    const STALE_THRESHOLD_MS = 120_000; // 2 min — re-fetch if data is older than this
+    const now = Date.now();
     const missing = activePools
       .map(p => p.matchId!)
-      .filter(id => !foundIds.has(id) && !cache.has(id));
+      .filter(id => {
+        if (foundIds.has(id)) return false; // Already in this poll's fresh data
+        const cached = cache.get(id);
+        if (!cached) return true; // Not in cache at all
+        return now - cached.updatedAt > STALE_THRESHOLD_MS; // In cache but stale
+      });
 
     if (missing.length === 0) return;
 
