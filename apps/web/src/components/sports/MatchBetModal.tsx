@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { Box, Typography, Drawer, Button, TextField, IconButton } from '@mui/material';
-import { Close } from '@mui/icons-material';
+import { Close, OpenInNew } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { ThreeWaySelector } from './ThreeWaySelector';
@@ -392,10 +392,25 @@ export function MatchBetModal({ pool, onClose }: Props) {
                 >
                   {!connected ? 'Connect Wallet' : !side ? 'Select Side' : amountNum <= 0 ? 'Enter Amount' : 'Place Prediction'}
                 </Button>
-                <Link href={`/match/${pool.id}`} style={{ textDecoration: 'none' }}>
-                  <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', mt: 1.5, '&:hover': { color: '#fff' } }}>
-                    View full details &rarr;
-                  </Typography>
+                <Link href={`/match/${pool.id}`} style={{ textDecoration: 'none', width: '100%' }}>
+                  <Button
+                    fullWidth
+                    size="small"
+                    endIcon={<OpenInNew sx={{ fontSize: 13 }} />}
+                    sx={{
+                      mt: 1.5,
+                      py: 0.75,
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'rgba(255,255,255,0.5)',
+                      bgcolor: 'rgba(255,255,255,0.04)',
+                      borderRadius: '4px',
+                      textTransform: 'none',
+                      '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', color: '#fff' },
+                    }}
+                  >
+                    Open Full Page
+                  </Button>
                 </Link>
               </>
             )}

@@ -108,7 +108,6 @@ export function PoolRow({
       layout
     >
     <Box
-      onClick={onClick}
       sx={{
         position: 'relative',
         overflow: 'hidden',
@@ -119,7 +118,6 @@ export function PoolRow({
         pl: 0,
         py: 0,
         bgcolor: '#0D1219',
-        cursor: onClick ? 'pointer' : undefined,
         transition: 'background 0.15s ease',
         '&:hover': {
           background: 'rgba(255,255,255,0.04)',

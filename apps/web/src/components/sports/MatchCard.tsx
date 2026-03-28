@@ -53,7 +53,6 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
 
   return (
       <Box
-        onClick={onClick}
         sx={{
           bgcolor: '#0D1219',
           p: { xs: 1.5, md: 2 },
@@ -61,7 +60,6 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
           flexDirection: 'column',
           gap: 1.5,
           transition: 'background 0.15s ease',
-          cursor: 'pointer',
           position: 'relative',
           overflow: 'hidden',
           '&:hover': { background: 'rgba(255,255,255,0.04)' },
@@ -298,10 +296,13 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
             disableHoverListener={!isLocked && !matchLive && !matchFinished}
             slotProps={{ tooltip: { sx: { bgcolor: '#1A1F2B', color: '#fff', fontSize: '0.7rem', maxWidth: 220, p: 1.25 } }, arrow: { sx: { color: '#1A1F2B' } } }}
           >
-            <Box sx={{
+            <Box
+              onClick={!isLocked && !matchLive && !matchFinished ? onClick : undefined}
+              sx={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               py: 0.75, borderRadius: '4px',
               bgcolor: isLocked || matchLive || matchFinished ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)',
+              cursor: !isLocked && !matchLive && !matchFinished ? 'pointer' : undefined,
               transition: 'background 0.15s',
               ...(!isLocked && !matchLive && !matchFinished && { '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' } }),
             }}>

@@ -46,7 +46,7 @@ export type NotificationInput = Omit<Notification, 'id' | 'createdAt' | 'dismiss
 interface NotificationStore {
   notifications: Notification[];
   userPoolIds: Set<string>;
-  push: (n: NotificationInput) => void;
+  push: (n: NotificationInput, dbId?: string, dbRead?: boolean) => void;
   dismiss: (id: string) => void;
   dismissToast: (id: string) => void;
   dismissAll: () => void;
@@ -67,10 +67,13 @@ export const useNotificationStore = create<NotificationStore>()(
       notifications: [],
       userPoolIds: new Set<string>(),
 
-      push: (input) => {
+      push: (input, dbId, dbRead) => {
         const now = Date.now();
         const existing = get().notifications;
-        const isDupe = existing.some(
+
+        // Skip if already in store (by DB id or dedup window)
+        if (dbId && existing.some(n => n.id === dbId)) return;
+        const isDupe = !dbId && existing.some(
           (n) =>
             n.type === input.type &&
             n.poolId === input.poolId &&
@@ -81,10 +84,10 @@ export const useNotificationStore = create<NotificationStore>()(
 
         const notification: Notification = {
           ...input,
-          id: `notif-${now}-${++counter}`,
+          id: dbId || `notif-${now}-${++counter}`,
           createdAt: now,
-          dismissed: false,
-          toastDismissed: false,
+          dismissed: dbRead ?? false,
+          toastDismissed: dbId ? true : false, // DB notifications don't toast
         };
 
         set((state) => {

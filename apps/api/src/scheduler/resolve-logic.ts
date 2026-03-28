@@ -3,6 +3,7 @@ import { emitPoolStatus } from '../websocket';
 import { resetStreak } from '../services/rewards';
 import { recordReferralCommissions } from '../services/referrals';
 import { ResolverDeps, logEvent, handleRpcError } from './resolver-types';
+import { notifyPoolResolved } from '../services/notifications';
 import { resolvePoolOnChain, autoRefundBets } from './onchain-tx';
 
 /**
@@ -354,6 +355,9 @@ export async function resolvePool(
       finalPrice: finalPrice.toString(),
       winner,
     });
+
+    // Persist notifications for all bettors
+    notifyPoolResolved({ id: pool.id, asset: pool.asset, poolType: 'CRYPTO', winner }).catch(() => {});
 
     console.log(`[Scheduler] Pool ${pool.id} → RESOLVED: winner=${winner}, strike=${strikePrice}, final=${finalPrice}`);
   } catch (error) {

@@ -205,6 +205,36 @@ export async function fetchClaimableBets(
   return fetchApi<ClaimableBets>(`/api/bets/claimable?wallet=${wallet}`);
 }
 
+// Notification endpoints
+export interface DbNotification {
+  id: string;
+  walletAddress: string;
+  type: string;
+  title: string;
+  message: string;
+  severity: string;
+  poolId: string | null;
+  poolType: string | null;
+  read: boolean;
+  createdAt: string;
+}
+
+export async function fetchNotifications(wallet: string): Promise<ApiResponse<DbNotification[]>> {
+  return fetchApi<DbNotification[]>(`/api/notifications?wallet=${wallet}`);
+}
+
+export async function markNotificationRead(id: string): Promise<ApiResponse<void>> {
+  return fetchApi<void>(`/api/notifications/${id}/read`, { method: 'PATCH' });
+}
+
+export async function markAllNotificationsRead(wallet: string): Promise<ApiResponse<void>> {
+  return fetchApi<void>('/api/notifications/read-all', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ wallet }),
+  });
+}
+
 // Transaction endpoints
 export async function prepareDeposit(params: {
   poolId: string;

@@ -5,6 +5,7 @@ import { useNotificationStore } from '@/stores/notificationStore';
 import { buildNotification } from '@/lib/notifications';
 import { showRewardPopup } from '@/components/RewardPopup';
 import { fireWinConfetti } from '@/lib/confetti';
+import { fetchNotifications } from '@/lib/api';
 import { useBets } from './useBets';
 import { useWalletBridge } from './useWalletBridge';
 
@@ -18,11 +19,40 @@ export function useNotifications() {
   const betsQuery = useBets({ limit: 50 });
   const queryClient = useQueryClient();
   const initializedRef = useRef(false);
+  const prevWalletRef = useRef<string | null | undefined>(undefined);
 
-  // Clear all notifications and poolIds when wallet changes
+  // When wallet changes: clear old state, then load from DB
   useEffect(() => {
-    useNotificationStore.getState().clear();
-    initializedRef.current = false;
+    const prev = prevWalletRef.current;
+    prevWalletRef.current = walletAddress;
+
+    // Clear when switching wallets (not on first mount)
+    if (prev && prev !== walletAddress) {
+      useNotificationStore.getState().clear();
+      initializedRef.current = false;
+    }
+
+    // Load from DB when wallet is available
+    if (!walletAddress) return;
+
+    fetchNotifications(walletAddress).then(res => {
+      if (!res.success || !res.data) return;
+      const store = useNotificationStore.getState();
+      const existingIds = new Set(store.notifications.map(n => n.id));
+
+      for (const dbNotif of res.data) {
+        if (existingIds.has(dbNotif.id)) continue;
+        store.push({
+          type: dbNotif.type as any,
+          title: dbNotif.title,
+          message: dbNotif.message,
+          severity: dbNotif.severity as any,
+          poolId: dbNotif.poolId ?? undefined,
+          poolType: dbNotif.poolType ?? undefined,
+          autoHideDuration: 0,
+        }, dbNotif.id, dbNotif.read);
+      }
+    }).catch(() => {});
   }, [walletAddress]);
 
   // Seed userPoolIds from existing bets on mount / when bets data changes

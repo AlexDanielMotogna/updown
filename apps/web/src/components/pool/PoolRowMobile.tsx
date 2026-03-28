@@ -24,6 +24,7 @@ export interface PoolRowMobileProps {
   countdownTarget: string | null;
   handleCountdownComplete: () => void;
   boxImageUrl: string | undefined;
+  onClick?: () => void;
 }
 
 export function PoolRowMobile({
@@ -36,6 +37,7 @@ export function PoolRowMobile({
   isHot,
   isPopular,
   alwaysShowView,
+  onClick,
   upPct,
   downPct,
   countdownTarget,
@@ -171,10 +173,10 @@ export function PoolRowMobile({
       {/* Action button */}
       <Box sx={{ pt: 1.5 }}>
         {canBet ? (
-          <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none' }}>
             <Button
               fullWidth
               size="small"
+              onClick={(e: React.MouseEvent) => { e.stopPropagation(); onClick?.(); }}
               sx={{
                 py: 1,
                 fontSize: '0.85rem',
@@ -189,7 +191,6 @@ export function PoolRowMobile({
             >
               Join Pool
             </Button>
-          </Link>
         ) : status === 'ACTIVE' ? (
           <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none' }}>
             <Button

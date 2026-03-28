@@ -25,6 +25,7 @@ export interface PoolRowDesktopProps {
   countdownTarget: string | null;
   handleCountdownComplete: () => void;
   boxImageUrl: string | undefined;
+  onClick?: () => void;
 }
 
 export function PoolRowDesktop({
@@ -37,6 +38,7 @@ export function PoolRowDesktop({
   isHot,
   isPopular,
   alwaysShowView,
+  onClick,
   upPct,
   downPct,
   countdownTarget,
@@ -209,9 +211,9 @@ export function PoolRowDesktop({
       {/* Action */}
       <Box sx={{ display: { xs: 'none', md: 'flex' }, alignSelf: 'center', justifyContent: 'flex-start', alignItems: 'center' }}>
         {canBet ? (
-          <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none' }}>
             <Button
               size="small"
+              onClick={(e: React.MouseEvent) => { e.stopPropagation(); onClick?.(); }}
               sx={{
                 minWidth: 70,
                 px: 2,
@@ -227,7 +229,6 @@ export function PoolRowDesktop({
             >
               Join
             </Button>
-          </Link>
         ) : (alwaysShowView || status === 'ACTIVE' || !pool.winner) ? (
           <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none' }}>
             <Button

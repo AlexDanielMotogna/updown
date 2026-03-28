@@ -1,6 +1,7 @@
 import { prisma } from '../db';
 import { getAdapter } from '../services/sports';
 import type { Match } from '../services/sports/types';
+import { notifyPoolResolved } from '../services/notifications';
 import { getCachedUpcomingFixtures, getCachedFixtureResults, isFixtureCacheReady } from '../services/sports/fixture-cache';
 import { getPoolPDA, getVaultPDA, buildInitializePoolIx, buildResolveWithWinnerIx } from 'solana-client';
 import { derivePoolSeed, getUsdcMint, getConnection, getAuthorityKeypair } from '../utils/solana';
@@ -176,6 +177,7 @@ export async function resolveMatchPools(): Promise<void> {
       });
 
       emitPoolStatus(pool.id, { id: pool.id, status: 'RESOLVED', winner: winnerLabel });
+      notifyPoolResolved({ ...pool, winner: winnerLabel }).catch(() => {});
 
       console.log(`[Sports] Resolved ${pool.homeTeam} vs ${pool.awayTeam}: ${result.homeScore}-${result.awayScore} → ${winnerLabel} (${betCount} bets)`);
     } catch (error) {

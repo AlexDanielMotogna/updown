@@ -476,6 +476,25 @@ model LiveScore {
   @@map("live_scores")
 }
 
+// ─── Notifications (persisted, survives offline) ─────────────────────────────
+
+model Notification {
+  id            String   @id @default(uuid())
+  walletAddress String   @map("wallet_address")
+  type          String                              // POOL_WON, POOL_LOST, POOL_CLAIMABLE, REFUND_RECEIVED, etc.
+  title         String
+  message       String
+  severity      String   @default("info")           // success, info, warning, error
+  poolId        String?  @map("pool_id")
+  poolType      String?  @map("pool_type")
+  read          Boolean  @default(false)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([walletAddress, read])
+  @@index([walletAddress, createdAt])
+  @@map("notifications")
+}
+
 model PoolCategory {
   id         String   @id @default(uuid())
   code       String   @unique

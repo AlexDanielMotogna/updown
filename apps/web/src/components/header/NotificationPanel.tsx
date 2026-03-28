@@ -21,6 +21,8 @@ import {
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 import { useNotificationStore, type Notification, type NotificationSeverity } from '@/stores/notificationStore';
+import { markAllNotificationsRead, markNotificationRead } from '@/lib/api';
+import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { AssetIcon } from '../AssetIcon';
 import { UserLevelBadge } from '../UserLevelBadge';
 import { GAIN_COLOR, ACCENT_COLOR, DOWN_COLOR } from '@/lib/constants';
@@ -57,6 +59,7 @@ function timeAgo(ts: number): string {
 
 export function NotificationPanel() {
   const router = useRouter();
+  const { walletAddress } = useWalletBridge();
   const notifications = useNotificationStore((s) => s.notifications);
   const dismissAll = useNotificationStore((s) => s.dismissAll);
   const dismiss = useNotificationStore((s) => s.dismiss);
@@ -82,6 +85,8 @@ export function NotificationPanel() {
     (n: Notification) => {
       if (n.poolId) {
         router.push(n.poolType === 'SPORTS' ? `/match/${n.poolId}` : `/pool/${n.poolId}`);
+        dismiss(n.id);
+        markNotificationRead(n.id).catch(() => {});
         setBellOpen(false);
       }
     },
@@ -161,6 +166,7 @@ export function NotificationPanel() {
                       size="small"
                       onClick={() => {
                         dismissAll();
+                        if (walletAddress) markAllNotificationsRead(walletAddress).catch(() => {});
                         setBellOpen(false);
                       }}
                       sx={{

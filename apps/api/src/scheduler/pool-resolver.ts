@@ -1,5 +1,6 @@
 import { PoolStatus } from '@prisma/client';
 import { emitPoolStatus } from '../websocket';
+import { notifyPoolClaimable } from '../services/notifications';
 import { derivePoolSeed, getConnection } from '../utils/solana';
 import { getVaultPDA } from 'solana-client';
 import { ResolverDeps, logEvent, handleRpcError } from './resolver-types';
@@ -59,7 +60,7 @@ export class PoolResolver {
         status: PoolStatus.RESOLVED,
         updatedAt: { lte: twoSecondsAgo },
       },
-      select: { id: true },
+      select: { id: true, asset: true, poolType: true, winner: true, homeTeam: true, awayTeam: true },
     });
 
     for (const pool of staleResolved) {
@@ -68,6 +69,7 @@ export class PoolResolver {
         data: { status: PoolStatus.CLAIMABLE },
       });
       emitPoolStatus(pool.id, { id: pool.id, status: 'CLAIMABLE' });
+      notifyPoolClaimable(pool).catch(() => {});
       console.log(`[Scheduler] Pool ${pool.id} → CLAIMABLE`);
     }
   }
