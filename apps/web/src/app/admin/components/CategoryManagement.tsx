@@ -257,6 +257,7 @@ function EditDialog({ cat, open, onClose, onSave }: {
   const [configMaxDays, setConfigMaxDays] = useState('');
   const [configSportQuery, setConfigSportQuery] = useState('');
   const [configLeagueFilter, setConfigLeagueFilter] = useState('');
+  const [configLeagueId, setConfigLeagueId] = useState('');
 
   const handleOpen = () => {
     if (!cat) return;
@@ -267,6 +268,7 @@ function EditDialog({ cat, open, onClose, onSave }: {
     setConfigMaxDays(cfg?.maxDaysAhead != null ? String(cfg.maxDaysAhead) : '');
     setConfigSportQuery(typeof cfg?.sportQuery === 'string' ? cfg.sportQuery : '');
     setConfigLeagueFilter(typeof cfg?.leagueFilter === 'string' ? cfg.leagueFilter : '');
+    setConfigLeagueId(typeof cfg?.theSportsDbLeagueId === 'string' ? cfg.theSportsDbLeagueId : '');
   };
 
   const handleSave = () => {
@@ -278,6 +280,8 @@ function EditDialog({ cat, open, onClose, onSave }: {
     } else if (cat?.type === 'SPORTSDB_SPORT') {
       if (configSportQuery) config.sportQuery = configSportQuery;
       if (configLeagueFilter) config.leagueFilter = configLeagueFilter;
+    } else if (cat?.type === 'FOOTBALL_LEAGUE') {
+      if (configLeagueId) config.theSportsDbLeagueId = configLeagueId;
     }
     onSave({ ...form, config: Object.keys(config).length > 0 ? config : undefined });
   };
@@ -324,11 +328,18 @@ function EditDialog({ cat, open, onClose, onSave }: {
           />
         )}
 
-        {/* Football leagues don't need extra config */}
+        {/* Football league config — TheSportsDB league ID */}
         {cat?.type === 'FOOTBALL_LEAGUE' && (
-          <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', mt: 1 }}>
-            Football leagues use the code ({cat.code}) as the football-data.org competition ID. No extra config needed.
-          </Typography>
+          <>
+            <TextField
+              label="TheSportsDB League ID"
+              size="small"
+              value={configLeagueId}
+              onChange={e => setConfigLeagueId(e.target.value)}
+              placeholder="e.g. 4480 (Champions League)"
+              helperText="Numeric ID from TheSportsDB. Required for fixture sync."
+            />
+          </>
         )}
       </DialogContent>
       <DialogActions>

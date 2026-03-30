@@ -7,10 +7,10 @@ import {
   getStalePreMatchFixtures,
   markFixtureCacheReady,
 } from '../services/sports/fixture-cache';
-import { getFootballLeagueCodes, getSportsDbConfigs } from '../services/category-config';
+import { getFootballConfigs, getSportsDbConfigs } from '../services/category-config';
 import type { Match, MatchResult } from '../services/sports/types';
-const RATE_LIMIT_DELAY_MS = 7_000; // 7s between API calls (stays under 10/min)
-const API_SOURCE = 'football-data';
+const RATE_LIMIT_DELAY_MS = 2_000; // 2s between API calls (TheSportsDB allows 100/min)
+const API_SOURCE = 'thesportsdb';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -99,43 +99,22 @@ async function updateCacheFromResult(result: MatchResult): Promise<void> {
  * ~6 API calls (1 per league).
  */
 async function dailySync(): Promise<void> {
-  const today = new Date();
-  const dateFrom = formatDate(today);
-  const dateTo = formatDate(addDays(today, 14));
   let totalSynced = 0;
+  let sourceCount = 0;
 
-  const leagues = await getFootballLeagueCodes();
-  for (const league of leagues) {
+  // ── Football leagues (via TheSportsDB) ──
+  const footballConfigs = await getFootballConfigs();
+  for (const config of footballConfigs) {
     try {
-      const adapter = getAdapter('FOOTBALL');
-      const matches = await adapter.fetchMatchesByDateRange(league, dateFrom, dateTo);
+      const adapter = getAdapter(config.sport); // CL, PL, EL, etc.
+      const matches = await adapter.fetchUpcomingMatches(config.sport);
 
       for (const match of matches) {
         await upsertMatch(match, API_SOURCE);
       }
 
       totalSynced += matches.length;
-      console.log(`[FixtureSync] ${league}: synced ${matches.length} fixtures`);
-    } catch (error) {
-      console.error(`[FixtureSync] Failed to sync ${league}:`, error instanceof Error ? error.message : error);
-    }
-
-    // Rate limit: wait between leagues
-    await sleep(RATE_LIMIT_DELAY_MS);
-  }
-
-  // ── TheSportsDB sync (dynamic from DB config) ──
-  const sportsConfigs = await getSportsDbConfigs();
-  for (const config of sportsConfigs) {
-    try {
-      const adapter = getAdapter(config.sport);
-      const matches = await adapter.fetchUpcomingMatches(config.sport);
-
-      for (const match of matches) {
-        await upsertMatch(match, 'thesportsdb');
-      }
-
-      totalSynced += matches.length;
+      sourceCount++;
       console.log(`[FixtureSync] ${config.sport}: synced ${matches.length} fixtures`);
     } catch (error) {
       console.error(`[FixtureSync] Failed to sync ${config.sport}:`, error instanceof Error ? error.message : error);
@@ -144,7 +123,28 @@ async function dailySync(): Promise<void> {
     await sleep(RATE_LIMIT_DELAY_MS);
   }
 
-  console.log(`[FixtureSync] Daily sync complete: ${totalSynced} fixtures across ${leagues.length + sportsConfigs.length} sources`);
+  // ── Other sports (NBA, NHL, MMA, NFL via TheSportsDB) ──
+  const sportsConfigs = await getSportsDbConfigs();
+  for (const config of sportsConfigs) {
+    try {
+      const adapter = getAdapter(config.sport);
+      const matches = await adapter.fetchUpcomingMatches(config.sport);
+
+      for (const match of matches) {
+        await upsertMatch(match, API_SOURCE);
+      }
+
+      totalSynced += matches.length;
+      sourceCount++;
+      console.log(`[FixtureSync] ${config.sport}: synced ${matches.length} fixtures`);
+    } catch (error) {
+      console.error(`[FixtureSync] Failed to sync ${config.sport}:`, error instanceof Error ? error.message : error);
+    }
+
+    await sleep(RATE_LIMIT_DELAY_MS);
+  }
+
+  console.log(`[FixtureSync] Daily sync complete: ${totalSynced} fixtures across ${sourceCount} sources`);
 }
 
 /**
@@ -160,8 +160,7 @@ async function matchWindowPoll(): Promise<void> {
 
   for (const fix of fixtures) {
     try {
-      // Use the correct adapter based on the fixture's sport
-      const adapter = getAdapter(fix.sport === 'FOOTBALL' ? 'FOOTBALL' : fix.sport);
+      const adapter = getAdapter(fix.sport);
       const result = await adapter.fetchMatchResult(fix.externalId);
       if (result) {
         await updateCacheFromResult(result);
@@ -189,10 +188,9 @@ async function preMatchRefresh(): Promise<void> {
   const stale = await getStalePreMatchFixtures();
   if (stale.length === 0) return;
 
-  const adapter = getAdapter('FOOTBALL');
-
   for (const fix of stale) {
     try {
+      const adapter = getAdapter(fix.sport);
       const result = await adapter.fetchMatchResult(fix.externalId);
       if (result) {
         await prisma.sportsFixtureCache.updateMany({
