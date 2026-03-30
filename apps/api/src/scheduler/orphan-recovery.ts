@@ -141,7 +141,13 @@ export async function recoverOrphanedPools(
           resolved = true;
         } catch (resolveErr) {
           const msg = resolveErr instanceof Error ? resolveErr.message : String(resolveErr);
-          if (msg.includes('InvalidPoolStatus') || msg.includes('0x177a')) {
+          if (msg.includes('AccountNotInitialized') || msg.includes('0xbc4')) {
+            // Pool was already closed between scan and resolve attempt — count as success
+            emit('success', `  Already closed (gone between scan and resolve)`, { poolPda: poolPdaStr });
+            closed++;
+            await delay(RPC_DELAY);
+            continue;
+          } else if (msg.includes('InvalidPoolStatus') || msg.includes('0x177a')) {
             // Status not accepted by resolve — try resolve_with_winner
             emit('info', `  resolve rejected status ${status}, trying resolve_with_winner...`);
             await delay(RPC_DELAY);
