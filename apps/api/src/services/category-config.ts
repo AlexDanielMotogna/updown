@@ -22,13 +22,13 @@ export interface PoolCategoryConfig {
 // ── Hardcoded fallback (identical to current values) ────────────────────────
 
 const FALLBACK: PoolCategoryConfig[] = [
-  { code: 'CL', type: 'FOOTBALL_LEAGUE', enabled: true, comingSoon: false, label: 'Champions League', shortLabel: 'UCL', color: null, badgeUrl: 'https://crests.football-data.org/CL.png', iconKey: 'SportsSoccer', apiSource: 'football-data', adapterKey: 'FOOTBALL', numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], config: null, sortOrder: 0 },
-  { code: 'PL', type: 'FOOTBALL_LEAGUE', enabled: true, comingSoon: false, label: 'Premier League', shortLabel: 'Premier', color: null, badgeUrl: 'https://crests.football-data.org/PL.png', iconKey: 'SportsSoccer', apiSource: 'football-data', adapterKey: 'FOOTBALL', numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], config: null, sortOrder: 1 },
-  { code: 'PD', type: 'FOOTBALL_LEAGUE', enabled: true, comingSoon: false, label: 'La Liga', shortLabel: 'La Liga', color: null, badgeUrl: 'https://crests.football-data.org/PD.png', iconKey: 'SportsSoccer', apiSource: 'football-data', adapterKey: 'FOOTBALL', numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], config: null, sortOrder: 2 },
-  { code: 'SA', type: 'FOOTBALL_LEAGUE', enabled: true, comingSoon: false, label: 'Serie A', shortLabel: 'Serie A', color: null, badgeUrl: 'https://crests.football-data.org/SA.png', iconKey: 'SportsSoccer', apiSource: 'football-data', adapterKey: 'FOOTBALL', numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], config: null, sortOrder: 3 },
-  { code: 'BL1', type: 'FOOTBALL_LEAGUE', enabled: true, comingSoon: false, label: 'Bundesliga', shortLabel: 'Bundesliga', color: null, badgeUrl: 'https://crests.football-data.org/BL1.png', iconKey: 'SportsSoccer', apiSource: 'football-data', adapterKey: 'FOOTBALL', numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], config: null, sortOrder: 4 },
-  { code: 'FL1', type: 'FOOTBALL_LEAGUE', enabled: true, comingSoon: false, label: 'Ligue 1', shortLabel: 'Ligue 1', color: null, badgeUrl: 'https://crests.football-data.org/FL1.png', iconKey: 'SportsSoccer', apiSource: 'football-data', adapterKey: 'FOOTBALL', numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], config: null, sortOrder: 5 },
-  { code: 'BSA', type: 'FOOTBALL_LEAGUE', enabled: true, comingSoon: false, label: 'Brasileirao', shortLabel: 'Brasileirao', color: null, badgeUrl: 'https://crests.football-data.org/bsa.png', iconKey: 'SportsSoccer', apiSource: 'football-data', adapterKey: 'FOOTBALL', numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], config: null, sortOrder: 6 },
+  { code: 'CL', type: 'FOOTBALL_LEAGUE', enabled: true, comingSoon: false, label: 'Champions League', shortLabel: 'UCL', color: null, badgeUrl: 'https://crests.football-data.org/CL.png', iconKey: 'SportsSoccer', apiSource: 'thesportsdb', adapterKey: 'FOOTBALL', numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], config: { theSportsDbLeagueId: '4480' }, sortOrder: 0 },
+  { code: 'PL', type: 'FOOTBALL_LEAGUE', enabled: true, comingSoon: false, label: 'Premier League', shortLabel: 'Premier', color: null, badgeUrl: 'https://crests.football-data.org/PL.png', iconKey: 'SportsSoccer', apiSource: 'thesportsdb', adapterKey: 'FOOTBALL', numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], config: { theSportsDbLeagueId: '4328' }, sortOrder: 1 },
+  { code: 'PD', type: 'FOOTBALL_LEAGUE', enabled: true, comingSoon: false, label: 'La Liga', shortLabel: 'La Liga', color: null, badgeUrl: 'https://crests.football-data.org/PD.png', iconKey: 'SportsSoccer', apiSource: 'thesportsdb', adapterKey: 'FOOTBALL', numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], config: { theSportsDbLeagueId: '4335' }, sortOrder: 2 },
+  { code: 'SA', type: 'FOOTBALL_LEAGUE', enabled: true, comingSoon: false, label: 'Serie A', shortLabel: 'Serie A', color: null, badgeUrl: 'https://crests.football-data.org/SA.png', iconKey: 'SportsSoccer', apiSource: 'thesportsdb', adapterKey: 'FOOTBALL', numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], config: { theSportsDbLeagueId: '4332' }, sortOrder: 3 },
+  { code: 'BL1', type: 'FOOTBALL_LEAGUE', enabled: true, comingSoon: false, label: 'Bundesliga', shortLabel: 'Bundesliga', color: null, badgeUrl: 'https://crests.football-data.org/BL1.png', iconKey: 'SportsSoccer', apiSource: 'thesportsdb', adapterKey: 'FOOTBALL', numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], config: { theSportsDbLeagueId: '4331' }, sortOrder: 4 },
+  { code: 'FL1', type: 'FOOTBALL_LEAGUE', enabled: true, comingSoon: false, label: 'Ligue 1', shortLabel: 'Ligue 1', color: null, badgeUrl: 'https://crests.football-data.org/FL1.png', iconKey: 'SportsSoccer', apiSource: 'thesportsdb', adapterKey: 'FOOTBALL', numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], config: { theSportsDbLeagueId: '4334' }, sortOrder: 5 },
+  { code: 'BSA', type: 'FOOTBALL_LEAGUE', enabled: true, comingSoon: false, label: 'Brasileirao', shortLabel: 'Brasileirao', color: null, badgeUrl: 'https://crests.football-data.org/bsa.png', iconKey: 'SportsSoccer', apiSource: 'thesportsdb', adapterKey: 'FOOTBALL', numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], config: { theSportsDbLeagueId: '4351' }, sortOrder: 6 },
   { code: 'NBA', type: 'SPORTSDB_SPORT', enabled: true, comingSoon: false, label: 'NBA', shortLabel: 'NBA', color: '#F97316', badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/frdjqy1536585083.png', iconKey: 'SportsBasketball', apiSource: 'thesportsdb', adapterKey: 'NBA', numSides: 2, sideLabels: ['Home', 'Away'], config: { sportQuery: 'Basketball', leagueFilter: 'NBA' }, sortOrder: 20 },
   { code: 'NHL', type: 'SPORTSDB_SPORT', enabled: true, comingSoon: false, label: 'NHL', shortLabel: 'NHL', color: '#3B82F6', badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/4cem2k1619616539.png', iconKey: 'SportsHockey', apiSource: 'thesportsdb', adapterKey: 'NHL', numSides: 2, sideLabels: ['Home', 'Away'], config: { sportQuery: 'Ice Hockey', leagueFilter: 'NHL' }, sortOrder: 21 },
   { code: 'NFL', type: 'SPORTSDB_SPORT', enabled: true, comingSoon: false, label: 'NFL', shortLabel: 'NFL', color: '#22C55E', badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/g85fqz1662057187.png', iconKey: 'SportsFootball', apiSource: 'thesportsdb', adapterKey: 'NFL', numSides: 2, sideLabels: ['Home', 'Away'], config: { sportQuery: 'American Football', leagueFilter: 'NFL' }, sortOrder: 22 },
@@ -110,6 +110,20 @@ export async function getSportsDbConfigs(): Promise<SportsDbConfig[]> {
     sideLabels: c.sideLabels,
     leagueFilter: (c.config as any)?.leagueFilter || c.code,
   }));
+}
+
+/** Get football league configs for TheSportsDB adapter. */
+export async function getFootballConfigs(): Promise<SportsDbConfig[]> {
+  const cats = await getEnabledCategories('FOOTBALL_LEAGUE');
+  return cats
+    .filter(c => (c.config as any)?.theSportsDbLeagueId) // only leagues with a TheSportsDB ID
+    .map(c => ({
+      sport: c.code,         // CL, PL, EL, etc. — used as adapter key
+      sportQuery: 'Soccer',
+      numSides: c.numSides,
+      sideLabels: c.sideLabels,
+      leagueId: (c.config as any).theSportsDbLeagueId,
+    }));
 }
 
 export interface PolymarketCategoryConfig {

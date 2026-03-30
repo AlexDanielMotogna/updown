@@ -3,15 +3,14 @@ export { PolymarketAdapter } from './polymarket-adapter';
 export { SportsDbAdapter, SPORTSDB_CONFIGS } from './api-sports-adapter';
 export type { SportAdapter, Match, MatchResult, MatchStatus } from './types';
 
-import { FootballAdapter } from './football-adapter';
 import { PolymarketAdapter } from './polymarket-adapter';
 import { SportsDbAdapter, SPORTSDB_CONFIGS } from './api-sports-adapter';
+import type { SportsDbConfig } from './api-sports-adapter';
 import type { SportAdapter } from './types';
-import { getSportsDbConfigs } from '../category-config';
+import { getSportsDbConfigs, getFootballConfigs } from '../category-config';
 
 // Static adapters (always available)
 const staticAdapters: Record<string, SportAdapter> = {
-  FOOTBALL: new FootballAdapter(),
   POLYMARKET: new PolymarketAdapter(),
 };
 
@@ -19,11 +18,23 @@ const staticAdapters: Record<string, SportAdapter> = {
 const dynamicAdapters: Record<string, SportAdapter> = {};
 let dynamicInitialized = false;
 
+// Default football adapter (used when no league-specific adapter exists)
+const DEFAULT_FOOTBALL_CONFIG: SportsDbConfig = {
+  sport: 'FOOTBALL',
+  sportQuery: 'Soccer',
+  numSides: 3,
+  sideLabels: ['Home', 'Draw', 'Away'],
+};
+
 // Initialize dynamic adapters from hardcoded fallback on first use
 function initFallback(): void {
   if (dynamicInitialized) return;
   for (const c of SPORTSDB_CONFIGS) {
     dynamicAdapters[c.sport] = new SportsDbAdapter(c);
+  }
+  // Register a generic FOOTBALL adapter as fallback
+  if (!dynamicAdapters['FOOTBALL']) {
+    dynamicAdapters['FOOTBALL'] = new SportsDbAdapter(DEFAULT_FOOTBALL_CONFIG);
   }
   dynamicInitialized = true;
 }
@@ -31,14 +42,24 @@ function initFallback(): void {
 // Refresh dynamic adapters from DB config
 async function refreshDynamic(): Promise<void> {
   try {
-    const configs = await getSportsDbConfigs();
-    if (configs.length > 0) {
-      for (const c of configs) {
-        if (!dynamicAdapters[c.sport]) {
-          dynamicAdapters[c.sport] = new SportsDbAdapter(c);
-        }
-      }
+    // Load TheSportsDB sports (NBA, NHL, etc.)
+    const sportsConfigs = await getSportsDbConfigs();
+    for (const c of sportsConfigs) {
+      dynamicAdapters[c.sport] = new SportsDbAdapter(c);
     }
+
+    // Load football leagues (CL, PL, EL, etc.) — all via TheSportsDB
+    const footballConfigs = await getFootballConfigs();
+    for (const c of footballConfigs) {
+      dynamicAdapters[c.sport] = new SportsDbAdapter(c);
+    }
+
+    // Ensure a generic FOOTBALL adapter exists
+    if (!dynamicAdapters['FOOTBALL']) {
+      dynamicAdapters['FOOTBALL'] = new SportsDbAdapter(DEFAULT_FOOTBALL_CONFIG);
+    }
+
+    dynamicInitialized = true;
   } catch {
     // Fall back to hardcoded
     initFallback();
@@ -53,6 +74,8 @@ export function getAdapter(sport: string): SportAdapter {
   // Initialize from fallback if never done
   initFallback();
   if (dynamicAdapters[sport]) return dynamicAdapters[sport];
+  // For unknown football leagues, fall back to generic FOOTBALL adapter
+  if (dynamicAdapters['FOOTBALL']) return dynamicAdapters['FOOTBALL'];
   throw new Error(`No adapter for sport: ${sport}`);
 }
 

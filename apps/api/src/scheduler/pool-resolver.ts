@@ -6,7 +6,7 @@ import { derivePoolSeed, getConnection } from '../utils/solana';
 import { getVaultPDA } from 'solana-client';
 import { ResolverDeps, logEvent, handleRpcError } from './resolver-types';
 import { resolvePool } from './resolve-logic';
-import { closePoolOnChain } from './onchain-tx';
+import { closePoolOnChain, resolvePoolOnChain } from './onchain-tx';
 import {
   forceResolvePool as _forceResolvePool,
   forceRefundPool as _forceRefundPool,
@@ -218,6 +218,32 @@ export class PoolResolver {
           }
         } catch (error) {
           const errMsg = error instanceof Error ? error.message : String(error);
+
+          if (errMsg.includes('InvalidPoolStatus') || errMsg.includes('0x177a')) {
+            // Pool not resolved on-chain (resolve failed due to 429/timeout) — resolve then retry close
+            console.log(`[Scheduler] Pool ${pool.id} not resolved on-chain — resolving before close`);
+            try {
+              const strike = poolData?.strikePrice ?? BigInt(1000);
+              const final = poolData?.finalPrice ?? strike;
+              await resolvePoolOnChain(this.deps, pool.id, strike, final);
+              // Retry close immediately
+              const txSig2 = await closePoolOnChain(this.deps, pool.id);
+              this.closeFailures.delete(pool.id);
+              await this.deps.prisma.priceSnapshot.deleteMany({ where: { poolId: pool.id } });
+              if (betCount === 0) {
+                await this.deps.prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: pool.id } });
+                await this.deps.prisma.pool.deleteMany({ where: { id: pool.id } });
+                console.log(`[Scheduler] Pool ${pool.id} resolved + closed on-chain & deleted (empty)`);
+              } else {
+                await this.deps.prisma.pool.update({ where: { id: pool.id }, data: { status: 'RESOLVED' } });
+                console.log(`[Scheduler] Pool ${pool.id} resolved + closed on-chain (${betCount} bets kept)`);
+              }
+            } catch (resolveErr) {
+              this.closeFailures.set(pool.id, Date.now());
+              console.warn(`[Scheduler] Pool ${pool.id} resolve+close failed (will retry in 5m):`, resolveErr instanceof Error ? resolveErr.message : resolveErr);
+            }
+            continue;
+          }
 
           if (errMsg.includes('AccountNotInitialized') || errMsg.includes('Custom":3012')) {
             console.log(`[Scheduler] Pool ${pool.id} already closed on-chain — cleaning up DB records`);

@@ -4,11 +4,12 @@ import { sportsDbFetch, sportsDbFetchV2 } from './api-sports-fetch';
 // ── Sport Configurations ────────────────────────────────────────────────────
 
 export interface SportsDbConfig {
-  sport: string;          // NBA, NHL, MMA
-  sportQuery: string;     // TheSportsDB sport name: 'Basketball', 'Ice Hockey', 'Fighting'
+  sport: string;          // NBA, NHL, MMA, or league code like CL, PL
+  sportQuery: string;     // TheSportsDB sport name: 'Basketball', 'Ice Hockey', 'Soccer'
   numSides: number;
   sideLabels: string[];
   leagueFilter?: string;  // Only show this league (e.g., 'NBA', 'NHL')
+  leagueId?: string;      // TheSportsDB numeric league ID (e.g., '4480' for Champions League)
 }
 
 function mapStatus(status: string | null): MatchStatus {
@@ -22,7 +23,7 @@ function mapStatus(status: string | null): MatchStatus {
   return 'LIVE';
 }
 
-function mapEvent(e: any, sport: string): Match | null {
+function mapEvent(e: any, sport: string, leagueOverride?: string): Match | null {
   if (!e.idEvent || !e.strHomeTeam || !e.strAwayTeam) return null;
 
   const kickoff = e.dateEvent && e.strTime
@@ -33,7 +34,7 @@ function mapEvent(e: any, sport: string): Match | null {
   return {
     id: String(e.idEvent),
     sport,
-    league: sport,
+    league: leagueOverride || sport,
     leagueName: e.strLeague || sport,
     homeTeam: e.strHomeTeam,
     awayTeam: e.strAwayTeam,
@@ -43,6 +44,7 @@ function mapEvent(e: any, sport: string): Match | null {
     status: mapStatus(e.strStatus),
     homeScore: e.intHomeScore != null ? Number(e.intHomeScore) : undefined,
     awayScore: e.intAwayScore != null ? Number(e.intAwayScore) : undefined,
+    matchday: e.intRound != null ? Number(e.intRound) : undefined,
   };
 }
 
@@ -92,20 +94,28 @@ export class SportsDbAdapter implements SportAdapter {
     this.sideLabels = config.sideLabels;
   }
 
-  async fetchUpcomingMatches(_league: string): Promise<Match[]> {
-    // Fetch next 15 events for this sport
+  async fetchUpcomingMatches(league: string): Promise<Match[]> {
+    // If leagueId is set, use eventsnextleague (specific league — better for football)
+    if (this.config.leagueId) {
+      const data = await sportsDbFetch(`eventsnextleague.php?id=${this.config.leagueId}`);
+      const events = data?.events || [];
+      return events
+        .map((e: any) => mapEvent(e, this.config.sport, league))
+        .filter((m: Match | null): m is Match => m !== null);
+    }
+
+    // Fallback: fetch by sport name + day (for NBA, NHL, MMA, etc.)
     const today = new Date().toISOString().slice(0, 10);
     const data = await sportsDbFetch(`eventsday.php?d=${today}&s=${encodeURIComponent(this.config.sportQuery)}`);
     const events = data?.events || [];
 
     return events
-      .map((e: any) => mapEvent(e, this.config.sport))
+      .map((e: any) => mapEvent(e, this.config.sport, league))
       .filter((m: Match | null): m is Match => {
         if (!m) return false;
-        // Filter to specific league if configured
         if (this.config.leagueFilter) {
-          const league = (m.leagueName || '').toUpperCase();
-          return league === this.config.leagueFilter;
+          const leagueName = (m.leagueName || '').toUpperCase();
+          return leagueName === this.config.leagueFilter;
         }
         return true;
       });
@@ -127,16 +137,18 @@ export class SportsDbAdapter implements SportAdapter {
       status: 'FINISHED',
       homeScore: home,
       awayScore: away,
-      winner: home > away ? 'HOME' : 'AWAY', // 2-way, no draw
+      winner: home > away ? 'HOME' : away > home ? 'AWAY' : 'DRAW',
     };
   }
 
-  async fetchMatchesByDateRange(_league: string, dateFrom: string, _dateTo: string): Promise<Match[]> {
-    // TheSportsDB only supports single-day queries, fetch from dateFrom
-    return this.fetchUpcomingMatches(_league);
+  async fetchMatchesByDateRange(league: string, _dateFrom: string, _dateTo: string): Promise<Match[]> {
+    // TheSportsDB doesn't support date ranges — use upcoming matches
+    return this.fetchUpcomingMatches(league);
   }
 
   resolveWinner(result: MatchResult): number {
-    return result.winner === 'HOME' ? 0 : 1;
+    if (result.winner === 'HOME') return 0;
+    if (result.winner === 'AWAY') return 1;
+    return 2; // DRAW (3-way sports like football)
   }
 }
