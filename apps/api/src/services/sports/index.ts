@@ -1,4 +1,3 @@
-export { FootballAdapter } from './football-adapter';
 export { PolymarketAdapter } from './polymarket-adapter';
 export { SportsDbAdapter, SPORTSDB_CONFIGS } from './api-sports-adapter';
 export type { SportAdapter, Match, MatchResult, MatchStatus } from './types';

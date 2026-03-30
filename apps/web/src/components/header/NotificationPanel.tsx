@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import { useBadgeLookup } from '@/hooks/useCategories';
 import {
   Box,
   Typography,
@@ -59,6 +60,7 @@ function timeAgo(ts: number): string {
 
 export function NotificationPanel() {
   const router = useRouter();
+  const getBadge = useBadgeLookup();
   const { walletAddress } = useWalletBridge();
   const notifications = useNotificationStore((s) => s.notifications);
   const dismissAll = useNotificationStore((s) => s.dismissAll);
@@ -224,7 +226,7 @@ export function NotificationPanel() {
                             getSeverityIcon(n.severity, n.type)
                           ) : n.type.startsWith('TOURNAMENT_') && n.asset ? (
                             n.asset.includes(':') ? (
-                              <Box component="img" src={`https://crests.football-data.org/${n.asset.split(':')[1]}.png`} alt="" sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
+                              <Box component="img" src={getBadge(n.asset.split(':')[1]) || ''} alt="" sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
                             ) : (
                               <Box component="img" src={`/tournaments/tournament-${n.asset.toLowerCase()}.png`} alt={n.asset} sx={{ width: 22, height: 22, objectFit: 'contain' }} />
                             )

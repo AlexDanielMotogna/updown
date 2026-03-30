@@ -122,55 +122,44 @@ export function initWebSocket(httpServer: HttpServer): Server {
 }
 
 /**
- * Start price streaming for an asset
+ * Price streaming via Pacifica WebSocket — 0 REST requests.
+ * Pacifica pushes price updates through wss://ws.pacifica.fi/ws.
  */
-const priceIntervals = new Map<string, NodeJS.Timeout>();
+const activeAssets = new Set<string>();
 
-async function startPriceStream(asset: string): Promise<void> {
-  if (priceIntervals.has(asset)) return;
-  // Skip sports assets (league codes contain ':')
-  if (asset.includes(':')) return;
+function startPriceStream(asset: string): void {
+  if (asset.includes(':')) return; // skip sports league codes
+  if (activeAssets.has(asset)) return;
+  activeAssets.add(asset);
 
-  console.log(`[WS] Starting price stream for ${asset}`);
+  if (!priceProvider) return;
 
-  // Fetch price every second and broadcast
-  const interval = setInterval(async () => {
-    try {
-      if (!priceProvider) return;
+  console.log(`[WS] Subscribing to ${asset} via Pacifica WebSocket`);
 
-      const tick = await priceProvider.getSpotPrice(asset);
-      // tick.price is in 6 decimal format (e.g., 103500000000 for $103,500.00)
-      const priceStr = (Number(tick.price) / 1_000_000).toFixed(2);
+  priceProvider.subscribe(asset, (tick) => {
+    const priceStr = (Number(tick.price) / 1_000_000).toFixed(2);
 
-      // Cache the price
-      priceCache.set(asset, {
+    priceCache.set(asset, {
+      price: priceStr,
+      timestamp: tick.timestamp.getTime(),
+    });
+
+    if (io) {
+      io.to(`prices:${asset}`).emit('price:tick', {
+        asset,
         price: priceStr,
         timestamp: tick.timestamp.getTime(),
       });
-
-      // Broadcast to room
-      if (io) {
-        io.to(`prices:${asset}`).emit('price:tick', {
-          asset,
-          price: priceStr,
-          timestamp: tick.timestamp.getTime(),
-        });
-      }
-    } catch (error) {
-      console.error(`[WS] Failed to fetch price for ${asset}:`, error);
     }
-  }, 1000);
-
-  priceIntervals.set(asset, interval);
+  });
 }
 
 function stopPriceStream(asset: string): void {
-  const interval = priceIntervals.get(asset);
-  if (interval) {
-    clearInterval(interval);
-    priceIntervals.delete(asset);
-    console.log(`[WS] Stopped price stream for ${asset}`);
+  activeAssets.delete(asset);
+  if (priceProvider) {
+    priceProvider.unsubscribe(asset);
   }
+  console.log(`[WS] Unsubscribed from ${asset}`);
 }
 
 /**
@@ -311,10 +300,7 @@ export function getIO(): Server | null {
  * Cleanup on shutdown
  */
 export function shutdownWebSocket(): void {
-  // Stop all price streams
-  for (const [asset] of priceIntervals) {
-    stopPriceStream(asset);
-  }
+  activeAssets.clear();
 
   // Disconnect provider
   if (priceProvider) {

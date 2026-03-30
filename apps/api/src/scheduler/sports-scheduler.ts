@@ -11,6 +11,14 @@ import { emitPoolStatus } from '../websocket';
 import { generateMatchAnalysis } from '../services/sports/match-analysis';
 import { getFootballLeagueCodes, getSportsDbConfigs, getPolymarketCategories, getMatchDurationHours } from '../services/category-config';
 const POOL_OPEN_HOURS_BEFORE = 720; // Open pool 30 days before kickoff
+const TX_DELAY_MS = 2_000; // 2s between on-chain transactions to avoid RPC 429s
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Mutex: prevent concurrent createMatchPools calls (fixture-sync + polymarket-sync both call it at startup)
+let _creating = false;
 
 /** Derive the correct adapter based on the pool's league code. */
 function getAdapterForLeague(league: string | null | undefined) {
@@ -28,6 +36,19 @@ function getAdapterForLeague(league: string | null | undefined) {
  * Runs every 6 hours.
  */
 export async function createMatchPools(): Promise<void> {
+  if (_creating) {
+    console.log('[Sports] createMatchPools already running — skipping');
+    return;
+  }
+  _creating = true;
+  try {
+    await _createMatchPoolsInner();
+  } finally {
+    _creating = false;
+  }
+}
+
+async function _createMatchPoolsInner(): Promise<void> {
   // ── Football leagues (only if fixture cache is ready) ──
   if (!isFixtureCacheReady()) {
     console.log('[Sports] Fixture cache not ready yet, skipping football pools');
@@ -47,6 +68,7 @@ export async function createMatchPools(): Promise<void> {
         if (hoursUntilKickoff > POOL_OPEN_HOURS_BEFORE || hoursUntilKickoff < 0) continue;
 
         await createSportsPool(match, leagueCode);
+        await sleep(TX_DELAY_MS);
       }
     } catch (error) {
       console.error(`[Sports] Failed to fetch matches for ${leagueCode}:`, error);
@@ -71,13 +93,14 @@ export async function createMatchPools(): Promise<void> {
         if (hoursUntilKickoff > maxHours || hoursUntilKickoff < 0) continue;
 
         await createSportsPool(match, cat.code);
+        await sleep(TX_DELAY_MS);
       }
     } catch (error) {
       console.error(`[Sports] Failed to create PM pools for ${cat.code}:`, error);
     }
   }
 
-  // ── TheSportsDB (dynamic from DB config) ──
+  // ── Other sports (dynamic from DB config) ──
   const sportsConfigs = await getSportsDbConfigs();
   for (const config of sportsConfigs) {
     try {
@@ -93,6 +116,7 @@ export async function createMatchPools(): Promise<void> {
         if (hoursUntilKickoff > POOL_OPEN_HOURS_BEFORE || hoursUntilKickoff < 0) continue;
 
         await createSportsPool(match, config.sport);
+        await sleep(TX_DELAY_MS);
       }
     } catch (error) {
       console.error(`[Sports] Failed to create ${config.sport} pools:`, error);
@@ -329,14 +353,14 @@ async function createSportsPool(match: Match, leagueCode: string): Promise<void>
  * Start the sports scheduler with cron jobs.
  */
 export function startSportsScheduler(): void {
-  // Create match pools every 6 hours
+  // Create match pools every 2 hours
   const createInterval = setInterval(async () => {
     try {
       await createMatchPools();
     } catch (error) {
       console.error('[Sports] Scheduler create error:', error);
     }
-  }, 6 * 60 * 60 * 1000);
+  }, 2 * 60 * 60 * 1000);
 
   // Resolve finished matches every 5 minutes
   const resolveInterval = setInterval(async () => {
@@ -347,13 +371,13 @@ export function startSportsScheduler(): void {
     }
   }, 5 * 60 * 1000);
 
-  // Run once on startup
-  createMatchPools().catch(e => console.error('[Sports] Initial create error:', e));
+  // Initial pool creation is handled by fixture-sync.ts after dailySync completes.
+  // Do NOT call createMatchPools() here to avoid duplicate pool creation.
 
   // Resolve any stuck pools 15s after startup (gives livescore poll time to populate)
   setTimeout(() => {
     resolveMatchPools().catch(e => console.error('[Sports] Initial resolve error:', e));
   }, 15_000);
 
-  console.log('[Sports] Scheduler started (create: 6h, resolve: 5m, initial resolve: 15s)');
+  console.log('[Sports] Scheduler started (create: 2h, resolve: 5m, initial resolve: 15s)');
 }

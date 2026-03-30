@@ -323,7 +323,7 @@ poolsRouter.get('/:id/livescore', async (req, res) => {
     if (!pool?.matchId) return res.json({ success: true, data: null });
     // Try by eventId first, then fallback to DB (TheSportsDB sports: NBA, NHL, NFL, MMA)
     let score = await getLiveScoreWithFallback(pool.matchId);
-    // Fallback: try by team name (football pools with football-data.org IDs)
+    // Fallback: try by team name (football pools)
     if (!score && pool.homeTeam) {
       score = await getLiveScoreByTeamWithFallback(pool.homeTeam);
     }

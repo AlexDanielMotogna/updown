@@ -101,8 +101,9 @@ export class PacificaProvider implements IMarketDataProvider {
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
 
-        // Don't retry on logic errors (symbol not found)
-        if (lastError.message.includes('not found in Pacifica prices')) {
+        // Don't retry on logic errors or rate limits (retrying 429 just makes it worse)
+        if (lastError.message.includes('not found in Pacifica prices') ||
+            lastError.message.includes('429')) {
           throw lastError;
         }
 
@@ -169,7 +170,8 @@ export class PacificaProvider implements IMarketDataProvider {
    * Connect to WebSocket and subscribe to prices channel
    */
   private connectWebSocket(): void {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+    // Avoid duplicate connections — also skip if already CONNECTING
+    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
       return;
     }
 

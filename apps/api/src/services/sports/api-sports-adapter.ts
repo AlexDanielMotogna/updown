@@ -1,15 +1,15 @@
 import { SportAdapter, Match, MatchResult, MatchStatus } from './types';
-import { sportsDbFetch, sportsDbFetchV2 } from './api-sports-fetch';
+import { sportsDbFetch } from './api-sports-fetch';
 
 // ── Sport Configurations ────────────────────────────────────────────────────
 
 export interface SportsDbConfig {
   sport: string;          // NBA, NHL, MMA, or league code like CL, PL
-  sportQuery: string;     // TheSportsDB sport name: 'Basketball', 'Ice Hockey', 'Soccer'
+  sportQuery: string;     // Sport name for eventsday: 'Basketball', 'Ice Hockey', 'Soccer'
   numSides: number;
   sideLabels: string[];
   leagueFilter?: string;  // Only show this league (e.g., 'NBA', 'NHL')
-  leagueId?: string;      // TheSportsDB numeric league ID (e.g., '4480' for Champions League)
+  leagueId?: string;      // External league ID for eventsnextleague endpoint
 }
 
 function mapStatus(status: string | null): MatchStatus {
@@ -19,7 +19,6 @@ function mapStatus(status: string | null): MatchStatus {
   if (s === 'match finished' || s === 'ft' || s === 'finished' || s === 'aet' || s === 'ap') return 'FINISHED';
   if (s === 'postponed' || s === 'pst') return 'POSTPONED';
   if (s === 'cancelled' || s === 'canc') return 'CANCELLED';
-  // Anything else is likely in-progress
   return 'LIVE';
 }
 
@@ -46,6 +45,16 @@ function mapEvent(e: any, sport: string, leagueOverride?: string): Match | null 
     awayScore: e.intAwayScore != null ? Number(e.intAwayScore) : undefined,
     matchday: e.intRound != null ? Number(e.intRound) : undefined,
   };
+}
+
+function formatDate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function addDays(d: Date, n: number): Date {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
 }
 
 // ── Configs ─────────────────────────────────────────────────────────────────
@@ -83,6 +92,8 @@ export const SPORTSDB_CONFIGS: SportsDbConfig[] = [
 
 // ── Adapter ─────────────────────────────────────────────────────────────────
 
+const DAYS_AHEAD = 7; // days to fetch when using eventsday fallback
+
 export class SportsDbAdapter implements SportAdapter {
   sport: string;
   numSides: number;
@@ -95,7 +106,7 @@ export class SportsDbAdapter implements SportAdapter {
   }
 
   async fetchUpcomingMatches(league: string): Promise<Match[]> {
-    // If leagueId is set, use eventsnextleague (specific league — better for football)
+    // Primary: use eventsnextleague when we have a league ID (returns ~25 upcoming events)
     if (this.config.leagueId) {
       const data = await sportsDbFetch(`eventsnextleague.php?id=${this.config.leagueId}`);
       const events = data?.events || [];
@@ -104,21 +115,32 @@ export class SportsDbAdapter implements SportAdapter {
         .filter((m: Match | null): m is Match => m !== null);
     }
 
-    // Fallback: fetch by sport name + day (for NBA, NHL, MMA, etc.)
-    const today = new Date().toISOString().slice(0, 10);
-    const data = await sportsDbFetch(`eventsday.php?d=${today}&s=${encodeURIComponent(this.config.sportQuery)}`);
-    const events = data?.events || [];
+    // Fallback: fetch multiple days ahead via eventsday (for sports without leagueId)
+    const allMatches: Match[] = [];
+    const seen = new Set<string>();
 
-    return events
-      .map((e: any) => mapEvent(e, this.config.sport, league))
-      .filter((m: Match | null): m is Match => {
-        if (!m) return false;
-        if (this.config.leagueFilter) {
-          const leagueName = (m.leagueName || '').toUpperCase();
-          return leagueName === this.config.leagueFilter;
+    for (let i = 0; i < DAYS_AHEAD; i++) {
+      const date = formatDate(addDays(new Date(), i));
+      try {
+        const data = await sportsDbFetch(`eventsday.php?d=${date}&s=${encodeURIComponent(this.config.sportQuery)}`);
+        const events = data?.events || [];
+
+        for (const e of events) {
+          const m = mapEvent(e, this.config.sport, league);
+          if (!m) continue;
+          if (seen.has(m.id)) continue;
+          // Apply league filter (exact match)
+          if (this.config.leagueFilter) {
+            const leagueName = (m.leagueName || '').toUpperCase();
+            if (leagueName !== this.config.leagueFilter) continue;
+          }
+          seen.add(m.id);
+          allMatches.push(m);
         }
-        return true;
-      });
+      } catch { /* skip individual day failures */ }
+    }
+
+    return allMatches;
   }
 
   async fetchMatchResult(matchId: string): Promise<MatchResult | null> {
@@ -142,13 +164,12 @@ export class SportsDbAdapter implements SportAdapter {
   }
 
   async fetchMatchesByDateRange(league: string, _dateFrom: string, _dateTo: string): Promise<Match[]> {
-    // TheSportsDB doesn't support date ranges — use upcoming matches
     return this.fetchUpcomingMatches(league);
   }
 
   resolveWinner(result: MatchResult): number {
     if (result.winner === 'HOME') return 0;
     if (result.winner === 'AWAY') return 1;
-    return 2; // DRAW (3-way sports like football)
+    return 2;
   }
 }

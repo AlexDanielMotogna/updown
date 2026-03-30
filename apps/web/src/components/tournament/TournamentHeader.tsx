@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Box, Typography, Chip, Button, CircularProgress, IconButton } from '@mui/material';
 import { ArrowBack, ExpandMore, ExpandLess } from '@mui/icons-material';
+import { useBadgeLookup } from '@/hooks/useCategories';
 import Link from 'next/link';
 import { UP_COLOR, ACCENT_COLOR, GAIN_COLOR } from '@/lib/constants';
 import { AssetIcon } from '@/components/AssetIcon';
@@ -30,6 +31,7 @@ export function TournamentHeader({
   tournament: t, filled, entryFee, prizePool, connected, walletAddress,
   alreadyRegistered, regStatus, regTx, isBusy, onRegister, onInfoClick,
 }: Props) {
+  const getBadge = useBadgeLookup();
   const isReg = t.status === 'REGISTERING';
   const isActive = t.status === 'ACTIVE';
   const statusColor = isReg ? UP_COLOR : isActive ? ACCENT_COLOR : 'rgba(255,255,255,0.35)';
@@ -107,7 +109,7 @@ export function TournamentHeader({
                       {(icon || leagueCode) ? (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                           {leagueCode ? (
-                            <Box component="img" src={`https://crests.football-data.org/${leagueCode}.png`} alt="" sx={{ width: 14, height: 14, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '1px' }} />
+                            <Box component="img" src={getBadge(leagueCode) || ''} alt="" sx={{ width: 14, height: 14, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '1px' }} />
                           ) : (
                             <AssetIcon asset={value} size={14} />
                           )}

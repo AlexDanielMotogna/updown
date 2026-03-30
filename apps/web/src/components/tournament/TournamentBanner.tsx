@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Box, Typography, Button } from '@mui/material';
 import { ArrowForward } from '@mui/icons-material';
+import { useBadgeLookup } from '@/hooks/useCategories';
 import Link from 'next/link';
 import { fetchTournaments, type TournamentSummary } from '@/lib/api';
 import { formatDate } from '@/lib/format';
@@ -25,6 +26,7 @@ const LEAGUE_LABELS: Record<string, string> = {
 };
 
 function BannerSlide({ t, theme }: { t: TournamentSummary; theme: typeof BANNER_THEMES[0] }) {
+  const getBadge = useBadgeLookup();
   const entryFeeUsdc = (Number(t.entryFee) / 1_000_000).toFixed(2);
   const totalPot = (Number(t.entryFee) * t.size / 1_000_000).toFixed(2);
   const filled = t.participantCount ?? t._count?.participants ?? 0;
@@ -33,7 +35,7 @@ function BannerSlide({ t, theme }: { t: TournamentSummary; theme: typeof BANNER_
   const leagueName = isSports && t.league ? (LEAGUE_LABELS[t.league] || t.league) : t.asset;
   const matchInfo = isSports ? 'real match results' : `${Math.floor(Number(t.matchDuration) / 60)}min matches`;
   const imgSrc = isSports && t.league
-    ? `https://crests.football-data.org/${t.league}.png`
+    ? (getBadge(t.league) || '')
     : `/tournaments/tournament-${t.asset.toLowerCase()}.png`;
 
   const title = isRegistering ? `$${totalPot} tournament now open` : `$${totalPot} tournament in progress`;

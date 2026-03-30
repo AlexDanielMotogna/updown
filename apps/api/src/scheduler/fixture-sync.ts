@@ -10,7 +10,7 @@ import {
 import { getFootballConfigs, getSportsDbConfigs } from '../services/category-config';
 import type { Match, MatchResult } from '../services/sports/types';
 const RATE_LIMIT_DELAY_MS = 2_000; // 2s between API calls (TheSportsDB allows 100/min)
-const API_SOURCE = 'thesportsdb';
+const API_SOURCE = 'sports';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -110,7 +110,9 @@ async function dailySync(): Promise<void> {
       const matches = await adapter.fetchUpcomingMatches(config.sport);
 
       for (const match of matches) {
-        await upsertMatch(match, API_SOURCE);
+        // Store with sport='FOOTBALL' so reads via getCachedUpcomingFixtures('FOOTBALL', leagueCode) match.
+        // The league code (CL, PL, etc.) goes in the league field.
+        await upsertMatch({ ...match, sport: 'FOOTBALL', league: config.sport }, API_SOURCE);
       }
 
       totalSynced += matches.length;

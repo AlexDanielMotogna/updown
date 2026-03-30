@@ -69,7 +69,7 @@ function rowToResult(row: {
 
 /**
  * Get upcoming/scheduled fixtures for a sport+league.
- * Returns only the next matchday (mimics FootballAdapter.fetchUpcomingMatches).
+ * Returns all upcoming fixtures ordered by kickoff time.
  */
 export async function getCachedUpcomingFixtures(
   sport: string,
@@ -84,18 +84,8 @@ export async function getCachedUpcomingFixtures(
       kickoff: { gte: new Date() },
     },
     orderBy: { kickoff: 'asc' },
-    take: opts?.limit ?? 20,
+    take: opts?.limit ?? 50,
   });
-
-  if (rows.length === 0) return [];
-
-  // Group by matchday and return only the earliest matchday
-  const withMatchday = rows.filter(r => r.matchday != null);
-  if (withMatchday.length > 0) {
-    const nextMatchday = Math.min(...withMatchday.map(r => r.matchday!));
-    const filtered = rows.filter(r => r.matchday === nextMatchday);
-    return filtered.map(rowToMatch);
-  }
 
   return rows.map(rowToMatch);
 }

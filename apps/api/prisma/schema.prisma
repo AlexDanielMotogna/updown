@@ -440,7 +440,7 @@ model SportsFixtureCache {
   marketOdds      Float?           @map("market_odds")
   groupItemTitle  String?          @map("group_item_title")
   clobTokenIds    String?          @map("clob_token_ids")
-  apiSource       String   @default("football-data") @map("api_source")
+  apiSource       String   @default("sports") @map("api_source")
   lastSyncedAt    DateTime @map("last_synced_at")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")

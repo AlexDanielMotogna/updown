@@ -31,6 +31,43 @@ interface HealthData {
   };
 }
 
+interface MissingEvent {
+  eventId: string;
+  homeTeam: string;
+  awayTeam: string;
+  sport: string;
+  missingSince: number;
+  reason: string;
+  chatgptAttempted: boolean;
+}
+
+interface LivescoreIncident {
+  timestamp: number;
+  type: string;
+  eventId?: string;
+  details: string;
+}
+
+interface LivescoreMetricsData {
+  data: {
+    lastPollAt: number | null;
+    lastPollDurationMs: number;
+    lastPollEventCount: number;
+    consecutivePollFailures: number;
+    lastPollError: string | null;
+    sportsDbSuccessCount: number;
+    sportsDbFailureCount: number;
+    sportsDbAvgLatencyMs: number;
+    sportsDb429Count: number;
+    lookupCallsTotal: number;
+    chatgptCallsTotal: number;
+    chatgptRejectionsTotal: number;
+    chatgptCircuitBreakerOpen: boolean;
+    missingEvents: MissingEvent[];
+    incidents: LivescoreIncident[];
+  };
+}
+
 function StatusChip({ ok, label }: { ok: boolean; label: string }) {
   return (
     <Chip
@@ -52,6 +89,150 @@ function timeAgo(iso: string | null): string {
   if (seconds < 60) return `${seconds}s ago`;
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
   return `${Math.floor(seconds / 3600)}h ago`;
+}
+
+function LivescoreHealth() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin-livescore-health'],
+    queryFn: () => adminFetch<LivescoreMetricsData>('/health/livescore'),
+    refetchInterval: 15000,
+  });
+
+  if (isLoading || !data) return null;
+
+  const m = data.data;
+  const pollAge = m.lastPollAt ? Math.round((Date.now() - m.lastPollAt) / 1000) : null;
+
+  // Determine TheSportsDB status
+  const sportsDbStatus = m.consecutivePollFailures >= 3
+    ? { label: 'Down', ok: false }
+    : m.consecutivePollFailures >= 1 || m.sportsDb429Count > 0
+    ? { label: 'Degraded', ok: false }
+    : { label: 'Healthy', ok: true };
+
+  // Determine ChatGPT status
+  const chatgptStatus = m.chatgptCircuitBreakerOpen
+    ? { label: 'Circuit Open', ok: false }
+    : m.chatgptCallsTotal > 0
+    ? { label: 'Active', ok: true }
+    : { label: 'Standby', ok: true };
+
+  return (
+    <Card sx={{ p: 2 }}>
+      <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Livescore Health</Typography>
+
+      {/* Status row */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 2, mb: 2 }}>
+        <Box>
+          <Typography variant="caption" color="text.secondary" display="block">TheSportsDB</Typography>
+          <StatusChip ok={sportsDbStatus.ok} label={sportsDbStatus.label} />
+          {pollAge != null && (
+            <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+              Last poll: {pollAge}s ago ({m.lastPollDurationMs}ms)
+            </Typography>
+          )}
+        </Box>
+        <Box>
+          <Typography variant="caption" color="text.secondary" display="block">ChatGPT</Typography>
+          <StatusChip ok={chatgptStatus.ok} label={chatgptStatus.label} />
+          <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+            Calls: {m.chatgptCallsTotal}
+          </Typography>
+        </Box>
+        <Box>
+          <Typography variant="caption" color="text.secondary" display="block">Events in feed</Typography>
+          <Typography variant="h6">{m.lastPollEventCount}</Typography>
+        </Box>
+        <Box>
+          <Typography variant="caption" color="text.secondary" display="block">Lookups</Typography>
+          <Typography variant="h6">{m.lookupCallsTotal}</Typography>
+        </Box>
+      </Box>
+
+      {/* Stats row */}
+      <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+        <Typography variant="caption">
+          SportsDB: {m.sportsDbSuccessCount} ok / {m.sportsDbFailureCount} fail / {m.sportsDb429Count} 429
+        </Typography>
+        <Typography variant="caption">
+          ChatGPT: {m.chatgptCallsTotal} calls / {m.chatgptRejectionsTotal} rejected
+        </Typography>
+        {m.lastPollError && (
+          <Typography variant="caption" color="error.main">
+            Last error: {m.lastPollError.slice(0, 80)}
+          </Typography>
+        )}
+      </Box>
+
+      {/* Missing events */}
+      {m.missingEvents.length > 0 && (
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="caption" color="warning.main" sx={{ fontWeight: 600 }}>
+            Missing Events ({m.missingEvents.length}):
+          </Typography>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontSize: 11 }}>Match</TableCell>
+                  <TableCell sx={{ fontSize: 11 }}>Sport</TableCell>
+                  <TableCell sx={{ fontSize: 11 }}>Missing</TableCell>
+                  <TableCell sx={{ fontSize: 11 }}>Reason</TableCell>
+                  <TableCell sx={{ fontSize: 11 }}>GPT</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {m.missingEvents.map(ev => (
+                  <TableRow key={ev.eventId}>
+                    <TableCell sx={{ fontSize: 11 }}>{ev.homeTeam} vs {ev.awayTeam}</TableCell>
+                    <TableCell sx={{ fontSize: 11 }}>{ev.sport}</TableCell>
+                    <TableCell sx={{ fontSize: 11 }}>{Math.round((Date.now() - ev.missingSince) / 60000)}m</TableCell>
+                    <TableCell sx={{ fontSize: 11 }}>
+                      <Chip label={ev.reason} size="small" sx={{ fontSize: 10, height: 20, bgcolor: 'rgba(245,158,11,0.15)', color: '#F59E0B' }} />
+                    </TableCell>
+                    <TableCell sx={{ fontSize: 11 }}>{ev.chatgptAttempted ? 'Yes' : 'No'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
+      )}
+
+      {/* Recent incidents */}
+      {m.incidents.length > 0 && (
+        <Box>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+            Recent Incidents ({m.incidents.length}):
+          </Typography>
+          <Box sx={{ maxHeight: 200, overflow: 'auto', mt: 0.5, bgcolor: 'rgba(0,0,0,0.2)', borderRadius: 1, p: 1 }}>
+            {[...m.incidents].reverse().slice(0, 50).map((inc, i) => {
+              const time = new Date(inc.timestamp).toLocaleTimeString();
+              const typeColor: Record<string, string> = {
+                SPORTSDB_POLL_FAIL: '#F87171',
+                SPORTSDB_429: '#F87171',
+                EVENT_DISAPPEARED: '#F59E0B',
+                STUCK_NS: '#F59E0B',
+                SCORE_FROZEN: '#F59E0B',
+                CHATGPT_TRIGGERED: '#60A5FA',
+                CHATGPT_SUCCESS: '#22C55E',
+                CHATGPT_REJECTED: '#F59E0B',
+                CHATGPT_ERROR: '#F87171',
+                MIDNIGHT_BOUNDARY: '#A78BFA',
+              };
+              return (
+                <Typography key={i} variant="caption" display="block" sx={{ fontFamily: 'monospace', fontSize: 10, lineHeight: 1.6 }}>
+                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>{time}</span>{' '}
+                  <span style={{ color: typeColor[inc.type] || '#fff' }}>{inc.type}</span>{' '}
+                  {inc.details}
+                </Typography>
+              );
+            })}
+          </Box>
+        </Box>
+      )}
+    </Card>
+  );
 }
 
 export function SystemHealth() {
@@ -111,6 +292,9 @@ export function SystemHealth() {
           )}
         </Card>
       </Box>
+
+      {/* Livescore health */}
+      <LivescoreHealth />
 
       {/* Jobs health table */}
       <Card sx={{ p: 2 }}>

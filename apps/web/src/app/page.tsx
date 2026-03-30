@@ -181,7 +181,7 @@ export default function MarketsPage() {
     if (!p.matchId) return undefined;
     const byId = liveScores.get(p.matchId);
     if (byId) return byId;
-    // Team name fallback only for football pools (football-data.org uses different IDs than TheSportsDB)
+    // Team name fallback for football pools
     const cat = p.league ? categoryMap.get(p.league) : undefined;
     if (cat?.type === 'FOOTBALL_LEAGUE' && p.homeTeam) {
       return liveScores.get(p.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, ''));
