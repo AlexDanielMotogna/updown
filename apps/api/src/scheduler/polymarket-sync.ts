@@ -6,7 +6,7 @@ import { categorizeEvent } from '../services/sports/polymarket-adapter';
 import type { MatchResult } from '../services/sports/types';
 import { createMatchPools } from './sports-scheduler';
 
-const API_SOURCE = 'polymarket-gamma';
+const API_SOURCE = 'predictions';
 const RATE_LIMIT_MS = 3_000;
 
 function sleep(ms: number): Promise<void> {

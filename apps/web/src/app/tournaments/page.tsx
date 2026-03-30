@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useBadgeLookup } from '@/hooks/useCategories';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
   Box,
@@ -63,6 +64,7 @@ const STATUS_BUTTON_LABEL: Record<RegisterStatus, string> = {
 // League names are now from useCategories()
 
 function TournamentCard({ t, onRegistered }: { t: TournamentSummary; onRegistered: () => void }) {
+  const getBadge = useBadgeLookup();
   const { connected, walletAddress } = useWalletBridge();
   const { register, status: regStatus, error: regError, reset } = useTournamentRegister();
   const entryFeeUsdc = (Number(t.entryFee) / 1_000_000).toFixed(2);
@@ -95,7 +97,7 @@ function TournamentCard({ t, onRegistered }: { t: TournamentSummary; onRegistere
           {isSports && t.league ? (
             <Box
               component="img"
-              src={`https://crests.football-data.org/${t.league}.png`}
+              src={getBadge(t.league!) || ''}
               alt={t.league}
               sx={{ width: 32, height: 32, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '3px' }}
             />
@@ -124,7 +126,7 @@ function TournamentCard({ t, onRegistered }: { t: TournamentSummary; onRegistere
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <Box
                 component="img"
-                src={`https://crests.football-data.org/${t.league}.png`}
+                src={getBadge(t.league!) || ''}
                 alt={t.league || ''}
                 sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }}
               />
@@ -251,6 +253,7 @@ export default function TournamentsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const getBadge = useBadgeLookup();
   const [tournaments, setTournaments] = useState<TournamentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

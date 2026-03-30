@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, memo } from 'react';
 import { Box, Typography, IconButton } from '@mui/material';
+import { useBadgeLookup } from '@/hooks/useCategories';
 import { motion, AnimatePresence } from 'framer-motion';
 import CloseIcon from '@mui/icons-material/Close';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
@@ -53,6 +54,7 @@ interface ToastItemProps {
 
 const ToastItem = memo(function ToastItem({ notification, onDismiss }: ToastItemProps) {
   const router = useRouter();
+  const getBadge = useBadgeLookup();
   const [progress, setProgress] = useState(100);
 
   // Fire confetti on win / claim / level-up toasts
@@ -146,7 +148,7 @@ const ToastItem = memo(function ToastItem({ notification, onDismiss }: ToastItem
             getSeverityIcon(notification.severity, notification.type)
           ) : notification.type.startsWith('TOURNAMENT_') && notification.asset ? (
             notification.asset.includes(':') ? (
-              <Box component="img" src={`https://crests.football-data.org/${notification.asset.split(':')[1]}.png`} alt="" sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
+              <Box component="img" src={getBadge(notification.asset.split(':')[1]) || ''} alt="" sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
             ) : (
               <Box component="img" src={`/tournaments/tournament-${notification.asset.toLowerCase()}.png`} alt={notification.asset} sx={{ width: 22, height: 22, objectFit: 'contain' }} />
             )

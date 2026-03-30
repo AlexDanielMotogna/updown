@@ -1,21 +1,156 @@
-import { footballFetch } from './football-fetch';
 import { sportsDbFetch } from './api-sports-fetch';
-import { getFootballLeagueCodes } from '../category-config';
 
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+
+// ── H2H from TheSportsDB ──────────────────────────────────────────────────
 
 interface H2HMatch {
   date: string;
   home: string;
   away: string;
+  score: string;
   homeScore: number;
   awayScore: number;
-  competition: string;
 }
 
+function toSearchName(team: string): string {
+  return team.replace(/\s+/g, '_');
+}
+
+async function fetchH2HFromSportsDb(
+  homeTeam: string,
+  awayTeam: string,
+): Promise<H2HMatch[]> {
+  const homeKey = toSearchName(homeTeam);
+  const awayKey = toSearchName(awayTeam);
+
+  // Fetch both directions (home/away swap in different venues)
+  const [dataAB, dataBA] = await Promise.all([
+    sportsDbFetch(`searchevents.php?e=${homeKey}_vs_${awayKey}`).catch(() => null),
+    sportsDbFetch(`searchevents.php?e=${awayKey}_vs_${homeKey}`).catch(() => null),
+  ]);
+
+  const eventsAB = dataAB?.event || [];
+  const eventsBA = dataBA?.event || [];
+  const all = [...eventsAB, ...eventsBA];
+
+  const seenId = new Set<string>();
+  const seenDateTeams = new Set<string>(); // dedup same match listed with different IDs
+  const matches: H2HMatch[] = [];
+
+  for (const e of all) {
+    if (!e.idEvent || seenId.has(e.idEvent)) continue;
+    seenId.add(e.idEvent);
+
+    // Only include finished games with scores
+    const status = (e.strStatus || '').toLowerCase();
+    const finished = status === 'match finished' || status === 'ft' || status === 'finished' || status === 'aet' || status === 'ap';
+    if (!finished) continue;
+
+    const hs = Number(e.intHomeScore);
+    const as = Number(e.intAwayScore);
+    if (isNaN(hs) || isNaN(as)) continue;
+
+    // Dedup by date + teams (same match can appear with different IDs in both search directions)
+    const teams = [e.strHomeTeam, e.strAwayTeam].sort().join('|').toLowerCase();
+    const dateKey = `${e.dateEvent}:${teams}`;
+    if (seenDateTeams.has(dateKey)) continue;
+    seenDateTeams.add(dateKey);
+
+    matches.push({
+      date: e.dateEvent || '',
+      home: e.strHomeTeam || '',
+      away: e.strAwayTeam || '',
+      score: `${hs}-${as}`,
+      homeScore: hs,
+      awayScore: as,
+    });
+  }
+
+  // Sort by date descending (most recent first)
+  matches.sort((a, b) => b.date.localeCompare(a.date));
+
+  return matches.slice(0, 10);
+}
+
+function computeH2HStats(matches: H2HMatch[], homeTeam: string, awayTeam: string) {
+  let homeWins = 0;
+  let awayWins = 0;
+  let draws = 0;
+
+  for (const m of matches) {
+    const isHomeTeamHome = m.home.toLowerCase() === homeTeam.toLowerCase();
+    if (m.homeScore > m.awayScore) {
+      if (isHomeTeamHome) homeWins++;
+      else awayWins++;
+    } else if (m.awayScore > m.homeScore) {
+      if (isHomeTeamHome) awayWins++;
+      else homeWins++;
+    } else {
+      draws++;
+    }
+  }
+
+  return { total: matches.length, homeWins, awayWins, draws };
+}
+
+// ── Analysis text via ChatGPT (fed with real data) ────────────────────────
+
+async function generateAnalysisText(
+  homeTeam: string,
+  awayTeam: string,
+  h2h: { total: number; homeWins: number; awayWins: number; draws: number },
+  recentMatches: H2HMatch[],
+  league?: string,
+): Promise<string> {
+  const apiKey = process.env.CHAT_GPT_API_KEY;
+  if (!apiKey) return '';
+
+  const matchList = recentMatches.slice(0, 5).map(m =>
+    `${m.date}: ${m.home} ${m.score} ${m.away}`
+  ).join('\n');
+
+  const res = await fetch(OPENAI_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      temperature: 0.3,
+      max_tokens: 150,
+      messages: [
+        {
+          role: 'system',
+          content: `You are a concise sports analyst. Write factual analysis ONLY based on the data provided. Never invent statistics.`,
+        },
+        {
+          role: 'user',
+          content: `${homeTeam} vs ${awayTeam} (${league || 'sports'}).
+
+H2H record (last ${h2h.total} meetings): ${homeTeam} ${h2h.homeWins}W, Draws ${h2h.draws}, ${awayTeam} ${h2h.awayWins}W.
+
+Recent matches:
+${matchList || 'No recent data available.'}
+
+Write 2-3 sentences of factual analysis based ONLY on this data. Focus on the H2H trend and recent form. Under 80 words.`,
+        },
+      ],
+    }),
+  });
+
+  if (!res.ok) return '';
+
+  const data: any = await res.json();
+  return (data.choices?.[0]?.message?.content?.trim()) || '';
+}
+
+// ── Public API ─────────────────────────────────────────────────────────────
+
 /**
- * Fetch head-to-head data from football-data.org and generate analysis with Claude Haiku.
- * Returns cached-ready analysis text or null on failure.
+ * Generate match analysis with real H2H data from TheSportsDB
+ * and optional ChatGPT analysis text based on that real data.
  */
 export async function generateMatchAnalysis(
   matchId: string,
@@ -24,115 +159,39 @@ export async function generateMatchAnalysis(
   league?: string,
 ): Promise<string | null> {
   try {
-    let matches: H2HMatch[];
+    // 1. Fetch real H2H data
+    const recentMatches = await fetchH2HFromSportsDb(homeTeam, awayTeam);
 
-    const footballLeagues = await getFootballLeagueCodes();
-    if (!league || footballLeagues.includes(league)) {
-      // Football: use football-data.org H2H
-      const h2hData = await footballFetch(`/matches/${matchId}/head2head?limit=20`);
-      matches = (h2hData.matches || []).map((m: any) => ({
-        date: m.utcDate?.slice(0, 10) || '',
-        home: m.homeTeam?.shortName || m.homeTeam?.name || '',
-        away: m.awayTeam?.shortName || m.awayTeam?.name || '',
-        homeScore: m.score?.fullTime?.home ?? 0,
-        awayScore: m.score?.fullTime?.away ?? 0,
-        competition: m.competition?.name || '',
-      }));
-    } else {
-      // Other sports: use TheSportsDB event lookup for past events
-      try {
-        const data = await sportsDbFetch(`lookupevent.php?id=${matchId}`);
-        const event = data?.events?.[0];
-        // TheSportsDB doesn't have a direct H2H endpoint for all sports,
-        // so we generate analysis from team names alone (AI will use general knowledge)
-        matches = [];
-      } catch {
-        matches = [];
-      }
-    }
-
-    // Build context for Haiku
-    const matchList = matches.length > 0
-      ? matches.map(m => `${m.date}: ${m.home} ${m.homeScore}-${m.awayScore} ${m.away} (${m.competition})`).join('\n')
-      : 'No previous encounters found in the database.';
-
-    const totalMatches = matches.length;
-    let homeWins = 0, awayWins = 0, draws = 0;
-    for (const m of matches) {
-      const isHome = m.home.toLowerCase().includes(homeTeam.toLowerCase().slice(0, 4));
-      const homeGoals = isHome ? m.homeScore : m.awayScore;
-      const awayGoals = isHome ? m.awayScore : m.homeScore;
-      if (homeGoals > awayGoals) homeWins++;
-      else if (awayGoals > homeGoals) awayWins++;
-      else draws++;
-    }
-
-    // 2. Generate analysis with Claude Haiku
-    const anthropicKey = process.env.ANTHROPIC_API_KEY;
-    if (!anthropicKey) return null;
-
-    const isFootball = !league || footballLeagues.includes(league);
-    const sportName = league && !isFootball ? league : 'football';
-
-    let prompt: string;
-    if (isFootball && matches.length > 0) {
-      prompt = `You are a football analyst. Give a brief, factual analysis of the upcoming match between ${homeTeam} and ${awayTeam}.
-
-Head-to-head record (last ${totalMatches} meetings):
-${homeTeam} wins: ${homeWins}, ${awayTeam} wins: ${awayWins}, Draws: ${draws}
-
-Previous matches:
-${matchList}
-
-Write a concise analysis in 2-3 sentences. Include the head-to-head record, any notable patterns, and a brief assessment. Be factual, no predictions. Keep it under 80 words.`;
-    } else {
-      prompt = `You are a ${sportName} analyst. Give a brief, factual analysis of the upcoming matchup between ${homeTeam} and ${awayTeam}.
-
-Using your knowledge of the last 10 years of ${sportName} history, provide:
-- Their head-to-head record if you know it
-- Current form and standings context
-- Key strengths of each team/fighter
-
-Write a concise analysis in 2-3 sentences. Be factual, no predictions. Keep it under 80 words.`;
-    }
-
-    const aiRes = await fetch(ANTHROPIC_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': anthropicKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 150,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    });
-
-    if (!aiRes.ok) {
-      console.warn(`[Analysis] Anthropic API error: ${aiRes.status}`);
+    if (recentMatches.length === 0) {
+      console.log(`[Analysis] No H2H data found for ${homeTeam} vs ${awayTeam}`);
       return null;
     }
 
-    const aiData: any = await aiRes.json();
-    const text = aiData.content?.[0]?.text?.trim();
+    // 2. Compute stats from real data
+    const h2h = computeH2HStats(recentMatches, homeTeam, awayTeam);
 
-    if (!text) return null;
+    // 3. Format matches for frontend
+    const matches = recentMatches.map(m => ({
+      date: m.date,
+      home: m.home,
+      away: m.away,
+      score: m.score,
+    }));
 
-    // Combine stats + analysis
-    const summary = JSON.stringify({
-      h2h: { total: totalMatches, homeWins, awayWins, draws },
-      matches: matches.slice(0, 10).map(m => ({
-        date: m.date,
-        home: m.home,
-        away: m.away,
-        score: `${m.homeScore}-${m.awayScore}`,
-      })),
-      analysis: text,
-    });
+    // 4. Generate analysis text (non-critical — real data is the priority)
+    let analysis = '';
+    try {
+      analysis = await generateAnalysisText(homeTeam, awayTeam, h2h, recentMatches, league);
+    } catch {
+      analysis = `${h2h.total} meetings: ${homeTeam} ${h2h.homeWins}W, ${awayTeam} ${h2h.awayWins}W, ${h2h.draws}D.`;
+    }
 
-    console.log(`[Analysis] Generated for ${homeTeam} vs ${awayTeam}: ${text.slice(0, 80)}...`);
+    if (!analysis) {
+      analysis = `${h2h.total} meetings: ${homeTeam} ${h2h.homeWins}W, ${awayTeam} ${h2h.awayWins}W, ${h2h.draws}D.`;
+    }
+
+    const summary = JSON.stringify({ h2h, matches, analysis });
+    console.log(`[Analysis] H2H for ${homeTeam} vs ${awayTeam}: ${h2h.homeWins}-${h2h.draws}-${h2h.awayWins} (${h2h.total} matches)`);
     return summary;
   } catch (error) {
     console.error(`[Analysis] Failed for ${homeTeam} vs ${awayTeam}:`, error);

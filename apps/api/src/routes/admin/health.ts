@@ -3,6 +3,7 @@ import { prisma } from '../../db';
 import { getScheduler } from '../../scheduler/pool-scheduler';
 import { getConnection, getRpcStats } from '../../utils/solana';
 import { PacificaProvider } from 'market-data';
+import { getLivescoreMetrics } from '../../services/sports/livescore';
 
 export const adminHealthRouter: RouterType = Router();
 
@@ -101,5 +102,15 @@ adminHealthRouter.get('/overview', async (_req, res) => {
   } catch (error) {
     console.error('Admin health error:', error);
     res.status(500).json({ success: false, error: { code: 'HEALTH_ERROR', message: 'Failed to fetch health data' } });
+  }
+});
+
+adminHealthRouter.get('/livescore', async (_req, res) => {
+  try {
+    const metrics = getLivescoreMetrics();
+    res.json({ success: true, data: metrics });
+  } catch (error) {
+    console.error('Admin livescore health error:', error);
+    res.status(500).json({ success: false, error: { code: 'LIVESCORE_HEALTH_ERROR', message: 'Failed to fetch livescore metrics' } });
   }
 });

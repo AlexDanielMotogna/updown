@@ -49,3 +49,16 @@ export function useCategoryMap() {
   }
   return map;
 }
+
+/** Get badge URL for a league code from categories API. */
+export function useBadgeUrl(code: string | null | undefined): string | null {
+  const map = useCategoryMap();
+  if (!code) return null;
+  return map.get(code)?.badgeUrl ?? null;
+}
+
+/** Hook that returns a lookup function: code → badgeUrl. */
+export function useBadgeLookup() {
+  const map = useCategoryMap();
+  return (code: string) => map.get(code)?.badgeUrl ?? null;
+}

@@ -113,7 +113,7 @@ export function useLiveScores() {
           for (const s of data.data) {
             // Key by eventId (matches TheSportsDB pools: NBA, NHL, NFL, MMA)
             map.set(s.eventId, s);
-            // Also key by normalized homeTeam (matches football pools with football-data.org IDs)
+            // Also key by normalized homeTeam (fallback for football pools)
             if (s.homeTeam) {
               map.set(s.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, ''), s);
             }

@@ -267,7 +267,18 @@ export async function resolvePool(
 
     // Empty pool — no winner, but still resolve on-chain so close_pool works
     if (betCount === 0) {
-      await resolvePoolOnChain(deps, pool.id, strikePrice, finalPrice);
+      try {
+        await resolvePoolOnChain(deps, pool.id, strikePrice, finalPrice);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        // Pool doesn't exist on-chain (never created or already closed) — just clean up DB
+        if (msg.includes('AccountNotInitialized') || msg.includes('0xbc4')) {
+          console.log(`[Scheduler] Pool ${pool.id} not found on-chain — deleting DB record`);
+          await deps.prisma.pool.deleteMany({ where: { id: pool.id } }).catch(() => {});
+          return;
+        }
+        throw err; // re-throw other errors
+      }
       await deps.prisma.pool.updateMany({
         where: { id: pool.id },
         data: { status: PoolStatus.CLAIMABLE, finalPrice },

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Box, Container, Typography, Tooltip, Drawer, IconButton } from '@mui/material';
+import { useBadgeLookup } from '@/hooks/useCategories';
 import {
   EmojiEvents,
   Bolt,
@@ -277,6 +278,7 @@ function DocsSidebar({ activeId, onClose }: { activeId: string; onClose?: () => 
 /* ── Page ─────────────────────────────────────────────────────────── */
 
 export default function DocsPage() {
+  const getBadge = useBadgeLookup();
   const [activeId, setActiveId] = useState('quick-start');
   const [mobileNav, setMobileNav] = useState(false);
 
@@ -454,10 +456,10 @@ export default function DocsPage() {
                   { code: 'SA', name: 'Serie A' },
                   { code: 'BL1', name: 'Bundesliga' },
                   { code: 'FL1', name: 'Ligue 1' },
-                  { code: 'bsa', name: 'Brasileirao' },
+                  { code: 'BSA', name: 'Brasileirao' },
                 ].map((l) => (
                   <Box key={l.code} sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(255,255,255,0.04)', px: 1.5, py: 0.75, borderRadius: '6px' }}>
-                    <Box component="img" src={`https://crests.football-data.org/${l.code}.png`} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
+                    <Box component="img" src={getBadge(l.code.toUpperCase()) || ''} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
                     <Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>{l.name}</Typography>
                   </Box>
                 ))}
@@ -465,15 +467,15 @@ export default function DocsPage() {
               <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.08em', mb: 2 }}>COMING SOON</Typography>
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3, opacity: 0.4 }}>
                 {[
-                  { name: 'Championship', badge: 'https://crests.football-data.org/ELC.png' },
-                  { name: 'Primeira Liga', badge: 'https://crests.football-data.org/PPL.png' },
-                  { name: 'Eredivisie', badge: 'https://r2.thesportsdb.com/images/media/league/badge/5cdsu21725984946.png' },
-                  { name: 'Europa League', badge: 'https://crests.football-data.org/EL.png' },
-                  { name: 'Copa Libertadores', badge: 'https://r2.thesportsdb.com/images/media/league/badge/9shr931685425181.png' },
-                  { name: 'World Cup', badge: 'https://r2.thesportsdb.com/images/media/league/badge/e7er5g1696521789.png' },
+                  { name: 'Championship', code: 'ELC' },
+                  { name: 'Primeira Liga', code: 'PPL' },
+                  { name: 'Eredivisie', code: 'DED' },
+                  { name: 'Europa League', code: 'EL' },
+                  { name: 'Copa Libertadores', code: 'CLI' },
+                  { name: 'World Cup', code: 'WC' },
                 ].map((l) => (
                   <Box key={l.name} sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(255,255,255,0.04)', px: 1.5, py: 0.75, borderRadius: '6px' }}>
-                    <Box component="img" src={l.badge} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
+                    <Box component="img" src={getBadge(l.code) || ''} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
                     <Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>{l.name}</Typography>
                   </Box>
                 ))}
@@ -511,7 +513,7 @@ export default function DocsPage() {
                 ))}
               </Box>
               <Box>
-                <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Football from football-data.org, other sports from TheSportsDB</Typography>
+                <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>All sports data from TheSportsDB with ChatGPT fallback</Typography>
                 <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Live scores updated every 30 seconds during matches</Typography>
                 <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Results checked every 5 min during match windows</Typography>
                 <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>AI-generated analysis for each match</Typography>

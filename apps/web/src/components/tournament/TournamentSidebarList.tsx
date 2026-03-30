@@ -3,6 +3,7 @@
 import { Box, Typography } from '@mui/material';
 import Link from 'next/link';
 import { GAIN_COLOR, UP_COLOR, ACCENT_COLOR } from '@/lib/constants';
+import { useBadgeLookup } from '@/hooks/useCategories';
 import type { TournamentSummary } from '@/lib/api';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -16,6 +17,8 @@ interface TournamentSidebarListProps {
 }
 
 export function TournamentSidebarList({ tournaments }: TournamentSidebarListProps) {
+  const getBadge = useBadgeLookup();
+
   if (tournaments.length === 0) {
     return (
       <Box sx={{ p: 2, textAlign: 'center' }}>
@@ -47,7 +50,7 @@ export function TournamentSidebarList({ tournaments }: TournamentSidebarListProp
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
                 <Box
                   component="img"
-                  src={t.asset.includes(':') ? `https://crests.football-data.org/${t.asset.split(':')[1]}.png` : `/tournaments/tournament-${t.asset.toLowerCase()}.png`}
+                  src={t.asset.includes(':') ? (getBadge(t.asset.split(':')[1]) || '') : `/tournaments/tournament-${t.asset.toLowerCase()}.png`}
                   alt={t.asset}
                   sx={{ width: 22, height: 22, objectFit: 'contain', ...(t.asset.includes(':') && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }) }}
                 />
