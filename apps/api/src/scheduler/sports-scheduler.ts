@@ -140,20 +140,45 @@ export async function resolveMatchPools(): Promise<void> {
       // Check if pool has any bets
       const betCount = await prisma.bet.count({ where: { poolId: pool.id } });
 
+      const connection = getConnection();
+      const wallet = getAuthorityKeypair();
+
       if (betCount === 0) {
-        // Empty pool — no on-chain resolution needed, just mark as done
+        // Resolve on-chain so close_pool can reclaim rent (prevents orphans)
+        const seed = derivePoolSeed(pool.id);
+        const [poolPda] = getPoolPDA(seed);
+
+        try {
+          const ix = buildResolveWithWinnerIx(poolPda, wallet.publicKey, winnerSide as 0 | 1 | 2);
+          const tx = new Transaction().add(ix);
+          const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+          tx.recentBlockhash = blockhash;
+          tx.feePayer = wallet.publicKey;
+          tx.sign(wallet);
+
+          const signature = await connection.sendRawTransaction(tx.serialize(), {
+            skipPreflight: false, preflightCommitment: 'confirmed',
+          });
+          await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          // Already resolved or already closed on-chain — safe to proceed
+          if (!msg.includes('InvalidPoolStatus') && !msg.includes('0x177a') && !msg.includes('AccountNotInitialized')) {
+            console.warn(`[Sports] Failed to resolve empty pool ${pool.id} on-chain — will retry:`, msg);
+            continue; // Don't mark as RESOLVED, will retry next cycle
+          }
+        }
+
         await prisma.pool.update({
           where: { id: pool.id },
           data: { status: 'RESOLVED', winner: winnerLabel, finalPrice: BigInt(0) },
         });
         emitPoolStatus(pool.id, { id: pool.id, status: 'RESOLVED', winner: winnerLabel });
-        console.log(`[Sports] Resolved (empty) ${pool.homeTeam} vs ${pool.awayTeam}: ${result.homeScore}-${result.awayScore} → ${winnerLabel}`);
+        console.log(`[Sports] Resolved (empty, on-chain) ${pool.homeTeam} vs ${pool.awayTeam}: ${result.homeScore}-${result.awayScore} → ${winnerLabel}`);
         continue;
       }
 
       // Pool has bets — resolve on-chain
-      const connection = getConnection();
-      const wallet = getAuthorityKeypair();
       const seed = derivePoolSeed(pool.id);
       const [poolPda] = getPoolPDA(seed);
 

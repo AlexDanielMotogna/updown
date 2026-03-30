@@ -1,4 +1,5 @@
 import { PoolStatus } from '@prisma/client';
+import { PublicKey } from '@solana/web3.js';
 import { emitPoolStatus } from '../websocket';
 import { notifyPoolClaimable } from '../services/notifications';
 import { derivePoolSeed, getConnection } from '../utils/solana';
@@ -87,24 +88,51 @@ export class PoolResolver {
           totalDown: BigInt(0),
           endTime: { lt: oneHourAgo },
         },
-        select: { id: true },
+        select: { id: true, poolId: true },
       });
 
       if (emptyPools.length === 0) return 0;
 
-      const ids = emptyPools.map(p => p.id);
+      // Verify pools don't exist on-chain before deleting (prevents orphans)
+      const connection = getConnection();
+      const safeIds: string[] = [];
+      const CHUNK_SIZE = 100;
 
-      await this.deps.prisma.priceSnapshot.deleteMany({ where: { poolId: { in: ids } } });
-      await this.deps.prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: { in: ids } } });
-      await this.deps.prisma.pool.deleteMany({ where: { id: { in: ids } } });
+      for (let i = 0; i < emptyPools.length; i += CHUNK_SIZE) {
+        const chunk = emptyPools.slice(i, i + CHUNK_SIZE);
+        const pdas = chunk.map(p => new PublicKey(p.poolId));
+        try {
+          const accountInfos = await connection.getMultipleAccountsInfo(pdas);
+          for (let j = 0; j < accountInfos.length; j++) {
+            if (accountInfos[j] === null) {
+              safeIds.push(chunk[j].id); // Not on-chain — safe to delete
+            }
+          }
+        } catch {
+          // RPC error — skip this chunk to be safe
+          console.warn(`[Scheduler] RPC error checking on-chain pools, skipping chunk of ${chunk.length}`);
+        }
+      }
+
+      const skippedCount = emptyPools.length - safeIds.length;
+      if (skippedCount > 0) {
+        console.warn(`[Scheduler] ${skippedCount} empty pool(s) still on-chain — skipping DB deletion`);
+      }
+
+      if (safeIds.length === 0) return 0;
+
+      await this.deps.prisma.priceSnapshot.deleteMany({ where: { poolId: { in: safeIds } } });
+      await this.deps.prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: { in: safeIds } } });
+      await this.deps.prisma.pool.deleteMany({ where: { id: { in: safeIds } } });
 
       await logEvent(this.deps.prisma, 'POOLS_CLEANUP', 'system', 'scheduler', {
-        deletedCount: ids.length.toString(),
-        poolIds: JSON.stringify(ids),
+        deletedCount: safeIds.length.toString(),
+        poolIds: JSON.stringify(safeIds),
+        skippedOnChain: skippedCount.toString(),
       });
 
-      console.log(`[Scheduler] Cleaned up ${ids.length} empty pool(s)`);
-      return ids.length;
+      console.log(`[Scheduler] Cleaned up ${safeIds.length} empty pool(s)${skippedCount > 0 ? ` (${skippedCount} skipped — still on-chain)` : ''}`);
+      return safeIds.length;
     } catch (error) {
       console.error('[Scheduler] Failed to cleanup empty pools:', error);
       return 0;

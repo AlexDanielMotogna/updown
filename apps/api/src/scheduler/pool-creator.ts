@@ -82,6 +82,19 @@ export class PoolCreator {
       for (const pool of toDelete) {
         const betCount = await this.deps.prisma.bet.count({ where: { poolId: pool.id } });
         if (betCount === 0) {
+          // Verify pool doesn't exist on-chain before deleting DB (prevents orphans)
+          try {
+            const seed = derivePoolSeed(pool.id);
+            const [poolPda] = getPoolPDA(seed);
+            const accountInfo = await getConnection().getAccountInfo(poolPda);
+            if (accountInfo) {
+              console.log(`[Scheduler] Skipping duplicate ${pool.id} — still on-chain, will expire naturally`);
+              continue;
+            }
+          } catch {
+            // RPC error — skip deletion to be safe
+            continue;
+          }
           await this.deps.prisma.priceSnapshot.deleteMany({ where: { poolId: pool.id } });
           await this.deps.prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: pool.id } });
           await this.deps.prisma.pool.deleteMany({ where: { id: pool.id } });
