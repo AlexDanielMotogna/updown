@@ -82,8 +82,8 @@ export class PoolScheduler {
       console.log(`[Scheduler] Guard for ${template.asset}/${template.intervalKey}: ${template.cronExpression}`);
     }
 
-    // Status transitions every 2 seconds
-    const transitionJob = cron.schedule('*/2 * * * * *', () => {
+    // Status transitions every 5 seconds (reduces RPC pressure across instances)
+    const transitionJob = cron.schedule('*/5 * * * * *', () => {
       this.runTracked('transitions', () => Promise.all([
         this.processStatusTransitions(),
         this.resolver.processResolutions(),
@@ -92,8 +92,8 @@ export class PoolScheduler {
       ]));
     });
     this.jobs.push(transitionJob);
-    this.initJobHealth('transitions', '*/2 * * * * *');
-    console.log('[Scheduler] Scheduled transition & resolution job: every 2 seconds');
+    this.initJobHealth('transitions', '*/5 * * * * *');
+    console.log('[Scheduler] Scheduled transition & resolution job: every 5 seconds');
 
     // Periodic dedup cleanup (every 30 seconds)
     const dedupJob = cron.schedule('*/30 * * * * *', () => {
