@@ -55,7 +55,7 @@ export default function FaucetPage() {
     <AppShell>
       <Container maxWidth="sm" sx={{ py: { xs: 4, md: 8 } }}>
         <Box sx={{ textAlign: 'center', mb: 4 }}>
-          <Box component="img" src="/updown-logos/Logo_text_white_796x277.png" alt="UpDown" sx={{ height: 36, mb: 2 }} />
+          <Box component="img" src="/updown-logos/Logo_cyan_text_white.png" alt="UpDown" sx={{ height: 36, mb: 2 }} />
           <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, mb: 1 }}>
             Devnet USDC Faucet
           </Typography>

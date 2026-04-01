@@ -376,7 +376,7 @@ export default function DocsPage() {
 
             {/* Hero */}
             <Box sx={{ textAlign: 'center', mb: 5, mt: { xs: 1, md: 2 } }}>
-              <Box component="img" src="/updown-logos/Logo_text_white_796x277.png" alt="UpDown" sx={{ height: { xs: 36, md: 48 }, mb: 2 }} />
+              <Box component="img" src="/updown-logos/Logo_cyan_text_white.png" alt="UpDown" sx={{ height: { xs: 36, md: 48 }, mb: 2 }} />
               <Typography sx={{ fontSize: { xs: '0.85rem', md: '1rem' }, color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>
                 Predict crypto prices. Stake USDC. Win the pool.
               </Typography>

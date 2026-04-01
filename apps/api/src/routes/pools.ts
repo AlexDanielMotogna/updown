@@ -14,7 +14,7 @@ const poolFilterSchema = z.object({
   status: z.string().optional(), // Single status or comma-separated list (e.g. "JOINING,ACTIVE")
   type: z.enum(['CRYPTO', 'SPORTS']).optional(), // Pool type filter
   page: z.coerce.number().min(1).default(1),
-  limit: z.coerce.number().min(1).max(100).default(20),
+  limit: z.coerce.number().min(1).max(500).default(20),
 });
 
 // GET /api/pools - List all pools with optional filters

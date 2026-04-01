@@ -21,10 +21,10 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   icons: {
     icon: [
-      { url: '/updown-logos/Logo_32px.png', sizes: '32x32', type: 'image/png' },
-      { url: '/updown-logos/Logo_16px.png', sizes: '16x16', type: 'image/png' },
+      { url: '/updown-logos/Logo_32px_Cyan_Transparent.png', sizes: '32x32', type: 'image/png' },
+      { url: '/updown-logos/Logo_16px_Cyan_Transparent.png', sizes: '16x16', type: 'image/png' },
     ],
-    apple: '/updown-logos/Logo_180px.png',
+    apple: '/updown-logos/Logo_512px_Cyan_Transparent.png',
   },
   appleWebApp: {
     capable: true,

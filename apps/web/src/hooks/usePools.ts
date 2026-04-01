@@ -50,7 +50,7 @@ const POOLS_PAGE_SIZE = 12;
 
 type InfinitePoolsData = InfiniteData<ApiResponse<Pool[]>, number>;
 
-export function useInfinitePools(filters?: Omit<PoolFilters, 'page' | 'limit'>, opts?: { refetchInterval?: number | false }) {
+export function useInfinitePools(filters?: Omit<PoolFilters, 'page'>, opts?: { refetchInterval?: number | false }) {
   const queryClient = useQueryClient();
   const queryKey = ['infinitePools', filters];
 
@@ -66,9 +66,23 @@ export function useInfinitePools(filters?: Omit<PoolFilters, 'page' | 'limit'>, 
     const socket = getSocket();
     connectSocket();
 
-    const onNewPool = (_payload: { pool: Pool }) => {
+    const onNewPool = (payload: { pool: Pool }) => {
       const { queryKey: qk } = stableRef.current;
-      queryClient.invalidateQueries({ queryKey: qk, refetchType: 'none' });
+      // Insert new pool into page 1 directly — avoids full refetch flicker
+      queryClient.setQueryData<InfinitePoolsData>(qk, (old) => {
+        if (!old || !old.pages[0]) return old;
+        const pool = payload.pool;
+        if (!pool?.id) return old; // invalid payload
+        // Check if already exists
+        const exists = old.pages.some(p => p.data?.some(pp => pp.id === pool.id));
+        if (exists) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page, i) =>
+            i === 0 ? { ...page, data: [pool, ...(page.data || [])] } : page
+          ),
+        };
+      });
     };
 
     const onPoolStatus = (data: { id: string; status: string }) => {
@@ -103,10 +117,10 @@ export function useInfinitePools(filters?: Omit<PoolFilters, 'page' | 'limit'>, 
     };
   }, [queryClient]); // Only depend on queryClient (stable singleton)
 
-  return useInfiniteQuery({
+  const query = useInfiniteQuery({
     queryKey,
     queryFn: ({ pageParam = 1 }) =>
-      fetchPools({ ...filters, page: pageParam, limit: POOLS_PAGE_SIZE }),
+      fetchPools({ ...filters, page: pageParam, limit: filters?.limit || POOLS_PAGE_SIZE }),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {
       if (!lastPage.meta) return undefined;
@@ -115,9 +129,30 @@ export function useInfinitePools(filters?: Omit<PoolFilters, 'page' | 'limit'>, 
         : undefined;
     },
     placeholderData: keepPreviousData,
-    staleTime: 5_000,
-    refetchInterval: opts?.refetchInterval ?? 10_000,
+    staleTime: 10_000,
+    // Don't use refetchInterval on infinite queries — it refetches ALL loaded
+    // pages at once, causing visual flicker. Instead, we refresh page 1 only.
+    refetchInterval: false,
   });
+
+  // Periodically refetch only page 1 to pick up new/changed pools
+  // without re-fetching all loaded pages (which causes flicker).
+  useEffect(() => {
+    const interval = opts?.refetchInterval ?? 15_000;
+    if (interval === false) return;
+    const iv = setInterval(async () => {
+      try {
+        const fresh = await fetchPools({ ...stableRef.current.filters, page: 1, limit: stableRef.current.filters?.limit || POOLS_PAGE_SIZE });
+        queryClient.setQueryData<InfinitePoolsData>(stableRef.current.queryKey, (old) => {
+          if (!old) return old;
+          return { ...old, pages: [fresh, ...old.pages.slice(1)] };
+        });
+      } catch { /* silent */ }
+    }, interval);
+    return () => clearInterval(iv);
+  }, [queryClient, opts?.refetchInterval]);
+
+  return query;
 }
 
 export function usePool(id: string | null) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
   Box,
@@ -144,6 +144,11 @@ export default function MarketsPage() {
     status: marketType === 'SPORTS' || isPM ? 'JOINING,ACTIVE,CLAIMABLE,RESOLVED' : 'JOINING',
   }), [assetFilter, intervalFilter, marketType, isPM]);
 
+  // Sports/PM: load all pools at once (typically ~50-100) so client-side
+  // sorting (live first) works immediately without scrolling to load more.
+  // Crypto: paginate normally (could have many more pools).
+  const isSportsOrPM = marketType === 'SPORTS' || isPM;
+
   const {
     data,
     isLoading,
@@ -152,9 +157,10 @@ export default function MarketsPage() {
     hasNextPage,
     isFetchingNextPage,
     isPlaceholderData,
-  } = useInfinitePools(filters, {
-    refetchInterval: marketType === 'CRYPTO' ? 10_000 : 60_000,
-  });
+  } = useInfinitePools(
+    isSportsOrPM ? { ...filters, limit: 500 } : filters,
+    { refetchInterval: isSportsOrPM ? 30_000 : 15_000 },
+  );
 
   const { data: betsData } = useBets();
   const { data: claimableData } = useClaimableBets();
@@ -275,6 +281,24 @@ export default function MarketsPage() {
   const CARDS_PER_PAGE = 12;
   const [sportsVisible, setSportsVisible] = useState(CARDS_PER_PAGE);
   const [predVisible, setPredVisible] = useState(CARDS_PER_PAGE);
+
+  // Auto-expand visible count when new pools arrive (so they're not hidden behind "Show more")
+  const prevSportsCount = useRef(0);
+  const prevPredCount = useRef(0);
+  useEffect(() => {
+    if (sportsPools.length > prevSportsCount.current && prevSportsCount.current > 0) {
+      const added = sportsPools.length - prevSportsCount.current;
+      setSportsVisible(v => v + added);
+    }
+    prevSportsCount.current = sportsPools.length;
+  }, [sportsPools.length]);
+  useEffect(() => {
+    if (predictionPools.length > prevPredCount.current && prevPredCount.current > 0) {
+      const added = predictionPools.length - prevPredCount.current;
+      setPredVisible(v => v + added);
+    }
+    prevPredCount.current = predictionPools.length;
+  }, [predictionPools.length]);
 
   return (
     <AppShell>

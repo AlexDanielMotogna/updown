@@ -54,7 +54,7 @@ export function Header() {
           />
           <Box
             component="img"
-            src="/updown-logos/Logo_text_white_796x277.png"
+            src="/updown-logos/Logo_cyan_text_white.png"
             alt="UpDown"
             sx={{ display: { xs: 'none', sm: 'block' }, height: { sm: 32, md: 36 } }}
           />
