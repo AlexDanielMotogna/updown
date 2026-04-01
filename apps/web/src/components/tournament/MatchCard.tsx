@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import { UP_COLOR, ACCENT_COLOR } from '@/lib/constants';
 import { type TournamentMatchData, type TournamentFixture } from '@/lib/api';
-import { MATCH_W, CARD_H, SURFACE, BORDER, PREDICT_COLOR, formatPrice, formatDistance } from './tournament-utils';
+import { isMatchActive, formatLiveStatus, type LiveScore } from '@/hooks/useLiveScores';
+import { MATCH_W, CARD_H, SURFACE, BORDER, PREDICT_COLOR, formatPrice, formatDistance, formatKickoff } from './tournament-utils';
 import { Countdown } from './Countdown';
 import { PlayerRow } from './PlayerRow';
 import { MatchModal } from './MatchModal';
@@ -21,6 +22,7 @@ export function MatchCard({
   fixtureCount,
   fixtures,
   sideLabels,
+  liveScores,
 }: {
   match: TournamentMatchData;
   matchLabel: string;
@@ -33,6 +35,7 @@ export function MatchCard({
   fixtureCount?: number;
   fixtures?: TournamentFixture[];
   sideLabels?: string[];
+  liveScores?: Map<string, LiveScore>;
 }) {
   const [modalOpen, setModalOpen] = useState(false);
   const isResolved = match.status === 'RESOLVED';
@@ -79,15 +82,27 @@ export function MatchCard({
           <Typography variant="caption" sx={{ fontWeight: 600, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             {matchLabel}
           </Typography>
-          {isPending && match.predictionDeadline ? (
-            <Countdown target={match.predictionDeadline} label="Predict" />
-          ) : isActive && match.endTime ? (
-            <Countdown target={match.endTime} label="Live" />
-          ) : isResolved ? (
-            <Typography variant="caption" sx={{ fontWeight: 700, color: UP_COLOR }}>Done</Typography>
-          ) : (
-            <Typography variant="caption" sx={{ fontWeight: 600, color: 'rgba(255,255,255,0.15)' }}>Pending</Typography>
-          )}
+          {(() => {
+            const anyLive = isSports && fixtures?.some(f => { const ls = liveScores?.get(f.footballMatchId); return ls && isMatchActive(ls); });
+            const firstLive = anyLive ? fixtures?.map(f => liveScores?.get(f.footballMatchId)).find(ls => ls && isMatchActive(ls)) : null;
+            if (isPending && match.predictionDeadline) return <Countdown target={match.predictionDeadline} label="Predict" />;
+            if (isActive && firstLive) return (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: '#22C55E', animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+                <Typography variant="caption" sx={{ fontWeight: 700, color: '#22C55E', fontSize: '0.55rem' }}>
+                  {formatLiveStatus(firstLive.status, firstLive.progress)}
+                </Typography>
+              </Box>
+            );
+            if (isActive && isSports && fixtures?.[0]?.kickoff) return (
+              <Typography variant="caption" sx={{ fontWeight: 600, color: 'rgba(255,255,255,0.4)', fontSize: '0.55rem' }}>
+                {formatKickoff(fixtures[0].kickoff)}
+              </Typography>
+            );
+            if (isActive && match.endTime) return <Countdown target={match.endTime} label="Live" />;
+            if (isResolved) return <Typography variant="caption" sx={{ fontWeight: 700, color: UP_COLOR }}>Done</Typography>;
+            return <Typography variant="caption" sx={{ fontWeight: 600, color: 'rgba(255,255,255,0.15)' }}>Pending</Typography>;
+          })()}
         </Box>
 
         {/* Players */}
@@ -116,6 +131,7 @@ export function MatchCard({
         fixtureCount={fixtureCount}
         fixtures={fixtures}
         sideLabels={sideLabels}
+        liveScores={liveScores}
       />
     </>
   );

@@ -63,6 +63,10 @@ interface LivescoreMetricsData {
     chatgptCallsTotal: number;
     chatgptRejectionsTotal: number;
     chatgptCircuitBreakerOpen: boolean;
+    oddsApiCallsTotal: number;
+    oddsApiSuccessTotal: number;
+    oddsApiCreditsRemaining: number | null;
+    oddsApiDisabled: boolean;
     missingEvents: MissingEvent[];
     incidents: LivescoreIncident[];
   };
@@ -117,12 +121,23 @@ function LivescoreHealth() {
     ? { label: 'Active', ok: true }
     : { label: 'Standby', ok: true };
 
+  // Determine Odds API status
+  const oddsApiStatus = m.oddsApiDisabled
+    ? { label: 'Disabled', ok: false }
+    : m.oddsApiCallsTotal > 0
+    ? { label: 'Active', ok: true }
+    : { label: 'Standby', ok: true };
+
+  const creditsRemaining = m.oddsApiCreditsRemaining;
+  const creditsPct = creditsRemaining != null ? Math.round((creditsRemaining / 1000) * 100) : null;
+  const creditsLow = creditsRemaining != null && creditsRemaining < 200;
+
   return (
     <Card sx={{ p: 2 }}>
       <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Livescore Health</Typography>
 
       {/* Status row */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 2, mb: 2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: 2, mb: 2 }}>
         <Box>
           <Typography variant="caption" color="text.secondary" display="block">TheSportsDB</Typography>
           <StatusChip ok={sportsDbStatus.ok} label={sportsDbStatus.label} />
@@ -133,6 +148,20 @@ function LivescoreHealth() {
           )}
         </Box>
         <Box>
+          <Typography variant="caption" color="text.secondary" display="block">The Odds API</Typography>
+          <StatusChip ok={oddsApiStatus.ok} label={oddsApiStatus.label} />
+          <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+            Calls: {m.oddsApiCallsTotal} / Matched: {m.oddsApiSuccessTotal}
+          </Typography>
+        </Box>
+        <Box>
+          <Typography variant="caption" color="text.secondary" display="block">Odds API Credits</Typography>
+          <Typography variant="h6" sx={{ color: creditsLow ? '#F87171' : creditsRemaining != null ? '#22C55E' : 'text.secondary' }}>
+            {creditsRemaining != null ? creditsRemaining.toLocaleString() : '—'}
+          </Typography>
+          {creditsLow && <Typography variant="caption" color="error.main">Low credits!</Typography>}
+        </Box>
+        <Box>
           <Typography variant="caption" color="text.secondary" display="block">ChatGPT</Typography>
           <StatusChip ok={chatgptStatus.ok} label={chatgptStatus.label} />
           <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
@@ -140,12 +169,11 @@ function LivescoreHealth() {
           </Typography>
         </Box>
         <Box>
-          <Typography variant="caption" color="text.secondary" display="block">Events in feed</Typography>
+          <Typography variant="caption" color="text.secondary" display="block">Events / Lookups</Typography>
           <Typography variant="h6">{m.lastPollEventCount}</Typography>
-        </Box>
-        <Box>
-          <Typography variant="caption" color="text.secondary" display="block">Lookups</Typography>
-          <Typography variant="h6">{m.lookupCallsTotal}</Typography>
+          <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+            Lookups: {m.lookupCallsTotal}
+          </Typography>
         </Box>
       </Box>
 
@@ -153,6 +181,9 @@ function LivescoreHealth() {
       <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
         <Typography variant="caption">
           SportsDB: {m.sportsDbSuccessCount} ok / {m.sportsDbFailureCount} fail / {m.sportsDb429Count} 429
+        </Typography>
+        <Typography variant="caption">
+          Odds API: {m.oddsApiCallsTotal} calls / {m.oddsApiSuccessTotal} matched
         </Typography>
         <Typography variant="caption">
           ChatGPT: {m.chatgptCallsTotal} calls / {m.chatgptRejectionsTotal} rejected
@@ -218,6 +249,10 @@ function LivescoreHealth() {
                 CHATGPT_SUCCESS: '#22C55E',
                 CHATGPT_REJECTED: '#F59E0B',
                 CHATGPT_ERROR: '#F87171',
+                ODDS_API_TRIGGERED: '#818CF8',
+                ODDS_API_SUCCESS: '#22C55E',
+                ODDS_API_REJECTED: '#F59E0B',
+                ODDS_API_ERROR: '#F87171',
                 MIDNIGHT_BOUNDARY: '#A78BFA',
               };
               return (

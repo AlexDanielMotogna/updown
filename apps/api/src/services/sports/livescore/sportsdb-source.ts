@@ -72,7 +72,7 @@ export async function fetchEventLookup(eventId: string): Promise<LiveScore | nul
   if (!evt) return null;
 
   const status = (evt.strStatus || '').trim();
-  if (!status || status === 'NS' || status === 'TBD') return null;
+  if (!status) return null;
 
   return {
     eventId: String(evt.idEvent),

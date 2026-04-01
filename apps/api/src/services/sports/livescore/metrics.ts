@@ -12,6 +12,10 @@ export type IncidentType =
   | 'CHATGPT_SUCCESS'
   | 'CHATGPT_REJECTED'
   | 'CHATGPT_ERROR'
+  | 'ODDS_API_TRIGGERED'
+  | 'ODDS_API_SUCCESS'
+  | 'ODDS_API_REJECTED'
+  | 'ODDS_API_ERROR'
   | 'MIDNIGHT_BOUNDARY';
 
 export interface Incident {
@@ -50,6 +54,10 @@ export interface LivescoreMetrics {
   chatgptCallsTotal: number;
   chatgptRejectionsTotal: number;
   chatgptCircuitBreakerOpen: boolean;
+  oddsApiCallsTotal: number;
+  oddsApiSuccessTotal: number;
+  oddsApiCreditsRemaining: number | null;
+  oddsApiDisabled: boolean;
 
   // Active issues
   missingEvents: MissingEvent[];
@@ -164,6 +172,19 @@ export function recordChatGPTError(eventId: string, details: string): void {
   addIncident('CHATGPT_ERROR', eventId, details);
 }
 
+export function recordOddsApiTriggered(sportKey: string, details: string): void {
+  addIncident('ODDS_API_TRIGGERED', sportKey, details);
+}
+
+export function recordOddsApiSuccess(eventId: string, details: string): void {
+  missingEvents.delete(eventId);
+  addIncident('ODDS_API_SUCCESS', eventId, details);
+}
+
+export function recordOddsApiRejected(sportKey: string, details: string): void {
+  addIncident('ODDS_API_REJECTED', sportKey, details);
+}
+
 export function recordMidnightBoundary(): void {
   addIncident('MIDNIGHT_BOUNDARY', undefined, 'Switching to per-sport feeds');
 }
@@ -187,6 +208,18 @@ export function getMetrics(): LivescoreMetrics {
     chatgptCircuitOpen = chatgpt.isChatGPTCircuitOpen?.() || false;
   } catch { /* not yet loaded */ }
 
+  let oddsApiCalls = 0;
+  let oddsApiSuccess = 0;
+  let oddsApiRemaining: number | null = null;
+  let oddsApiOff = false;
+  try {
+    const odds = require('./odds-api-source');
+    oddsApiCalls = odds.oddsApiCallsTotal || 0;
+    oddsApiSuccess = odds.oddsApiSuccessTotal || 0;
+    oddsApiRemaining = odds.oddsApiCreditsRemaining;
+    oddsApiOff = odds.isOddsApiDisabled?.() || false;
+  } catch { /* not yet loaded */ }
+
   const totalCalls = sportsDbSuccessCount + sportsDbFailureCount;
 
   return {
@@ -205,6 +238,10 @@ export function getMetrics(): LivescoreMetrics {
     chatgptCallsTotal: chatgptCalls,
     chatgptRejectionsTotal: chatgptRejections,
     chatgptCircuitBreakerOpen: chatgptCircuitOpen,
+    oddsApiCallsTotal: oddsApiCalls,
+    oddsApiSuccessTotal: oddsApiSuccess,
+    oddsApiCreditsRemaining: oddsApiRemaining,
+    oddsApiDisabled: oddsApiOff,
 
     missingEvents: [...missingEvents.values()],
     incidents: [...incidents],
@@ -222,7 +259,7 @@ function addIncident(type: IncidentType, eventId: string | undefined, details: s
   }
 
   // Persist critical incidents to EventLog (survives restart)
-  const critical: IncidentType[] = ['SPORTSDB_POLL_FAIL', 'SPORTSDB_429', 'CHATGPT_TRIGGERED', 'CHATGPT_SUCCESS', 'CHATGPT_ERROR'];
+  const critical: IncidentType[] = ['SPORTSDB_POLL_FAIL', 'SPORTSDB_429', 'CHATGPT_TRIGGERED', 'CHATGPT_SUCCESS', 'CHATGPT_ERROR', 'ODDS_API_TRIGGERED', 'ODDS_API_SUCCESS'];
   if (critical.includes(type)) {
     prisma.eventLog.create({
       data: {

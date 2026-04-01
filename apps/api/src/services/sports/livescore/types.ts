@@ -59,6 +59,36 @@ export const CHATGPT_MAX_PER_CYCLE = 3;           // Max ChatGPT calls per 30s c
 export const CHATGPT_CIRCUIT_BREAKER_THRESHOLD = 3;
 export const CHATGPT_CIRCUIT_BREAKER_COOLDOWN_MS = 300_000; // 5 min
 
+// The Odds API — parallel source alongside TheSportsDB
+export const ODDS_API_CREDIT_FLOOR = 50;           // Disable if fewer credits remaining
+
+/** Maps our league codes to The Odds API sport keys */
+export const LEAGUE_TO_ODDS_API: Record<string, string> = {
+  // US Sports
+  NBA: 'basketball_nba',
+  NHL: 'icehockey_nhl',
+  NFL: 'americanfootball_nfl',
+  MMA: 'mma_mixed_martial_arts',
+  MLB: 'baseball_mlb',
+  // Football
+  PL:  'soccer_epl',
+  PD:  'soccer_spain_la_liga',
+  CL:  'soccer_uefa_champs_league',
+  EL:  'soccer_uefa_europa_league',
+  SA:  'soccer_italy_serie_a',
+  BL1: 'soccer_germany_bundesliga',
+  FL1: 'soccer_france_ligue_one',
+  BSA: 'soccer_brazil_campeonato',
+  ELC: 'soccer_efl_champ',
+  DED: 'soccer_netherlands_eredivisie',
+  PPL: 'soccer_portugal_primeira_liga',
+  // Other sports
+  TENNIS: 'tennis_atp_french_open',
+  RUGBY:  'rugbyleague_nrl',
+  BOXING: 'mma_mixed_martial_arts',
+  CRICKET: 'cricket_ipl',
+};
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 export function normalizeTeam(name: string): string {
