@@ -3,7 +3,8 @@
 import { Box, Typography } from '@mui/material';
 import { TrendingUp, TrendingDown } from '@mui/icons-material';
 import { motion } from 'framer-motion';
-import { UP_COLOR, DOWN_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 import { AnimatedValue } from './AnimatedValue';
 
 interface PoolDistributionProps {
@@ -14,6 +15,8 @@ interface PoolDistributionProps {
 }
 
 export function PoolDistribution({ totalUp, totalDown, totalPool, betCount }: PoolDistributionProps) {
+  const t = useThemeTokens();
+
   const up = Number(totalUp);
   const down = Number(totalDown);
   const total = up + down;
@@ -29,25 +32,25 @@ export function PoolDistribution({ totalUp, totalDown, totalPool, betCount }: Po
 
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <TrendingUp sx={{ color: UP_COLOR, fontSize: 20 }} />
-          <Typography sx={{ color: UP_COLOR, fontWeight: 500 }}>
+          <TrendingUp sx={{ color: t.up, fontSize: 20 }} />
+          <Typography sx={{ color: t.up, fontWeight: 500 }}>
             UP <AnimatedValue usdcValue={totalUp} prefix="$" />
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography sx={{ color: DOWN_COLOR, fontWeight: 500 }}>
+          <Typography sx={{ color: t.down, fontWeight: 500 }}>
             DOWN <AnimatedValue usdcValue={totalDown} prefix="$" />
           </Typography>
-          <TrendingDown sx={{ color: DOWN_COLOR, fontSize: 20 }} />
+          <TrendingDown sx={{ color: t.down, fontSize: 20 }} />
         </Box>
       </Box>
 
       {/* Percentages */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.75 }}>
-        <Typography variant="caption" sx={{ color: UP_COLOR, fontWeight: upDominant ? 700 : 500, fontSize: '0.75rem' }}>
+        <Typography variant="caption" sx={{ color: t.up, fontWeight: upDominant ? 700 : 500, fontSize: '0.75rem' }}>
           {upPct.toFixed(0)}%
         </Typography>
-        <Typography variant="caption" sx={{ color: DOWN_COLOR, fontWeight: !upDominant ? 700 : 500, fontSize: '0.75rem' }}>
+        <Typography variant="caption" sx={{ color: t.down, fontWeight: !upDominant ? 700 : 500, fontSize: '0.75rem' }}>
           {downPct.toFixed(0)}%
         </Typography>
       </Box>
@@ -59,7 +62,7 @@ export function PoolDistribution({ totalUp, totalDown, totalPool, betCount }: Po
           height: 14,
           borderRadius: '3px',
           overflow: 'hidden',
-          background: `linear-gradient(90deg, ${DOWN_COLOR}15, ${DOWN_COLOR}30, ${DOWN_COLOR}20)`,
+          background: `linear-gradient(90deg, ${withAlpha(t.down, 0.08)}, ${withAlpha(t.down, 0.19)}, ${withAlpha(t.down, 0.13)})`,
           mb: 3,
         }}
       >
@@ -73,8 +76,8 @@ export function PoolDistribution({ totalUp, totalDown, totalPool, betCount }: Po
             left: 0,
             height: '100%',
             borderRadius: '3px',
-            background: `linear-gradient(90deg, ${UP_COLOR}60, ${UP_COLOR}, ${UP_COLOR}CC)`,
-            boxShadow: upDominant ? `0 0 16px ${UP_COLOR}40, inset 0 1px 0 rgba(255,255,255,0.2)` : `inset 0 1px 0 rgba(255,255,255,0.15)`,
+            background: `linear-gradient(90deg, ${withAlpha(t.up, 0.38)}, ${t.up}, ${withAlpha(t.up, 0.80)})`,
+            boxShadow: upDominant ? `0 0 16px ${withAlpha(t.up, 0.25)}, inset 0 1px 0 ${t.border.hover}` : `inset 0 1px 0 rgba(255,255,255,0.15)`,
           }}
         >
           {/* Shimmer overlay */}
@@ -117,7 +120,7 @@ export function PoolDistribution({ totalUp, totalDown, totalPool, betCount }: Po
               right: 0,
               bottom: 0,
               width: `${downPct}%`,
-              boxShadow: `inset 0 0 12px ${DOWN_COLOR}25`,
+              boxShadow: `inset 0 0 12px ${withAlpha(t.down, 0.15)}`,
               borderRadius: '0 3px 3px 0',
               pointerEvents: 'none',
             }}
@@ -134,8 +137,8 @@ export function PoolDistribution({ totalUp, totalDown, totalPool, betCount }: Po
             bottom: -2,
             width: 2,
             marginLeft: -1,
-            background: 'rgba(255,255,255,0.5)',
-            boxShadow: '0 0 8px rgba(255,255,255,0.3)',
+            background: t.text.secondary,
+            boxShadow: `0 0 8px ${t.text.dimmed}`,
             borderRadius: 1,
             zIndex: 2,
           }}

@@ -3,10 +3,11 @@
 import { useMemo } from 'react';
 import { Box, Typography } from '@mui/material';
 import type { Candle } from '@/hooks';
-import { UP_COLOR, DOWN_COLOR, ACCENT_COLOR } from '@/lib/constants';
 import { useChartLayout } from './useChartLayout';
 import { ChartAxes } from './ChartAxes';
 import { formatChartPrice, PADDING } from './chart-utils';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 interface ChartProps {
   candles: Candle[];
@@ -16,6 +17,7 @@ interface ChartProps {
 }
 
 export function CandlesChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
+  const t = useThemeTokens();
   const layout = useChartLayout(candles, 'candles');
   const { containerRef, dims, parsed, chartW, chartH, toX, toY, yTicks, xTicks, hoverIndex, hoverY, hoverPrice, handleMouseMove, handleMouseLeave } = layout;
 
@@ -37,9 +39,9 @@ export function CandlesChart({ candles, duration, livePrice, strikePrice }: Char
           if (sy >= PADDING.top && sy <= PADDING.top + chartH) {
             return (
               <>
-                <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={sy} y2={sy} stroke={ACCENT_COLOR} strokeWidth={1} strokeDasharray="6,4" strokeOpacity={0.5} />
-                <rect x={dims.width - PADDING.right + 1} y={sy - 9} width={PADDING.right - 4} height={18} rx={2} fill={`${ACCENT_COLOR}30`} />
-                <text x={dims.width - PADDING.right + 8} y={sy + 4} fill={ACCENT_COLOR} fontSize={9} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={600}>
+                <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={sy} y2={sy} stroke={t.accent} strokeWidth={1} strokeDasharray="6,4" strokeOpacity={0.5} />
+                <rect x={dims.width - PADDING.right + 1} y={sy - 9} width={PADDING.right - 4} height={18} rx={2} fill={withAlpha(t.accent, 0.19)} />
+                <text x={dims.width - PADDING.right + 8} y={sy + 4} fill={t.accent} fontSize={9} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={600}>
                   {formatChartPrice(strikePrice)}
                 </text>
               </>
@@ -51,7 +53,7 @@ export function CandlesChart({ candles, duration, livePrice, strikePrice }: Char
         {parsed.map((c, i) => {
           const x = toX(i);
           const isUp = c.c >= c.o;
-          const color = isUp ? UP_COLOR : DOWN_COLOR;
+          const color = isUp ? t.up : t.down;
           const bodyTop = toY(Math.max(c.o, c.c));
           const bodyBottom = toY(Math.min(c.o, c.c));
           const bodyHeight = Math.max(1, bodyBottom - bodyTop);
@@ -71,13 +73,13 @@ export function CandlesChart({ candles, duration, livePrice, strikePrice }: Char
         {livePrice != null && (() => {
           const ly = toY(livePrice);
           const lastX = parsed.length > 0 ? toX(parsed.length - 1) : PADDING.left;
-          const lvColor = parsed.length > 1 ? (parsed[parsed.length - 1].c >= parsed[0].c ? UP_COLOR : DOWN_COLOR) : UP_COLOR;
+          const lvColor = parsed.length > 1 ? (parsed[parsed.length - 1].c >= parsed[0].c ? t.up : t.down) : t.up;
           if (ly >= PADDING.top && ly <= PADDING.top + chartH) {
             return (
               <>
                 <line x1={lastX} x2={dims.width - PADDING.right} y1={ly} y2={ly} stroke={lvColor} strokeWidth={1} strokeDasharray="3,3" strokeOpacity={0.6} />
                 <rect x={dims.width - PADDING.right + 1} y={ly - 10} width={PADDING.right - 4} height={20} rx={3} fill={lvColor} />
-                <text x={dims.width - PADDING.right + 8} y={ly + 4} fill="#000" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700}>
+                <text x={dims.width - PADDING.right + 8} y={ly + 4} fill={t.text.contrast} fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700}>
                   {formatChartPrice(livePrice)}
                 </text>
               </>
@@ -88,15 +90,15 @@ export function CandlesChart({ candles, duration, livePrice, strikePrice }: Char
 
         {/* Vertical crosshair */}
         {hoverCandle && hoverIndex !== null && (
-          <line x1={toX(hoverIndex)} x2={toX(hoverIndex)} y1={PADDING.top} y2={PADDING.top + chartH} stroke="rgba(255,255,255,0.2)" strokeWidth={1} strokeDasharray="3,3" />
+          <line x1={toX(hoverIndex)} x2={toX(hoverIndex)} y1={PADDING.top} y2={PADDING.top + chartH} stroke={t.text.muted} strokeWidth={1} strokeDasharray="3,3" />
         )}
 
         {/* Horizontal crosshair following mouse Y */}
         {hoverY !== null && hoverPrice !== null && (
           <>
-            <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={hoverY} y2={hoverY} stroke="rgba(255,255,255,0.25)" strokeWidth={1} strokeDasharray="3,3" />
+            <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={hoverY} y2={hoverY} stroke={t.text.muted} strokeWidth={1} strokeDasharray="3,3" />
             <rect x={dims.width - PADDING.right + 1} y={hoverY - 10} width={PADDING.right - 4} height={20} rx={3} fill="rgba(255,255,255,0.12)" />
-            <text x={dims.width - PADDING.right + 8} y={hoverY + 4} fill="#FFFFFF" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={500}>
+            <text x={dims.width - PADDING.right + 8} y={hoverY + 4} fill={t.text.primary} fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={500}>
               {formatChartPrice(hoverPrice)}
             </text>
           </>
@@ -119,10 +121,10 @@ export function CandlesChart({ candles, duration, livePrice, strikePrice }: Char
             {formatChartPrice(hoverCandle.l)}
           </Typography>
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>C</Typography>
-          <Typography variant="caption" sx={{ fontWeight: 600, color: hoverCandle.c >= hoverCandle.o ? UP_COLOR : DOWN_COLOR, fontVariantNumeric: 'tabular-nums' }}>
+          <Typography variant="caption" sx={{ fontWeight: 600, color: hoverCandle.c >= hoverCandle.o ? t.up : t.down, fontVariantNumeric: 'tabular-nums' }}>
             {formatChartPrice(hoverCandle.c)}
           </Typography>
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', ml: 0.5 }}>
+          <Typography variant="caption" sx={{ color: t.text.dimmed, ml: 0.5 }}>
             {new Date(hoverCandle.t).toLocaleString()}
           </Typography>
         </Box>

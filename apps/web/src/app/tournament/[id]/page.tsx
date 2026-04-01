@@ -6,7 +6,8 @@ import { Box, Typography, CircularProgress, Chip, Button, Alert, Avatar } from '
 import { EmojiEvents } from '@mui/icons-material';
 import Link from 'next/link';
 import { fetchTournamentBracket, type TournamentBracket } from '@/lib/api';
-import { UP_COLOR, GAIN_COLOR, getAvatarUrl } from '@/lib/constants';
+import { getAvatarUrl } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { usePriceStream } from '@/hooks/usePriceStream';
 import { useLiveScores, type LiveScore } from '@/hooks/useLiveScores';
@@ -18,6 +19,7 @@ import { TournamentHeader } from '@/components/tournament/TournamentHeader';
 import { TournamentRulesDialog } from '@/components/tournament/TournamentRulesDialog';
 
 export default function TournamentBracketPage() {
+  const t = useThemeTokens();
   const params = useParams();
   const id = params.id as string;
   const { connected, walletAddress } = useWalletBridge();
@@ -84,7 +86,7 @@ export default function TournamentBracketPage() {
     return (
       <AppShell>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 12 }}>
-          <CircularProgress size={32} sx={{ color: UP_COLOR }} />
+          <CircularProgress size={32} sx={{ color: t.up }} />
         </Box>
       </AppShell>
     );
@@ -94,25 +96,25 @@ export default function TournamentBracketPage() {
     return (
       <AppShell>
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, py: 12 }}>
-          <Typography sx={{ color: 'rgba(255,255,255,0.5)' }}>{error || 'Tournament not found'}</Typography>
+          <Typography sx={{ color: t.text.secondary }}>{error || 'Tournament not found'}</Typography>
           <Link href="/tournaments" style={{ textDecoration: 'none' }}>
-            <Typography sx={{ color: UP_COLOR, fontSize: '0.85rem', '&:hover': { textDecoration: 'underline' } }}>Back to Tournaments</Typography>
+            <Typography sx={{ color: t.up, fontSize: '0.85rem', '&:hover': { textDecoration: 'underline' } }}>Back to Tournaments</Typography>
           </Link>
         </Box>
       </AppShell>
     );
   }
 
-  const { tournament: t, rounds, participants } = bracket;
-  const entryFee = (Number(t.entryFee) / 1_000_000).toFixed(2);
-  const prizePool = (Number(t.prizePool) / 1_000_000).toFixed(2);
+  const { tournament: tourney, rounds, participants } = bracket;
+  const entryFee = (Number(tourney.entryFee) / 1_000_000).toFixed(2);
+  const prizePool = (Number(tourney.prizePool) / 1_000_000).toFixed(2);
   const filled = participants?.length ?? 0;
-  const isReg = t.status === 'REGISTERING';
-  const isActive = t.status === 'ACTIVE';
+  const isReg = tourney.status === 'REGISTERING';
+  const isActive = tourney.status === 'ACTIVE';
   const alreadyRegistered = !!(walletAddress && participants?.some(p => p.walletAddress === walletAddress));
   const isBusy = regStatus !== 'idle' && regStatus !== 'success' && regStatus !== 'error';
 
-  const livePrice = getPrice(t.asset);
+  const livePrice = getPrice(tourney.asset);
 
   const handleRegister = async () => {
     if (regStatus === 'error') reset();
@@ -123,7 +125,7 @@ export default function TournamentBracketPage() {
   return (
     <AppShell>
     <Box sx={{
-      bgcolor: '#0D1219',
+      bgcolor: t.bg.surfaceAlt,
       display: 'flex',
       flexDirection: 'column',
       minHeight: 'calc(100vh - 64px)',
@@ -133,7 +135,7 @@ export default function TournamentBracketPage() {
     }}>
 
       <TournamentHeader
-        tournament={t}
+        tournament={tourney}
         filled={filled}
         entryFee={entryFee}
         prizePool={prizePool}
@@ -156,19 +158,19 @@ export default function TournamentBracketPage() {
       <TournamentRulesDialog
         open={rulesOpen}
         onClose={() => setRulesOpen(false)}
-        tournament={t}
+        tournament={tourney}
         entryFee={entryFee}
         prizePool={prizePool}
-        sideLabels={t.sideLabels}
+        sideLabels={tourney.sideLabels}
       />
 
       {/* ══════ BRACKET VISUALIZATION ══════ */}
       {(() => {
-        const totalR = Number(t.totalRounds);
-        const size = Number(t.size);
+        const totalR = Number(tourney.totalRounds);
+        const size = Number(tourney.size);
         // Always show all rounds based on tournament size
         const allRounds = Array.from({ length: totalR }, (_, i) => i + 1);
-        const isMe = walletAddress === t.winnerWallet;
+        const isMe = walletAddress === tourney.winnerWallet;
         const claimed = !!(t as unknown as { prizeClaimedTx?: string }).prizeClaimedTx;
 
         return (
@@ -204,24 +206,24 @@ export default function TournamentBracketPage() {
                       matches={rm}
                       totalRounds={totalR}
                       walletAddress={walletAddress}
-                      tournamentId={t.id}
-                      asset={t.asset}
+                      tournamentId={tourney.id}
+                      asset={tourney.asset}
                       livePrice={livePrice}
                       onRefresh={load}
-                      isSports={t.tournamentType === 'SPORTS'}
+                      isSports={tourney.tournamentType === 'SPORTS'}
                       fixtureCount={bracket?.fixtures?.[rn]?.length || 0}
                       fixtures={bracket?.fixtures?.[rn]}
-                      sideLabels={t.sideLabels}
+                      sideLabels={tourney.sideLabels}
                       liveScores={liveScores}
                     />
-                    {!isLast && expectedMatches > 1 && <Connectors matchCount={expectedMatches} roundNum={rn} headerHeight={getHeaderHeight(t.tournamentType === 'SPORTS' ? (bracket?.fixtures?.[rn]?.length || 0) : 0)} />}
+                    {!isLast && expectedMatches > 1 && <Connectors matchCount={expectedMatches} roundNum={rn} headerHeight={getHeaderHeight(tourney.tournamentType === 'SPORTS' ? (bracket?.fixtures?.[rn]?.length || 0) : 0)} />}
                   </Box>
                 );
               })}
 
               {/* Champion card — same style as match cards */}
               <Box sx={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-                <Box sx={{ height: getHeaderHeight(t.tournamentType === 'SPORTS' ? (bracket?.fixtures?.[allRounds[allRounds.length - 1]]?.length || 0) : 0) - 18 }} />
+                <Box sx={{ height: getHeaderHeight(tourney.tournamentType === 'SPORTS' ? (bracket?.fixtures?.[allRounds[allRounds.length - 1]]?.length || 0) : 0) - 18 }} />
                 <Box sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
                   <Box sx={{ width: 32, display: 'flex', alignItems: 'center', flexShrink: 0, mx: 0.5 }}>
                     <Box sx={{ width: '100%', borderTop: `1px solid rgba(255,255,255,0.08)` }} />
@@ -244,35 +246,35 @@ export default function TournamentBracketPage() {
                       <Typography variant="caption" sx={{ fontWeight: 600, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                         Champion
                       </Typography>
-                      <EmojiEvents sx={{ fontSize: 16, color: t.winnerWallet ? '#FFD700' : 'rgba(255,255,255,0.08)' }} />
+                      <EmojiEvents sx={{ fontSize: 16, color: tourney.winnerWallet ? t.gold : 'rgba(255,255,255,0.08)' }} />
                     </Box>
 
                     {/* Content */}
                     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 0.5, px: 1.5 }}>
-                      {t.winnerWallet ? (
+                      {tourney.winnerWallet ? (
                         <>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Avatar src={getAvatarUrl(t.winnerWallet)} sx={{ width: 24, height: 24 }} />
-                            <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>
-                              {isMe ? 'You!' : truncate(t.winnerWallet)}
+                            <Avatar src={getAvatarUrl(tourney.winnerWallet)} sx={{ width: 24, height: 24 }} />
+                            <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: t.text.primary }}>
+                              {isMe ? 'You!' : truncate(tourney.winnerWallet)}
                             </Typography>
                           </Box>
-                          <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: GAIN_COLOR, fontVariantNumeric: 'tabular-nums' }}>
+                          <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: t.gain, fontVariantNumeric: 'tabular-nums' }}>
                             ${prizePool} USDC
                           </Typography>
                           {isMe && !claimed && (
                             <Link href="/profile?tab=tournaments" style={{ textDecoration: 'none' }}>
-                              <Button size="small" variant="contained" sx={{ bgcolor: UP_COLOR, color: '#000', fontWeight: 700, fontSize: '0.7rem', textTransform: 'none', px: 2, py: 0.5, borderRadius: 0, '&:hover': { bgcolor: UP_COLOR, filter: 'brightness(1.15)' } }}>
+                              <Button size="small" variant="contained" sx={{ bgcolor: t.up, color: t.text.contrast, fontWeight: 700, fontSize: '0.7rem', textTransform: 'none', px: 2, py: 0.5, borderRadius: 0, '&:hover': { bgcolor: t.up, filter: 'brightness(1.15)' } }}>
                                 Claim Prize
                               </Button>
                             </Link>
                           )}
                           {claimed && (
-                            <Typography variant="caption" sx={{ color: GAIN_COLOR, fontWeight: 600 }}>Claimed</Typography>
+                            <Typography variant="caption" sx={{ color: t.gain, fontWeight: 600 }}>Claimed</Typography>
                           )}
                         </>
                       ) : (
-                        <Typography sx={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.1)' }}>--</Typography>
+                        <Typography sx={{ fontSize: '0.8rem', color: t.text.muted }}>--</Typography>
                       )}
                     </Box>
                   </Box>
@@ -288,7 +290,7 @@ export default function TournamentBracketPage() {
       {/* Mobile participants */}
       {!isReg && participants && participants.length > 0 && (
         <Box sx={{ display: { xs: 'block', md: 'none' }, px: 1.5, pb: 4 }}>
-          <Typography sx={{ fontSize: '0.68rem', fontWeight: 600, color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 1 }}>
+          <Typography sx={{ fontSize: '0.68rem', fontWeight: 600, color: t.text.muted, textTransform: 'uppercase', letterSpacing: '0.06em', mb: 1 }}>
             Participants ({participants.length})
           </Typography>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
@@ -302,7 +304,7 @@ export default function TournamentBracketPage() {
                   fontFamily: 'monospace',
                   fontSize: '0.62rem',
                   height: 22,
-                  bgcolor: p.eliminatedRound ? 'rgba(255,255,255,0.02)' : `${UP_COLOR}08`,
+                  bgcolor: p.eliminatedRound ? 'rgba(255,255,255,0.02)' : `${t.up}08`,
                   color: p.eliminatedRound ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.55)',
                   textDecoration: p.eliminatedRound ? 'line-through' : 'none',
                   '& .MuiChip-avatar': { width: 16, height: 16 },

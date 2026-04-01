@@ -5,7 +5,8 @@ import { TrendingUp, TrendingDown, OpenInNew } from '@mui/icons-material';
 import Link from 'next/link';
 import type { Bet } from '@/lib/api';
 import { formatUSDC, formatDate, formatPrice, formatDateTime, getExplorerTxUrl, statusStyles, USDC_DIVISOR } from '@/lib/format';
-import { UP_COLOR, DOWN_COLOR, GAIN_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 import { AssetIcon } from './AssetIcon';
 import { AnimatedValue } from './AnimatedValue';
 import { Countdown } from './Countdown';
@@ -17,6 +18,8 @@ interface BetCardProps {
 }
 
 export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
+  const t = useThemeTokens();
+
   const isRefund = bet.claimed && bet.payoutAmount != null && bet.payoutAmount === bet.amount;
   const isWinner = bet.isWinner === true && !isRefund;
   const isLoser = bet.isWinner === false;
@@ -29,7 +32,7 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
     <Card
       sx={{
         overflow: 'hidden',
-        background: '#111820',
+        background: t.bg.surface,
         border: 'none',
       }}
     >
@@ -39,7 +42,7 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <AssetIcon asset={bet.pool.asset} size={28} />
             <Link href={`/pool/${bet.pool.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-              <Typography variant="h6" sx={{ fontWeight: 500, '&:hover': { color: 'rgba(255, 255, 255, 0.7)' }, transition: 'color 0.2s ease' }}>
+              <Typography variant="h6" sx={{ fontWeight: 500, '&:hover': { color: t.text.bright }, transition: 'color 0.2s ease' }}>
                 {bet.pool.asset}/USD
               </Typography>
             </Link>
@@ -51,7 +54,7 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
               size="small"
               sx={{
                 ...(isResolving
-                  ? { bgcolor: 'rgba(251, 191, 36, 0.12)', color: '#FBBF24' }
+                  ? { bgcolor: withAlpha(t.draw, 0.07), color: t.draw }
                   : statusStyle),
                 fontWeight: 500,
                 fontSize: '0.7rem',
@@ -64,8 +67,8 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
               label={bet.side}
               size="small"
               sx={{
-                bgcolor: bet.side === 'UP' ? `${UP_COLOR}18` : `${DOWN_COLOR}18`,
-                color: bet.side === 'UP' ? UP_COLOR : DOWN_COLOR,
+                bgcolor: bet.side === 'UP' ? withAlpha(t.up, 0.09) : withAlpha(t.down, 0.09),
+                color: bet.side === 'UP' ? t.up : t.down,
                 fontWeight: 500,
                 fontSize: '0.7rem',
                 borderRadius: '2px',
@@ -77,8 +80,8 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
                 label="Won"
                 size="small"
                 sx={{
-                  bgcolor: `${GAIN_COLOR}18`,
-                  color: GAIN_COLOR,
+                  bgcolor: withAlpha(t.gain, 0.09),
+                  color: t.gain,
                   fontWeight: 500,
                   fontSize: '0.7rem',
                   borderRadius: '2px',
@@ -91,7 +94,7 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
                 size="small"
                 sx={{
                   bgcolor: 'rgba(255, 255, 255, 0.05)',
-                  color: 'rgba(255, 255, 255, 0.4)',
+                  color: t.text.tertiary,
                   fontWeight: 500,
                   fontSize: '0.7rem',
                   borderRadius: '2px',
@@ -104,7 +107,7 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
                 size="small"
                 sx={{
                   bgcolor: isRefund ? 'rgba(59, 130, 246, 0.12)' : 'rgba(255, 255, 255, 0.05)',
-                  color: isRefund ? '#60A5FA' : 'rgba(255, 255, 255, 0.5)',
+                  color: isRefund ? t.info : t.text.secondary,
                   fontWeight: 500,
                   fontSize: '0.7rem',
                   borderRadius: '2px',
@@ -130,7 +133,7 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 {isRefund ? 'Refund' : 'Payout'}
               </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: isRefund ? '#60A5FA' : GAIN_COLOR }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: isRefund ? t.info : t.gain }}>
                 <AnimatedValue usdcValue={bet.payoutAmount!} prefix="$" />
               </Typography>
             </Box>
@@ -156,7 +159,7 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
                 variant="body2"
                 sx={{
                   fontWeight: 500,
-                  color: bet.pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR,
+                  color: bet.pool.winner === 'UP' ? t.up : t.down,
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
@@ -171,8 +174,8 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
             </Typography>
             {isResolving ? (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                <CircularProgress size={12} sx={{ color: '#FBBF24' }} />
-                <Typography variant="body2" sx={{ fontWeight: 500, color: '#FBBF24' }}>
+                <CircularProgress size={12} sx={{ color: t.draw }} />
+                <Typography variant="body2" sx={{ fontWeight: 500, color: t.draw }}>
                   Resolving...
                 </Typography>
               </Box>
@@ -212,7 +215,7 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
                   borderColor: 'transparent',
                   px: 1.5,
                   py: 0.5,
-                  '&:hover': { color: '#FFFFFF', borderColor: 'rgba(255, 255, 255, 0.3)' },
+                  '&:hover': { color: t.text.primary, borderColor: t.border.active },
                 }}
                 variant="outlined"
               >
@@ -233,7 +236,7 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
                   borderColor: 'transparent',
                   px: 1.5,
                   py: 0.5,
-                  '&:hover': { color: '#FFFFFF', borderColor: 'rgba(255, 255, 255, 0.3)' },
+                  '&:hover': { color: t.text.primary, borderColor: t.border.active },
                 }}
                 variant="outlined"
               >
@@ -254,14 +257,14 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
               mt: 2.5,
               py: 1.5,
               fontWeight: 600,
-              background: `linear-gradient(135deg, ${GAIN_COLOR}, #16A34A)`,
-              color: '#000',
+              background: `linear-gradient(135deg, ${t.gain}, ${t.successDark})`,
+              color: t.text.contrast,
               '&:hover': {
-                background: `linear-gradient(135deg, ${GAIN_COLOR}DD, #16A34ADD)`,
+                background: `linear-gradient(135deg, ${withAlpha(t.gain, 0.87)}, ${withAlpha(t.successDark, 0.87)})`,
               },
               '&:disabled': {
-                background: 'rgba(255, 255, 255, 0.2)',
-                color: 'rgba(0, 0, 0, 0.5)',
+                background: t.border.hover,
+                color: t.shadow.default,
               },
             }}
           >

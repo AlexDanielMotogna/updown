@@ -3,7 +3,8 @@
 import { Box, Typography, Chip } from '@mui/material';
 import { AccessTime, Lock, Visibility, Flag, CheckCircle } from '@mui/icons-material';
 import { formatDateTime } from '@/lib/format';
-import { UP_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 type PoolStatus = 'UPCOMING' | 'JOINING' | 'ACTIVE' | 'RESOLVED' | 'CLAIMABLE';
 
@@ -16,6 +17,7 @@ interface PoolTimelineProps {
 }
 
 export function PoolTimeline({ status, createdAt, lockTime, startTime, endTime }: PoolTimelineProps) {
+  const t = useThemeTokens();
   const isResolved = status === 'RESOLVED' || status === 'CLAIMABLE';
 
   return (
@@ -30,13 +32,13 @@ export function PoolTimeline({ status, createdAt, lockTime, startTime, endTime }
           gap: { xs: 1, sm: 1.5 },
           p: 2,
           borderRadius: 0,
-          background: 'rgba(255, 255, 255, 0.02)',
+          background: t.hover.subtle,
           border: 'none',
         }}
       >
         {/* Predictions Open */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <AccessTime sx={{ fontSize: 18, color: status === 'JOINING' ? '#FFFFFF' : 'text.secondary' }} />
+          <AccessTime sx={{ fontSize: 18, color: status === 'JOINING' ? t.text.primary : 'text.secondary' }} />
           <Box sx={{ flex: 1 }}>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>Predictions Open</Typography>
           </Box>
@@ -44,7 +46,7 @@ export function PoolTimeline({ status, createdAt, lockTime, startTime, endTime }
             {formatDateTime(createdAt)}
           </Typography>
           {status === 'JOINING' && (
-            <Chip label="OPEN" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.1)', color: '#FFFFFF', height: 20, fontSize: '0.65rem', borderRadius: '2px' }} />
+            <Chip label="OPEN" size="small" sx={{ bgcolor: t.hover.emphasis, color: t.text.primary, height: 20, fontSize: '0.65rem', borderRadius: '2px' }} />
           )}
           {(status === 'ACTIVE' || isResolved) && (
             <CheckCircle sx={{ fontSize: 16, color: 'text.secondary' }} />
@@ -53,7 +55,7 @@ export function PoolTimeline({ status, createdAt, lockTime, startTime, endTime }
 
         {/* Predictions Close */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Lock sx={{ fontSize: 18, color: status === 'ACTIVE' ? '#FFFFFF' : 'text.secondary' }} />
+          <Lock sx={{ fontSize: 18, color: status === 'ACTIVE' ? t.text.primary : 'text.secondary' }} />
           <Box sx={{ flex: 1 }}>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>Predictions Close</Typography>
           </Box>
@@ -64,7 +66,7 @@ export function PoolTimeline({ status, createdAt, lockTime, startTime, endTime }
             <Chip label="PENDING" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', color: 'text.secondary', height: 20, fontSize: '0.65rem', borderRadius: '2px' }} />
           )}
           {status === 'ACTIVE' && (
-            <Chip label="CLOSED" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.08)', color: 'rgba(255, 255, 255, 0.7)', height: 20, fontSize: '0.65rem', borderRadius: '2px' }} />
+            <Chip label="CLOSED" size="small" sx={{ bgcolor: t.hover.strong, color: t.text.bright, height: 20, fontSize: '0.65rem', borderRadius: '2px' }} />
           )}
           {isResolved && (
             <CheckCircle sx={{ fontSize: 16, color: 'text.secondary' }} />
@@ -73,7 +75,7 @@ export function PoolTimeline({ status, createdAt, lockTime, startTime, endTime }
 
         {/* Pool Monitoring */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Visibility sx={{ fontSize: 18, color: status === 'ACTIVE' ? '#FFFFFF' : 'text.secondary' }} />
+          <Visibility sx={{ fontSize: 18, color: status === 'ACTIVE' ? t.text.primary : 'text.secondary' }} />
           <Box sx={{ flex: 1 }}>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>Monitoring</Typography>
           </Box>
@@ -84,7 +86,7 @@ export function PoolTimeline({ status, createdAt, lockTime, startTime, endTime }
             <Chip label="PENDING" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', color: 'text.secondary', height: 20, fontSize: '0.65rem', borderRadius: '2px' }} />
           )}
           {status === 'ACTIVE' && (
-            <Chip label="LIVE" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.1)', color: '#FFFFFF', height: 20, fontSize: '0.65rem', borderRadius: '2px' }} />
+            <Chip label="LIVE" size="small" sx={{ bgcolor: t.hover.emphasis, color: t.text.primary, height: 20, fontSize: '0.65rem', borderRadius: '2px' }} />
           )}
           {isResolved && (
             <CheckCircle sx={{ fontSize: 16, color: 'text.secondary' }} />
@@ -93,7 +95,7 @@ export function PoolTimeline({ status, createdAt, lockTime, startTime, endTime }
 
         {/* Pool Resolution */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Flag sx={{ fontSize: 18, color: isResolved ? UP_COLOR : 'text.secondary' }} />
+          <Flag sx={{ fontSize: 18, color: isResolved ? t.up : 'text.secondary' }} />
           <Box sx={{ flex: 1 }}>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>Result</Typography>
           </Box>
@@ -104,7 +106,7 @@ export function PoolTimeline({ status, createdAt, lockTime, startTime, endTime }
             <Chip label="PENDING" size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', color: 'text.secondary', height: 20, fontSize: '0.65rem', borderRadius: '2px' }} />
           )}
           {isResolved && (
-            <Chip label="DONE" size="small" sx={{ bgcolor: `rgba(0, 229, 255, 0.1)`, color: UP_COLOR, height: 20, fontSize: '0.65rem', borderRadius: '2px' }} />
+            <Chip label="DONE" size="small" sx={{ bgcolor: withAlpha(t.up, 0.10), color: t.up, height: 20, fontSize: '0.65rem', borderRadius: '2px' }} />
           )}
         </Box>
       </Box>

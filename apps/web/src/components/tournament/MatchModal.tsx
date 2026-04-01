@@ -2,7 +2,6 @@
 
 import { Box, Typography, Chip, Dialog, IconButton } from '@mui/material';
 import { Close } from '@mui/icons-material';
-import { UP_COLOR, DOWN_COLOR, DRAW_COLOR, ACCENT_COLOR } from '@/lib/constants';
 import { type TournamentMatchData, type TournamentFixture } from '@/lib/api';
 import { InlineChart } from '@/components/pool/InlineChart';
 import { isMatchActive, isMatchFinished, formatLiveStatus, type LiveScore } from '@/hooks/useLiveScores';
@@ -12,6 +11,8 @@ import { PlayerRow } from './PlayerRow';
 import { PredictionInput } from './PredictionInput';
 import { MatchdayPredictionForm } from './MatchdayPredictionForm';
 import { MatchdayFixtureRow } from './MatchdayFixtureRow';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 export function MatchModal({
   open,
@@ -44,6 +45,7 @@ export function MatchModal({
   sideLabels?: string[];
   liveScores?: Map<string, LiveScore>;
 }) {
+  const t = useThemeTokens();
   const isResolved = match.status === 'RESOLVED';
   const isActive = match.status === 'ACTIVE';
   const isPending = match.status === 'PENDING';
@@ -96,10 +98,10 @@ export function MatchModal({
           {isPending && match.predictionDeadline && <Countdown target={match.predictionDeadline} label="Predict" />}
           {isActive && match.endTime && <Countdown target={match.endTime} label="Match" />}
           {isResolved && (
-            <Chip label="DONE" size="small" sx={{ height: 20, fontSize: '0.6rem', fontWeight: 700, bgcolor: `${UP_COLOR}15`, color: UP_COLOR }} />
+            <Chip label="DONE" size="small" sx={{ height: 20, fontSize: '0.6rem', fontWeight: 700, bgcolor: withAlpha(t.up, 0.08), color: t.up }} />
           )}
         </Box>
-        <IconButton onClick={onClose} size="small" sx={{ color: 'rgba(255,255,255,0.4)' }}>
+        <IconButton onClick={onClose} size="small" sx={{ color: t.text.tertiary }}>
           <Close sx={{ fontSize: 18 }} />
         </IconButton>
       </Box>
@@ -110,12 +112,12 @@ export function MatchModal({
         const myScore = isP1 ? match.player1Score : match.player2Score;
         const oppScore = isP1 ? match.player2Score : match.player1Score;
         return (
-          <Box sx={{ px: 2, py: 1.5, textAlign: 'center', borderBottom: `1px solid ${BORDER}`, bgcolor: iWon ? `${UP_COLOR}08` : 'rgba(248,113,113,0.05)' }}>
-            <Typography sx={{ fontSize: '1.1rem', fontWeight: 800, color: iWon ? UP_COLOR : '#F87171', mb: 0.25 }}>
+          <Box sx={{ px: 2, py: 1.5, textAlign: 'center', borderBottom: `1px solid ${BORDER}`, bgcolor: iWon ? withAlpha(t.up, 0.03) : 'rgba(248,113,113,0.05)' }}>
+            <Typography sx={{ fontSize: '1.1rem', fontWeight: 800, color: iWon ? t.up : t.down, mb: 0.25 }}>
               {iWon ? 'YOU WIN' : 'YOU LOST'}
             </Typography>
             {myScore != null && oppScore != null && (
-              <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255,255,255,0.6)' }}>
+              <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: t.text.rich }}>
                 Score: {myScore} – {oppScore}
               </Typography>
             )}
@@ -127,7 +129,7 @@ export function MatchModal({
       <Box sx={{ px: 2, py: 1.5, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
         <PlayerRow wallet={match.player1Wallet} prediction={match.player1Prediction} distance={p1Distance} isWinner={p1Won} isLoser={isResolved && !p1Won && !!match.player1Wallet} isPending={isPending || isActive} isSports={isSports} score={match.player1Score} fixtureCount={fixtureCount} isMe={isP1} />
         <Box sx={{ height: '1px', bgcolor: BORDER, position: 'relative', my: 0.25 }}>
-          <Typography sx={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', fontSize: '0.5rem', fontWeight: 700, color: isResolved && match.finalPrice ? ACCENT_COLOR : 'rgba(255,255,255,0.15)', bgcolor: BG, px: 0.75, lineHeight: 1 }}>
+          <Typography sx={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', fontSize: '0.5rem', fontWeight: 700, color: isResolved && match.finalPrice ? t.accent : 'rgba(255,255,255,0.15)', bgcolor: BG, px: 0.75, lineHeight: 1 }}>
             {isResolved && match.finalPrice ? (isSports ? 'Done' : formatPrice(match.finalPrice)) : 'VS'}
           </Typography>
         </Box>
@@ -137,7 +139,7 @@ export function MatchModal({
       {/* Fixtures breakdown — card per match */}
       {isSports && fixtures && fixtures.length > 0 && (match.player1Prediction || match.player2Prediction) && (
         <Box sx={{ borderTop: `1px solid ${BORDER}`, px: 2, py: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: t.text.secondary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             {isResolved ? 'Matchday Results' : 'Predictions'}
           </Typography>
 
@@ -172,33 +174,33 @@ export function MatchModal({
             const awayWon = result === 'AWAY';
 
             return (
-              <Box key={f.id} sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '8px', p: 1.5, ...(live && { border: '1px solid rgba(34,197,94,0.2)' }) }}>
+              <Box key={f.id} sx={{ bgcolor: t.hover.light, borderRadius: '8px', p: 1.5, ...(live && { border: `1px solid ${withAlpha(t.gain, 0.2)}` }) }}>
                 {/* Match header: crests + teams + score + live status */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1, flexWrap: 'wrap' }}>
                   {f.homeTeamCrest && <Box component="img" src={f.homeTeamCrest} alt="" sx={{ width: 20, height: 20, objectFit: 'contain' }} />}
-                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: homeWon ? UP_COLOR : '#fff' }}>
+                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: homeWon ? t.up : t.text.primary }}>
                     {f.homeTeam}
                   </Typography>
-                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: live ? '#22C55E' : '#fff' }}>
+                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: live ? t.gain : t.text.primary }}>
                     {hasScore ? `${displayHome} - ${displayAway}` : 'vs'}
                   </Typography>
-                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: awayWon ? UP_COLOR : '#fff' }}>
+                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: awayWon ? t.up : t.text.primary }}>
                     {f.awayTeam}
                   </Typography>
                   {f.awayTeamCrest && <Box component="img" src={f.awayTeamCrest} alt="" sx={{ width: 20, height: 20, objectFit: 'contain' }} />}
                   {live && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 'auto' }}>
-                      <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#22C55E', animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
-                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#22C55E' }}>
+                      <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: t.gain, animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: t.gain }}>
                         {formatLiveStatus(ls!.status, ls!.progress)}
                       </Typography>
                     </Box>
                   )}
                   {liveFinished && !f.resultOutcome && (
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)', ml: 'auto' }}>Full Time</Typography>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: t.text.secondary, ml: 'auto' }}>Full Time</Typography>
                   )}
                   {!live && !liveFinished && f.kickoff && !f.resultOutcome && (
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.35)', ml: 'auto' }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: t.text.quaternary, ml: 'auto' }}>
                       {formatKickoff(f.kickoff)}
                     </Typography>
                   )}
@@ -208,16 +210,16 @@ export function MatchModal({
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                   {myPick && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: ACCENT_COLOR, width: 70 }}>You:</Typography>
-                      <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: myCorrect ? UP_COLOR : result ? '#F87171' : '#fff' }}>
+                      <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.accent, width: 70 }}>You:</Typography>
+                      <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: myCorrect ? t.up : result ? t.down : t.text.primary }}>
                         {pickToName(myPick)}
                       </Typography>
                     </Box>
                   )}
                   {oppPick && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)', width: 70 }}>Opponent:</Typography>
-                      <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: oppCorrect ? UP_COLOR : result ? '#F87171' : 'rgba(255,255,255,0.7)' }}>
+                      <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.text.secondary, width: 70 }}>Opponent:</Typography>
+                      <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: oppCorrect ? t.up : result ? t.down : t.text.bright }}>
                         {pickToName(oppPick)}
                       </Typography>
                     </Box>
@@ -231,20 +233,20 @@ export function MatchModal({
           {(match.player1TotalGoals != null || match.player2TotalGoals != null) && (() => {
             const actualTg = match.finalPrice ? parseMatchdayPrediction(match.finalPrice)?.totalGoals : null;
             return (
-              <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '8px', p: 1.5 }}>
+              <Box sx={{ bgcolor: t.hover.light, borderRadius: '8px', p: 1.5 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: actualTg != null ? 1 : 0 }}>
-                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>Total Goals Tiebreaker</Typography>
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.text.secondary }}>Total Goals Tiebreaker</Typography>
                   {actualTg != null && (
-                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>
+                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: t.text.primary }}>
                       Actual: {actualTg}
                     </Typography>
                   )}
                 </Box>
                 <Box sx={{ display: 'flex', gap: 2 }}>
-                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: isP1 ? ACCENT_COLOR : 'rgba(255,255,255,0.7)' }}>
+                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: isP1 ? t.accent : t.text.bright }}>
                     {isP1 ? 'You' : 'Opponent'}: {match.player1TotalGoals ?? '—'}
                   </Typography>
-                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: isP2 ? ACCENT_COLOR : 'rgba(255,255,255,0.7)' }}>
+                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: isP2 ? t.accent : t.text.bright }}>
                     {isP2 ? 'You' : 'Opponent'}: {match.player2TotalGoals ?? '—'}
                   </Typography>
                 </Box>
@@ -275,7 +277,7 @@ export function MatchModal({
             />
           ) : !isSports ? (
             <>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: PREDICT_COLOR, mb: 1 }}>
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: t.predict, mb: 1 }}>
                 Submit Your Price Prediction
               </Typography>
               <PredictionInput matchId={match.id} tournamentId={tournamentId} currentPrice={livePrice} onSubmitted={() => { onRefresh(); onClose(); }} />
@@ -287,7 +289,7 @@ export function MatchModal({
       {/* Locked — waiting for opponent */}
       {isPending && isMyMatch && myPrediction && (
         <Box sx={{ borderTop: `1px solid ${BORDER}`, px: 2, py: 1.5 }}>
-          <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>
+          <Typography sx={{ fontSize: '0.75rem', color: t.text.dimmed, textAlign: 'center' }}>
             Prediction locked · Waiting for opponent
           </Typography>
         </Box>

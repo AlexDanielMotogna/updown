@@ -1,8 +1,8 @@
 'use client';
 
 import { Box, Typography, Grid } from '@mui/material';
-import { UP_COLOR, DOWN_COLOR } from '@/lib/constants';
 import type { PacificaPriceData } from '@/hooks/usePacificaPrices';
+import { useThemeTokens } from '@/app/providers';
 
 interface MarketIntelligenceProps {
   asset: string;
@@ -36,6 +36,7 @@ interface CardData {
 }
 
 export function MarketIntelligence({ asset, priceData }: MarketIntelligenceProps) {
+  const t = useThemeTokens();
   if (!priceData) {
     return (
       <Box sx={{ mb: 4 }}>
@@ -49,15 +50,15 @@ export function MarketIntelligence({ asset, priceData }: MarketIntelligenceProps
                 sx={{
                   p: { xs: 1.5, sm: 2 },
                   borderRadius: 0,
-                  background: 'rgba(255, 255, 255, 0.04)',
+                  background: t.hover.default,
                   border: 'none',
                   flex: 1,
                 }}
               >
-                <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontWeight: 500, letterSpacing: '0.05em', textTransform: 'none' }}>
+                <Typography sx={{ fontSize: '0.6rem', color: t.text.tertiary, fontWeight: 500, letterSpacing: '0.05em', textTransform: 'none' }}>
                   {label}
                 </Typography>
-                <Typography sx={{ fontSize: { xs: '0.85rem', sm: '1.1rem' }, fontWeight: 300, color: 'rgba(255,255,255,0.2)', mt: 0.5 }}>
+                <Typography sx={{ fontSize: { xs: '0.85rem', sm: '1.1rem' }, fontWeight: 300, color: t.text.muted, mt: 0.5 }}>
                   ---
                 </Typography>
               </Box>
@@ -68,9 +69,9 @@ export function MarketIntelligence({ asset, priceData }: MarketIntelligenceProps
     );
   }
 
-  const fundingColor = priceData.nextFunding >= 0 ? UP_COLOR : DOWN_COLOR;
+  const fundingColor = priceData.nextFunding >= 0 ? t.up : t.down;
   const spreadDivergent = Math.abs(priceData.spreadPct) > 0.05;
-  const spreadColor = spreadDivergent ? DOWN_COLOR : 'rgba(255,255,255,0.7)';
+  const spreadColor = spreadDivergent ? t.down : t.text.bright;
 
   const change24h = priceData.priceChange24hPct;
   const change24hSign = change24h >= 0 ? '+' : '';
@@ -85,16 +86,16 @@ export function MarketIntelligence({ asset, priceData }: MarketIntelligenceProps
     {
       label: 'Open Interest',
       value: formatCompact(priceData.openInterest * priceData.mark),
-      color: 'rgba(255,255,255,0.85)',
+      color: t.text.vivid,
       subtext: 'Total open positions',
     },
     {
       label: '24h Volume',
       value: formatCompact(priceData.volume24h * priceData.mark),
-      color: 'rgba(255,255,255,0.85)',
+      color: t.text.vivid,
       subtext: '24h change',
       subtextHighlight: `${change24hSign}${change24h.toFixed(2)}%`,
-      subtextHighlightColor: change24h >= 0 ? UP_COLOR : DOWN_COLOR,
+      subtextHighlightColor: change24h >= 0 ? t.up : t.down,
     },
     {
       label: 'Mark/Oracle Spread',
@@ -116,19 +117,19 @@ export function MarketIntelligence({ asset, priceData }: MarketIntelligenceProps
               sx={{
                 p: { xs: 1.5, sm: 2 },
                 borderRadius: 0,
-                background: 'rgba(255, 255, 255, 0.04)',
+                background: t.hover.default,
                 border: 'none',
                 flex: 1,
               }}
             >
-              <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontWeight: 500, letterSpacing: '0.05em', textTransform: 'none' }}>
+              <Typography sx={{ fontSize: '0.6rem', color: t.text.tertiary, fontWeight: 500, letterSpacing: '0.05em', textTransform: 'none' }}>
                 {card.label}
               </Typography>
               <Typography sx={{ fontSize: { xs: '0.85rem', sm: '1rem' }, fontWeight: 300, color: card.color, mt: 0.5, fontVariantNumeric: 'tabular-nums' }}>
                 {card.value}
               </Typography>
               {card.subtext && (
-                <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)', mt: 0.25 }}>
+                <Typography sx={{ fontSize: '0.6rem', color: t.text.dimmed, mt: 0.25 }}>
                   {card.subtextHighlight && (
                     <Box component="span" sx={{ color: card.subtextHighlightColor, fontWeight: 500 }}>
                       {card.subtextHighlight}

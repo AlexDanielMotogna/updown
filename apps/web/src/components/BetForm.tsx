@@ -23,7 +23,9 @@ import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import type { PoolDetail } from '@/lib/api';
 import { USDC_DIVISOR } from '@/lib/format';
-import { UP_COLOR, DOWN_COLOR, GAIN_COLOR, UP_COINS_DIVISOR, FEE_BPS_DIVISOR, DEFAULT_FEE_PERCENT, UP_COINS_PER_DOLLAR } from '@/lib/constants';
+import { UP_COINS_DIVISOR, FEE_BPS_DIVISOR, DEFAULT_FEE_PERCENT, UP_COINS_PER_DOLLAR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 import { SideSelector } from './bet/SideSelector';
 import { PayoutPreview } from './bet/PayoutPreview';
 
@@ -44,6 +46,7 @@ interface BetFormProps {
 const PRESET_AMOUNTS = [10, 50, 100, 500];
 
 export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, controlledSide, hideToggle, existingBetSide }: BetFormProps) {
+  const t = useThemeTokens();
   const { connected } = useWalletBridge();
   const { data: balance } = useUsdcBalance();
   const { data: userProfile } = useUserProfile();
@@ -99,7 +102,7 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
   const currentOddsUp = totalUp + totalDown > 0 ? (totalUp + totalDown) / (totalUp || 1) : 2;
   const currentOddsDown = totalUp + totalDown > 0 ? (totalUp + totalDown) / (totalDown || 1) : 2;
 
-  const sideColor = side === 'UP' ? UP_COLOR : DOWN_COLOR;
+  const sideColor = side === 'UP' ? t.up : t.down;
 
   const tugTotal = totalUp + totalDown;
 
@@ -131,11 +134,11 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
               sx={{
                 flex: 1, minWidth: 0, py: 0.75,
                 fontSize: '0.8rem', fontWeight: 600,
-                bgcolor: isActive ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
-                color: isActive ? '#fff' : 'rgba(255,255,255,0.5)',
+                bgcolor: isActive ? t.hover.emphasis : t.hover.default,
+                color: isActive ? t.text.primary : t.text.secondary,
                 textTransform: 'none', borderRadius: '5px',
-                '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' },
-                '&:disabled': { bgcolor: 'rgba(255,255,255,0.02)', color: 'rgba(255,255,255,0.2)' },
+                '&:hover': { bgcolor: t.hover.strong },
+                '&:disabled': { bgcolor: t.hover.subtle, color: t.text.muted },
               }}
             >
               ${preset}
@@ -150,7 +153,7 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
           AMOUNT
         </Typography>
         {connected && balance && (
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)', fontWeight: 500, textTransform: 'none', letterSpacing: 0, fontSize: '0.7rem' }}>
+          <Typography variant="caption" sx={{ color: t.text.quaternary, fontWeight: 500, textTransform: 'none', letterSpacing: 0, fontSize: '0.7rem' }}>
             Balance: {balance.uiAmount.toFixed(2)} USDC
           </Typography>
         )}
@@ -164,14 +167,14 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
         disabled={!canInteract}
         InputProps={{
           startAdornment: <InputAdornment position="start"><Typography sx={{ color: sideColor, fontWeight: 600, fontSize: '0.9rem' }}>$</Typography></InputAdornment>,
-          endAdornment: <InputAdornment position="end"><Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.7rem', fontWeight: 500 }}>USDC</Typography></InputAdornment>,
+          endAdornment: <InputAdornment position="end"><Typography sx={{ color: t.text.dimmed, fontSize: '0.7rem', fontWeight: 500 }}>USDC</Typography></InputAdornment>,
         }}
         sx={{
           mb: 1.5,
           '& .MuiOutlinedInput-root': {
             fontSize: '1.1rem',
             fontWeight: 600,
-            backgroundColor: 'rgba(255, 255, 255, 0.02)',
+            backgroundColor: t.bg.input,
             borderRadius: 2,
             py: 0,
             '& .MuiOutlinedInput-input': {
@@ -205,7 +208,7 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
           severity="error"
           sx={{
             mb: 1.5,
-            backgroundColor: `${DOWN_COLOR}15`,
+            backgroundColor: withAlpha(t.down, 0.08),
             border: 'none',
             borderRadius: 1,
             py: 0,
@@ -224,7 +227,7 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
             py: 1,
             mb: 1.5,
             borderRadius: 1,
-            background: 'rgba(255, 255, 255, 0.03)',
+            background: t.hover.light,
             textAlign: 'center',
           }}
         >
@@ -257,8 +260,8 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
             )}
             {pool.status === 'CLAIMABLE' && (
               <>
-                <AccountBalanceWallet sx={{ fontSize: 14, color: GAIN_COLOR }} />
-                <Typography sx={{ fontWeight: 500, fontSize: '0.75rem', color: GAIN_COLOR }}>Claim winnings in Profile</Typography>
+                <AccountBalanceWallet sx={{ fontSize: 14, color: t.gain }} />
+                <Typography sx={{ fontWeight: 500, fontSize: '0.75rem', color: t.gain }}>Claim winnings in Profile</Typography>
               </>
             )}
           </Box>
@@ -267,7 +270,7 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
 
       {/* Submit Button */}
       <motion.div
-        animate={canBet ? { boxShadow: [`0 0 0 0px ${sideColor}40`, `0 0 0 10px ${sideColor}00`, `0 0 0 0px ${sideColor}40`] } : {}}
+        animate={canBet ? { boxShadow: [`0 0 0 0px ${withAlpha(sideColor, 0.25)}`, `0 0 0 10px ${withAlpha(sideColor, 0)}`, `0 0 0 0px ${withAlpha(sideColor, 0.25)}`] } : {}}
         transition={canBet ? { duration: 2, repeat: Infinity, ease: 'easeInOut' } : {}}
         whileTap={canBet ? { scale: 0.95 } : undefined}
         style={{ borderRadius: 5 }}
@@ -285,19 +288,19 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
           borderRadius: '5px',
           textTransform: 'uppercase',
           background: side === 'UP'
-            ? `linear-gradient(135deg, ${UP_COLOR}, #16A34A)`
-            : `linear-gradient(135deg, ${DOWN_COLOR}, #DC2626)`,
-          color: '#000',
-          boxShadow: canBet ? `0 4px 20px ${sideColor}30` : 'none',
+            ? `linear-gradient(135deg, ${t.up}, ${t.successDark})`
+            : `linear-gradient(135deg, ${t.down}, #DC2626)`,
+          color: t.text.contrast,
+          boxShadow: canBet ? `0 4px 20px ${withAlpha(sideColor, 0.19)}` : 'none',
           '&:hover': {
             background: side === 'UP'
-              ? `linear-gradient(135deg, ${UP_COLOR}DD, #16A34ADD)`
-              : `linear-gradient(135deg, ${DOWN_COLOR}DD, #DC2626DD)`,
-            boxShadow: `0 6px 30px ${sideColor}40`,
+              ? `linear-gradient(135deg, ${withAlpha(t.up, 0.87)}, ${withAlpha(t.successDark, 0.87)})`
+              : `linear-gradient(135deg, ${withAlpha(t.down, 0.87)}, #DC2626DD)`,
+            boxShadow: `0 6px 30px ${withAlpha(sideColor, 0.25)}`,
           },
           '&:disabled': {
-            background: 'rgba(255, 255, 255, 0.06)',
-            color: 'rgba(255, 255, 255, 0.25)',
+            background: t.hover.medium,
+            color: t.text.muted,
           },
         }}
       >
@@ -319,15 +322,15 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
 
       {/* Fee disclaimer  small, below button */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.4, mt: 1 }}>
-        <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.2)', fontWeight: 400 }}>
+        <Typography sx={{ fontSize: '0.6rem', color: t.text.muted, fontWeight: 400 }}>
           {userProfile
             ? userProfile.feeBps < 500
               ? `${userProfile.feePercent}% fee (Lv.${userProfile.level} discount)`
               : `${userProfile.feePercent}% platform fee on winnings`
             : '5% platform fee on winnings'}
         </Typography>
-        <Tooltip title="Fee is only charged on winnings, never on losses. Higher levels get lower fees (5% down to 3%)" arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
-          <InfoOutlined sx={{ fontSize: 10, color: 'rgba(255,255,255,0.15)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+        <Tooltip title="Fee is only charged on winnings, never on losses. Higher levels get lower fees (5% down to 3%)" arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: t.bg.tooltip, border: `1px solid ${t.border.strong}`, fontSize: '0.75rem' } }, arrow: { sx: { color: t.bg.tooltip } } }}>
+          <InfoOutlined sx={{ fontSize: 10, color: t.text.muted, cursor: 'help', '&:hover': { color: t.text.secondary }, transition: 'color 0.15s' }} />
         </Tooltip>
       </Box>
     </Box>

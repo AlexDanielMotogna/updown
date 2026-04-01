@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Box, Tabs, Tab, Typography, Button } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
+import { darkTokens as t } from '@/lib/theme';
 import { AdminLogin } from './components/AdminLogin';
 import { SystemHealth } from './components/SystemHealth';
 import { PoolManagement } from './components/PoolManagement';
@@ -35,7 +36,7 @@ export default function AdminPage() {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#0B0F14', p: 3 }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: t.bg.app, p: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
         <Typography variant="h5" fontWeight={600}>UpDown Admin</Typography>
         <Button size="small" startIcon={<LogoutIcon />} onClick={handleLogout} sx={{ color: 'text.secondary' }}>
@@ -43,7 +44,7 @@ export default function AdminPage() {
         </Button>
       </Box>
 
-      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3, borderBottom: `1px solid ${t.border.medium}` }}>
         {TABS.map(label => <Tab key={label} label={label} />)}
       </Tabs>
 

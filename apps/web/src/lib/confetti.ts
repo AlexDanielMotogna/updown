@@ -1,8 +1,5 @@
 import confetti from 'canvas-confetti';
-import { GAIN_COLOR } from '@/lib/constants';
-
-const GOLD = '#FFD700';
-const WHITE = '#FFFFFF';
+import { darkTokens, palette } from '@/lib/theme';
 
 /** Gold/green burst for wins (TransactionModal success, POOL_WON toast) */
 export function fireWinConfetti() {
@@ -10,14 +7,14 @@ export function fireWinConfetti() {
     particleCount: 80,
     spread: 70,
     origin: { y: 0.6 },
-    colors: [GAIN_COLOR, GOLD, WHITE],
+    colors: [darkTokens.gain, palette.gold, palette.white],
   });
 }
 
 /** Bigger shower for successful claim payouts */
 export function fireClaimConfetti() {
   const end = Date.now() + 600;
-  const colors = [GAIN_COLOR, GOLD, WHITE];
+  const colors = [darkTokens.gain, palette.gold, palette.white];
 
   (function frame() {
     confetti({

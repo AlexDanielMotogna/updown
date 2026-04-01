@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { Box, Typography, TextField, Button, CircularProgress } from '@mui/material';
-import { UP_COLOR } from '@/lib/constants';
 import { type TournamentFixture } from '@/lib/api';
 import { MatchdayFixtureRow } from './MatchdayFixtureRow';
+import { useThemeTokens } from '@/app/providers';
 
 interface Props {
   fixtures: TournamentFixture[];
@@ -16,6 +16,7 @@ interface Props {
 }
 
 export function MatchdayPredictionForm({ fixtures, tournamentId, matchId, walletAddress, onSubmitted, sideLabels }: Props) {
+  const t = useThemeTokens();
   const [outcomes, setOutcomes] = useState<Record<number, string>>({});
   const [totalGoals, setTotalGoals] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -49,7 +50,7 @@ export function MatchdayPredictionForm({ fixtures, tournamentId, matchId, wallet
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5 }}>
+      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5 }}>
         Predict each match
       </Typography>
 
@@ -67,8 +68,8 @@ export function MatchdayPredictionForm({ fixtures, tournamentId, matchId, wallet
       ))}
 
       {/* Total goals tiebreaker */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, pt: 1, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)', flex: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, pt: 1, borderTop: `1px solid ${t.border.default}` }}>
+        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: t.text.secondary, flex: 1 }}>
           Total goals (tiebreaker)
         </Typography>
         <TextField
@@ -80,15 +81,15 @@ export function MatchdayPredictionForm({ fixtures, tournamentId, matchId, wallet
           inputProps={{ min: 0, step: 1 }}
           sx={{
             width: 80,
-            '& .MuiInputBase-root': { bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '6px', height: 32 },
+            '& .MuiInputBase-root': { bgcolor: t.hover.default, borderRadius: '6px', height: 32 },
             '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
-            '& .MuiInputBase-input': { color: '#fff', fontSize: '0.85rem', textAlign: 'center', py: 0.5 },
+            '& .MuiInputBase-input': { color: t.text.primary, fontSize: '0.85rem', textAlign: 'center', py: 0.5 },
           }}
         />
       </Box>
 
       {error && (
-        <Typography sx={{ fontSize: '0.7rem', color: '#F87171', mt: 0.5 }}>{error}</Typography>
+        <Typography sx={{ fontSize: '0.7rem', color: t.down, mt: 0.5 }}>{error}</Typography>
       )}
 
       <Button
@@ -97,10 +98,10 @@ export function MatchdayPredictionForm({ fixtures, tournamentId, matchId, wallet
         disabled={!canSubmit || submitting}
         onClick={handleSubmit}
         sx={{
-          mt: 1, bgcolor: UP_COLOR, color: '#000', fontWeight: 700, fontSize: '0.8rem',
+          mt: 1, bgcolor: t.up, color: t.text.contrast, fontWeight: 700, fontSize: '0.8rem',
           py: 0.75, borderRadius: '6px', textTransform: 'none',
           '&:hover': { filter: 'brightness(1.1)' },
-          '&:disabled': { bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)' },
+          '&:disabled': { bgcolor: t.border.default, color: t.text.dimmed },
         }}
       >
         {submitting ? <CircularProgress size={18} sx={{ color: 'inherit' }} /> : 'Lock Predictions'}

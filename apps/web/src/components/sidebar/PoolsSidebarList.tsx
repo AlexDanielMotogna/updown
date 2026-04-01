@@ -4,11 +4,12 @@ import { Box, Typography } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { formatUSDC } from '@/lib/format';
-import { UP_COLOR, DOWN_COLOR, DRAW_COLOR, GAIN_COLOR, INTERVAL_TAG_IMAGES, INTERVAL_LABELS } from '@/lib/constants';
+import { INTERVAL_TAG_IMAGES, INTERVAL_LABELS } from '@/lib/constants';
 import { AssetIcon } from '@/components/AssetIcon';
 import type { Pool } from '@/lib/api';
 import { isMatchActive, isMatchFinished, formatLiveStatus, type LiveScore } from '@/hooks/useLiveScores';
 import type { CategoryConfig } from '@/hooks/useCategories';
+import { useThemeTokens } from '@/app/providers';
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -45,12 +46,6 @@ function winnerLabel(pool: Pool): string {
   return 'DRAW';
 }
 
-function winnerColor(pool: Pool): string {
-  if (pool.winner === 'UP') return UP_COLOR;
-  if (pool.winner === 'DOWN') return DOWN_COLOR;
-  return DRAW_COLOR;
-}
-
 interface PoolsSidebarListProps {
   pools: Pool[];
   newIds: Set<string>;
@@ -59,6 +54,13 @@ interface PoolsSidebarListProps {
 }
 
 export function PoolsSidebarList({ pools, newIds, liveScores, categoryMap }: PoolsSidebarListProps) {
+  const t = useThemeTokens();
+
+  function winnerColor(pool: Pool): string {
+    if (pool.winner === 'UP') return t.up;
+    if (pool.winner === 'DOWN') return t.down;
+    return t.draw;
+  }
   if (pools.length === 0) {
     return (
       <Box sx={{ p: 2, textAlign: 'center' }}>
@@ -95,10 +97,10 @@ export function PoolsSidebarList({ pools, newIds, liveScores, categoryMap }: Poo
                   sx={{
                     px: 2,
                     py: 1.5,
-                    bgcolor: '#0D1219',
+                    bgcolor: t.bg.surfaceAlt,
                     cursor: 'pointer',
                     transition: 'background 0.15s ease',
-                    '&:hover': { background: 'rgba(255,255,255,0.04)' },
+                    '&:hover': { background: t.border.subtle },
                     ...(isMatchLive && { borderLeft: '2px solid #22C55E' }),
                   }}
                 >
@@ -109,7 +111,7 @@ export function PoolsSidebarList({ pools, newIds, liveScores, categoryMap }: Poo
                       {!isSports ? (
                         <AssetIcon asset={pool.asset} size={22} />
                       ) : cat?.badgeUrl ? (
-                        <Box component="img" src={cat.badgeUrl} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', ...(cat.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }) }} />
+                        <Box component="img" src={cat.badgeUrl} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', ...(cat.type === 'FOOTBALL_LEAGUE' && { bgcolor: t.text.vivid, borderRadius: '50%', p: '2px' }) }} />
                       ) : isPM && cat?.color ? (
                         <Box sx={{ width: 20, height: 20, borderRadius: '50%', bgcolor: `${cat.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: cat.color }} />
@@ -125,13 +127,13 @@ export function PoolsSidebarList({ pools, newIds, liveScores, categoryMap }: Poo
                     </Box>
                     {isMatchLive ? (
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
-                        <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: '#22C55E', animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#22C55E' }}>
+                        <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: t.gain, animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: t.gain }}>
                           {ls!.homeScore} - {ls!.awayScore}
                         </Typography>
                       </Box>
                     ) : isMatchDone && ls ? (
-                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.6)', flexShrink: 0 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: t.text.strong, flexShrink: 0 }}>
                         {ls.homeScore} - {ls.awayScore}
                       </Typography>
                     ) : !isSports ? (
@@ -142,7 +144,7 @@ export function PoolsSidebarList({ pools, newIds, liveScores, categoryMap }: Poo
                         sx={{ height: { xs: 32, md: 36 }, imageRendering: '-webkit-optimize-contrast', flexShrink: 0 }}
                       />
                     ) : (
-                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: GAIN_COLOR, flexShrink: 0 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: t.gain, flexShrink: 0 }}>
                         {formatUSDC(pool.totalPool)}
                       </Typography>
                     )}
@@ -152,19 +154,19 @@ export function PoolsSidebarList({ pools, newIds, liveScores, categoryMap }: Poo
                   <Box sx={{ minHeight: 32 }}>
                     {isMatchLive ? (
                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: '#22C55E' }}>
+                        <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: t.gain }}>
                           {formatLiveStatus(ls!.status, ls!.progress)}
                         </Typography>
-                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: GAIN_COLOR }}>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: t.gain }}>
                           {formatUSDC(pool.totalPool)}
                         </Typography>
                       </Box>
                     ) : isMatchDone ? (
                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>
+                        <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: t.text.tertiary }}>
                           Full Time
                         </Typography>
-                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: GAIN_COLOR }}>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: t.gain }}>
                           {formatUSDC(pool.totalPool)}
                         </Typography>
                       </Box>
@@ -183,7 +185,7 @@ export function PoolsSidebarList({ pools, newIds, liveScores, categoryMap }: Poo
                             {winnerLabel(pool)}
                           </Typography>
                           {!isSports && (
-                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: GAIN_COLOR, ml: 'auto' }}>
+                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: t.gain, ml: 'auto' }}>
                               {formatUSDC(pool.totalPool)}
                             </Typography>
                           )}
@@ -194,10 +196,10 @@ export function PoolsSidebarList({ pools, newIds, liveScores, categoryMap }: Poo
                       </>
                     ) : (
                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)' }}>
+                        <Typography sx={{ fontSize: '0.65rem', color: t.text.muted }}>
                           {isSports ? 'In progress' : 'Open'}
                         </Typography>
-                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: GAIN_COLOR }}>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: t.gain }}>
                           {formatUSDC(pool.totalPool)}
                         </Typography>
                       </Box>

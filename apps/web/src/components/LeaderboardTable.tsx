@@ -19,10 +19,11 @@ import {
 } from '@mui/icons-material';
 import { AnimatePresence } from 'framer-motion';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
-import { UP_COLOR, ACCENT_COLOR } from '@/lib/constants';
 import { LeaderboardRow } from './leaderboard/LeaderboardRow';
+import { useThemeTokens } from '@/app/providers';
 
 export function LeaderboardTable() {
+  const t = useThemeTokens();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -62,7 +63,7 @@ export function LeaderboardTable() {
             sx={{
               minHeight: 44,
               '& .MuiTabs-indicator': {
-                backgroundColor: ACCENT_COLOR,
+                backgroundColor: t.accent,
                 height: 2,
               },
               '& .MuiTab-root': {
@@ -74,7 +75,7 @@ export function LeaderboardTable() {
                 minHeight: 44,
                 minWidth: 'auto',
                 gap: 0.75,
-                '&.Mui-selected': { color: '#FFFFFF' },
+                '&.Mui-selected': { color: t.text.primary },
               },
             }}
           >
@@ -88,7 +89,7 @@ export function LeaderboardTable() {
       {/* Loading */}
       {isLoading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-          <CircularProgress size={32} sx={{ color: UP_COLOR }} />
+          <CircularProgress size={32} sx={{ color: t.up }} />
         </Box>
       )}
 
@@ -118,7 +119,7 @@ export function LeaderboardTable() {
               gridTemplateColumns: '60px 1fr 100px 140px 90px 120px 100px',
               px: 2,
               py: 1,
-              bgcolor: '#0D1219',
+              bgcolor: t.bg.surfaceAlt,
             }}
           >
             {[
@@ -145,8 +146,8 @@ export function LeaderboardTable() {
                 >
                   {h.label}
                 </Typography>
-                <Tooltip title={h.tip} arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
-                  <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+                <Tooltip title={h.tip} arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: t.bg.tooltip, border: `1px solid ${t.border.strong}`, fontSize: '0.75rem' } }, arrow: { sx: { color: t.bg.tooltip } } }}>
+                  <InfoOutlined sx={{ fontSize: 11, color: t.text.muted, cursor: 'help', '&:hover': { color: t.text.secondary }, transition: 'color 0.15s' }} />
                 </Tooltip>
               </Box>
             ))}
@@ -177,7 +178,7 @@ export function LeaderboardTable() {
               fontSize: '0.75rem',
               color: 'text.secondary',
               textTransform: 'none',
-              '&:hover': { color: '#fff' },
+              '&:hover': { color: t.text.primary },
             }}
           >
             Previous
@@ -199,7 +200,7 @@ export function LeaderboardTable() {
               fontSize: '0.75rem',
               color: 'text.secondary',
               textTransform: 'none',
-              '&:hover': { color: '#fff' },
+              '&:hover': { color: t.text.primary },
             }}
           >
             Next

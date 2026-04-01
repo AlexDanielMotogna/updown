@@ -27,6 +27,7 @@ import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { AssetIcon } from '../AssetIcon';
 import { UserLevelBadge } from '../UserLevelBadge';
 import { GAIN_COLOR, ACCENT_COLOR, DOWN_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
 
 const SEVERITY_COLORS: Record<NotificationSeverity, string> = {
   success: GAIN_COLOR,
@@ -59,6 +60,7 @@ function timeAgo(ts: number): string {
 }
 
 export function NotificationPanel() {
+  const t = useThemeTokens();
   const router = useRouter();
   const getBadge = useBadgeLookup();
   const { walletAddress } = useWalletBridge();
@@ -105,11 +107,11 @@ export function NotificationPanel() {
           size="small"
           onClick={handleBellClick}
           sx={{
-            bgcolor: bellOpen ? 'rgba(255,255,255,0.08)' : 'transparent',
+            bgcolor: bellOpen ? t.hover.strong : 'transparent',
             borderRadius: '6px',
             width: { xs: 34, sm: 38 },
             height: { xs: 34, sm: 38 },
-            '&:hover': { bgcolor: 'rgba(255,255,255,0.06)' },
+            '&:hover': { bgcolor: t.hover.medium },
           }}
         >
           <Badge
@@ -124,7 +126,7 @@ export function NotificationPanel() {
               },
             }}
           >
-            <Notifications sx={{ fontSize: 18, color: bellOpen ? '#fff' : 'text.secondary' }} />
+            <Notifications sx={{ fontSize: 18, color: bellOpen ? t.text.primary : 'text.secondary' }} />
           </Badge>
         </IconButton>
 
@@ -142,11 +144,11 @@ export function NotificationPanel() {
                   mt: 1,
                   width: { xs: 'calc(100vw - 32px)', sm: 360 },
                   maxHeight: 420,
-                  bgcolor: '#0D1219',
-                  border: '1px solid rgba(255,255,255,0.06)',
+                  bgcolor: t.bg.surfaceAlt,
+                  border: `1px solid ${t.border.default}`,
                   borderRadius: '6px',
                   overflow: 'hidden',
-                  boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
+                  boxShadow: `0 12px 40px ${t.shadow.deep}`,
                 }}
               >
                 {/* Panel header */}
@@ -157,10 +159,10 @@ export function NotificationPanel() {
                     justifyContent: 'space-between',
                     px: 2,
                     py: 1.5,
-                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    borderBottom: `1px solid ${t.border.default}`,
                   }}
                 >
-                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>
+                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: t.text.primary }}>
                     Notifications
                   </Typography>
                   {notifications.length > 0 && (
@@ -173,11 +175,11 @@ export function NotificationPanel() {
                       }}
                       sx={{
                         fontSize: '0.7rem',
-                        color: 'rgba(255,255,255,0.4)',
+                        color: t.text.tertiary,
                         textTransform: 'none',
                         minWidth: 'auto',
                         px: 1,
-                        '&:hover': { color: 'rgba(255,255,255,0.7)' },
+                        '&:hover': { color: t.text.bright },
                       }}
                     >
                       Clear all
@@ -189,8 +191,8 @@ export function NotificationPanel() {
                 <Box sx={{ maxHeight: 360, overflowY: 'auto' }}>
                   {notifications.length === 0 ? (
                     <Box sx={{ py: 6, textAlign: 'center' }}>
-                      <Notifications sx={{ fontSize: 32, color: 'rgba(255,255,255,0.12)', mb: 1 }} />
-                      <Typography sx={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.3)' }}>
+                      <Notifications sx={{ fontSize: 32, color: t.border.emphasis, mb: 1 }} />
+                      <Typography sx={{ fontSize: '0.8rem', color: t.text.dimmed }}>
                         No notifications yet
                       </Typography>
                     </Box>
@@ -210,10 +212,10 @@ export function NotificationPanel() {
                           opacity: n.dismissed ? 0.45 : 1,
                           transition: 'background 0.15s',
                           '&:hover': n.poolId
-                            ? { bgcolor: 'rgba(255,255,255,0.03)' }
+                            ? { bgcolor: t.hover.light }
                             : undefined,
                           '& + &': {
-                            borderTop: '1px solid rgba(255,255,255,0.04)',
+                            borderTop: `1px solid ${t.border.subtle}`,
                           },
                         }}
                       >
@@ -226,7 +228,7 @@ export function NotificationPanel() {
                             getSeverityIcon(n.severity, n.type)
                           ) : n.type.startsWith('TOURNAMENT_') && n.asset ? (
                             n.asset.includes(':') ? (
-                              <Box component="img" src={getBadge(n.asset.split(':')[1]) || ''} alt="" sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
+                              <Box component="img" src={getBadge(n.asset.split(':')[1]) || ''} alt="" sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: t.text.vivid, borderRadius: '50%', p: '2px' }} />
                             ) : (
                               <Box component="img" src={`/tournaments/tournament-${n.asset.toLowerCase()}.png`} alt={n.asset} sx={{ width: 22, height: 22, objectFit: 'contain' }} />
                             )
@@ -242,7 +244,7 @@ export function NotificationPanel() {
                               sx={{
                                 fontSize: '0.8rem',
                                 fontWeight: 600,
-                                color: '#fff',
+                                color: t.text.primary,
                                 lineHeight: 1.3,
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
@@ -254,7 +256,7 @@ export function NotificationPanel() {
                             <Typography
                               sx={{
                                 fontSize: '0.65rem',
-                                color: 'rgba(255,255,255,0.25)',
+                                color: t.text.muted,
                                 flexShrink: 0,
                               }}
                             >
@@ -264,7 +266,7 @@ export function NotificationPanel() {
                           <Typography
                             sx={{
                               fontSize: '0.72rem',
-                              color: 'rgba(255,255,255,0.45)',
+                              color: t.text.soft,
                               lineHeight: 1.4,
                               mt: 0.25,
                             }}

@@ -1,11 +1,10 @@
 'use client';
 
 import { Box } from '@mui/material';
-import { UP_COLOR } from '@/lib/constants';
-
-const CYAN = UP_COLOR;
+import { useThemeTokens } from '@/app/providers';
 
 export function TypingIndicator() {
+  const t = useThemeTokens();
   return (
     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
       <Box
@@ -13,7 +12,7 @@ export function TypingIndicator() {
           width: 6,
           height: 6,
           borderRadius: '50%',
-          backgroundColor: CYAN,
+          backgroundColor: t.up,
           opacity: 0.6,
         }}
       />
@@ -25,7 +24,7 @@ export function TypingIndicator() {
               width: 5,
               height: 5,
               borderRadius: '50%',
-              backgroundColor: 'rgba(255,255,255,0.3)',
+              backgroundColor: t.text.dimmed,
               animation: `typingDot 1s ease-in-out ${i * 0.15}s infinite`,
               '@keyframes typingDot': {
                 '0%, 100%': { opacity: 0.3 },

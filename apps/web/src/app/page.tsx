@@ -27,8 +27,8 @@ import { MatchBetModal } from '@/components/sports/MatchBetModal';
 import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter';
 import { TournamentBanner } from '@/components/tournament/TournamentBanner';
 import { CryptoPoolModal } from '@/components/pool/CryptoPoolModal';
-import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR } from '@/lib/constants';
-import { PREDICTION_COLOR } from '@/components/sports/MarketFilter';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 const ASSET_FILTERS = [
   { value: 'ALL', label: 'All', icon: <GridView sx={{ fontSize: 16 }} /> },
@@ -45,70 +45,30 @@ const INTERVAL_FILTERS = [
   { value: '1h', label: '1 hour', icon: <Schedule sx={{ fontSize: 16 }} /> },
 ];
 
-const HOW_TO_PLAY_CRYPTO = [
-  {
-    image: '/assets/asset-card-1.png',
-    title: 'Pick a Pool',
-    desc: 'Choose your asset & timeframe. BTC, ETH, SOL from 3min turbo to 1hr rounds.',
-    gradient: `linear-gradient(135deg, ${ACCENT_COLOR}15, ${ACCENT_COLOR}05)`,
-  },
-  {
-    image: '/assets/asset-card-2.png',
-    title: 'Go UP or DOWN',
-    desc: 'Stake USDC on your prediction. All bets go into the pool — winner takes all.',
-    gradient: `linear-gradient(135deg, ${UP_COLOR}15, ${UP_COLOR}05)`,
-  },
-  {
-    image: '/assets/asset-card-3.png',
-    title: 'Collect Winnings',
-    desc: 'Price moves your way? Claim your share of the entire pool. Instant payout.',
-    gradient: `linear-gradient(135deg, ${GAIN_COLOR}15, ${GAIN_COLOR}05)`,
-  },
-];
-
-const HOW_TO_PLAY_SPORTS = [
-  {
-    image: '/assets/asset-card-1.png',
-    title: 'Pick a Match',
-    desc: 'Browse upcoming football matches across Champions League, Premier League, La Liga & more.',
-    gradient: `linear-gradient(135deg, ${ACCENT_COLOR}15, ${ACCENT_COLOR}05)`,
-  },
-  {
-    image: '/assets/asset-card-2.png',
-    title: 'Home, Draw or Away',
-    desc: 'Stake USDC on your prediction. All bets go into the pool — winner takes all.',
-    gradient: `linear-gradient(135deg, ${UP_COLOR}15, ${UP_COLOR}05)`,
-  },
-  {
-    image: '/assets/asset-card-3.png',
-    title: 'Collect Winnings',
-    desc: 'Your team wins? Claim your share of the entire pool. Payout after full time.',
-    gradient: `linear-gradient(135deg, ${GAIN_COLOR}15, ${GAIN_COLOR}05)`,
-  },
-];
-
-const HOW_TO_PLAY_PREDICTIONS = [
-  {
-    image: '/assets/asset-card-1.png',
-    title: 'Pick a Market',
-    desc: 'Politics, geopolitics, culture, sports futures — real-world events with real odds.',
-    gradient: `linear-gradient(135deg, ${PREDICTION_COLOR}15, ${PREDICTION_COLOR}05)`,
-  },
-  {
-    image: '/assets/asset-card-2.png',
-    title: 'Yes or No',
-    desc: 'Stake USDC on your prediction. All bets go into the pool — winner takes all.',
-    gradient: `linear-gradient(135deg, ${UP_COLOR}15, ${UP_COLOR}05)`,
-  },
-  {
-    image: '/assets/asset-card-3.png',
-    title: 'Collect Winnings',
-    desc: 'Event resolves your way? Claim your share of the entire pool.',
-    gradient: `linear-gradient(135deg, ${GAIN_COLOR}15, ${GAIN_COLOR}05)`,
-  },
-];
+function useHowToPlayCards() {
+  const t = useThemeTokens();
+  return {
+    crypto: [
+      { image: '/assets/asset-card-1.png', title: 'Pick a Pool', desc: 'Choose your asset & timeframe. BTC, ETH, SOL from 3min turbo to 1hr rounds.', gradient: `linear-gradient(135deg, ${withAlpha(t.accent, 0.08)}, ${withAlpha(t.accent, 0.02)})` },
+      { image: '/assets/asset-card-2.png', title: 'Go UP or DOWN', desc: 'Stake USDC on your prediction. All bets go into the pool — winner takes all.', gradient: `linear-gradient(135deg, ${withAlpha(t.up, 0.08)}, ${withAlpha(t.up, 0.02)})` },
+      { image: '/assets/asset-card-3.png', title: 'Collect Winnings', desc: 'Price moves your way? Claim your share of the entire pool. Instant payout.', gradient: `linear-gradient(135deg, ${withAlpha(t.gain, 0.08)}, ${withAlpha(t.gain, 0.02)})` },
+    ],
+    sports: [
+      { image: '/assets/asset-card-1.png', title: 'Pick a Match', desc: 'Browse upcoming football matches across Champions League, Premier League, La Liga & more.', gradient: `linear-gradient(135deg, ${withAlpha(t.accent, 0.08)}, ${withAlpha(t.accent, 0.02)})` },
+      { image: '/assets/asset-card-2.png', title: 'Home, Draw or Away', desc: 'Stake USDC on your prediction. All bets go into the pool — winner takes all.', gradient: `linear-gradient(135deg, ${withAlpha(t.up, 0.08)}, ${withAlpha(t.up, 0.02)})` },
+      { image: '/assets/asset-card-3.png', title: 'Collect Winnings', desc: 'Your team wins? Claim your share of the entire pool. Payout after full time.', gradient: `linear-gradient(135deg, ${withAlpha(t.gain, 0.08)}, ${withAlpha(t.gain, 0.02)})` },
+    ],
+    predictions: [
+      { image: '/assets/asset-card-1.png', title: 'Pick a Market', desc: 'Politics, geopolitics, culture, sports futures — real-world events with real odds.', gradient: `linear-gradient(135deg, ${withAlpha(t.prediction, 0.08)}, ${withAlpha(t.prediction, 0.02)})` },
+      { image: '/assets/asset-card-2.png', title: 'Yes or No', desc: 'Stake USDC on your prediction. All bets go into the pool — winner takes all.', gradient: `linear-gradient(135deg, ${withAlpha(t.up, 0.08)}, ${withAlpha(t.up, 0.02)})` },
+      { image: '/assets/asset-card-3.png', title: 'Collect Winnings', desc: 'Event resolves your way? Claim your share of the entire pool.', gradient: `linear-gradient(135deg, ${withAlpha(t.gain, 0.08)}, ${withAlpha(t.gain, 0.02)})` },
+    ],
+  };
+}
 
 export default function MarketsPage() {
+  const t = useThemeTokens();
+  const howToPlay = useHowToPlayCards();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -315,7 +275,7 @@ export default function MarketsPage() {
                 mb: 3,
               }}
             >
-              {(isPM ? HOW_TO_PLAY_PREDICTIONS : marketType === 'SPORTS' ? HOW_TO_PLAY_SPORTS : HOW_TO_PLAY_CRYPTO).map((card) => (
+              {(isPM ? howToPlay.predictions : marketType === 'SPORTS' ? howToPlay.sports : howToPlay.crypto).map((card) => (
                 <Box
                   key={card.title}
                   sx={{
@@ -328,7 +288,7 @@ export default function MarketsPage() {
                     py: { xs: 1.5, md: 2 },
                     background: card.gradient,
                     transition: 'background 0.2s ease',
-                    '&:hover': { background: 'rgba(255,255,255,0.03)' },
+                    '&:hover': { background: t.hover.light },
                   }}
                 >
                   <Box sx={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
@@ -399,7 +359,7 @@ export default function MarketsPage() {
             {/* Loading State */}
             {isLoading && (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                <CircularProgress size={32} sx={{ color: UP_COLOR }} />
+                <CircularProgress size={32} sx={{ color: t.up }} />
               </Box>
             )}
 
@@ -423,7 +383,7 @@ export default function MarketsPage() {
                     </Box>
                     {sportsVisible < sportsPools.length && (
                       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                        <Button onClick={() => setSportsVisible(v => v + CARDS_PER_PAGE)} sx={{ color: 'rgba(255,255,255,0.5)', textTransform: 'none', fontSize: '0.85rem', '&:hover': { color: '#fff' } }}>
+                        <Button onClick={() => setSportsVisible(v => v + CARDS_PER_PAGE)} sx={{ color: t.text.secondary, textTransform: 'none', fontSize: '0.85rem', '&:hover': { color: t.text.primary } }}>
                           Show more ({sportsPools.length - sportsVisible} remaining)
                         </Button>
                       </Box>
@@ -434,14 +394,14 @@ export default function MarketsPage() {
                 {/* Empty state for sports/PM (only show after data loaded) */}
                 {!isPlaceholderData && marketType === 'SPORTS' && sportsPools.length === 0 && (
                   <Box sx={{ textAlign: 'center', py: 8 }}>
-                    <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.9rem' }}>
+                    <Typography sx={{ color: t.text.dimmed, fontSize: '0.9rem' }}>
                       No sports matches available right now
                     </Typography>
                   </Box>
                 )}
                 {!isPlaceholderData && isPM && predictionPools.length === 0 && (
                   <Box sx={{ textAlign: 'center', py: 8 }}>
-                    <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.9rem' }}>
+                    <Typography sx={{ color: t.text.dimmed, fontSize: '0.9rem' }}>
                       No predictions available in this category
                     </Typography>
                   </Box>
@@ -464,7 +424,7 @@ export default function MarketsPage() {
                     </Box>
                     {predVisible < predictionPools.length && (
                       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                        <Button onClick={() => setPredVisible(v => v + CARDS_PER_PAGE)} sx={{ color: 'rgba(255,255,255,0.5)', textTransform: 'none', fontSize: '0.85rem', '&:hover': { color: '#fff' } }}>
+                        <Button onClick={() => setPredVisible(v => v + CARDS_PER_PAGE)} sx={{ color: t.text.secondary, textTransform: 'none', fontSize: '0.85rem', '&:hover': { color: t.text.primary } }}>
                           Show more ({predictionPools.length - predVisible} remaining)
                         </Button>
                       </Box>
@@ -490,7 +450,7 @@ export default function MarketsPage() {
                 {/* Loading next page */}
                 {isFetchingNextPage && (
                   <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, pb: 4 }}>
-                    <CircularProgress size={32} sx={{ color: UP_COLOR }} />
+                    <CircularProgress size={32} sx={{ color: t.up }} />
                   </Box>
                 )}
 

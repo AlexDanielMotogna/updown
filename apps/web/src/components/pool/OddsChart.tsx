@@ -3,8 +3,8 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Box, Typography, CircularProgress, IconButton, Popover } from '@mui/material';
 import { Settings } from '@mui/icons-material';
-import { UP_COLOR, DOWN_COLOR } from '@/lib/constants';
 import { getSocket, connectSocket } from '@/lib/socket';
+import { useThemeTokens } from '@/app/providers';
 
 interface OddsPoint {
   t: number;
@@ -43,6 +43,7 @@ function formatTime(ts: number): string {
 }
 
 export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
+  const t = useThemeTokens();
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(600);
   const [pmHistory, setPmHistory] = useState<OddsPoint[]>([]);
@@ -197,7 +198,7 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
   if (loading && source === 'polymarket') {
     return (
       <Box ref={containerRef} sx={{ height: CHART_H, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <CircularProgress size={24} sx={{ color: 'rgba(255,255,255,0.2)' }} />
+        <CircularProgress size={24} sx={{ color: t.text.muted }} />
       </Box>
     );
   }
@@ -209,7 +210,7 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
         {/* Left: source toggle + legend */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           {/* Source toggle */}
-          <Box sx={{ display: 'flex', bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '6px', overflow: 'hidden' }}>
+          <Box sx={{ display: 'flex', bgcolor: t.border.subtle, borderRadius: '6px', overflow: 'hidden' }}>
             {([
               { key: 'polymarket' as Source, label: 'Polymarket' },
               { key: 'updown' as Source, label: 'UpDown' },
@@ -220,10 +221,10 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
                 sx={{
                   px: 1.5, py: 0.5, cursor: 'pointer',
                   fontSize: '0.65rem', fontWeight: 700,
-                  color: source === s.key ? '#fff' : 'rgba(255,255,255,0.3)',
-                  bgcolor: source === s.key ? 'rgba(255,255,255,0.1)' : 'transparent',
+                  color: source === s.key ? '#fff' : t.text.dimmed,
+                  bgcolor: source === s.key ? t.border.strong : 'transparent',
                   transition: 'all 0.15s',
-                  '&:hover': { bgcolor: 'rgba(255,255,255,0.06)' },
+                  '&:hover': { bgcolor: t.border.default },
                 }}
               >
                 {s.label}
@@ -232,8 +233,8 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
           </Box>
           {isLive && (
             <>
-              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: UP_COLOR, animation: 'pulse 1.5s infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
-              <Typography sx={{ fontSize: '0.55rem', fontWeight: 700, color: 'rgba(255,255,255,0.25)' }}>LIVE</Typography>
+              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: t.up, animation: 'pulse 1.5s infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+              <Typography sx={{ fontSize: '0.55rem', fontWeight: 700, color: t.text.muted }}>LIVE</Typography>
             </>
           )}
         </Box>
@@ -242,23 +243,23 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           {(hoverPoint || lastPoint) && (
             <>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: UP_COLOR, fontVariantNumeric: 'tabular-nums' }}>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: t.up, fontVariantNumeric: 'tabular-nums' }}>
                 {formatPct((hoverPoint || lastPoint)!.p)}
               </Typography>
-              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: DOWN_COLOR, opacity: 0.6, fontVariantNumeric: 'tabular-nums' }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.down, opacity: 0.6, fontVariantNumeric: 'tabular-nums' }}>
                 {formatPct(1 - (hoverPoint || lastPoint)!.p)}
               </Typography>
             </>
           )}
           {hoverPoint && (
-            <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', ml: 0.5 }}>
+            <Typography sx={{ fontSize: '0.65rem', color: t.text.muted, ml: 0.5 }}>
               {formatHoverTime(hoverPoint.t)}
             </Typography>
           )}
           <IconButton
             size="small"
             onClick={(e) => setSettingsAnchor(settingsAnchor ? null : e.currentTarget)}
-            sx={{ color: 'rgba(255,255,255,0.25)', p: 0.5, '&:hover': { color: 'rgba(255,255,255,0.5)' } }}
+            sx={{ color: t.text.muted, p: 0.5, '&:hover': { color: t.text.secondary } }}
           >
             <Settings sx={{ fontSize: 16 }} />
           </IconButton>
@@ -268,18 +269,18 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
             onClose={() => setSettingsAnchor(null)}
             anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
             transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-            PaperProps={{ sx: { bgcolor: '#1a2030', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', p: 1.5, minWidth: 140 } }}
+            PaperProps={{ sx: { bgcolor: t.bg.chart, border: `1px solid ${t.border.medium}`, borderRadius: '8px', p: 1.5, minWidth: 140 } }}
           >
             {[
-              { label: 'Yes', color: UP_COLOR, active: showYes, toggle: () => setShowYes(!showYes) },
-              { label: 'No', color: DOWN_COLOR, active: showNo, toggle: () => setShowNo(!showNo) },
+              { label: 'Yes', color: t.up, active: showYes, toggle: () => setShowYes(!showYes) },
+              { label: 'No', color: t.down, active: showNo, toggle: () => setShowNo(!showNo) },
             ].map(opt => (
               <Box
                 key={opt.label}
                 onClick={opt.toggle}
                 sx={{
                   display: 'flex', alignItems: 'center', gap: 1, py: 0.75, px: 0.5, cursor: 'pointer',
-                  borderRadius: '4px', '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
+                  borderRadius: '4px', '&:hover': { bgcolor: t.border.subtle },
                 }}
               >
                 <Box sx={{
@@ -289,7 +290,7 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
                   opacity: opt.active ? 1 : 0.3,
                   transition: 'all 0.15s',
                 }} />
-                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: opt.active ? '#fff' : 'rgba(255,255,255,0.3)' }}>
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: opt.active ? '#fff' : t.text.dimmed }}>
                   {opt.label}
                 </Typography>
               </Box>
@@ -302,7 +303,7 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
       <Box ref={containerRef} sx={{ width: '100%', height: CHART_H }}>
         {history.length === 0 ? (
           <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Typography sx={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.25)' }}>
+            <Typography sx={{ fontSize: '0.8rem', color: t.text.muted }}>
               {source === 'updown' ? 'No predictions yet — be the first!' : 'No market data available'}
             </Typography>
           </Box>
@@ -310,36 +311,36 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
           <svg width={width} height={CHART_H} onMouseMove={handleMouseMove} onMouseLeave={() => setHoverIndex(null)} style={{ cursor: 'crosshair', display: 'block' }}>
             <defs>
               <linearGradient id={`og-${poolId}-${source}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={UP_COLOR} stopOpacity={0.1} />
-                <stop offset="100%" stopColor={UP_COLOR} stopOpacity={0} />
+                <stop offset="0%" stopColor={t.up} stopOpacity={0.1} />
+                <stop offset="100%" stopColor={t.up} stopOpacity={0} />
               </linearGradient>
             </defs>
 
             {/* Grid */}
-            {yTicks.map((t, i) => (
+            {yTicks.map((yt, i) => (
               <g key={i}>
-                <line x1={PADDING.left} y1={t.y} x2={PADDING.left + chartW} y2={t.y} stroke="rgba(255,255,255,0.04)" />
-                <text x={PADDING.left + chartW + 8} y={t.y + 4} fill="rgba(255,255,255,0.2)" fontSize={10} fontFamily={FONT}>{formatPct(t.p)}</text>
+                <line x1={PADDING.left} y1={yt.y} x2={PADDING.left + chartW} y2={yt.y} stroke={t.border.subtle} />
+                <text x={PADDING.left + chartW + 8} y={yt.y + 4} fill={t.text.muted} fontSize={10} fontFamily={FONT}>{formatPct(yt.p)}</text>
               </g>
             ))}
-            {xTicks.map((t, i) => (
-              <text key={i} x={t.x} y={CHART_H - 6} fill="rgba(255,255,255,0.2)" fontSize={10} textAnchor="middle" fontFamily={FONT}>{t.label}</text>
+            {xTicks.map((xt, i) => (
+              <text key={i} x={xt.x} y={CHART_H - 6} fill={t.text.muted} fontSize={10} textAnchor="middle" fontFamily={FONT}>{xt.label}</text>
             ))}
 
             {/* 50% ref */}
-            <line x1={PADDING.left} y1={toY(0.5)} x2={PADDING.left + chartW} y2={toY(0.5)} stroke="rgba(255,255,255,0.06)" strokeDasharray="6,4" />
+            <line x1={PADDING.left} y1={toY(0.5)} x2={PADDING.left + chartW} y2={toY(0.5)} stroke={t.border.default} strokeDasharray="6,4" />
 
             {/* Lines */}
             {showYes && <path d={yesAreaPath} fill={`url(#og-${poolId}-${source})`} />}
-            {showNo && <path d={noPath} fill="none" stroke={DOWN_COLOR} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.4} />}
-            {showYes && <path d={yesPath} fill="none" stroke={UP_COLOR} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />}
+            {showNo && <path d={noPath} fill="none" stroke={t.down} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.4} />}
+            {showYes && <path d={yesPath} fill="none" stroke={t.up} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />}
 
             {/* Hover */}
             {hoverIndex != null && hoverPoint && (
               <>
-                <line x1={toX(hoverIndex)} y1={PADDING.top} x2={toX(hoverIndex)} y2={PADDING.top + chartH} stroke="rgba(255,255,255,0.1)" strokeDasharray="3,3" />
-                {showYes && <circle cx={toX(hoverIndex)} cy={toY(hoverPoint.p)} r={4} fill={UP_COLOR} stroke="#0D1219" strokeWidth={2} />}
-                {showNo && <circle cx={toX(hoverIndex)} cy={toY(1 - hoverPoint.p)} r={3.5} fill={DOWN_COLOR} stroke="#0D1219" strokeWidth={2} opacity={0.7} />}
+                <line x1={toX(hoverIndex)} y1={PADDING.top} x2={toX(hoverIndex)} y2={PADDING.top + chartH} stroke={t.border.strong} strokeDasharray="3,3" />
+                {showYes && <circle cx={toX(hoverIndex)} cy={toY(hoverPoint.p)} r={4} fill={t.up} stroke="#0D1219" strokeWidth={2} />}
+                {showNo && <circle cx={toX(hoverIndex)} cy={toY(1 - hoverPoint.p)} r={3.5} fill={t.down} stroke="#0D1219" strokeWidth={2} opacity={0.7} />}
               </>
             )}
 
@@ -348,19 +349,19 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
               <>
                 {showYes && (
                   <>
-                    <circle cx={toX(history.length - 1)} cy={toY(lastPoint.p)} r={4} fill={UP_COLOR}>
+                    <circle cx={toX(history.length - 1)} cy={toY(lastPoint.p)} r={4} fill={t.up}>
                       {isLive && <animate attributeName="r" values="3;5;3" dur="2s" repeatCount="indefinite" />}
                       {isLive && <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite" />}
                     </circle>
-                    <text x={toX(history.length - 1) + 8} y={toY(lastPoint.p) + 4} fill={UP_COLOR} fontSize={11} fontWeight={700} fontFamily={FONT}>
+                    <text x={toX(history.length - 1) + 8} y={toY(lastPoint.p) + 4} fill={t.up} fontSize={11} fontWeight={700} fontFamily={FONT}>
                       {formatPct(lastPoint.p)}
                     </text>
                   </>
                 )}
                 {showNo && (
                   <>
-                    <circle cx={toX(history.length - 1)} cy={toY(1 - lastPoint.p)} r={3} fill={DOWN_COLOR} opacity={0.5} />
-                    <text x={toX(history.length - 1) + 8} y={toY(1 - lastPoint.p) + 4} fill={DOWN_COLOR} fontSize={10} fontWeight={600} fontFamily={FONT} opacity={0.5}>
+                    <circle cx={toX(history.length - 1)} cy={toY(1 - lastPoint.p)} r={3} fill={t.down} opacity={0.5} />
+                    <text x={toX(history.length - 1) + 8} y={toY(1 - lastPoint.p) + 4} fill={t.down} fontSize={10} fontWeight={600} fontFamily={FONT} opacity={0.5}>
                       {formatPct(1 - lastPoint.p)}
                     </text>
                   </>

@@ -2,9 +2,10 @@
 import { useState } from 'react';
 import { Box, Typography, Chip, Tooltip } from '@mui/material';
 import { TrendingUp, Star, IosShare } from '@mui/icons-material';
-import { UP_COLOR, DOWN_COLOR, DRAW_COLOR, GAIN_COLOR } from '@/lib/constants';
 import { AnimatedValue } from '@/components/AnimatedValue';
 import { getIcon } from '@/lib/icon-registry';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 import type { Pool } from '@/lib/api';
 import { isMatchActive, isMatchFinished, formatLiveStatus, type LiveScore } from '@/hooks/useLiveScores';
 import type { CategoryConfig } from '@/hooks/useCategories';
@@ -25,8 +26,9 @@ function formatKickoff(dateStr: string, isResolved: boolean): string {
 }
 
 export function MatchCard({ pool, onClick, isPopular, liveScore, category, userBet, onClaim }: { pool: Pool; onClick?: () => void; isPopular?: boolean; liveScore?: LiveScore | null; category?: CategoryConfig | null; userBet?: { side: string; isWinner: boolean | null; betId?: string } | null; onClaim?: (poolId: string, betId: string) => void }) {
+  const t = useThemeTokens();
   const isPrediction = pool.league?.startsWith('PM_');
-  const catColor = category?.color || (isPrediction ? '#A78BFA' : 'rgba(255,255,255,0.35)');
+  const catColor = category?.color || (isPrediction ? t.prediction : t.text.quaternary);
   const catLabel = category?.label || pool.league || '';
   const catBadge = category?.badgeUrl;
   const CatIcon = getIcon(category?.iconKey);
@@ -54,7 +56,7 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
   return (
       <Box
         sx={{
-          bgcolor: '#0D1219',
+          bgcolor: t.bg.surfaceAlt,
           p: { xs: 1.5, md: 2 },
           display: 'flex',
           flexDirection: 'column',
@@ -62,10 +64,10 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
           transition: 'background 0.15s ease',
           position: 'relative',
           overflow: 'hidden',
-          '&:hover': { background: 'rgba(255,255,255,0.04)' },
+          '&:hover': { background: t.hover.default },
           ...(isPrediction && {
-            background: `linear-gradient(135deg, ${catColor}08 0%, transparent 60%)`,
-            '&:hover': { background: `linear-gradient(135deg, ${catColor}12 0%, rgba(255,255,255,0.02) 60%)` },
+            background: `linear-gradient(135deg, ${withAlpha(catColor, 0.03)} 0%, transparent 60%)`,
+            '&:hover': { background: `linear-gradient(135deg, ${withAlpha(catColor, 0.07)} 0%, ${t.hover.subtle} 60%)` },
           }),
         }}
       >
@@ -91,9 +93,9 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
             {catBadge ? (
-              <Box component="img" src={catBadge} alt={league} sx={{ width: 22, height: 22, objectFit: 'contain', ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }) }} />
+              <Box component="img" src={catBadge} alt={league} sx={{ width: 22, height: 22, objectFit: 'contain', ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: t.text.vivid, borderRadius: '50%', p: '2px' }) }} />
             ) : isPrediction ? (
-              <Box sx={{ width: 22, height: 22, borderRadius: '50%', bgcolor: `${catColor}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Box sx={{ width: 22, height: 22, borderRadius: '50%', bgcolor: withAlpha(catColor, 0.13), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: catColor }} />
               </Box>
             ) : null}
@@ -111,38 +113,38 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
                   height: 18,
                   fontSize: '0.55rem',
                   fontWeight: 700,
-                  bgcolor: `${GAIN_COLOR}15`,
-                  color: GAIN_COLOR,
+                  bgcolor: withAlpha(t.gain, 0.08),
+                  color: t.gain,
                   border: 'none',
-                  '& .MuiChip-icon': { color: GAIN_COLOR, ml: 0.5 },
+                  '& .MuiChip-icon': { color: t.gain, ml: 0.5 },
                 }}
               />
             )}
             {matchLive ? (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#22C55E', animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1, transform: 'scale(1)' }, '50%': { opacity: 0.4, transform: 'scale(0.8)' } } }} />
-                <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: '#22C55E' }}>
+                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: t.gain, animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1, transform: 'scale(1)' }, '50%': { opacity: 0.4, transform: 'scale(0.8)' } } }} />
+                <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: t.gain }}>
                   {formatLiveStatus(liveScore!.status, liveScore!.progress)}
                 </Typography>
               </Box>
             ) : matchFinished || awaitingResolution ? (
-              <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>
+              <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: t.text.secondary }}>
                 Full Time
               </Typography>
             ) : isResolved ? (
-              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: t.text.tertiary }}>
                 Ended
               </Typography>
             ) : hasStarted ? (
-              <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase' }}>
+              <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: t.accent, textTransform: 'uppercase' }}>
                 In Progress
               </Typography>
             ) : isLocked ? (
-              <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase' }}>
+              <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: t.accent, textTransform: 'uppercase' }}>
                 Starting Soon
               </Typography>
             ) : (
-              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: t.text.tertiary }}>
                 {formatKickoff(pool.startTime, false)}
               </Typography>
             )}
@@ -152,7 +154,7 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
         {/* Teams / Question */}
         {isPrediction ? (
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 48, px: 1 }}>
-            <Typography sx={{ fontSize: { xs: '0.85rem', md: '0.95rem' }, fontWeight: 700, textAlign: 'center', color: '#fff', lineHeight: 1.3 }}>
+            <Typography sx={{ fontSize: { xs: '0.85rem', md: '0.95rem' }, fontWeight: 700, textAlign: 'center', color: t.text.primary, lineHeight: 1.3 }}>
               {/* If awayTeam is empty, homeTeam IS the question title. Otherwise show both outcomes. */}
               {pool.awayTeam ? `${pool.homeTeam} vs ${pool.awayTeam}` : pool.homeTeam || 'Prediction Market'}
             </Typography>
@@ -160,7 +162,7 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
         ) : (
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
             <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
-              <Typography sx={{ fontSize: { xs: '0.9rem', md: '1rem' }, fontWeight: 700, textAlign: 'right', color: isResolved && pool.winner === 'UP' ? UP_COLOR : '#fff' }}>
+              <Typography sx={{ fontSize: { xs: '0.9rem', md: '1rem' }, fontWeight: 700, textAlign: 'right', color: isResolved && pool.winner === 'UP' ? t.up : t.text.primary }}>
                 {pool.homeTeam || 'Home'}
               </Typography>
               {pool.homeTeamCrest && (
@@ -168,11 +170,11 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
               )}
             </Box>
             {(matchLive || matchFinished) && liveScore ? (
-              <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: matchLive ? '#22C55E' : '#fff', minWidth: 40, textAlign: 'center' }}>
+              <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: matchLive ? t.gain : t.text.primary, minWidth: 40, textAlign: 'center' }}>
                 {liveScore.homeScore} - {liveScore.awayScore}
               </Typography>
             ) : hasScore ? (
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#fff', minWidth: 40, textAlign: 'center' }}>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: t.text.primary, minWidth: 40, textAlign: 'center' }}>
                 {pool.homeScore} - {pool.awayScore}
               </Typography>
             ) : (
@@ -184,7 +186,7 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
               {pool.awayTeamCrest && (
                 <Box component="img" src={pool.awayTeamCrest} alt={pool.awayTeam || ''} sx={{ width: 24, height: 24, objectFit: 'contain' }} />
               )}
-              <Typography sx={{ fontSize: { xs: '0.9rem', md: '1rem' }, fontWeight: 700, textAlign: 'left', color: isResolved && pool.winner === 'DOWN' ? DOWN_COLOR : '#fff' }}>
+              <Typography sx={{ fontSize: { xs: '0.9rem', md: '1rem' }, fontWeight: 700, textAlign: 'left', color: isResolved && pool.winner === 'DOWN' ? t.down : t.text.primary }}>
                 {pool.awayTeam || 'Away'}
               </Typography>
             </Box>
@@ -194,7 +196,7 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
         {/* Result label */}
         {isResolved && winnerLabel && (
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 0.5 }}>
-            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: pool.winner === 'UP' ? UP_COLOR : pool.winner === 'DOWN' ? DOWN_COLOR : DRAW_COLOR }}>
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: pool.winner === 'UP' ? t.up : pool.winner === 'DOWN' ? t.down : t.draw }}>
               {winnerLabel} wins
             </Typography>
           </Box>
@@ -202,20 +204,20 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
 
         {/* Odds bar: 2-way for predictions, 3-way for sports */}
         <Box sx={{ display: 'flex', gap: '2px', height: 28 }}>
-          <Box sx={{ flex: homePct, bgcolor: isResolved && pool.winner === 'UP' ? `${UP_COLOR}30` : isPrediction ? `${UP_COLOR}12` : 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'flex 0.3s ease' }}>
-            <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: isResolved && pool.winner === 'UP' ? UP_COLOR : isPrediction ? UP_COLOR : '#fff' }}>
+          <Box sx={{ flex: homePct, bgcolor: isResolved && pool.winner === 'UP' ? withAlpha(t.up, 0.19) : isPrediction ? withAlpha(t.up, 0.07) : t.hover.strong, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'flex 0.3s ease' }}>
+            <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: isResolved && pool.winner === 'UP' ? t.up : isPrediction ? t.up : t.text.primary }}>
               {isResolved && pool.winner === 'UP' ? '\u2713 ' : ''}{homePct}%
             </Typography>
           </Box>
           {!isTwoWay && (
-            <Box sx={{ flex: drawPct, bgcolor: isResolved && pool.winner === 'DRAW' ? `${DRAW_COLOR}25` : 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'flex 0.3s ease' }}>
-              <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: isResolved && pool.winner === 'DRAW' ? DRAW_COLOR : 'rgba(255,255,255,0.5)' }}>
+            <Box sx={{ flex: drawPct, bgcolor: isResolved && pool.winner === 'DRAW' ? withAlpha(t.draw, 0.15) : 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'flex 0.3s ease' }}>
+              <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: isResolved && pool.winner === 'DRAW' ? t.draw : t.text.secondary }}>
                 {isResolved && pool.winner === 'DRAW' ? '\u2713 ' : ''}{drawPct}%
               </Typography>
             </Box>
           )}
-          <Box sx={{ flex: awayPct, bgcolor: isResolved && pool.winner === 'DOWN' ? `${DOWN_COLOR}25` : isPrediction ? `${DOWN_COLOR}10` : 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'flex 0.3s ease' }}>
-            <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: isResolved && pool.winner === 'DOWN' ? DOWN_COLOR : isPrediction ? DOWN_COLOR : '#fff' }}>
+          <Box sx={{ flex: awayPct, bgcolor: isResolved && pool.winner === 'DOWN' ? withAlpha(t.down, 0.15) : isPrediction ? withAlpha(t.down, 0.06) : t.hover.strong, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'flex 0.3s ease' }}>
+            <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: isResolved && pool.winner === 'DOWN' ? t.down : isPrediction ? t.down : t.text.primary }}>
               {isResolved && pool.winner === 'DOWN' ? '\u2713 ' : ''}{awayPct}%
             </Typography>
           </Box>
@@ -223,20 +225,20 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
 
         {/* Labels under odds bar */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 0.5 }}>
-          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: isResolved && pool.winner === 'UP' ? UP_COLOR : 'rgba(255,255,255,0.55)' }}>
+          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: isResolved && pool.winner === 'UP' ? t.up : t.text.strong }}>
             {isPrediction ? (pool.awayTeam ? pool.homeTeam : 'Yes') : (pool.homeTeam?.slice(0, 3).toUpperCase() || 'Home')}
           </Typography>
           {!isTwoWay && (
-            <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: isResolved && pool.winner === 'DRAW' ? DRAW_COLOR : 'rgba(255,255,255,0.55)' }}>Draw</Typography>
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: isResolved && pool.winner === 'DRAW' ? t.draw : t.text.strong }}>Draw</Typography>
           )}
-          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: isResolved && pool.winner === 'DOWN' ? DOWN_COLOR : 'rgba(255,255,255,0.55)' }}>
+          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: isResolved && pool.winner === 'DOWN' ? t.down : t.text.strong }}>
             {isPrediction ? (pool.awayTeam || 'No') : (pool.awayTeam?.slice(0, 3).toUpperCase() || 'Away')}
           </Typography>
         </Box>
 
         {/* Pool info */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: 'rgba(255,255,255,0.5)' }}>
+          <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: t.text.secondary }}>
             {pool.betCount} predictions
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -265,9 +267,9 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
                   document.body.removeChild(ta);
                 }
               }}
-              sx={{ fontSize: 15, color: 'rgba(255,255,255,0.55)', cursor: 'pointer', '&:hover': { color: '#fff' }, transition: 'color 0.15s' }}
+              sx={{ fontSize: 15, color: t.text.strong, cursor: 'pointer', '&:hover': { color: t.text.primary }, transition: 'color 0.15s' }}
             />
-            <Typography component="span" sx={{ fontSize: '0.75rem', fontWeight: 700, color: GAIN_COLOR }}>
+            <Typography component="span" sx={{ fontSize: '0.75rem', fontWeight: 700, color: t.gain }}>
               <AnimatedValue usdcValue={pool.totalPool} prefix="$" />
             </Typography>
           </Box>
@@ -280,12 +282,12 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
             sx={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               py: 0.75, borderRadius: '4px',
-              bgcolor: `${GAIN_COLOR}15`,
+              bgcolor: withAlpha(t.gain, 0.08),
               cursor: 'pointer',
               transition: 'background 0.15s',
-              '&:hover': { bgcolor: `${GAIN_COLOR}25` },
+              '&:hover': { bgcolor: withAlpha(t.gain, 0.15) },
             }}>
-            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.04em', color: GAIN_COLOR }}>
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.04em', color: t.gain }}>
               Claim Winnings
             </Typography>
           </Box>
@@ -294,19 +296,19 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
             title={matchLive || matchFinished ? 'This match is already in progress. Predictions are no longer accepted.' : isLocked ? 'This match is about to start. Predictions are closed.' : ''}
             arrow
             disableHoverListener={!isLocked && !matchLive && !matchFinished}
-            slotProps={{ tooltip: { sx: { bgcolor: '#1A1F2B', color: '#fff', fontSize: '0.7rem', maxWidth: 220, p: 1.25 } }, arrow: { sx: { color: '#1A1F2B' } } }}
+            slotProps={{ tooltip: { sx: { bgcolor: t.bg.elevated, color: t.text.primary, fontSize: '0.7rem', maxWidth: 220, p: 1.25 } }, arrow: { sx: { color: t.bg.elevated } } }}
           >
             <Box
               onClick={!isLocked && !matchLive && !matchFinished ? onClick : undefined}
               sx={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               py: 0.75, borderRadius: '4px',
-              bgcolor: isLocked || matchLive || matchFinished ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)',
+              bgcolor: isLocked || matchLive || matchFinished ? t.hover.subtle : t.hover.default,
               cursor: !isLocked && !matchLive && !matchFinished ? 'pointer' : undefined,
               transition: 'background 0.15s',
-              ...(!isLocked && !matchLive && !matchFinished && { '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' } }),
+              ...(!isLocked && !matchLive && !matchFinished && { '&:hover': { bgcolor: t.hover.strong } }),
             }}>
-              <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.04em', color: isLocked || matchLive || matchFinished ? 'rgba(255,255,255,0.2)' : UP_COLOR }}>
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.04em', color: isLocked || matchLive || matchFinished ? t.text.muted : t.up }}>
                 {matchLive || matchFinished ? 'Predictions Closed' : isLocked ? 'Predictions Closed' : 'Predict Now'}
               </Typography>
             </Box>

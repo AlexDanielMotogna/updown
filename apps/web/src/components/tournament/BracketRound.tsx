@@ -5,6 +5,7 @@ import { type TournamentMatchData, type TournamentFixture } from '@/lib/api';
 import { isMatchActive, isMatchFinished, formatLiveStatus, type LiveScore } from '@/hooks/useLiveScores';
 import { CARD_H, CARD_GAP, getRoundLabel, getHeaderHeight, formatKickoff } from './tournament-utils';
 import { MatchCard, EmptyMatchCard } from './MatchCard';
+import { useThemeTokens } from '@/app/providers';
 
 export function BracketRound({
   roundNum,
@@ -37,6 +38,7 @@ export function BracketRound({
   sideLabels?: string[];
   liveScores?: Map<string, LiveScore>;
 }) {
+  const t = useThemeTokens();
   const rn = Number(roundNum);
   const tr = Number(totalRounds);
   const label = getRoundLabel(rn, tr);
@@ -52,7 +54,7 @@ export function BracketRound({
           sx={{
             fontSize: '0.68rem',
             fontWeight: 600,
-            color: 'rgba(255,255,255,0.3)',
+            color: t.text.dimmed,
             textTransform: 'uppercase',
             letterSpacing: '0.08em',
             textAlign: 'center',
@@ -72,7 +74,7 @@ export function BracketRound({
               return (
               <Box key={i} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, height: 18 }}>
                 {f.homeTeamCrest && <Box component="img" src={f.homeTeamCrest} alt="" sx={{ width: 12, height: 12, objectFit: 'contain' }} />}
-                <Typography sx={{ fontSize: '0.55rem', color: live ? '#22C55E' : 'rgba(255,255,255,0.6)', fontWeight: 600, lineHeight: 1 }}>
+                <Typography sx={{ fontSize: '0.55rem', color: live ? t.gain : t.text.rich, fontWeight: 600, lineHeight: 1 }}>
                   {f.homeTeam}
                   {live ? ` ${ls!.homeScore}-${ls!.awayScore} ` : f.resultHome != null ? ` ${f.resultHome}-${f.resultAway} ` : ' vs '}
                   {f.awayTeam}
@@ -80,17 +82,17 @@ export function BracketRound({
                 {f.awayTeamCrest && <Box component="img" src={f.awayTeamCrest} alt="" sx={{ width: 12, height: 12, objectFit: 'contain' }} />}
                 {live && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
-                    <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: '#22C55E', animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
-                    <Typography sx={{ fontSize: '0.45rem', color: '#22C55E', fontWeight: 700 }}>
+                    <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: t.gain, animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+                    <Typography sx={{ fontSize: '0.45rem', color: t.gain, fontWeight: 700 }}>
                       {formatLiveStatus(ls!.status, ls!.progress)}
                     </Typography>
                   </Box>
                 )}
                 {finished && !f.resultOutcome && (
-                  <Typography sx={{ fontSize: '0.45rem', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>FT</Typography>
+                  <Typography sx={{ fontSize: '0.45rem', color: t.text.tertiary, fontWeight: 600 }}>FT</Typography>
                 )}
                 {!live && !finished && f.kickoff && !f.resultOutcome && (
-                  <Typography sx={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.3)', fontWeight: 500 }}>
+                  <Typography sx={{ fontSize: '0.5rem', color: t.text.dimmed, fontWeight: 500 }}>
                     {formatKickoff(f.kickoff)}
                   </Typography>
                 )}
@@ -144,6 +146,7 @@ export function BracketRound({
 // ─── Connector Lines ─────────────────────────────────────────────────────────
 
 export function Connectors({ matchCount, roundNum, headerHeight }: { matchCount: number; roundNum: number; headerHeight: number }) {
+  const t = useThemeTokens();
   const pairs = Math.floor(matchCount / 2);
   if (pairs === 0) return null;
 
@@ -171,10 +174,10 @@ export function Connectors({ matchCount, roundNum, headerHeight }: { matchCount:
             mb: i < pairs - 1 ? `${CARD_GAP}px` : 0,
           }}
         >
-          <Box sx={{ position: 'absolute', top: slotH / 2, left: 0, width: '50%', borderTop: '1px solid rgba(255,255,255,0.08)' }} />
-          <Box sx={{ position: 'absolute', top: slotH + CARD_GAP + slotH / 2, left: 0, width: '50%', borderTop: '1px solid rgba(255,255,255,0.08)' }} />
-          <Box sx={{ position: 'absolute', top: slotH / 2, left: '50%', height: slotH + CARD_GAP, borderLeft: '1px solid rgba(255,255,255,0.08)' }} />
-          <Box sx={{ position: 'absolute', top: pairH / 2, left: '50%', width: '50%', borderTop: '1px solid rgba(255,255,255,0.08)' }} />
+          <Box sx={{ position: 'absolute', top: slotH / 2, left: 0, width: '50%', borderTop: `1px solid ${t.border.medium}` }} />
+          <Box sx={{ position: 'absolute', top: slotH + CARD_GAP + slotH / 2, left: 0, width: '50%', borderTop: `1px solid ${t.border.medium}` }} />
+          <Box sx={{ position: 'absolute', top: slotH / 2, left: '50%', height: slotH + CARD_GAP, borderLeft: `1px solid ${t.border.medium}` }} />
+          <Box sx={{ position: 'absolute', top: pairH / 2, left: '50%', width: '50%', borderTop: `1px solid ${t.border.medium}` }} />
         </Box>
       ))}
     </Box>

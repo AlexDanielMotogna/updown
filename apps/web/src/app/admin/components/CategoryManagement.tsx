@@ -9,6 +9,7 @@ import {
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminFetch } from '../lib/adminApi';
+import { darkTokens as dt, palette, withAlpha } from '@/lib/theme';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
 
@@ -38,15 +39,15 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  FOOTBALL_LEAGUE: '#22C55E',
-  SPORTSDB_SPORT: '#F97316',
-  POLYMARKET: '#A78BFA',
+  FOOTBALL_LEAGUE: dt.adminTypeColors.footballLeague,
+  SPORTSDB_SPORT: dt.adminTypeColors.sportsdbSport,
+  POLYMARKET: dt.adminTypeColors.polymarket,
 };
 
 function StatusChip({ enabled, comingSoon }: { enabled: boolean; comingSoon: boolean }) {
-  if (enabled) return <Chip label="Active" size="small" sx={{ bgcolor: 'rgba(34,197,94,0.15)', color: '#22C55E', fontWeight: 700, fontSize: '0.65rem', height: 22 }} />;
-  if (comingSoon) return <Chip label="Coming Soon" size="small" sx={{ bgcolor: 'rgba(251,191,36,0.15)', color: '#FBBF24', fontWeight: 700, fontSize: '0.65rem', height: 22 }} />;
-  return <Chip label="Hidden" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)', fontWeight: 700, fontSize: '0.65rem', height: 22 }} />;
+  if (enabled) return <Chip label="Active" size="small" sx={{ bgcolor: withAlpha(dt.gain, 0.15), color: dt.gain, fontWeight: 700, fontSize: '0.65rem', height: 22 }} />;
+  if (comingSoon) return <Chip label="Coming Soon" size="small" sx={{ bgcolor: withAlpha(dt.draw, 0.15), color: dt.draw, fontWeight: 700, fontSize: '0.65rem', height: 22 }} />;
+  return <Chip label="Hidden" size="small" sx={{ bgcolor: dt.hover.medium, color: dt.text.dimmed, fontWeight: 700, fontSize: '0.65rem', height: 22 }} />;
 }
 
 function CategoryCard({ cat, onToggle, onToggleComingSoon, onEdit }: {
@@ -88,7 +89,7 @@ function CategoryCard({ cat, onToggle, onToggleComingSoon, onEdit }: {
             checked={cat.enabled}
             onChange={onToggle}
             size="small"
-            sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: TYPE_COLORS[cat.type] || '#22C55E' }, '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: TYPE_COLORS[cat.type] || '#22C55E' } }}
+            sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: TYPE_COLORS[cat.type] || dt.gain }, '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: TYPE_COLORS[cat.type] || dt.gain } }}
           />
         </Box>
       </Box>
@@ -167,7 +168,7 @@ function PolymarketConfigFields({ selectedTags, onTagsChange, minVolume, onMinVo
               <Box key={t.label} onClick={() => onTagsChange(selected ? selectedTags.filter(s => s !== t.label) : [...selectedTags, t.label])}
                 sx={{ display: 'flex', alignItems: 'center', px: 1, py: 0.25, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' } }}
               >
-                <Checkbox checked={selected} size="small" sx={{ p: 0.5, color: 'rgba(255,255,255,0.2)', '&.Mui-checked': { color: '#22C55E' } }} />
+                <Checkbox checked={selected} size="small" sx={{ p: 0.5, color: 'rgba(255,255,255,0.2)', '&.Mui-checked': { color: dt.gain } }} />
                 <Typography sx={{ fontSize: '0.75rem', fontWeight: selected ? 600 : 400, color: selected ? '#fff' : 'rgba(255,255,255,0.6)', flex: 1 }}>
                   {t.label}
                 </Typography>
@@ -287,7 +288,7 @@ function EditDialog({ cat, open, onClose, onSave }: {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} TransitionProps={{ onEnter: handleOpen }} maxWidth="sm" fullWidth PaperProps={{ sx: { bgcolor: '#0D1219', backgroundImage: 'none' } }}>
+    <Dialog open={open} onClose={onClose} TransitionProps={{ onEnter: handleOpen }} maxWidth="sm" fullWidth PaperProps={{ sx: { bgcolor: dt.bg.surfaceAlt, backgroundImage: 'none' } }}>
       <DialogTitle sx={{ fontSize: '1rem', fontWeight: 700 }}>Edit {cat?.code}</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
         <TextField label="Label" size="small" value={form.label || ''} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} />
@@ -344,7 +345,7 @@ function EditDialog({ cat, open, onClose, onSave }: {
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} sx={{ color: 'rgba(255,255,255,0.5)', textTransform: 'none' }}>Cancel</Button>
-        <Button onClick={handleSave} variant="contained" sx={{ bgcolor: '#22C55E', color: '#000', textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: '#16A34A' } }}>Save</Button>
+        <Button onClick={handleSave} variant="contained" sx={{ bgcolor: dt.gain, color: dt.text.contrast, textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: palette.green600 } }}>Save</Button>
       </DialogActions>
     </Dialog>
   );

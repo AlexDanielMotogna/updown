@@ -5,6 +5,7 @@ import { Box, Typography, Tooltip } from '@mui/material';
 import { InfoOutlined } from '@mui/icons-material';
 import { AnimatePresence } from 'framer-motion';
 import type { Pool } from '@/lib/api';
+import { useThemeTokens } from '@/app/providers';
 import { PoolRow } from './pool/PoolRow';
 
 interface PoolTableProps {
@@ -18,6 +19,7 @@ interface PoolTableProps {
 }
 
 export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData, popularPoolIds, alwaysShowView, onPoolClick }: PoolTableProps) {
+  const t = useThemeTokens();
   const knownIdsRef = useRef<Set<string>>(new Set());
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
 
@@ -57,7 +59,7 @@ export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData,
           pr: 2,
           pl: 0,
           py: 1,
-          bgcolor: '#0D1219',
+          bgcolor: t.bg.surfaceAlt,
         }}
       >
         {[
@@ -76,8 +78,8 @@ export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData,
               {h.label}
             </Typography>
             {h.tip && (
-              <Tooltip title={h.tip} arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
-                <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+              <Tooltip title={h.tip} arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: t.bg.tooltip, border: `1px solid ${t.border.strong}`, fontSize: '0.75rem' } }, arrow: { sx: { color: t.bg.tooltip } } }}>
+                <InfoOutlined sx={{ fontSize: 11, color: t.text.muted, cursor: 'help', '&:hover': { color: t.text.secondary }, transition: 'color 0.15s' }} />
               </Tooltip>
             )}
           </Box>

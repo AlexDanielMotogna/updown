@@ -9,6 +9,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import { useQuery } from '@tanstack/react-query';
 import { formatDate } from '@/lib/format';
 import { adminFetch } from '../lib/adminApi';
+import { darkTokens as t } from '@/lib/theme';
 
 interface UserOverviewData {
   data: { totalUsers: number; totalBets: number; activeToday: number };
@@ -68,7 +69,7 @@ interface UserSearchData {
 function WalletCell({ address, onClick }: { address: string; onClick?: () => void }) {
   return (
     <TableCell
-      sx={{ fontSize: 11, cursor: onClick ? 'pointer' : undefined, '&:hover': onClick ? { color: '#F59E0B' } : undefined }}
+      sx={{ fontSize: 11, cursor: onClick ? 'pointer' : undefined, '&:hover': onClick ? { color: t.warning } : undefined }}
       onClick={onClick}
     >
       {address.slice(0, 6)}...{address.slice(-4)}
@@ -171,9 +172,9 @@ export function UserOverview() {
             <Box>
               <Typography variant="caption" color="text.secondary">W/L</Typography>
               <Typography variant="body2">
-                <span style={{ color: '#22C55E' }}>{searchResult.data.aggregates.wins}W</span>
+                <span style={{ color: t.gain }}>{searchResult.data.aggregates.wins}W</span>
                 {' / '}
-                <span style={{ color: '#F87171' }}>{searchResult.data.aggregates.losses}L</span>
+                <span style={{ color: t.error }}>{searchResult.data.aggregates.losses}L</span>
               </Typography>
             </Box>
             <Box>
@@ -210,7 +211,7 @@ export function UserOverview() {
                         <TableCell>{b.pool.asset}</TableCell>
                         <TableCell>{b.pool.interval}</TableCell>
                         <TableCell>
-                          <Chip label={b.side} size="small" sx={{ bgcolor: b.side === 'UP' ? '#22C55E22' : '#F8717122', color: b.side === 'UP' ? '#22C55E' : '#F87171', fontSize: 11 }} />
+                          <Chip label={b.side} size="small" sx={{ bgcolor: b.side === 'UP' ? `${t.gain}22` : `${t.error}22`, color: b.side === 'UP' ? t.gain : t.error, fontSize: 11 }} />
                         </TableCell>
                         <TableCell>{formatUsdc(b.amount)}</TableCell>
                         <TableCell>
@@ -218,7 +219,7 @@ export function UserOverview() {
                             <Chip
                               label={b.isWinner ? 'Won' : 'Lost'}
                               size="small"
-                              sx={{ bgcolor: b.isWinner ? '#22C55E22' : '#F8717122', color: b.isWinner ? '#22C55E' : '#F87171', fontSize: 11 }}
+                              sx={{ bgcolor: b.isWinner ? `${t.gain}22` : `${t.error}22`, color: b.isWinner ? t.gain : t.error, fontSize: 11 }}
                             />
                           ) : (
                             <Chip label={b.pool.status} size="small" sx={{ fontSize: 11 }} variant="outlined" />

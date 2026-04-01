@@ -14,11 +14,11 @@ import {
 } from '@mui/material';
 import { Close, ShowChart, CandlestickChart } from '@mui/icons-material';
 import { usePacificaCandles } from '@/hooks';
-import { UP_COLOR, DOWN_COLOR } from '@/lib/constants';
 import { USDC_DIVISOR } from '@/lib/format';
 import { LineChart } from './chart/LineChart';
 import { CandlesChart } from './chart/CandlesChart';
 import { type ChartType, INTERVALS, formatChartPrice } from './chart/chart-utils';
+import { useThemeTokens } from '@/app/providers';
 
 interface PriceChartDialogProps {
   open: boolean;
@@ -29,6 +29,7 @@ interface PriceChartDialogProps {
 }
 
 export function PriceChartDialog({ open, onClose, asset, livePrice: livePriceStr, strikePrice: strikePriceStr }: PriceChartDialogProps) {
+  const t = useThemeTokens();
   const livePriceNum = livePriceStr ? Number(livePriceStr) : null;
   const strikePriceNum = strikePriceStr ? Number(strikePriceStr) / USDC_DIVISOR : null;
   const [intervalIdx, setIntervalIdx] = useState(3); // default 15m
@@ -60,7 +61,7 @@ export function PriceChartDialog({ open, onClose, asset, livePrice: livePriceStr
       }}
       PaperProps={{
         sx: {
-          bgcolor: '#111820',
+          bgcolor: t.bg.surface,
           border: 'none',
           borderRadius: 0,
           p: { xs: 0, sm: 1 },
@@ -93,7 +94,7 @@ export function PriceChartDialog({ open, onClose, asset, livePrice: livePriceStr
             <Typography
               variant="body2"
               sx={{
-                color: pctChange >= 0 ? UP_COLOR : DOWN_COLOR,
+                color: pctChange >= 0 ? t.up : t.down,
                 fontWeight: 500,
                 fontVariantNumeric: 'tabular-nums',
               }}
@@ -118,14 +119,14 @@ export function PriceChartDialog({ open, onClose, asset, livePrice: livePriceStr
             sx={{
               '& .MuiToggleButton-root': {
                 color: 'text.secondary',
-                borderColor: 'rgba(255, 255, 255, 0.12)',
+                borderColor: t.border.emphasis,
                 textTransform: 'none',
                 fontSize: '0.75rem',
                 px: { xs: 1, sm: 1.5 },
                 py: 0.25,
                 '&.Mui-selected': {
-                  color: '#FFFFFF',
-                  bgcolor: 'rgba(255, 255, 255, 0.08)',
+                  color: t.text.primary,
+                  bgcolor: t.hover.strong,
                 },
               },
             }}
@@ -146,12 +147,12 @@ export function PriceChartDialog({ open, onClose, asset, livePrice: livePriceStr
             flexShrink: 0,
             '& .MuiToggleButton-root': {
               color: 'text.secondary',
-              borderColor: 'rgba(255, 255, 255, 0.12)',
+              borderColor: t.border.emphasis,
               px: 1,
               py: 0.25,
               '&.Mui-selected': {
-                color: '#FFFFFF',
-                bgcolor: 'rgba(255, 255, 255, 0.08)',
+                color: t.text.primary,
+                bgcolor: t.hover.strong,
               },
             },
           }}
@@ -168,12 +169,12 @@ export function PriceChartDialog({ open, onClose, asset, livePrice: livePriceStr
       <DialogContent sx={{ p: 0, height: { xs: '100%', sm: 380 }, flex: { xs: 1, sm: 'unset' }, position: 'relative' }}>
         {loading && (
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-            <CircularProgress size={28} sx={{ color: 'rgba(255,255,255,0.3)' }} />
+            <CircularProgress size={28} sx={{ color: t.text.dimmed }} />
           </Box>
         )}
         {error && (
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-            <Typography variant="body2" sx={{ color: DOWN_COLOR }}>{error}</Typography>
+            <Typography variant="body2" sx={{ color: t.down }}>{error}</Typography>
           </Box>
         )}
         {!loading && !error && candles.length > 0 && (
@@ -194,7 +195,7 @@ export function PriceChartDialog({ open, onClose, asset, livePrice: livePriceStr
             width: 6,
             height: 6,
             borderRadius: '50%',
-            bgcolor: UP_COLOR,
+            bgcolor: t.up,
             flexShrink: 0,
             animation: 'pulse 2s infinite',
             '@keyframes pulse': {

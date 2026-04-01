@@ -4,11 +4,11 @@ import { Box, Typography, LinearProgress } from '@mui/material';
 import Avatar from '@mui/material/Avatar';
 import { MilitaryTech, LocalFireDepartment } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UP_COLOR, DOWN_COLOR, GAIN_COLOR, ACCENT_COLOR, getAvatarUrl } from '@/lib/constants';
+import { getAvatarUrl } from '@/lib/constants';
 import { USDC_DIVISOR } from '@/lib/format';
 import type { SquadLeaderboardEntry } from '@/lib/api';
-
-const MEDAL_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32'];
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 interface SquadLeaderboardProps {
   entries: SquadLeaderboardEntry[] | undefined;
@@ -20,6 +20,8 @@ function shortWallet(addr: string) {
 }
 
 function LeaderboardRow({ entry, index, isMe }: { entry: SquadLeaderboardEntry; index: number; isMe: boolean }) {
+  const t = useThemeTokens();
+  const MEDAL_COLORS = [t.gold, t.silver, t.bronze];
   const pnl = Number(entry.netPnl) / USDC_DIVISOR;
   const winRate = entry.totalBets > 0 ? Math.round((entry.totalWins / entry.totalBets) * 100) : 0;
   const rank = index + 1;
@@ -40,9 +42,9 @@ function LeaderboardRow({ entry, index, isMe }: { entry: SquadLeaderboardEntry; 
           px: 2,
           py: 0,
           minHeight: 56,
-          bgcolor: '#0D1219',
+          bgcolor: t.bg.surfaceAlt,
           transition: 'background 0.15s ease',
-          '&:hover': { background: 'rgba(255,255,255,0.04)' },
+          '&:hover': { background: t.border.subtle },
         }}
       >
         {/* Rank */}
@@ -65,7 +67,7 @@ function LeaderboardRow({ entry, index, isMe }: { entry: SquadLeaderboardEntry; 
               width: 32,
               height: 32,
               borderRadius: '50%',
-              border: rank <= 3 ? `1.5px solid ${MEDAL_COLORS[rank - 1]}40` : '1px solid rgba(255,255,255,0.06)',
+              border: rank <= 3 ? `1.5px solid ${withAlpha(MEDAL_COLORS[rank - 1], 0.25)}` : `1px solid ${t.border.default}`,
               flexShrink: 0,
             }}
           />
@@ -74,7 +76,7 @@ function LeaderboardRow({ entry, index, isMe }: { entry: SquadLeaderboardEntry; 
               sx={{
                 fontSize: '0.85rem',
                 fontWeight: 600,
-                color: '#fff',
+                color: t.text.primary,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -82,7 +84,7 @@ function LeaderboardRow({ entry, index, isMe }: { entry: SquadLeaderboardEntry; 
             >
               {shortWallet(entry.walletAddress)}
               {isMe && (
-                <Typography component="span" sx={{ color: UP_COLOR, fontSize: '0.7rem', ml: 0.5 }}>
+                <Typography component="span" sx={{ color: t.up, fontSize: '0.7rem', ml: 0.5 }}>
                   (you)
                 </Typography>
               )}
@@ -96,9 +98,9 @@ function LeaderboardRow({ entry, index, isMe }: { entry: SquadLeaderboardEntry; 
         {/* W / L */}
         <Box sx={{ overflow: 'hidden' }}>
           <Typography sx={{ fontSize: '0.8rem', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-            <Box component="span" sx={{ color: GAIN_COLOR, fontWeight: 500 }}>{entry.totalWins}</Box>
+            <Box component="span" sx={{ color: t.gain, fontWeight: 500 }}>{entry.totalWins}</Box>
             <Box component="span" sx={{ color: 'text.secondary' }}> / </Box>
-            <Box component="span" sx={{ color: DOWN_COLOR, fontWeight: 500 }}>{entry.totalBets - entry.totalWins}</Box>
+            <Box component="span" sx={{ color: t.down, fontWeight: 500 }}>{entry.totalBets - entry.totalWins}</Box>
           </Typography>
         </Box>
 
@@ -112,9 +114,9 @@ function LeaderboardRow({ entry, index, isMe }: { entry: SquadLeaderboardEntry; 
               height: 6,
               borderRadius: 1,
               flexShrink: 0,
-              bgcolor: `${DOWN_COLOR}40`,
+              bgcolor: withAlpha(t.down, 0.25),
               '& .MuiLinearProgress-bar': {
-                bgcolor: winRate >= 60 ? GAIN_COLOR : winRate >= 40 ? ACCENT_COLOR : DOWN_COLOR,
+                bgcolor: winRate >= 60 ? t.gain : winRate >= 40 ? t.accent : t.down,
                 borderRadius: 1,
               },
             }}
@@ -139,7 +141,7 @@ function LeaderboardRow({ entry, index, isMe }: { entry: SquadLeaderboardEntry; 
               fontWeight: 700,
               fontVariantNumeric: 'tabular-nums',
               whiteSpace: 'nowrap',
-              color: pnl > 0 ? GAIN_COLOR : pnl < 0 ? DOWN_COLOR : 'text.secondary',
+              color: pnl > 0 ? t.gain : pnl < 0 ? t.down : 'text.secondary',
             }}
           >
             {pnl >= 0 ? '+' : ''}{pnl === 0 ? '$0' : `$${pnl.toFixed(2)}`}
@@ -151,11 +153,11 @@ function LeaderboardRow({ entry, index, isMe }: { entry: SquadLeaderboardEntry; 
       <Box
         sx={{
           display: { xs: 'block', md: 'none' },
-          bgcolor: '#0D1219',
+          bgcolor: t.bg.surfaceAlt,
           p: 2,
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1.5, borderBottom: `1px solid ${t.border.subtle}` }}>
           <Box sx={{ width: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             {rank <= 3 ? (
               <MilitaryTech sx={{ fontSize: 22, color: MEDAL_COLORS[rank - 1] }} />
@@ -166,12 +168,12 @@ function LeaderboardRow({ entry, index, isMe }: { entry: SquadLeaderboardEntry; 
           <Avatar
             src={getAvatarUrl(entry.walletAddress)}
             alt={entry.walletAddress}
-            sx={{ width: 28, height: 28, borderRadius: '50%', border: rank <= 3 ? `1.5px solid ${MEDAL_COLORS[rank - 1]}40` : '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}
+            sx={{ width: 28, height: 28, borderRadius: '50%', border: rank <= 3 ? `1.5px solid ${withAlpha(MEDAL_COLORS[rank - 1], 0.25)}` : `1px solid ${t.border.default}`, flexShrink: 0 }}
           />
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {shortWallet(entry.walletAddress)}
-              {isMe && <Typography component="span" sx={{ color: UP_COLOR, fontSize: '0.7rem', ml: 0.5 }}>(you)</Typography>}
+              {isMe && <Typography component="span" sx={{ color: t.up, fontSize: '0.7rem', ml: 0.5 }}>(you)</Typography>}
             </Typography>
           </Box>
         </Box>
@@ -179,9 +181,9 @@ function LeaderboardRow({ entry, index, isMe }: { entry: SquadLeaderboardEntry; 
         <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1.5, pt: 1.5 }}>
           <Box>
             <Typography sx={{ fontSize: '0.9rem', fontVariantNumeric: 'tabular-nums' }}>
-              <Box component="span" sx={{ color: GAIN_COLOR, fontWeight: 500 }}>{entry.totalWins}</Box>
+              <Box component="span" sx={{ color: t.gain, fontWeight: 500 }}>{entry.totalWins}</Box>
               <Box component="span" sx={{ color: 'text.secondary' }}>/</Box>
-              <Box component="span" sx={{ color: DOWN_COLOR, fontWeight: 500 }}>{entry.totalBets - entry.totalWins}</Box>
+              <Box component="span" sx={{ color: t.down, fontWeight: 500 }}>{entry.totalBets - entry.totalWins}</Box>
             </Typography>
             <Typography sx={{ fontSize: '0.6rem', color: 'text.secondary', textTransform: 'uppercase' }}>W / L</Typography>
           </Box>
@@ -197,7 +199,7 @@ function LeaderboardRow({ entry, index, isMe }: { entry: SquadLeaderboardEntry; 
                 fontSize: '0.9rem',
                 fontWeight: 700,
                 fontVariantNumeric: 'tabular-nums',
-                color: pnl > 0 ? GAIN_COLOR : pnl < 0 ? DOWN_COLOR : 'text.secondary',
+                color: pnl > 0 ? t.gain : pnl < 0 ? t.down : 'text.secondary',
               }}
             >
               {pnl >= 0 ? '+' : ''}${Math.abs(pnl).toFixed(2)}
@@ -211,6 +213,7 @@ function LeaderboardRow({ entry, index, isMe }: { entry: SquadLeaderboardEntry; 
 }
 
 export function SquadLeaderboard({ entries, currentWallet }: SquadLeaderboardProps) {
+  const t = useThemeTokens();
   if (!entries || entries.length === 0) {
     return (
       <Box sx={{ textAlign: 'center', py: 8, px: 4 }}>
@@ -230,7 +233,7 @@ export function SquadLeaderboard({ entries, currentWallet }: SquadLeaderboardPro
           gridTemplateColumns: '50px 1.2fr 80px 140px 120px 100px',
           px: 2,
           py: 1,
-          bgcolor: '#0D1219',
+          bgcolor: t.bg.surfaceAlt,
         }}
       >
         {['Rank', 'Player', 'W / L', 'Win Rate', 'Wagered', 'PnL'].map((h) => (

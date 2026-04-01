@@ -9,6 +9,7 @@ import {
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { adminFetch } from '../lib/adminApi';
+import { darkTokens as t } from '@/lib/theme';
 
 interface EventRow {
   id: string;
@@ -76,7 +77,7 @@ export function EventLog() {
                   <TableCell sx={{ fontSize: 11, whiteSpace: 'nowrap' }}>{formatDate(e.createdAt)}</TableCell>
                   <TableCell sx={{ fontSize: 12 }}>{e.eventType}</TableCell>
                   <TableCell sx={{ fontSize: 12 }}>{e.entityType}</TableCell>
-                  <TableCell sx={{ fontSize: 11, cursor: 'pointer', '&:hover': { color: '#F59E0B' } }} onClick={() => navigator.clipboard.writeText(e.entityId)} title="Click to copy">{e.entityId}</TableCell>
+                  <TableCell sx={{ fontSize: 11, cursor: 'pointer', '&:hover': { color: t.warning } }} onClick={() => navigator.clipboard.writeText(e.entityId)} title="Click to copy">{e.entityId}</TableCell>
                   <TableCell sx={{ fontSize: 10, maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {JSON.stringify(e.payload)}
                   </TableCell>

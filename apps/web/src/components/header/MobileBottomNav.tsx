@@ -6,10 +6,12 @@ import { MoreHoriz } from '@mui/icons-material';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { NAV_ITEMS } from '@/lib/navigation';
+import { useThemeTokens } from '@/app/providers';
 
 const PRIMARY_COUNT = 4;
 
 export function MobileBottomNav() {
+  const t = useThemeTokens();
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const isActive = (href: string) =>
@@ -28,8 +30,8 @@ export function MobileBottomNav() {
           left: 0,
           right: 0,
           zIndex: 100,
-          backgroundColor: '#0B0F14',
-          borderTop: '1px solid rgba(255,255,255,0.06)',
+          backgroundColor: t.bg.app,
+          borderTop: `1px solid ${t.border.default}`,
           px: 0,
           pb: 'env(safe-area-inset-bottom)',
         }}
@@ -44,7 +46,7 @@ export function MobileBottomNav() {
                 sx={{
                   flexDirection: 'column',
                   gap: 0.15,
-                  color: active ? '#FFFFFF' : 'text.secondary',
+                  color: active ? t.text.primary : 'text.secondary',
                   fontWeight: active ? 500 : 400,
                   fontSize: '0.6rem',
                   py: 0.75,
@@ -54,7 +56,7 @@ export function MobileBottomNav() {
                   borderRadius: 0,
                   textTransform: 'none',
                   lineHeight: 1.2,
-                  '&:hover': { color: '#FFFFFF', backgroundColor: 'transparent' },
+                  '&:hover': { color: t.text.primary, backgroundColor: 'transparent' },
                 }}
               >
                 <Icon sx={{ fontSize: 20 }} />
@@ -72,7 +74,7 @@ export function MobileBottomNav() {
             minWidth: 0,
             flexDirection: 'column',
             gap: 0.15,
-            color: moreOpen ? '#FFFFFF' : 'text.secondary',
+            color: moreOpen ? t.text.primary : 'text.secondary',
             fontWeight: 400,
             fontSize: '0.6rem',
             py: 0.75,
@@ -81,7 +83,7 @@ export function MobileBottomNav() {
             borderRadius: 0,
             textTransform: 'none',
             lineHeight: 1.2,
-            '&:hover': { color: '#FFFFFF', backgroundColor: 'transparent' },
+            '&:hover': { color: t.text.primary, backgroundColor: 'transparent' },
           }}
         >
           <MoreHoriz sx={{ fontSize: 20 }} />
@@ -97,18 +99,18 @@ export function MobileBottomNav() {
         sx={{
           display: { xs: 'block', lg: 'none' },
           '& .MuiDrawer-paper': {
-            bgcolor: '#0B0F14',
+            bgcolor: t.bg.app,
             backgroundImage: 'none',
-            borderTop: '1px solid rgba(255,255,255,0.08)',
+            borderTop: `1px solid ${t.border.medium}`,
             borderTopLeftRadius: 12,
             borderTopRightRadius: 12,
             pb: 'env(safe-area-inset-bottom)',
           },
-          '& .MuiBackdrop-root': { bgcolor: 'rgba(0,0,0,0.5)' },
+          '& .MuiBackdrop-root': { bgcolor: t.shadow.default },
         }}
       >
         <Box sx={{ px: 2, pt: 1.5, pb: 1 }}>
-          <Box sx={{ width: 32, height: 4, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.15)', mx: 'auto', mb: 2 }} />
+          <Box sx={{ width: 32, height: 4, borderRadius: 2, bgcolor: t.border.emphasis, mx: 'auto', mb: 2 }} />
           {secondary.map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;
@@ -121,8 +123,8 @@ export function MobileBottomNav() {
                     gap: 1.5,
                     px: 1.5,
                     py: 1.5,
-                    color: active ? '#fff' : 'rgba(255,255,255,0.5)',
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
+                    color: active ? t.text.primary : t.text.secondary,
+                    '&:hover': { bgcolor: t.hover.default },
                     transition: 'background 0.15s ease',
                   }}
                 >

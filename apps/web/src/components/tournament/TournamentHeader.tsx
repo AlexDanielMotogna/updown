@@ -5,10 +5,11 @@ import { Box, Typography, Chip, Button, CircularProgress, IconButton } from '@mu
 import { ArrowBack, ExpandMore, ExpandLess } from '@mui/icons-material';
 import { useBadgeLookup } from '@/hooks/useCategories';
 import Link from 'next/link';
-import { UP_COLOR, ACCENT_COLOR, GAIN_COLOR } from '@/lib/constants';
 import { AssetIcon } from '@/components/AssetIcon';
 import { formatDate } from '@/lib/format';
 import { truncate, getRoundLabel } from './tournament-utils';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 import type { TournamentSummary } from '@/lib/api';
 import type { RegisterStatus } from '@/hooks/useTournamentRegister';
 
@@ -28,14 +29,15 @@ interface Props {
 }
 
 export function TournamentHeader({
-  tournament: t, filled, entryFee, prizePool, connected, walletAddress,
+  tournament: tour, filled, entryFee, prizePool, connected, walletAddress,
   alreadyRegistered, regStatus, regTx, isBusy, onRegister, onInfoClick,
 }: Props) {
+  const t = useThemeTokens();
   const getBadge = useBadgeLookup();
-  const isReg = t.status === 'REGISTERING';
-  const isActive = t.status === 'ACTIVE';
-  const statusColor = isReg ? UP_COLOR : isActive ? ACCENT_COLOR : 'rgba(255,255,255,0.35)';
-  const statusLabel = isReg ? 'Open' : isActive ? 'Live' : t.status === 'COMPLETED' ? 'Done' : t.status;
+  const isReg = tour.status === 'REGISTERING';
+  const isActive = tour.status === 'ACTIVE';
+  const statusColor = isReg ? t.up : isActive ? t.accent : t.text.quaternary;
+  const statusLabel = isReg ? 'Open' : isActive ? 'Live' : tour.status === 'COMPLETED' ? 'Done' : tour.status;
 
   const [statsOpen, setStatsOpen] = useState(true);
   useEffect(() => {
@@ -48,43 +50,43 @@ export function TournamentHeader({
     localStorage.setItem('tournament-stats-open', next ? '1' : '0');
   };
 
-  const isSports = t.tournamentType === 'SPORTS';
+  const isSports = tour.tournamentType === 'SPORTS';
   const leagueNames: Record<string, string> = { CL: 'UCL', PL: 'Premier', PD: 'La Liga', SA: 'Serie A', BL1: 'Bundesliga', FL1: 'Ligue 1' };
 
   const cards: Array<{ label: string; value: string; color: string; icon?: boolean; leagueCode?: string | null }> = [
     isSports
-      ? { label: 'League', value: leagueNames[t.league || ''] || t.league || 'Soccer', color: '#fff', leagueCode: t.league }
-      : { label: 'Asset', value: t.asset, color: '#fff', icon: true },
-    { label: 'Prize', value: `$${prizePool}`, color: GAIN_COLOR },
-    { label: 'Entry', value: `$${entryFee}`, color: '#fff' },
-    { label: 'Players', value: `${filled}/${t.size}`, color: '#fff' },
-    { label: 'Round', value: Number(t.currentRound) > 0 ? getRoundLabel(Number(t.currentRound), Number(t.totalRounds)) : 'Not started', color: isActive ? ACCENT_COLOR : '#fff' },
-    { label: 'Winner', value: t.winnerWallet ? truncate(t.winnerWallet) : '--', color: t.winnerWallet ? '#FFD700' : 'rgba(255,255,255,0.15)' },
-    { label: 'Starts', value: t.scheduledAt ? formatDate(t.scheduledAt) : 'TBD', color: t.scheduledAt ? '#fff' : 'rgba(255,255,255,0.15)' },
-    { label: 'Status', value: alreadyRegistered || regStatus === 'success' ? 'Registered' : isReg ? 'Not Registered' : '--', color: alreadyRegistered || regStatus === 'success' ? UP_COLOR : 'rgba(255,255,255,0.15)' },
+      ? { label: 'League', value: leagueNames[tour.league || ''] || tour.league || 'Soccer', color: t.text.primary, leagueCode: tour.league }
+      : { label: 'Asset', value: tour.asset, color: t.text.primary, icon: true },
+    { label: 'Prize', value: `$${prizePool}`, color: t.gain },
+    { label: 'Entry', value: `$${entryFee}`, color: t.text.primary },
+    { label: 'Players', value: `${filled}/${tour.size}`, color: t.text.primary },
+    { label: 'Round', value: Number(tour.currentRound) > 0 ? getRoundLabel(Number(tour.currentRound), Number(tour.totalRounds)) : 'Not started', color: isActive ? t.accent : t.text.primary },
+    { label: 'Winner', value: tour.winnerWallet ? truncate(tour.winnerWallet) : '--', color: tour.winnerWallet ? t.gold : 'rgba(255,255,255,0.15)' },
+    { label: 'Starts', value: tour.scheduledAt ? formatDate(tour.scheduledAt) : 'TBD', color: tour.scheduledAt ? t.text.primary : 'rgba(255,255,255,0.15)' },
+    { label: 'Status', value: alreadyRegistered || regStatus === 'success' ? 'Registered' : isReg ? 'Not Registered' : '--', color: alreadyRegistered || regStatus === 'success' ? t.up : 'rgba(255,255,255,0.15)' },
   ];
 
   return (
-    <Box sx={{ bgcolor: '#0D1219' }}>
+    <Box sx={{ bgcolor: t.bg.surfaceAlt }}>
       {/* Title bar */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: { xs: 1, md: 2 }, py: 0.75, borderBottom: statsOpen ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: { xs: 1, md: 2 }, py: 0.75, borderBottom: statsOpen ? `1px solid ${t.border.subtle}` : 'none' }}>
         <Link href="/tournaments">
-          <Box component="button" sx={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', p: 0.25, display: 'flex', '&:hover': { color: '#fff' } }}>
+          <Box component="button" sx={{ background: 'none', border: 'none', cursor: 'pointer', color: t.text.quaternary, p: 0.25, display: 'flex', '&:hover': { color: t.text.primary } }}>
             <ArrowBack sx={{ fontSize: 16 }} />
           </Box>
         </Link>
-        <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-          {t.name}
+        <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+          {tour.name}
         </Typography>
-        <Chip label={statusLabel} size="small" sx={{ fontWeight: 700, fontSize: '0.6rem', height: 18, bgcolor: `${statusColor}15`, color: statusColor, border: `1px solid ${statusColor}25`, borderRadius: 0 }} />
+        <Chip label={statusLabel} size="small" sx={{ fontWeight: 700, fontSize: '0.6rem', height: 18, bgcolor: withAlpha(statusColor, 0.08), color: statusColor, border: `1px solid ${withAlpha(statusColor, 0.15)}`, borderRadius: 0 }} />
         <Button
           onClick={onInfoClick}
           size="small"
-          sx={{ minWidth: 0, px: 1, py: 0.25, fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.35)', textTransform: 'none', '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.04)' } }}
+          sx={{ minWidth: 0, px: 1, py: 0.25, fontSize: '0.65rem', fontWeight: 600, color: t.text.quaternary, textTransform: 'none', '&:hover': { color: t.text.primary, bgcolor: t.hover.default } }}
         >
           Readme
         </Button>
-        <IconButton onClick={toggleStats} size="small" sx={{ color: 'rgba(255,255,255,0.3)', p: 0.25, '&:hover': { color: '#fff' } }}>
+        <IconButton onClick={toggleStats} size="small" sx={{ color: t.text.dimmed, p: 0.25, '&:hover': { color: t.text.primary } }}>
           {statsOpen ? <ExpandLess sx={{ fontSize: 16 }} /> : <ExpandMore sx={{ fontSize: 16 }} />}
         </IconButton>
       </Box>
@@ -93,23 +95,23 @@ export function TournamentHeader({
       {statsOpen && (
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(4, 1fr)', md: 'repeat(8, 1fr)' }, gap: 0.5, px: { xs: 0.5, md: 2 }, py: { xs: 0.5, md: 1.25 } }}>
             {cards.map(({ label, value, color, icon, leagueCode }) => (
-              <Box key={label} sx={{ bgcolor: 'rgba(255,255,255,0.03)', px: { xs: 0.75, md: 1.5 }, py: { xs: 0.5, md: 1 }, display: 'flex', alignItems: 'center' }}>
+              <Box key={label} sx={{ bgcolor: t.hover.light, px: { xs: 0.75, md: 1.5 }, py: { xs: 0.5, md: 1 }, display: 'flex', alignItems: 'center' }}>
                 <Box sx={{ width: '100%' }}>
-                  <Typography sx={{ fontSize: { xs: '0.55rem', md: '0.65rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.35)', mb: 0.25 }}>{label}</Typography>
+                  <Typography sx={{ fontSize: { xs: '0.55rem', md: '0.65rem' }, fontWeight: 600, color: t.text.quaternary, mb: 0.25 }}>{label}</Typography>
                   {label === 'Status' && isReg && !alreadyRegistered && regStatus !== 'success' && connected && walletAddress ? (
                     <Button
                       variant="contained" size="small" fullWidth disabled={isBusy}
                       onClick={onRegister}
-                      sx={{ bgcolor: UP_COLOR, color: '#000', fontWeight: 700, fontSize: { xs: '0.6rem', md: '0.7rem' }, textTransform: 'none', py: { xs: 0.25, md: 0.5 }, borderRadius: 0, '&:hover': { bgcolor: UP_COLOR, filter: 'brightness(1.15)' }, '&:disabled': { bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)' } }}
+                      sx={{ bgcolor: t.up, color: t.text.contrast, fontWeight: 700, fontSize: { xs: '0.6rem', md: '0.7rem' }, textTransform: 'none', py: { xs: 0.25, md: 0.5 }, borderRadius: 0, '&:hover': { bgcolor: t.up, filter: 'brightness(1.15)' }, '&:disabled': { bgcolor: t.border.default, color: t.text.dimmed } }}
                     >
-                      {isBusy ? <CircularProgress size={10} sx={{ color: '#000' }} /> : `$${entryFee}`}
+                      {isBusy ? <CircularProgress size={10} sx={{ color: t.text.contrast }} /> : `$${entryFee}`}
                     </Button>
                   ) : (
                     <>
                       {(icon || leagueCode) ? (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                           {leagueCode ? (
-                            <Box component="img" src={getBadge(leagueCode) || ''} alt="" sx={{ width: 14, height: 14, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '1px' }} />
+                            <Box component="img" src={getBadge(leagueCode) || ''} alt="" sx={{ width: 14, height: 14, objectFit: 'contain', bgcolor: t.text.vivid, borderRadius: '50%', p: '1px' }} />
                           ) : (
                             <AssetIcon asset={value} size={14} />
                           )}
@@ -120,7 +122,7 @@ export function TournamentHeader({
                       )}
                       {label === 'Status' && regTx && (
                         <a href={`https://explorer.solana.com/tx/${regTx}?cluster=devnet`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-                          <Typography sx={{ fontSize: '0.55rem', color: ACCENT_COLOR, '&:hover': { textDecoration: 'underline' } }}>View tx</Typography>
+                          <Typography sx={{ fontSize: '0.55rem', color: t.accent, '&:hover': { textDecoration: 'underline' } }}>View tx</Typography>
                         </a>
                       )}
                     </>

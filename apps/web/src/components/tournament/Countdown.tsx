@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { Box, Typography } from '@mui/material';
-import { ACCENT_COLOR, DOWN_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
 
 export function Countdown({ target, label, critical }: { target: string; label: string; critical?: boolean }) {
+  const t = useThemeTokens();
   const [remaining, setRemaining] = useState('');
 
   useEffect(() => {
@@ -25,7 +26,7 @@ export function Countdown({ target, label, critical }: { target: string; label: 
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-      <Typography sx={{ fontSize: '0.5rem', fontWeight: 600, color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase' }}>
+      <Typography sx={{ fontSize: '0.5rem', fontWeight: 600, color: t.text.muted, textTransform: 'uppercase' }}>
         {label}
       </Typography>
       <Typography
@@ -33,7 +34,7 @@ export function Countdown({ target, label, critical }: { target: string; label: 
           fontSize: '0.65rem',
           fontWeight: 700,
           fontVariantNumeric: 'tabular-nums',
-          color: diff <= 0 ? ACCENT_COLOR : isCritical ? DOWN_COLOR : 'rgba(255,255,255,0.5)',
+          color: diff <= 0 ? t.accent : isCritical ? t.down : t.text.secondary,
           ...(isCritical && { animation: 'criticalBlink 1s infinite', '@keyframes criticalBlink': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.5 } } }),
         }}
       >

@@ -7,45 +7,34 @@ import { useBadgeLookup } from '@/hooks/useCategories';
 import Link from 'next/link';
 import { fetchTournaments, type TournamentSummary } from '@/lib/api';
 import { formatDate } from '@/lib/format';
-import { UP_COLOR, ACCENT_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const SLIDE_INTERVAL = 10_000;
 
-const BANNER_THEMES = [
-  { bg: `linear-gradient(135deg, ${UP_COLOR}14, ${UP_COLOR}04)`, border: `${UP_COLOR}25`, accent: UP_COLOR },
-  { bg: `linear-gradient(135deg, ${ACCENT_COLOR}14, ${ACCENT_COLOR}04)`, border: `${ACCENT_COLOR}25`, accent: ACCENT_COLOR },
-  { bg: 'linear-gradient(135deg, rgba(251,191,36,0.08), rgba(251,191,36,0.02))', border: 'rgba(251,191,36,0.2)', accent: '#FBBF24' },
-  { bg: 'linear-gradient(135deg, rgba(168,85,247,0.08), rgba(168,85,247,0.02))', border: 'rgba(168,85,247,0.2)', accent: '#A855F7' },
-  { bg: 'linear-gradient(135deg, rgba(244,63,94,0.08), rgba(244,63,94,0.02))', border: 'rgba(244,63,94,0.2)', accent: '#F43F5E' },
-];
-
-const LEAGUE_LABELS: Record<string, string> = {
-  CL: 'Champions League', PL: 'Premier League', PD: 'La Liga',
-  SA: 'Serie A', BL1: 'Bundesliga', FL1: 'Ligue 1',
-};
-
-function BannerSlide({ t, theme }: { t: TournamentSummary; theme: typeof BANNER_THEMES[0] }) {
+function BannerSlide({ t: tournament, theme }: { t: TournamentSummary; theme: { bg: string; border: string; accent: string } }) {
+  const t = useThemeTokens();
   const getBadge = useBadgeLookup();
-  const entryFeeUsdc = (Number(t.entryFee) / 1_000_000).toFixed(2);
-  const totalPot = (Number(t.entryFee) * t.size / 1_000_000).toFixed(2);
-  const filled = t.participantCount ?? t._count?.participants ?? 0;
-  const isRegistering = t.status === 'REGISTERING';
-  const isSports = t.tournamentType === 'SPORTS';
-  const leagueName = isSports && t.league ? (LEAGUE_LABELS[t.league] || t.league) : t.asset;
-  const matchInfo = isSports ? 'real match results' : `${Math.floor(Number(t.matchDuration) / 60)}min matches`;
-  const imgSrc = isSports && t.league
-    ? (getBadge(t.league) || '')
-    : `/tournaments/tournament-${t.asset.toLowerCase()}.png`;
+  const entryFeeUsdc = (Number(tournament.entryFee) / 1_000_000).toFixed(2);
+  const totalPot = (Number(tournament.entryFee) * tournament.size / 1_000_000).toFixed(2);
+  const filled = tournament.participantCount ?? tournament._count?.participants ?? 0;
+  const isRegistering = tournament.status === 'REGISTERING';
+  const isSports = tournament.tournamentType === 'SPORTS';
+  const leagueName = isSports && tournament.league ? (LEAGUE_LABELS[tournament.league] || tournament.league) : tournament.asset;
+  const matchInfo = isSports ? 'real match results' : `${Math.floor(Number(tournament.matchDuration) / 60)}min matches`;
+  const imgSrc = isSports && tournament.league
+    ? (getBadge(tournament.league) || '')
+    : `/tournaments/tournament-${tournament.asset.toLowerCase()}.png`;
 
   const title = isRegistering ? `$${totalPot} tournament now open` : `$${totalPot} tournament in progress`;
-  const scheduledStr = t.scheduledAt ? formatDate(t.scheduledAt) : null;
+  const scheduledStr = tournament.scheduledAt ? formatDate(tournament.scheduledAt) : null;
   const subtitle = isRegistering
-    ? `${t.size}-player ${leagueName} bracket with ${matchInfo}. ${filled} registered, ${t.size - filled} spots left.${scheduledStr ? ` Starts ${scheduledStr}.` : ''}`
-    : `${t.size}-player ${leagueName} bracket with ${matchInfo}. Round ${t.currentRound} of ${t.totalRounds}.`;
+    ? `${tournament.size}-player ${leagueName} bracket with ${matchInfo}. ${filled} registered, ${tournament.size - filled} spots left.${scheduledStr ? ` Starts ${scheduledStr}.` : ''}`
+    : `${tournament.size}-player ${leagueName} bracket with ${matchInfo}. Round ${tournament.currentRound} of ${tournament.totalRounds}.`;
 
   return (
-    <Link href={`/tournament/${t.id}`} style={{ textDecoration: 'none' }}>
+    <Link href={`/tournament/${tournament.id}`} style={{ textDecoration: 'none' }}>
       <Box
         sx={{
           background: theme.bg,
@@ -62,19 +51,19 @@ function BannerSlide({ t, theme }: { t: TournamentSummary; theme: typeof BANNER_
           <Box
             component="img"
             src={imgSrc}
-            alt={t.asset}
-            sx={{ width: 56, height: 56, objectFit: 'contain', flexShrink: 0, ...(isSports && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '8px' }) }}
+            alt={tournament.asset}
+            sx={{ width: 56, height: 56, objectFit: 'contain', flexShrink: 0, ...(isSports && { bgcolor: t.text.vivid, borderRadius: '50%', p: '8px' }) }}
           />
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: '#fff' }}>{title}</Typography>
-            <Typography sx={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.55)', fontWeight: 500, mt: 0.25 }}>{subtitle}</Typography>
+            <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: t.text.primary }}>{title}</Typography>
+            <Typography sx={{ fontSize: '0.8rem', color: t.text.strong, fontWeight: 500, mt: 0.25 }}>{subtitle}</Typography>
           </Box>
           <Button
             size="small"
             variant="contained"
             endIcon={<ArrowForward sx={{ fontSize: 14 }} />}
             sx={{
-              bgcolor: theme.accent, color: '#000', fontWeight: 700, fontSize: '0.78rem',
+              bgcolor: theme.accent, color: t.text.contrast, fontWeight: 700, fontSize: '0.78rem',
               textTransform: 'none', borderRadius: 1.5, px: 2, py: 0.5,
               boxShadow: 'none', whiteSpace: 'nowrap',
               '&:hover': { bgcolor: theme.accent, filter: 'brightness(0.85)', boxShadow: 'none' },
@@ -89,12 +78,12 @@ function BannerSlide({ t, theme }: { t: TournamentSummary; theme: typeof BANNER_
           <Box
             component="img"
             src={imgSrc}
-            alt={t.asset}
-            sx={{ width: 52, height: 52, objectFit: 'contain', flexShrink: 0, ...(isSports && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '6px', width: 40, height: 40 }) }}
+            alt={tournament.asset}
+            sx={{ width: 52, height: 52, objectFit: 'contain', flexShrink: 0, ...(isSports && { bgcolor: t.text.vivid, borderRadius: '50%', p: '6px', width: 40, height: 40 }) }}
           />
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography sx={{ fontWeight: 800, fontSize: '0.82rem', color: '#fff', lineHeight: 1.3 }}>{title}</Typography>
-            <Typography sx={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.55)', fontWeight: 500, mt: 0.5, lineHeight: 1.4 }}>{subtitle}</Typography>
+            <Typography sx={{ fontWeight: 800, fontSize: '0.82rem', color: t.text.primary, lineHeight: 1.3 }}>{title}</Typography>
+            <Typography sx={{ fontSize: '0.68rem', color: t.text.strong, fontWeight: 500, mt: 0.5, lineHeight: 1.4 }}>{subtitle}</Typography>
           </Box>
         </Box>
       </Box>
@@ -102,9 +91,23 @@ function BannerSlide({ t, theme }: { t: TournamentSummary; theme: typeof BANNER_
   );
 }
 
+const LEAGUE_LABELS: Record<string, string> = {
+  CL: 'Champions League', PL: 'Premier League', PD: 'La Liga',
+  SA: 'Serie A', BL1: 'Bundesliga', FL1: 'Ligue 1',
+};
+
 export function TournamentBanner() {
+  const t = useThemeTokens();
   const [tournaments, setTournaments] = useState<TournamentSummary[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
+
+  const BANNER_THEMES = [
+    { bg: `linear-gradient(135deg, ${withAlpha(t.up, 0.08)}, ${withAlpha(t.up, 0.02)})`, border: withAlpha(t.up, 0.15), accent: t.up },
+    { bg: `linear-gradient(135deg, ${withAlpha(t.accent, 0.08)}, ${withAlpha(t.accent, 0.02)})`, border: withAlpha(t.accent, 0.15), accent: t.accent },
+    { bg: `linear-gradient(135deg, ${withAlpha(t.draw, 0.08)}, ${withAlpha(t.draw, 0.02)})`, border: withAlpha(t.draw, 0.2), accent: t.draw },
+    { bg: 'linear-gradient(135deg, rgba(168,85,247,0.08), rgba(168,85,247,0.02))', border: 'rgba(168,85,247,0.2)', accent: '#A855F7' },
+    { bg: 'linear-gradient(135deg, rgba(244,63,94,0.08), rgba(244,63,94,0.02))', border: 'rgba(244,63,94,0.2)', accent: '#F43F5E' },
+  ];
 
   useEffect(() => {
     let cancelled = false;
@@ -162,7 +165,7 @@ export function TournamentBanner() {
                 width: i === safeIndex ? 16 : 6,
                 height: 6,
                 borderRadius: 3,
-                bgcolor: i === safeIndex ? BANNER_THEMES[i % BANNER_THEMES.length].accent : 'rgba(255,255,255,0.1)',
+                bgcolor: i === safeIndex ? BANNER_THEMES[i % BANNER_THEMES.length].accent : t.hover.emphasis,
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
               }}

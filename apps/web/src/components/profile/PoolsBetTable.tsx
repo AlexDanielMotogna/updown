@@ -4,6 +4,7 @@ import { Box, Typography, Tooltip } from '@mui/material';
 import { InfoOutlined } from '@mui/icons-material';
 import { BetRow, BetRowSkeleton } from '@/components/profile/BetRow';
 import type { Bet } from '@/lib/api';
+import { useThemeTokens } from '@/app/providers';
 
 const TABLE_HEADERS = [
   { label: '', tip: '' },
@@ -25,6 +26,7 @@ interface PoolsBetTableProps {
 }
 
 export function PoolsBetTable({ bets, betsLoading, claimingBetId, onClaim }: PoolsBetTableProps) {
+  const t = useThemeTokens();
   if (betsLoading) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
@@ -54,7 +56,7 @@ export function PoolsBetTable({ bets, betsLoading, claimingBetId, onClaim }: Poo
           gridTemplateColumns: '80px 2.5fr 1fr 1fr 1fr 2fr 1fr 1fr 1.2fr',
           px: 0,
           py: 1,
-          bgcolor: '#0D1219',
+          bgcolor: t.bg.surfaceAlt,
         }}
       >
         {TABLE_HEADERS.map((h, i) => (
@@ -63,8 +65,8 @@ export function PoolsBetTable({ bets, betsLoading, claimingBetId, onClaim }: Poo
               {h.label}
             </Typography>
             {h.tip && (
-              <Tooltip title={h.tip} arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
-                <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+              <Tooltip title={h.tip} arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: t.bg.tooltip, border: `1px solid ${t.border.strong}`, fontSize: '0.75rem' } }, arrow: { sx: { color: t.bg.tooltip } } }}>
+                <InfoOutlined sx={{ fontSize: 11, color: t.text.muted, cursor: 'help', '&:hover': { color: t.text.secondary }, transition: 'color 0.15s' }} />
               </Tooltip>
             )}
           </Box>

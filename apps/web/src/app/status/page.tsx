@@ -8,23 +8,30 @@ import {
   type SystemStatus,
   type ServiceHistory,
 } from '@/lib/api';
-import { UP_COLOR, ACCENT_COLOR, DOWN_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
-const STATUS_COLORS: Record<string, string> = {
-  operational: UP_COLOR,
-  degraded: ACCENT_COLOR,
-  down: DOWN_COLOR,
-  no_data: 'rgba(255,255,255,0.08)',
-};
-
-const OVERALL_LABELS: Record<string, { label: string; color: string }> = {
-  operational: { label: 'All Systems Operational', color: UP_COLOR },
-  degraded: { label: 'Some Services Degraded', color: ACCENT_COLOR },
-  partial_outage: { label: 'Partial Outage', color: DOWN_COLOR },
-};
+function useStatusTheme() {
+  const t = useThemeTokens();
+  return {
+    statusColors: {
+      operational: t.up,
+      degraded: t.accent,
+      down: t.down,
+      no_data: t.hover.strong,
+    } as Record<string, string>,
+    overallLabels: {
+      operational: { label: 'All Systems Operational', color: t.up },
+      degraded: { label: 'Some Services Degraded', color: t.accent },
+      partial_outage: { label: 'Partial Outage', color: t.down },
+    } as Record<string, { label: string; color: string }>,
+  };
+}
 
 function StatusDot({ status }: { status: string }) {
-  const color = STATUS_COLORS[status] || UP_COLOR;
+  const { statusColors } = useStatusTheme();
+  const t = useThemeTokens();
+  const color = statusColors[status] || t.up;
   return (
     <Box sx={{ position: 'relative', width: 12, height: 12, flexShrink: 0 }}>
       {status === 'operational' && (
@@ -48,6 +55,8 @@ function StatusDot({ status }: { status: string }) {
 }
 
 function UptimeBars({ service }: { service: ServiceHistory }) {
+  const { statusColors } = useStatusTheme();
+  const t = useThemeTokens();
   const currentStatus = service.days.length > 0
     ? service.days[service.days.length - 1].status
     : 'no_data';
@@ -70,7 +79,7 @@ function UptimeBars({ service }: { service: ServiceHistory }) {
           sx={{
             fontSize: '0.8rem',
             fontWeight: 600,
-            color: UP_COLOR,
+            color: t.up,
             fontVariantNumeric: 'tabular-nums',
           }}
         >
@@ -103,9 +112,9 @@ function UptimeBars({ service }: { service: ServiceHistory }) {
             slotProps={{
               tooltip: {
                 sx: {
-                  bgcolor: '#1a1f2e',
+                  bgcolor: t.bg.tooltip,
                   border: '1px solid rgba(255,255,255,0.1)',
-                  '& .MuiTooltip-arrow': { color: '#1a1f2e' },
+                  '& .MuiTooltip-arrow': { color: t.bg.tooltip },
                 },
               },
             }}
@@ -114,7 +123,7 @@ function UptimeBars({ service }: { service: ServiceHistory }) {
               sx={{
                 flex: 1,
                 borderRadius: '2px',
-                bgcolor: STATUS_COLORS[day.status] || STATUS_COLORS.no_data,
+                bgcolor: statusColors[day.status] || statusColors.no_data,
                 opacity: day.status === 'no_data' ? 1 : 0.85,
                 transition: 'opacity 0.15s',
                 cursor: 'pointer',
@@ -127,10 +136,10 @@ function UptimeBars({ service }: { service: ServiceHistory }) {
 
       {/* Labels: 90 days ago — Today */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-        <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)' }}>
+        <Typography sx={{ fontSize: '0.65rem', color: t.text.dimmed }}>
           90 days ago
         </Typography>
-        <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)' }}>
+        <Typography sx={{ fontSize: '0.65rem', color: t.text.dimmed }}>
           Today
         </Typography>
       </Box>
@@ -139,6 +148,8 @@ function UptimeBars({ service }: { service: ServiceHistory }) {
 }
 
 export default function StatusPage() {
+  const t = useThemeTokens();
+  const { statusColors, overallLabels } = useStatusTheme();
   const [live, setLive] = useState<SystemStatus | null>(null);
   const [history, setHistory] = useState<ServiceHistory[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -172,16 +183,16 @@ export default function StatusPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const overallCfg = live ? OVERALL_LABELS[live.overall] : null;
+  const overallCfg = live ? overallLabels[live.overall] : null;
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#080B11' }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: t.bg.app }}>
       <Container maxWidth={false} sx={{ py: { xs: 3, md: 5 }, pb: { xs: 6, md: 8 }, px: { xs: 1.5, sm: 4, md: 6, lg: 10 } }}>
 
         {/* Loading */}
         {loading && (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-            <CircularProgress size={32} sx={{ color: UP_COLOR }} />
+            <CircularProgress size={32} sx={{ color: t.up }} />
           </Box>
         )}
 
@@ -189,7 +200,7 @@ export default function StatusPage() {
         {!loading && error && (
           <Box
             sx={{
-              bgcolor: '#0D1219',
+              bgcolor: t.bg.surfaceAlt,
               borderRadius: 2,
               px: { xs: 2.5, md: 3.5 },
               py: 4,
@@ -197,10 +208,10 @@ export default function StatusPage() {
             }}
           >
             <StatusDot status="down" />
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: DOWN_COLOR, mt: 2 }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: t.down, mt: 2 }}>
               Unable to reach API
             </Typography>
-            <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', mt: 0.5 }}>
+            <Typography sx={{ fontSize: '0.85rem', color: t.text.secondary, mt: 0.5 }}>
               The server may be down or undergoing maintenance
             </Typography>
           </Box>
@@ -217,7 +228,7 @@ export default function StatusPage() {
                 gap: 2,
                 px: { xs: 2.5, md: 3.5 },
                 py: 2.5,
-                bgcolor: '#0D1219',
+                bgcolor: t.bg.surfaceAlt,
                 borderRadius: 2,
                 mb: 3,
               }}
@@ -231,7 +242,7 @@ export default function StatusPage() {
             {/* Service uptime bars */}
             <Box
               sx={{
-                bgcolor: '#0D1219',
+                bgcolor: t.bg.surfaceAlt,
                 borderRadius: 2,
                 px: { xs: 2, md: 3.5 },
                 py: 1,
@@ -269,10 +280,10 @@ export default function StatusPage() {
 
             {/* Footer info */}
             <Box sx={{ mt: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)' }}>
+              <Typography sx={{ fontSize: '0.7rem', color: t.text.muted }}>
                 Checked every 5 minutes · Auto-refreshes every 30s
               </Typography>
-              <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', fontVariantNumeric: 'tabular-nums' }}>
+              <Typography sx={{ fontSize: '0.7rem', color: t.text.muted, fontVariantNumeric: 'tabular-nums' }}>
                 Response: {live.responseTime}ms
               </Typography>
             </Box>

@@ -10,9 +10,9 @@ import { MatchAnalysis } from './MatchAnalysis';
 import { useDeposit } from '@/hooks/useTransactions';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
-import { UP_COLOR as HOME_COLOR, DOWN_COLOR as AWAY_COLOR, DRAW_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 import { TransactionModal } from '@/components';
-import { GAIN_COLOR, UP_COLOR } from '@/lib/constants';
 import { USDC_DIVISOR } from '@/lib/format';
 import type { Pool } from '@/lib/api';
 import { getSocket, subscribePool, unsubscribePool } from '@/lib/socket';
@@ -38,6 +38,7 @@ interface Props {
 }
 
 export function MatchBetModal({ pool, onClose }: Props) {
+  const t = useThemeTokens();
   const { connected } = useWalletBridge();
   const { data: balance } = useUsdcBalance();
   const { deposit, state: depositState, reset: resetDeposit } = useDeposit();
@@ -148,7 +149,7 @@ export function MatchBetModal({ pool, onClose }: Props) {
   const isPrediction = pool.league?.startsWith('PM_');
   const isResolved = pool.status === 'CLAIMABLE' || pool.status === 'RESOLVED';
   const winnerLabel = isResolved ? (pool.winner === 'UP' ? (isPrediction && !pool.awayTeam ? 'Yes' : pool.homeTeam) : pool.winner === 'DOWN' ? (isPrediction && !pool.awayTeam ? 'No' : pool.awayTeam) : pool.winner === 'DRAW' ? 'Draw' : null) : null;
-  const winnerColor = pool.winner === 'UP' ? HOME_COLOR : pool.winner === 'DOWN' ? AWAY_COLOR : DRAW_COLOR;
+  const winnerColor = pool.winner === 'UP' ? t.up : pool.winner === 'DOWN' ? t.down : t.draw;
   const leagueLabel = PM_CATEGORY_LABELS[pool.league || ''] || (pool.league === 'CL' ? 'Champions League' : pool.league === 'PL' ? 'Premier League' : pool.league === 'PD' ? 'La Liga' : pool.league === 'SA' ? 'Serie A' : pool.league === 'BL1' ? 'Bundesliga' : pool.league === 'FL1' ? 'Ligue 1' : pool.league);
 
   return (
@@ -167,28 +168,28 @@ export function MatchBetModal({ pool, onClose }: Props) {
             left: { sm: 'auto' },
             top: { sm: 0 },
             bottom: { sm: 0 },
-            bgcolor: '#0B0F14 !important',
+            bgcolor: `${t.bg.app} !important`,
             backgroundImage: 'none !important',
             borderLeft: 'none',
             borderTopLeftRadius: { xs: 12, sm: 0 },
             borderTopRightRadius: { xs: 12, sm: 0 },
             overflowY: 'auto',
           },
-          '& .MuiBackdrop-root': { bgcolor: 'rgba(0,0,0,0.5)' },
+          '& .MuiBackdrop-root': { bgcolor: t.shadow.default },
         }}
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           {/* Header */}
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.5 }}>
             <Box>
-              <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 {leagueLabel}
               </Typography>
-              <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
+              <Typography sx={{ fontSize: '0.75rem', color: t.text.tertiary }}>
                 {formatKickoff(pool.startTime)}
               </Typography>
             </Box>
-            <IconButton onClick={onClose} size="small" sx={{ color: 'rgba(255,255,255,0.4)' }}>
+            <IconButton onClick={onClose} size="small" sx={{ color: t.text.tertiary }}>
               <Close sx={{ fontSize: 18 }} />
             </IconButton>
           </Box>
@@ -196,7 +197,7 @@ export function MatchBetModal({ pool, onClose }: Props) {
           {/* Teams / Question */}
           {isPrediction ? (
             <Box sx={{ py: 3, px: 3, textAlign: 'center' }}>
-              <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', lineHeight: 1.4 }}>
+              <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: t.text.primary, lineHeight: 1.4 }}>
                 {pool.awayTeam ? `${pool.homeTeam} vs ${pool.awayTeam}` : pool.homeTeam}
               </Typography>
             </Box>
@@ -206,12 +207,12 @@ export function MatchBetModal({ pool, onClose }: Props) {
                 {pool.homeTeamCrest && (
                   <Box component="img" src={pool.homeTeamCrest} alt="" sx={{ width: 48, height: 48, objectFit: 'contain', mb: 1 }} />
                 )}
-                <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: isResolved && pool.winner === 'UP' ? HOME_COLOR : '#fff' }}>
+                <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: isResolved && pool.winner === 'UP' ? t.up : t.text.primary }}>
                   {pool.homeTeam}
                 </Typography>
               </Box>
               {isResolved && pool.homeScore != null && pool.awayScore != null ? (
-                <Typography sx={{ fontSize: '1.3rem', fontWeight: 700, color: '#fff' }}>
+                <Typography sx={{ fontSize: '1.3rem', fontWeight: 700, color: t.text.primary }}>
                   {pool.homeScore} - {pool.awayScore}
                 </Typography>
               ) : (
@@ -221,7 +222,7 @@ export function MatchBetModal({ pool, onClose }: Props) {
                 {pool.awayTeamCrest && (
                   <Box component="img" src={pool.awayTeamCrest} alt="" sx={{ width: 48, height: 48, objectFit: 'contain', mb: 1 }} />
                 )}
-                <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: isResolved && pool.winner === 'DOWN' ? AWAY_COLOR : '#fff' }}>
+                <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: isResolved && pool.winner === 'DOWN' ? t.down : t.text.primary }}>
                   {pool.awayTeam}
                 </Typography>
               </Box>
@@ -231,7 +232,7 @@ export function MatchBetModal({ pool, onClose }: Props) {
           {/* Winner result */}
           {isResolved && winnerLabel && (
             <Box sx={{ mx: 2, mb: 2, textAlign: 'center' }}>
-              <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}>
+              <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: t.text.tertiary, textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}>
                 Final Result
               </Typography>
               <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: winnerColor }}>
@@ -269,10 +270,10 @@ export function MatchBetModal({ pool, onClose }: Props) {
                       sx={{
                         flex: 1, minWidth: 0, py: 0.5,
                         fontSize: '0.75rem', fontWeight: 600,
-                        bgcolor: amountNum === p ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
-                        color: amountNum === p ? '#fff' : 'rgba(255,255,255,0.5)',
+                        bgcolor: amountNum === p ? t.hover.emphasis : t.hover.default,
+                        color: amountNum === p ? t.text.primary : t.text.secondary,
                         textTransform: 'none', borderRadius: '5px',
-                        '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' },
+                        '&:hover': { bgcolor: t.hover.strong },
                       }}
                     >
                       ${p}
@@ -288,32 +289,32 @@ export function MatchBetModal({ pool, onClose }: Props) {
                   onChange={e => setAmount(e.target.value)}
                   inputProps={{ min: 1, step: 'any' }}
                   sx={{
-                    '& .MuiInputBase-root': { bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '5px' },
+                    '& .MuiInputBase-root': { bgcolor: t.hover.default, borderRadius: '5px' },
                     '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
                     '& .MuiInputBase-input': {
-                      color: '#fff', fontSize: '0.9rem',
+                      color: t.text.primary, fontSize: '0.9rem',
                       MozAppearance: 'textfield',
                       '&::-webkit-outer-spin-button, &::-webkit-inner-spin-button': { WebkitAppearance: 'none', margin: 0 },
                     },
                   }}
                 />
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.55)', mt: 0.75 }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: t.text.strong, mt: 0.75 }}>
                   Balance: ${balanceNum.toFixed(2)} USDC
                 </Typography>
               </Box>
 
               {/* Payout preview */}
               {side && amountNum > 0 && (
-                <Box sx={{ px: 2, mb: 2, py: 1.5, bgcolor: 'rgba(255,255,255,0.03)' }}>
+                <Box sx={{ px: 2, mb: 2, py: 1.5, bgcolor: t.hover.light }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>Estimated payout</Typography>
-                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: GAIN_COLOR }}>
+                    <Typography sx={{ fontSize: '0.75rem', color: t.text.tertiary }}>Estimated payout</Typography>
+                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: t.gain }}>
                       ${estimatedPayout.toFixed(2)}
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>Multiplier</Typography>
-                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>
+                    <Typography sx={{ fontSize: '0.75rem', color: t.text.tertiary }}>Multiplier</Typography>
+                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: t.text.primary }}>
                       {amountNum > 0 ? (estimatedPayout / amountNum).toFixed(2) : '0.00'}x
                     </Typography>
                   </Box>
@@ -325,14 +326,14 @@ export function MatchBetModal({ pool, onClose }: Props) {
           {/* Activity log */}
           {bets.length > 0 && (
             <Box sx={{ px: 2, flex: 1, overflow: 'auto', mb: 1, mt: 2, '&::-webkit-scrollbar': { display: 'none' }, scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-              <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 1 }}>
+              <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: '0.06em', mb: 1 }}>
                 Activity
               </Typography>
               <AnimatePresence>
                 {bets.map((b) => {
                   const key = `${b.wallet}-${b.createdAt}`;
                   const isNew = newBetKeys.has(key);
-                  const sideColor = b.side === 'UP' ? HOME_COLOR : b.side === 'DOWN' ? AWAY_COLOR : DRAW_COLOR;
+                  const sideColor = b.side === 'UP' ? t.up : b.side === 'DOWN' ? t.down : t.draw;
                   const rawLabel = b.side === 'UP' ? (isPrediction && !pool?.awayTeam ? 'Yes' : pool?.homeTeam || 'Home') : b.side === 'DOWN' ? (isPrediction && !pool?.awayTeam ? 'No' : pool?.awayTeam || 'Away') : 'Draw';
                   const sideLabel = rawLabel.length > 6 ? rawLabel.slice(0, 5) + '…' : rawLabel;
                   const amt = (Number(b.amount) / USDC_DIVISOR).toFixed(2);
@@ -348,10 +349,10 @@ export function MatchBetModal({ pool, onClose }: Props) {
                       layout
                     >
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 0.75, fontSize: '0.75rem', fontWeight: 600 }}>
-                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: 'rgba(255,255,255,0.45)', width: 75, flexShrink: 0 }}>{b.wallet}</Typography>
+                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.soft, width: 75, flexShrink: 0 }}>{b.wallet}</Typography>
                         <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: sideColor, width: 55, flexShrink: 0 }}>{sideLabel}</Typography>
-                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: '#fff', flex: 1, textAlign: 'right' }}>${amt}</Typography>
-                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: 'rgba(255,255,255,0.25)', width: 25, textAlign: 'right', flexShrink: 0 }}>{timeStr}</Typography>
+                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.primary, flex: 1, textAlign: 'right' }}>${amt}</Typography>
+                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.muted, width: 25, textAlign: 'right', flexShrink: 0 }}>{timeStr}</Typography>
                       </Box>
                     </motion.div>
                   );
@@ -368,9 +369,9 @@ export function MatchBetModal({ pool, onClose }: Props) {
                   fullWidth
                   variant="contained"
                   sx={{
-                    bgcolor: 'rgba(255,255,255,0.06)', color: '#fff', fontWeight: 700, fontSize: '0.8rem',
+                    bgcolor: t.border.default, color: t.text.primary, fontWeight: 700, fontSize: '0.8rem',
                     py: 1, borderRadius: '5px', textTransform: 'none',
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.10)' },
+                    '&:hover': { bgcolor: t.hover.emphasis },
                   }}
                 >
                   View Results
@@ -384,10 +385,10 @@ export function MatchBetModal({ pool, onClose }: Props) {
                   disabled={!canSubmit}
                   onClick={handleSubmit}
                   sx={{
-                    bgcolor: UP_COLOR, color: '#000', fontWeight: 700, fontSize: '0.8rem',
+                    bgcolor: t.up, color: t.text.contrast, fontWeight: 700, fontSize: '0.8rem',
                     py: 1, borderRadius: '5px', textTransform: 'none',
-                    '&:hover': { bgcolor: UP_COLOR, filter: 'brightness(1.15)' },
-                    '&:disabled': { bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)' },
+                    '&:hover': { bgcolor: t.up, filter: 'brightness(1.15)' },
+                    '&:disabled': { bgcolor: t.border.default, color: t.text.dimmed },
                   }}
                 >
                   {!connected ? 'Connect Wallet' : !side ? 'Select Side' : amountNum <= 0 ? 'Enter Amount' : 'Place Prediction'}
@@ -402,11 +403,11 @@ export function MatchBetModal({ pool, onClose }: Props) {
                       py: 0.75,
                       fontSize: '0.75rem',
                       fontWeight: 600,
-                      color: 'rgba(255,255,255,0.5)',
-                      bgcolor: 'rgba(255,255,255,0.04)',
+                      color: t.text.secondary,
+                      bgcolor: t.hover.default,
                       borderRadius: '4px',
                       textTransform: 'none',
-                      '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', color: '#fff' },
+                      '&:hover': { bgcolor: t.hover.strong, color: t.text.primary },
                     }}
                   >
                     Open Full Page

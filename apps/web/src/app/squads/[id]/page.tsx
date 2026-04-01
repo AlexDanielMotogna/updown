@@ -31,7 +31,9 @@ import { SquadMemberList } from '@/components/squad/SquadMemberList';
 import { SquadLeaderboard } from '@/components/squad/SquadLeaderboard';
 import { CreateSquadPoolForm } from '@/components/squad/CreateSquadPoolForm';
 import { cancelSquadPool } from '@/lib/api';
-import { UP_COLOR, GAIN_COLOR, ACCENT_COLOR, getAvatarUrl } from '@/lib/constants';
+import { getAvatarUrl } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 import {
   useSquad,
   useSquadPools,
@@ -45,6 +47,7 @@ import { useWalletBridge, usePriceStream, useBets } from '@/hooks';
 import type { Pool } from '@/lib/api';
 
 export default function SquadDetailPage() {
+  const t = useThemeTokens();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { walletAddress } = useWalletBridge();
@@ -110,7 +113,7 @@ export default function SquadDetailPage() {
       <AppShell>
         <Container maxWidth={false} sx={{ px: { xs: 2, md: 3 } }}>
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-            <CircularProgress size={32} sx={{ color: UP_COLOR }} />
+            <CircularProgress size={32} sx={{ color: t.up }} />
           </Box>
         </Container>
       </AppShell>
@@ -127,7 +130,7 @@ export default function SquadDetailPage() {
             </Typography>
             <Button
               onClick={() => router.push('/squads')}
-              sx={{ mt: 2, color: UP_COLOR, textTransform: 'none', fontWeight: 600 }}
+              sx={{ mt: 2, color: t.up, textTransform: 'none', fontWeight: 600 }}
             >
               Back to Squads
             </Button>
@@ -177,7 +180,7 @@ export default function SquadDetailPage() {
                     sx={{
                       background: 'none', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer',
                       display: 'flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.3,
-                      color: copied === 'code' ? GAIN_COLOR : 'text.secondary',
+                      color: copied === 'code' ? t.gain : 'text.secondary',
                       '&:hover': { borderColor: 'rgba(255,255,255,0.2)', color: '#fff' },
                       transition: 'all 0.15s',
                     }}
@@ -195,7 +198,7 @@ export default function SquadDetailPage() {
                     sx={{
                       background: 'none', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer',
                       display: 'flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.3,
-                      color: copied === 'link' ? GAIN_COLOR : 'text.secondary',
+                      color: copied === 'link' ? t.gain : 'text.secondary',
                       '&:hover': { borderColor: 'rgba(255,255,255,0.2)', color: '#fff' },
                       transition: 'all 0.15s',
                     }}
@@ -229,7 +232,7 @@ export default function SquadDetailPage() {
           <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
             <Box>
               <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', mb: 0.25 }}>Active Pools</Typography>
-              <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: GAIN_COLOR, fontVariantNumeric: 'tabular-nums' }}>
+              <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: t.gain, fontVariantNumeric: 'tabular-nums' }}>
                 {pools?.filter(p => p.status === 'JOINING' || p.status === 'ACTIVE').length ?? 0}
               </Typography>
             </Box>
@@ -249,7 +252,7 @@ export default function SquadDetailPage() {
           <Box
             onClick={() => setShowCreatePool(true)}
             sx={{
-              bgcolor: `${UP_COLOR}12`,
+              bgcolor: `${t.up}12`,
               borderRadius: 2,
               px: { xs: 1.5, md: 3 },
               py: 1.5,
@@ -258,12 +261,12 @@ export default function SquadDetailPage() {
               justifyContent: 'center',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
-              '&:hover': { bgcolor: `${UP_COLOR}20` },
+              '&:hover': { bgcolor: `${t.up}20` },
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-              <Add sx={{ fontSize: 20, color: UP_COLOR }} />
-              <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: UP_COLOR }}>
+              <Add sx={{ fontSize: 20, color: t.up }} />
+              <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: t.up }}>
                 Create Pool
               </Typography>
             </Box>
@@ -280,7 +283,7 @@ export default function SquadDetailPage() {
             sx={{
               minHeight: 44,
               '& .MuiTabs-indicator': {
-                backgroundColor: UP_COLOR,
+                backgroundColor: t.up,
                 height: 2,
               },
               '& .MuiTab-root': {

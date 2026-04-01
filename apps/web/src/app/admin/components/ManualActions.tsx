@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminPost, adminPostSSE } from '../lib/adminApi';
+import { darkTokens as t } from '@/lib/theme';
 
 function ActionCard({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return (
@@ -25,13 +26,13 @@ interface LogLine {
 }
 
 const LOG_COLORS: Record<string, string> = {
-  info: '#93C5FD',
-  success: '#4ADE80',
-  warn: '#FBBF24',
-  error: '#F87171',
-  pool_start: '#C084FC',
-  complete: '#22C55E',
-  done: '#22C55E',
+  info: t.logColors.info,
+  success: t.logColors.success,
+  warn: t.logColors.warn,
+  error: t.logColors.error,
+  pool_start: t.logColors.poolStart,
+  complete: t.logColors.complete,
+  done: t.logColors.complete,
 };
 
 export function ManualActions() {
@@ -136,8 +137,8 @@ export function ManualActions() {
           <Box
             sx={{
               mt: 1,
-              bgcolor: '#0D1117',
-              border: '1px solid rgba(255,255,255,0.1)',
+              bgcolor: t.bg.surfaceAlt,
+              border: `1px solid ${t.border.strong}`,
               borderRadius: 1,
               p: 1.5,
               maxHeight: 400,

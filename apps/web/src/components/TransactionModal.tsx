@@ -12,7 +12,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { TransactionStatus } from '@/hooks/useTransactions';
 import { getExplorerTxUrl } from '@/lib/format';
 import { fireWinConfetti } from '@/lib/confetti';
-import { GAIN_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 interface TransactionModalProps {
   open: boolean;
@@ -43,15 +44,6 @@ const STATUS_LABELS: Record<TransactionStatus, string> = {
   error: 'FAILED',
 };
 
-const NEON_GREEN = GAIN_COLOR;
-const NEON_RED = '#F87171';
-
-function getGlowColor(status: TransactionStatus) {
-  if (status === 'success') return NEON_GREEN;
-  if (status === 'error') return NEON_RED;
-  return '#60A5FA'; // blue for in-progress
-}
-
 export function TransactionModal({
   open,
   status,
@@ -61,6 +53,17 @@ export function TransactionModal({
   onClose,
   onRetry,
 }: TransactionModalProps) {
+  const t = useThemeTokens();
+
+  const NEON_GREEN = t.gain;
+  const NEON_RED = t.error;
+
+  function getGlowColor(s: TransactionStatus) {
+    if (s === 'success') return NEON_GREEN;
+    if (s === 'error') return NEON_RED;
+    return t.info; // blue for in-progress
+  }
+
   const isComplete = status === 'success' || status === 'error';
   const isPending = status === 'preparing' || status === 'signing' || status === 'confirming';
   const glowColor = getGlowColor(status);
@@ -85,18 +88,18 @@ export function TransactionModal({
       fullWidth
       PaperProps={{
         sx: {
-          background: '#0A0E14',
-          border: `1px solid ${glowColor}30`,
+          background: t.bg.dialog,
+          border: `1px solid ${withAlpha(glowColor, 0.19)}`,
           borderRadius: '4px',
           maxWidth: { xs: '95vw', sm: 420 },
           overflow: 'hidden',
-          boxShadow: `0 0 40px ${glowColor}15, 0 0 80px ${glowColor}08`,
+          boxShadow: `0 0 40px ${withAlpha(glowColor, 0.08)}, 0 0 80px ${withAlpha(glowColor, 0.03)}`,
           transition: 'border-color 0.4s ease, box-shadow 0.4s ease',
         },
       }}
     >
-      {/* ═══ Neon progress bar ═══ */}
-      <Box sx={{ position: 'relative', height: 4, bgcolor: 'rgba(255,255,255,0.06)' }}>
+      {/* Neon progress bar */}
+      <Box sx={{ position: 'relative', height: 4, bgcolor: t.hover.medium }}>
         <motion.div
           animate={{ width: `${progress}%` }}
           transition={
@@ -107,9 +110,9 @@ export function TransactionModal({
           style={{
             height: '100%',
             background: status === 'error'
-              ? `linear-gradient(90deg, ${NEON_RED}80, ${NEON_RED})`
-              : `linear-gradient(90deg, ${glowColor}80, ${glowColor})`,
-            boxShadow: `0 0 12px ${glowColor}60, 0 2px 8px ${glowColor}40`,
+              ? `linear-gradient(90deg, ${withAlpha(NEON_RED, 0.50)}, ${NEON_RED})`
+              : `linear-gradient(90deg, ${withAlpha(glowColor, 0.50)}, ${glowColor})`,
+            boxShadow: `0 0 12px ${withAlpha(glowColor, 0.38)}, 0 2px 8px ${withAlpha(glowColor, 0.25)}`,
             position: 'relative',
             overflow: 'hidden',
           }}
@@ -136,7 +139,7 @@ export function TransactionModal({
         </motion.div>
       </Box>
 
-      {/* ═══ Content ═══ */}
+      {/* Content */}
       <Box sx={{ px: { xs: 3, sm: 4 }, pt: 4, pb: 1.5 }}>
         {/* Title */}
         <Typography
@@ -145,7 +148,7 @@ export function TransactionModal({
             fontWeight: 700,
             fontSize: { xs: '0.75rem', sm: '0.8rem' },
             letterSpacing: '0.15em',
-            color: 'rgba(255,255,255,0.4)',
+            color: t.text.tertiary,
             textTransform: 'uppercase',
           }}
         >
@@ -172,9 +175,9 @@ export function TransactionModal({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  background: `${glowColor}12`,
-                  border: `2px solid ${glowColor}40`,
-                  boxShadow: `0 0 30px ${glowColor}20`,
+                  background: withAlpha(glowColor, 0.07),
+                  border: `2px solid ${withAlpha(glowColor, 0.25)}`,
+                  boxShadow: `0 0 30px ${withAlpha(glowColor, 0.13)}`,
                   mb: 3,
                   position: 'relative',
                   transition: 'all 0.4s ease',
@@ -196,7 +199,7 @@ export function TransactionModal({
                     }}
                   />
                 )}
-                <Typography sx={{ fontSize: '1.8rem', lineHeight: 1, filter: `drop-shadow(0 0 8px ${glowColor}60)` }}>
+                <Typography sx={{ fontSize: '1.8rem', lineHeight: 1, filter: `drop-shadow(0 0 8px ${withAlpha(glowColor, 0.38)})` }}>
                   {status === 'success' ? '\u2714' : status === 'error' ? '\u2716' : '\u26A1'}
                 </Typography>
               </Box>
@@ -207,8 +210,8 @@ export function TransactionModal({
                   fontWeight: 700,
                   fontSize: { xs: '1.1rem', sm: '1.25rem' },
                   letterSpacing: '0.08em',
-                  color: status === 'error' ? NEON_RED : status === 'success' ? NEON_GREEN : '#fff',
-                  textShadow: `0 0 20px ${glowColor}50`,
+                  color: status === 'error' ? NEON_RED : status === 'success' ? NEON_GREEN : t.text.primary,
+                  textShadow: `0 0 20px ${withAlpha(glowColor, 0.31)}`,
                   textAlign: 'center',
                 }}
               >
@@ -221,7 +224,7 @@ export function TransactionModal({
                   sx={{
                     mt: 1,
                     fontSize: '0.8rem',
-                    color: 'rgba(255,255,255,0.4)',
+                    color: t.text.tertiary,
                     fontWeight: 500,
                     textAlign: 'center',
                   }}
@@ -236,7 +239,7 @@ export function TransactionModal({
                   sx={{
                     mt: 1,
                     fontSize: '0.8rem',
-                    color: 'rgba(255,255,255,0.5)',
+                    color: t.text.secondary,
                     fontWeight: 500,
                     textAlign: 'center',
                   }}
@@ -254,8 +257,8 @@ export function TransactionModal({
                 mt: 2,
                 p: 2,
                 width: '100%',
-                background: `${NEON_RED}10`,
-                border: `1px solid ${NEON_RED}25`,
+                background: withAlpha(NEON_RED, 0.06),
+                border: `1px solid ${withAlpha(NEON_RED, 0.15)}`,
                 borderRadius: '4px',
               }}
             >
@@ -281,18 +284,18 @@ export function TransactionModal({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 0.75,
-                color: 'rgba(255,255,255,0.6)',
+                color: t.text.strong,
                 textDecoration: 'none',
                 fontSize: '0.8rem',
                 fontWeight: 600,
-                bgcolor: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
+                bgcolor: t.hover.default,
+                border: `1px solid ${t.border.medium}`,
                 borderRadius: '4px',
                 transition: 'all 0.2s ease',
                 '&:hover': {
-                  color: '#fff',
-                  bgcolor: 'rgba(255,255,255,0.08)',
-                  borderColor: 'rgba(255,255,255,0.15)',
+                  color: t.text.primary,
+                  bgcolor: t.hover.strong,
+                  borderColor: t.border.emphasis,
                 },
               }}
             >
@@ -302,7 +305,7 @@ export function TransactionModal({
         </Box>
       </Box>
 
-      {/* ═══ Actions ═══ */}
+      {/* Actions */}
       <Box sx={{ px: { xs: 3, sm: 4 }, pb: 3, display: 'flex', justifyContent: 'center', gap: 1.5 }}>
         {status === 'error' && onRetry && (
           <Button
@@ -313,14 +316,14 @@ export function TransactionModal({
               fontWeight: 700,
               fontSize: '0.8rem',
               letterSpacing: '0.06em',
-              color: '#fff',
-              bgcolor: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.12)',
+              color: t.text.primary,
+              bgcolor: t.hover.medium,
+              border: `1px solid ${t.border.emphasis}`,
               borderRadius: '4px',
               textTransform: 'uppercase',
               '&:hover': {
-                bgcolor: 'rgba(255,255,255,0.10)',
-                borderColor: 'rgba(255,255,255,0.2)',
+                bgcolor: t.hover.emphasis,
+                borderColor: t.border.hover,
               },
             }}
           >
@@ -338,16 +341,16 @@ export function TransactionModal({
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
               borderRadius: '4px',
-              color: status === 'success' ? '#000' : '#fff',
+              color: status === 'success' ? t.text.contrast : t.text.primary,
               background: status === 'success'
-                ? `linear-gradient(135deg, ${NEON_GREEN}, ${NEON_GREEN}CC)`
-                : 'rgba(255,255,255,0.08)',
-              boxShadow: status === 'success' ? `0 0 20px ${NEON_GREEN}30` : 'none',
-              border: status === 'success' ? 'none' : '1px solid rgba(255,255,255,0.12)',
+                ? `linear-gradient(135deg, ${NEON_GREEN}, ${withAlpha(NEON_GREEN, 0.80)})`
+                : t.hover.strong,
+              boxShadow: status === 'success' ? `0 0 20px ${withAlpha(NEON_GREEN, 0.19)}` : 'none',
+              border: status === 'success' ? 'none' : `1px solid ${t.border.emphasis}`,
               '&:hover': {
                 background: status === 'success'
-                  ? `linear-gradient(135deg, ${NEON_GREEN}DD, ${NEON_GREEN}AA)`
-                  : 'rgba(255,255,255,0.12)',
+                  ? `linear-gradient(135deg, ${withAlpha(NEON_GREEN, 0.87)}, ${withAlpha(NEON_GREEN, 0.67)})`
+                  : t.hover.emphasis,
               },
             }}
           >
@@ -358,7 +361,7 @@ export function TransactionModal({
           <Typography
             sx={{
               fontSize: '0.7rem',
-              color: 'rgba(255,255,255,0.3)',
+              color: t.text.dimmed,
               fontWeight: 500,
               letterSpacing: '0.05em',
             }}

@@ -19,7 +19,8 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { TransactionModal, AppShell } from '@/components';
 import { formatUSDC } from '@/lib/format';
-import { GAIN_COLOR, UP_COLOR, DOWN_COLOR, DRAW_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 import { ShowChart, SportsSoccer, Gavel, Public, TheaterComedy, AccountBalance, GridView, FilterList } from '@mui/icons-material';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { PoolsBetTable } from '@/components/profile/PoolsBetTable';
@@ -32,6 +33,7 @@ import {
 const TAB_KEYS = ['pools', 'tournaments'] as const;
 
 export default function MyBetsPage() {
+  const t = useThemeTokens();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -180,10 +182,10 @@ export default function MyBetsPage() {
                   px: 3,
                   py: 2,
                   mb: 3,
-                  background: `linear-gradient(135deg, ${GAIN_COLOR}20, ${GAIN_COLOR}08)`,
+                  background: `linear-gradient(135deg, ${t.gain}20, ${t.gain}08)`,
                 }}
               >
-                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: GAIN_COLOR }}>
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.gain }}>
                   {claimable!.summary.count} TO CLAIM  {formatUSDC(claimable!.summary.totalClaimable, { min: 2 })}
                 </Typography>
                 <Button
@@ -191,7 +193,7 @@ export default function MyBetsPage() {
                   onClick={handleClaimAll}
                   disabled={claimAllProgress !== null}
                   sx={{
-                    background: `linear-gradient(135deg, ${GAIN_COLOR}, #16A34A)`,
+                    background: `linear-gradient(135deg, ${t.gain}, #16A34A)`,
                     color: '#000',
                     fontWeight: 700,
                     fontSize: '0.85rem',
@@ -199,7 +201,7 @@ export default function MyBetsPage() {
                     py: 0.75,
                     textTransform: 'none',
                     whiteSpace: 'nowrap',
-                    '&:hover': { background: `linear-gradient(135deg, ${GAIN_COLOR}DD, #16A34ADD)` },
+                    '&:hover': { background: `linear-gradient(135deg, ${t.gain}DD, #16A34ADD)` },
                     '&:disabled': { background: 'rgba(255,255,255,0.2)', color: 'rgba(0,0,0,0.5)' },
                   }}
                 >
@@ -209,7 +211,7 @@ export default function MyBetsPage() {
             )}
 
             {/* Tabs + filter icon */}
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.06)', mb: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${t.border.default}`, mb: 3 }}>
               <Tabs
                 value={tab}
                 onChange={handleTabChange}
@@ -217,7 +219,7 @@ export default function MyBetsPage() {
                 scrollButtons={false}
                 sx={{
                   minHeight: 44,
-                  '& .MuiTabs-indicator': { backgroundColor: UP_COLOR, height: 2 },
+                  '& .MuiTabs-indicator': { backgroundColor: t.up, height: 2 },
                   '& .MuiTab-root': {
                     color: 'text.secondary',
                     fontWeight: 500,
@@ -237,7 +239,7 @@ export default function MyBetsPage() {
                 <IconButton
                   onClick={() => setShowPoolFilters(!showPoolFilters)}
                   size="small"
-                  sx={{ color: showPoolFilters ? '#fff' : 'rgba(255,255,255,0.35)', '&:hover': { color: '#fff' }, mr: 1 }}
+                  sx={{ color: showPoolFilters ? '#fff' : t.text.quaternary, '&:hover': { color: '#fff' }, mr: 1 }}
                 >
                   <FilterList sx={{ fontSize: 20 }} />
                 </IconButton>
@@ -261,12 +263,12 @@ export default function MyBetsPage() {
                 <Box sx={{ display: 'flex', gap: 0, mb: 2, overflow: 'auto', '&::-webkit-scrollbar': { display: 'none' } }}>
                   {[
                     { key: 'ALL', label: 'All', icon: <GridView sx={{ fontSize: 16 }} />, color: '#fff' },
-                    { key: 'CRYPTO', label: 'Crypto', icon: <ShowChart sx={{ fontSize: 16 }} />, color: UP_COLOR },
-                    { key: 'SPORTS', label: 'Sports', icon: <SportsSoccer sx={{ fontSize: 16 }} />, color: DRAW_COLOR },
-                    { key: 'PM_POLITICS', label: 'Politics', icon: <Gavel sx={{ fontSize: 16 }} />, color: '#A78BFA' },
-                    { key: 'PM_GEO', label: 'Geopolitics', icon: <Public sx={{ fontSize: 16 }} />, color: '#60A5FA' },
-                    { key: 'PM_CULTURE', label: 'Culture', icon: <TheaterComedy sx={{ fontSize: 16 }} />, color: '#F472B6' },
-                    { key: 'PM_FINANCE', label: 'Finance', icon: <AccountBalance sx={{ fontSize: 16 }} />, color: '#34D399' },
+                    { key: 'CRYPTO', label: 'Crypto', icon: <ShowChart sx={{ fontSize: 16 }} />, color: t.up },
+                    { key: 'SPORTS', label: 'Sports', icon: <SportsSoccer sx={{ fontSize: 16 }} />, color: t.draw },
+                    { key: 'PM_POLITICS', label: 'Politics', icon: <Gavel sx={{ fontSize: 16 }} />, color: t.prediction },
+                    { key: 'PM_GEO', label: 'Geopolitics', icon: <Public sx={{ fontSize: 16 }} />, color: t.info },
+                    { key: 'PM_CULTURE', label: 'Culture', icon: <TheaterComedy sx={{ fontSize: 16 }} />, color: t.categoryColors.culture },
+                    { key: 'PM_FINANCE', label: 'Finance', icon: <AccountBalance sx={{ fontSize: 16 }} />, color: t.categoryColors.finance },
                   ].map(f => {
                     const active = poolFilter === f.key;
                     return (
@@ -277,7 +279,7 @@ export default function MyBetsPage() {
                           display: 'flex', alignItems: 'center', gap: 0.75,
                           px: { xs: 1.25, md: 2 }, py: 1, cursor: 'pointer', whiteSpace: 'nowrap',
                           borderBottom: active ? `2px solid ${f.color}` : '2px solid transparent',
-                          color: active ? f.color : 'rgba(255,255,255,0.35)',
+                          color: active ? f.color : t.text.quaternary,
                           transition: 'all 0.15s ease', '&:hover': { color: f.color },
                         }}
                       >

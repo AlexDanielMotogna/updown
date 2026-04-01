@@ -9,7 +9,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { usePools } from '@/hooks/usePools';
 import { fetchTournaments, type TournamentSummary } from '@/lib/api';
-import { GAIN_COLOR, ACCENT_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
 import { useLiveScores } from '@/hooks/useLiveScores';
 import { useCategoryMap } from '@/hooks/useCategories';
 import { PoolsSidebarList } from './sidebar/PoolsSidebarList';
@@ -18,6 +18,7 @@ import { TournamentSidebarList } from './tournament/TournamentSidebarList';
 const MAX_VISIBLE = 12;
 
 export function LiveResultsSidebar() {
+  const t = useThemeTokens();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [sidebarTab, _setSidebarTab] = useState<'pools' | 'tournaments'>('pools');
@@ -96,8 +97,8 @@ export function LiveResultsSidebar() {
       {/* Tab bar */}
       <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         {[
-          { key: 'pools' as const, icon: <LeaderboardIcon sx={{ fontSize: 18 }} />, color: GAIN_COLOR },
-          { key: 'tournaments' as const, icon: <EmojiEventsIcon sx={{ fontSize: 18 }} />, color: ACCENT_COLOR },
+          { key: 'pools' as const, icon: <LeaderboardIcon sx={{ fontSize: 18 }} />, color: t.gain },
+          { key: 'tournaments' as const, icon: <EmojiEventsIcon sx={{ fontSize: 18 }} />, color: t.accent },
         ].map(({ key, icon, color }) => (
           <Box
             key={key}
@@ -162,7 +163,7 @@ export function LiveResultsSidebar() {
           position: 'sticky',
           top: 64,
           height: 'calc(100vh - 64px)',
-          background: '#0B0F14',
+          background: t.bg.app,
           transition: 'width 0.2s ease',
           overflow: 'hidden',
         }}
@@ -182,12 +183,12 @@ export function LiveResultsSidebar() {
               transition: 'background 0.15s ease',
             }}
           >
-            <ChevronRightIcon sx={{ fontSize: 16, color: GAIN_COLOR }} />
+            <ChevronRightIcon sx={{ fontSize: 16, color: t.gain }} />
             <Typography
               sx={{
                 fontSize: '0.5rem',
                 fontWeight: 700,
-                color: GAIN_COLOR,
+                color: t.gain,
                 writingMode: 'vertical-rl',
                 textOrientation: 'mixed',
                 letterSpacing: '0.1em',
@@ -211,7 +212,7 @@ export function LiveResultsSidebar() {
           left: 0,
           transform: 'translateY(-50%)',
           zIndex: 99,
-          bgcolor: '#0D1219',
+          bgcolor: t.bg.surfaceAlt,
           borderRight: '1px solid rgba(255,255,255,0.08)',
           borderTop: '1px solid rgba(255,255,255,0.08)',
           borderBottom: '1px solid rgba(255,255,255,0.08)',
@@ -229,15 +230,15 @@ export function LiveResultsSidebar() {
         }}
       >
         {mobileOpen ? (
-          <ChevronLeftIcon sx={{ fontSize: 16, color: GAIN_COLOR }} />
+          <ChevronLeftIcon sx={{ fontSize: 16, color: t.gain }} />
         ) : (
-          <ChevronRightIcon sx={{ fontSize: 16, color: GAIN_COLOR }} />
+          <ChevronRightIcon sx={{ fontSize: 16, color: t.gain }} />
         )}
         <Typography
           sx={{
             fontSize: '0.5rem',
             fontWeight: 700,
-            color: GAIN_COLOR,
+            color: t.gain,
             writingMode: 'vertical-rl',
             textOrientation: 'mixed',
             letterSpacing: '0.1em',

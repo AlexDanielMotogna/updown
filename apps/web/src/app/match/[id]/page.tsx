@@ -15,7 +15,7 @@ import { AppShell, TransactionModal } from '@/components';
 import { ThreeWaySelector } from '@/components/sports/ThreeWaySelector';
 import { MatchAnalysis } from '@/components/sports/MatchAnalysis';
 import { OddsChart } from '@/components/pool/OddsChart';
-import { UP_COLOR, DOWN_COLOR, DRAW_COLOR, GAIN_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
 import { formatUSDC, USDC_DIVISOR, statusStyles } from '@/lib/format';
 import { useLiveScore, isMatchActive, isMatchFinished, formatLiveStatus } from '@/hooks/useLiveScores';
 import { useCategoryMap } from '@/hooks/useCategories';
@@ -31,6 +31,7 @@ interface PoolBet {
 }
 
 function MarketInfo({ description }: { description: string }) {
+  const t = useThemeTokens();
   const [tab, setTab] = useState<'rules' | 'context'>('rules');
 
   // Split description: first paragraph = context summary, rest = rules
@@ -45,31 +46,31 @@ function MarketInfo({ description }: { description: string }) {
     <Box>
       {/* Tab switcher */}
       <Box sx={{ display: 'flex', gap: '2px', mb: 1.5 }}>
-        {(['rules', 'context'] as const).map(t => (
+        {(['rules', 'context'] as const).map(tabKey => (
           <Box
-            key={t}
-            onClick={() => setTab(t)}
+            key={tabKey}
+            onClick={() => setTab(tabKey)}
             sx={{
               px: 1.5, py: 0.5, borderRadius: '4px', cursor: 'pointer',
               fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase',
-              bgcolor: tab === t ? 'rgba(255,255,255,0.08)' : 'transparent',
-              color: tab === t ? '#fff' : 'rgba(255,255,255,0.35)',
-              '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' },
+              bgcolor: tab === tabKey ? t.hover.strong : 'transparent',
+              color: tab === tabKey ? t.text.primary : t.text.quaternary,
+              '&:hover': { bgcolor: t.hover.default },
             }}
           >
-            {t === 'rules' ? 'Rules' : 'Market Context'}
+            {tabKey === 'rules' ? 'Rules' : 'Market Context'}
           </Box>
         ))}
       </Box>
 
       {/* Content */}
       {tab === 'rules' && (
-        <Typography sx={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.8)', lineHeight: 1.2, whiteSpace: 'pre-wrap' }}>
+        <Typography sx={{ fontSize: '0.9rem', color: t.text.vivid, lineHeight: 1.2, whiteSpace: 'pre-wrap' }}>
           {rulesText}
         </Typography>
       )}
       {tab === 'context' && (
-        <Typography sx={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.8)', lineHeight: 1.2, whiteSpace: 'pre-wrap' }}>
+        <Typography sx={{ fontSize: '0.9rem', color: t.text.vivid, lineHeight: 1.2, whiteSpace: 'pre-wrap' }}>
           {contextText || 'No additional context available for this market.'}
         </Typography>
       )}
@@ -78,6 +79,7 @@ function MarketInfo({ description }: { description: string }) {
 }
 
 export default function MatchDetailPage() {
+  const t = useThemeTokens();
   const params = useParams();
   const id = params.id as string;
   const { data: poolData, isLoading } = usePool(id);
@@ -209,7 +211,7 @@ export default function MatchDetailPage() {
     return (
       <AppShell>
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 12 }}>
-          <CircularProgress size={32} sx={{ color: UP_COLOR }} />
+          <CircularProgress size={32} sx={{ color: t.up }} />
         </Box>
       </AppShell>
     );
@@ -219,10 +221,10 @@ export default function MatchDetailPage() {
     return (
       <AppShell>
         <Box sx={{ textAlign: 'center', py: 12 }}>
-          <Typography sx={{ fontSize: '1.1rem', fontWeight: 600, color: '#fff', mb: 1 }}>
+          <Typography sx={{ fontSize: '1.1rem', fontWeight: 600, color: t.text.primary, mb: 1 }}>
             Match not found
           </Typography>
-          <Typography sx={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.45)', mb: 3 }}>
+          <Typography sx={{ fontSize: '0.9rem', color: t.text.soft, mb: 3 }}>
             This market may have ended or is no longer available.
           </Typography>
           <Link href="/?type=SPORTS" style={{ textDecoration: 'none' }}>
@@ -232,8 +234,8 @@ export default function MatchDetailPage() {
                 display: 'inline-block',
                 px: 4,
                 py: 1,
-                bgcolor: 'rgba(255,255,255,0.06)',
-                color: '#fff',
+                bgcolor: t.border.default,
+                color: t.text.primary,
                 fontWeight: 600,
                 fontSize: '0.85rem',
                 borderRadius: '5px',
@@ -253,7 +255,7 @@ export default function MatchDetailPage() {
   const league = pool.league || '';
   const isPrediction = league.startsWith('PM_');
   const category = categoryMap.get(league);
-  const catColor = category?.color || (isPrediction ? '#A78BFA' : '#fff');
+  const catColor = category?.color || (isPrediction ? t.prediction : '#fff');
   const catLabel = category?.label || league;
   const catBadge = category?.badgeUrl;
   const CatIcon = getIcon(category?.iconKey);
@@ -261,7 +263,7 @@ export default function MatchDetailPage() {
   const homeShort = isPrediction ? '' : (pool.homeTeam || 'Home').slice(0, 3).toUpperCase();
   const awayShort = isPrediction ? '' : (pool.awayTeam || 'Away').slice(0, 3).toUpperCase();
   const winnerLabel = isResolved ? (pool.winner === 'UP' ? (isPrediction && !pool.awayTeam ? 'Yes' : pool.homeTeam) : pool.winner === 'DOWN' ? (isPrediction && !pool.awayTeam ? 'No' : pool.awayTeam) : pool.winner === 'DRAW' ? 'Draw' : null) : null;
-  const winnerColor = pool.winner === 'UP' ? UP_COLOR : pool.winner === 'DOWN' ? DOWN_COLOR : DRAW_COLOR;
+  const winnerColor = pool.winner === 'UP' ? t.up : pool.winner === 'DOWN' ? t.down : t.draw;
 
   const kickoff = new Date(pool.startTime).toLocaleString('en-US', {
     weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
@@ -270,11 +272,11 @@ export default function MatchDetailPage() {
   return (
     <AppShell>
       {/* ── Header bar ── */}
-      <Box sx={{ bgcolor: '#0B0F14', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+      <Box sx={{ bgcolor: t.bg.app, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
         <Box sx={{ px: { xs: 1.5, md: 3 }, py: { xs: 1, md: 1.25 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Link href={isPrediction ? '/?type=PREDICTIONS' : '/?type=SPORTS'} style={{ textDecoration: 'none', color: 'inherit', display: 'flex' }}>
-              <ArrowBack sx={{ fontSize: 18, color: 'rgba(255,255,255,0.4)', '&:hover': { color: '#fff' }, cursor: 'pointer' }} />
+              <ArrowBack sx={{ fontSize: 18, color: t.text.tertiary, '&:hover': { color: t.text.primary }, cursor: 'pointer' }} />
             </Link>
             {catBadge ? (
               <Box component="img" src={catBadge} alt={league} sx={{ width: 22, height: 22, objectFit: 'contain', ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }) }} />
@@ -289,7 +291,7 @@ export default function MatchDetailPage() {
               {catLabel}
             </Typography>
             {!isPrediction && (
-              <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>
+              <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: t.text.tertiary }}>
                 {homeShort} vs {awayShort}
               </Typography>
             )}
@@ -297,29 +299,29 @@ export default function MatchDetailPage() {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             {matchLive && !isResolved && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: '#22C55E', animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1, transform: 'scale(1)' }, '50%': { opacity: 0.4, transform: 'scale(0.8)' } } }} />
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#22C55E' }}>
+                <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: t.gain, animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1, transform: 'scale(1)' }, '50%': { opacity: 0.4, transform: 'scale(0.8)' } } }} />
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: t.gain }}>
                   {formatLiveStatus(liveScore!.status, liveScore!.progress)}
                 </Typography>
               </Box>
             )}
             {matchFinished && !isResolved && (
-              <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>
+              <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: t.text.secondary }}>
                 Full Time
               </Typography>
             )}
             {!matchLive && !matchFinished && !awaitingResolution && !isResolved && hasStarted && (
-              <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase' }}>
+              <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: t.accent, textTransform: 'uppercase' }}>
                 In Progress
               </Typography>
             )}
             {awaitingResolution && (
-              <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>
+              <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: t.text.secondary }}>
                 Full Time
               </Typography>
             )}
             {isLocked && !hasStarted && !matchLive && !matchFinished && !isResolved && (
-              <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase' }}>
+              <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: t.accent, textTransform: 'uppercase' }}>
                 Locked
               </Typography>
             )}
@@ -327,7 +329,7 @@ export default function MatchDetailPage() {
               label={matchLive && !isResolved ? 'LIVE' : (matchFinished || awaitingResolution) && !isResolved ? 'ENDED' : hasStarted && !isResolved ? 'IN PLAY' : pool.status === 'JOINING' ? 'OPEN' : pool.status === 'ACTIVE' ? 'LIVE' : pool.status}
               size="small"
               sx={{
-                ...(matchLive && !isResolved ? { bgcolor: 'rgba(34,197,94,0.12)', color: '#22C55E' } : (matchFinished || awaitingResolution) && !isResolved ? { bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' } : statusStyle),
+                ...(matchLive && !isResolved ? { bgcolor: `${t.gain}1F`, color: t.gain } : (matchFinished || awaitingResolution) && !isResolved ? { bgcolor: t.border.default, color: t.text.secondary } : statusStyle),
                 fontWeight: 700,
                 fontSize: { xs: '0.6rem', md: '0.7rem' },
                 letterSpacing: '0.08em',
@@ -341,12 +343,12 @@ export default function MatchDetailPage() {
       </Box>
 
       {/* ── Stats strip ── */}
-      <Box sx={{ bgcolor: '#0B0F14', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+      <Box sx={{ bgcolor: t.bg.app, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
         <Box sx={{ px: { xs: 1.5, md: 3 }, py: { xs: 1, md: 1.25 }, display: 'flex', alignItems: 'center', justifyContent: 'space-around' }}>
           {[
-            { icon: '/assets/players-icon-500.png', value: betCount, label: 'PREDICTIONS', color: '#fff' },
-            { icon: '/assets/pool-icon-500.png', value: formatUSDC(totalPoolStr), label: 'POOL', color: GAIN_COLOR },
-            { icon: null, value: kickoff, label: isPrediction ? 'RESOLVES' : 'KICKOFF', color: 'rgba(255,255,255,0.7)' },
+            { icon: '/assets/players-icon-500.png', value: betCount, label: 'PREDICTIONS', color: t.text.primary },
+            { icon: '/assets/pool-icon-500.png', value: formatUSDC(totalPoolStr), label: 'POOL', color: t.gain },
+            { icon: null, value: kickoff, label: isPrediction ? 'RESOLVES' : 'KICKOFF', color: t.text.bright },
           ].map((s, i) => (
             <Box key={s.label} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.06)' : 'none', pl: i > 0 ? { xs: 1.5, md: 2.5 } : 0 }}>
               {s.icon && <Box component="img" src={s.icon} alt="" sx={{ width: { xs: 14, md: 20 }, height: { xs: 14, md: 20 } }} />}
@@ -354,7 +356,7 @@ export default function MatchDetailPage() {
                 <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 700, color: s.color, lineHeight: 1.2 }}>
                   {s.value}
                 </Typography>
-                <Typography sx={{ fontSize: { xs: '0.55rem', md: '0.6rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.3)', lineHeight: 1 }}>
+                <Typography sx={{ fontSize: { xs: '0.55rem', md: '0.6rem' }, fontWeight: 600, color: t.text.dimmed, lineHeight: 1 }}>
                   {s.label}
                 </Typography>
               </Box>
@@ -365,18 +367,18 @@ export default function MatchDetailPage() {
 
       {/* ── Live / Full Time score banner ── */}
       {(matchLive || matchFinished || awaitingResolution) && !isResolved && (
-        <Box sx={{ px: { xs: 2, md: 3 }, py: 2, textAlign: 'center', bgcolor: matchLive ? 'rgba(34,197,94,0.04)' : 'rgba(255,255,255,0.02)' }}>
+        <Box sx={{ px: { xs: 2, md: 3 }, py: 2, textAlign: 'center', bgcolor: matchLive ? `${t.gain}0A` : t.hover.subtle }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 0.5 }}>
-            {matchLive && <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#22C55E', animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1, transform: 'scale(1)' }, '50%': { opacity: 0.4, transform: 'scale(0.8)' } } }} />}
-            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: matchLive ? '#22C55E' : 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            {matchLive && <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: t.gain, animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1, transform: 'scale(1)' }, '50%': { opacity: 0.4, transform: 'scale(0.8)' } } }} />}
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: matchLive ? t.gain : t.text.secondary, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
               {matchLive && liveScore ? `Live - ${formatLiveStatus(liveScore.status, liveScore.progress)}` : 'Full Time — Resolving'}
             </Typography>
           </Box>
-          <Typography sx={{ fontSize: '1.6rem', fontWeight: 700, color: '#fff' }}>
+          <Typography sx={{ fontSize: '1.6rem', fontWeight: 700, color: t.text.primary }}>
             {pool.homeTeam} {liveScore ? liveScore.homeScore : pool.homeScore} - {liveScore ? liveScore.awayScore : pool.awayScore} {pool.awayTeam}
           </Typography>
           {isLocked && matchLive && (
-            <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: '#F59E0B', mt: 0.5 }}>
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: t.accent, mt: 0.5 }}>
               Predictions locked
             </Typography>
           )}
@@ -386,11 +388,11 @@ export default function MatchDetailPage() {
       {/* ── Winner banner ── */}
       {isResolved && winnerLabel && (
         <Box sx={{ px: { xs: 2, md: 3 }, py: 2, textAlign: 'center' }}>
-          <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.5 }}>
+          <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: t.text.tertiary, textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.5 }}>
             {isPrediction ? 'Resolved' : 'Full Time'}
           </Typography>
           {!isPrediction && pool.homeScore != null && pool.awayScore != null && (
-            <Typography sx={{ fontSize: '1.4rem', fontWeight: 700, color: '#fff', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '1.4rem', fontWeight: 700, color: t.text.primary, mb: 0.5 }}>
               {pool.homeTeam} {pool.homeScore} - {pool.awayScore} {pool.awayTeam}
             </Typography>
           )}
@@ -434,7 +436,7 @@ export default function MatchDetailPage() {
 
           {/* Activity log */}
           <Box>
-            <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 1 }}>
+            <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: '0.06em', mb: 1 }}>
               Activity
             </Typography>
             <Box sx={{
@@ -445,7 +447,7 @@ export default function MatchDetailPage() {
               msOverflowStyle: 'none' as unknown as string,
             }}>
               {bets.length === 0 && (
-                <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)', py: 2, textAlign: 'center' }}>
+                <Typography sx={{ fontSize: '0.75rem', color: t.text.muted, py: 2, textAlign: 'center' }}>
                   No predictions yet
                 </Typography>
               )}
@@ -453,7 +455,7 @@ export default function MatchDetailPage() {
                 {bets.map((b) => {
                   const key = `${b.wallet}-${b.createdAt}`;
                   const isNew = newBetKeys.has(key);
-                  const sideColor = b.side === 'UP' ? UP_COLOR : b.side === 'DOWN' ? DOWN_COLOR : DRAW_COLOR;
+                  const sideColor = b.side === 'UP' ? t.up : b.side === 'DOWN' ? t.down : t.draw;
                   const sideLabel = isPrediction
                     ? (b.side === 'UP' ? (pool.awayTeam ? pool.homeTeam?.slice(0, 3).toUpperCase() : 'YES') : b.side === 'DOWN' ? (pool.awayTeam ? pool.awayTeam?.slice(0, 3).toUpperCase() : 'NO') : 'DRAW')
                     : (b.side === 'UP' ? (pool.homeTeam?.slice(0, 3).toUpperCase() || 'HOME') : b.side === 'DOWN' ? (pool.awayTeam?.slice(0, 3).toUpperCase() || 'AWAY') : 'DRAW');
@@ -470,16 +472,16 @@ export default function MatchDetailPage() {
                       layout
                     >
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 0.75, fontSize: '0.75rem', fontWeight: 600 }}>
-                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: 'rgba(255,255,255,0.45)', width: 75, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.soft, width: 75, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {b.wallet}
                         </Typography>
                         <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: sideColor, width: 55, flexShrink: 0 }}>
                           {sideLabel}
                         </Typography>
-                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: '#fff', flex: 1, textAlign: 'right' }}>
+                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.primary, flex: 1, textAlign: 'right' }}>
                           ${amt}
                         </Typography>
-                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: 'rgba(255,255,255,0.25)', width: 25, textAlign: 'right', flexShrink: 0 }}>
+                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.muted, width: 25, textAlign: 'right', flexShrink: 0 }}>
                           {timeStr}
                         </Typography>
                       </Box>
@@ -497,7 +499,7 @@ export default function MatchDetailPage() {
           flexDirection: 'column',
           gap: 1.5,
           width: '100%',
-          bgcolor: { md: 'rgba(255,255,255,0.02)' },
+          bgcolor: { md: t.hover.subtle },
           borderRadius: '5px',
           p: { md: 2 },
           mt: { xs: 2, md: 0 },
@@ -505,7 +507,7 @@ export default function MatchDetailPage() {
           {/* Teams / Question */}
           {isPrediction ? (
             <Box sx={{ py: 2, px: 1, textAlign: 'center' }}>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#fff', lineHeight: 1.4 }}>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: t.text.primary, lineHeight: 1.4 }}>
                 {pool.awayTeam ? `${pool.homeTeam} vs ${pool.awayTeam}` : pool.homeTeam}
               </Typography>
             </Box>
@@ -515,40 +517,40 @@ export default function MatchDetailPage() {
                 {pool.homeTeamCrest && (
                   <Box component="img" src={pool.homeTeamCrest} alt="" sx={{ width: 32, height: 32, objectFit: 'contain', mb: 0.5, mx: 'auto', display: 'block' }} />
                 )}
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: isResolved && pool.winner === 'UP' ? UP_COLOR : '#fff' }}>{homeShort}</Typography>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: isResolved && pool.winner === 'UP' ? t.up : '#fff' }}>{homeShort}</Typography>
               </Box>
               {(matchLive || matchFinished) && !isResolved && liveScore ? (
                 <Box sx={{ textAlign: 'center', flexShrink: 0 }}>
-                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: matchLive ? '#22C55E' : '#fff' }}>
+                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: matchLive ? t.gain : '#fff' }}>
                     {liveScore.homeScore} - {liveScore.awayScore}
                   </Typography>
-                  <Typography sx={{ fontSize: '0.55rem', fontWeight: 600, color: matchLive ? '#22C55E' : 'rgba(255,255,255,0.4)', opacity: 0.8 }}>
+                  <Typography sx={{ fontSize: '0.55rem', fontWeight: 600, color: matchLive ? t.gain : t.text.tertiary, opacity: 0.8 }}>
                     {formatLiveStatus(liveScore.status, liveScore.progress)}
                   </Typography>
                 </Box>
               ) : hasScore ? (
                 <Box sx={{ textAlign: 'center', flexShrink: 0 }}>
-                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>
+                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: t.text.primary }}>
                     {pool.homeScore} - {pool.awayScore}
                   </Typography>
                   {awaitingResolution && (
-                    <Typography sx={{ fontSize: '0.55rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>
+                    <Typography sx={{ fontSize: '0.55rem', fontWeight: 600, color: t.text.tertiary }}>
                       Full Time
                     </Typography>
                   )}
                 </Box>
               ) : isResolved && pool.homeScore != null && pool.awayScore != null ? (
-                <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: t.text.primary, flexShrink: 0 }}>
                   {pool.homeScore} - {pool.awayScore}
                 </Typography>
               ) : (
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.15)', flexShrink: 0 }}>vs</Typography>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: t.text.muted, flexShrink: 0 }}>vs</Typography>
               )}
               <Box sx={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
                 {pool.awayTeamCrest && (
                   <Box component="img" src={pool.awayTeamCrest} alt="" sx={{ width: 32, height: 32, objectFit: 'contain', mb: 0.5, mx: 'auto', display: 'block' }} />
                 )}
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: isResolved && pool.winner === 'DOWN' ? DOWN_COLOR : '#fff' }}>{awayShort}</Typography>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: isResolved && pool.winner === 'DOWN' ? t.down : '#fff' }}>{awayShort}</Typography>
               </Box>
             </Box>
           )}
@@ -556,7 +558,7 @@ export default function MatchDetailPage() {
           {/* Winner badge in right column */}
           {isResolved && winnerLabel && (
             <Box sx={{ textAlign: 'center', py: 1 }}>
-              <Typography sx={{ fontSize: '0.6rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.25 }}>
+              <Typography sx={{ fontSize: '0.6rem', fontWeight: 600, color: t.text.tertiary, textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.25 }}>
                 Result
               </Typography>
               <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: winnerColor }}>
@@ -592,14 +594,14 @@ export default function MatchDetailPage() {
                   try { await claim(pool.id, claimableBet.id); } catch { /* handled in state */ }
                 }}
                 sx={{
-                  bgcolor: GAIN_COLOR,
-                  color: '#000',
+                  bgcolor: t.gain,
+                  color: t.text.contrast,
                   fontWeight: 700,
                   fontSize: '0.85rem',
                   py: 1.25,
                   borderRadius: '5px',
                   textTransform: 'none',
-                  '&:hover': { bgcolor: GAIN_COLOR, filter: 'brightness(1.15)' },
+                  '&:hover': { bgcolor: t.gain, filter: 'brightness(1.15)' },
                 }}
               >
                 {claimState.status === 'confirming' ? 'Claiming...' : 'Claim Winnings'}
@@ -623,11 +625,11 @@ export default function MatchDetailPage() {
                       py: 0.5,
                       fontSize: '0.75rem',
                       fontWeight: 600,
-                      bgcolor: amountNum === p ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
-                      color: amountNum === p ? '#fff' : 'rgba(255,255,255,0.5)',
+                      bgcolor: amountNum === p ? t.hover.emphasis : t.border.subtle,
+                      color: amountNum === p ? '#fff' : t.text.secondary,
                       textTransform: 'none',
                       borderRadius: '5px',
-                      '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' },
+                      '&:hover': { bgcolor: t.hover.strong },
                     }}
                   >
                     ${p}
@@ -645,10 +647,10 @@ export default function MatchDetailPage() {
                 onChange={e => setAmount(e.target.value)}
                 inputProps={{ min: 1, step: 'any' }}
                 sx={{
-                  '& .MuiInputBase-root': { bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '5px' },
+                  '& .MuiInputBase-root': { bgcolor: t.border.subtle, borderRadius: '5px' },
                   '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
                   '& .MuiInputBase-input': {
-                    color: '#fff',
+                    color: t.text.primary,
                     fontSize: '0.9rem',
                     outline: 'none',
                     MozAppearance: 'textfield',
@@ -656,21 +658,21 @@ export default function MatchDetailPage() {
                   },
                 }}
               />
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.55)' }}>
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: t.text.strong }}>
                 Balance: ${balanceNum.toFixed(2)} USDC
               </Typography>
 
               {/* Payout preview */}
               {side && amountNum > 0 && (
-                <Box sx={{ py: 1.5, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '5px', px: 1.5 }}>
+                <Box sx={{ py: 1.5, bgcolor: t.hover.light, borderRadius: '5px', px: 1.5 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>Estimated payout</Typography>
-                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: GAIN_COLOR }}>
+                    <Typography sx={{ fontSize: '0.75rem', color: t.text.tertiary }}>Estimated payout</Typography>
+                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: t.gain }}>
                       ${estimatedPayout.toFixed(2)}
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>Multiplier</Typography>
+                    <Typography sx={{ fontSize: '0.75rem', color: t.text.tertiary }}>Multiplier</Typography>
                     <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>
                       {amountNum > 0 ? (estimatedPayout / amountNum).toFixed(2) : '0.00'}x
                     </Typography>
@@ -685,15 +687,15 @@ export default function MatchDetailPage() {
                 disabled={!canSubmit}
                 onClick={handleSubmit}
                 sx={{
-                  bgcolor: UP_COLOR,
-                  color: '#000',
+                  bgcolor: t.up,
+                  color: t.text.contrast,
                   fontWeight: 700,
                   fontSize: '0.8rem',
                   py: 1,
                   borderRadius: '5px',
                   textTransform: 'none',
-                  '&:hover': { bgcolor: UP_COLOR, filter: 'brightness(1.15)' },
-                  '&:disabled': { bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)' },
+                  '&:hover': { bgcolor: t.up, filter: 'brightness(1.15)' },
+                  '&:disabled': { bgcolor: t.border.default, color: t.text.dimmed },
                 }}
               >
                 {!connected ? 'Connect Wallet' : !side ? 'Select Side' : amountNum <= 0 ? 'Enter Amount' : 'Place Prediction'}

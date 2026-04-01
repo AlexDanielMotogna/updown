@@ -1,21 +1,10 @@
 'use client';
 
 import { Box, Typography } from '@mui/material';
-import { ACCENT_COLOR, UP_COLOR, GAIN_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
-// Level tier colors — 10 tiers across 40 levels (4 levels each)
-function getTierColor(level: number): string {
-  if (level <= 4) return 'rgba(255,255,255,0.5)';
-  if (level <= 8) return UP_COLOR;
-  if (level <= 12) return GAIN_COLOR;
-  if (level <= 16) return ACCENT_COLOR;
-  if (level <= 20) return '#A78BFA'; // purple
-  if (level <= 24) return '#F472B6'; // pink
-  if (level <= 28) return '#FB923C'; // orange
-  if (level <= 32) return '#F43F5E'; // rose
-  if (level <= 36) return '#E879F9'; // fuchsia
-  return '#FACC15'; // gold for 37-40
-}
+// Level tier colors — use t.levelTiers from theme
 
 // 10 icons distributed across 40 levels (4 levels per icon)
 function getLevelIcon(level: number): string {
@@ -39,7 +28,9 @@ interface UserLevelBadgeProps {
 }
 
 export function UserLevelBadge({ level, title, size = 'sm', variant = 'default' }: UserLevelBadgeProps) {
-  const color = getTierColor(level);
+  const t = useThemeTokens();
+  const tierIndex = Math.min(Math.floor((level - 1) / 4), 9);
+  const color = t.levelTiers[tierIndex];
   const icon = getLevelIcon(level);
   const isSm = size === 'sm';
 
@@ -85,7 +76,7 @@ export function UserLevelBadge({ level, title, size = 'sm', variant = 'default' 
           sx={{
             fontSize: '0.65rem',
             fontWeight: 500,
-            color: `${color}CC`,
+            color: withAlpha(color, 0.80),
             lineHeight: 1,
           }}
         >

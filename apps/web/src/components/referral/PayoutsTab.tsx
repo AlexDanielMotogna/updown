@@ -3,13 +3,8 @@
 import { Box, Typography, Tooltip, Button } from '@mui/material';
 import { InfoOutlined, OpenInNew } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GAIN_COLOR } from '@/lib/constants';
 import { USDC_DIVISOR, getExplorerTxUrl, formatDate } from '@/lib/format';
-
-const tooltipSlotProps = {
-  tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } },
-  arrow: { sx: { color: '#1a1f2e' } },
-} as const;
+import { useThemeTokens } from '@/app/providers';
 
 export interface PayoutsTabProps {
   payouts: Array<{
@@ -21,6 +16,11 @@ export interface PayoutsTabProps {
 }
 
 export function PayoutsTab({ payouts }: PayoutsTabProps) {
+  const t = useThemeTokens();
+  const tooltipSlotProps = {
+    tooltip: { sx: { bgcolor: t.bg.tooltip, border: `1px solid ${t.border.strong}`, fontSize: '0.75rem' } },
+    arrow: { sx: { color: t.bg.tooltip } },
+  } as const;
   if (!payouts || payouts.length === 0) {
     return (
       <Box sx={{ textAlign: 'center', py: 8, px: 4 }}>
@@ -48,7 +48,7 @@ export function PayoutsTab({ payouts }: PayoutsTabProps) {
           gridTemplateColumns: '1fr 1fr 1fr',
           px: 2,
           py: 1,
-          bgcolor: '#0D1219',
+          bgcolor: t.bg.surfaceAlt,
         }}
       >
         {[
@@ -61,7 +61,7 @@ export function PayoutsTab({ payouts }: PayoutsTabProps) {
               {h.label}
             </Typography>
             <Tooltip title={h.tip} arrow placement="top" slotProps={tooltipSlotProps}>
-              <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+              <InfoOutlined sx={{ fontSize: 11, color: t.text.muted, cursor: 'help', '&:hover': { color: t.text.secondary }, transition: 'color 0.15s' }} />
             </Tooltip>
           </Box>
         ))}
@@ -86,12 +86,12 @@ export function PayoutsTab({ payouts }: PayoutsTabProps) {
                 px: 2,
                 py: 0,
                 minHeight: 56,
-                bgcolor: '#0D1219',
+                bgcolor: t.bg.surfaceAlt,
                 transition: 'background 0.15s ease',
-                '&:hover': { background: 'rgba(255,255,255,0.04)' },
+                '&:hover': { background: t.border.subtle },
               }}
             >
-              <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: GAIN_COLOR, fontVariantNumeric: 'tabular-nums' }}>
+              <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: t.gain, fontVariantNumeric: 'tabular-nums' }}>
                 ${(Number(p.amount) / USDC_DIVISOR).toFixed(2)}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
@@ -105,13 +105,13 @@ export function PayoutsTab({ payouts }: PayoutsTabProps) {
                     sx={{
                       minWidth: 0, px: 1, py: 0.25, fontSize: '0.65rem', color: 'text.secondary',
                       textTransform: 'none', gap: 0.5,
-                      '&:hover': { color: '#FFFFFF' },
+                      '&:hover': { color: t.text.primary },
                     }}
                   >
                     Payout <OpenInNew sx={{ fontSize: 12 }} />
                   </Button>
                 ) : (
-                  <Typography sx={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.15)' }}>—</Typography>
+                  <Typography sx={{ fontSize: '0.8rem', color: t.border.emphasis }}>—</Typography>
                 )}
               </Box>
               <Typography sx={{ fontSize: '0.85rem', fontWeight: 500, color: 'text.secondary', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', textAlign: 'right' }}>
@@ -120,9 +120,9 @@ export function PayoutsTab({ payouts }: PayoutsTabProps) {
             </Box>
 
             {/* Mobile card */}
-            <Box sx={{ display: { xs: 'block', md: 'none' }, bgcolor: '#0D1219', p: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: GAIN_COLOR, fontVariantNumeric: 'tabular-nums' }}>
+            <Box sx={{ display: { xs: 'block', md: 'none' }, bgcolor: t.bg.surfaceAlt, p: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1.5, borderBottom: `1px solid ${t.border.subtle}` }}>
+                <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: t.gain, fontVariantNumeric: 'tabular-nums' }}>
                   ${(Number(p.amount) / USDC_DIVISOR).toFixed(2)}
                 </Typography>
                 <Typography sx={{ fontSize: '0.8rem', fontWeight: 500, color: 'text.secondary' }}>
@@ -140,7 +140,7 @@ export function PayoutsTab({ payouts }: PayoutsTabProps) {
                     sx={{
                       minWidth: 0, px: 1, py: 0.25, fontSize: '0.65rem', color: 'text.secondary',
                       textTransform: 'none', gap: 0.5,
-                      '&:hover': { color: '#FFFFFF' },
+                      '&:hover': { color: t.text.primary },
                     }}
                   >
                     Payout <OpenInNew sx={{ fontSize: 12 }} />
