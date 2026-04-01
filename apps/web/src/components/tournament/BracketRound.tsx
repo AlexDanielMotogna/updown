@@ -2,7 +2,8 @@
 
 import { Box, Typography } from '@mui/material';
 import { type TournamentMatchData, type TournamentFixture } from '@/lib/api';
-import { CARD_H, CARD_GAP, getRoundLabel, getHeaderHeight } from './tournament-utils';
+import { isMatchActive, isMatchFinished, formatLiveStatus, type LiveScore } from '@/hooks/useLiveScores';
+import { CARD_H, CARD_GAP, getRoundLabel, getHeaderHeight, formatKickoff } from './tournament-utils';
 import { MatchCard, EmptyMatchCard } from './MatchCard';
 
 export function BracketRound({
@@ -19,6 +20,7 @@ export function BracketRound({
   fixtureCount,
   fixtures,
   sideLabels,
+  liveScores,
 }: {
   roundNum: number;
   expectedMatchCount: number;
@@ -33,6 +35,7 @@ export function BracketRound({
   fixtureCount?: number;
   fixtures?: TournamentFixture[];
   sideLabels?: string[];
+  liveScores?: Map<string, LiveScore>;
 }) {
   const rn = Number(roundNum);
   const tr = Number(totalRounds);
@@ -62,16 +65,38 @@ export function BracketRound({
 
         {isSports && fixtures && fixtures.length > 0 && (
           <Box sx={{ mt: '4px', textAlign: 'center' }}>
-            {fixtures.map((f, i) => (
+            {fixtures.map((f, i) => {
+              const ls = liveScores?.get(f.footballMatchId);
+              const live = ls && isMatchActive(ls);
+              const finished = ls && isMatchFinished(ls.status);
+              return (
               <Box key={i} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, height: 18 }}>
                 {f.homeTeamCrest && <Box component="img" src={f.homeTeamCrest} alt="" sx={{ width: 12, height: 12, objectFit: 'contain' }} />}
-                <Typography sx={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.6)', fontWeight: 600, lineHeight: 1 }}>
-                  {f.homeTeam} vs {f.awayTeam}
-                  {f.resultHome != null ? ` (${f.resultHome}-${f.resultAway})` : ''}
+                <Typography sx={{ fontSize: '0.55rem', color: live ? '#22C55E' : 'rgba(255,255,255,0.6)', fontWeight: 600, lineHeight: 1 }}>
+                  {f.homeTeam}
+                  {live ? ` ${ls!.homeScore}-${ls!.awayScore} ` : f.resultHome != null ? ` ${f.resultHome}-${f.resultAway} ` : ' vs '}
+                  {f.awayTeam}
                 </Typography>
                 {f.awayTeamCrest && <Box component="img" src={f.awayTeamCrest} alt="" sx={{ width: 12, height: 12, objectFit: 'contain' }} />}
+                {live && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                    <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: '#22C55E', animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+                    <Typography sx={{ fontSize: '0.45rem', color: '#22C55E', fontWeight: 700 }}>
+                      {formatLiveStatus(ls!.status, ls!.progress)}
+                    </Typography>
+                  </Box>
+                )}
+                {finished && !f.resultOutcome && (
+                  <Typography sx={{ fontSize: '0.45rem', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>FT</Typography>
+                )}
+                {!live && !finished && f.kickoff && !f.resultOutcome && (
+                  <Typography sx={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.3)', fontWeight: 500 }}>
+                    {formatKickoff(f.kickoff)}
+                  </Typography>
+                )}
               </Box>
-            ))}
+              );
+            })}
           </Box>
         )}
       </Box>
@@ -103,6 +128,7 @@ export function BracketRound({
                   fixtureCount={fixtureCount}
                   fixtures={fixtures}
                   sideLabels={sideLabels}
+                  liveScores={liveScores}
                 />
               ) : (
                 <EmptyMatchCard matchLabel={`Match ${rn}.${i + 1}`} />

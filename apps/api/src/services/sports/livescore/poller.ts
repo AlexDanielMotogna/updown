@@ -6,11 +6,14 @@ import { fetchLivescoreAll, fetchLivescoreBySport, fetchEventLookup } from './sp
 import { persistToDb, syncFinishedToUi, loadFromDb, cleanupOldDbEntries } from './db-persistence';
 import { isMidnightBoundary, detectStaleEvents } from './staleness';
 import { fetchScoreFromChatGPT } from './chatgpt-source';
-import { CHATGPT_MAX_PER_CYCLE } from './types';
+import { fetchOddsApiScores, matchGamesToPools, getOddsApiSportKeys, isOddsApiDisabled } from './odds-api-source';
+import { CHATGPT_MAX_PER_CYCLE, LEAGUE_TO_ODDS_API } from './types';
+
 import {
   recordPollSuccess, recordPollFailure, recordLookupCall,
   recordEventDisappeared, recordMidnightBoundary, recordChatGPTTriggered,
   recordChatGPTSuccess, recordChatGPTRejected, clearMissingEvent,
+  recordOddsApiSuccess,
 } from './metrics';
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -109,10 +112,15 @@ async function pollMissingPools(foundIds: Set<string>, toPersist: LiveScore[]): 
         const entry = await fetchEventLookup(eventId);
         if (!entry) continue;
 
+        // Cache NS/TBD so staleness detection knows the event exists but hasn't started
         cacheSet(entry);
-        toPersist.push(entry);
-        clearMissingEvent(eventId);
-        fetched++;
+
+        // Only persist & mark resolved for events that have actually started
+        if (entry.status !== 'NS' && entry.status !== 'TBD') {
+          toPersist.push(entry);
+          clearMissingEvent(eventId);
+          fetched++;
+        }
       } catch { /* skip individual failures */ }
     }
 
@@ -122,7 +130,99 @@ async function pollMissingPools(foundIds: Set<string>, toPersist: LiveScore[]): 
   } catch { /* best-effort */ }
 }
 
-// ─── ChatGPT fallback ────────────────────────────────────────────────────────
+// ─── The Odds API — Parallel source ──────────────────────────────────────────
+
+/**
+ * Poll The Odds API in parallel with TheSportsDB every cycle.
+ * Fetches ALL games for each sport that has active pools.
+ * Merges into toPersist — newer data wins.
+ */
+async function pollOddsApiParallel(
+  freshSportsDbIds: Set<string>,
+  toPersist: LiveScore[],
+): Promise<void> {
+  if (isOddsApiDisabled()) return;
+
+  try {
+    // Get all active sports pools with startTime passed
+    const activePools = await prisma.pool.findMany({
+      where: {
+        poolType: 'SPORTS',
+        status: { in: ['JOINING', 'ACTIVE'] },
+        matchId: { not: null },
+        startTime: { lte: new Date() },
+      },
+      select: { matchId: true, homeTeam: true, awayTeam: true, league: true, startTime: true },
+    });
+
+    if (activePools.length === 0) return;
+
+    // Get unique sport keys needed
+    const leagues = [...new Set(activePools.map(p => p.league).filter(Boolean))] as string[];
+    const sportKeys = getOddsApiSportKeys(leagues);
+    if (sportKeys.length === 0) return;
+
+    // Check if any pool started more than 4h ago (might need daysFrom=1 for yesterday's results)
+    const fourHoursAgo = Date.now() - 4 * 3600_000;
+    const hasOldPools = activePools.some(p => p.startTime.getTime() < fourHoursAgo);
+
+    // Fetch all sports in parallel
+    const allGames = await Promise.all(
+      sportKeys.map(async (key) => {
+        const games = await fetchOddsApiScores(key, hasOldPools ? 1 : undefined);
+        return { key, games };
+      }),
+    );
+
+    // Build pool list for matching
+    const poolsForMatching = activePools
+      .filter(p => p.matchId && p.homeTeam && p.awayTeam && p.league)
+      .map(p => ({ matchId: p.matchId!, homeTeam: p.homeTeam!, awayTeam: p.awayTeam!, league: p.league! }));
+
+    // Match and merge
+    let matched = 0;
+    for (const { key, games } of allGames) {
+      if (games.length === 0) continue;
+
+      // Only match pools whose league maps to this sport key
+      const relevantPools = poolsForMatching.filter(p => LEAGUE_TO_ODDS_API[p.league] === key);
+      const results = matchGamesToPools(games, relevantPools);
+
+      for (const entry of results) {
+        const existing = toPersist.find(e => e.eventId === entry.eventId);
+
+        // If TheSportsDB already has this event with a more specific status, skip
+        // But if TheSportsDB has NS/stale and Odds API has LIVE/FT, Odds API wins
+        if (existing) {
+          const sdbIsStale = existing.status === 'NS' || existing.status === 'TBD' || existing.status === '';
+          if (!sdbIsStale && existing.updatedAt >= entry.updatedAt) continue;
+          // Replace stale TheSportsDB entry
+          const idx = toPersist.indexOf(existing);
+          toPersist[idx] = entry;
+        } else {
+          toPersist.push(entry);
+        }
+
+        cacheSet(entry);
+        clearMissingEvent(entry.eventId);
+        matched++;
+
+        if (entry.status === 'FT') {
+          recordOddsApiSuccess(entry.eventId, `${entry.homeScore}-${entry.awayScore} (FT)`);
+        }
+      }
+    }
+
+    if (matched > 0) {
+      const totalGames = allGames.reduce((s, r) => s + r.games.length, 0);
+      console.log(`[OddsAPI] ${sportKeys.length} sports, ${totalGames} games, ${matched} matched to pools`);
+    }
+  } catch (error) {
+    console.warn('[OddsAPI] Parallel poll error:', (error as Error).message);
+  }
+}
+
+// ─── ChatGPT fallback (Tier 2) ──────────────────────────────────────────────
 
 /**
  * For stale events that couldn't be resolved via TheSportsDB,
@@ -138,9 +238,13 @@ async function pollChatGPTFallbacks(
   for (const stale of staleEvents) {
     if (called >= CHATGPT_MAX_PER_CYCLE) break;
 
-    // Only trigger ChatGPT for events that individual lookup also couldn't resolve
+    // Skip if individual lookup already resolved this event
     const alreadyResolved = toPersist.some(e => e.eventId === stale.eventId);
     if (alreadyResolved) continue;
+
+    // Skip if lookup found the event but it hasn't started (NS/TBD) — unless stuck
+    const cached = cacheGet(stale.eventId);
+    if (cached && (cached.status === 'NS' || cached.status === 'TBD') && stale.reason !== 'STUCK_NS') continue;
 
     // Get pool info for the prompt
     try {
@@ -250,19 +354,26 @@ async function pollLiveScores(): Promise<void> {
     // MUST await before persisting — pollMissingPools mutates toPersist
     await pollMissingPools(freshIds, toPersist);
 
-    // 5. Staleness detection + ChatGPT fallback
+    // 5. The Odds API — PARALLEL source (runs every cycle, not just on stale)
+    await pollOddsApiParallel(freshIds, toPersist);
+
+    // 6. ChatGPT — last resort for anything still unresolved
     const { matchIds, kickoffs } = await getActivePoolInfo();
     const staleEvents = detectStaleEvents(matchIds, freshIds, disappeared, kickoffs);
     if (staleEvents.length > 0) {
-      console.log(`[LiveScore] Stale events: ${staleEvents.map(e => `${e.eventId}(${e.reason})`).join(', ')}`);
-      await pollChatGPTFallbacks(staleEvents, kickoffs, toPersist);
+      // Only ChatGPT for events not resolved by TheSportsDB or Odds API
+      const stillUnresolved = staleEvents.filter(e => !toPersist.some(p => p.eventId === e.eventId));
+      if (stillUnresolved.length > 0) {
+        console.log(`[LiveScore] Still unresolved after Odds API: ${stillUnresolved.map(e => `${e.eventId}(${e.reason})`).join(', ')}`);
+        await pollChatGPTFallbacks(stillUnresolved, kickoffs, toPersist);
+      }
     }
 
-    // 6. Persist to DB + sync finished to UI (non-blocking)
+    // 7. Persist to DB + sync finished to UI (non-blocking)
     persistToDb(toPersist).catch(() => {});
     syncFinishedToUi(toPersist).catch(() => {});
 
-    // 7. Cleanup stale entries
+    // 8. Cleanup stale entries
     cacheCleanup();
 
     // Record poll success metrics

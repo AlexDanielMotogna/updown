@@ -28,10 +28,10 @@ adminTournamentsRouter.get('/', async (_req, res) => {
       success: true,
       data: tournaments.map(t => {
         // Group fixtures by round
-        const fixturesByRound: Record<number, Array<{ homeTeam: string; awayTeam: string; fixtureIndex: number; status: string }>> = {};
+        const fixturesByRound: Record<number, Array<{ footballMatchId: string; homeTeam: string; awayTeam: string; fixtureIndex: number; status: string }>> = {};
         for (const f of t.fixtures) {
           if (!fixturesByRound[f.round]) fixturesByRound[f.round] = [];
-          fixturesByRound[f.round].push({ homeTeam: f.homeTeam, awayTeam: f.awayTeam, fixtureIndex: f.fixtureIndex, status: f.status });
+          fixturesByRound[f.round].push({ footballMatchId: f.footballMatchId, homeTeam: f.homeTeam, awayTeam: f.awayTeam, fixtureIndex: f.fixtureIndex, status: f.status });
         }
         return {
           ...t,

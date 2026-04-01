@@ -30,7 +30,7 @@ interface Tournament {
   sport: string | null;
   league: string | null;
   _count: { participants: number };
-  fixturesByRound?: Record<number, Array<{ homeTeam: string; awayTeam: string; fixtureIndex: number; status: string }>>;
+  fixturesByRound?: Record<number, Array<{ footballMatchId: string; homeTeam: string; awayTeam: string; fixtureIndex: number; status: string }>>;
 }
 
 const SPORT_OPTIONS = [
@@ -41,7 +41,10 @@ const SPORT_OPTIONS = [
   { value: 'MMA', label: 'UFC / MMA' },
 ];
 
-const LEAGUE_OPTIONS = [
+// Sports that ARE their own league (no sub-league selection needed)
+const SINGLE_LEAGUE_SPORTS = new Set(['NBA', 'NHL', 'NFL', 'MMA']);
+
+const FOOTBALL_LEAGUES = [
   { value: 'CL', label: 'Champions League' },
   { value: 'PL', label: 'Premier League' },
   { value: 'PD', label: 'La Liga' },
@@ -49,11 +52,18 @@ const LEAGUE_OPTIONS = [
   { value: 'BL1', label: 'Bundesliga' },
   { value: 'FL1', label: 'Ligue 1' },
   { value: 'BSA', label: 'Brasileirao' },
-  { value: 'NBA', label: 'NBA' },
-  { value: 'NHL', label: 'NHL' },
-  { value: 'NFL', label: 'NFL' },
-  { value: 'MMA', label: 'UFC' },
 ];
+
+function getLeaguesForSport(sport: string) {
+  if (sport === 'FOOTBALL') return FOOTBALL_LEAGUES;
+  return []; // single-league sports don't need a selector
+}
+
+function getEffectiveLeague(sport: string, league: string) {
+  // NBA/NHL/NFL/MMA: league IS the sport code
+  if (SINGLE_LEAGUE_SPORTS.has(sport)) return sport;
+  return league;
+}
 
 const STATUS_COLORS: Record<string, string> = {
   REGISTERING: '#4ADE80',
@@ -68,7 +78,7 @@ export function TournamentManagement() {
   const qc = useQueryClient();
   const [result, setResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ label: string; id: string; action: string } | null>(null);
-  const [assignDialog, setAssignDialog] = useState<{ id: string; totalRounds: number; league: string | null; sport: string | null } | null>(null);
+  const [assignDialog, setAssignDialog] = useState<{ id: string; totalRounds: number; league: string | null; sport: string | null; fixturesByRound?: Tournament['fixturesByRound'] } | null>(null);
   const [assignRound, setAssignRound] = useState(1);
   const [assignSelectedIds, setAssignSelectedIds] = useState<Set<string>>(new Set());
   const [assignHome, setAssignHome] = useState('');
@@ -110,18 +120,21 @@ export function TournamentManagement() {
   const tournaments = (data as { data: Tournament[] })?.data ?? [];
 
   const createMutation = useMutation({
-    mutationFn: () => adminPost('/tournaments/create', {
-      name,
-      asset: tournamentType === 'SPORTS' ? `${sport}:${league}` : asset,
-      entryFee: Math.round(parseFloat(entryFee) * USDC_DIVISOR),
-      size,
-      matchDuration: tournamentType === 'SPORTS' ? 0 : matchDuration,
-      predictionWindow,
-      scheduledAt: scheduledAt || undefined,
-      tournamentType,
-      sport: tournamentType === 'SPORTS' ? sport : undefined,
-      league: tournamentType === 'SPORTS' ? league : undefined,
-    }),
+    mutationFn: () => {
+      const effectiveLeague = getEffectiveLeague(sport, league);
+      return adminPost('/tournaments/create', {
+        name,
+        asset: tournamentType === 'SPORTS' ? `${sport}:${effectiveLeague}` : asset,
+        entryFee: Math.round(parseFloat(entryFee) * USDC_DIVISOR),
+        size,
+        matchDuration: tournamentType === 'SPORTS' ? 0 : matchDuration,
+        predictionWindow,
+        scheduledAt: scheduledAt || undefined,
+        tournamentType,
+        sport: tournamentType === 'SPORTS' ? sport : undefined,
+        league: tournamentType === 'SPORTS' ? effectiveLeague : undefined,
+      });
+    },
     onSuccess: () => {
       setResult({ type: 'success', message: 'Tournament created' });
       setName('');
@@ -149,18 +162,21 @@ export function TournamentManagement() {
   };
 
   const updateMutation = useMutation({
-    mutationFn: () => adminPost(`/tournaments/${editTournament!.id}/update`, {
-      name: editName,
-      asset: editType === 'CRYPTO' ? editAsset : editSport,
-      sport: editType === 'SPORTS' ? editSport : null,
-      league: editType === 'SPORTS' ? editLeague : null,
-      tournamentType: editType === 'SPORTS' ? 'PREDICT_MATCHDAY' : 'CRYPTO',
-      entryFee: Math.round(parseFloat(editEntryFee) * USDC_DIVISOR),
-      size: editSize,
-      matchDuration: editMatchDuration,
-      predictionWindow: editPredictionWindow,
-      scheduledAt: editScheduledAt || null,
-    }),
+    mutationFn: () => {
+      const effectiveLeague = getEffectiveLeague(editSport, editLeague);
+      return adminPost(`/tournaments/${editTournament!.id}/update`, {
+        name: editName,
+        asset: editType === 'CRYPTO' ? editAsset : editSport,
+        sport: editType === 'SPORTS' ? editSport : null,
+        league: editType === 'SPORTS' ? effectiveLeague : null,
+        tournamentType: editType === 'SPORTS' ? 'PREDICT_MATCHDAY' : 'CRYPTO',
+        entryFee: Math.round(parseFloat(editEntryFee) * USDC_DIVISOR),
+        size: editSize,
+        matchDuration: editMatchDuration,
+        predictionWindow: editPredictionWindow,
+        scheduledAt: editScheduledAt || null,
+      });
+    },
     onSuccess: () => {
       setResult({ type: 'success', message: 'Tournament updated' });
       setEditTournament(null);
@@ -264,20 +280,28 @@ export function TournamentManagement() {
             <>
               <FormControl size="small">
                 <InputLabel>Sport</InputLabel>
-                <Select value={sport} onChange={(e) => setSport(e.target.value)} label="Sport">
+                <Select value={sport} onChange={(e) => {
+                  const s = e.target.value;
+                  setSport(s);
+                  // Auto-set league for single-league sports
+                  if (SINGLE_LEAGUE_SPORTS.has(s)) setLeague(s);
+                  else if (s === 'FOOTBALL' && SINGLE_LEAGUE_SPORTS.has(league)) setLeague('CL');
+                }} label="Sport">
                   {SPORT_OPTIONS.map(s => (
                     <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>
                   ))}
                 </Select>
               </FormControl>
-              <FormControl size="small">
-                <InputLabel>League</InputLabel>
-                <Select value={league} onChange={(e) => setLeague(e.target.value)} label="League">
-                  {LEAGUE_OPTIONS.map(l => (
-                    <MenuItem key={l.value} value={l.value}>{l.label}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              {!SINGLE_LEAGUE_SPORTS.has(sport) && (
+                <FormControl size="small">
+                  <InputLabel>League</InputLabel>
+                  <Select value={league} onChange={(e) => setLeague(e.target.value)} label="League">
+                    {getLeaguesForSport(sport).map(l => (
+                      <MenuItem key={l.value} value={l.value}>{l.label}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
             </>
           )}
           <TextField
@@ -404,7 +428,11 @@ export function TournamentManagement() {
                   )}
                 </Box>
                 <Typography variant="caption" color="text.secondary">
-                  {t.tournamentType === 'SPORTS' ? `${SPORT_OPTIONS.find(s => s.value === t.sport)?.label || t.sport} · ${t.league}` : t.asset} · ${(Number(t.entryFee) / USDC_DIVISOR).toFixed(2)} entry · {t._count.participants}/{t.size} players · Round {t.currentRound}/{t.totalRounds}
+                  {t.tournamentType === 'SPORTS'
+                    ? SINGLE_LEAGUE_SPORTS.has(t.sport || '')
+                      ? SPORT_OPTIONS.find(s => s.value === t.sport)?.label || t.sport
+                      : `${SPORT_OPTIONS.find(s => s.value === t.sport)?.label || t.sport} · ${FOOTBALL_LEAGUES.find(l => l.value === t.league)?.label || t.league}`
+                    : t.asset} · ${(Number(t.entryFee) / USDC_DIVISOR).toFixed(2)} entry · {t._count.participants}/{t.size} players · Round {t.currentRound}/{t.totalRounds}
                 </Typography>
                 {t.scheduledAt && (
                   <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
@@ -434,7 +462,7 @@ export function TournamentManagement() {
                           </Typography>
                           {(!fixtures || fixtures.length === 0) && (
                             <Typography
-                              onClick={() => { setAssignDialog({ id: t.id, totalRounds: t.totalRounds, league: t.league, sport: t.sport || null }); setAssignRound(r); setAssignSelectedIds(new Set()); setAssignHome(''); setAssignAway(''); }}
+                              onClick={() => { setAssignDialog({ id: t.id, totalRounds: t.totalRounds, league: t.league, sport: t.sport || null, fixturesByRound: t.fixturesByRound }); setAssignRound(r); setAssignSelectedIds(new Set()); setAssignHome(''); setAssignAway(''); }}
                               sx={{ fontSize: '0.6rem', color: '#818CF8', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
                             >
                               assign
@@ -458,7 +486,7 @@ export function TournamentManagement() {
                       <Button
                         size="small"
                         variant="contained"
-                        onClick={() => { setAssignDialog({ id: t.id, totalRounds: t.totalRounds, league: t.league, sport: t.sport || null }); setAssignRound(1); setAssignSelectedIds(new Set()); setAssignHome(''); setAssignAway(''); }}
+                        onClick={() => { setAssignDialog({ id: t.id, totalRounds: t.totalRounds, league: t.league, sport: t.sport || null, fixturesByRound: t.fixturesByRound }); setAssignRound(1); setAssignSelectedIds(new Set()); setAssignHome(''); setAssignAway(''); }}
                         sx={{ fontSize: '0.7rem', bgcolor: '#818CF8', color: '#fff', '&:hover': { bgcolor: '#6366F1' } }}
                       >
                         Setup Matches
@@ -507,7 +535,7 @@ export function TournamentManagement() {
                         <Button
                           size="small"
                           variant="contained"
-                          onClick={() => { setAssignDialog({ id: t.id, totalRounds: t.totalRounds, league: t.league, sport: t.sport || null }); setAssignRound(Math.max(t.currentRound, 1)); setAssignSelectedIds(new Set()); setAssignHome(''); setAssignAway(''); }}
+                          onClick={() => { setAssignDialog({ id: t.id, totalRounds: t.totalRounds, league: t.league, sport: t.sport || null, fixturesByRound: t.fixturesByRound }); setAssignRound(Math.max(t.currentRound, 1)); setAssignSelectedIds(new Set()); setAssignHome(''); setAssignAway(''); }}
                           sx={{ fontSize: '0.7rem', bgcolor: '#818CF8', color: '#fff', '&:hover': { bgcolor: '#6366F1' } }}
                         >
                           Assign Match
@@ -596,16 +624,23 @@ export function TournamentManagement() {
               <>
                 <FormControl size="small">
                   <InputLabel>Sport</InputLabel>
-                  <Select value={editSport} onChange={(e) => setEditSport(e.target.value)} label="Sport">
+                  <Select value={editSport} onChange={(e) => {
+                    const s = e.target.value;
+                    setEditSport(s);
+                    if (SINGLE_LEAGUE_SPORTS.has(s)) setEditLeague(s);
+                    else if (s === 'FOOTBALL' && SINGLE_LEAGUE_SPORTS.has(editLeague)) setEditLeague('CL');
+                  }} label="Sport">
                     {SPORT_OPTIONS.map(s => <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>)}
                   </Select>
                 </FormControl>
-                <FormControl size="small">
-                  <InputLabel>League</InputLabel>
-                  <Select value={editLeague} onChange={(e) => setEditLeague(e.target.value)} label="League">
-                    {LEAGUE_OPTIONS.map(l => <MenuItem key={l.value} value={l.value}>{l.label}</MenuItem>)}
-                  </Select>
-                </FormControl>
+                {!SINGLE_LEAGUE_SPORTS.has(editSport) && (
+                  <FormControl size="small">
+                    <InputLabel>League</InputLabel>
+                    <Select value={editLeague} onChange={(e) => setEditLeague(e.target.value)} label="League">
+                      {getLeaguesForSport(editSport).map(l => <MenuItem key={l.value} value={l.value}>{l.label}</MenuItem>)}
+                    </Select>
+                  </FormControl>
+                )}
               </>
             )}
             <TextField label="Entry Fee (USDC)" size="small" type="number" value={editEntryFee} onChange={(e) => setEditEntryFee(e.target.value)} />
@@ -680,12 +715,21 @@ export function TournamentManagement() {
           ) : upcomingMatches.length > 0 ? (
             <>
               <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                Select all matches for this round (click to toggle):
+                Select matches for this round (click to toggle):
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                 {upcomingMatches.map((m: any) => {
                   const selected = assignSelectedIds.has(m.id);
                   const kickoff = new Date(m.kickoff).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+                  // Check if this match is already in another round
+                  let assignedRound: number | null = null;
+                  if (assignDialog?.fixturesByRound) {
+                    for (const [round, fixtures] of Object.entries(assignDialog.fixturesByRound)) {
+                      const r = Number(round);
+                      if (r === assignRound) continue;
+                      if (fixtures.some(f => f.footballMatchId === m.id)) { assignedRound = r; break; }
+                    }
+                  }
                   return (
                     <Box
                       key={m.id}
@@ -696,8 +740,8 @@ export function TournamentManagement() {
                       })}
                       sx={{
                         display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, borderRadius: 1, cursor: 'pointer',
-                        bgcolor: selected ? 'rgba(129,140,248,0.12)' : 'rgba(255,255,255,0.03)',
-                        border: selected ? '1px solid rgba(129,140,248,0.4)' : '1px solid transparent',
+                        bgcolor: selected ? 'rgba(129,140,248,0.12)' : assignedRound ? 'rgba(248,113,113,0.06)' : 'rgba(255,255,255,0.03)',
+                        border: selected ? '1px solid rgba(129,140,248,0.4)' : assignedRound ? '1px solid rgba(248,113,113,0.2)' : '1px solid transparent',
                         '&:hover': { bgcolor: selected ? 'rgba(129,140,248,0.15)' : 'rgba(255,255,255,0.06)' },
                       }}
                     >
@@ -706,6 +750,9 @@ export function TournamentManagement() {
                       </Box>
                       {m.homeTeamCrest && <Box component="img" src={m.homeTeamCrest} alt="" sx={{ width: 22, height: 22, objectFit: 'contain' }} />}
                       <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, flex: 1 }}>{m.homeTeam} vs {m.awayTeam}</Typography>
+                      {assignedRound && (
+                        <Chip label={`R${assignedRound}`} size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, bgcolor: 'rgba(248,113,113,0.15)', color: '#F87171' }} />
+                      )}
                       {m.awayTeamCrest && <Box component="img" src={m.awayTeamCrest} alt="" sx={{ width: 22, height: 22, objectFit: 'contain' }} />}
                       <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>{kickoff}</Typography>
                     </Box>
@@ -729,6 +776,28 @@ export function TournamentManagement() {
               </Box>
             </Box>
           )}
+          {/* Warning if selected fixtures are already in other rounds */}
+          {(() => {
+            if (!assignDialog?.fixturesByRound || assignSelectedIds.size === 0) return null;
+            const conflicts: Array<{ matchId: string; round: number; label: string }> = [];
+            for (const id of assignSelectedIds) {
+              for (const [round, fixtures] of Object.entries(assignDialog.fixturesByRound)) {
+                const r = Number(round);
+                if (r === assignRound) continue;
+                const f = fixtures.find(f => f.footballMatchId === id);
+                if (f) conflicts.push({ matchId: id, round: r, label: `${f.homeTeam} vs ${f.awayTeam}` });
+              }
+            }
+            if (conflicts.length === 0) return null;
+            return (
+              <Alert severity="warning" sx={{ mt: 1.5 }}>
+                {conflicts.length === 1
+                  ? `"${conflicts[0].label}" is already assigned to Round ${conflicts[0].round}.`
+                  : `${conflicts.length} selected matches are already assigned to other rounds.`}
+                {' '}You can still assign them — they will appear in both rounds.
+              </Alert>
+            );
+          })()}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAssignDialog(null)}>Cancel</Button>

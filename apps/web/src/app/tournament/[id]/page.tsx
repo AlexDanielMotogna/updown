@@ -9,6 +9,7 @@ import { fetchTournamentBracket, type TournamentBracket } from '@/lib/api';
 import { UP_COLOR, GAIN_COLOR, getAvatarUrl } from '@/lib/constants';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { usePriceStream } from '@/hooks/usePriceStream';
+import { useLiveScores, type LiveScore } from '@/hooks/useLiveScores';
 import { useTournamentRegister } from '@/hooks/useTournamentRegister';
 import { AppShell } from '@/components';
 import { SURFACE, BORDER, MATCH_W, CARD_H, truncate, getHeaderHeight } from '@/components/tournament/tournament-utils';
@@ -28,6 +29,7 @@ export default function TournamentBracketPage() {
   const [rulesOpen, setRulesOpen] = useState(false);
 
   const { getPrice } = usePriceStream(bracket ? [bracket.tournament.asset] : []);
+  const liveScores = useLiveScores();
 
   const load = useCallback(async () => {
     try {
@@ -210,6 +212,7 @@ export default function TournamentBracketPage() {
                       fixtureCount={bracket?.fixtures?.[rn]?.length || 0}
                       fixtures={bracket?.fixtures?.[rn]}
                       sideLabels={t.sideLabels}
+                      liveScores={liveScores}
                     />
                     {!isLast && expectedMatches > 1 && <Connectors matchCount={expectedMatches} roundNum={rn} headerHeight={getHeaderHeight(t.tournamentType === 'SPORTS' ? (bracket?.fixtures?.[rn]?.length || 0) : 0)} />}
                   </Box>

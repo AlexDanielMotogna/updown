@@ -97,11 +97,15 @@ export function detectStaleEvents(
       continue;
     }
 
-    // Never appeared (kickoff passed, never seen in feed)
+    // Never appeared (kickoff passed, never seen in feed, and not NS/TBD in cache)
     const entry = cacheGet(matchId);
-    if (!entry && kickoff && Date.now() > kickoff.getTime()) {
-      stale.push({ eventId: matchId, reason: 'NEVER_APPEARED' });
-      seen.add(matchId);
+    if (kickoff && Date.now() > kickoff.getTime()) {
+      // If cached as NS/TBD, the game simply hasn't started — not stale
+      if (entry && (entry.status === 'NS' || entry.status === 'TBD')) continue;
+      if (!entry) {
+        stale.push({ eventId: matchId, reason: 'NEVER_APPEARED' });
+        seen.add(matchId);
+      }
     }
   }
 

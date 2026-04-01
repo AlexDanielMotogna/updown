@@ -83,6 +83,21 @@ export function formatOutcome(outcome: string | null | undefined, sideLabels?: s
   return '—';
 }
 
+/** Format kickoff time for display */
+export function formatKickoff(kickoff: string | null | undefined): string {
+  if (!kickoff) return '';
+  const d = new Date(kickoff);
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const isTomorrow = d.toDateString() === tomorrow.toDateString();
+  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (isToday) return `Today ${time}`;
+  if (isTomorrow) return `Tomorrow ${time}`;
+  return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${time}`;
+}
+
 /** Default sideLabels for 3-way sports (football) */
 export const DEFAULT_SIDE_LABELS = ['Home', 'Draw', 'Away'];
 

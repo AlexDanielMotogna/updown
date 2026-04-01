@@ -5,7 +5,8 @@ import { Close } from '@mui/icons-material';
 import { UP_COLOR, DOWN_COLOR, DRAW_COLOR, ACCENT_COLOR } from '@/lib/constants';
 import { type TournamentMatchData, type TournamentFixture } from '@/lib/api';
 import { InlineChart } from '@/components/pool/InlineChart';
-import { BG, BORDER, PREDICT_COLOR, formatPrice, formatDistance, parseMatchdayPrediction, formatOutcome, truncate } from './tournament-utils';
+import { isMatchActive, isMatchFinished, formatLiveStatus, type LiveScore } from '@/hooks/useLiveScores';
+import { BG, BORDER, PREDICT_COLOR, formatPrice, formatDistance, parseMatchdayPrediction, formatOutcome, formatKickoff, truncate } from './tournament-utils';
 import { Countdown } from './Countdown';
 import { PlayerRow } from './PlayerRow';
 import { PredictionInput } from './PredictionInput';
@@ -26,6 +27,7 @@ export function MatchModal({
   fixtureCount,
   fixtures,
   sideLabels,
+  liveScores,
 }: {
   open: boolean;
   onClose: () => void;
@@ -40,6 +42,7 @@ export function MatchModal({
   fixtureCount?: number;
   fixtures?: TournamentFixture[];
   sideLabels?: string[];
+  liveScores?: Map<string, LiveScore>;
 }) {
   const isResolved = match.status === 'RESOLVED';
   const isActive = match.status === 'ACTIVE';
@@ -159,25 +162,46 @@ export function MatchModal({
               return 'Draw';
             };
 
-            const hasScore = f.resultHome != null && f.resultAway != null;
+            const ls = liveScores?.get(f.footballMatchId);
+            const live = ls && isMatchActive(ls);
+            const liveFinished = ls && isMatchFinished(ls.status);
+            const hasScore = live ? true : f.resultHome != null && f.resultAway != null;
+            const displayHome = live ? ls!.homeScore : f.resultHome;
+            const displayAway = live ? ls!.awayScore : f.resultAway;
             const homeWon = result === 'HOME';
             const awayWon = result === 'AWAY';
 
             return (
-              <Box key={f.id} sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '8px', p: 1.5 }}>
-                {/* Match header: crests + teams + score inline */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
+              <Box key={f.id} sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '8px', p: 1.5, ...(live && { border: '1px solid rgba(34,197,94,0.2)' }) }}>
+                {/* Match header: crests + teams + score + live status */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1, flexWrap: 'wrap' }}>
                   {f.homeTeamCrest && <Box component="img" src={f.homeTeamCrest} alt="" sx={{ width: 20, height: 20, objectFit: 'contain' }} />}
                   <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: homeWon ? UP_COLOR : '#fff' }}>
                     {f.homeTeam}
                   </Typography>
-                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>
-                    {hasScore ? `${f.resultHome} - ${f.resultAway}` : 'vs'}
+                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: live ? '#22C55E' : '#fff' }}>
+                    {hasScore ? `${displayHome} - ${displayAway}` : 'vs'}
                   </Typography>
                   <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: awayWon ? UP_COLOR : '#fff' }}>
                     {f.awayTeam}
                   </Typography>
                   {f.awayTeamCrest && <Box component="img" src={f.awayTeamCrest} alt="" sx={{ width: 20, height: 20, objectFit: 'contain' }} />}
+                  {live && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 'auto' }}>
+                      <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#22C55E', animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#22C55E' }}>
+                        {formatLiveStatus(ls!.status, ls!.progress)}
+                      </Typography>
+                    </Box>
+                  )}
+                  {liveFinished && !f.resultOutcome && (
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)', ml: 'auto' }}>Full Time</Typography>
+                  )}
+                  {!live && !liveFinished && f.kickoff && !f.resultOutcome && (
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.35)', ml: 'auto' }}>
+                      {formatKickoff(f.kickoff)}
+                    </Typography>
+                  )}
                 </Box>
 
                 {/* Predictions with team names */}
