@@ -48,7 +48,7 @@ export function Header() {
         <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
           <Box
             component="img"
-            src="/updown-logos/Logo_48px.png"
+            src="/updown-logos/Logo_48px_Cyan_Transparent.png"
             alt="UpDown"
             sx={{ display: { xs: 'block', sm: 'none' }, width: 28, height: 28 }}
           />
