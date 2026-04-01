@@ -139,6 +139,7 @@ export function ManualActions() {
               mt: 1,
               bgcolor: t.bg.surfaceAlt,
               border: `1px solid ${t.border.strong}`,
+              boxShadow: t.surfaceShadow,
               borderRadius: 1,
               p: 1.5,
               maxHeight: 400,

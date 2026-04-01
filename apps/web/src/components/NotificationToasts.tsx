@@ -123,9 +123,10 @@ const ToastItem = memo(function ToastItem({ notification, onDismiss }: ToastItem
           p: 2,
           pr: 5,
           bgcolor: t.bg.surfaceAlt,
+          border: t.surfaceBorder,
           borderLeft: `3px solid ${borderColor}`,
           borderRadius: '4px',
-          boxShadow: `0 8px 32px ${t.shadow.default}`,
+          boxShadow: t.surfaceShadow,
           cursor: notification.poolId ? 'pointer' : 'default',
           overflow: 'hidden',
           minWidth: 320,
@@ -150,7 +151,7 @@ const ToastItem = memo(function ToastItem({ notification, onDismiss }: ToastItem
             getSeverityIcon(notification.severity, notification.type)
           ) : notification.type.startsWith('TOURNAMENT_') && notification.asset ? (
             notification.asset.includes(':') ? (
-              <Box component="img" src={getBadge(notification.asset.split(':')[1]) || ''} alt="" sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: t.text.vivid, borderRadius: '50%', p: '2px' }} />
+              <Box component="img" src={getBadge(notification.asset.split(':')[1]) || ''} alt="" sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
             ) : (
               <Box component="img" src={`/tournaments/tournament-${notification.asset.toLowerCase()}.png`} alt={notification.asset} sx={{ width: 22, height: 22, objectFit: 'contain' }} />
             )

@@ -32,7 +32,7 @@ function InfoCard({ label, children }: { label: string; children: React.ReactNod
   const t = useThemeTokens();
   const tip = INFO_TOOLTIPS[label];
   return (
-    <Box sx={{ bgcolor: t.hover.light, borderRadius: 2, px: { xs: 1.5, md: 2.5 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
+    <Box sx={{ bgcolor: t.hover.light, borderRadius: 1, px: { xs: 1.5, md: 2.5 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
       <Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25, minHeight: 12 }}>
           <Typography sx={{ fontSize: { xs: '0.7rem', md: '0.8rem' }, fontWeight: 600, color: t.text.tertiary, lineHeight: 1 }}>
@@ -55,7 +55,7 @@ export function PoolInfoCards({ livePrice, priceFlash, strikePrice, finalPrice, 
   const isResolved = status === 'RESOLVED' || status === 'CLAIMABLE';
   const wentUp = finalPrice && strikePrice ? Number(finalPrice) > Number(strikePrice) : null;
   return (
-    <Box sx={{ bgcolor: t.bg.surfaceAlt }}>
+    <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow }}>
       <Box sx={{ px: { xs: 1.5, md: 3 }, py: { xs: 1.5, md: 2 } }}>
         <Box
           sx={{
@@ -65,7 +65,7 @@ export function PoolInfoCards({ livePrice, priceFlash, strikePrice, finalPrice, 
           }}
         >
           {/* Live Price */}
-          <Box sx={{ bgcolor: t.hover.light, borderRadius: 2, px: { xs: 1.5, md: 2.5 }, py: 1.5, display: 'flex', alignItems: 'center', gridColumn: { xs: 'span 2', sm: 'span 1' } }}>
+          <Box sx={{ bgcolor: t.hover.light, borderRadius: 1, px: { xs: 1.5, md: 2.5 }, py: 1.5, display: 'flex', alignItems: 'center', gridColumn: { xs: 'span 2', sm: 'span 1' } }}>
             <Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25, minHeight: 12 }}>
                 <Typography sx={{ fontSize: { xs: '0.7rem', md: '0.8rem' }, fontWeight: 600, color: t.text.tertiary, lineHeight: 1 }}>Live Price</Typography>

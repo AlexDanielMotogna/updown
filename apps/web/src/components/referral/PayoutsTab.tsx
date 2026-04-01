@@ -34,7 +34,7 @@ export function PayoutsTab({ payouts }: PayoutsTabProps) {
   return (
     <Box
       sx={{
-        borderRadius: 0,
+        borderRadius: 1,
         display: 'flex',
         flexDirection: 'column',
         gap: '3px',
@@ -49,6 +49,8 @@ export function PayoutsTab({ payouts }: PayoutsTabProps) {
           px: 2,
           py: 1,
           bgcolor: t.bg.surfaceAlt,
+          border: t.surfaceBorder,
+          boxShadow: t.surfaceShadow,
         }}
       >
         {[
@@ -87,6 +89,8 @@ export function PayoutsTab({ payouts }: PayoutsTabProps) {
                 py: 0,
                 minHeight: 56,
                 bgcolor: t.bg.surfaceAlt,
+                border: t.surfaceBorder,
+                boxShadow: t.surfaceShadow,
                 transition: 'background 0.15s ease',
                 '&:hover': { background: t.border.subtle },
               }}
@@ -120,7 +124,7 @@ export function PayoutsTab({ payouts }: PayoutsTabProps) {
             </Box>
 
             {/* Mobile card */}
-            <Box sx={{ display: { xs: 'block', md: 'none' }, bgcolor: t.bg.surfaceAlt, p: 2 }}>
+            <Box sx={{ display: { xs: 'block', md: 'none' }, bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1.5, borderBottom: `1px solid ${t.border.subtle}` }}>
                 <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: t.gain, fontVariantNumeric: 'tabular-nums' }}>
                   ${(Number(p.amount) / USDC_DIVISOR).toFixed(2)}

@@ -81,7 +81,7 @@ export function PredictionInput({
             bgcolor: t.predict,
             color: t.text.primary,
             textTransform: 'none',
-            borderRadius: 0,
+            borderRadius: 1,
             '&:hover': { bgcolor: t.predict, filter: 'brightness(1.15)' },
             '&:disabled': { bgcolor: t.border.default, color: t.text.dimmed },
           }}

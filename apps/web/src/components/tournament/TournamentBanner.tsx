@@ -39,7 +39,7 @@ function BannerSlide({ t: tournament, theme }: { t: TournamentSummary; theme: { 
         sx={{
           background: theme.bg,
           border: `1px solid ${theme.border}`,
-          borderRadius: 2,
+          borderRadius: 1,
           overflow: 'hidden',
           cursor: 'pointer',
           transition: 'border-color 0.15s ease',
@@ -52,7 +52,7 @@ function BannerSlide({ t: tournament, theme }: { t: TournamentSummary; theme: { 
             component="img"
             src={imgSrc}
             alt={tournament.asset}
-            sx={{ width: 56, height: 56, objectFit: 'contain', flexShrink: 0, ...(isSports && { bgcolor: t.text.vivid, borderRadius: '50%', p: '8px' }) }}
+            sx={{ width: 56, height: 56, objectFit: 'contain', flexShrink: 0, ...(isSports && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '8px' }) }}
           />
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: t.text.primary }}>{title}</Typography>
@@ -79,7 +79,7 @@ function BannerSlide({ t: tournament, theme }: { t: TournamentSummary; theme: { 
             component="img"
             src={imgSrc}
             alt={tournament.asset}
-            sx={{ width: 52, height: 52, objectFit: 'contain', flexShrink: 0, ...(isSports && { bgcolor: t.text.vivid, borderRadius: '50%', p: '6px', width: 40, height: 40 }) }}
+            sx={{ width: 52, height: 52, objectFit: 'contain', flexShrink: 0, ...(isSports && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '6px', width: 40, height: 40 }) }}
           />
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography sx={{ fontWeight: 800, fontSize: '0.82rem', color: t.text.primary, lineHeight: 1.3 }}>{title}</Typography>

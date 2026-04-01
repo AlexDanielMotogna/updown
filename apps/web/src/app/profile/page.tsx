@@ -228,7 +228,7 @@ export default function MyBetsPage() {
                     px: { xs: 1.5, sm: 2.5 },
                     minHeight: 44,
                     minWidth: 'auto',
-                    '&.Mui-selected': { color: '#FFFFFF' },
+                    '&.Mui-selected': { color: t.text.primary },
                   },
                 }}
               >
@@ -239,7 +239,7 @@ export default function MyBetsPage() {
                 <IconButton
                   onClick={() => setShowPoolFilters(!showPoolFilters)}
                   size="small"
-                  sx={{ color: showPoolFilters ? '#fff' : t.text.quaternary, '&:hover': { color: '#fff' }, mr: 1 }}
+                  sx={{ color: showPoolFilters ? t.text.primary : t.text.quaternary, '&:hover': { color: t.text.primary }, mr: 1 }}
                 >
                   <FilterList sx={{ fontSize: 20 }} />
                 </IconButton>
@@ -250,7 +250,7 @@ export default function MyBetsPage() {
             {betsError && (
               <Alert
                 severity="error"
-                sx={{ mb: 4, backgroundColor: 'rgba(255, 82, 82, 0.1)', border: 'none', borderRadius: 0 }}
+                sx={{ mb: 4, backgroundColor: 'rgba(255, 82, 82, 0.1)', border: 'none', borderRadius: 1 }}
               >
                 Failed to load predictions
               </Alert>
@@ -262,7 +262,7 @@ export default function MyBetsPage() {
                 {showPoolFilters && (
                 <Box sx={{ display: 'flex', gap: 0, mb: 2, overflow: 'auto', '&::-webkit-scrollbar': { display: 'none' } }}>
                   {[
-                    { key: 'ALL', label: 'All', icon: <GridView sx={{ fontSize: 16 }} />, color: '#fff' },
+                    { key: 'ALL', label: 'All', icon: <GridView sx={{ fontSize: 16 }} />, color: t.text.primary },
                     { key: 'CRYPTO', label: 'Crypto', icon: <ShowChart sx={{ fontSize: 16 }} />, color: t.up },
                     { key: 'SPORTS', label: 'Sports', icon: <SportsSoccer sx={{ fontSize: 16 }} />, color: t.draw },
                     { key: 'PM_POLITICS', label: 'Politics', icon: <Gavel sx={{ fontSize: 16 }} />, color: t.prediction },
@@ -308,7 +308,7 @@ export default function MyBetsPage() {
             {/* Loading next page */}
             {tab === 0 && isFetchingNextPage && (
               <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, pb: 4 }}>
-                <CircularProgress size={32} sx={{ color: '#FFFFFF' }} />
+                <CircularProgress size={32} sx={{ color: t.text.primary }} />
               </Box>
             )}
 

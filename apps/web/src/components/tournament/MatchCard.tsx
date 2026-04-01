@@ -64,7 +64,7 @@ export function MatchCard({
         sx={{
           width: MATCH_W,
           height: CARD_H,
-          borderRadius: 0,
+          borderRadius: 1,
           overflow: 'hidden',
           cursor: 'pointer',
           display: 'flex',
@@ -149,7 +149,7 @@ export function EmptyMatchCard({ matchLabel }: { matchLabel: string }) {
       sx={{
         width: MATCH_W,
         height: CARD_H,
-        borderRadius: 0,
+        borderRadius: 1,
         overflow: 'hidden',
         border: 'none',
         bgcolor: 'rgba(255,255,255,0.035)',

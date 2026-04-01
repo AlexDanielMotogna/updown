@@ -95,7 +95,7 @@ export function LiveResultsSidebar() {
       }}
     >
       {/* Tab bar */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: `1px solid ${t.border.default}` }}>
         {[
           { key: 'pools' as const, icon: <LeaderboardIcon sx={{ fontSize: 18 }} />, color: t.gain },
           { key: 'tournaments' as const, icon: <EmojiEventsIcon sx={{ fontSize: 18 }} />, color: t.accent },
@@ -109,10 +109,10 @@ export function LiveResultsSidebar() {
               justifyContent: 'center',
               py: 1.25,
               cursor: 'pointer',
-              color: sidebarTab === key ? color : 'rgba(255,255,255,0.2)',
+              color: sidebarTab === key ? color : t.text.muted,
               borderBottom: sidebarTab === key ? `2px solid ${color}` : '2px solid transparent',
               transition: 'all 0.15s ease',
-              '&:hover': { color, bgcolor: 'rgba(255,255,255,0.02)' },
+              '&:hover': { color, bgcolor: t.hover.subtle },
             }}
           >
             {icon}
@@ -124,14 +124,14 @@ export function LiveResultsSidebar() {
         <IconButton
           onClick={() => setMobileOpen(false)}
           size="small"
-          sx={{ display: { xs: 'flex', lg: 'none' }, color: 'rgba(255,255,255,0.2)', p: 0.25, '&:hover': { color: '#fff' } }}
+          sx={{ display: { xs: 'flex', lg: 'none' }, color: t.text.muted, p: 0.25, '&:hover': { color: t.text.primary } }}
         >
           <CloseIcon sx={{ fontSize: 14 }} />
         </IconButton>
         <IconButton
           onClick={() => { setCollapsed(true); localStorage.setItem('sidebar-collapsed', '1'); }}
           size="small"
-          sx={{ display: { xs: 'none', lg: 'flex' }, color: 'rgba(255,255,255,0.2)', p: 0.25, '&:hover': { color: '#fff' } }}
+          sx={{ display: { xs: 'none', lg: 'flex' }, color: t.text.muted, p: 0.25, '&:hover': { color: t.text.primary } }}
         >
           <ChevronLeftIcon sx={{ fontSize: 14 }} />
         </IconButton>
@@ -179,7 +179,7 @@ export function LiveResultsSidebar() {
               justifyContent: 'center',
               gap: 0.5,
               cursor: 'pointer',
-              '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' },
+              '&:hover': { bgcolor: t.hover.light },
               transition: 'background 0.15s ease',
             }}
           >
@@ -213,9 +213,9 @@ export function LiveResultsSidebar() {
           transform: 'translateY(-50%)',
           zIndex: 99,
           bgcolor: t.bg.surfaceAlt,
-          borderRight: '1px solid rgba(255,255,255,0.08)',
-          borderTop: '1px solid rgba(255,255,255,0.08)',
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          borderRight: `1px solid ${t.border.medium}`,
+          borderTop: `1px solid ${t.border.medium}`,
+          borderBottom: `1px solid ${t.border.medium}`,
           borderTopRightRadius: 8,
           borderBottomRightRadius: 8,
           cursor: 'pointer',
@@ -226,7 +226,7 @@ export function LiveResultsSidebar() {
           py: 1.5,
           px: 0.5,
           transition: 'background 0.15s ease',
-          '&:hover': { bgcolor: 'rgba(255,255,255,0.06)' },
+          '&:hover': { bgcolor: t.hover.medium },
         }}
       >
         {mobileOpen ? (
@@ -257,12 +257,12 @@ export function LiveResultsSidebar() {
           display: { xs: 'block', lg: 'none' },
           '& .MuiDrawer-paper': {
             width: 280,
-            backgroundColor: '#0B0F14 !important',
+            backgroundColor: `${t.bg.app} !important`,
             backgroundImage: 'none',
-            borderRight: '1px solid rgba(255,255,255,0.06)',
+            borderRight: `1px solid ${t.border.default}`,
           },
           '& .MuiBackdrop-root': {
-            bgcolor: 'rgba(0,0,0,0.6)',
+            bgcolor: t.shadow.deep,
           },
         }}
       >

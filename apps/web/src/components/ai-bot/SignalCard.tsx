@@ -12,7 +12,7 @@ export function SignalCard({ analysis }: { analysis: AnalysisResult }) {
     <Box
       sx={{
         p: 2,
-        borderRadius: 0,
+        borderRadius: 1,
         background: analysis.signal === 'UP' ? withAlpha(t.up, 0.06) : withAlpha(t.down, 0.06),
         border: 'none',
       }}
@@ -25,12 +25,12 @@ export function SignalCard({ analysis }: { analysis: AnalysisResult }) {
           {analysis.confidence}%
         </Typography>
       </Box>
-      <Box sx={{ height: 4, borderRadius: 0, backgroundColor: t.hover.strong, mb: 1.5, overflow: 'hidden' }}>
+      <Box sx={{ height: 4, borderRadius: 1, backgroundColor: t.hover.strong, mb: 1.5, overflow: 'hidden' }}>
         <Box
           sx={{
             height: '100%',
             width: `${analysis.confidence}%`,
-            borderRadius: 0,
+            borderRadius: 1,
             background: `linear-gradient(90deg, ${color}88, ${color})`,
             transition: 'width 0.5s ease',
           }}

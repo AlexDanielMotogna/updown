@@ -98,6 +98,8 @@ export function PoolsSidebarList({ pools, newIds, liveScores, categoryMap }: Poo
                     px: 2,
                     py: 1.5,
                     bgcolor: t.bg.surfaceAlt,
+                    border: t.surfaceBorder,
+                    boxShadow: t.surfaceShadow,
                     cursor: 'pointer',
                     transition: 'background 0.15s ease',
                     '&:hover': { background: t.border.subtle },
@@ -111,7 +113,7 @@ export function PoolsSidebarList({ pools, newIds, liveScores, categoryMap }: Poo
                       {!isSports ? (
                         <AssetIcon asset={pool.asset} size={22} />
                       ) : cat?.badgeUrl ? (
-                        <Box component="img" src={cat.badgeUrl} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', ...(cat.type === 'FOOTBALL_LEAGUE' && { bgcolor: t.text.vivid, borderRadius: '50%', p: '2px' }) }} />
+                        <Box component="img" src={cat.badgeUrl} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', ...(cat.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }) }} />
                       ) : isPM && cat?.color ? (
                         <Box sx={{ width: 20, height: 20, borderRadius: '50%', bgcolor: `${cat.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: cat.color }} />

@@ -39,7 +39,7 @@ export function EarningsTab({ earnings }: EarningsTabProps) {
   return (
     <Box
       sx={{
-        borderRadius: 0,
+        borderRadius: 1,
         display: 'flex',
         flexDirection: 'column',
         gap: '3px',
@@ -54,6 +54,8 @@ export function EarningsTab({ earnings }: EarningsTabProps) {
           px: 2,
           py: 1,
           bgcolor: t.bg.surfaceAlt,
+          border: t.surfaceBorder,
+          boxShadow: t.surfaceShadow,
         }}
       >
         {[
@@ -94,6 +96,8 @@ export function EarningsTab({ earnings }: EarningsTabProps) {
                 py: 0,
                 minHeight: 56,
                 bgcolor: t.bg.surfaceAlt,
+                border: t.surfaceBorder,
+                boxShadow: t.surfaceShadow,
                 transition: 'background 0.15s ease',
                 '&:hover': { background: t.border.subtle },
               }}
@@ -174,6 +178,8 @@ export function EarningsTab({ earnings }: EarningsTabProps) {
               sx={{
                 display: { xs: 'block', md: 'none' },
                 bgcolor: t.bg.surfaceAlt,
+                border: t.surfaceBorder,
+                boxShadow: t.surfaceShadow,
                 p: 2,
               }}
             >

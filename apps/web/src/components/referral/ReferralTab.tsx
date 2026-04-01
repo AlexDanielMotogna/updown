@@ -32,7 +32,7 @@ export function ReferralTab({ referrals, totalReferrals }: ReferralTabProps) {
   return (
     <Box
       sx={{
-        borderRadius: 0,
+        borderRadius: 1,
         display: 'flex',
         flexDirection: 'column',
         gap: '3px',
@@ -47,6 +47,8 @@ export function ReferralTab({ referrals, totalReferrals }: ReferralTabProps) {
           px: 2,
           py: 1,
           bgcolor: t.bg.surfaceAlt,
+          border: t.surfaceBorder,
+          boxShadow: t.surfaceShadow,
         }}
       >
         {[
@@ -86,6 +88,8 @@ export function ReferralTab({ referrals, totalReferrals }: ReferralTabProps) {
                 py: 0,
                 minHeight: 56,
                 bgcolor: t.bg.surfaceAlt,
+                border: t.surfaceBorder,
+                boxShadow: t.surfaceShadow,
                 transition: 'background 0.15s ease',
                 '&:hover': { background: t.border.subtle },
               }}
@@ -132,6 +136,8 @@ export function ReferralTab({ referrals, totalReferrals }: ReferralTabProps) {
               sx={{
                 display: { xs: 'block', md: 'none' },
                 bgcolor: t.bg.surfaceAlt,
+                border: t.surfaceBorder,
+                boxShadow: t.surfaceShadow,
                 p: 2,
               }}
             >

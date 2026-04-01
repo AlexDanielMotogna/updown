@@ -6,12 +6,8 @@
 export const PACIFICA_API_URL = 'https://api.pacifica.fi';
 export const PACIFICA_WS_URL = 'wss://ws.pacifica.fi/ws';
 
-// Colors
-export const UP_COLOR = '#4ADE80';
-export const DOWN_COLOR = '#F87171';
-export const DRAW_COLOR = '#FBBF24';
-export const GAIN_COLOR = '#22C55E';
-export const ACCENT_COLOR = '#F59E0B';
+// Colors — re-exported from theme.ts for backward compat
+export { UP_COLOR, DOWN_COLOR, DRAW_COLOR, GAIN_COLOR, ACCENT_COLOR } from '@/lib/theme';
 
 // UP Coins: stored as base units, divide by this to get display value
 // e.g. 10 stored = 0.10 UP displayed ($1 bet earns 0.10 UP)

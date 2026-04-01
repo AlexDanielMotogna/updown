@@ -21,7 +21,9 @@ export function SquadCard({ squad, onClick }: SquadCardProps) {
       onClick={onClick}
       sx={{
         bgcolor: t.bg.surfaceAlt,
-        borderRadius: 0,
+        border: t.surfaceBorder,
+        boxShadow: t.surfaceShadow,
+        borderRadius: 1,
         px: { xs: 2, md: 2.5 },
         py: { xs: 2, md: 2.5 },
         cursor: 'pointer',

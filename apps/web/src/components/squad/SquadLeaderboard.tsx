@@ -43,6 +43,8 @@ function LeaderboardRow({ entry, index, isMe }: { entry: SquadLeaderboardEntry; 
           py: 0,
           minHeight: 56,
           bgcolor: t.bg.surfaceAlt,
+          border: t.surfaceBorder,
+          boxShadow: t.surfaceShadow,
           transition: 'background 0.15s ease',
           '&:hover': { background: t.border.subtle },
         }}
@@ -154,6 +156,8 @@ function LeaderboardRow({ entry, index, isMe }: { entry: SquadLeaderboardEntry; 
         sx={{
           display: { xs: 'block', md: 'none' },
           bgcolor: t.bg.surfaceAlt,
+          border: t.surfaceBorder,
+          boxShadow: t.surfaceShadow,
           p: 2,
         }}
       >
@@ -225,7 +229,7 @@ export function SquadLeaderboard({ entries, currentWallet }: SquadLeaderboardPro
   }
 
   return (
-    <Box sx={{ borderRadius: 0, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+    <Box sx={{ borderRadius: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
       {/* Header — desktop only */}
       <Box
         sx={{
@@ -234,6 +238,8 @@ export function SquadLeaderboard({ entries, currentWallet }: SquadLeaderboardPro
           px: 2,
           py: 1,
           bgcolor: t.bg.surfaceAlt,
+          border: t.surfaceBorder,
+          boxShadow: t.surfaceShadow,
         }}
       >
         {['Rank', 'Player', 'W / L', 'Win Rate', 'Wagered', 'PnL'].map((h) => (

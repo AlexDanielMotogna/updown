@@ -33,7 +33,8 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
       sx={{
         overflow: 'hidden',
         background: t.bg.surface,
-        border: 'none',
+        border: t.surfaceBorder,
+        boxShadow: t.surfaceShadow,
       }}
     >
       <CardContent sx={{ p: { xs: 2, sm: 3 } }}>

@@ -175,7 +175,7 @@ export function BetForm({ pool, onSubmit, isSubmitting, error, initialSide, cont
             fontSize: '1.1rem',
             fontWeight: 600,
             backgroundColor: t.bg.input,
-            borderRadius: 2,
+            borderRadius: 1,
             py: 0,
             '& .MuiOutlinedInput-input': {
               py: 1,

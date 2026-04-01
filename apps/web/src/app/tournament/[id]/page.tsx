@@ -126,12 +126,14 @@ export default function TournamentBracketPage() {
     <AppShell>
     <Box sx={{
       bgcolor: t.bg.surfaceAlt,
+      border: t.surfaceBorder,
+      boxShadow: t.surfaceShadow,
       display: 'flex',
       flexDirection: 'column',
       minHeight: 'calc(100vh - 64px)',
       '&::-webkit-scrollbar': { width: 3 },
       '&::-webkit-scrollbar-track': { bgcolor: 'transparent' },
-      '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 0 },
+      '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 1 },
     }}>
 
       <TournamentHeader
@@ -150,7 +152,7 @@ export default function TournamentBracketPage() {
       />
 
       {regError && (
-        <Alert severity="error" onClose={() => reset()} sx={{ bgcolor: 'rgba(248,113,113,0.1)', border: 'none', borderRadius: 0 }}>
+        <Alert severity="error" onClose={() => reset()} sx={{ bgcolor: 'rgba(248,113,113,0.1)', border: 'none', borderRadius: 1 }}>
           {regError}
         </Alert>
       )}
@@ -234,7 +236,7 @@ export default function TournamentBracketPage() {
                       height: CARD_H,
                       bgcolor: SURFACE,
                       border: 'none',
-                      borderRadius: 0,
+                      borderRadius: 1,
                       overflow: 'hidden',
                       display: 'flex',
                       flexDirection: 'column',
@@ -264,7 +266,7 @@ export default function TournamentBracketPage() {
                           </Typography>
                           {isMe && !claimed && (
                             <Link href="/profile?tab=tournaments" style={{ textDecoration: 'none' }}>
-                              <Button size="small" variant="contained" sx={{ bgcolor: t.up, color: t.text.contrast, fontWeight: 700, fontSize: '0.7rem', textTransform: 'none', px: 2, py: 0.5, borderRadius: 0, '&:hover': { bgcolor: t.up, filter: 'brightness(1.15)' } }}>
+                              <Button size="small" variant="contained" sx={{ bgcolor: t.up, color: t.text.contrast, fontWeight: 700, fontSize: '0.7rem', textTransform: 'none', px: 2, py: 0.5, borderRadius: 1, '&:hover': { bgcolor: t.up, filter: 'brightness(1.15)' } }}>
                                 Claim Prize
                               </Button>
                             </Link>

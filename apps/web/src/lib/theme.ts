@@ -11,6 +11,8 @@ export function withAlpha(hex: string, opacity: number): string {
 
 // ─── Color Primitives (raw values, no semantics) ─────────────────────────────
 export const palette = {
+  // Brand
+  cyan: '#5FD8EF',
   // Greens
   green400: '#4ADE80',
   green500: '#22C55E',
@@ -102,6 +104,10 @@ export interface ThemeTokens {
     hover: string;
     active: string;
   };
+
+  // Surface styling (border + shadow for cards/boxes in light mode)
+  surfaceBorder: string;
+  surfaceShadow: string;
 
   // Hover / interactive backgrounds
   hover: {
@@ -197,13 +203,13 @@ export const darkTokens: ThemeTokens = {
   mode: 'dark',
 
   bg: {
-    app: '#0B0F14',
-    surface: '#111820',
-    surfaceAlt: '#0D1219',
-    elevated: '#1A1F2B',
-    tooltip: '#1a1f2e',
-    chart: '#1a2030',
-    dialog: '#0A0E14',
+    app: '#060C14',
+    surface: '#0A121C',
+    surfaceAlt: '#081019',
+    elevated: '#121A26',
+    tooltip: '#121A26',
+    chart: '#0A121C',
+    dialog: '#081019',
     input: 'rgba(255,255,255,0.02)',
   },
 
@@ -222,6 +228,9 @@ export const darkTokens: ThemeTokens = {
     soft: 'rgba(255,255,255,0.45)',
     contrast: '#000000',
   },
+
+  surfaceBorder: 'none',
+  surfaceShadow: 'none',
 
   border: {
     subtle: 'rgba(255,255,255,0.04)',
@@ -250,11 +259,11 @@ export const darkTokens: ThemeTokens = {
 
   scrollbar: {
     thumb: 'rgba(255,255,255,0.1)',
-    track: '#0B0F14',
+    track: '#060C14',
   },
 
   // Semantic
-  up: palette.green400,
+  up: palette.cyan,
   down: palette.red400,
   draw: palette.amber400,
   gain: palette.green500,
@@ -335,40 +344,43 @@ export const lightTokens: ThemeTokens = {
   mode: 'light',
 
   bg: {
-    app: '#F8FAFC',
-    surface: '#FFFFFF',
-    surfaceAlt: '#F1F5F9',
+    app: '#F5F7FA',              // off-white, not harsh
+    surface: '#FFFFFF',           // cards/tables: clean white
+    surfaceAlt: '#F0F2F5',       // rows/sections: slightly tinted
     elevated: '#FFFFFF',
-    tooltip: '#1E293B',          // tooltips stay dark for contrast
-    chart: '#F8FAFC',
+    tooltip: '#1E293B',          // tooltips stay dark
+    chart: '#FFFFFF',
     dialog: '#FFFFFF',
-    input: 'rgba(15,23,42,0.02)',
+    input: 'rgba(15,23,42,0.03)',
   },
 
   text: {
-    primary: '#0F172A',
-    secondary: 'rgba(15,23,42,0.6)',
-    tertiary: 'rgba(15,23,42,0.45)',
-    quaternary: 'rgba(15,23,42,0.4)',
-    dimmed: 'rgba(15,23,42,0.35)',
-    muted: 'rgba(15,23,42,0.3)',
-    disabled: 'rgba(15,23,42,0.38)',
-    rich: 'rgba(15,23,42,0.75)',
-    bright: 'rgba(15,23,42,0.8)',
-    vivid: 'rgba(15,23,42,0.9)',
-    strong: 'rgba(15,23,42,0.65)',
-    soft: 'rgba(15,23,42,0.5)',
-    contrast: '#FFFFFF',
+    primary: '#0A0F1A',
+    secondary: '#334155',
+    tertiary: '#475569',
+    quaternary: '#556677',
+    dimmed: '#64748B',
+    muted: '#78859B',
+    disabled: '#94A3B8',
+    rich: '#1E293B',
+    bright: '#0F172A',
+    vivid: '#0A0F1A',
+    strong: '#2D3B4E',
+    soft: '#3E4C5F',
+    contrast: '#0A0F1A',
   },
 
+  surfaceBorder: '1px solid rgba(15,23,42,0.18)',
+  surfaceShadow: '0 2px 10px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08)',
+
   border: {
-    subtle: 'rgba(15,23,42,0.04)',
-    default: 'rgba(15,23,42,0.08)',
-    medium: 'rgba(15,23,42,0.1)',
-    strong: 'rgba(15,23,42,0.12)',
-    emphasis: 'rgba(15,23,42,0.15)',
-    hover: 'rgba(15,23,42,0.2)',
-    active: 'rgba(15,23,42,0.3)',
+    subtle: 'rgba(15,23,42,0.06)',
+    default: 'rgba(15,23,42,0.10)',
+    medium: 'rgba(15,23,42,0.12)',
+    strong: 'rgba(15,23,42,0.15)',
+    emphasis: 'rgba(15,23,42,0.18)',
+    hover: 'rgba(15,23,42,0.22)',
+    active: 'rgba(15,23,42,0.30)',
   },
 
   hover: {
@@ -377,7 +389,7 @@ export const lightTokens: ThemeTokens = {
     default: 'rgba(15,23,42,0.04)',
     medium: 'rgba(15,23,42,0.06)',
     strong: 'rgba(15,23,42,0.08)',
-    emphasis: 'rgba(15,23,42,0.1)',
+    emphasis: 'rgba(15,23,42,0.10)',
   },
 
   shadow: {
@@ -387,12 +399,12 @@ export const lightTokens: ThemeTokens = {
   },
 
   scrollbar: {
-    thumb: 'rgba(15,23,42,0.15)',
-    track: '#F1F5F9',
+    thumb: 'rgba(15,23,42,0.12)',
+    track: '#F0F2F5',
   },
 
-  // Semantic — slightly darker on light bg for contrast
-  up: palette.green500,
+  // Semantic — cyan for buttons, darker variants for light bg
+  up: palette.cyan,
   down: palette.red500,
   draw: palette.amber600,
   gain: palette.green600,
@@ -465,7 +477,7 @@ export const lightTokens: ThemeTokens = {
 };
 
 // ─── Backward-compat re-exports (remove after full migration) ─────────────────
-export const UP_COLOR = palette.green400;
+export const UP_COLOR = palette.cyan;
 export const DOWN_COLOR = palette.red400;
 export const DRAW_COLOR = palette.amber400;
 export const GAIN_COLOR = palette.green500;

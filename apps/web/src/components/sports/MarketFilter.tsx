@@ -33,11 +33,11 @@ export function FilterDropdown({ value, label, icon, options, onChange, color }:
           bgcolor: t.hover.default, borderRadius: '8px', cursor: 'pointer',
           transition: 'all 0.15s',
           border: open ? `1px solid ${withAlpha(color, 0.19)}` : '1px solid transparent',
-          '&:hover': { bgcolor: 'rgba(255,255,255,0.07)' },
+          '&:hover': { bgcolor: t.hover.medium },
         }}
       >
         {icon || (selected?.img && (
-          <Box component="img" src={selected.img} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: t.text.vivid, borderRadius: '50%', p: '2px' }} />
+          <Box component="img" src={selected.img} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
         ))}
         <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.text.primary, whiteSpace: 'nowrap' }}>
           {selected?.label || label}
@@ -66,7 +66,7 @@ export function FilterDropdown({ value, label, icon, options, onChange, color }:
               }}
             >
               {opt.img ? (
-                <Box component="img" src={opt.img} alt="" sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: t.text.vivid, borderRadius: '50%', p: '2px' }} />
+                <Box component="img" src={opt.img} alt="" sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
               ) : opt.icon ? (
                 <Box sx={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', color: active ? color : t.text.tertiary }}>
                   {opt.icon}
@@ -213,7 +213,7 @@ export function MarketFilter({
                   px: { xs: 1.25, md: 2 }, py: 1,
                   cursor: tab.comingSoon ? 'default' : 'pointer',
                   borderBottom: active ? `2px solid ${tab.color}` : '2px solid transparent',
-                  color: tab.comingSoon ? 'rgba(255,255,255,0.15)' : active ? tab.color : t.text.quaternary,
+                  color: tab.comingSoon ? t.text.disabled : active ? tab.color : t.text.quaternary,
                   opacity: tab.comingSoon ? 0.5 : 1,
                   transition: 'all 0.15s ease',
                   whiteSpace: 'nowrap',

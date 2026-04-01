@@ -53,7 +53,7 @@ export function MobileBottomNav() {
                   px: 0.5,
                   minWidth: 0,
                   minHeight: 0,
-                  borderRadius: 0,
+                  borderRadius: 1,
                   textTransform: 'none',
                   lineHeight: 1.2,
                   '&:hover': { color: t.text.primary, backgroundColor: 'transparent' },
@@ -80,7 +80,7 @@ export function MobileBottomNav() {
             py: 0.75,
             px: 0.5,
             minHeight: 0,
-            borderRadius: 0,
+            borderRadius: 1,
             textTransform: 'none',
             lineHeight: 1.2,
             '&:hover': { color: t.text.primary, backgroundColor: 'transparent' },
@@ -110,7 +110,7 @@ export function MobileBottomNav() {
         }}
       >
         <Box sx={{ px: 2, pt: 1.5, pb: 1 }}>
-          <Box sx={{ width: 32, height: 4, borderRadius: 2, bgcolor: t.border.emphasis, mx: 'auto', mb: 2 }} />
+          <Box sx={{ width: 32, height: 4, borderRadius: 1, bgcolor: t.border.emphasis, mx: 'auto', mb: 2 }} />
           {secondary.map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;

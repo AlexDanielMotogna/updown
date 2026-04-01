@@ -163,13 +163,13 @@ export default function SquadDetailPage() {
           }}
         >
           {/* Card 1: Squad identity — name, avatar, invite code */}
-          <Box sx={{ gridColumn: { xs: '1 / -1', md: 'auto' }, display: 'flex', alignItems: 'center', gap: { xs: 1.5, md: 2 }, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5 }}>
+          <Box sx={{ gridColumn: { xs: '1 / -1', md: 'auto' }, display: 'flex', alignItems: 'center', gap: { xs: 1.5, md: 2 }, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 1, px: { xs: 1.5, md: 3 }, py: 1.5 }}>
             <Avatar
               src={getAvatarUrl(squad.id)}
               sx={{ width: { xs: 40, md: 56 }, height: { xs: 40, md: 56 } }}
             />
             <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Typography sx={{ fontSize: { xs: '1rem', md: '1.15rem' }, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <Typography sx={{ fontSize: { xs: '1rem', md: '1.15rem' }, fontWeight: 700, color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {squad.name}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.25 }}>
@@ -181,7 +181,7 @@ export default function SquadDetailPage() {
                       background: 'none', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer',
                       display: 'flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.3,
                       color: copied === 'code' ? t.gain : 'text.secondary',
-                      '&:hover': { borderColor: 'rgba(255,255,255,0.2)', color: '#fff' },
+                      '&:hover': { borderColor: 'rgba(255,255,255,0.2)', color: t.text.primary },
                       transition: 'all 0.15s',
                     }}
                   >
@@ -199,7 +199,7 @@ export default function SquadDetailPage() {
                       background: 'none', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer',
                       display: 'flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.3,
                       color: copied === 'link' ? t.gain : 'text.secondary',
-                      '&:hover': { borderColor: 'rgba(255,255,255,0.2)', color: '#fff' },
+                      '&:hover': { borderColor: 'rgba(255,255,255,0.2)', color: t.text.primary },
                       transition: 'all 0.15s',
                     }}
                   >
@@ -214,11 +214,11 @@ export default function SquadDetailPage() {
           </Box>
 
           {/* Card 2: Members */}
-          <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
+          <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 1, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
             <Box>
               <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', mb: 0.25 }}>Members</Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
                   {squad.memberCount}
                 </Typography>
                 <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
@@ -229,7 +229,7 @@ export default function SquadDetailPage() {
           </Box>
 
           {/* Card 3: Active Pools */}
-          <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
+          <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 1, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
             <Box>
               <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', mb: 0.25 }}>Active Pools</Typography>
               <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: t.gain, fontVariantNumeric: 'tabular-nums' }}>
@@ -239,10 +239,10 @@ export default function SquadDetailPage() {
           </Box>
 
           {/* Card 4: Total Pools */}
-          <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
+          <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 1, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
             <Box>
               <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', mb: 0.25 }}>Total Pools</Typography>
-              <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
+              <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
                 {squad.poolCount}
               </Typography>
             </Box>
@@ -253,7 +253,7 @@ export default function SquadDetailPage() {
             onClick={() => setShowCreatePool(true)}
             sx={{
               bgcolor: `${t.up}12`,
-              borderRadius: 2,
+              borderRadius: 1,
               px: { xs: 1.5, md: 3 },
               py: 1.5,
               display: 'flex',
@@ -294,7 +294,7 @@ export default function SquadDetailPage() {
                 px: { xs: 1.5, sm: 2.5 },
                 minHeight: 44,
                 minWidth: 'auto',
-                '&.Mui-selected': { color: '#FFFFFF' },
+                '&.Mui-selected': { color: t.text.primary },
               },
             }}
           >

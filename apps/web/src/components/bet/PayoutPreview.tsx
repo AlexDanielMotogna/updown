@@ -52,8 +52,10 @@ export function PayoutPreview({
               px: 1.5,
               py: 1,
               mb: 1.5,
-              borderRadius: 0,
+              borderRadius: 1,
               background: t.bg.surfaceAlt,
+              border: t.surfaceBorder,
+              boxShadow: t.surfaceShadow,
               borderTop: `1px solid ${withAlpha(t.gain, 0.19)}`,
             }}
           >

@@ -77,7 +77,7 @@ export function MatchModal({
         sx: {
           bgcolor: BG,
           border: `1px solid ${BORDER}`,
-          borderRadius: 0,
+          borderRadius: 1,
           overflow: 'hidden',
           m: { xs: 0, md: 4 },
           maxHeight: { xs: '85vh', md: '90vh' },

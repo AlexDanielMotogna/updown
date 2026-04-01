@@ -53,7 +53,7 @@ export function OrderbookDepth({ asset }: OrderbookDepthProps) {
       <Box
         sx={{
           p: 2,
-          borderRadius: 0,
+          borderRadius: 1,
           background: t.hover.default,
           border: 'none',
           display: 'flex',

@@ -67,7 +67,7 @@ export function TournamentHeader({
   ];
 
   return (
-    <Box sx={{ bgcolor: t.bg.surfaceAlt }}>
+    <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow }}>
       {/* Title bar */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: { xs: 1, md: 2 }, py: 0.75, borderBottom: statsOpen ? `1px solid ${t.border.subtle}` : 'none' }}>
         <Link href="/tournaments">
@@ -78,7 +78,7 @@ export function TournamentHeader({
         <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
           {tour.name}
         </Typography>
-        <Chip label={statusLabel} size="small" sx={{ fontWeight: 700, fontSize: '0.6rem', height: 18, bgcolor: withAlpha(statusColor, 0.08), color: statusColor, border: `1px solid ${withAlpha(statusColor, 0.15)}`, borderRadius: 0 }} />
+        <Chip label={statusLabel} size="small" sx={{ fontWeight: 700, fontSize: '0.6rem', height: 18, bgcolor: withAlpha(statusColor, 0.08), color: statusColor, border: `1px solid ${withAlpha(statusColor, 0.15)}`, borderRadius: 1 }} />
         <Button
           onClick={onInfoClick}
           size="small"
@@ -102,7 +102,7 @@ export function TournamentHeader({
                     <Button
                       variant="contained" size="small" fullWidth disabled={isBusy}
                       onClick={onRegister}
-                      sx={{ bgcolor: t.up, color: t.text.contrast, fontWeight: 700, fontSize: { xs: '0.6rem', md: '0.7rem' }, textTransform: 'none', py: { xs: 0.25, md: 0.5 }, borderRadius: 0, '&:hover': { bgcolor: t.up, filter: 'brightness(1.15)' }, '&:disabled': { bgcolor: t.border.default, color: t.text.dimmed } }}
+                      sx={{ bgcolor: t.up, color: t.text.contrast, fontWeight: 700, fontSize: { xs: '0.6rem', md: '0.7rem' }, textTransform: 'none', py: { xs: 0.25, md: 0.5 }, borderRadius: 1, '&:hover': { bgcolor: t.up, filter: 'brightness(1.15)' }, '&:disabled': { bgcolor: t.border.default, color: t.text.dimmed } }}
                     >
                       {isBusy ? <CircularProgress size={10} sx={{ color: t.text.contrast }} /> : `$${entryFee}`}
                     </Button>
@@ -111,7 +111,7 @@ export function TournamentHeader({
                       {(icon || leagueCode) ? (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                           {leagueCode ? (
-                            <Box component="img" src={getBadge(leagueCode) || ''} alt="" sx={{ width: 14, height: 14, objectFit: 'contain', bgcolor: t.text.vivid, borderRadius: '50%', p: '1px' }} />
+                            <Box component="img" src={getBadge(leagueCode) || ''} alt="" sx={{ width: 14, height: 14, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '1px' }} />
                           ) : (
                             <AssetIcon asset={value} size={14} />
                           )}

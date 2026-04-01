@@ -106,7 +106,7 @@ export function LeaderboardTable() {
       {!isLoading && entries.length > 0 && (
         <Box
           sx={{
-            borderRadius: 0,
+            borderRadius: 1,
             display: 'flex',
             flexDirection: 'column',
             gap: '3px',
@@ -120,6 +120,8 @@ export function LeaderboardTable() {
               px: 2,
               py: 1,
               bgcolor: t.bg.surfaceAlt,
+              border: t.surfaceBorder,
+              boxShadow: t.surfaceShadow,
             }}
           >
             {[

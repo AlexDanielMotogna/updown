@@ -143,7 +143,7 @@ export function ProfileHeader({
       />
 
       {/* ─── Profile Strip (overlaps banner bottom) ─── */}
-      <Box sx={{ bgcolor: t.bg.surfaceAlt }}>
+      <Box sx={{ bgcolor: t.bg.app }}>
         <Container maxWidth={false} sx={{ px: { xs: 2, md: 3 } }}>
           {!connected ? (
             <Box sx={{ textAlign: 'center', py: 8 }}>
@@ -163,7 +163,7 @@ export function ProfileHeader({
               }}
             >
               {/* ── Card 1: Avatar + Level + XP (full width on mobile, 2 cols on desktop) ── */}
-              <Box sx={{ gridColumn: { xs: '1 / -1', md: 'auto' }, display: 'flex', alignItems: 'center', gap: { xs: 1.5, md: 2 }, bgcolor: t.hover.light, borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5 }}>
+              <Box sx={{ gridColumn: { xs: '1 / -1', md: 'auto' }, display: 'flex', alignItems: 'center', gap: { xs: 1.5, md: 2 }, bgcolor: t.hover.light, borderRadius: 1, px: { xs: 1.5, md: 3 }, py: 1.5 }}>
                 <Box sx={{ position: 'relative', flexShrink: 0 }}>
                   {walletAddress ? (
                     <Avatar
@@ -236,7 +236,7 @@ export function ProfileHeader({
               </Box>
 
               {/* ── Card 2: Balance ── */}
-              <Box sx={{ bgcolor: t.hover.light, borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ bgcolor: t.hover.light, borderRadius: 1, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
                 <Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, mb: 0.25 }}>
                     <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: t.text.tertiary }}>Your funds</Typography>
@@ -251,7 +251,7 @@ export function ProfileHeader({
               </Box>
 
               {/* ── Card 3: UP Coins ── */}
-              <Box sx={{ bgcolor: t.hover.light, borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ bgcolor: t.hover.light, borderRadius: 1, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
                 <Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, mb: 0.25 }}>
                     <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: t.text.tertiary }}>UP Coins</Typography>
@@ -269,7 +269,7 @@ export function ProfileHeader({
               </Box>
 
               {/* ── Card 4: Predictions ── */}
-              <Box sx={{ bgcolor: t.hover.light, borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ bgcolor: t.hover.light, borderRadius: 1, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
                 <Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, mb: 0.25 }}>
                     <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: t.text.tertiary }}>Predictions</Typography>
@@ -284,7 +284,7 @@ export function ProfileHeader({
               </Box>
 
               {/* ── Card 5: Win / Loss ── */}
-              <Box sx={{ bgcolor: t.hover.light, borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ bgcolor: t.hover.light, borderRadius: 1, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
                 <Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, mb: 0.25 }}>
                     <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: t.text.tertiary }}>Win / Loss</Typography>
@@ -301,7 +301,7 @@ export function ProfileHeader({
               </Box>
 
               {/* ── Card 6: Total Staked ── */}
-              <Box sx={{ bgcolor: t.hover.light, borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ bgcolor: t.hover.light, borderRadius: 1, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
                 <Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, mb: 0.25 }}>
                     <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: t.text.tertiary }}>Total Staked</Typography>
@@ -316,7 +316,7 @@ export function ProfileHeader({
               </Box>
 
               {/* ── Card 7: Total Won ── */}
-              <Box sx={{ bgcolor: t.hover.light, borderRadius: 2, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ bgcolor: t.hover.light, borderRadius: 1, px: { xs: 1.5, md: 3 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
                 <Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, mb: 0.25 }}>
                     <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: t.text.tertiary }}>Total Won</Typography>

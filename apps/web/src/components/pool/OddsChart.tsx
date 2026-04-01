@@ -221,7 +221,7 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
                 sx={{
                   px: 1.5, py: 0.5, cursor: 'pointer',
                   fontSize: '0.65rem', fontWeight: 700,
-                  color: source === s.key ? '#fff' : t.text.dimmed,
+                  color: source === s.key ? t.text.primary : t.text.dimmed,
                   bgcolor: source === s.key ? t.border.strong : 'transparent',
                   transition: 'all 0.15s',
                   '&:hover': { bgcolor: t.border.default },
@@ -290,7 +290,7 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
                   opacity: opt.active ? 1 : 0.3,
                   transition: 'all 0.15s',
                 }} />
-                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: opt.active ? '#fff' : t.text.dimmed }}>
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: opt.active ? t.text.primary : t.text.dimmed }}>
                   {opt.label}
                 </Typography>
               </Box>

@@ -285,10 +285,10 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
         zIndex: 1200,
         display: 'flex',
         flexDirection: 'column',
-        borderRadius: 0,
+        borderRadius: 1,
         backgroundColor: t.bg.surface,
-        border: 'none',
-        boxShadow: `0 8px 32px rgba(0,0,0,0.6), 0 0 20px ${withAlpha(t.up, 0.07)}`,
+        border: t.surfaceBorder,
+        boxShadow: t.surfaceShadow,
         overflow: 'hidden',
         animation: 'panelExpand 0.3s ease-out',
         '@keyframes panelExpand': {
@@ -355,7 +355,7 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
           minHeight: 100,
           '&::-webkit-scrollbar': { width: 4 },
           '&::-webkit-scrollbar-track': { background: 'transparent' },
-          '&::-webkit-scrollbar-thumb': { background: t.border.strong, borderRadius: 2 },
+          '&::-webkit-scrollbar-thumb': { background: t.border.strong, borderRadius: 1 },
         }}
       >
         {messages.map((msg) => (
@@ -399,7 +399,7 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
             color: t.text.vivid,
             px: 1.5,
             py: 0.5,
-            borderRadius: 0,
+            borderRadius: 1,
             backgroundColor: t.hover.default,
             border: 'none',
             '& input::placeholder': {

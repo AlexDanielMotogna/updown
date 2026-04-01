@@ -117,7 +117,7 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
           anchorEl={anchorRef.current}
           placement="bottom-end"
           transition
-          sx={{ zIndex: 1400 }}
+          sx={{ zIndex: 1400, maxWidth: 'calc(100vw - 16px)' }}
         >
           {({ TransitionProps }) => (
             <Fade {...TransitionProps} timeout={150}>
@@ -125,11 +125,12 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
                 sx={{
                   mt: 1,
                   minWidth: 200,
+                  maxWidth: 280,
                   bgcolor: t.bg.surfaceAlt,
-                  border: `1px solid ${t.border.default}`,
+                  border: t.surfaceBorder,
                   borderRadius: '6px',
                   overflow: 'hidden',
-                  boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
+                  boxShadow: t.surfaceShadow,
                 }}
               >
                 {/* Wallet address + copy */}
@@ -272,7 +273,7 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
                     fontWeight: 500,
                     color: 'text.secondary',
                     textTransform: 'none',
-                    borderRadius: 0,
+                    borderRadius: 1,
                     '&:hover': {
                       bgcolor: t.border.subtle,
                       color: t.text.primary,

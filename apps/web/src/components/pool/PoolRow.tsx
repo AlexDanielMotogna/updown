@@ -121,6 +121,9 @@ export function PoolRow({
         pl: 0,
         py: 0,
         bgcolor: t.bg.surfaceAlt,
+        border: t.surfaceBorder,
+        boxShadow: t.surfaceShadow,
+        borderRadius: 1.5,
         transition: 'background 0.15s ease',
         '&:hover': {
           background: t.hover.default,

@@ -288,7 +288,7 @@ function EditDialog({ cat, open, onClose, onSave }: {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} TransitionProps={{ onEnter: handleOpen }} maxWidth="sm" fullWidth PaperProps={{ sx: { bgcolor: dt.bg.surfaceAlt, backgroundImage: 'none' } }}>
+    <Dialog open={open} onClose={onClose} TransitionProps={{ onEnter: handleOpen }} maxWidth="sm" fullWidth PaperProps={{ sx: { bgcolor: dt.bg.surfaceAlt, border: dt.surfaceBorder, boxShadow: dt.surfaceShadow, backgroundImage: 'none' } }}>
       <DialogTitle sx={{ fontSize: '1rem', fontWeight: 700 }}>Edit {cat?.code}</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
         <TextField label="Label" size="small" value={form.label || ''} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} />
@@ -412,7 +412,7 @@ export function CategoryManagement() {
         return (
           <Box key={type}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-              <Box sx={{ width: 4, height: 20, borderRadius: 2, bgcolor: TYPE_COLORS[type] }} />
+              <Box sx={{ width: 4, height: 20, borderRadius: 1, bgcolor: TYPE_COLORS[type] }} />
               <Typography sx={{ fontWeight: 700, fontSize: '0.95rem' }}>{label}</Typography>
               <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)' }}>
                 {activeCount}/{cats.length} active

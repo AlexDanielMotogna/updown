@@ -63,7 +63,7 @@ export function TournamentRulesDialog({ open, onClose, tournament: tour, entryFe
       onClose={onClose}
       maxWidth="sm"
       fullWidth
-      PaperProps={{ sx: { bgcolor: t.bg.surface, border: `1px solid ${t.border.default}`, borderRadius: 0, m: { xs: 1, md: 4 }, width: { xs: 'calc(100% - 16px)' }, maxWidth: { xs: 'none', md: 600 } } }}
+      PaperProps={{ sx: { bgcolor: t.bg.surface, border: `1px solid ${t.border.default}`, boxShadow: t.surfaceShadow, borderRadius: 1, m: { xs: 1, md: 4 }, width: { xs: 'calc(100% - 16px)' }, maxWidth: { xs: 'none', md: 600 } } }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: { xs: 1.5, md: 2.5 }, pt: { xs: 1.25, md: 2 }, pb: 0.75 }}>
         <Typography sx={{ fontWeight: 700, fontSize: '1rem' }}>How it works</Typography>

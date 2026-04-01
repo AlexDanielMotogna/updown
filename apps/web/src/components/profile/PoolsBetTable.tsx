@@ -57,6 +57,8 @@ export function PoolsBetTable({ bets, betsLoading, claimingBetId, onClaim }: Poo
           px: 0,
           py: 1,
           bgcolor: t.bg.surfaceAlt,
+          border: t.surfaceBorder,
+          boxShadow: t.surfaceShadow,
         }}
       >
         {TABLE_HEADERS.map((h, i) => (

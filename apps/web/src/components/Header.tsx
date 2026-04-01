@@ -57,7 +57,7 @@ export function Header() {
           />
           <Box
             component="img"
-            src="/updown-logos/Logo_cyan_text_white.png"
+            src={mode === 'dark' ? '/updown-logos/Logo_cyan_text_white.png' : '/updown-logos/Logo_cyan_text_dark_Medium.png'}
             alt="UpDown"
             sx={{ display: { xs: 'none', sm: 'block' }, height: { sm: 32, md: 36 } }}
           />
@@ -115,13 +115,13 @@ export function Header() {
                   overflow: 'hidden',
                 }}
               >
-                {/* Level icon */}
+                {/* Level icon — desktop only */}
                 {userProfile && (
                   <Box
                     sx={{
-                      display: 'flex',
+                      display: { xs: 'none', sm: 'flex' },
                       alignItems: 'center',
-                      px: { xs: 0.75, sm: 1 },
+                      px: { sm: 1 },
                       height: '100%',
                       borderRight: `1px solid ${t.border.default}`,
                     }}
@@ -130,14 +130,14 @@ export function Header() {
                   </Box>
                 )}
 
-                {/* UP Coins */}
+                {/* UP Coins — desktop only */}
                 {userProfile && (
                   <Box
                     sx={{
-                      display: 'flex',
+                      display: { xs: 'none', sm: 'flex' },
                       alignItems: 'center',
                       gap: 0.5,
-                      px: { xs: 0.75, sm: 1.25 },
+                      px: { sm: 1.25 },
                       height: '100%',
                       borderRight: `1px solid ${t.border.default}`,
                     }}
@@ -148,7 +148,7 @@ export function Header() {
                       alt="UP Coin"
                       sx={{ width: 14, height: 14 }}
                     />
-                    <Typography sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem' }, fontWeight: 600, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
                       {(() => {
                         const num = Number(userProfile.coinsBalance) / UP_COINS_DIVISOR;
                         return num >= 1_000_000 ? `${(num / 1_000_000).toFixed(1)}M`

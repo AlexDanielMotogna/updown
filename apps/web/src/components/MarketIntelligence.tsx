@@ -49,7 +49,7 @@ export function MarketIntelligence({ asset, priceData }: MarketIntelligenceProps
               <Box
                 sx={{
                   p: { xs: 1.5, sm: 2 },
-                  borderRadius: 0,
+                  borderRadius: 1,
                   background: t.hover.default,
                   border: 'none',
                   flex: 1,
@@ -116,7 +116,7 @@ export function MarketIntelligence({ asset, priceData }: MarketIntelligenceProps
             <Box
               sx={{
                 p: { xs: 1.5, sm: 2 },
-                borderRadius: 0,
+                borderRadius: 1,
                 background: t.hover.default,
                 border: 'none',
                 flex: 1,

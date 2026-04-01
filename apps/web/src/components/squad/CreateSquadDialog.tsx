@@ -35,7 +35,7 @@ export function CreateSquadDialog({ open, onClose, onSubmit, isLoading }: Create
       onClose={onClose}
       maxWidth="xs"
       fullWidth
-      PaperProps={{ sx: { background: t.bg.surfaceAlt, borderRadius: 0 } }}
+      PaperProps={{ sx: { background: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, borderRadius: 1 } }}
     >
       <DialogTitle sx={{ fontWeight: 700 }}>Create a Squad</DialogTitle>
       <DialogContent>

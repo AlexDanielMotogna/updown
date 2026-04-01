@@ -88,7 +88,9 @@ function TournamentCard({ t: tourneyData, onRegistered }: { t: TournamentSummary
     <Box
       sx={{
         bgcolor: t.bg.surfaceAlt,
-        borderRadius: 0,
+        border: t.surfaceBorder,
+        boxShadow: t.surfaceShadow,
+        borderRadius: 1,
         p: { xs: 2, md: 2.5 },
         display: 'flex',
         flexDirection: 'column',
@@ -105,7 +107,7 @@ function TournamentCard({ t: tourneyData, onRegistered }: { t: TournamentSummary
               component="img"
               src={getBadge(tourneyData.league!) || ''}
               alt={tourneyData.league}
-              sx={{ width: 32, height: 32, objectFit: 'contain', bgcolor: t.text.vivid, borderRadius: '50%', p: '3px' }}
+              sx={{ width: 32, height: 32, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '3px' }}
             />
           ) : (
             <Box
@@ -120,7 +122,7 @@ function TournamentCard({ t: tourneyData, onRegistered }: { t: TournamentSummary
         <Chip
           label={statusLabel}
           size="small"
-          sx={{ fontWeight: 700, fontSize: '0.65rem', height: 22, bgcolor: `${statusColor}15`, color: statusColor, border: `1px solid ${statusColor}25`, borderRadius: 0 }}
+          sx={{ fontWeight: 700, fontSize: '0.65rem', height: 22, bgcolor: `${statusColor}15`, color: statusColor, border: `1px solid ${statusColor}25`, borderRadius: 1 }}
         />
       </Box>
 
@@ -134,7 +136,7 @@ function TournamentCard({ t: tourneyData, onRegistered }: { t: TournamentSummary
                 component="img"
                 src={getBadge(tourneyData.league!) || ''}
                 alt={tourneyData.league || ''}
-                sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: t.text.vivid, borderRadius: '50%', p: '2px' }}
+                sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }}
               />
               <Typography sx={{ fontSize: '0.85rem', fontWeight: 700 }}>{tourneyData.league}</Typography>
             </Box>
@@ -182,7 +184,7 @@ function TournamentCard({ t: tourneyData, onRegistered }: { t: TournamentSummary
               fontWeight: 700,
               fontSize: '0.8rem',
               textTransform: 'none',
-              borderRadius: 0,
+              borderRadius: 1,
               py: 0.75,
               boxShadow: 'none',
               '&:hover': { bgcolor: isRegistered ? 'rgba(255,255,255,0.04)' : `${t.up}CC`, boxShadow: 'none' },
@@ -199,7 +201,7 @@ function TournamentCard({ t: tourneyData, onRegistered }: { t: TournamentSummary
             ) : isRegistered ? 'Registered' : regStatus === 'error' ? 'Try Again' : `Register · $${entryFeeUsdc}`}
           </Button>
         ) : isRegistering ? (
-          <Button disabled fullWidth sx={{ flex: 1, fontSize: '0.8rem', textTransform: 'none', borderRadius: 0, py: 0.75, color: t.text.muted }}>
+          <Button disabled fullWidth sx={{ flex: 1, fontSize: '0.8rem', textTransform: 'none', borderRadius: 1, py: 0.75, color: t.text.muted }}>
             Connect wallet
           </Button>
         ) : null}
@@ -215,7 +217,7 @@ function TournamentCard({ t: tourneyData, onRegistered }: { t: TournamentSummary
               fontWeight: 700,
               fontSize: '0.8rem',
               textTransform: 'none',
-              borderRadius: 0,
+              borderRadius: 1,
               py: 0.75,
               boxShadow: 'none',
               '&:hover': { bgcolor: 'rgba(255,255,255,0.1)', boxShadow: 'none' },
@@ -272,6 +274,7 @@ export default function TournamentsPage() {
   const marketType: TabType = rawType && (rawType === 'CRYPTO' || rawType === 'SPORTS' || rawType.startsWith('PM_')) ? rawType : 'CRYPTO';
   const assetFilter = searchParams.get('asset') ?? 'ALL';
   const leagueFilter = searchParams.get('league') ?? 'ALL';
+  const sportFilter = searchParams.get('sport') ?? 'ALL';
   const [showFilters, setShowFilters] = useState(false);
 
   const updateParam = useCallback((key: string, value: string) => {
@@ -318,13 +321,14 @@ export default function TournamentsPage() {
     let result = tournaments;
     if (isPM) {
       result = result.filter(tr => tr.league === marketType);
-    } else if (assetFilter !== 'ALL' && marketType === 'CRYPTO') {
-      result = result.filter(tr => tr.asset === assetFilter);
-    } else if (leagueFilter !== 'ALL' && marketType === 'SPORTS') {
-      result = result.filter(tr => tr.league === leagueFilter);
+    } else if (marketType === 'CRYPTO') {
+      if (assetFilter !== 'ALL') result = result.filter(tr => tr.asset === assetFilter);
+    } else if (marketType === 'SPORTS') {
+      if (sportFilter !== 'ALL') result = result.filter(tr => tr.sport?.toUpperCase() === sportFilter.toUpperCase());
+      if (leagueFilter !== 'ALL') result = result.filter(tr => tr.league === leagueFilter);
     }
     return result;
-  }, [tournaments, marketType, assetFilter, leagueFilter, isPM]);
+  }, [tournaments, marketType, assetFilter, leagueFilter, sportFilter, isPM]);
 
   const { tabs: dynamicTabs, leagueFilters, tabColorMap } = useMemo(() => {
     const cats = categories || [];

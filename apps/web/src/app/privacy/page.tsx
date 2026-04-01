@@ -48,7 +48,7 @@ export default function PrivacyPage() {
         {/* ── Disclaimer ──────────────────────────────────────────── */}
         <SectionLabel>Disclaimer</SectionLabel>
 
-        <Box sx={{ bgcolor: t.bg.surfaceAlt, px: { xs: 2, md: 2.5 }, py: { xs: 2, md: 2.5 }, mb: 2 }}>
+        <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, px: { xs: 2, md: 2.5 }, py: { xs: 2, md: 2.5 }, mb: 2 }}>
           <Paragraph>
             UpDown is a community-driven prediction platform built on the Solana blockchain. It is <strong style={{ color: t.text.primary }}>not</strong> a licensed gambling, betting, or trading platform. UpDown does not offer financial advice, investment services, or trading services of any kind.
           </Paragraph>
@@ -80,7 +80,7 @@ export default function PrivacyPage() {
         {/* ── Nature of the Platform ──────────────────────────────── */}
         <SectionLabel>Nature of the Platform</SectionLabel>
 
-        <Box sx={{ bgcolor: t.bg.surfaceAlt, px: { xs: 2, md: 2.5 }, py: { xs: 2, md: 2.5 }, mb: 2 }}>
+        <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, px: { xs: 2, md: 2.5 }, py: { xs: 2, md: 2.5 }, mb: 2 }}>
           <Paragraph>
             UpDown is a <strong style={{ color: t.text.primary }}>community prediction game</strong> where participants express opinions on the short-term price direction of cryptocurrency assets. It operates using a parimutuel pool model: participants on the winning side share the pool proportionally.
           </Paragraph>
@@ -95,7 +95,7 @@ export default function PrivacyPage() {
         {/* ── Privacy Policy ──────────────────────────────────────── */}
         <SectionLabel>Privacy Policy</SectionLabel>
 
-        <Box sx={{ bgcolor: t.bg.surfaceAlt, px: { xs: 2, md: 2.5 }, py: { xs: 2, md: 2.5 }, mb: 2 }}>
+        <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, px: { xs: 2, md: 2.5 }, py: { xs: 2, md: 2.5 }, mb: 2 }}>
           <Paragraph>
             UpDown collects minimal data. We do <strong style={{ color: t.text.primary }}>not</strong> collect personal information such as names, emails, phone numbers, or physical addresses. No KYC is required.
           </Paragraph>
@@ -126,7 +126,7 @@ export default function PrivacyPage() {
         {/* ── Wallet & Security ───────────────────────────────────── */}
         <SectionLabel>Wallet & Security</SectionLabel>
 
-        <Box sx={{ bgcolor: t.bg.surfaceAlt, px: { xs: 2, md: 2.5 }, py: { xs: 2, md: 2.5 }, mb: 2 }}>
+        <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, px: { xs: 2, md: 2.5 }, py: { xs: 2, md: 2.5 }, mb: 2 }}>
           <Paragraph>
             UpDown uses <strong style={{ color: t.text.primary }}>Privy</strong> for wallet authentication. Privy provides enterprise-grade key management for embedded wallets. If you use an external wallet (Phantom, Solflare, etc.), your keys remain entirely under your control.
           </Paragraph>
@@ -141,7 +141,7 @@ export default function PrivacyPage() {
         {/* ── Contact ─────────────────────────────────────────────── */}
         <SectionLabel>Contact</SectionLabel>
 
-        <Box sx={{ bgcolor: t.bg.surfaceAlt, px: { xs: 2, md: 2.5 }, py: { xs: 2, md: 2.5 } }}>
+        <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, px: { xs: 2, md: 2.5 }, py: { xs: 2, md: 2.5 } }}>
           <Paragraph>
             UpDown is an open community project. For questions, feedback, or concerns, reach us through our community channels or via the platform interface.
           </Paragraph>

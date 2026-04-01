@@ -17,12 +17,12 @@ export function ReferralShareLink({ referralUrl, copied, onCopy }: ReferralShare
     arrow: { sx: { color: t.bg.tooltip } },
   } as const;
   return (
-    <Box sx={{ bgcolor: t.bg.surfaceAlt }}>
+    <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow }}>
       <Box sx={{ px: { xs: 1.5, md: 3 }, py: { xs: 1.5, md: 2 } }}>
         <Box
           sx={{
             bgcolor: t.hover.light,
-            borderRadius: 2,
+            borderRadius: 1,
             px: { xs: 1.5, md: 2.5 },
             py: 1.5,
           }}

@@ -57,7 +57,7 @@ export function CreateSquadPoolForm({ open, onClose, onSubmit, isLoading }: Crea
       onClose={onClose}
       maxWidth="xs"
       fullWidth
-      PaperProps={{ sx: { background: t.bg.surfaceAlt, borderRadius: 0 } }}
+      PaperProps={{ sx: { background: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, borderRadius: 1 } }}
     >
       <DialogTitle sx={{ fontWeight: 700 }}>Create Pool</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: '16px !important' }}>
@@ -92,7 +92,7 @@ export function CreateSquadPoolForm({ open, onClose, onSubmit, isLoading }: Crea
                   alt={a.label}
                   sx={{ width: 36, height: 36, borderRadius: '50%' }}
                 />
-                <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: asset === a.value ? t.up : '#fff' }}>
+                <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: asset === a.value ? t.up : t.text.primary }}>
                   {a.label}
                 </Typography>
               </Box>
@@ -182,7 +182,7 @@ export function CreateSquadPoolForm({ open, onClose, onSubmit, isLoading }: Crea
                   '&:hover': { bgcolor: maxBettors === n ? withAlpha(t.up, 0.09) : 'rgba(255,255,255,0.05)' },
                 }}
               >
-                <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: maxBettors === n ? t.up : '#fff' }}>
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: maxBettors === n ? t.up : t.text.primary }}>
                   {n}
                 </Typography>
               </Box>
@@ -231,7 +231,7 @@ export function CreateSquadPoolForm({ open, onClose, onSubmit, isLoading }: Crea
         </Box>
 
         {/* Preview */}
-        <Box sx={{ bgcolor: t.hover.light, borderRadius: 2, px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box sx={{ bgcolor: t.hover.light, borderRadius: 1, px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Box
             component="img"
             src={ASSETS.find(a => a.value === asset)?.img}

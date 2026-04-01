@@ -29,7 +29,7 @@ export function AdminLogin({ onLogin }: { onLogin: () => void }) {
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: t.bg.app }}>
-      <Card sx={{ p: 4, maxWidth: 400, width: '100%', bgcolor: t.bg.surface }}>
+      <Card sx={{ p: 4, maxWidth: 400, width: '100%', bgcolor: t.bg.surface, border: t.surfaceBorder, boxShadow: t.surfaceShadow }}>
         <Box sx={{ textAlign: 'center', mb: 3 }}>
           <LockOutlinedIcon sx={{ fontSize: 48, color: t.text.dimmed, mb: 1 }} />
           <Typography variant="h5" fontWeight={600}>Admin Panel</Typography>

@@ -1,12 +1,13 @@
 import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
+import { cookies } from 'next/headers';
 import { Providers } from './providers';
 
 export const dynamic = 'force-dynamic';
 
 export const viewport: Viewport = {
   viewportFit: 'cover',
-  themeColor: '#0B0F14',
+  themeColor: '#060C14',
 };
 
 const satoshi = localFont({
@@ -33,15 +34,32 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const cookieStore = await cookies();
+  const initialTheme = cookieStore.get('theme-mode')?.value === 'light' ? 'light' : 'dark';
+  const bg = initialTheme === 'light' ? '#F5F7FA' : '#060C14';
+
   return (
-    <html lang="en" className={satoshi.variable} style={{ overflowY: 'scroll', background: '#0B0F14' }}>
+    <html lang="en" className={satoshi.variable} style={{ overflowY: 'scroll', background: bg, colorScheme: initialTheme }} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function(){
+            try {
+              var m = localStorage.getItem('theme-mode');
+              if (m === 'light' || m === 'dark') {
+                document.documentElement.style.background = m === 'light' ? '#F5F7FA' : '#060C14';
+                document.documentElement.style.colorScheme = m;
+              }
+            } catch(e) {}
+          })();
+        `}} />
+      </head>
       <body style={{ margin: 0 }}>
-        <Providers>{children}</Providers>
+        <Providers initialTheme={initialTheme}>{children}</Providers>
       </body>
     </html>
   );

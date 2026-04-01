@@ -62,8 +62,9 @@ export function PriceChartDialog({ open, onClose, asset, livePrice: livePriceStr
       PaperProps={{
         sx: {
           bgcolor: t.bg.surface,
-          border: 'none',
-          borderRadius: 0,
+          border: t.surfaceBorder,
+          boxShadow: t.surfaceShadow,
+          borderRadius: 1,
           p: { xs: 0, sm: 1 },
           m: { xs: 0, sm: 4 },
           maxHeight: { xs: '100%', sm: 'calc(100% - 64px)' },

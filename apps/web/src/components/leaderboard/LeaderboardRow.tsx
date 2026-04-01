@@ -49,6 +49,8 @@ export function LeaderboardRow({
           py: 0,
           minHeight: 56,
           bgcolor: t.bg.surfaceAlt,
+          border: t.surfaceBorder,
+          boxShadow: t.surfaceShadow,
           transition: 'background 0.15s ease',
           '&:hover': { background: t.border.subtle },
         }}
@@ -167,6 +169,8 @@ export function LeaderboardRow({
         sx={{
           display: { xs: 'block', md: 'none' },
           bgcolor: t.bg.surfaceAlt,
+          border: t.surfaceBorder,
+          boxShadow: t.surfaceShadow,
           p: 2,
         }}
       >

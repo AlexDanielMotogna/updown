@@ -270,7 +270,7 @@ export default function MarketsPage() {
               sx={{
                 display: 'grid',
                 gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
-                gap: '3px',
+                gap: { xs: 1.5, md: 2 },
                 mt: { xs: 2, md: 3 },
                 mb: 3,
               }}
@@ -349,7 +349,7 @@ export default function MarketsPage() {
                   mb: 4,
                   backgroundColor: 'rgba(248, 113, 113, 0.1)',
                   border: 'none',
-                  borderRadius: 0,
+                  borderRadius: 1,
                 }}
               >
                 Failed to load pools. Please try again.
@@ -373,7 +373,7 @@ export default function MarketsPage() {
                       sx={{
                         display: 'grid',
                         gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
-                        gap: '3px',
+                        gap: { xs: 1.5, md: 2 },
                         mb: 0,
                       }}
                     >
@@ -382,10 +382,22 @@ export default function MarketsPage() {
                       ))}
                     </Box>
                     {sportsVisible < sportsPools.length && (
-                      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                        <Button onClick={() => setSportsVisible(v => v + CARDS_PER_PAGE)} sx={{ color: t.text.secondary, textTransform: 'none', fontSize: '0.85rem', '&:hover': { color: t.text.primary } }}>
-                          Show more ({sportsPools.length - sportsVisible} remaining)
-                        </Button>
+                      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3, mb: 6 }}>
+                        <Box
+                          onClick={() => setSportsVisible(v => v + CARDS_PER_PAGE)}
+                          sx={{
+                            display: 'inline-flex', alignItems: 'center', gap: 1,
+                            px: 3, py: 1, cursor: 'pointer',
+                            border: `1px solid ${t.border.medium}`,
+                            borderRadius: 1,
+                            color: t.text.secondary,
+                            fontSize: '0.8rem', fontWeight: 600,
+                            transition: 'all 0.15s ease',
+                            '&:hover': { borderColor: t.up, color: t.up },
+                          }}
+                        >
+                          Show more
+                        </Box>
                       </Box>
                     )}
                   </>
@@ -414,7 +426,7 @@ export default function MarketsPage() {
                       sx={{
                         display: 'grid',
                         gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
-                        gap: '3px',
+                        gap: { xs: 1.5, md: 2 },
                         mb: 0,
                       }}
                     >
@@ -423,10 +435,22 @@ export default function MarketsPage() {
                       ))}
                     </Box>
                     {predVisible < predictionPools.length && (
-                      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                        <Button onClick={() => setPredVisible(v => v + CARDS_PER_PAGE)} sx={{ color: t.text.secondary, textTransform: 'none', fontSize: '0.85rem', '&:hover': { color: t.text.primary } }}>
-                          Show more ({predictionPools.length - predVisible} remaining)
-                        </Button>
+                      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3, mb: 6 }}>
+                        <Box
+                          onClick={() => setPredVisible(v => v + CARDS_PER_PAGE)}
+                          sx={{
+                            display: 'inline-flex', alignItems: 'center', gap: 1,
+                            px: 3, py: 1, cursor: 'pointer',
+                            border: `1px solid ${t.border.medium}`,
+                            borderRadius: 1,
+                            color: t.text.secondary,
+                            fontSize: '0.8rem', fontWeight: 600,
+                            transition: 'all 0.15s ease',
+                            '&:hover': { borderColor: t.up, color: t.up },
+                          }}
+                        >
+                          Show more
+                        </Box>
                       </Box>
                     )}
                   </>

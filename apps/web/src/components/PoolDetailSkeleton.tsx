@@ -34,7 +34,7 @@ export function PoolDetailSkeleton() {
             }}
           >
             {[1, 2, 3, 4, 5].map((i) => (
-              <Box key={i} sx={{ bgcolor: t.hover.light, borderRadius: 2, px: { xs: 1.5, md: 2.5 }, py: 1.5 }}>
+              <Box key={i} sx={{ bgcolor: t.hover.light, borderRadius: 1, px: { xs: 1.5, md: 2.5 }, py: 1.5 }}>
                 <Skeleton variant="text" width={60} height={14} sx={{ bgcolor: t.border.subtle, mb: 0.5 }} />
                 <Skeleton variant="text" width={80} height={24} sx={{ bgcolor: t.border.default }} />
               </Box>
@@ -71,7 +71,7 @@ export function BetFormSkeleton() {
   return (
     <Box>
       {/* Amount input */}
-      <Skeleton variant="rounded" height={48} sx={{ bgcolor: t.border.subtle, borderRadius: 0, mb: 1.5 }} />
+      <Skeleton variant="rounded" height={48} sx={{ bgcolor: t.border.subtle, borderRadius: 1, mb: 1.5 }} />
       {/* Preset buttons */}
       <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
         {[1, 2, 3, 4].map((i) => (

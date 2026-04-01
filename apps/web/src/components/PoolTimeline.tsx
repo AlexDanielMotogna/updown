@@ -31,7 +31,7 @@ export function PoolTimeline({ status, createdAt, lockTime, startTime, endTime }
           flexDirection: 'column',
           gap: { xs: 1, sm: 1.5 },
           p: 2,
-          borderRadius: 0,
+          borderRadius: 1,
           background: t.hover.subtle,
           border: 'none',
         }}

@@ -68,6 +68,8 @@ function StepCard({ step, title, desc }: { step: number; title: string; desc: st
         px: { xs: 2, md: 2.5 },
         py: { xs: 2, md: 2.5 },
         bgcolor: t.bg.surfaceAlt,
+        border: t.surfaceBorder,
+        boxShadow: t.surfaceShadow,
         transition: 'background 0.15s ease',
         '&:hover': { background: t.hover.light },
       }}
@@ -92,7 +94,7 @@ function StepCard({ step, title, desc }: { step: number; title: string; desc: st
 function InfoCard({ label, value }: { label: string; value: string }) {
   const t = useThemeTokens();
   return (
-    <Box sx={{ bgcolor: t.bg.surfaceAlt, p: { xs: 1.5, md: 2 }, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+    <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: { xs: 1.5, md: 2 }, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
       <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.05em' }}>{label}</Typography>
       <Typography sx={{ fontSize: { xs: '0.95rem', md: '1.1rem' }, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{value}</Typography>
     </Box>
@@ -328,7 +330,7 @@ export default function DocsPage() {
             overflowY: 'auto',
             borderRight: '1px solid rgba(255,255,255,0.04)',
             '&::-webkit-scrollbar': { width: 3 },
-            '&::-webkit-scrollbar-thumb': { background: t.border.medium, borderRadius: 2 },
+            '&::-webkit-scrollbar-thumb': { background: t.border.medium, borderRadius: 1 },
           }}
         >
           <DocsSidebar activeId={activeId} />
@@ -396,7 +398,7 @@ export default function DocsPage() {
             <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, mb: 2, lineHeight: 1.6 }}>
               <strong style={{ color: t.text.primary }}>UpDown</strong> is a parimutuel prediction platform on Solana. Pick a crypto asset (BTC, ETH, SOL), predict whether its price will go <strong style={{ color: t.text.primary }}>UP or DOWN</strong> within a timeframe, and stake USDC. If your side wins, you split the entire pool proportionally. All bets, payouts, and refunds happen on-chain — transparent and verifiable.
             </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px', mb: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
               <StepCard step={1} title="Connect Wallet" desc="Click Connect Wallet. Choose embedded (no extension) or external (Phantom, Solflare)." />
               <StepCard step={2} title="Fund Your Wallet" desc="Deposit USDC (Solana) into your wallet. You need USDC to place predictions and a small amount of SOL for transaction fees." />
               <StepCard step={3} title="Pick a Pool" desc="Browse Markets. Pools marked JOINING are open for predictions." />
@@ -411,14 +413,14 @@ export default function DocsPage() {
               Every pool follows the same lifecycle. Resolution varies by type: <strong style={{ color: t.text.primary }}>crypto</strong> compares strike vs final price,{' '}
               <strong style={{ color: t.text.primary }}>sports</strong> uses the match result, and <strong style={{ color: t.text.primary }}>predictions</strong> resolve via Polymarket.
             </Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: '3px', mb: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 1.5, mb: 2 }}>
               {[
                 { label: 'JOINING', desc: 'Place predictions' },
                 { label: 'ACTIVE', desc: 'Bets locked' },
                 { label: 'RESOLVED', desc: 'Winner decided' },
                 { label: 'CLAIMABLE', desc: 'Claim payouts' },
               ].map((s) => (
-                <Box key={s.label} sx={{ bgcolor: t.bg.surfaceAlt, p: { xs: 1.25, md: 2 }, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Box key={s.label} sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: { xs: 1.25, md: 2 }, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                   <Typography sx={{ fontSize: { xs: '0.72rem', md: '0.85rem' }, fontWeight: 700, letterSpacing: '0.08em' }}>{s.label}</Typography>
                   <Typography sx={{ fontSize: { xs: '0.78rem', md: '0.88rem' }, color: t.text.rich }}>{s.desc}</Typography>
                 </Box>
@@ -427,7 +429,7 @@ export default function DocsPage() {
 
             {/* ── Assets & Timeframes ─────────────────────────────────── */}
             <SectionTitle id="assets-timeframes">Assets & Timeframes</SectionTitle>
-            <Box sx={{ bgcolor: t.bg.surfaceAlt, p: { xs: 2, md: 3 }, mb: 2 }}>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: { xs: 2, md: 3 }, mb: 2 }}>
               <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 2 }}>ASSETS</Typography>
               <Box sx={{ display: 'flex', gap: { xs: 2, md: 4 }, mb: 3, justifyContent: 'center' }}>
                 {['BTC', 'ETH', 'SOL'].map((a) => (
@@ -455,7 +457,7 @@ export default function DocsPage() {
             <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, mb: 2, lineHeight: 1.6 }}>
               Predict match outcomes across multiple sports. Football uses 3-way (<strong style={{ color: t.up }}>Home</strong> / <strong style={{ color: t.accent }}>Draw</strong> / <strong style={{ color: t.down }}>Away</strong>), other sports use 2-way (<strong style={{ color: t.up }}>Home</strong> / <strong style={{ color: t.down }}>Away</strong>).
             </Typography>
-            <Box sx={{ bgcolor: t.bg.surfaceAlt, p: { xs: 2, md: 3 }, mb: 2 }}>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: { xs: 2, md: 3 }, mb: 2 }}>
               <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 2 }}>FOOTBALL LEAGUES</Typography>
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3 }}>
                 {[
@@ -468,7 +470,7 @@ export default function DocsPage() {
                   { code: 'BSA', name: 'Brasileirao' },
                 ].map((l) => (
                   <Box key={l.code} sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: t.hover.default, px: 1.5, py: 0.75, borderRadius: '6px' }}>
-                    <Box component="img" src={getBadge(l.code.toUpperCase()) || ''} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: t.text.vivid, borderRadius: '50%', p: '2px' }} />
+                    <Box component="img" src={getBadge(l.code.toUpperCase()) || ''} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
                     <Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>{l.name}</Typography>
                   </Box>
                 ))}
@@ -484,7 +486,7 @@ export default function DocsPage() {
                   { name: 'World Cup', code: 'WC' },
                 ].map((l) => (
                   <Box key={l.name} sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: t.hover.default, px: 1.5, py: 0.75, borderRadius: '6px' }}>
-                    <Box component="img" src={getBadge(l.code) || ''} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: t.text.vivid, borderRadius: '50%', p: '2px' }} />
+                    <Box component="img" src={getBadge(l.code) || ''} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
                     <Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>{l.name}</Typography>
                   </Box>
                 ))}
@@ -535,7 +537,7 @@ export default function DocsPage() {
             <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, mb: 2, lineHeight: 1.6 }}>
               Predict real-world events: <strong style={{ color: t.up }}>Yes</strong> or <strong style={{ color: t.down }}>No</strong>. Powered by Polymarket data with on-chain USDC pools.
             </Typography>
-            <Box sx={{ bgcolor: t.bg.surfaceAlt, p: { xs: 2, md: 3 }, mb: 2 }}>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: { xs: 2, md: 3 }, mb: 2 }}>
               <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 2 }}>CATEGORIES</Typography>
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3 }}>
                 {[
@@ -574,14 +576,14 @@ export default function DocsPage() {
             <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, mb: 2, lineHeight: 1.6 }}>
               <strong style={{ color: t.text.primary }}>Parimutuel</strong>: winners split the entire pool proportionally. Odds update in real-time as bets come in.
             </Typography>
-            <Box sx={{ bgcolor: t.bg.surfaceAlt, mb: 2 }}>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, mb: 2 }}>
               <DataRow label="Your Stake" value="$100 on UP" />
               <DataRow label="Odds" value="1.50x" />
               <DataRow label="Gross Payout" value="$150.00" />
               <DataRow label="Platform Fee (5%)" value="-$7.50" />
               <DataRow label="You Receive" value="$142.50" bold />
             </Box>
-            <Box sx={{ bgcolor: t.bg.surfaceAlt, borderLeft: '3px solid rgba(255,255,255,0.15)', px: 2, py: 1.5, mb: 2 }}>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, boxShadow: t.surfaceShadow, borderLeft: '3px solid rgba(255,255,255,0.15)', px: 2, py: 1.5, mb: 2 }}>
               <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, lineHeight: 1.6 }}>
                 If a pool is one-sided (everyone bet the same direction), all bets are <strong style={{ color: t.text.primary }}>refunded</strong>.
               </Typography>
@@ -589,13 +591,13 @@ export default function DocsPage() {
 
             {/* ── Claiming ────────────────────────────────────────────── */}
             <SectionTitle id="claiming">Claiming Payouts</SectionTitle>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: '3px', mb: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 1.5, mb: 2 }}>
               {[
                 { title: 'From Profile', desc: 'Go to /profile > Resolved tab > Claim Payout' },
                 { title: 'Claim All', desc: 'Multiple wins? Use the Claim All banner to batch-claim' },
                 { title: 'From Pool', desc: 'Open the resolved pool and claim directly' },
               ].map((c) => (
-                <Box key={c.title} sx={{ bgcolor: t.bg.surfaceAlt, p: 2 }}>
+                <Box key={c.title} sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: 2 }}>
                   <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, mb: 0.5 }}>{c.title}</Typography>
                   <Typography sx={{ fontSize: '0.9rem', color: t.text.rich, lineHeight: 1.6 }}>{c.desc}</Typography>
                 </Box>
@@ -608,7 +610,7 @@ export default function DocsPage() {
               Private pools between friends. Create a squad, invite friends with a code, and play pools that only your squad can see and bet on. Same parimutuel mechanics, same on-chain flow, but private.
             </Typography>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px', mb: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
               <StepCard step={1} title="Create a Squad" desc="Go to Squads page and create one. You become the Owner." />
               <StepCard step={2} title="Invite Friends" desc="Share your invite code or link. Friends open the link, connect wallet, and join." />
               <StepCard step={3} title="Create Private Pools" desc="Any member can create a pool: choose asset (BTC/ETH/SOL), duration (3m to 1h), and optional max players." />
@@ -618,7 +620,7 @@ export default function DocsPage() {
             </Box>
 
             <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1 }}>SQUAD DETAILS</Typography>
-            <Box sx={{ bgcolor: t.bg.surfaceAlt, mb: 2 }}>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, mb: 2 }}>
               <DataRow label="Max members per squad" value="20" />
               <DataRow label="Who can create pools" value="Any member" />
               <DataRow label="Pool visibility" value="Squad members only" />
@@ -634,7 +636,7 @@ export default function DocsPage() {
               Single-elimination bracket tournaments. Pay an entry fee, predict prices in 1v1 matches, and the last player standing wins the entire prize pool.
             </Typography>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px', mb: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
               <StepCard step={1} title="Register" desc="Pay the entry fee to join. All entry fees go directly into the prize pool." />
               <StepCard step={2} title="Bracket" desc="Players are placed in a single-elimination bracket. Each round is a 1v1 match." />
               <StepCard step={3} title="Predict" desc="Before each match, both players have a limited time window to predict the closing price of the asset (e.g. BTC/USD)." />
@@ -644,7 +646,7 @@ export default function DocsPage() {
             </Box>
 
             <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1 }}>TOURNAMENT DETAILS</Typography>
-            <Box sx={{ bgcolor: t.bg.surfaceAlt, mb: 2 }}>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, mb: 2 }}>
               <DataRow label="Format" value="Single elimination" />
               <DataRow label="Match type" value="1v1 price prediction" />
               <DataRow label="Winning condition" value="Closest to final price" />
@@ -655,7 +657,7 @@ export default function DocsPage() {
               <DataRow label="Missed prediction" value="Opponent advances" />
             </Box>
 
-            <Box sx={{ bgcolor: t.bg.surfaceAlt, borderLeft: '3px solid rgba(255,255,255,0.15)', px: 2, py: 1.5, mb: 2 }}>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, boxShadow: t.surfaceShadow, borderLeft: '3px solid rgba(255,255,255,0.15)', px: 2, py: 1.5, mb: 2 }}>
               <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, lineHeight: 1.6 }}>
                 <strong style={{ color: t.text.primary }}>Example:</strong> An 8-player tournament with a $10 entry fee creates an $80 prize pool. After 3 rounds of 1v1 matches, the winner claims <strong style={{ color: t.text.primary }}>$76.00 USDC</strong> (pool minus 5% fee).
               </Typography>
@@ -667,7 +669,7 @@ export default function DocsPage() {
               Invite friends and earn <strong style={{ color: t.text.primary }}>1% of their bet amounts</strong> as USDC commission every time a pool resolves normally. No extra cost to them.
             </Typography>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px', mb: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
               <StepCard step={1} title="Share Your Link" desc="Go to Referrals page or click the share icon on your profile. Copy your unique referral link." />
               <StepCard step={2} title="Friend Opens Link" desc="They open the link. If not connected, a banner shows they were invited. Once they connect, a dialog asks them to accept." />
               <StepCard step={3} title="They Play" desc="Your friend places bets normally. Every time a pool they bet in resolves (not a refund), you earn 1% of their bet amount." />
@@ -675,7 +677,7 @@ export default function DocsPage() {
             </Box>
 
             <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1 }}>HOW IT WORKS</Typography>
-            <Box sx={{ bgcolor: t.bg.surfaceAlt, mb: 2 }}>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, mb: 2 }}>
               <DataRow label="Referrer reward on accept" value="+500 XP + 50 UP Coins" bold />
               <DataRow label="Commission rate" value="1% of bet amount" bold />
               <DataRow label="When earned" value="Pool resolves normally" />
@@ -685,7 +687,7 @@ export default function DocsPage() {
               <DataRow label="Self-referral" value="Blocked" />
             </Box>
 
-            <Box sx={{ bgcolor: t.bg.surfaceAlt, borderLeft: '3px solid rgba(255,255,255,0.15)', px: 2, py: 1.5, mb: 2 }}>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, boxShadow: t.surfaceShadow, borderLeft: '3px solid rgba(255,255,255,0.15)', px: 2, py: 1.5, mb: 2 }}>
               <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, lineHeight: 1.6 }}>
                 <strong style={{ color: t.text.primary }}>Example:</strong> Your friend bets $100 on a pool. The pool resolves with a winner. You earn <strong style={{ color: t.text.primary }}>$1.00 USDC</strong> regardless of whether your friend won or lost.
               </Typography>
@@ -693,7 +695,7 @@ export default function DocsPage() {
 
             {/* ── XP & Rewards ────────────────────────────────────────── */}
             <SectionTitle id="xp-rewards">XP & Rewards</SectionTitle>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: '3px', mb: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 1.5, mb: 2 }}>
               <InfoCard label="BET PLACED" value="+100 XP" />
               <InfoCard label="DAILY FIRST BET" value="+200 XP" />
               <InfoCard label="BET WON" value="+150 XP" />
@@ -701,7 +703,7 @@ export default function DocsPage() {
             </Box>
 
             <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1 }}>WIN STREAK XP BONUS</Typography>
-            <Box sx={{ bgcolor: t.bg.surfaceAlt, mb: 2 }}>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, mb: 2 }}>
               <DataRow label="3 consecutive wins" value="+100 XP" />
               <DataRow label="4 consecutive wins" value="+200 XP" />
               <DataRow label="5 consecutive wins" value="+300 XP" />
@@ -718,14 +720,14 @@ export default function DocsPage() {
               sx={{
                 display: 'grid',
                 gridTemplateColumns: { xs: '40px 1fr 1fr 48px 48px', sm: '50px 1fr 1fr 60px 60px', md: '60px 1.2fr 1.2fr 100px 100px' },
-                py: 1, px: { xs: 0.75, sm: 1.5 }, bgcolor: t.bg.surfaceAlt, borderBottom: '1px solid rgba(255,255,255,0.08)',
+                py: 1, px: { xs: 0.75, sm: 1.5 }, bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, borderBottom: '1px solid rgba(255,255,255,0.08)',
               }}
             >
               {['LVL', 'TITLE', 'TOTAL XP', 'FEE', 'COINS'].map((h) => (
                 <Typography key={h} sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' }, fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em' }}>{h}</Typography>
               ))}
             </Box>
-            <Box sx={{ bgcolor: t.bg.surfaceAlt, mb: 2 }}>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, mb: 2 }}>
               {LEVELS.map((l) => (
                 <LevelRow key={l.level} level={l.level} title={l.title} xp={l.xp} fee={l.fee} mult={l.mult} icon={l.icon} tierColor={l.color} />
               ))}
@@ -738,7 +740,7 @@ export default function DocsPage() {
             </Typography>
 
             <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1 }}>EARNING SOURCES</Typography>
-            <Box sx={{ bgcolor: t.bg.surfaceAlt, mb: 2 }}>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, mb: 2 }}>
               <DataRow label="Base bet coins" value="$amount x 0.10 UP x level mult" />
               <DataRow label="Win bonus" value="50% of base x level mult" />
               <DataRow label="Streak bonus (3+ wins)" value="min(streak x 2.00, 20.00) UP" />
@@ -746,7 +748,7 @@ export default function DocsPage() {
             </Box>
 
             <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1 }}>DAILY LIMITS</Typography>
-            <Box sx={{ bgcolor: t.bg.surfaceAlt, mb: 2 }}>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, mb: 2 }}>
               <DataRow label="Daily cap per wallet" value="500 UP max" bold />
               <DataRow label="Minimum bet for coins" value="$1 USDC" />
               <DataRow label="Bets 1-20 / day" value="100% rate" />
@@ -761,7 +763,7 @@ export default function DocsPage() {
               UP Coins earned in-app will convert to UP Tokens at launch.
             </Typography>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: '3px', mb: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 1.5, mb: 2 }}>
               <InfoCard label="TOTAL SUPPLY" value="10,000,000,000" />
               <InfoCard label="BLOCKCHAIN" value="Solana (SPL)" />
               <InfoCard label="TICKER" value="$UP" />
@@ -769,7 +771,7 @@ export default function DocsPage() {
             </Box>
 
             <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1 }}>TOKEN DISTRIBUTION</Typography>
-            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center', gap: { xs: 2, md: 4 }, bgcolor: t.bg.surfaceAlt, p: { xs: 2, md: 3 }, mb: '3px' }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center', gap: { xs: 2, md: 4 }, bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: { xs: 2, md: 3 }, mb: '3px' }}>
               {/* Donut Chart */}
               <Box sx={{ position: 'relative', flexShrink: 0, width: { xs: 170, sm: 200, md: 220 }, height: { xs: 170, sm: 200, md: 220 } }}>
                 <svg viewBox="0 0 220 220" width="100%" height="100%">
@@ -820,7 +822,7 @@ export default function DocsPage() {
 
             {/* Vesting Timeline */}
             <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1, mt: 2 }}>VESTING SCHEDULE</Typography>
-            <Box sx={{ bgcolor: t.bg.surfaceAlt, p: { xs: 1.5, md: 2.5 }, mb: '3px' }}>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: { xs: 1.5, md: 2.5 }, mb: '3px' }}>
               <Box sx={{ display: 'flex', ml: { xs: '65px', sm: '80px', md: '100px' }, mr: { xs: '70px', sm: '90px', md: '120px' }, mb: 1 }}>
                 {[0, 6, 12, 18, 24, 30].map((m) => (
                   <Typography key={m} sx={{ fontSize: { xs: '0.58rem', md: '0.68rem' }, color: t.text.dimmed, flex: 1 }}>
@@ -856,7 +858,7 @@ export default function DocsPage() {
             </Box>
 
             <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1 }}>TOKEN UTILITY</Typography>
-            <Box sx={{ bgcolor: t.bg.surfaceAlt, mb: 2 }}>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, mb: 2 }}>
               <DataRow label="Fee Discounts" value="Pay fees in $UP for up to 50% discount" />
               <DataRow label="Staking Rewards" value="Earn share of platform fee revenue" />
               <DataRow label="Governance" value="Vote on assets, fees, treasury" />
@@ -864,7 +866,7 @@ export default function DocsPage() {
               <DataRow label="Boosted Earnings" value="Burn $UP for 2x coin multiplier" />
             </Box>
 
-            <Box sx={{ bgcolor: t.bg.surfaceAlt, borderLeft: '3px solid rgba(255,255,255,0.15)', px: 2, py: 1.5, mb: 2 }}>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, boxShadow: t.surfaceShadow, borderLeft: '3px solid rgba(255,255,255,0.15)', px: 2, py: 1.5, mb: 2 }}>
               <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, lineHeight: 1.6 }}>
                 <strong style={{ color: t.text.primary }}>Early Player Advantage:</strong> UP Coins earned now will convert to $UP tokens at launch.
                 The earlier you play, the more tokens you accumulate.
@@ -878,7 +880,7 @@ export default function DocsPage() {
               All transactions are public and verifiable.
             </Typography>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px', mb: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
               {[
                 { title: 'Wallet via Privy', desc: 'Embedded or external wallet. Privy handles key management. UpDown never has access to your private keys.' },
                 { title: 'Pool Creation (On-Chain)', desc: 'Each pool creates a unique PDA and vault on Solana. Only the smart contract controls the vault.' },
@@ -888,7 +890,7 @@ export default function DocsPage() {
                 { title: 'Payouts & Claims', desc: 'Smart contract transfers USDC from vault to your wallet. Fees are level-based (5% to 3%).' },
                 { title: 'Refunds', desc: 'One-sided pools are automatically refunded in full, no fees. No action required.' },
               ].map((item) => (
-                <Box key={item.title} sx={{ bgcolor: t.bg.surfaceAlt, px: { xs: 2, md: 2.5 }, py: { xs: 1.5, md: 2 }, '&:hover': { bgcolor: t.hover.light }, transition: 'background 0.15s ease' }}>
+                <Box key={item.title} sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, px: { xs: 2, md: 2.5 }, py: { xs: 1.5, md: 2 }, '&:hover': { bgcolor: t.hover.light }, transition: 'background 0.15s ease' }}>
                   <Typography sx={{ fontSize: { xs: '0.88rem', md: '0.95rem' }, fontWeight: 700, mb: 0.25 }}>{item.title}</Typography>
                   <Typography sx={{ fontSize: { xs: '0.82rem', md: '0.9rem' }, color: t.text.rich, lineHeight: 1.6 }}>{item.desc}</Typography>
                 </Box>
@@ -896,15 +898,15 @@ export default function DocsPage() {
             </Box>
 
             <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1 }}>ON-CHAIN ARCHITECTURE</Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: '3px', mb: 2 }}>
-              <Box sx={{ bgcolor: t.bg.surfaceAlt, p: { xs: 1.5, md: 2 } }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 1.5, mb: 2 }}>
+              <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: { xs: 1.5, md: 2 } }}>
                 <DataRow label="Blockchain" value="Solana" />
                 <DataRow label="Framework" value="Anchor (Rust)" />
                 <DataRow label="Token" value="USDC (SPL)" />
                 <DataRow label="Vault type" value="PDA Token Account" />
                 <DataRow label="Vault authority" value="Program only" />
               </Box>
-              <Box sx={{ bgcolor: t.bg.surfaceAlt, p: { xs: 1.5, md: 2 } }}>
+              <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: { xs: 1.5, md: 2 } }}>
                 <DataRow label="Pool data" value="PDA per pool" />
                 <DataRow label="Bet records" value="PDA per user per pool" />
                 <DataRow label="USDC vault" value="PDA token account" />
@@ -914,7 +916,7 @@ export default function DocsPage() {
             </Box>
 
             <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1 }}>WHO SIGNS WHAT</Typography>
-            <Box sx={{ bgcolor: t.bg.surfaceAlt, mb: 2 }}>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, mb: 2 }}>
               <DataRow label="Deposit" value="You sign" />
               <DataRow label="Claim payout" value="You + Platform co-sign" />
               <DataRow label="Pool resolution" value="Platform signs" />
@@ -923,7 +925,7 @@ export default function DocsPage() {
 
             {/* ── Features ────────────────────────────────────────────── */}
             <SectionTitle id="features">Features</SectionTitle>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: '3px', mb: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 1.5, mb: 2 }}>
               {[
                 { title: 'Markets', desc: 'Filter by asset, interval, status. Real-time pool updates via WebSocket.' },
                 { title: 'Pool Detail', desc: 'Live price chart, strike vs final, UP/DOWN arena, bet form with presets, payout preview.' },
@@ -935,7 +937,7 @@ export default function DocsPage() {
                 { title: 'AI Analyzer Bot', desc: 'Draggable bot on pool pages. RSI, MACD, EMA, Bollinger analysis.' },
                 { title: 'Notifications', desc: 'Real-time alerts for wins, losses, claims, XP, coins, level ups, refunds.' },
               ].map((f) => (
-                <Box key={f.title} sx={{ bgcolor: t.bg.surfaceAlt, p: 2, '&:hover': { bgcolor: t.hover.light }, transition: 'background 0.15s ease' }}>
+                <Box key={f.title} sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: 2, '&:hover': { bgcolor: t.hover.light }, transition: 'background 0.15s ease' }}>
                   <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, mb: 0.5 }}>{f.title}</Typography>
                   <Typography sx={{ fontSize: '0.88rem', color: t.text.rich, lineHeight: 1.6 }}>{f.desc}</Typography>
                 </Box>
@@ -944,7 +946,7 @@ export default function DocsPage() {
 
             {/* ── Tips ────────────────────────────────────────────────── */}
             <SectionTitle id="tips">Tips</SectionTitle>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               {[
                 'Start small, $10-$50 bets to learn how odds shift.',
                 'Watch the odds. Early bets on the minority side get better multipliers.',
@@ -954,7 +956,7 @@ export default function DocsPage() {
                 'Create a squad and invite friends for private competitive pools.',
                 'Share your referral link to earn 1% USDC on every bet your friends place.',
               ].map((tip, i) => (
-                <Box key={i} sx={{ bgcolor: t.bg.surfaceAlt, borderLeft: '3px solid rgba(255,255,255,0.1)', px: 2, py: 1.5 }}>
+                <Box key={i} sx={{ bgcolor: t.bg.surfaceAlt, boxShadow: t.surfaceShadow, borderLeft: '3px solid rgba(255,255,255,0.1)', px: 2, py: 1.5 }}>
                   <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, lineHeight: 1.6 }}>
                     <strong style={{ color: t.text.tertiary }}>#{i + 1}</strong> {tip}
                   </Typography>

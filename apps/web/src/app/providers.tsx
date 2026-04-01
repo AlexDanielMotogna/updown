@@ -129,7 +129,7 @@ function buildMuiTheme(t: ThemeTokens) {
       body2: { fontSize: '0.875rem', fontWeight: 300, lineHeight: 1.6 },
       caption: { fontSize: '0.75rem', fontWeight: 500, letterSpacing: '0.02em' },
     },
-    shape: { borderRadius: 0 },
+    shape: { borderRadius: 6 },
     components: {
       MuiCssBaseline: {
         styleOverrides: {
@@ -138,13 +138,19 @@ function buildMuiTheme(t: ThemeTokens) {
             scrollbarColor: `${t.scrollbar.thumb} ${t.scrollbar.track}`,
             '&::-webkit-scrollbar': { width: '8px' },
             '&::-webkit-scrollbar-track': { background: t.scrollbar.track },
-            '&::-webkit-scrollbar-thumb': { background: t.scrollbar.thumb, borderRadius: '4px' },
+            '&::-webkit-scrollbar-thumb': { background: t.scrollbar.thumb, borderRadius: '6px' },
           },
         },
       },
       MuiCard: {
         styleOverrides: {
-          root: { borderRadius: 0, background: t.bg.surface, border: 'none', transition: 'all 0.2s ease' },
+          root: {
+            borderRadius: 6,
+            background: t.bg.surface,
+            border: t.surfaceBorder,
+            boxShadow: t.surfaceShadow,
+            transition: 'all 0.2s ease',
+          },
         },
       },
       MuiButton: {
@@ -158,7 +164,7 @@ function buildMuiTheme(t: ThemeTokens) {
         styleOverrides: {
           root: {
             '& .MuiOutlinedInput-root': {
-              borderRadius: 0,
+              borderRadius: 4,
               backgroundColor: t.bg.input,
               '& fieldset': { borderColor: t.border.default },
               '&:hover fieldset': { borderColor: t.border.emphasis },
@@ -169,7 +175,7 @@ function buildMuiTheme(t: ThemeTokens) {
       },
       MuiChip: {
         styleOverrides: {
-          root: { borderRadius: 2, fontWeight: 500, letterSpacing: '0.02em' },
+          root: { borderRadius: 3, fontWeight: 500, letterSpacing: '0.02em' },
           outlined: { borderColor: t.border.strong },
         },
       },
@@ -182,12 +188,17 @@ function buildMuiTheme(t: ThemeTokens) {
         },
       },
       MuiDialog: {
-        styleOverrides: { paper: { background: t.bg.surface, border: 'none', borderRadius: 0 } },
+        styleOverrides: { paper: {
+          background: t.bg.surface,
+          border: t.surfaceBorder,
+          boxShadow: t.surfaceShadow,
+          borderRadius: 6,
+        } },
       },
       MuiLinearProgress: {
         styleOverrides: {
-          root: { borderRadius: 0, backgroundColor: `${t.error}4D` },
-          bar: { borderRadius: 0 },
+          root: { borderRadius: 6, backgroundColor: `${t.error}4D` },
+          bar: { borderRadius: 6 },
         },
       },
     },
@@ -209,20 +220,15 @@ const solanaConnectors = toSolanaWalletConnectors({
   shouldAutoConnect: true,
 });
 
-export function Providers({ children }: { children: ReactNode }) {
-  const [mode, setModeState] = useState<ThemeMode>('dark');
-
-  // Read from localStorage on mount
-  useEffect(() => {
-    const stored = localStorage.getItem('theme-mode') as ThemeMode | null;
-    if (stored === 'light' || stored === 'dark') setModeState(stored);
-  }, []);
+export function Providers({ children, initialTheme = 'dark' }: { children: ReactNode; initialTheme?: 'dark' | 'light' }) {
+  const [mode, setModeState] = useState<ThemeMode>(initialTheme);
 
   const setMode = useCallback((m: ThemeMode) => {
     setModeState(m);
     localStorage.setItem('theme-mode', m);
-    // Update html background and meta theme-color
+    document.cookie = `theme-mode=${m};path=/;max-age=31536000;SameSite=Lax`;
     document.documentElement.style.background = m === 'dark' ? darkTokens.bg.app : lightTokens.bg.app;
+    document.documentElement.style.colorScheme = m;
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', m === 'dark' ? darkTokens.bg.app : lightTokens.bg.app);
   }, []);
@@ -254,7 +260,7 @@ export function Providers({ children }: { children: ReactNode }) {
           theme: mode,
           accentColor: '#FFFFFF',
           walletChainType: 'solana-only',
-          logo: '/updown-logos/Logo_cyan_text_white.png',
+          logo: mode === 'dark' ? '/updown-logos/Logo_cyan_text_white.png' : '/updown-logos/Logo_cyan_text_dark_Medium.png',
           walletList: ['phantom', 'solflare', 'backpack', 'coinbase_wallet', 'metamask', 'detected_solana_wallets'],
           showWalletLoginFirst: true,
         },

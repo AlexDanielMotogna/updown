@@ -6,12 +6,13 @@ import { CheckCircle, ErrorOutline } from '@mui/icons-material';
 import { AppShell } from '@/components';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { API_BASE_URL, EXPLORER_URL, SOLANA_CLUSTER } from '@/lib/constants';
-import { useThemeTokens } from '@/app/providers';
+import { useThemeTokens, useThemeMode } from '@/app/providers';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
 
 export default function FaucetPage() {
   const t = useThemeTokens();
+  const { mode } = useThemeMode();
   const { connected, walletAddress } = useWalletBridge();
   const [address, setAddress] = useState('');
   const [status, setStatus] = useState<Status>('idle');
@@ -57,7 +58,7 @@ export default function FaucetPage() {
     <AppShell>
       <Container maxWidth="sm" sx={{ py: { xs: 4, md: 8 } }}>
         <Box sx={{ textAlign: 'center', mb: 4 }}>
-          <Box component="img" src="/updown-logos/Logo_cyan_text_white.png" alt="UpDown" sx={{ height: 36, mb: 2 }} />
+          <Box component="img" src={mode === 'dark' ? '/updown-logos/Logo_cyan_text_white.png' : '/updown-logos/Logo_cyan_text_dark_Medium.png'} alt="UpDown" sx={{ height: 36, mb: 2 }} />
           <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, mb: 1 }}>
             Devnet USDC Faucet
           </Typography>
@@ -66,7 +67,7 @@ export default function FaucetPage() {
           </Typography>
         </Box>
 
-        <Box sx={{ bgcolor: t.bg.surfaceAlt, p: { xs: 3, md: 4 }, display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: { xs: 3, md: 4 }, display: 'flex', flexDirection: 'column', gap: 3 }}>
           {/* Wallet input */}
           <Box>
             <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1 }}>
@@ -195,7 +196,7 @@ export default function FaucetPage() {
         </Box>
 
         {/* Info */}
-        <Box sx={{ mt: 3, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+        <Box sx={{ mt: 3, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           {[
             { label: 'Network', value: 'Solana Devnet', color: t.up },
             { label: 'USDC per mint', value: '1,000 USDC', color: t.gain },

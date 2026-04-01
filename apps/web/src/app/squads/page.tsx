@@ -156,16 +156,17 @@ export default function SquadsPage() {
               onClick={() => setShowCreate(true)}
               sx={{
                 bgcolor: t.bg.surfaceAlt,
+                boxShadow: t.surfaceShadow,
                 py: { xs: 3, md: 4 },
                 px: 2,
                 cursor: 'pointer',
                 transition: 'background 0.15s ease',
-                '&:hover': { background: 'rgba(255,255,255,0.04)' },
+                '&:hover': { background: t.hover.light },
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 gap: 1,
-                border: '1px dashed rgba(255,255,255,0.08)',
+                border: `1px dashed ${t.border.subtle}`,
               }}
             >
               <Box sx={{
@@ -187,16 +188,17 @@ export default function SquadsPage() {
               onClick={handleOpenJoin}
               sx={{
                 bgcolor: t.bg.surfaceAlt,
+                boxShadow: t.surfaceShadow,
                 py: { xs: 3, md: 4 },
                 px: 2,
                 cursor: 'pointer',
                 transition: 'background 0.15s ease',
-                '&:hover': { background: 'rgba(255,255,255,0.04)' },
+                '&:hover': { background: t.hover.light },
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 gap: 1,
-                border: '1px dashed rgba(255,255,255,0.08)',
+                border: `1px dashed ${t.border.subtle}`,
               }}
             >
               <Box sx={{
@@ -223,14 +225,14 @@ export default function SquadsPage() {
 
           {/* Error */}
           {error && (
-            <Box sx={{ textAlign: 'center', py: 8, bgcolor: t.bg.surfaceAlt }}>
+            <Box sx={{ textAlign: 'center', py: 8, bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow }}>
               <Typography color="text.secondary">Failed to load squads</Typography>
             </Box>
           )}
 
           {/* Empty state */}
           {!isLoading && squads && squads.length === 0 && (
-            <Box sx={{ textAlign: 'center', py: 8, px: 4, bgcolor: t.bg.surfaceAlt }}>
+            <Box sx={{ textAlign: 'center', py: 8, px: 4, bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow }}>
               <Typography color="text.secondary" sx={{ fontSize: '0.9rem' }}>
                 You{"'"}re not in any squads yet
               </Typography>
@@ -261,7 +263,7 @@ export default function SquadsPage() {
           onClose={() => setShowCodeInput(false)}
           maxWidth="xs"
           fullWidth
-          PaperProps={{ sx: { background: t.bg.surfaceAlt, borderRadius: 0 } }}
+          PaperProps={{ sx: { background: t.bg.surfaceAlt, borderRadius: 1 } }}
         >
           <DialogTitle sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
             <Login sx={{ fontSize: 20, color: t.up }} />
@@ -281,7 +283,7 @@ export default function SquadsPage() {
               inputProps={{ maxLength: 20 }}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  bgcolor: 'rgba(255,255,255,0.03)',
+                  bgcolor: t.hover.light,
                   fontSize: '1rem',
                   fontWeight: 600,
                   letterSpacing: '0.1em',
@@ -293,7 +295,7 @@ export default function SquadsPage() {
               }}
             />
             {joinError && (
-              <Alert severity="error" sx={{ mt: 1.5, bgcolor: 'rgba(248,113,113,0.1)', border: 'none', borderRadius: 0, fontSize: '0.8rem' }}>
+              <Alert severity="error" sx={{ mt: 1.5, bgcolor: 'rgba(248,113,113,0.1)', border: 'none', borderRadius: 1, fontSize: '0.8rem' }}>
                 {joinError}
               </Alert>
             )}
@@ -327,7 +329,7 @@ export default function SquadsPage() {
           onClose={() => { setShowJoin(false); setInviteInfo(null); }}
           maxWidth="xs"
           fullWidth
-          PaperProps={{ sx: { background: t.bg.surfaceAlt, borderRadius: 0 } }}
+          PaperProps={{ sx: { background: t.bg.surfaceAlt, borderRadius: 1 } }}
         >
           <DialogContent>
             {inviteInfo && (
@@ -339,7 +341,7 @@ export default function SquadsPage() {
                 <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem', mb: 2 }}>
                   {inviteInfo.memberCount}/{inviteInfo.maxMembers} members
                 </Typography>
-                <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: 2, py: 1.5 }}>
+                <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 1, px: 2, py: 1.5 }}>
                   <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
                     Join this squad to play private pools with friends
                   </Typography>

@@ -32,6 +32,8 @@ export function SquadMemberList({ members, currentWallet, isOwner, onKick }: Squ
           px: 2,
           py: 1,
           bgcolor: t.bg.surfaceAlt,
+          border: t.surfaceBorder,
+          boxShadow: t.surfaceShadow,
         }}
       >
         {['Player', 'Role', 'Joined', ''].map((h) => (
@@ -55,6 +57,8 @@ export function SquadMemberList({ members, currentWallet, isOwner, onKick }: Squ
               py: 1.2,
               minHeight: 52,
               bgcolor: t.bg.surfaceAlt,
+              border: t.surfaceBorder,
+              boxShadow: t.surfaceShadow,
               transition: 'background 0.15s ease',
               '&:hover': { background: t.border.subtle },
             }}

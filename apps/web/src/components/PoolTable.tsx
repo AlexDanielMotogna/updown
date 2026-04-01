@@ -1,12 +1,11 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
-import { Box, Typography, Tooltip } from '@mui/material';
-import { InfoOutlined } from '@mui/icons-material';
-import { AnimatePresence } from 'framer-motion';
+import { Box, Typography } from '@mui/material';
+import { AnimatePresence, motion } from 'framer-motion';
 import type { Pool } from '@/lib/api';
 import { useThemeTokens } from '@/app/providers';
-import { PoolRow } from './pool/PoolRow';
+import { CryptoPoolCard } from './pool/CryptoPoolCard';
 
 interface PoolTableProps {
   pools: Pool[];
@@ -31,8 +30,6 @@ export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData,
         knownIdsRef.current.add(pool.id);
       }
     }
-    // Only animate if 1-3 new pools trickle in (WebSocket),
-    // not bulk loads (page load, tab switch)
     if (freshIds.size > 0 && freshIds.size <= 3) {
       setNewIds(freshIds);
       const t = setTimeout(() => setNewIds(new Set()), 2800);
@@ -43,68 +40,38 @@ export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData,
   return (
     <Box
       sx={{
-        borderRadius: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '3px',
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+        gap: { xs: 1.5, md: 2 },
         opacity: isPlaceholderData ? 0.5 : 1,
         transition: 'opacity 0.2s ease',
       }}
     >
-      {/* Table header (desktop only) */}
-      <Box
-        sx={{
-          display: { xs: 'none', md: 'grid' },
-          gridTemplateColumns: '100px 2fr 1fr 1fr 1fr 1fr 0.7fr 1fr 0.4fr',
-          pr: 2,
-          pl: 0,
-          py: 1,
-          bgcolor: t.bg.surfaceAlt,
-        }}
-      >
-        {[
-          { label: '', tip: '' },
-          { label: 'Asset', tip: 'Cryptocurrency and pool timeframe' },
-          { label: 'Countdown', tip: 'Time remaining before the pool locks' },
-          { label: 'Distribution', tip: 'How USDC is split between UP and DOWN sides' },
-          { label: 'Pool Size', tip: 'Total USDC staked by all players' },
-          { label: 'Odds', tip: 'Current payout multiplier if your side wins' },
-          { label: 'Players', tip: 'Number of participants in the pool' },
-          { label: 'Action', tip: '' },
-          { label: 'Share', tip: '' },
-        ].map((h, i) => (
-          <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.4, ...(h.label === 'Action' && { justifyContent: 'flex-start' }) }}>
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '12px', fontWeight: 600, letterSpacing: '0.08em' }}>
-              {h.label}
-            </Typography>
-            {h.tip && (
-              <Tooltip title={h.tip} arrow placement="top" slotProps={{ tooltip: { sx: { bgcolor: t.bg.tooltip, border: `1px solid ${t.border.strong}`, fontSize: '0.75rem' } }, arrow: { sx: { color: t.bg.tooltip } } }}>
-                <InfoOutlined sx={{ fontSize: 11, color: t.text.muted, cursor: 'help', '&:hover': { color: t.text.secondary }, transition: 'color 0.15s' }} />
-              </Tooltip>
-            )}
-          </Box>
-        ))}
-      </Box>
-
-      {/* Rows */}
       <AnimatePresence mode="popLayout">
         {pools.map((pool, i) => (
-          <PoolRow
+          <motion.div
             key={pool.id}
-            pool={pool}
-            userBet={userBetByPoolId.get(pool.id)}
-            getPrice={getPrice}
-            index={i}
-            isNew={newIds.has(pool.id)}
-            isPopular={popularPoolIds?.has(pool.id)}
-            alwaysShowView={alwaysShowView}
-            onClick={onPoolClick ? () => onPoolClick(pool) : undefined}
-          />
+            initial={newIds.has(pool.id) ? { opacity: 0, y: 10 } : false}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30, delay: newIds.has(pool.id) ? i * 0.05 : 0 }}
+            layout
+          >
+            <CryptoPoolCard
+              pool={pool}
+              userBet={userBetByPoolId.get(pool.id)}
+              getPrice={getPrice}
+              isNew={newIds.has(pool.id)}
+              isPopular={popularPoolIds?.has(pool.id)}
+              alwaysShowView={alwaysShowView}
+              onClick={onPoolClick ? () => onPoolClick(pool) : undefined}
+            />
+          </motion.div>
         ))}
       </AnimatePresence>
 
       {pools.length === 0 && (
-        <Box sx={{ textAlign: 'center', py: 8, px: 4 }}>
+        <Box sx={{ gridColumn: '1 / -1', textAlign: 'center', py: 8, px: 4 }}>
           <Typography color="text.secondary" sx={{ fontSize: '1rem' }}>
             No pools found with current filters
           </Typography>

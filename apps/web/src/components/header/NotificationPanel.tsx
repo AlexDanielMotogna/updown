@@ -145,10 +145,10 @@ export function NotificationPanel() {
                   width: { xs: 'calc(100vw - 32px)', sm: 360 },
                   maxHeight: 420,
                   bgcolor: t.bg.surfaceAlt,
-                  border: `1px solid ${t.border.default}`,
+                  border: t.surfaceBorder,
                   borderRadius: '6px',
                   overflow: 'hidden',
-                  boxShadow: `0 12px 40px ${t.shadow.deep}`,
+                  boxShadow: t.surfaceShadow,
                 }}
               >
                 {/* Panel header */}
@@ -228,7 +228,7 @@ export function NotificationPanel() {
                             getSeverityIcon(n.severity, n.type)
                           ) : n.type.startsWith('TOURNAMENT_') && n.asset ? (
                             n.asset.includes(':') ? (
-                              <Box component="img" src={getBadge(n.asset.split(':')[1]) || ''} alt="" sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: t.text.vivid, borderRadius: '50%', p: '2px' }} />
+                              <Box component="img" src={getBadge(n.asset.split(':')[1]) || ''} alt="" sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
                             ) : (
                               <Box component="img" src={`/tournaments/tournament-${n.asset.toLowerCase()}.png`} alt={n.asset} sx={{ width: 22, height: 22, objectFit: 'contain' }} />
                             )

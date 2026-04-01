@@ -106,6 +106,8 @@ export function SquadChat({ messages, onSend, isSending, currentWallet }: SquadC
                   px: 2,
                   py: 1.2,
                   bgcolor: t.bg.surfaceAlt,
+                  border: t.surfaceBorder,
+                  boxShadow: t.surfaceShadow,
                   borderBottom: `1px solid ${t.border.default}`,
                   flexShrink: 0,
                 }}
@@ -136,7 +138,7 @@ export function SquadChat({ messages, onSend, isSending, currentWallet }: SquadC
                   flexDirection: 'column',
                   gap: 0.8,
                   '&::-webkit-scrollbar': { width: 3 },
-                  '&::-webkit-scrollbar-thumb': { background: t.border.medium, borderRadius: 2 },
+                  '&::-webkit-scrollbar-thumb': { background: t.border.medium, borderRadius: 1 },
                 }}
               >
                 {sorted.length === 0 && (
@@ -192,7 +194,7 @@ export function SquadChat({ messages, onSend, isSending, currentWallet }: SquadC
               </Box>
 
               {/* Input area */}
-              <Box sx={{ display: 'flex', gap: 0.8, p: 1.2, borderTop: `1px solid ${t.border.default}`, bgcolor: t.bg.surfaceAlt, flexShrink: 0 }}>
+              <Box sx={{ display: 'flex', gap: 0.8, p: 1.2, bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, borderTop: `1px solid ${t.border.default}`, flexShrink: 0 }}>
                 <TextField
                   fullWidth
                   size="small"
@@ -245,7 +247,7 @@ export function SquadChat({ messages, onSend, isSending, currentWallet }: SquadC
             height: { xs: 40, lg: 48 },
             minHeight: 0,
             bgcolor: open ? t.border.strong : t.up,
-            color: open ? '#fff' : '#000',
+            color: open ? t.text.primary : t.text.contrast,
             '&:hover': {
               bgcolor: open ? t.border.emphasis : t.up,
               filter: open ? undefined : 'brightness(1.15)',

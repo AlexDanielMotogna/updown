@@ -20,7 +20,7 @@ export function OddsDisplay({ oddsUp, oddsDown }: OddsDisplayProps) {
           <Box
             sx={{
               p: { xs: 2, md: 3 },
-              borderRadius: 0,
+              borderRadius: 1,
               background: t.hover.default,
               border: 'none',
               textAlign: 'center',
@@ -44,7 +44,7 @@ export function OddsDisplay({ oddsUp, oddsDown }: OddsDisplayProps) {
           <Box
             sx={{
               p: { xs: 2, md: 3 },
-              borderRadius: 0,
+              borderRadius: 1,
               background: t.hover.default,
               border: 'none',
               textAlign: 'center',

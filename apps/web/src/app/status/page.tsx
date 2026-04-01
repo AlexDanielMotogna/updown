@@ -201,7 +201,9 @@ export default function StatusPage() {
           <Box
             sx={{
               bgcolor: t.bg.surfaceAlt,
-              borderRadius: 2,
+              border: t.surfaceBorder,
+              boxShadow: t.surfaceShadow,
+              borderRadius: 1,
               px: { xs: 2.5, md: 3.5 },
               py: 4,
               textAlign: 'center',
@@ -229,7 +231,9 @@ export default function StatusPage() {
                 px: { xs: 2.5, md: 3.5 },
                 py: 2.5,
                 bgcolor: t.bg.surfaceAlt,
-                borderRadius: 2,
+                border: t.surfaceBorder,
+                boxShadow: t.surfaceShadow,
+                borderRadius: 1,
                 mb: 3,
               }}
             >
@@ -243,7 +247,9 @@ export default function StatusPage() {
             <Box
               sx={{
                 bgcolor: t.bg.surfaceAlt,
-                borderRadius: 2,
+                border: t.surfaceBorder,
+                boxShadow: t.surfaceShadow,
+                borderRadius: 1,
                 px: { xs: 2, md: 3.5 },
                 py: 1,
               }}

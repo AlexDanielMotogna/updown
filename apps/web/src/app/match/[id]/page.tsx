@@ -255,7 +255,7 @@ export default function MatchDetailPage() {
   const league = pool.league || '';
   const isPrediction = league.startsWith('PM_');
   const category = categoryMap.get(league);
-  const catColor = category?.color || (isPrediction ? t.prediction : '#fff');
+  const catColor = category?.color || (isPrediction ? t.prediction : t.text.primary);
   const catLabel = category?.label || league;
   const catBadge = category?.badgeUrl;
   const CatIcon = getIcon(category?.iconKey);
@@ -287,7 +287,7 @@ export default function MatchDetailPage() {
             ) : league ? (
               <TrendingUp sx={{ fontSize: 20, color: catColor }} />
             ) : null}
-            <Typography sx={{ fontWeight: 700, fontSize: { xs: '0.9rem', md: '1rem' }, color: isPrediction ? catColor : '#fff' }}>
+            <Typography sx={{ fontWeight: 700, fontSize: { xs: '0.9rem', md: '1rem' }, color: isPrediction ? catColor : t.text.primary }}>
               {catLabel}
             </Typography>
             {!isPrediction && (
@@ -517,11 +517,11 @@ export default function MatchDetailPage() {
                 {pool.homeTeamCrest && (
                   <Box component="img" src={pool.homeTeamCrest} alt="" sx={{ width: 32, height: 32, objectFit: 'contain', mb: 0.5, mx: 'auto', display: 'block' }} />
                 )}
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: isResolved && pool.winner === 'UP' ? t.up : '#fff' }}>{homeShort}</Typography>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: isResolved && pool.winner === 'UP' ? t.up : t.text.primary }}>{homeShort}</Typography>
               </Box>
               {(matchLive || matchFinished) && !isResolved && liveScore ? (
                 <Box sx={{ textAlign: 'center', flexShrink: 0 }}>
-                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: matchLive ? t.gain : '#fff' }}>
+                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: matchLive ? t.gain : t.text.primary }}>
                     {liveScore.homeScore} - {liveScore.awayScore}
                   </Typography>
                   <Typography sx={{ fontSize: '0.55rem', fontWeight: 600, color: matchLive ? t.gain : t.text.tertiary, opacity: 0.8 }}>
@@ -550,7 +550,7 @@ export default function MatchDetailPage() {
                 {pool.awayTeamCrest && (
                   <Box component="img" src={pool.awayTeamCrest} alt="" sx={{ width: 32, height: 32, objectFit: 'contain', mb: 0.5, mx: 'auto', display: 'block' }} />
                 )}
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: isResolved && pool.winner === 'DOWN' ? t.down : '#fff' }}>{awayShort}</Typography>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: isResolved && pool.winner === 'DOWN' ? t.down : t.text.primary }}>{awayShort}</Typography>
               </Box>
             </Box>
           )}
@@ -626,7 +626,7 @@ export default function MatchDetailPage() {
                       fontSize: '0.75rem',
                       fontWeight: 600,
                       bgcolor: amountNum === p ? t.hover.emphasis : t.border.subtle,
-                      color: amountNum === p ? '#fff' : t.text.secondary,
+                      color: amountNum === p ? t.text.primary : t.text.secondary,
                       textTransform: 'none',
                       borderRadius: '5px',
                       '&:hover': { bgcolor: t.hover.strong },

@@ -116,6 +116,8 @@ export function BetRow({
         px: 0,
         py: 0,
         bgcolor: t.bg.surfaceAlt,
+        border: t.surfaceBorder,
+        boxShadow: t.surfaceShadow,
         transition: 'background 0.15s ease',
         '&:hover': {
           background: t.hover.default,
@@ -495,6 +497,8 @@ export function BetRowSkeleton() {
           py: 0,
           minHeight: 70,
           bgcolor: t.bg.surfaceAlt,
+          border: t.surfaceBorder,
+          boxShadow: t.surfaceShadow,
         }}
       >
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 1.5 }}>

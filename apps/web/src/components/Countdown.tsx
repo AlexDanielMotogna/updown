@@ -221,7 +221,7 @@ export function Countdown({ targetDate, label, onComplete, compact = false, comp
               sx={{
                 minWidth: { xs: 48, sm: 56 },
                 p: 1.5,
-                borderRadius: 0,
+                borderRadius: 1,
                 background: boxBg,
                 border: 'none',
                 textAlign: 'center',

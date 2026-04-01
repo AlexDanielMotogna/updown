@@ -39,6 +39,8 @@ export function TournamentSidebarList({ tournaments }: { tournaments: Tournament
                 px: 2,
                 py: 1.5,
                 bgcolor: t.bg.surfaceAlt,
+                border: t.surfaceBorder,
+                boxShadow: t.surfaceShadow,
                 cursor: 'pointer',
                 transition: 'background 0.15s ease',
                 '&:hover': { background: t.hover.default },
@@ -49,7 +51,7 @@ export function TournamentSidebarList({ tournaments }: { tournaments: Tournament
                   component="img"
                   src={tour.asset.includes(':') ? (getBadge(tour.asset.split(':')[1]) || '') : `/tournaments/tournament-${tour.asset.toLowerCase()}.png`}
                   alt={tour.asset}
-                  sx={{ width: 22, height: 22, objectFit: 'contain', ...(tour.asset.includes(':') && { bgcolor: t.text.vivid, borderRadius: '50%', p: '2px' }) }}
+                  sx={{ width: 22, height: 22, objectFit: 'contain', ...(tour.asset.includes(':') && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }) }}
                 />
                 <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {tour.name}

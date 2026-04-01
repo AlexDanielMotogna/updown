@@ -2,7 +2,7 @@
 
 import { Box, Typography } from '@mui/material';
 import { Header } from './Header';
-import { LiveResultsSidebar } from './LiveResultsSidebar';
+import { MarketSidebar } from './sidebar/MarketSidebar';
 import { RewardPopup } from './RewardPopup';
 import { useThemeTokens } from '@/app/providers';
 
@@ -27,7 +27,7 @@ function Footer() {
             href="/status"
             sx={{ display: 'flex', alignItems: 'center', gap: 0.75, textDecoration: 'none', '&:hover .status-label': { color: t.text.bright }, transition: 'color 0.15s' }}
           >
-            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#4ADE80', flexShrink: 0, boxShadow: '0 0 6px rgba(74,222,128,0.4)' }} />
+            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: t.up, flexShrink: 0, boxShadow: `0 0 6px ${t.up}66` }} />
             <Typography className="status-label" sx={{ fontSize: '0.85rem', fontWeight: 600, color: t.text.soft, transition: 'color 0.15s' }}>
               Status
             </Typography>
@@ -87,7 +87,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Header />
       <RewardPopup />
       <Box sx={{ display: 'flex', bgcolor: t.bg.app }}>
-        <LiveResultsSidebar />
+        {/* Desktop market sidebar */}
+        <Box
+          sx={{
+            display: { xs: 'none', lg: 'block' },
+            width: 200,
+            flexShrink: 0,
+            position: 'sticky',
+            top: 64,
+            height: 'calc(100vh - 64px)',
+          }}
+        >
+          <MarketSidebar />
+        </Box>
         <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 64px)' }}>
           <Box sx={{ flex: 1 }}>
             {children}

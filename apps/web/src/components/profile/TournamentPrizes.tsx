@@ -77,6 +77,8 @@ export function TournamentPrizes({ walletAddress, prizes, setPrizes, prizesLoadi
               px: 0,
               py: 1,
               bgcolor: t.bg.surfaceAlt,
+              border: t.surfaceBorder,
+              boxShadow: t.surfaceShadow,
             }}
           >
             {['Tournament', 'Asset', 'Prize Pool', 'Fee', 'Payout', 'Date', 'Action'].map((h) => (
@@ -105,6 +107,8 @@ export function TournamentPrizes({ walletAddress, prizes, setPrizes, prizesLoadi
                     gridTemplateColumns: '2.5fr 1fr 1fr 1fr 1fr 1fr 1.2fr',
                     alignItems: 'center',
                     bgcolor: t.bg.surfaceAlt,
+                    border: t.surfaceBorder,
+                    boxShadow: t.surfaceShadow,
                     py: 1.5,
                     transition: 'background 0.15s ease',
                     '&:hover': { background: t.border.subtle },
@@ -127,7 +131,7 @@ export function TournamentPrizes({ walletAddress, prizes, setPrizes, prizesLoadi
                         onClick={() => handleClaimPrize(prize.id)}
                         sx={{
                           bgcolor: t.up, color: t.text.contrast, fontWeight: 700, fontSize: '0.75rem',
-                          textTransform: 'none', px: 2, borderRadius: 0,
+                          textTransform: 'none', px: 2, borderRadius: 1,
                           '&:hover': { bgcolor: t.up, filter: 'brightness(1.15)' },
                           '&:disabled': { bgcolor: t.border.default, color: t.text.dimmed },
                         }}
@@ -152,6 +156,8 @@ export function TournamentPrizes({ walletAddress, prizes, setPrizes, prizesLoadi
                   sx={{
                     display: { xs: 'block', md: 'none' },
                     bgcolor: t.bg.surfaceAlt,
+                    border: t.surfaceBorder,
+                    boxShadow: t.surfaceShadow,
                     p: 2,
                   }}
                 >
@@ -178,7 +184,7 @@ export function TournamentPrizes({ walletAddress, prizes, setPrizes, prizesLoadi
                         onClick={() => handleClaimPrize(prize.id)}
                         sx={{
                           bgcolor: t.up, color: t.text.contrast, fontWeight: 700, fontSize: '0.75rem',
-                          textTransform: 'none', px: 2, borderRadius: 0,
+                          textTransform: 'none', px: 2, borderRadius: 1,
                           '&:hover': { bgcolor: t.up, filter: 'brightness(1.15)' },
                           '&:disabled': { bgcolor: t.border.default, color: t.text.dimmed },
                         }}
@@ -204,7 +210,7 @@ export function TournamentPrizes({ walletAddress, prizes, setPrizes, prizesLoadi
       )}
 
       {claimPrizeError && (
-        <Alert severity="error" onClose={() => setClaimPrizeError(null)} sx={{ bgcolor: withAlpha(t.down, 0.1), border: 'none', borderRadius: 0 }}>
+        <Alert severity="error" onClose={() => setClaimPrizeError(null)} sx={{ bgcolor: withAlpha(t.down, 0.1), border: 'none', borderRadius: 1 }}>
           {claimPrizeError}
         </Alert>
       )}

@@ -27,7 +27,7 @@ export function ReferralStatsCards({
     arrow: { sx: { color: t.bg.tooltip } },
   } as const;
   return (
-    <Box sx={{ bgcolor: t.bg.surfaceAlt }}>
+    <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow }}>
       <Box sx={{ px: { xs: 1.5, md: 3 }, py: { xs: 1.5, md: 2 } }}>
         <Box
           sx={{
@@ -37,7 +37,7 @@ export function ReferralStatsCards({
           }}
         >
           {/* Total Referrals */}
-          <Box sx={{ bgcolor: t.hover.light, borderRadius: 2, px: { xs: 1.5, md: 2.5 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
+          <Box sx={{ bgcolor: t.hover.light, borderRadius: 1, px: { xs: 1.5, md: 2.5 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
             <Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25, minHeight: 12 }}>
                 <Typography sx={{ fontSize: { xs: '0.7rem', md: '0.8rem' }, fontWeight: 600, color: t.text.tertiary, lineHeight: 1 }}>
@@ -54,7 +54,7 @@ export function ReferralStatsCards({
           </Box>
 
           {/* Total Earned */}
-          <Box sx={{ bgcolor: t.hover.light, borderRadius: 2, px: { xs: 1.5, md: 2.5 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
+          <Box sx={{ bgcolor: t.hover.light, borderRadius: 1, px: { xs: 1.5, md: 2.5 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
             <Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25, minHeight: 12 }}>
                 <Typography sx={{ fontSize: { xs: '0.7rem', md: '0.8rem' }, fontWeight: 600, color: t.text.tertiary, lineHeight: 1 }}>
@@ -71,7 +71,7 @@ export function ReferralStatsCards({
           </Box>
 
           {/* Unpaid Balance */}
-          <Box sx={{ bgcolor: t.hover.light, borderRadius: 2, px: { xs: 1.5, md: 2.5 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
+          <Box sx={{ bgcolor: t.hover.light, borderRadius: 1, px: { xs: 1.5, md: 2.5 }, py: 1.5, display: 'flex', alignItems: 'center' }}>
             <Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25, minHeight: 12 }}>
                 <Typography sx={{ fontSize: { xs: '0.7rem', md: '0.8rem' }, fontWeight: 600, color: t.text.tertiary, lineHeight: 1 }}>
@@ -88,7 +88,7 @@ export function ReferralStatsCards({
           </Box>
 
           {/* Claim Button Card */}
-          <Box sx={{ bgcolor: t.hover.light, borderRadius: 2, px: { xs: 1.5, md: 2.5 }, py: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Box sx={{ bgcolor: t.hover.light, borderRadius: 1, px: { xs: 1.5, md: 2.5 }, py: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {unpaidBalance > 0 ? (
               <Button
                 variant="contained"

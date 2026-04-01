@@ -47,7 +47,8 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
           position: 'relative',
           overflow: 'hidden',
           background: t.bg.surface,
-          border: 'none',
+          border: t.surfaceBorder,
+          boxShadow: t.surfaceShadow,
           transition: 'all 0.2s ease',
           height: '100%',
           display: 'flex',
@@ -194,7 +195,7 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
               sx={{
                 position: 'relative',
                 height: 6,
-                borderRadius: 0,
+                borderRadius: 1,
                 overflow: 'hidden',
                 backgroundColor: withAlpha(t.down, 0.25),
               }}
@@ -207,7 +208,7 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
                   height: '100%',
                   width: `${upPercentage}%`,
                   background: t.up,
-                  borderRadius: 0,
+                  borderRadius: 1,
                   transition: 'width 0.5s ease',
                 }}
               />
@@ -242,7 +243,7 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
               sx={{
                 mt: 3,
                 p: 1.5,
-                borderRadius: 0,
+                borderRadius: 1,
                 background: pool.winner === 'UP'
                   ? withAlpha(t.up, 0.08)
                   : withAlpha(t.down, 0.08),
@@ -284,7 +285,7 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
                 fontWeight: 600,
                 fontSize: '0.85rem',
                 '&:hover': {
-                  bgcolor: t.text.vivid,
+                  bgcolor: 'rgba(255,255,255,0.85)',
                 },
               }}
             >
@@ -298,7 +299,7 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
               sx={{
                 mt: pool.winner ? 1.5 : 3,
                 p: 1.5,
-                borderRadius: 0,
+                borderRadius: 1,
                 background: t.hover.default,
                 border: 'none',
                 display: 'flex',
