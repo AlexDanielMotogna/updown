@@ -12,7 +12,8 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { Remove, Add as AddIcon } from '@mui/icons-material';
-import { UP_COLOR, ACCENT_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 const ASSETS = [
   { value: 'BTC', label: 'BTC', img: '/coins/btc-coin.png' },
@@ -35,6 +36,7 @@ interface CreateSquadPoolFormProps {
 }
 
 export function CreateSquadPoolForm({ open, onClose, onSubmit, isLoading }: CreateSquadPoolFormProps) {
+  const t = useThemeTokens();
   const [asset, setAsset] = useState('BTC');
   const [duration, setDuration] = useState(300);
   const [maxBettors, setMaxBettors] = useState<number | null>(null);
@@ -55,7 +57,7 @@ export function CreateSquadPoolForm({ open, onClose, onSubmit, isLoading }: Crea
       onClose={onClose}
       maxWidth="xs"
       fullWidth
-      PaperProps={{ sx: { background: '#0D1219', borderRadius: 0 } }}
+      PaperProps={{ sx: { background: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, borderRadius: 1 } }}
     >
       <DialogTitle sx={{ fontWeight: 700 }}>Create Pool</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: '16px !important' }}>
@@ -78,10 +80,10 @@ export function CreateSquadPoolForm({ open, onClose, onSubmit, isLoading }: Crea
                   px: 1,
                   cursor: 'pointer',
                   borderRadius: '2px',
-                  border: asset === a.value ? `1.5px solid ${UP_COLOR}` : '1.5px solid rgba(255,255,255,0.06)',
-                  bgcolor: asset === a.value ? `${UP_COLOR}12` : 'rgba(255,255,255,0.02)',
+                  border: asset === a.value ? `1.5px solid ${t.up}` : `1.5px solid ${t.border.default}`,
+                  bgcolor: asset === a.value ? withAlpha(t.up, 0.07) : t.hover.subtle,
                   transition: 'all 0.15s ease',
-                  '&:hover': { bgcolor: asset === a.value ? `${UP_COLOR}18` : 'rgba(255,255,255,0.05)' },
+                  '&:hover': { bgcolor: asset === a.value ? withAlpha(t.up, 0.09) : 'rgba(255,255,255,0.05)' },
                 }}
               >
                 <Box
@@ -90,7 +92,7 @@ export function CreateSquadPoolForm({ open, onClose, onSubmit, isLoading }: Crea
                   alt={a.label}
                   sx={{ width: 36, height: 36, borderRadius: '50%' }}
                 />
-                <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: asset === a.value ? UP_COLOR : '#fff' }}>
+                <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: asset === a.value ? t.up : t.text.primary }}>
                   {a.label}
                 </Typography>
               </Box>
@@ -117,10 +119,10 @@ export function CreateSquadPoolForm({ open, onClose, onSubmit, isLoading }: Crea
                   px: 0.5,
                   cursor: 'pointer',
                   borderRadius: '2px',
-                  border: duration === d.value ? `1.5px solid ${UP_COLOR}` : '1.5px solid rgba(255,255,255,0.06)',
-                  bgcolor: duration === d.value ? `${UP_COLOR}12` : 'rgba(255,255,255,0.02)',
+                  border: duration === d.value ? `1.5px solid ${t.up}` : `1.5px solid ${t.border.default}`,
+                  bgcolor: duration === d.value ? withAlpha(t.up, 0.07) : t.hover.subtle,
                   transition: 'all 0.15s ease',
-                  '&:hover': { bgcolor: duration === d.value ? `${UP_COLOR}18` : 'rgba(255,255,255,0.05)' },
+                  '&:hover': { bgcolor: duration === d.value ? withAlpha(t.up, 0.09) : 'rgba(255,255,255,0.05)' },
                 }}
               >
                 <Box
@@ -154,13 +156,13 @@ export function CreateSquadPoolForm({ open, onClose, onSubmit, isLoading }: Crea
                 textAlign: 'center',
                 cursor: 'pointer',
                 borderRadius: '2px',
-                border: maxBettors === null ? `1.5px solid ${ACCENT_COLOR}` : '1.5px solid rgba(255,255,255,0.06)',
-                bgcolor: maxBettors === null ? `${ACCENT_COLOR}12` : 'rgba(255,255,255,0.02)',
+                border: maxBettors === null ? `1.5px solid ${t.accent}` : `1.5px solid ${t.border.default}`,
+                bgcolor: maxBettors === null ? withAlpha(t.accent, 0.07) : t.hover.subtle,
                 transition: 'all 0.15s ease',
-                '&:hover': { bgcolor: maxBettors === null ? `${ACCENT_COLOR}18` : 'rgba(255,255,255,0.05)' },
+                '&:hover': { bgcolor: maxBettors === null ? withAlpha(t.accent, 0.09) : 'rgba(255,255,255,0.05)' },
               }}
             >
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: maxBettors === null ? ACCENT_COLOR : 'text.secondary' }}>
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: maxBettors === null ? t.accent : 'text.secondary' }}>
                 No limit
               </Typography>
             </Box>
@@ -174,13 +176,13 @@ export function CreateSquadPoolForm({ open, onClose, onSubmit, isLoading }: Crea
                   textAlign: 'center',
                   cursor: 'pointer',
                   borderRadius: '2px',
-                  border: maxBettors === n ? `1.5px solid ${UP_COLOR}` : '1.5px solid rgba(255,255,255,0.06)',
-                  bgcolor: maxBettors === n ? `${UP_COLOR}12` : 'rgba(255,255,255,0.02)',
+                  border: maxBettors === n ? `1.5px solid ${t.up}` : `1.5px solid ${t.border.default}`,
+                  bgcolor: maxBettors === n ? withAlpha(t.up, 0.07) : t.hover.subtle,
                   transition: 'all 0.15s ease',
-                  '&:hover': { bgcolor: maxBettors === n ? `${UP_COLOR}18` : 'rgba(255,255,255,0.05)' },
+                  '&:hover': { bgcolor: maxBettors === n ? withAlpha(t.up, 0.09) : 'rgba(255,255,255,0.05)' },
                 }}
               >
-                <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: maxBettors === n ? UP_COLOR : '#fff' }}>
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: maxBettors === n ? t.up : t.text.primary }}>
                   {n}
                 </Typography>
               </Box>
@@ -196,17 +198,17 @@ export function CreateSquadPoolForm({ open, onClose, onSubmit, isLoading }: Crea
                 sx={{
                   width: 32, height: 32,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: 'none', border: '1.5px solid rgba(255,255,255,0.1)', borderRadius: '50%',
-                  cursor: 'pointer', color: '#fff',
+                  background: 'none', border: `1.5px solid ${t.border.strong}`, borderRadius: '50%',
+                  cursor: 'pointer', color: t.text.primary,
                   transition: 'all 0.15s ease',
-                  '&:hover': { borderColor: UP_COLOR, color: UP_COLOR, bgcolor: `${UP_COLOR}10` },
+                  '&:hover': { borderColor: t.up, color: t.up, bgcolor: withAlpha(t.up, 0.06) },
                 }}
               >
                 <Remove sx={{ fontSize: 16 }} />
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                 <Box component="img" src="/assets/players-icon-500.png" alt="" sx={{ width: 20, height: 20, objectFit: 'contain' }} />
-                <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: UP_COLOR, fontVariantNumeric: 'tabular-nums', minWidth: 28, textAlign: 'center' }}>
+                <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: t.up, fontVariantNumeric: 'tabular-nums', minWidth: 28, textAlign: 'center' }}>
                   {maxBettors}
                 </Typography>
               </Box>
@@ -216,10 +218,10 @@ export function CreateSquadPoolForm({ open, onClose, onSubmit, isLoading }: Crea
                 sx={{
                   width: 32, height: 32,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: 'none', border: '1.5px solid rgba(255,255,255,0.1)', borderRadius: '50%',
-                  cursor: 'pointer', color: '#fff',
+                  background: 'none', border: `1.5px solid ${t.border.strong}`, borderRadius: '50%',
+                  cursor: 'pointer', color: t.text.primary,
                   transition: 'all 0.15s ease',
-                  '&:hover': { borderColor: UP_COLOR, color: UP_COLOR, bgcolor: `${UP_COLOR}10` },
+                  '&:hover': { borderColor: t.up, color: t.up, bgcolor: withAlpha(t.up, 0.06) },
                 }}
               >
                 <AddIcon sx={{ fontSize: 16 }} />
@@ -229,7 +231,7 @@ export function CreateSquadPoolForm({ open, onClose, onSubmit, isLoading }: Crea
         </Box>
 
         {/* Preview */}
-        <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box sx={{ bgcolor: t.hover.light, borderRadius: 1, px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Box
             component="img"
             src={ASSETS.find(a => a.value === asset)?.img}
@@ -260,9 +262,9 @@ export function CreateSquadPoolForm({ open, onClose, onSubmit, isLoading }: Crea
           disabled={isLoading}
           variant="contained"
           sx={{
-            backgroundColor: UP_COLOR,
-            color: '#000',
-            '&:hover': { backgroundColor: UP_COLOR, filter: 'brightness(1.15)' },
+            backgroundColor: t.up,
+            color: t.text.contrast,
+            '&:hover': { backgroundColor: t.up, filter: 'brightness(1.15)' },
             fontWeight: 700,
             textTransform: 'none',
             borderRadius: '2px',

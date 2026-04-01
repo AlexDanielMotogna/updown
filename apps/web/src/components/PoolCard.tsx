@@ -5,7 +5,9 @@ import { TrendingUp, TrendingDown } from '@mui/icons-material';
 import Link from 'next/link';
 import type { Pool } from '@/lib/api';
 import { formatUSDC, formatPrice, formatDateTime, formatTime, statusStyles, USDC_DIVISOR } from '@/lib/format';
-import { UP_COLOR, DOWN_COLOR, INTERVAL_TAG_IMAGES, INTERVAL_LABELS } from '@/lib/constants';
+import { INTERVAL_TAG_IMAGES, INTERVAL_LABELS } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 import { Countdown } from './Countdown';
 import { AssetIcon } from './AssetIcon';
 
@@ -16,6 +18,8 @@ interface PoolCardProps {
 }
 
 export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
+  const t = useThemeTokens();
+
   const totalUp = Number(pool.totalUp);
   const totalDown = Number(pool.totalDown);
   const total = totalUp + totalDown;
@@ -42,14 +46,15 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
           cursor: 'pointer',
           position: 'relative',
           overflow: 'hidden',
-          background: '#111820',
-          border: 'none',
+          background: t.bg.surface,
+          border: t.surfaceBorder,
+          boxShadow: t.surfaceShadow,
           transition: 'all 0.2s ease',
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
           '&:hover': {
-            bgcolor: 'rgba(255,255,255,0.03)',
+            bgcolor: t.hover.light,
           },
         }}
       >
@@ -166,8 +171,8 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
           <Box sx={{ mb: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <TrendingUp sx={{ fontSize: 18, color: UP_COLOR }} />
-                <Typography variant="body2" sx={{ color: UP_COLOR, fontWeight: 500 }}>
+                <TrendingUp sx={{ fontSize: 18, color: t.up }} />
+                <Typography variant="body2" sx={{ color: t.up, fontWeight: 500 }}>
                   {formatUSDC(pool.totalUp)}
                 </Typography>
                 <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
@@ -178,10 +183,10 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
                 <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
                   ({pool.downCount})
                 </Typography>
-                <Typography variant="body2" sx={{ color: DOWN_COLOR, fontWeight: 500 }}>
+                <Typography variant="body2" sx={{ color: t.down, fontWeight: 500 }}>
                   {formatUSDC(pool.totalDown)}
                 </Typography>
-                <TrendingDown sx={{ fontSize: 18, color: DOWN_COLOR }} />
+                <TrendingDown sx={{ fontSize: 18, color: t.down }} />
               </Box>
             </Box>
 
@@ -190,9 +195,9 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
               sx={{
                 position: 'relative',
                 height: 6,
-                borderRadius: 0,
+                borderRadius: 1,
                 overflow: 'hidden',
-                backgroundColor: `${DOWN_COLOR}40`,
+                backgroundColor: withAlpha(t.down, 0.25),
               }}
             >
               <Box
@@ -202,8 +207,8 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
                   left: 0,
                   height: '100%',
                   width: `${upPercentage}%`,
-                  background: UP_COLOR,
-                  borderRadius: 0,
+                  background: t.up,
+                  borderRadius: 1,
                   transition: 'width 0.5s ease',
                 }}
               />
@@ -218,7 +223,7 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
               alignItems: 'center',
               pt: 2,
               mt: 'auto',
-              borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+              borderTop: `1px solid ${t.border.default}`,
             }}
           >
             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 400 }}>
@@ -238,10 +243,10 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
               sx={{
                 mt: 3,
                 p: 1.5,
-                borderRadius: 0,
+                borderRadius: 1,
                 background: pool.winner === 'UP'
-                  ? `${UP_COLOR}14`
-                  : `${DOWN_COLOR}14`,
+                  ? withAlpha(t.up, 0.08)
+                  : withAlpha(t.down, 0.08),
                 border: 'none',
                 textAlign: 'center',
                 display: 'flex',
@@ -251,15 +256,15 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
               }}
             >
               {pool.winner === 'UP' ? (
-                <TrendingUp sx={{ fontSize: 18, color: UP_COLOR }} />
+                <TrendingUp sx={{ fontSize: 18, color: t.up }} />
               ) : (
-                <TrendingDown sx={{ fontSize: 18, color: DOWN_COLOR }} />
+                <TrendingDown sx={{ fontSize: 18, color: t.down }} />
               )}
               <Typography
                 variant="body2"
                 sx={{
                   fontWeight: 600,
-                  color: pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR,
+                  color: pool.winner === 'UP' ? t.up : t.down,
                 }}
               >
                 {pool.winner} WINS
@@ -275,12 +280,12 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
               sx={{
                 mt: 3,
                 py: 1.25,
-                bgcolor: '#FFFFFF',
-                color: '#0A0A0A',
+                bgcolor: t.text.primary,
+                color: t.text.contrast,
                 fontWeight: 600,
                 fontSize: '0.85rem',
                 '&:hover': {
-                  bgcolor: 'rgba(255, 255, 255, 0.9)',
+                  bgcolor: 'rgba(255,255,255,0.85)',
                 },
               }}
             >
@@ -294,8 +299,8 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
               sx={{
                 mt: pool.winner ? 1.5 : 3,
                 p: 1.5,
-                borderRadius: 0,
-                background: 'rgba(255, 255, 255, 0.04)',
+                borderRadius: 1,
+                background: t.hover.default,
                 border: 'none',
                 display: 'flex',
                 alignItems: 'center',
@@ -304,21 +309,21 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 {userBet.side === 'UP' ? (
-                  <TrendingUp sx={{ fontSize: 16, color: UP_COLOR }} />
+                  <TrendingUp sx={{ fontSize: 16, color: t.up }} />
                 ) : (
-                  <TrendingDown sx={{ fontSize: 16, color: DOWN_COLOR }} />
+                  <TrendingDown sx={{ fontSize: 16, color: t.down }} />
                 )}
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                   You predicted {userBet.side}
                 </Typography>
               </Box>
               {userBet.isWinner === true && (
-                <Typography variant="body2" sx={{ fontWeight: 600, color: UP_COLOR }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: t.up }}>
                   WON
                 </Typography>
               )}
               {userBet.isWinner === false && (
-                <Typography variant="body2" sx={{ fontWeight: 600, color: DOWN_COLOR }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: t.down }}>
                   LOST
                 </Typography>
               )}

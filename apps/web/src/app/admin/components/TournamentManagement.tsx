@@ -8,6 +8,7 @@ import {
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminFetch, adminPost } from '../lib/adminApi';
+import { darkTokens as dt, palette, withAlpha } from '@/lib/theme';
 
 interface Tournament {
   id: string;
@@ -66,10 +67,10 @@ function getEffectiveLeague(sport: string, league: string) {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  REGISTERING: '#4ADE80',
-  ACTIVE: '#F59E0B',
-  COMPLETED: '#6B7280',
-  CANCELLED: '#F87171',
+  REGISTERING: dt.up,
+  ACTIVE: dt.accent,
+  COMPLETED: palette.gray500,
+  CANCELLED: dt.error,
 };
 
 const USDC_DIVISOR = 1_000_000;
@@ -355,7 +356,7 @@ export function TournamentManagement() {
             variant="contained"
             onClick={() => createMutation.mutate()}
             disabled={!name || !entryFee || createMutation.isPending}
-            sx={{ bgcolor: '#4ADE80', color: '#000', fontWeight: 700, '&:hover': { bgcolor: '#22C55E' } }}
+            sx={{ bgcolor: dt.up, color: dt.text.contrast, fontWeight: 700, '&:hover': { bgcolor: dt.gain } }}
           >
             {createMutation.isPending ? <CircularProgress size={20} /> : 'Create Tournament'}
           </Button>
@@ -403,8 +404,8 @@ export function TournamentManagement() {
                       height: 20,
                       fontSize: '0.65rem',
                       fontWeight: 600,
-                      bgcolor: `${STATUS_COLORS[t.status] || '#6B7280'}20`,
-                      color: STATUS_COLORS[t.status] || '#6B7280',
+                      bgcolor: `${STATUS_COLORS[t.status] || palette.gray500}20`,
+                      color: STATUS_COLORS[t.status] || palette.gray500,
                     }}
                   />
                   {/* Alert: fixtures need manual resolution */}
@@ -418,8 +419,8 @@ export function TournamentManagement() {
                         height: 20,
                         fontSize: '0.6rem',
                         fontWeight: 700,
-                        bgcolor: 'rgba(248,113,113,0.15)',
-                        color: '#F87171',
+                        bgcolor: withAlpha(dt.error, 0.15),
+                        color: dt.error,
                         cursor: 'pointer',
                         animation: 'pulse 2s infinite',
                         '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.6 } },
@@ -451,7 +452,7 @@ export function TournamentManagement() {
                             fontSize: '0.6rem', fontWeight: 700, width: 16, height: 16, borderRadius: '50%',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             bgcolor: fixtures && fixtures.length > 0 ? 'rgba(129,140,248,0.2)' : isCurrent ? 'rgba(245,158,11,0.2)' : 'rgba(255,255,255,0.04)',
-                            color: fixtures && fixtures.length > 0 ? '#818CF8' : isCurrent ? '#F59E0B' : 'rgba(255,255,255,0.2)',
+                            color: fixtures && fixtures.length > 0 ? dt.predict : isCurrent ? dt.accent : dt.text.muted,
                           }}>
                             {fixtures && fixtures.length > 0 ? '✓' : r}
                           </Typography>
@@ -463,7 +464,7 @@ export function TournamentManagement() {
                           {(!fixtures || fixtures.length === 0) && (
                             <Typography
                               onClick={() => { setAssignDialog({ id: t.id, totalRounds: t.totalRounds, league: t.league, sport: t.sport || null, fixturesByRound: t.fixturesByRound }); setAssignRound(r); setAssignSelectedIds(new Set()); setAssignHome(''); setAssignAway(''); }}
-                              sx={{ fontSize: '0.6rem', color: '#818CF8', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+                              sx={{ fontSize: '0.6rem', color: dt.predict, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
                             >
                               assign
                             </Typography>
@@ -475,7 +476,7 @@ export function TournamentManagement() {
                 )}
               </Box>
 
-              <Typography variant="body2" fontWeight={600} sx={{ color: '#4ADE80' }}>
+              <Typography variant="body2" fontWeight={600} sx={{ color: dt.up }}>
                 ${(Number(t.prizePool) / USDC_DIVISOR).toFixed(2)}
               </Typography>
 
@@ -487,7 +488,7 @@ export function TournamentManagement() {
                         size="small"
                         variant="contained"
                         onClick={() => { setAssignDialog({ id: t.id, totalRounds: t.totalRounds, league: t.league, sport: t.sport || null, fixturesByRound: t.fixturesByRound }); setAssignRound(1); setAssignSelectedIds(new Set()); setAssignHome(''); setAssignAway(''); }}
-                        sx={{ fontSize: '0.7rem', bgcolor: '#818CF8', color: '#fff', '&:hover': { bgcolor: '#6366F1' } }}
+                        sx={{ fontSize: '0.7rem', bgcolor: dt.predict, color: dt.text.primary, '&:hover': { bgcolor: palette.indigo500 } }}
                       >
                         Setup Matches
                       </Button>
@@ -505,7 +506,7 @@ export function TournamentManagement() {
                       variant="contained"
                       onClick={() => setConfirmAction({ label: `Start "${t.name}"`, id: t.id, action: 'start' })}
                       disabled={t._count.participants < 2}
-                      sx={{ fontSize: '0.7rem', bgcolor: '#F59E0B', color: '#000', '&:hover': { bgcolor: '#D97706' } }}
+                      sx={{ fontSize: '0.7rem', bgcolor: dt.accent, color: dt.text.contrast, '&:hover': { bgcolor: palette.amber600 } }}
                     >
                       Start
                     </Button>
@@ -536,7 +537,7 @@ export function TournamentManagement() {
                           size="small"
                           variant="contained"
                           onClick={() => { setAssignDialog({ id: t.id, totalRounds: t.totalRounds, league: t.league, sport: t.sport || null, fixturesByRound: t.fixturesByRound }); setAssignRound(Math.max(t.currentRound, 1)); setAssignSelectedIds(new Set()); setAssignHome(''); setAssignAway(''); }}
-                          sx={{ fontSize: '0.7rem', bgcolor: '#818CF8', color: '#fff', '&:hover': { bgcolor: '#6366F1' } }}
+                          sx={{ fontSize: '0.7rem', bgcolor: dt.predict, color: dt.text.primary, '&:hover': { bgcolor: palette.indigo500 } }}
                         >
                           Assign Match
                         </Button>
@@ -544,7 +545,7 @@ export function TournamentManagement() {
                           size="small"
                           variant="contained"
                           onClick={() => { setResolveDialog({ id: t.id, round: t.currentRound }); setResolveScores([]); }}
-                          sx={{ fontSize: '0.7rem', bgcolor: '#4ADE80', color: '#000', '&:hover': { bgcolor: '#22C55E' } }}
+                          sx={{ fontSize: '0.7rem', bgcolor: dt.up, color: dt.text.contrast, '&:hover': { bgcolor: dt.gain } }}
                         >
                           Resolve
                         </Button>
@@ -554,7 +555,7 @@ export function TournamentManagement() {
                       size="small"
                       variant="outlined"
                       onClick={() => setConfirmAction({ label: `Reset Round ${t.currentRound} of "${t.name}"`, id: t.id, action: 'reset-round' })}
-                      sx={{ fontSize: '0.7rem', borderColor: '#F59E0B', color: '#F59E0B', '&:hover': { borderColor: '#D97706', bgcolor: 'rgba(245,158,11,0.08)' } }}
+                      sx={{ fontSize: '0.7rem', borderColor: dt.accent, color: dt.accent, '&:hover': { borderColor: palette.amber600, bgcolor: withAlpha(dt.accent, 0.08) } }}
                     >
                       Reset Round
                     </Button>
@@ -687,7 +688,7 @@ export function TournamentManagement() {
             variant="contained"
             onClick={() => updateMutation.mutate()}
             disabled={!editName || !editEntryFee || updateMutation.isPending}
-            sx={{ bgcolor: '#4ADE80', color: '#000', fontWeight: 700, '&:hover': { bgcolor: '#22C55E' } }}
+            sx={{ bgcolor: dt.up, color: dt.text.contrast, fontWeight: 700, '&:hover': { bgcolor: dt.gain } }}
           >
             {updateMutation.isPending ? <CircularProgress size={18} /> : 'Save Changes'}
           </Button>
@@ -706,7 +707,7 @@ export function TournamentManagement() {
             </Select>
           </FormControl>
           {assignSelectedIds.size > 0 && (
-            <Chip label={`${assignSelectedIds.size} selected`} size="small" sx={{ bgcolor: 'rgba(129,140,248,0.2)', color: '#818CF8', fontWeight: 600 }} />
+            <Chip label={`${assignSelectedIds.size} selected`} size="small" sx={{ bgcolor: 'rgba(129,140,248,0.2)', color: dt.predict, fontWeight: 600 }} />
           )}
         </DialogTitle>
         <DialogContent>
@@ -745,13 +746,13 @@ export function TournamentManagement() {
                         '&:hover': { bgcolor: selected ? 'rgba(129,140,248,0.15)' : 'rgba(255,255,255,0.06)' },
                       }}
                     >
-                      <Box sx={{ width: 20, height: 20, borderRadius: '4px', border: selected ? '2px solid #818CF8' : '2px solid rgba(255,255,255,0.15)', bgcolor: selected ? '#818CF8' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Box sx={{ width: 20, height: 20, borderRadius: '4px', border: selected ? `2px solid ${dt.predict}` : `2px solid ${dt.text.muted}`, bgcolor: selected ? dt.predict : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         {selected && <Typography sx={{ fontSize: '0.65rem', color: '#fff', fontWeight: 700 }}>✓</Typography>}
                       </Box>
                       {m.homeTeamCrest && <Box component="img" src={m.homeTeamCrest} alt="" sx={{ width: 22, height: 22, objectFit: 'contain' }} />}
                       <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, flex: 1 }}>{m.homeTeam} vs {m.awayTeam}</Typography>
                       {assignedRound && (
-                        <Chip label={`R${assignedRound}`} size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, bgcolor: 'rgba(248,113,113,0.15)', color: '#F87171' }} />
+                        <Chip label={`R${assignedRound}`} size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, bgcolor: withAlpha(dt.error, 0.15), color: dt.error }} />
                       )}
                       {m.awayTeamCrest && <Box component="img" src={m.awayTeamCrest} alt="" sx={{ width: 22, height: 22, objectFit: 'contain' }} />}
                       <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>{kickoff}</Typography>
@@ -762,7 +763,7 @@ export function TournamentManagement() {
               <Button
                 size="small"
                 onClick={() => setAssignSelectedIds(new Set(upcomingMatches.map((m: any) => m.id)))}
-                sx={{ mt: 1, fontSize: '0.7rem', color: '#818CF8', textTransform: 'none' }}
+                sx={{ mt: 1, fontSize: '0.7rem', color: dt.predict, textTransform: 'none' }}
               >
                 Select All
               </Button>
@@ -828,7 +829,7 @@ export function TournamentManagement() {
                 });
               }
             }}
-            sx={{ bgcolor: '#818CF8', '&:hover': { bgcolor: '#6366F1' } }}
+            sx={{ bgcolor: dt.predict, '&:hover': { bgcolor: palette.indigo500 } }}
           >
             {assignMutation.isPending ? <CircularProgress size={18} /> : `Assign ${assignSelectedIds.size || 1} Match${assignSelectedIds.size !== 1 ? 'es' : ''}`}
           </Button>
@@ -880,7 +881,7 @@ export function TournamentManagement() {
               }));
               resolveMutation.mutate({ id: resolveDialog.id, results });
             }}
-            sx={{ bgcolor: '#4ADE80', color: '#000', fontWeight: 700, '&:hover': { bgcolor: '#22C55E' } }}
+            sx={{ bgcolor: dt.up, color: dt.text.contrast, fontWeight: 700, '&:hover': { bgcolor: dt.gain } }}
           >
             {resolveMutation.isPending ? <CircularProgress size={18} /> : 'Resolve Matchday'}
           </Button>

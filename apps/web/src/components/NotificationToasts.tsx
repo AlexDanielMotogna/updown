@@ -21,6 +21,7 @@ import { AssetIcon } from './AssetIcon';
 import { UserLevelBadge } from './UserLevelBadge';
 import { GAIN_COLOR, ACCENT_COLOR, DOWN_COLOR } from '@/lib/constants';
 import { fireWinConfetti, fireClaimConfetti } from '@/lib/confetti';
+import { useThemeTokens } from '@/app/providers';
 
 const BORDER_COLORS: Record<NotificationSeverity, string> = {
   success: GAIN_COLOR,
@@ -53,6 +54,7 @@ interface ToastItemProps {
 }
 
 const ToastItem = memo(function ToastItem({ notification, onDismiss }: ToastItemProps) {
+  const t = useThemeTokens();
   const router = useRouter();
   const getBadge = useBadgeLookup();
   const [progress, setProgress] = useState(100);
@@ -120,16 +122,17 @@ const ToastItem = memo(function ToastItem({ notification, onDismiss }: ToastItem
           gap: 1.5,
           p: 2,
           pr: 5,
-          bgcolor: '#0D1219',
+          bgcolor: t.bg.surfaceAlt,
+          border: t.surfaceBorder,
           borderLeft: `3px solid ${borderColor}`,
           borderRadius: '4px',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          boxShadow: t.surfaceShadow,
           cursor: notification.poolId ? 'pointer' : 'default',
           overflow: 'hidden',
           minWidth: 320,
           maxWidth: 400,
           '&:hover': notification.poolId
-            ? { bgcolor: '#111820' }
+            ? { bgcolor: t.bg.surface }
             : undefined,
           '@media (max-width: 600px)': {
             minWidth: 'unset',
@@ -163,13 +166,13 @@ const ToastItem = memo(function ToastItem({ notification, onDismiss }: ToastItem
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography
             variant="body2"
-            sx={{ fontWeight: 600, color: '#fff', lineHeight: 1.3 }}
+            sx={{ fontWeight: 600, color: t.text.primary, lineHeight: 1.3 }}
           >
             {notification.title}
           </Typography>
           <Typography
             variant="caption"
-            sx={{ color: 'rgba(255,255,255,0.55)', lineHeight: 1.4, display: 'block', mt: 0.25 }}
+            sx={{ color: t.text.strong, lineHeight: 1.4, display: 'block', mt: 0.25 }}
           >
             {notification.message}
           </Typography>
@@ -183,8 +186,8 @@ const ToastItem = memo(function ToastItem({ notification, onDismiss }: ToastItem
             position: 'absolute',
             top: 6,
             right: 6,
-            color: 'rgba(255,255,255,0.3)',
-            '&:hover': { color: 'rgba(255,255,255,0.7)' },
+            color: t.text.dimmed,
+            '&:hover': { color: t.text.bright },
           }}
         >
           <CloseIcon sx={{ fontSize: 16 }} />

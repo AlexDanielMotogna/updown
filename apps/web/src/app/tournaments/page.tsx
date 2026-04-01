@@ -19,7 +19,8 @@ import { FilterDropdown } from '@/components/sports/MarketFilter';
 import Link from 'next/link';
 import { AppShell, AssetIcon } from '@/components';
 import { fetchTournaments, type TournamentSummary } from '@/lib/api';
-import { UP_COLOR, ACCENT_COLOR, GAIN_COLOR, DRAW_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 import { formatDate } from '@/lib/format';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useTournamentRegister, type RegisterStatus } from '@/hooks/useTournamentRegister';
@@ -39,11 +40,14 @@ const ASSET_FILTERS = [
   { value: 'SOL', label: 'SOL', img: '/coins/sol-coin.png' },
 ];
 
-const STATUS_COLORS: Record<string, string> = {
-  REGISTERING: UP_COLOR,
-  ACTIVE: ACCENT_COLOR,
-  COMPLETED: 'rgba(255,255,255,0.35)',
-};
+function useStatusColors() {
+  const t = useThemeTokens();
+  return {
+    REGISTERING: t.up,
+    ACTIVE: t.accent,
+    COMPLETED: t.text.quaternary,
+  } as Record<string, string>;
+}
 
 const STATUS_LABELS: Record<string, string> = {
   REGISTERING: 'Open',
@@ -63,26 +67,30 @@ const STATUS_BUTTON_LABEL: Record<RegisterStatus, string> = {
 
 // League names are now from useCategories()
 
-function TournamentCard({ t, onRegistered }: { t: TournamentSummary; onRegistered: () => void }) {
+function TournamentCard({ t: tourneyData, onRegistered }: { t: TournamentSummary; onRegistered: () => void }) {
+  const t = useThemeTokens();
+  const STATUS_COLORS = useStatusColors();
   const getBadge = useBadgeLookup();
   const { connected, walletAddress } = useWalletBridge();
   const { register, status: regStatus, error: regError, reset } = useTournamentRegister();
-  const entryFeeUsdc = (Number(t.entryFee) / 1_000_000).toFixed(2);
-  const prizePoolUsdc = (Number(t.prizePool) / 1_000_000).toFixed(2);
-  const statusColor = STATUS_COLORS[t.status] || 'rgba(255,255,255,0.35)';
-  const statusLabel = STATUS_LABELS[t.status] || t.status;
-  const filled = t.participantCount ?? t._count?.participants ?? 0;
-  const isRegistering = t.status === 'REGISTERING';
-  const alreadyRegistered = !!(walletAddress && t.participantWallets?.includes(walletAddress));
+  const entryFeeUsdc = (Number(tourneyData.entryFee) / 1_000_000).toFixed(2);
+  const prizePoolUsdc = (Number(tourneyData.prizePool) / 1_000_000).toFixed(2);
+  const statusColor = STATUS_COLORS[tourneyData.status] || t.text.quaternary;
+  const statusLabel = STATUS_LABELS[tourneyData.status] || tourneyData.status;
+  const filled = tourneyData.participantCount ?? tourneyData._count?.participants ?? 0;
+  const isRegistering = tourneyData.status === 'REGISTERING';
+  const alreadyRegistered = !!(walletAddress && tourneyData.participantWallets?.includes(walletAddress));
   const isRegistered = alreadyRegistered || regStatus === 'success';
   const isBusy = regStatus !== 'idle' && regStatus !== 'success' && regStatus !== 'error';
-  const isSports = t.tournamentType === 'SPORTS';
+  const isSports = tourneyData.tournamentType === 'SPORTS';
 
   return (
     <Box
       sx={{
-        bgcolor: '#0D1219',
-        borderRadius: 0,
+        bgcolor: t.bg.surfaceAlt,
+        border: t.surfaceBorder,
+        boxShadow: t.surfaceShadow,
+        borderRadius: 1,
         p: { xs: 2, md: 2.5 },
         display: 'flex',
         flexDirection: 'column',
@@ -94,27 +102,27 @@ function TournamentCard({ t, onRegistered }: { t: TournamentSummary; onRegistere
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {isSports && t.league ? (
+          {isSports && tourneyData.league ? (
             <Box
               component="img"
-              src={getBadge(t.league!) || ''}
-              alt={t.league}
+              src={getBadge(tourneyData.league!) || ''}
+              alt={tourneyData.league}
               sx={{ width: 32, height: 32, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '3px' }}
             />
           ) : (
             <Box
               component="img"
-              src={`/tournaments/tournament-${t.asset.toLowerCase()}.png`}
-              alt={t.asset}
+              src={`/tournaments/tournament-${tourneyData.asset.toLowerCase()}.png`}
+              alt={tourneyData.asset}
               sx={{ width: 36, height: 36, objectFit: 'contain' }}
             />
           )}
-          <Typography sx={{ fontWeight: 700, fontSize: '0.95rem' }}>{t.name}</Typography>
+          <Typography sx={{ fontWeight: 700, fontSize: '0.95rem' }}>{tourneyData.name}</Typography>
         </Box>
         <Chip
           label={statusLabel}
           size="small"
-          sx={{ fontWeight: 700, fontSize: '0.65rem', height: 22, bgcolor: `${statusColor}15`, color: statusColor, border: `1px solid ${statusColor}25`, borderRadius: 0 }}
+          sx={{ fontWeight: 700, fontSize: '0.65rem', height: 22, bgcolor: `${statusColor}15`, color: statusColor, border: `1px solid ${statusColor}25`, borderRadius: 1 }}
         />
       </Box>
 
@@ -122,38 +130,38 @@ function TournamentCard({ t, onRegistered }: { t: TournamentSummary; onRegistere
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1 }}>
         {isSports ? (
           <Box>
-            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>League</Typography>
+            <Typography variant="caption" sx={{ color: t.text.tertiary, fontWeight: 500 }}>League</Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <Box
                 component="img"
-                src={getBadge(t.league!) || ''}
-                alt={t.league || ''}
+                src={getBadge(tourneyData.league!) || ''}
+                alt={tourneyData.league || ''}
                 sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }}
               />
-              <Typography sx={{ fontSize: '0.85rem', fontWeight: 700 }}>{t.league}</Typography>
+              <Typography sx={{ fontSize: '0.85rem', fontWeight: 700 }}>{tourneyData.league}</Typography>
             </Box>
           </Box>
         ) : (
           <Box>
-            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>Asset</Typography>
+            <Typography variant="caption" sx={{ color: t.text.tertiary, fontWeight: 500 }}>Asset</Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <AssetIcon asset={t.asset} size={20} />
-              <Typography sx={{ fontSize: '0.85rem', fontWeight: 700 }}>{t.asset}</Typography>
+              <AssetIcon asset={tourneyData.asset} size={20} />
+              <Typography sx={{ fontSize: '0.85rem', fontWeight: 700 }}>{tourneyData.asset}</Typography>
             </Box>
           </Box>
         )}
         <InfoItem label="Entry Fee" value={`$${entryFeeUsdc}`} />
-        <InfoItem label="Players" value={`${filled} / ${t.size}`} />
-        <InfoItem label="Prize Pool" value={`$${prizePoolUsdc}`} color={GAIN_COLOR} />
-        {t.scheduledAt && (
-          <InfoItem label="Starts" value={formatDate(t.scheduledAt)} />
+        <InfoItem label="Players" value={`${filled} / ${tourneyData.size}`} />
+        <InfoItem label="Prize Pool" value={`$${prizePoolUsdc}`} color={t.gain} />
+        {tourneyData.scheduledAt && (
+          <InfoItem label="Starts" value={formatDate(tourneyData.scheduledAt)} />
         )}
       </Box>
 
       {/* Round info */}
-      {t.status !== 'REGISTERING' && (
-        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)' }}>
-          Round {t.currentRound} / {t.totalRounds}
+      {tourneyData.status !== 'REGISTERING' && (
+        <Typography variant="caption" sx={{ color: t.text.quaternary }}>
+          Round {tourneyData.currentRound} / {tourneyData.totalRounds}
         </Typography>
       )}
 
@@ -166,23 +174,23 @@ function TournamentCard({ t, onRegistered }: { t: TournamentSummary; onRegistere
             disabled={isBusy || isRegistered}
             onClick={async () => {
               if (regStatus === 'error') reset();
-              const ok = await register(t.id);
+              const ok = await register(tourneyData.id);
               if (ok) onRegistered();
             }}
             sx={{
               flex: 1,
-              bgcolor: isRegistered ? 'rgba(255,255,255,0.04)' : regStatus === 'error' ? 'rgba(248,113,113,0.15)' : UP_COLOR,
-              color: isRegistered ? UP_COLOR : regStatus === 'error' ? '#F87171' : '#000',
+              bgcolor: isRegistered ? 'rgba(255,255,255,0.04)' : regStatus === 'error' ? 'rgba(248,113,113,0.15)' : t.up,
+              color: isRegistered ? t.up : regStatus === 'error' ? t.error : '#000',
               fontWeight: 700,
               fontSize: '0.8rem',
               textTransform: 'none',
-              borderRadius: 0,
+              borderRadius: 1,
               py: 0.75,
               boxShadow: 'none',
-              '&:hover': { bgcolor: isRegistered ? 'rgba(255,255,255,0.04)' : `${UP_COLOR}CC`, boxShadow: 'none' },
+              '&:hover': { bgcolor: isRegistered ? 'rgba(255,255,255,0.04)' : `${t.up}CC`, boxShadow: 'none' },
               '&:disabled': isRegistered
-                ? { bgcolor: 'rgba(255,255,255,0.04)', color: UP_COLOR }
-                : { bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' },
+                ? { bgcolor: 'rgba(255,255,255,0.04)', color: t.up }
+                : { bgcolor: 'rgba(255,255,255,0.06)', color: t.text.tertiary },
             }}
           >
             {isBusy ? (
@@ -193,23 +201,23 @@ function TournamentCard({ t, onRegistered }: { t: TournamentSummary; onRegistere
             ) : isRegistered ? 'Registered' : regStatus === 'error' ? 'Try Again' : `Register · $${entryFeeUsdc}`}
           </Button>
         ) : isRegistering ? (
-          <Button disabled fullWidth sx={{ flex: 1, fontSize: '0.8rem', textTransform: 'none', borderRadius: 0, py: 0.75, color: 'rgba(255,255,255,0.25)' }}>
+          <Button disabled fullWidth sx={{ flex: 1, fontSize: '0.8rem', textTransform: 'none', borderRadius: 1, py: 0.75, color: t.text.muted }}>
             Connect wallet
           </Button>
         ) : null}
 
         {/* View button */}
-        <Link href={`/tournament/${t.id}`} style={{ textDecoration: 'none', flex: isRegistering ? undefined : 1 }}>
+        <Link href={`/tournament/${tourneyData.id}`} style={{ textDecoration: 'none', flex: isRegistering ? undefined : 1 }}>
           <Button
             fullWidth
             variant="contained"
             sx={{
               bgcolor: 'rgba(255,255,255,0.06)',
-              color: '#fff',
+              color: t.text.primary,
               fontWeight: 700,
               fontSize: '0.8rem',
               textTransform: 'none',
-              borderRadius: 0,
+              borderRadius: 1,
               py: 0.75,
               boxShadow: 'none',
               '&:hover': { bgcolor: 'rgba(255,255,255,0.1)', boxShadow: 'none' },
@@ -222,19 +230,20 @@ function TournamentCard({ t, onRegistered }: { t: TournamentSummary; onRegistere
 
       {/* Error */}
       {regError && (
-        <Typography sx={{ fontSize: '0.65rem', color: '#F87171', textAlign: 'center' }}>{regError}</Typography>
+        <Typography sx={{ fontSize: '0.65rem', color: t.error, textAlign: 'center' }}>{regError}</Typography>
       )}
     </Box>
   );
 }
 
 function InfoItem({ label, value, color }: { label: string; value: string; color?: string }) {
+  const t = useThemeTokens();
   return (
     <Box>
-      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>
+      <Typography variant="caption" sx={{ color: t.text.tertiary, fontWeight: 500 }}>
         {label}
       </Typography>
-      <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: color || '#fff', fontVariantNumeric: 'tabular-nums' }}>
+      <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: color || t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
         {value}
       </Typography>
     </Box>
@@ -250,6 +259,7 @@ function buildIcon(cat: CategoryConfig, size: number = 16): React.ReactNode {
 }
 
 export default function TournamentsPage() {
+  const t = useThemeTokens();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -264,6 +274,7 @@ export default function TournamentsPage() {
   const marketType: TabType = rawType && (rawType === 'CRYPTO' || rawType === 'SPORTS' || rawType.startsWith('PM_')) ? rawType : 'CRYPTO';
   const assetFilter = searchParams.get('asset') ?? 'ALL';
   const leagueFilter = searchParams.get('league') ?? 'ALL';
+  const sportFilter = searchParams.get('sport') ?? 'ALL';
   const [showFilters, setShowFilters] = useState(false);
 
   const updateParam = useCallback((key: string, value: string) => {
@@ -309,34 +320,35 @@ export default function TournamentsPage() {
   const filtered = useMemo(() => {
     let result = tournaments;
     if (isPM) {
-      result = result.filter(t => t.league === marketType);
-    } else if (assetFilter !== 'ALL' && marketType === 'CRYPTO') {
-      result = result.filter(t => t.asset === assetFilter);
-    } else if (leagueFilter !== 'ALL' && marketType === 'SPORTS') {
-      result = result.filter(t => t.league === leagueFilter);
+      result = result.filter(tr => tr.league === marketType);
+    } else if (marketType === 'CRYPTO') {
+      if (assetFilter !== 'ALL') result = result.filter(tr => tr.asset === assetFilter);
+    } else if (marketType === 'SPORTS') {
+      if (sportFilter !== 'ALL') result = result.filter(tr => tr.sport?.toUpperCase() === sportFilter.toUpperCase());
+      if (leagueFilter !== 'ALL') result = result.filter(tr => tr.league === leagueFilter);
     }
     return result;
-  }, [tournaments, marketType, assetFilter, leagueFilter, isPM]);
+  }, [tournaments, marketType, assetFilter, leagueFilter, sportFilter, isPM]);
 
   const { tabs: dynamicTabs, leagueFilters, tabColorMap } = useMemo(() => {
     const cats = categories || [];
     const pmCats = cats.filter(c => c.type === 'POLYMARKET' && c.enabled);
     const footballCats = cats.filter(c => c.type === 'FOOTBALL_LEAGUE' && c.enabled);
     const tabs = [
-      { key: 'CRYPTO', label: 'Crypto', icon: <ShowChart sx={{ fontSize: 16 }} />, color: UP_COLOR },
-      { key: 'SPORTS', label: 'Sports', icon: <SportsSoccer sx={{ fontSize: 16 }} />, color: DRAW_COLOR },
-      ...pmCats.map(c => ({ key: c.code, label: c.shortLabel || c.label, icon: buildIcon(c), color: c.color || '#A78BFA' })),
+      { key: 'CRYPTO', label: 'Crypto', icon: <ShowChart sx={{ fontSize: 16 }} />, color: t.up },
+      { key: 'SPORTS', label: 'Sports', icon: <SportsSoccer sx={{ fontSize: 16 }} />, color: t.draw },
+      ...pmCats.map(c => ({ key: c.code, label: c.shortLabel || c.label, icon: buildIcon(c), color: c.color || t.prediction })),
     ];
     const leagueFilters = [
       { value: 'ALL', label: 'All', img: null as string | null, icon: <GridView sx={{ fontSize: 18 }} /> },
       ...footballCats.map(c => ({ value: c.code, label: c.shortLabel || c.label, img: c.badgeUrl })),
     ];
-    const tabColorMap: Record<string, string> = { CRYPTO: UP_COLOR, SPORTS: DRAW_COLOR };
-    for (const c of pmCats) tabColorMap[c.code] = c.color || '#A78BFA';
+    const tabColorMap: Record<string, string> = { CRYPTO: t.up, SPORTS: t.draw };
+    for (const c of pmCats) tabColorMap[c.code] = c.color || t.prediction;
     return { tabs, leagueFilters, tabColorMap };
   }, [categories]);
 
-  const tabColor = tabColorMap[marketType] || UP_COLOR;
+  const tabColor = tabColorMap[marketType] || t.up;
 
   return (
     <AppShell>
@@ -369,7 +381,7 @@ export default function TournamentsPage() {
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
                     borderBottom: active ? `2px solid ${tab.color}` : '2px solid transparent',
-                    color: active ? tab.color : 'rgba(255,255,255,0.35)',
+                    color: active ? tab.color : t.text.quaternary,
                     transition: 'all 0.15s ease',
                     '&:hover': { color: tab.color },
                   }}
@@ -386,7 +398,7 @@ export default function TournamentsPage() {
             <IconButton
               onClick={() => setShowFilters(!showFilters)}
               size="small"
-              sx={{ color: showFilters ? tabColor : 'rgba(255,255,255,0.35)', '&:hover': { color: tabColor }, flexShrink: 0 }}
+              sx={{ color: showFilters ? tabColor : t.text.quaternary, '&:hover': { color: tabColor }, flexShrink: 0 }}
             >
               <FilterList sx={{ fontSize: 20 }} />
             </IconButton>
@@ -402,7 +414,7 @@ export default function TournamentsPage() {
                 label="Asset"
                 options={ASSET_FILTERS}
                 onChange={(v) => updateParam('asset', v)}
-                color={UP_COLOR}
+                color={t.up}
               />
             ) : (
               <>
@@ -412,14 +424,14 @@ export default function TournamentsPage() {
                   icon={<SportsSoccer sx={{ fontSize: 18 }} />}
                   options={SPORT_FILTERS.map(f => ({ ...f, img: null, icon: <SportsSoccer sx={{ fontSize: 18 }} /> }))}
                   onChange={() => {}}
-                  color={DRAW_COLOR}
+                  color={t.draw}
                 />
                 <FilterDropdown
                   value={leagueFilter}
                   label="League"
                   options={leagueFilters}
                   onChange={(v) => updateParam('league', v)}
-                  color={DRAW_COLOR}
+                  color={t.draw}
                 />
               </>
             )}
@@ -444,7 +456,7 @@ export default function TournamentsPage() {
         {/* Loading */}
         {loading && (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-            <CircularProgress size={32} sx={{ color: UP_COLOR }} />
+            <CircularProgress size={32} sx={{ color: t.up }} />
           </Box>
         )}
 
@@ -468,8 +480,8 @@ export default function TournamentsPage() {
               gap: 2,
             }}
           >
-            {filtered.map((t) => (
-              <TournamentCard key={t.id} t={t} onRegistered={load} />
+            {filtered.map((tr) => (
+              <TournamentCard key={tr.id} t={tr} onRegistered={load} />
             ))}
           </Box>
         )}

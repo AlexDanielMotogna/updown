@@ -6,7 +6,9 @@ import { Person, LocalFireDepartment, Star, Share } from '@mui/icons-material';
 import Link from 'next/link';
 import type { Pool } from '@/lib/api';
 import { formatUSDC, USDC_DIVISOR } from '@/lib/format';
-import { UP_COLOR, DOWN_COLOR, GAIN_COLOR, ACCENT_COLOR, INTERVAL_TAG_IMAGES, INTERVAL_LABELS } from '@/lib/constants';
+import { INTERVAL_TAG_IMAGES, INTERVAL_LABELS } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 import { Countdown } from '../Countdown';
 
 export interface PoolRowDesktopProps {
@@ -45,6 +47,8 @@ export function PoolRowDesktop({
   handleCountdownComplete,
   boxImageUrl,
 }: PoolRowDesktopProps) {
+  const t = useThemeTokens();
+
   const totalUp = Number(pool.totalUp);
   const totalDown = Number(pool.totalDown);
   const totalUpUsd = totalUp / USDC_DIVISOR;
@@ -101,7 +105,7 @@ export function PoolRowDesktop({
       {/* Asset */}
       <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', alignSelf: 'center', justifyContent: 'flex-start', gap: 0.75, flexWrap: 'nowrap', overflow: 'hidden', pl: 1.5, height: '100%' }}>
         <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-          <Typography sx={{ fontWeight: 600, fontSize: '0.85rem', '&:hover': { color: 'rgba(255,255,255,0.7)' } }}>
+          <Typography sx={{ fontWeight: 600, fontSize: '0.85rem', '&:hover': { color: t.text.bright } }}>
             {pool.asset}/USD
           </Typography>
         </Link>
@@ -121,10 +125,10 @@ export function PoolRowDesktop({
               height: 18,
               fontSize: '0.55rem',
               fontWeight: 700,
-              bgcolor: `${ACCENT_COLOR}20`,
-              color: ACCENT_COLOR,
+              bgcolor: withAlpha(t.accent, 0.13),
+              color: t.accent,
               borderRadius: '2px',
-              '& .MuiChip-icon': { color: ACCENT_COLOR },
+              '& .MuiChip-icon': { color: t.accent },
               animation: 'hotPulse 2s infinite',
             }}
           />
@@ -138,10 +142,10 @@ export function PoolRowDesktop({
               height: 18,
               fontSize: '0.55rem',
               fontWeight: 700,
-              bgcolor: '#F59E0B20',
-              color: '#F59E0B',
+              bgcolor: withAlpha(t.accent, 0.13),
+              color: t.accent,
               borderRadius: '2px',
-              '& .MuiChip-icon': { color: '#F59E0B' },
+              '& .MuiChip-icon': { color: t.accent },
             }}
           />
         )}
@@ -150,7 +154,7 @@ export function PoolRowDesktop({
       {/* Countdown */}
       <Box sx={{ display: { xs: 'none', md: 'block' }, alignSelf: 'center' }}>
         {endTimePassed ? (
-          <Typography sx={{ fontSize: '0.8rem', color: '#FBBF24', fontStyle: 'italic' }}>Resolving...</Typography>
+          <Typography sx={{ fontSize: '0.8rem', color: t.draw, fontStyle: 'italic' }}>Resolving...</Typography>
         ) : countdownTarget ? (
           <Countdown targetDate={countdownTarget} compact onComplete={handleCountdownComplete} />
         ) : (
@@ -160,7 +164,7 @@ export function PoolRowDesktop({
 
       {/* Distribution */}
       <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', alignSelf: 'center', gap: 0.5 }}>
-        <Typography sx={{ fontSize: '0.7rem', color: UP_COLOR, fontWeight: 500, minWidth: 28 }}>{upPct}%</Typography>
+        <Typography sx={{ fontSize: '0.7rem', color: t.up, fontWeight: 500, minWidth: 28 }}>{upPct}%</Typography>
         <LinearProgress
           variant="determinate"
           value={upPct}
@@ -168,8 +172,8 @@ export function PoolRowDesktop({
             width: 50,
             height: 6,
             borderRadius: 1,
-            bgcolor: `${DOWN_COLOR}40`,
-            '& .MuiLinearProgress-bar': { bgcolor: UP_COLOR, borderRadius: 1 },
+            bgcolor: withAlpha(t.down, 0.25),
+            '& .MuiLinearProgress-bar': { bgcolor: t.up, borderRadius: 1 },
             position: 'relative',
             overflow: 'hidden',
             ...(canBet && {
@@ -183,12 +187,12 @@ export function PoolRowDesktop({
             }),
           }}
         />
-        <Typography sx={{ fontSize: '0.7rem', color: DOWN_COLOR, fontWeight: 500, minWidth: 28 }}>{downPct}%</Typography>
+        <Typography sx={{ fontSize: '0.7rem', color: t.down, fontWeight: 500, minWidth: 28 }}>{downPct}%</Typography>
       </Box>
 
       {/* Pool Size */}
       <Box sx={{ display: { xs: 'none', md: 'block' }, alignSelf: 'center' }}>
-        <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: GAIN_COLOR }}>
+        <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: t.gain }}>
           {formatUSDC(pool.totalPool)}
         </Typography>
       </Box>
@@ -196,9 +200,9 @@ export function PoolRowDesktop({
       {/* Odds */}
       <Box sx={{ display: { xs: 'none', md: 'block' }, alignSelf: 'center' }}>
         <Typography sx={{ fontSize: '0.8rem', fontVariantNumeric: 'tabular-nums' }}>
-          <Box component="span" sx={{ color: UP_COLOR, fontWeight: 500 }}>{oddsUp}x</Box>
+          <Box component="span" sx={{ color: t.up, fontWeight: 500 }}>{oddsUp}x</Box>
           {' / '}
-          <Box component="span" sx={{ color: DOWN_COLOR, fontWeight: 500 }}>{oddsDown}x</Box>
+          <Box component="span" sx={{ color: t.down, fontWeight: 500 }}>{oddsDown}x</Box>
         </Typography>
       </Box>
 
@@ -220,11 +224,11 @@ export function PoolRowDesktop({
                 py: 0.75,
                 fontSize: '0.75rem',
                 fontWeight: 700,
-                bgcolor: UP_COLOR,
-                color: '#000',
+                bgcolor: t.up,
+                color: t.text.contrast,
                 borderRadius: '2px',
                 textTransform: 'none',
-                '&:hover': { bgcolor: UP_COLOR, filter: 'brightness(1.15)' },
+                '&:hover': { bgcolor: t.up, filter: 'brightness(1.15)' },
               }}
             >
               Join
@@ -241,9 +245,9 @@ export function PoolRowDesktop({
                 fontWeight: 600,
                 color: 'text.secondary',
                 borderRadius: '2px',
-                bgcolor: 'rgba(255,255,255,0.06)',
+                bgcolor: t.hover.medium,
                 textTransform: 'none',
-                '&:hover': { bgcolor: 'rgba(255,255,255,0.10)' },
+                '&:hover': { bgcolor: t.hover.emphasis },
               }}
             >
               View
@@ -261,8 +265,8 @@ export function PoolRowDesktop({
                 fontSize: '0.6rem',
                 fontWeight: 600,
                 borderRadius: '2px',
-                bgcolor: isRefund ? `${ACCENT_COLOR}15` : pool.winner === 'UP' ? `${UP_COLOR}15` : `${DOWN_COLOR}15`,
-                color: isRefund ? ACCENT_COLOR : pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR,
+                bgcolor: isRefund ? withAlpha(t.accent, 0.08) : pool.winner === 'UP' ? withAlpha(t.up, 0.08) : withAlpha(t.down, 0.08),
+                color: isRefund ? t.accent : pool.winner === 'UP' ? t.up : t.down,
               }}
             />
             {userBet && !isRefund && (
@@ -274,8 +278,8 @@ export function PoolRowDesktop({
                   fontSize: '0.55rem',
                   fontWeight: 600,
                   borderRadius: '2px',
-                  bgcolor: userBet.isWinner === true ? `${GAIN_COLOR}15` : userBet.isWinner === false ? `${DOWN_COLOR}15` : 'rgba(255,255,255,0.06)',
-                  color: userBet.isWinner === true ? GAIN_COLOR : userBet.isWinner === false ? DOWN_COLOR : 'text.secondary',
+                  bgcolor: userBet.isWinner === true ? withAlpha(t.gain, 0.08) : userBet.isWinner === false ? withAlpha(t.down, 0.08) : t.hover.medium,
+                  color: userBet.isWinner === true ? t.gain : userBet.isWinner === false ? t.down : 'text.secondary',
                 }}
               />
             )}
@@ -301,8 +305,8 @@ export function PoolRowDesktop({
           alignSelf: 'center', justifyContent: 'flex-start', alignItems: 'center',
           background: 'none', border: 'none', cursor: 'pointer', p: 0.5,
           borderRadius: '4px',
-          color: 'rgba(255,255,255,0.25)',
-          '&:hover': { color: 'rgba(255,255,255,0.7)', bgcolor: 'rgba(255,255,255,0.06)' },
+          color: t.text.muted,
+          '&:hover': { color: t.text.bright, bgcolor: t.hover.medium },
           transition: 'all 0.15s ease',
         }}
       >

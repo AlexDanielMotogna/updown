@@ -3,7 +3,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Box, Typography, CircularProgress } from '@mui/material';
 import { motion } from 'framer-motion';
-import { ACCENT_COLOR, DOWN_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 interface CountdownProps {
   targetDate: string | Date;
@@ -49,6 +50,7 @@ function getPhase(totalMs: number): Phase {
 }
 
 export function Countdown({ targetDate, label, onComplete, compact = false, compactFontSize }: CountdownProps) {
+  const t = useThemeTokens();
   const targetMs = useMemo(() => {
     const date = typeof targetDate === 'string' ? new Date(targetDate) : targetDate;
     return date.getTime();
@@ -118,9 +120,9 @@ export function Countdown({ targetDate, label, onComplete, compact = false, comp
 
   // Phase-specific number color
   const numberColor = (() => {
-    if (phase === 'final') return DOWN_COLOR;
-    if (phase === 'critical') return '#EF4444';
-    if (phase === 'heating') return '#F59E0B';
+    if (phase === 'final') return t.down;
+    if (phase === 'critical') return t.error;
+    if (phase === 'heating') return t.accent;
     return 'text.primary';
   })();
 
@@ -158,16 +160,16 @@ export function Countdown({ targetDate, label, onComplete, compact = false, comp
 
   // Box background per phase
   const boxBg = (() => {
-    if (phase === 'final') return `${DOWN_COLOR}30`;
-    if (phase === 'critical') return `${DOWN_COLOR}20`;
-    if (phase === 'heating') return `${ACCENT_COLOR}15`;
-    return 'rgba(255, 255, 255, 0.04)';
+    if (phase === 'final') return withAlpha(t.down, 0.19);
+    if (phase === 'critical') return withAlpha(t.down, 0.13);
+    if (phase === 'heating') return withAlpha(t.accent, 0.08);
+    return t.hover.default;
   })();
 
   // Box shadow per phase
   const boxShadow = (() => {
-    if (phase === 'final') return `0 0 12px ${DOWN_COLOR}40, inset 0 0 8px ${DOWN_COLOR}15`;
-    if (phase === 'critical') return `0 0 8px ${DOWN_COLOR}25`;
+    if (phase === 'final') return `0 0 12px ${withAlpha(t.down, 0.25)}, inset 0 0 8px ${withAlpha(t.down, 0.08)}`;
+    if (phase === 'critical') return `0 0 8px ${withAlpha(t.down, 0.15)}`;
     return 'none';
   })();
 
@@ -177,7 +179,7 @@ export function Countdown({ targetDate, label, onComplete, compact = false, comp
         <Typography
           variant="caption"
           sx={{
-            color: phase === 'final' ? DOWN_COLOR : phase === 'critical' ? '#EF4444' : phase === 'heating' ? ACCENT_COLOR : 'text.secondary',
+            color: phase === 'final' ? t.down : phase === 'critical' ? t.error : phase === 'heating' ? t.accent : 'text.secondary',
             display: 'block',
             mb: 1.5,
             textAlign: 'center',
@@ -192,7 +194,7 @@ export function Countdown({ targetDate, label, onComplete, compact = false, comp
 
       {isExpired ? (
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, py: 1 }}>
-          <CircularProgress size={24} sx={{ color: ACCENT_COLOR }} />
+          <CircularProgress size={24} sx={{ color: t.accent }} />
           <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem', fontWeight: 500, letterSpacing: '0.05em' }}>
             Resolving pool...
           </Typography>
@@ -219,7 +221,7 @@ export function Countdown({ targetDate, label, onComplete, compact = false, comp
               sx={{
                 minWidth: { xs: 48, sm: 56 },
                 p: 1.5,
-                borderRadius: 0,
+                borderRadius: 1,
                 background: boxBg,
                 border: 'none',
                 textAlign: 'center',
@@ -229,7 +231,7 @@ export function Countdown({ targetDate, label, onComplete, compact = false, comp
             >
               <motion.div
                 key={`${unit.label}-${timeLeft.seconds}`}
-                initial={tickFlash && phase === 'final' ? { backgroundColor: 'rgba(255,255,255,0.3)' } : false}
+                initial={tickFlash && phase === 'final' ? { backgroundColor: t.text.dimmed } : false}
                 animate={{ backgroundColor: 'rgba(255,255,255,0)' }}
                 transition={{ duration: 0.3, ease: 'easeOut' }}
                 style={{ borderRadius: '2px' }}

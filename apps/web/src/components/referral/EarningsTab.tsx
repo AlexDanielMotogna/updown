@@ -4,13 +4,10 @@ import Avatar from '@mui/material/Avatar';
 import { Box, Typography, Tooltip, Button } from '@mui/material';
 import { InfoOutlined, OpenInNew } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getAvatarUrl, GAIN_COLOR, ACCENT_COLOR } from '@/lib/constants';
+import { getAvatarUrl } from '@/lib/constants';
 import { USDC_DIVISOR, getExplorerTxUrl, formatDate } from '@/lib/format';
-
-const tooltipSlotProps = {
-  tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } },
-  arrow: { sx: { color: '#1a1f2e' } },
-} as const;
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 export interface EarningsTabProps {
   earnings: Array<{
@@ -24,6 +21,11 @@ export interface EarningsTabProps {
 }
 
 export function EarningsTab({ earnings }: EarningsTabProps) {
+  const t = useThemeTokens();
+  const tooltipSlotProps = {
+    tooltip: { sx: { bgcolor: t.bg.tooltip, border: `1px solid ${t.border.strong}`, fontSize: '0.75rem' } },
+    arrow: { sx: { color: t.bg.tooltip } },
+  } as const;
   if (!earnings || earnings.length === 0) {
     return (
       <Box sx={{ textAlign: 'center', py: 8, px: 4 }}>
@@ -37,7 +39,7 @@ export function EarningsTab({ earnings }: EarningsTabProps) {
   return (
     <Box
       sx={{
-        borderRadius: 0,
+        borderRadius: 1,
         display: 'flex',
         flexDirection: 'column',
         gap: '3px',
@@ -51,7 +53,9 @@ export function EarningsTab({ earnings }: EarningsTabProps) {
           gridTemplateColumns: '2fr 1.5fr 1fr 0.8fr 0.8fr',
           px: 2,
           py: 1,
-          bgcolor: '#0D1219',
+          bgcolor: t.bg.surfaceAlt,
+          border: t.surfaceBorder,
+          boxShadow: t.surfaceShadow,
         }}
       >
         {[
@@ -66,7 +70,7 @@ export function EarningsTab({ earnings }: EarningsTabProps) {
               {h.label}
             </Typography>
             <Tooltip title={h.tip} arrow placement="top" slotProps={tooltipSlotProps}>
-              <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+              <InfoOutlined sx={{ fontSize: 11, color: t.text.muted, cursor: 'help', '&:hover': { color: t.text.secondary }, transition: 'color 0.15s' }} />
             </Tooltip>
           </Box>
         ))}
@@ -91,9 +95,11 @@ export function EarningsTab({ earnings }: EarningsTabProps) {
                 px: 2,
                 py: 0,
                 minHeight: 56,
-                bgcolor: '#0D1219',
+                bgcolor: t.bg.surfaceAlt,
+                border: t.surfaceBorder,
+                boxShadow: t.surfaceShadow,
                 transition: 'background 0.15s ease',
-                '&:hover': { background: 'rgba(255,255,255,0.04)' },
+                '&:hover': { background: t.border.subtle },
               }}
             >
               {/* From */}
@@ -101,13 +107,13 @@ export function EarningsTab({ earnings }: EarningsTabProps) {
                 <Avatar
                   src={getAvatarUrl(e.referredWallet)}
                   alt={e.referredWallet}
-                  sx={{ width: 28, height: 28, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}
+                  sx={{ width: 28, height: 28, borderRadius: '50%', border: `1px solid ${t.border.default}`, flexShrink: 0 }}
                 />
                 <Typography
                   sx={{
                     fontSize: '0.85rem',
                     fontWeight: 600,
-                    color: '#fff',
+                    color: t.text.primary,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
@@ -123,7 +129,7 @@ export function EarningsTab({ earnings }: EarningsTabProps) {
               </Typography>
 
               {/* Commission */}
-              <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: GAIN_COLOR, fontVariantNumeric: 'tabular-nums' }}>
+              <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: t.gain, fontVariantNumeric: 'tabular-nums' }}>
                 ${(Number(e.commissionAmount) / USDC_DIVISOR).toFixed(2)}
               </Typography>
 
@@ -135,11 +141,11 @@ export function EarningsTab({ earnings }: EarningsTabProps) {
                   height: 20,
                   px: 1,
                   borderRadius: '2px',
-                  bgcolor: e.paid ? `${GAIN_COLOR}18` : `${ACCENT_COLOR}18`,
+                  bgcolor: e.paid ? withAlpha(t.gain, 0.09) : withAlpha(t.accent, 0.09),
                   width: 'fit-content',
                 }}
               >
-                <Typography sx={{ fontSize: '0.6rem', fontWeight: 600, color: e.paid ? GAIN_COLOR : ACCENT_COLOR }}>
+                <Typography sx={{ fontSize: '0.6rem', fontWeight: 600, color: e.paid ? t.gain : t.accent }}>
                   {e.paid ? 'PAID' : 'PENDING'}
                 </Typography>
               </Box>
@@ -156,13 +162,13 @@ export function EarningsTab({ earnings }: EarningsTabProps) {
                     sx={{
                       minWidth: 0, px: 1, py: 0.25, fontSize: '0.65rem', color: 'text.secondary',
                       textTransform: 'none', gap: 0.5,
-                      '&:hover': { color: '#FFFFFF' },
+                      '&:hover': { color: t.text.primary },
                     }}
                   >
                     Payout <OpenInNew sx={{ fontSize: 12 }} />
                   </Button>
                 ) : (
-                  <Typography sx={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.15)' }}>—</Typography>
+                  <Typography sx={{ fontSize: '0.8rem', color: t.border.emphasis }}>—</Typography>
                 )}
               </Box>
             </Box>
@@ -171,21 +177,23 @@ export function EarningsTab({ earnings }: EarningsTabProps) {
             <Box
               sx={{
                 display: { xs: 'block', md: 'none' },
-                bgcolor: '#0D1219',
+                bgcolor: t.bg.surfaceAlt,
+                border: t.surfaceBorder,
+                boxShadow: t.surfaceShadow,
                 p: 2,
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1.5, borderBottom: `1px solid ${t.border.subtle}` }}>
                 <Avatar
                   src={getAvatarUrl(e.referredWallet)}
                   alt={e.referredWallet}
-                  sx={{ width: 28, height: 28, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}
+                  sx={{ width: 28, height: 28, borderRadius: '50%', border: `1px solid ${t.border.default}`, flexShrink: 0 }}
                 />
                 <Typography
                   sx={{
                     fontSize: '0.85rem',
                     fontWeight: 600,
-                    color: '#fff',
+                    color: t.text.primary,
                     flex: 1,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -201,10 +209,10 @@ export function EarningsTab({ earnings }: EarningsTabProps) {
                     height: 20,
                     px: 1,
                     borderRadius: '2px',
-                    bgcolor: e.paid ? `${GAIN_COLOR}18` : `${ACCENT_COLOR}18`,
+                    bgcolor: e.paid ? withAlpha(t.gain, 0.09) : withAlpha(t.accent, 0.09),
                   }}
                 >
-                  <Typography sx={{ fontSize: '0.55rem', fontWeight: 600, color: e.paid ? GAIN_COLOR : ACCENT_COLOR }}>
+                  <Typography sx={{ fontSize: '0.55rem', fontWeight: 600, color: e.paid ? t.gain : t.accent }}>
                     {e.paid ? 'PAID' : 'PENDING'}
                   </Typography>
                 </Box>
@@ -219,7 +227,7 @@ export function EarningsTab({ earnings }: EarningsTabProps) {
                   </Typography>
                 </Box>
                 <Box sx={{ textAlign: 'right' }}>
-                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: GAIN_COLOR, fontVariantNumeric: 'tabular-nums' }}>
+                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: t.gain, fontVariantNumeric: 'tabular-nums' }}>
                     ${(Number(e.commissionAmount) / USDC_DIVISOR).toFixed(2)}
                   </Typography>
                   <Typography sx={{ fontSize: '0.6rem', color: 'text.secondary', textTransform: 'uppercase' }}>
@@ -238,7 +246,7 @@ export function EarningsTab({ earnings }: EarningsTabProps) {
                     sx={{
                       minWidth: 0, px: 1, py: 0.25, fontSize: '0.65rem', color: 'text.secondary',
                       textTransform: 'none', gap: 0.5,
-                      '&:hover': { color: '#FFFFFF' },
+                      '&:hover': { color: t.text.primary },
                     }}
                   >
                     Payout <OpenInNew sx={{ fontSize: 12 }} />

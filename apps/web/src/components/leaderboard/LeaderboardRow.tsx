@@ -12,10 +12,10 @@ import {
 import Avatar from '@mui/material/Avatar';
 import { motion } from 'framer-motion';
 import { UserLevelBadge } from '../UserLevelBadge';
-import { GAIN_COLOR, ACCENT_COLOR, DOWN_COLOR, UP_COINS_DIVISOR, getAvatarUrl } from '@/lib/constants';
+import { UP_COINS_DIVISOR, getAvatarUrl } from '@/lib/constants';
 import type { LeaderboardEntry } from '@/lib/api';
-
-const MEDAL_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32'];
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 export function LeaderboardRow({
   entry,
@@ -26,6 +26,8 @@ export function LeaderboardRow({
   sort: 'xp' | 'coins' | 'level';
   index: number;
 }) {
+  const t = useThemeTokens();
+  const MEDAL_COLORS = [t.gold, t.silver, t.bronze];
   const winRate = entry.totalBets > 0
     ? Math.round((entry.totalWins / entry.totalBets) * 100)
     : 0;
@@ -46,9 +48,11 @@ export function LeaderboardRow({
           px: 2,
           py: 0,
           minHeight: 56,
-          bgcolor: '#0D1219',
+          bgcolor: t.bg.surfaceAlt,
+          border: t.surfaceBorder,
+          boxShadow: t.surfaceShadow,
           transition: 'background 0.15s ease',
-          '&:hover': { background: 'rgba(255,255,255,0.04)' },
+          '&:hover': { background: t.border.subtle },
         }}
       >
         {/* Rank */}
@@ -73,7 +77,7 @@ export function LeaderboardRow({
               width: 32,
               height: 32,
               borderRadius: '50%',
-              border: entry.rank <= 3 ? `1.5px solid ${MEDAL_COLORS[entry.rank - 1]}40` : '1px solid rgba(255,255,255,0.06)',
+              border: entry.rank <= 3 ? `1.5px solid ${withAlpha(MEDAL_COLORS[entry.rank - 1], 0.25)}` : `1px solid ${t.border.default}`,
               flexShrink: 0,
             }}
           />
@@ -82,7 +86,7 @@ export function LeaderboardRow({
               sx={{
                 fontSize: '0.85rem',
                 fontWeight: 600,
-                color: '#fff',
+                color: t.text.primary,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -107,7 +111,7 @@ export function LeaderboardRow({
             sx={{
               fontSize: '0.85rem',
               fontWeight: 600,
-              color: sort === 'coins' ? ACCENT_COLOR : GAIN_COLOR,
+              color: sort === 'coins' ? t.accent : t.gain,
               fontVariantNumeric: 'tabular-nums',
             }}
           >
@@ -123,9 +127,9 @@ export function LeaderboardRow({
         {/* W / L */}
         <Box>
           <Typography sx={{ fontSize: '0.8rem', fontVariantNumeric: 'tabular-nums' }}>
-            <Box component="span" sx={{ color: GAIN_COLOR, fontWeight: 500 }}>{entry.totalWins}</Box>
+            <Box component="span" sx={{ color: t.gain, fontWeight: 500 }}>{entry.totalWins}</Box>
             <Box component="span" sx={{ color: 'text.secondary' }}> / </Box>
-            <Box component="span" sx={{ color: DOWN_COLOR, fontWeight: 500 }}>{entry.totalBets - entry.totalWins}</Box>
+            <Box component="span" sx={{ color: t.down, fontWeight: 500 }}>{entry.totalBets - entry.totalWins}</Box>
           </Typography>
         </Box>
 
@@ -139,9 +143,9 @@ export function LeaderboardRow({
               flexShrink: 0,
               height: 6,
               borderRadius: 1,
-              bgcolor: `${DOWN_COLOR}40`,
+              bgcolor: withAlpha(t.down, 0.25),
               '& .MuiLinearProgress-bar': {
-                bgcolor: winRate >= 60 ? GAIN_COLOR : winRate >= 40 ? ACCENT_COLOR : DOWN_COLOR,
+                bgcolor: winRate >= 60 ? t.gain : winRate >= 40 ? t.accent : t.down,
                 borderRadius: 1,
               },
             }}
@@ -153,8 +157,8 @@ export function LeaderboardRow({
 
         {/* Streak */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
-          {entry.bestStreak >= 3 && <LocalFireDepartment sx={{ fontSize: 14, color: ACCENT_COLOR }} />}
-          <Typography sx={{ fontSize: '0.8rem', color: entry.bestStreak >= 3 ? ACCENT_COLOR : 'text.secondary', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+          {entry.bestStreak >= 3 && <LocalFireDepartment sx={{ fontSize: 14, color: t.accent }} />}
+          <Typography sx={{ fontSize: '0.8rem', color: entry.bestStreak >= 3 ? t.accent : 'text.secondary', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
             {entry.bestStreak}
           </Typography>
         </Box>
@@ -164,12 +168,14 @@ export function LeaderboardRow({
       <Box
         sx={{
           display: { xs: 'block', md: 'none' },
-          bgcolor: '#0D1219',
+          bgcolor: t.bg.surfaceAlt,
+          border: t.surfaceBorder,
+          boxShadow: t.surfaceShadow,
           p: 2,
         }}
       >
         {/* Row 1: Rank + avatar + player + level */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1.5, borderBottom: `1px solid ${t.border.subtle}` }}>
           <Box sx={{ width: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             {entry.rank <= 3 ? (
               <MilitaryTech sx={{ fontSize: 22, color: MEDAL_COLORS[entry.rank - 1] }} />
@@ -186,7 +192,7 @@ export function LeaderboardRow({
               width: 28,
               height: 28,
               borderRadius: '50%',
-              border: entry.rank <= 3 ? `1.5px solid ${MEDAL_COLORS[entry.rank - 1]}40` : '1px solid rgba(255,255,255,0.06)',
+              border: entry.rank <= 3 ? `1.5px solid ${withAlpha(MEDAL_COLORS[entry.rank - 1], 0.25)}` : `1px solid ${t.border.default}`,
               flexShrink: 0,
             }}
           />
@@ -195,7 +201,7 @@ export function LeaderboardRow({
               sx={{
                 fontSize: '0.85rem',
                 fontWeight: 600,
-                color: '#fff',
+                color: t.text.primary,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -217,7 +223,7 @@ export function LeaderboardRow({
           }}
         >
           <Box>
-            <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: sort === 'coins' ? ACCENT_COLOR : GAIN_COLOR, fontVariantNumeric: 'tabular-nums' }}>
+            <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: sort === 'coins' ? t.accent : t.gain, fontVariantNumeric: 'tabular-nums' }}>
               {sort === 'coins'
                 ? (Number(entry.coinsLifetime) / UP_COINS_DIVISOR).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                 : Number(entry.totalXp).toLocaleString()}
@@ -228,9 +234,9 @@ export function LeaderboardRow({
           </Box>
           <Box>
             <Typography sx={{ fontSize: '0.9rem', fontVariantNumeric: 'tabular-nums' }}>
-              <Box component="span" sx={{ color: GAIN_COLOR, fontWeight: 500 }}>{entry.totalWins}</Box>
+              <Box component="span" sx={{ color: t.gain, fontWeight: 500 }}>{entry.totalWins}</Box>
               <Box component="span" sx={{ color: 'text.secondary' }}>/</Box>
-              <Box component="span" sx={{ color: DOWN_COLOR, fontWeight: 500 }}>{entry.totalBets - entry.totalWins}</Box>
+              <Box component="span" sx={{ color: t.down, fontWeight: 500 }}>{entry.totalBets - entry.totalWins}</Box>
             </Typography>
             <Typography sx={{ fontSize: '0.6rem', color: 'text.secondary', textTransform: 'uppercase' }}>
               W / L
@@ -238,8 +244,8 @@ export function LeaderboardRow({
           </Box>
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              {entry.bestStreak >= 3 && <LocalFireDepartment sx={{ fontSize: 14, color: ACCENT_COLOR }} />}
-              <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: entry.bestStreak >= 3 ? ACCENT_COLOR : 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
+              {entry.bestStreak >= 3 && <LocalFireDepartment sx={{ fontSize: 14, color: t.accent }} />}
+              <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: entry.bestStreak >= 3 ? t.accent : 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
                 {entry.bestStreak}
               </Typography>
             </Box>

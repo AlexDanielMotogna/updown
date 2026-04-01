@@ -6,7 +6,8 @@ import { Box, Typography } from '@mui/material';
 import { motion } from 'framer-motion';
 import { BetForm } from '@/components';
 import { formatUSDC, USDC_DIVISOR } from '@/lib/format';
-import { UP_COLOR, DOWN_COLOR, ACCENT_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 import type { PoolDetail } from '@/lib/api';
 
 interface ArenaSectionProps {
@@ -21,6 +22,8 @@ interface ArenaSectionProps {
 const motionTapSmall = { whileTap: { scale: 0.96 } } as Record<string, unknown>;
 
 export function ArenaSection({ pool, selectedSide, onSelectSide, onBet, txState, betFormRef }: ArenaSectionProps) {
+  const t = useThemeTokens();
+
   const totalUp = Number(pool.totalUp);
   const totalDown = Number(pool.totalDown);
   const total = totalUp + totalDown;
@@ -31,7 +34,7 @@ export function ArenaSection({ pool, selectedSide, onSelectSide, onBet, txState,
   return (
     <Box sx={{
       position: 'relative', overflow: 'hidden',
-      background: { xs: 'transparent', md: 'rgba(255,255,255,0.02)' },
+      background: { xs: 'transparent', md: t.hover.subtle },
       borderRadius: { xs: 0, md: '10px' },
       pt: { xs: 2, md: 2 },
       pb: { xs: 4, md: 2 },
@@ -65,7 +68,8 @@ export function ArenaSection({ pool, selectedSide, onSelectSide, onBet, txState,
 function JoinButton({ side, selected, onSelect, position, pct }: {
   side: 'UP' | 'DOWN'; selected: boolean; onSelect: () => void; position: 'left' | 'right'; pct: number;
 }) {
-  const color = side === 'UP' ? UP_COLOR : DOWN_COLOR;
+  const t = useThemeTokens();
+  const color = side === 'UP' ? t.up : t.down;
   const icon = side === 'UP' ? '/assets/up-icon-64x64.png' : '/assets/down-icon-64x64.png';
 
   return (
@@ -80,12 +84,12 @@ function JoinButton({ side, selected, onSelect, position, pct }: {
         gap: 0.75,
         borderRadius: '5px', transition: 'all 0.2s ease',
         position: 'relative', overflow: 'hidden',
-        background: selected ? `${color}18` : 'rgba(255,255,255,0.03)',
-        '&:hover': selected ? {} : { background: 'rgba(255,255,255,0.06)' },
+        background: selected ? withAlpha(color, 0.09) : t.hover.light,
+        '&:hover': selected ? {} : { background: t.hover.medium },
       }}
     >
       <Box component="img" src={icon} alt="" sx={{ width: 18, height: 18, opacity: selected ? 1 : 0.4 }} />
-      <Typography sx={{ fontWeight: 700, fontSize: '0.8rem', color: selected ? color : 'rgba(255,255,255,0.5)' }}>
+      <Typography sx={{ fontWeight: 700, fontSize: '0.8rem', color: selected ? color : t.text.secondary }}>
         {side} {pct}%
       </Typography>
     </Box>
@@ -93,29 +97,31 @@ function JoinButton({ side, selected, onSelect, position, pct }: {
 }
 
 function EnergyBar({ pool, upPct, downPct }: { pool: PoolDetail; upPct: number; downPct: number }) {
+  const t = useThemeTokens();
+
   return (
     <Box sx={{ px: { xs: 1.5, md: 3 }, mt: { xs: 2, md: 3 } }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5, alignItems: 'center' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           <Box component="img" src="/assets/up-icon-64x64.png" alt="" sx={{ width: 16, height: 16 }} />
-          <Typography sx={{ color: UP_COLOR, fontWeight: 600, fontSize: '0.8rem', fontVariantNumeric: 'tabular-nums' }}>UP {formatUSDC(pool.totalUp)}</Typography>
+          <Typography sx={{ color: t.up, fontWeight: 600, fontSize: '0.8rem', fontVariantNumeric: 'tabular-nums' }}>UP {formatUSDC(pool.totalUp)}</Typography>
         </Box>
         <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{formatUSDC(pool.totalPool)} total</Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <Typography sx={{ color: DOWN_COLOR, fontWeight: 600, fontSize: '0.8rem', fontVariantNumeric: 'tabular-nums' }}>DOWN {formatUSDC(pool.totalDown)}</Typography>
+          <Typography sx={{ color: t.down, fontWeight: 600, fontSize: '0.8rem', fontVariantNumeric: 'tabular-nums' }}>DOWN {formatUSDC(pool.totalDown)}</Typography>
           <Box component="img" src="/assets/down-icon-64x64.png" alt="" sx={{ width: 16, height: 16 }} />
         </Box>
       </Box>
-      <Box sx={{ height: 10, borderRadius: 5, overflow: 'hidden', position: 'relative', background: `${DOWN_COLOR}30` }}>
+      <Box sx={{ height: 10, borderRadius: 5, overflow: 'hidden', position: 'relative', background: withAlpha(t.down, 0.19) }}>
         <Box
           sx={{
             position: 'absolute', top: 0, left: 0, height: '100%', width: `${upPct}%`, borderRadius: 5,
-            background: `linear-gradient(90deg, ${UP_COLOR}80, ${UP_COLOR})`,
+            background: `linear-gradient(90deg, ${withAlpha(t.up, 0.50)}, ${t.up})`,
             transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
-            boxShadow: upPct > 50 ? `0 0 10px ${UP_COLOR}50, 0 0 20px ${UP_COLOR}20` : 'none',
+            boxShadow: upPct > 50 ? `0 0 10px ${withAlpha(t.up, 0.31)}, 0 0 20px ${withAlpha(t.up, 0.13)}` : 'none',
             '&::after': {
               content: '""', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-              background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 50%, transparent 100%)',
+              background: `linear-gradient(90deg, transparent 0%, ${t.border.hover} 50%, transparent 100%)`,
               backgroundSize: '200% 100%',
               animation: 'energyFlow 2s infinite linear',
               '@keyframes energyFlow': { '0%': { backgroundPosition: '-200% 0' }, '100%': { backgroundPosition: '200% 0' } },
@@ -123,7 +129,7 @@ function EnergyBar({ pool, upPct, downPct }: { pool: PoolDetail; upPct: number; 
           }}
         />
         {downPct > 50 && (
-          <Box sx={{ position: 'absolute', top: 0, right: 0, height: '100%', width: '30%', background: `linear-gradient(270deg, ${DOWN_COLOR}40, transparent)`, animation: 'downGlow 2s infinite', '@keyframes downGlow': { '0%, 100%': { opacity: 0.5 }, '50%': { opacity: 1 } } }} />
+          <Box sx={{ position: 'absolute', top: 0, right: 0, height: '100%', width: '30%', background: `linear-gradient(270deg, ${withAlpha(t.down, 0.25)}, transparent)`, animation: 'downGlow 2s infinite', '@keyframes downGlow': { '0%, 100%': { opacity: 0.5 }, '50%': { opacity: 1 } } }} />
         )}
       </Box>
     </Box>
@@ -131,11 +137,12 @@ function EnergyBar({ pool, upPct, downPct }: { pool: PoolDetail; upPct: number; 
 }
 
 function WinnerBanner({ pool }: { pool: PoolDetail }) {
+  const t = useThemeTokens();
   const isRefund = pool.upCount === 0 || pool.downCount === 0;
-  const winColor = pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR;
+  const winColor = pool.winner === 'UP' ? t.up : t.down;
 
   return (
-    <Box sx={{ mt: 3, mx: { xs: 1.5, md: 3 }, p: 3, borderRadius: 1, background: isRefund ? 'rgba(255,255,255,0.04)' : `${winColor}12`, textAlign: 'center' }}>
+    <Box sx={{ mt: 3, mx: { xs: 1.5, md: 3 }, p: 3, borderRadius: 1, background: isRefund ? t.hover.default : withAlpha(winColor, 0.07), textAlign: 'center' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
         {pool.winner === 'UP'
           ? <Box component="img" src="/assets/up-icon-64x64.png" alt="" sx={{ width: 28, height: 28 }} />
@@ -148,7 +155,7 @@ function WinnerBanner({ pool }: { pool: PoolDetail }) {
         </Typography>
       )}
       {isRefund && (
-        <Typography variant="body2" sx={{ mt: 1, color: ACCENT_COLOR, fontWeight: 600, fontSize: '0.8rem' }}>
+        <Typography variant="body2" sx={{ mt: 1, color: t.accent, fontWeight: 600, fontSize: '0.8rem' }}>
           No opponents — all bets refunded
         </Typography>
       )}

@@ -8,7 +8,8 @@ import {
 } from '@mui/material';
 import { TrendingUp, TrendingDown } from '@mui/icons-material';
 import { motion } from 'framer-motion';
-import { UP_COLOR, DOWN_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 export interface SideSelectorProps {
   side: 'UP' | 'DOWN';
@@ -30,6 +31,8 @@ export function SideSelector({
   totalDown,
   tugTotal,
 }: SideSelectorProps) {
+  const t = useThemeTokens();
+
   return (
     <>
       <Typography
@@ -69,25 +72,25 @@ export function SideSelector({
             overflow: 'hidden',
             ...(side === 'UP'
               ? {
-                  background: `${UP_COLOR}12`,
-                  boxShadow: `0 0 30px ${UP_COLOR}20, inset 0 0 30px ${UP_COLOR}08`,
-                  '&:hover': { background: `${UP_COLOR}1A` },
+                  background: withAlpha(t.up, 0.07),
+                  boxShadow: `0 0 30px ${withAlpha(t.up, 0.13)}, inset 0 0 30px ${withAlpha(t.up, 0.03)}`,
+                  '&:hover': { background: withAlpha(t.up, 0.10) },
                 }
               : {
                   opacity: 0.45,
-                  background: 'rgba(255,255,255,0.02)',
-                  '&:hover': { opacity: 0.7, background: 'rgba(255,255,255,0.04)' },
+                  background: t.hover.subtle,
+                  '&:hover': { opacity: 0.7, background: t.hover.default },
                 }),
             '&.Mui-selected': {
-              background: `${UP_COLOR}12`,
-              '&:hover': { background: `${UP_COLOR}1A` },
+              background: withAlpha(t.up, 0.07),
+              '&:hover': { background: withAlpha(t.up, 0.10) },
             },
           }}
         >
-          <TrendingUp sx={{ fontSize: 40, color: side === 'UP' ? UP_COLOR : 'text.secondary' }} />
+          <TrendingUp sx={{ fontSize: 40, color: side === 'UP' ? t.up : 'text.secondary' }} />
           <Typography
             variant="h5"
-            sx={{ color: side === 'UP' ? UP_COLOR : 'text.primary', fontWeight: 700, letterSpacing: '0.05em' }}
+            sx={{ color: side === 'UP' ? t.up : 'text.primary', fontWeight: 700, letterSpacing: '0.05em' }}
           >
             UP
           </Typography>
@@ -96,10 +99,10 @@ export function SideSelector({
               px: 1.5,
               py: 0.25,
               borderRadius: '2px',
-              bgcolor: side === 'UP' ? `${UP_COLOR}18` : 'rgba(255,255,255,0.06)',
+              bgcolor: side === 'UP' ? withAlpha(t.up, 0.09) : t.hover.medium,
             }}
           >
-            <Typography variant="body2" sx={{ color: side === 'UP' ? UP_COLOR : 'text.secondary', fontWeight: 600 }}>
+            <Typography variant="body2" sx={{ color: side === 'UP' ? t.up : 'text.secondary', fontWeight: 600 }}>
               {currentOddsUp.toFixed(2)}x
             </Typography>
           </Box>
@@ -127,7 +130,7 @@ export function SideSelector({
               top: 8,
               bottom: 8,
               width: '2px',
-              background: `linear-gradient(to bottom, transparent, ${UP_COLOR}40, rgba(255,255,255,0.25), ${DOWN_COLOR}40, transparent)`,
+              background: `linear-gradient(to bottom, transparent, ${withAlpha(t.up, 0.25)}, ${t.text.muted}, ${withAlpha(t.down, 0.25)}, transparent)`,
               filter: 'blur(0.5px)',
             }}
           />
@@ -142,11 +145,11 @@ export function SideSelector({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'rgba(255,255,255,0.06)',
-              boxShadow: '0 0 16px rgba(255,255,255,0.06)',
+              background: t.hover.medium,
+              boxShadow: `0 0 16px ${t.hover.medium}`,
             }}
           >
-            <Typography sx={{ fontSize: '1rem', lineHeight: 1 }}>⚡</Typography>
+            <Typography sx={{ fontSize: '1rem', lineHeight: 1 }}>&#9889;</Typography>
           </Box>
         </Box>
 
@@ -165,25 +168,25 @@ export function SideSelector({
             overflow: 'hidden',
             ...(side === 'DOWN'
               ? {
-                  background: `${DOWN_COLOR}12`,
-                  boxShadow: `0 0 30px ${DOWN_COLOR}20, inset 0 0 30px ${DOWN_COLOR}08`,
-                  '&:hover': { background: `${DOWN_COLOR}1A` },
+                  background: withAlpha(t.down, 0.07),
+                  boxShadow: `0 0 30px ${withAlpha(t.down, 0.13)}, inset 0 0 30px ${withAlpha(t.down, 0.03)}`,
+                  '&:hover': { background: withAlpha(t.down, 0.10) },
                 }
               : {
                   opacity: 0.45,
-                  background: 'rgba(255,255,255,0.02)',
-                  '&:hover': { opacity: 0.7, background: 'rgba(255,255,255,0.04)' },
+                  background: t.hover.subtle,
+                  '&:hover': { opacity: 0.7, background: t.hover.default },
                 }),
             '&.Mui-selected': {
-              background: `${DOWN_COLOR}12`,
-              '&:hover': { background: `${DOWN_COLOR}1A` },
+              background: withAlpha(t.down, 0.07),
+              '&:hover': { background: withAlpha(t.down, 0.10) },
             },
           }}
         >
-          <TrendingDown sx={{ fontSize: 40, color: side === 'DOWN' ? DOWN_COLOR : 'text.secondary' }} />
+          <TrendingDown sx={{ fontSize: 40, color: side === 'DOWN' ? t.down : 'text.secondary' }} />
           <Typography
             variant="h5"
-            sx={{ color: side === 'DOWN' ? DOWN_COLOR : 'text.primary', fontWeight: 700, letterSpacing: '0.05em' }}
+            sx={{ color: side === 'DOWN' ? t.down : 'text.primary', fontWeight: 700, letterSpacing: '0.05em' }}
           >
             DOWN
           </Typography>
@@ -192,10 +195,10 @@ export function SideSelector({
               px: 1.5,
               py: 0.25,
               borderRadius: '2px',
-              bgcolor: side === 'DOWN' ? `${DOWN_COLOR}18` : 'rgba(255,255,255,0.06)',
+              bgcolor: side === 'DOWN' ? withAlpha(t.down, 0.09) : t.hover.medium,
             }}
           >
-            <Typography variant="body2" sx={{ color: side === 'DOWN' ? DOWN_COLOR : 'text.secondary', fontWeight: 600 }}>
+            <Typography variant="body2" sx={{ color: side === 'DOWN' ? t.down : 'text.secondary', fontWeight: 600 }}>
               {currentOddsDown.toFixed(2)}x
             </Typography>
           </Box>

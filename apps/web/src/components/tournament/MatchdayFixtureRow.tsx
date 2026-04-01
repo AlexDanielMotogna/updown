@@ -1,13 +1,8 @@
 'use client';
 
 import { Box, Typography } from '@mui/material';
-import { UP_COLOR, DOWN_COLOR, DRAW_COLOR } from '@/lib/constants';
-
-const SIDE_COLORS: Record<string, string> = {
-  HOME: UP_COLOR,
-  DRAW: DRAW_COLOR,
-  AWAY: DOWN_COLOR,
-};
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 interface Props {
   homeTeam: string;
@@ -24,13 +19,20 @@ interface Props {
 }
 
 export function MatchdayFixtureRow({ homeTeam, awayTeam, homeTeamCrest, awayTeamCrest, selected, result, resultHome, resultAway, onSelect, disabled, sideLabels = ['Home', 'Draw', 'Away'] }: Props) {
+  const t = useThemeTokens();
+  const SIDE_COLORS: Record<string, string> = {
+    HOME: t.up,
+    DRAW: t.draw,
+    AWAY: t.down,
+  };
+
   const isCorrect = selected && result && selected === result;
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.75 }}>
       {/* Home team */}
       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 0.75, justifyContent: 'flex-end', minWidth: 0 }}>
-        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: result === 'HOME' ? UP_COLOR : 'rgba(255,255,255,0.9)' }}>
+        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: result === 'HOME' ? t.up : t.text.primary }}>
           {homeTeam}
         </Typography>
         {homeTeamCrest && <Box component="img" src={homeTeamCrest} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', flexShrink: 0 }} />}
@@ -38,7 +40,7 @@ export function MatchdayFixtureRow({ homeTeam, awayTeam, homeTeamCrest, awayTeam
 
       {/* Score or vs */}
       {resultHome != null && resultAway != null ? (
-        <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#fff', width: 32, textAlign: 'center', flexShrink: 0 }}>
+        <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: t.text.primary, width: 32, textAlign: 'center', flexShrink: 0 }}>
           {resultHome}-{resultAway}
         </Typography>
       ) : (
@@ -48,7 +50,7 @@ export function MatchdayFixtureRow({ homeTeam, awayTeam, homeTeamCrest, awayTeam
       {/* Away team */}
       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
         {awayTeamCrest && <Box component="img" src={awayTeamCrest} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', flexShrink: 0 }} />}
-        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: result === 'AWAY' ? DOWN_COLOR : 'rgba(255,255,255,0.9)' }}>
+        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: result === 'AWAY' ? t.down : t.text.primary }}>
           {awayTeam}
         </Typography>
       </Box>
@@ -62,7 +64,7 @@ export function MatchdayFixtureRow({ homeTeam, awayTeam, homeTeamCrest, awayTeam
             label: key === 'HOME' ? (homeTeam.length > 5 ? homeTeam.slice(0, 3).toUpperCase() : homeTeam)
               : key === 'AWAY' ? (awayTeam.length > 5 ? awayTeam.slice(0, 3).toUpperCase() : awayTeam)
               : sl,
-            color: SIDE_COLORS[key] || DRAW_COLOR,
+            color: SIDE_COLORS[key] || t.draw,
           };
         }).map(s => {
           const active = selected === s.value;
@@ -78,12 +80,12 @@ export function MatchdayFixtureRow({ homeTeam, awayTeam, homeTeamCrest, awayTeam
                 borderRadius: '4px',
                 cursor: disabled ? 'default' : 'pointer',
                 fontSize: '0.6rem', fontWeight: 700,
-                bgcolor: correct ? `${s.color}30` : wrong ? 'rgba(248,113,113,0.15)' : active ? `${s.color}20` : 'rgba(255,255,255,0.04)',
-                color: correct ? s.color : wrong ? '#F87171' : active ? s.color : 'rgba(255,255,255,0.4)',
-                border: active ? `1px solid ${correct ? s.color : wrong ? '#F87171' : s.color}40` : '1px solid transparent',
+                bgcolor: correct ? withAlpha(s.color, 0.19) : wrong ? 'rgba(248,113,113,0.15)' : active ? withAlpha(s.color, 0.13) : t.hover.default,
+                color: correct ? s.color : wrong ? t.down : active ? s.color : t.text.tertiary,
+                border: active ? `1px solid ${correct ? withAlpha(s.color, 0.25) : wrong ? withAlpha(t.down, 0.25) : withAlpha(s.color, 0.25)}` : '1px solid transparent',
                 transition: 'all 0.1s',
                 whiteSpace: 'nowrap',
-                ...(!disabled && { '&:hover': { bgcolor: `${s.color}15`, color: s.color } }),
+                ...(!disabled && { '&:hover': { bgcolor: withAlpha(s.color, 0.08), color: s.color } }),
               }}
             >
               {s.label}

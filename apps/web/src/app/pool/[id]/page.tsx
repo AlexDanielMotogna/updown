@@ -15,13 +15,15 @@ import {
   AssetIcon,
 } from '@/components';
 import { statusStyles, USDC_DIVISOR } from '@/lib/format';
-import { UP_COLOR, DOWN_COLOR, GAIN_COLOR, INTERVAL_TAG_IMAGES, INTERVAL_LABELS } from '@/lib/constants';
+import { INTERVAL_TAG_IMAGES, INTERVAL_LABELS } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
 import { PoolStatsStrip } from '@/components/pool/PoolStatsStrip';
 import { PoolInfoCards } from '@/components/pool/PoolInfoCards';
 import { ArenaSection } from '@/components/pool/ArenaSection';
 import { InlineChart } from '@/components/pool/InlineChart';
 
 export default function PoolDetailPage() {
+  const t = useThemeTokens();
   const params = useParams();
   const searchParams = useSearchParams();
   const poolId = params.id as string;
@@ -131,10 +133,10 @@ export default function PoolDetailPage() {
     return (
       <AppShell>
         <Box sx={{ textAlign: 'center', py: { xs: 8, md: 12 }, px: 3 }}>
-          <Typography sx={{ fontSize: '1.1rem', fontWeight: 600, color: '#fff', mb: 1 }}>
+          <Typography sx={{ fontSize: '1.1rem', fontWeight: 600, color: t.text.primary, mb: 1 }}>
             This pool has ended
           </Typography>
-          <Typography sx={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.45)', mb: 3 }}>
+          <Typography sx={{ fontSize: '0.9rem', color: t.text.soft, mb: 3 }}>
             The pool was resolved and is no longer available. Check out the active markets.
           </Typography>
           <Link href="/" style={{ textDecoration: 'none' }}>
@@ -144,14 +146,14 @@ export default function PoolDetailPage() {
                 display: 'inline-block',
                 px: 4,
                 py: 1,
-                bgcolor: 'rgba(255,255,255,0.06)',
-                color: '#fff',
+                bgcolor: t.border.default,
+                color: t.text.primary,
                 fontWeight: 600,
                 fontSize: '0.85rem',
                 borderRadius: '2px',
                 cursor: 'pointer',
                 transition: 'background 0.15s',
-                '&:hover': { bgcolor: 'rgba(255,255,255,0.10)' },
+                '&:hover': { bgcolor: t.hover.emphasis },
               }}
             >
               Back to Markets
@@ -167,13 +169,13 @@ export default function PoolDetailPage() {
   return (
     <AppShell>
       {/* Back nav + Asset identity */}
-      <Box sx={{ bgcolor: '#0B0F14', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+      <Box sx={{ bgcolor: t.bg.app, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
         <Box sx={{ px: { xs: 1.5, md: 3 }, py: { xs: 1, md: 1.25 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Link href="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex' }}>
-              <ArrowBack sx={{ fontSize: 18, color: 'rgba(255,255,255,0.4)', '&:hover': { color: '#fff' }, cursor: 'pointer' }} />
+              <ArrowBack sx={{ fontSize: 18, color: t.text.tertiary, '&:hover': { color: t.text.primary }, cursor: 'pointer' }} />
             </Link>
-            <Circle sx={{ fontSize: 8, color: isConnected ? GAIN_COLOR : DOWN_COLOR, animation: isConnected ? 'pulse 2s infinite' : 'none', '@keyframes pulse': { '0%': { opacity: 1 }, '50%': { opacity: 0.4 }, '100%': { opacity: 1 } } }} />
+            <Circle sx={{ fontSize: 8, color: isConnected ? t.gain : t.down, animation: isConnected ? 'pulse 2s infinite' : 'none', '@keyframes pulse': { '0%': { opacity: 1 }, '50%': { opacity: 0.4 }, '100%': { opacity: 1 } } }} />
             <AssetIcon asset={pool.asset} size={22} />
             <Typography sx={{ fontWeight: 700, fontSize: { xs: '0.9rem', md: '1rem' } }}>{pool.asset}/USD</Typography>
             {pool.interval && <Box component="img" src={INTERVAL_TAG_IMAGES[pool.interval] || '/assets/hourly-tag.png'} alt={INTERVAL_LABELS[pool.interval] || pool.interval} sx={{ height: { xs: 36, md: 42 }, imageRendering: '-webkit-optimize-contrast' }} />}
@@ -225,14 +227,14 @@ export default function PoolDetailPage() {
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
         }}>
-          <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 1 }}>
+          <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: '0.06em', mb: 1 }}>
             Activity
           </Typography>
           <AnimatePresence>
             {bets.map((b) => {
               const key = `${b.wallet}-${b.createdAt}`;
               const isNew = newBetKeys.has(key);
-              const sideColor = b.side === 'UP' ? UP_COLOR : DOWN_COLOR;
+              const sideColor = b.side === 'UP' ? t.up : t.down;
               const sideLabel = b.side === 'UP' ? 'UP' : 'DOWN';
               const amt = (Number(b.amount) / USDC_DIVISOR).toFixed(2);
               const ago = Math.floor((Date.now() - new Date(b.createdAt).getTime()) / 60000);
@@ -247,10 +249,10 @@ export default function PoolDetailPage() {
                   layout
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 0.75, fontSize: '0.75rem', fontWeight: 600 }}>
-                    <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: 'rgba(255,255,255,0.45)', width: 75, flexShrink: 0 }}>{b.wallet}</Typography>
+                    <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.soft, width: 75, flexShrink: 0 }}>{b.wallet}</Typography>
                     <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: sideColor, width: 55, flexShrink: 0 }}>{sideLabel}</Typography>
-                    <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: '#fff', flex: 1, textAlign: 'right' }}>${amt}</Typography>
-                    <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: 'rgba(255,255,255,0.25)', width: 25, textAlign: 'right', flexShrink: 0 }}>{timeStr}</Typography>
+                    <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.primary, flex: 1, textAlign: 'right' }}>${amt}</Typography>
+                    <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.muted, width: 25, textAlign: 'right', flexShrink: 0 }}>{timeStr}</Typography>
                   </Box>
                 </motion.div>
               );

@@ -7,14 +7,13 @@ import { VolumeUp, VolumeOff, Close, Send } from '@mui/icons-material';
 import { useMarketAnalysis } from '@/hooks/useMarketAnalysis';
 import { useDraggablePosition } from '@/hooks/useDraggablePosition';
 import type { PacificaPriceData } from '@/hooks/usePacificaPrices';
-import { UP_COLOR } from '@/lib/constants';
 import { BotAvatar, type BotState } from './ai-bot/BotAvatar';
 import { ChatMessage } from './ai-bot/ChatMessage';
 import { SignalCard } from './ai-bot/SignalCard';
 import { TypingIndicator } from './ai-bot/TypingIndicator';
 import { speakRobotic, fetchAiReply, type PoolStatus, type ChatMessage as ChatMessageType } from './ai-bot/speech';
-
-const CYAN = UP_COLOR;
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 interface AiAnalyzerBotProps {
   asset: string;
@@ -26,6 +25,7 @@ interface AiAnalyzerBotProps {
 }
 
 export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, priceData }: AiAnalyzerBotProps) {
+  const t = useThemeTokens();
   const isMobile = useMediaQuery('(max-width:600px)');
   const bubbleSize = isMobile ? 48 : 56;
   const { motionProps } = useDraggablePosition('bot-drag-pos', bubbleSize);
@@ -226,13 +226,13 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
             width: bubbleSize,
             height: bubbleSize,
             borderRadius: '50%',
-            backgroundColor: '#111820',
+            backgroundColor: t.bg.surface,
             border: 'none',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            boxShadow: `0 0 20px ${CYAN}22`,
+            boxShadow: `0 0 20px ${withAlpha(t.up, 0.13)}`,
             animation: 'botBreathe 3s ease-in-out infinite, botPulseGlow 2s ease-in-out infinite',
             transition: 'transform 0.2s ease',
             '&:hover': { transform: 'scale(1.1)' },
@@ -241,8 +241,8 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
               '50%': { transform: 'scale(1.05)' },
             },
             '@keyframes botPulseGlow': {
-              '0%, 100%': { boxShadow: `0 0 20px ${CYAN}22` },
-              '50%': { boxShadow: `0 0 30px ${CYAN}44` },
+              '0%, 100%': { boxShadow: `0 0 20px ${withAlpha(t.up, 0.13)}` },
+              '50%': { boxShadow: `0 0 30px ${withAlpha(t.up, 0.27)}` },
             },
           }}
         >
@@ -256,7 +256,7 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
                 width: 10,
                 height: 10,
                 borderRadius: '50%',
-                backgroundColor: CYAN,
+                backgroundColor: t.up,
                 border: '2px solid #111820',
               }}
             />
@@ -285,10 +285,10 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
         zIndex: 1200,
         display: 'flex',
         flexDirection: 'column',
-        borderRadius: 0,
-        backgroundColor: '#111820',
-        border: 'none',
-        boxShadow: `0 8px 32px rgba(0,0,0,0.6), 0 0 20px ${CYAN}11`,
+        borderRadius: 1,
+        backgroundColor: t.bg.surface,
+        border: t.surfaceBorder,
+        boxShadow: t.surfaceShadow,
         overflow: 'hidden',
         animation: 'panelExpand 0.3s ease-out',
         '@keyframes panelExpand': {
@@ -305,14 +305,14 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
           gap: 1,
           px: 2,
           py: 1.5,
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          borderBottom: `1px solid ${t.border.medium}`,
           flexShrink: 0,
         }}
       >
         <BotAvatar size={28} state={botState} signal={analysis?.signal} />
         <Box sx={{ flex: 1 }}>
           <Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>AI Analyzer</Typography>
-          <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)' }}>
+          <Typography sx={{ fontSize: '0.6rem', color: t.text.tertiary }}>
             {loading ? 'Scanning...' : timeframe + ' timeframe'}
           </Typography>
         </Box>
@@ -322,8 +322,8 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
             onClick={() => setVoiceEnabled((v) => !v)}
             aria-label="Toggle voice"
             sx={{
-              color: voiceEnabled ? CYAN : 'rgba(255,255,255,0.3)',
-              '&:hover': { backgroundColor: 'rgba(255,255,255,0.04)' },
+              color: voiceEnabled ? t.up : t.text.dimmed,
+              '&:hover': { backgroundColor: t.border.subtle },
             }}
           >
             {voiceEnabled ? <VolumeUp sx={{ fontSize: 18 }} /> : <VolumeOff sx={{ fontSize: 18 }} />}
@@ -334,8 +334,8 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
           onClick={handleClose}
           aria-label="Close analyzer"
           sx={{
-            color: 'rgba(255,255,255,0.4)',
-            '&:hover': { backgroundColor: 'rgba(255,255,255,0.04)' },
+            color: t.text.tertiary,
+            '&:hover': { backgroundColor: t.border.subtle },
           }}
         >
           <Close sx={{ fontSize: 18 }} />
@@ -355,7 +355,7 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
           minHeight: 100,
           '&::-webkit-scrollbar': { width: 4 },
           '&::-webkit-scrollbar-track': { background: 'transparent' },
-          '&::-webkit-scrollbar-thumb': { background: 'rgba(255,255,255,0.1)', borderRadius: 2 },
+          '&::-webkit-scrollbar-thumb': { background: t.border.strong, borderRadius: 1 },
         }}
       >
         {messages.map((msg) => (
@@ -383,7 +383,7 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
           gap: 0.5,
           px: 1.5,
           py: 1,
-          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+          borderTop: `1px solid ${t.border.medium}`,
           flexShrink: 0,
         }}
       >
@@ -396,14 +396,14 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
           sx={{
             flex: 1,
             fontSize: '0.78rem',
-            color: 'rgba(255,255,255,0.85)',
+            color: t.text.vivid,
             px: 1.5,
             py: 0.5,
-            borderRadius: 0,
-            backgroundColor: 'rgba(255, 255, 255, 0.04)',
+            borderRadius: 1,
+            backgroundColor: t.hover.default,
             border: 'none',
             '& input::placeholder': {
-              color: 'rgba(255,255,255,0.3)',
+              color: t.text.dimmed,
               opacity: 1,
             },
           }}
@@ -414,12 +414,12 @@ export function AiAnalyzerBot({ asset, poolStatus, startTime, endTime, winner, p
           disabled={!userInput.trim() || isTyping}
           aria-label="Send message"
           sx={{
-            color: userInput.trim() && !isTyping ? CYAN : 'rgba(255,255,255,0.15)',
-            '&:hover': { backgroundColor: 'rgba(0, 229, 255, 0.08)' },
+            color: userInput.trim() && !isTyping ? t.up : t.border.emphasis,
+            '&:hover': { backgroundColor: withAlpha(t.up, 0.08) },
           }}
         >
           {isTyping ? (
-            <CircularProgress size={16} sx={{ color: CYAN }} />
+            <CircularProgress size={16} sx={{ color: t.up }} />
           ) : (
             <Send sx={{ fontSize: 18 }} />
           )}

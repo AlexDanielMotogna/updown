@@ -3,10 +3,11 @@
 import { useMemo } from 'react';
 import { Box, Typography } from '@mui/material';
 import type { Candle } from '@/hooks';
-import { UP_COLOR, DOWN_COLOR, ACCENT_COLOR } from '@/lib/constants';
 import { useChartLayout } from './useChartLayout';
 import { ChartAxes } from './ChartAxes';
 import { formatChartPrice, PADDING } from './chart-utils';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 export interface ChartProps {
   candles: Candle[];
@@ -29,6 +30,7 @@ function smoothPath(points: { x: number; y: number }[]): string {
 }
 
 export function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
+  const t = useThemeTokens();
   const layout = useChartLayout(candles, 'line');
   const { containerRef, dims, parsed, chartH, toX, toY, yTicks, xTicks, hoverIndex, hoverY, hoverPrice, handleMouseMove, handleMouseLeave } = layout;
 
@@ -46,7 +48,7 @@ export function LineChart({ candles, duration, livePrice, strikePrice }: ChartPr
   }, [linePath, points, chartH]);
 
   const isUp = closes.length > 1 ? closes[closes.length - 1] >= closes[0] : true;
-  const lineColor = isUp ? UP_COLOR : DOWN_COLOR;
+  const lineColor = isUp ? t.up : t.down;
 
   const lastPoint = points.length > 0 ? points[points.length - 1] : null;
 
@@ -72,9 +74,9 @@ export function LineChart({ candles, duration, livePrice, strikePrice }: ChartPr
           if (sy >= PADDING.top && sy <= PADDING.top + chartH) {
             return (
               <>
-                <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={sy} y2={sy} stroke={ACCENT_COLOR} strokeWidth={1} strokeDasharray="6,4" strokeOpacity={0.5} />
-                <rect x={dims.width - PADDING.right + 1} y={sy - 9} width={PADDING.right - 4} height={18} rx={2} fill={`${ACCENT_COLOR}30`} />
-                <text x={dims.width - PADDING.right + 8} y={sy + 4} fill={ACCENT_COLOR} fontSize={9} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={600}>
+                <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={sy} y2={sy} stroke={t.accent} strokeWidth={1} strokeDasharray="6,4" strokeOpacity={0.5} />
+                <rect x={dims.width - PADDING.right + 1} y={sy - 9} width={PADDING.right - 4} height={18} rx={2} fill={withAlpha(t.accent, 0.19)} />
+                <text x={dims.width - PADDING.right + 8} y={sy + 4} fill={t.accent} fontSize={9} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={600}>
                   {formatChartPrice(strikePrice)}
                 </text>
               </>
@@ -97,7 +99,7 @@ export function LineChart({ candles, duration, livePrice, strikePrice }: ChartPr
                   <animate attributeName="r" values="3.5;5;3.5" dur="2s" repeatCount="indefinite" />
                 </circle>
                 <rect x={dims.width - PADDING.right + 1} y={ly - 10} width={PADDING.right - 4} height={20} rx={3} fill={lineColor} />
-                <text x={dims.width - PADDING.right + 8} y={ly + 4} fill="#000" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700}>
+                <text x={dims.width - PADDING.right + 8} y={ly + 4} fill={t.text.contrast} fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700}>
                   {formatChartPrice(livePrice)}
                 </text>
               </>
@@ -108,7 +110,7 @@ export function LineChart({ candles, duration, livePrice, strikePrice }: ChartPr
 
         {hoverData && (
           <>
-            <line x1={hoverData.x} x2={hoverData.x} y1={PADDING.top} y2={PADDING.top + chartH} stroke="rgba(255,255,255,0.2)" strokeWidth={1} strokeDasharray="3,3" />
+            <line x1={hoverData.x} x2={hoverData.x} y1={PADDING.top} y2={PADDING.top + chartH} stroke={t.text.muted} strokeWidth={1} strokeDasharray="3,3" />
             <circle cx={hoverData.x} cy={hoverData.y} r={4} fill={lineColor} stroke="#111820" strokeWidth={2} />
           </>
         )}
@@ -116,9 +118,9 @@ export function LineChart({ candles, duration, livePrice, strikePrice }: ChartPr
         {/* Horizontal crosshair following mouse Y */}
         {hoverY !== null && hoverPrice !== null && (
           <>
-            <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={hoverY} y2={hoverY} stroke="rgba(255,255,255,0.25)" strokeWidth={1} strokeDasharray="3,3" />
+            <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={hoverY} y2={hoverY} stroke={t.text.muted} strokeWidth={1} strokeDasharray="3,3" />
             <rect x={dims.width - PADDING.right + 1} y={hoverY - 10} width={PADDING.right - 4} height={20} rx={3} fill="rgba(255,255,255,0.12)" />
-            <text x={dims.width - PADDING.right + 8} y={hoverY + 4} fill="#FFFFFF" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={500}>
+            <text x={dims.width - PADDING.right + 8} y={hoverY + 4} fill={t.text.primary} fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={500}>
               {formatChartPrice(hoverPrice)}
             </text>
           </>

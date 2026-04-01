@@ -1,12 +1,12 @@
 'use client';
 
 import { Box, Typography } from '@mui/material';
-import { UP_COLOR } from '@/lib/constants';
 import type { ChatMessage as ChatMessageType } from './speech';
-
-const CYAN = UP_COLOR;
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 export function ChatMessage({ msg }: { msg: ChatMessageType }) {
+  const t = useThemeTokens();
   return (
     <Box
       sx={{
@@ -26,7 +26,7 @@ export function ChatMessage({ msg }: { msg: ChatMessageType }) {
               width: 6,
               minHeight: 6,
               borderRadius: '50%',
-              backgroundColor: CYAN,
+              backgroundColor: t.up,
               mt: 0.8,
               flexShrink: 0,
               opacity: 0.6,
@@ -35,7 +35,7 @@ export function ChatMessage({ msg }: { msg: ChatMessageType }) {
           <Typography
             sx={{
               fontSize: '0.78rem',
-              color: 'rgba(255,255,255,0.75)',
+              color: t.text.bright,
               lineHeight: 1.5,
               fontWeight: 300,
             }}
@@ -50,14 +50,14 @@ export function ChatMessage({ msg }: { msg: ChatMessageType }) {
             px: 1.5,
             py: 0.75,
             borderRadius: '2px',
-            backgroundColor: 'rgba(0, 229, 255, 0.1)',
+            backgroundColor: withAlpha(t.up, 0.1),
             border: 'none',
           }}
         >
           <Typography
             sx={{
               fontSize: '0.78rem',
-              color: 'rgba(255,255,255,0.85)',
+              color: t.text.vivid,
               lineHeight: 1.5,
               fontWeight: 400,
             }}

@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { Box, Typography } from '@mui/material';
 import { useOrderbook } from '@/hooks/useOrderbook';
-import { UP_COLOR, DOWN_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
 
 interface OrderbookDepthProps {
   asset: string;
@@ -22,6 +22,7 @@ function formatAmount(value: number): string {
 }
 
 export function OrderbookDepth({ asset }: OrderbookDepthProps) {
+  const t = useThemeTokens();
   const { data, loading } = useOrderbook(asset);
 
   const maxAmount = useMemo(() => {
@@ -52,8 +53,8 @@ export function OrderbookDepth({ asset }: OrderbookDepthProps) {
       <Box
         sx={{
           p: 2,
-          borderRadius: 0,
-          background: 'rgba(255, 255, 255, 0.04)',
+          borderRadius: 1,
+          background: t.hover.default,
           border: 'none',
           display: 'flex',
           justifyContent: 'center',
@@ -66,7 +67,7 @@ export function OrderbookDepth({ asset }: OrderbookDepthProps) {
             x={centerX}
             y={levels * (barHeight + gap) + midGap / 2 + 4}
             textAnchor="middle"
-            fill="rgba(255,255,255,0.3)"
+            fill={t.text.dimmed}
             fontSize={10}
             fontFamily="var(--font-satoshi), Satoshi, sans-serif"
           >
@@ -86,14 +87,14 @@ export function OrderbookDepth({ asset }: OrderbookDepthProps) {
                   width={barW}
                   height={barHeight}
                   rx={2}
-                  fill={UP_COLOR}
+                  fill={t.up}
                   fillOpacity={0.15 + (0.35 * (data.bids.length - i)) / data.bids.length}
                 />
                 {/* Price label (right of center) */}
                 <text
                   x={centerX + labelOffset}
                   y={y + barHeight / 2 + 4}
-                  fill="rgba(255,255,255,0.5)"
+                  fill={t.text.secondary}
                   fontSize={10}
                   fontFamily="var(--font-satoshi), Satoshi, sans-serif"
                 >
@@ -104,7 +105,7 @@ export function OrderbookDepth({ asset }: OrderbookDepthProps) {
                   <text
                     x={centerX - barW + 6}
                     y={y + barHeight / 2 + 4}
-                    fill={UP_COLOR}
+                    fill={t.up}
                     fontSize={9}
                     fontFamily="var(--font-satoshi), Satoshi, sans-serif"
                   >
@@ -128,7 +129,7 @@ export function OrderbookDepth({ asset }: OrderbookDepthProps) {
                   width={barW}
                   height={barHeight}
                   rx={2}
-                  fill={DOWN_COLOR}
+                  fill={t.down}
                   fillOpacity={0.15 + (0.35 * (data.asks.length - i)) / data.asks.length}
                 />
                 {/* Price label (left of center) */}
@@ -136,7 +137,7 @@ export function OrderbookDepth({ asset }: OrderbookDepthProps) {
                   x={centerX - labelOffset}
                   y={y + barHeight / 2 + 4}
                   textAnchor="end"
-                  fill="rgba(255,255,255,0.5)"
+                  fill={t.text.secondary}
                   fontSize={10}
                   fontFamily="var(--font-satoshi), Satoshi, sans-serif"
                 >
@@ -148,7 +149,7 @@ export function OrderbookDepth({ asset }: OrderbookDepthProps) {
                     x={centerX + barW - 6}
                     y={y + barHeight / 2 + 4}
                     textAnchor="end"
-                    fill={DOWN_COLOR}
+                    fill={t.down}
                     fontSize={9}
                     fontFamily="var(--font-satoshi), Satoshi, sans-serif"
                   >
@@ -165,7 +166,7 @@ export function OrderbookDepth({ asset }: OrderbookDepthProps) {
             y1={0}
             x2={centerX}
             y2={svgHeight}
-            stroke="rgba(255,255,255,0.08)"
+            stroke={t.border.medium}
             strokeWidth={1}
             strokeDasharray="3,3"
           />

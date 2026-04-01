@@ -8,6 +8,7 @@ import {
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { adminFetch } from '../lib/adminApi';
+import { darkTokens as t } from '@/lib/theme';
 
 interface FinanceData {
   data: {
@@ -168,7 +169,7 @@ export function FinancialOverview() {
                       <TableRow key={c.id}>
                         <TableCell sx={{ fontSize: 11, whiteSpace: 'nowrap' }}>{formatDate(c.closedAt)}</TableCell>
                         <TableCell
-                          sx={{ fontSize: 11, cursor: 'pointer', '&:hover': { color: '#F59E0B' } }}
+                          sx={{ fontSize: 11, cursor: 'pointer', '&:hover': { color: t.warning } }}
                           onClick={() => navigator.clipboard.writeText(c.poolId)}
                           title="Click to copy"
                         >{c.poolId}</TableCell>
@@ -178,17 +179,17 @@ export function FinancialOverview() {
                         <TableCell>{c.payload.betCount ?? '0'}</TableCell>
                         <TableCell>
                           {c.payload.winner && c.payload.winner !== 'none' ? (
-                            <Chip label={c.payload.winner} size="small" sx={{ fontSize: 11, bgcolor: c.payload.winner === 'UP' ? '#22C55E22' : '#F8717122', color: c.payload.winner === 'UP' ? '#22C55E' : '#F87171' }} />
+                            <Chip label={c.payload.winner} size="small" sx={{ fontSize: 11, bgcolor: c.payload.winner === 'UP' ? `${t.gain}22` : `${t.error}22`, color: c.payload.winner === 'UP' ? t.gain : t.error }} />
                           ) : '—'}
                         </TableCell>
-                        <TableCell sx={{ color: '#22C55E', fontWeight: 500 }}>{c.payload.rentReclaimedSol ?? '0'} SOL</TableCell>
+                        <TableCell sx={{ color: t.gain, fontWeight: 500 }}>{c.payload.rentReclaimedSol ?? '0'} SOL</TableCell>
                         <TableCell sx={{ fontSize: 10 }}>
                           {c.payload.txSignature ? (
                             <a
                               href={`https://explorer.solana.com/tx/${c.payload.txSignature}?cluster=devnet`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              style={{ color: '#3B82F6', textDecoration: 'none' }}
+                              style={{ color: t.link, textDecoration: 'none' }}
                             >
                               {c.payload.txSignature.slice(0, 8)}...
                             </a>

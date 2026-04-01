@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import type { Pool } from '@/lib/api';
 import { statusStyles } from '@/lib/format';
 import { getBoxImage } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
 import { PoolRowMobile } from './PoolRowMobile';
 import { PoolRowDesktop } from './PoolRowDesktop';
 
@@ -30,6 +31,8 @@ export function PoolRow({
   alwaysShowView,
   onClick,
 }: PoolRowProps) {
+  const t = useThemeTokens();
+
   const totalUp = Number(pool.totalUp);
   const totalDown = Number(pool.totalDown);
   const total = totalUp + totalDown;
@@ -117,10 +120,13 @@ export function PoolRow({
         pr: { xs: 0, md: 2 },
         pl: 0,
         py: 0,
-        bgcolor: '#0D1219',
+        bgcolor: t.bg.surfaceAlt,
+        border: t.surfaceBorder,
+        boxShadow: t.surfaceShadow,
+        borderRadius: 1.5,
         transition: 'background 0.15s ease',
         '&:hover': {
-          background: 'rgba(255,255,255,0.04)',
+          background: t.hover.default,
           '& .box-img': {
             transform: 'scale(1.08)',
             filter: 'brightness(1.15)',

@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState, memo } from 'react';
 import { Box } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useThemeTokens } from '@/app/providers';
 
 const DIGITS = '0123456789';
 const DIGIT_HEIGHT = 1; // em units
@@ -14,6 +15,7 @@ interface SlotDigitProps {
 
 /** Single character column that rolls like a slot reel */
 const SlotDigit = memo(function SlotDigit({ char, color }: SlotDigitProps) {
+  const t = useThemeTokens();
   const isDigit = DIGITS.includes(char);
   const idx = isDigit ? Number(char) : -1;
   const prevIdx = useRef(idx);
@@ -99,8 +101,9 @@ interface SlotPriceProps {
 }
 
 export const SlotPrice = memo(function SlotPrice({ value, color = 'inherit' }: SlotPriceProps) {
+  const t = useThemeTokens();
   if (!value) {
-    return <span style={{ color: 'rgba(255,255,255,0.4)' }}>---</span>;
+    return <span style={{ color: t.text.tertiary }}>---</span>;
   }
 
   const formatted = `$${Number(value).toLocaleString('en-US', {

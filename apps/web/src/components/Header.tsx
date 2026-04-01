@@ -1,20 +1,23 @@
 'use client';
 
-import { Box, Typography, Button } from '@mui/material';
-import { AttachMoney } from '@mui/icons-material';
+import { Box, Typography, Button, IconButton } from '@mui/material';
+import { AttachMoney, LightMode, DarkMode } from '@mui/icons-material';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { ConnectWalletButton } from './ConnectWalletButton';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { UP_COLOR, GAIN_COLOR, UP_COINS_DIVISOR } from '@/lib/constants';
+import { UP_COINS_DIVISOR } from '@/lib/constants';
 import { NAV_ITEMS, DESKTOP_NAV_ITEMS } from '@/lib/navigation';
 import { UserLevelBadge } from './UserLevelBadge';
 import { NotificationPanel } from './header/NotificationPanel';
 import { MobileBottomNav } from './header/MobileBottomNav';
+import { useThemeTokens, useThemeMode } from '@/app/providers';
 
 export function Header() {
+  const t = useThemeTokens();
+  const { mode, toggle } = useThemeMode();
   const pathname = usePathname();
   const { connected } = useWalletBridge();
   const { data: balance } = useUsdcBalance();
@@ -30,7 +33,7 @@ export function Header() {
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        backgroundColor: '#0B0F14',
+        backgroundColor: t.bg.app,
       }}
     >
       {/* Main bar */}
@@ -54,7 +57,7 @@ export function Header() {
           />
           <Box
             component="img"
-            src="/updown-logos/Logo_cyan_text_white.png"
+            src={mode === 'dark' ? '/updown-logos/Logo_cyan_text_white.png' : '/updown-logos/Logo_cyan_text_dark_Medium.png'}
             alt="UpDown"
             sx={{ display: { xs: 'none', sm: 'block' }, height: { sm: 32, md: 36 } }}
           />
@@ -77,15 +80,15 @@ export function Header() {
               <Link key={item.href} href={item.href} style={{ textDecoration: 'none' }}>
                 <Button
                   sx={{
-                    color: active ? '#FFFFFF' : 'text.secondary',
+                    color: active ? t.text.primary : 'text.secondary',
                     px: { lg: 1, xl: 1.5 },
                     fontSize: { lg: '0.75rem', xl: '0.8125rem' },
-                    borderBottom: active ? `2px solid ${UP_COLOR}` : '2px solid transparent',
+                    borderBottom: active ? `2px solid ${t.up}` : '2px solid transparent',
                     borderRadius: 0,
                     whiteSpace: 'nowrap',
                     minWidth: 0,
                     '&:hover': {
-                      color: '#FFFFFF',
+                      color: t.text.primary,
                       backgroundColor: 'transparent',
                     },
                   }}
@@ -106,37 +109,37 @@ export function Header() {
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  bgcolor: 'rgba(255,255,255,0.04)',
+                  bgcolor: t.hover.default,
                   borderRadius: '6px',
                   height: { xs: 34, sm: 38 },
                   overflow: 'hidden',
                 }}
               >
-                {/* Level icon */}
+                {/* Level icon — desktop only */}
                 {userProfile && (
                   <Box
                     sx={{
-                      display: 'flex',
+                      display: { xs: 'none', sm: 'flex' },
                       alignItems: 'center',
-                      px: { xs: 0.75, sm: 1 },
+                      px: { sm: 1 },
                       height: '100%',
-                      borderRight: '1px solid rgba(255,255,255,0.06)',
+                      borderRight: `1px solid ${t.border.default}`,
                     }}
                   >
                     <UserLevelBadge level={userProfile.level} title={userProfile.title} size="sm" variant="icon-only" />
                   </Box>
                 )}
 
-                {/* UP Coins */}
+                {/* UP Coins — desktop only */}
                 {userProfile && (
                   <Box
                     sx={{
-                      display: 'flex',
+                      display: { xs: 'none', sm: 'flex' },
                       alignItems: 'center',
                       gap: 0.5,
-                      px: { xs: 0.75, sm: 1.25 },
+                      px: { sm: 1.25 },
                       height: '100%',
-                      borderRight: '1px solid rgba(255,255,255,0.06)',
+                      borderRight: `1px solid ${t.border.default}`,
                     }}
                   >
                     <Box
@@ -145,7 +148,7 @@ export function Header() {
                       alt="UP Coin"
                       sx={{ width: 14, height: 14 }}
                     />
-                    <Typography sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem' }, fontWeight: 600, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
                       {(() => {
                         const num = Number(userProfile.coinsBalance) / UP_COINS_DIVISOR;
                         return num >= 1_000_000 ? `${(num / 1_000_000).toFixed(1)}M`
@@ -166,13 +169,25 @@ export function Header() {
                     height: '100%',
                   }}
                 >
-                  <AttachMoney sx={{ fontSize: 14, color: GAIN_COLOR }} />
-                  <Typography sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem' }, fontWeight: 600, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                  <AttachMoney sx={{ fontSize: 14, color: t.gain }} />
+                  <Typography sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem' }, fontWeight: 600, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
                     {balance ? balance.uiAmount.toFixed(2) : '0.00'}
                   </Typography>
                 </Box>
               </Box>
 
+              <IconButton
+                onClick={toggle}
+                size="small"
+                sx={{
+                  color: t.text.secondary,
+                  width: { xs: 32, sm: 36 },
+                  height: { xs: 32, sm: 36 },
+                  '&:hover': { color: t.text.primary, bgcolor: t.hover.default },
+                }}
+              >
+                {mode === 'dark' ? <LightMode sx={{ fontSize: { xs: 16, sm: 18 } }} /> : <DarkMode sx={{ fontSize: { xs: 16, sm: 18 } }} />}
+              </IconButton>
               <NotificationPanel />
               <ConnectWalletButton variant="header" />
             </>

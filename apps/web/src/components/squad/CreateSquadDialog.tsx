@@ -10,7 +10,7 @@ import {
   Button,
   CircularProgress,
 } from '@mui/material';
-import { UP_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
 
 interface CreateSquadDialogProps {
   open: boolean;
@@ -20,6 +20,7 @@ interface CreateSquadDialogProps {
 }
 
 export function CreateSquadDialog({ open, onClose, onSubmit, isLoading }: CreateSquadDialogProps) {
+  const t = useThemeTokens();
   const [name, setName] = useState('');
 
   const handleSubmit = () => {
@@ -34,7 +35,7 @@ export function CreateSquadDialog({ open, onClose, onSubmit, isLoading }: Create
       onClose={onClose}
       maxWidth="xs"
       fullWidth
-      PaperProps={{ sx: { background: '#0D1219', borderRadius: 0 } }}
+      PaperProps={{ sx: { background: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, borderRadius: 1 } }}
     >
       <DialogTitle sx={{ fontWeight: 700 }}>Create a Squad</DialogTitle>
       <DialogContent>
@@ -58,9 +59,9 @@ export function CreateSquadDialog({ open, onClose, onSubmit, isLoading }: Create
           disabled={!name.trim() || isLoading}
           variant="contained"
           sx={{
-            backgroundColor: UP_COLOR,
-            color: '#000',
-            '&:hover': { backgroundColor: UP_COLOR, filter: 'brightness(1.15)' },
+            backgroundColor: t.up,
+            color: t.text.contrast,
+            '&:hover': { backgroundColor: t.up, filter: 'brightness(1.15)' },
             fontWeight: 700,
             textTransform: 'none',
             borderRadius: '2px',

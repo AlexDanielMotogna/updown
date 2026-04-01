@@ -3,16 +3,17 @@
 import { ReactNode } from 'react';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { darkTokens as t } from '@/lib/theme';
 
 const darkTheme = createTheme({
   palette: {
     mode: 'dark',
-    background: { default: '#0B0F14', paper: '#111820' },
-    text: { primary: '#FFFFFF', secondary: 'rgba(255,255,255,0.5)' },
-    divider: 'rgba(255,255,255,0.08)',
-    success: { main: '#22C55E' },
-    warning: { main: '#F59E0B' },
-    error: { main: '#F87171' },
+    background: { default: t.bg.app, paper: t.bg.surface },
+    text: { primary: t.text.primary, secondary: t.text.secondary },
+    divider: t.border.medium,
+    success: { main: t.success },
+    warning: { main: t.warning },
+    error: { main: t.error },
   },
   typography: {
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',

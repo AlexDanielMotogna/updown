@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GAIN_COLOR, ACCENT_COLOR, UP_COINS_DIVISOR } from '@/lib/constants';
+import { UP_COINS_DIVISOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 interface RewardPopupItem {
   id: string;
@@ -22,11 +24,13 @@ let popupCounter = 0;
 const listeners = new Set<(item: RewardPopupItem) => void>();
 
 export function showRewardPopup(data: { xp: number; coins: number; levelUp: boolean; level: number }) {
+  const t = useThemeTokens();
   const item: RewardPopupItem = { ...data, id: `rp-${++popupCounter}` };
   listeners.forEach((fn) => fn(item));
 }
 
 export function RewardPopup() {
+  const t = useThemeTokens();
   const [items, setItems] = useState<RewardPopupItem[]>([]);
 
   useEffect(() => {
@@ -75,8 +79,8 @@ export function RewardPopup() {
                   sx={{
                     fontSize: '0.9rem',
                     fontWeight: 700,
-                    color: GAIN_COLOR,
-                    textShadow: `0 0 12px ${GAIN_COLOR}60`,
+                    color: t.gain,
+                    textShadow: `0 0 12px ${withAlpha(t.gain, 0.38)}`,
                   }}
                 >
                   +{item.xp} XP
@@ -87,8 +91,8 @@ export function RewardPopup() {
                   sx={{
                     fontSize: '0.9rem',
                     fontWeight: 700,
-                    color: ACCENT_COLOR,
-                    textShadow: `0 0 12px ${ACCENT_COLOR}60`,
+                    color: t.accent,
+                    textShadow: `0 0 12px ${withAlpha(t.accent, 0.38)}`,
                   }}
                 >
                   +{(item.coins / UP_COINS_DIVISOR).toFixed(2)} UP
@@ -99,8 +103,8 @@ export function RewardPopup() {
                   sx={{
                     fontSize: '1rem',
                     fontWeight: 800,
-                    color: '#fff',
-                    textShadow: `0 0 16px ${ACCENT_COLOR}80`,
+                    color: t.text.primary,
+                    textShadow: `0 0 16px ${withAlpha(t.accent, 0.5)}`,
                   }}
                 >
                   LEVEL UP! Lv.{item.level}

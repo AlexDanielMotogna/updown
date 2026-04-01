@@ -3,9 +3,11 @@
 import { Box, Typography, Chip } from '@mui/material';
 import { Groups, ChevronRight } from '@mui/icons-material';
 import Avatar from '@mui/material/Avatar';
-import { UP_COLOR, ACCENT_COLOR, GAIN_COLOR, getAvatarUrl } from '@/lib/constants';
+import { getAvatarUrl } from '@/lib/constants';
 import { formatDateTime } from '@/lib/format';
 import type { Squad } from '@/lib/api';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 interface SquadCardProps {
   squad: Squad;
@@ -13,17 +15,20 @@ interface SquadCardProps {
 }
 
 export function SquadCard({ squad, onClick }: SquadCardProps) {
+  const t = useThemeTokens();
   return (
     <Box
       onClick={onClick}
       sx={{
-        bgcolor: '#0D1219',
-        borderRadius: 0,
+        bgcolor: t.bg.surfaceAlt,
+        border: t.surfaceBorder,
+        boxShadow: t.surfaceShadow,
+        borderRadius: 1,
         px: { xs: 2, md: 2.5 },
         py: { xs: 2, md: 2.5 },
         cursor: 'pointer',
         transition: 'background 0.15s ease',
-        '&:hover': { background: 'rgba(255,255,255,0.04)' },
+        '&:hover': { background: t.border.subtle },
         display: 'flex',
         flexDirection: 'column',
         gap: 1.5,
@@ -34,7 +39,7 @@ export function SquadCard({ squad, onClick }: SquadCardProps) {
         <Avatar
           src={getAvatarUrl(squad.id)}
           alt={squad.name}
-          sx={{ width: 40, height: 40, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}
+          sx={{ width: 40, height: 40, borderRadius: '50%', border: `1px solid ${t.border.default}`, flexShrink: 0 }}
         />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
@@ -46,8 +51,8 @@ export function SquadCard({ squad, onClick }: SquadCardProps) {
                 label="Owner"
                 size="small"
                 sx={{
-                  backgroundColor: `${ACCENT_COLOR}20`,
-                  color: ACCENT_COLOR,
+                  backgroundColor: withAlpha(t.accent, 0.13),
+                  color: t.accent,
                   fontWeight: 600,
                   fontSize: '0.6rem',
                   height: 18,
@@ -60,7 +65,7 @@ export function SquadCard({ squad, onClick }: SquadCardProps) {
             Created {formatDateTime(squad.createdAt)}
           </Typography>
         </Box>
-        <ChevronRight sx={{ fontSize: 20, color: 'rgba(255,255,255,0.15)' }} />
+        <ChevronRight sx={{ fontSize: 20, color: t.border.emphasis }} />
       </Box>
 
       {/* Stats row */}
@@ -70,13 +75,13 @@ export function SquadCard({ squad, onClick }: SquadCardProps) {
           gridTemplateColumns: 'repeat(3, 1fr)',
           gap: 1,
           pt: 1.5,
-          borderTop: '1px solid rgba(255,255,255,0.04)',
+          borderTop: `1px solid ${t.border.subtle}`,
         }}
       >
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Groups sx={{ fontSize: 14, color: UP_COLOR }} />
-            <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: UP_COLOR, fontVariantNumeric: 'tabular-nums' }}>
+            <Groups sx={{ fontSize: 14, color: t.up }} />
+            <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: t.up, fontVariantNumeric: 'tabular-nums' }}>
               {squad.memberCount}
             </Typography>
           </Box>
@@ -85,7 +90,7 @@ export function SquadCard({ squad, onClick }: SquadCardProps) {
           </Typography>
         </Box>
         <Box>
-          <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: GAIN_COLOR, fontVariantNumeric: 'tabular-nums' }}>
+          <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: t.gain, fontVariantNumeric: 'tabular-nums' }}>
             {squad.activePoolCount}
           </Typography>
           <Typography sx={{ fontSize: '0.6rem', color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.06em' }}>

@@ -2,12 +2,14 @@
 
 import { Box, Typography } from '@mui/material';
 import { UP_COINS_DIVISOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
 
 interface UpCoinsBalanceProps {
   balance: string;
 }
 
 export function UpCoinsBalance({ balance }: UpCoinsBalanceProps) {
+  const t = useThemeTokens();
   const num = Number(balance) / UP_COINS_DIVISOR;
   const formatted =
     num >= 1_000_000 ? `${(num / 1_000_000).toFixed(1)}M`
@@ -20,7 +22,7 @@ export function UpCoinsBalance({ balance }: UpCoinsBalanceProps) {
         display: 'flex',
         alignItems: 'center',
         gap: 0.75,
-        bgcolor: 'rgba(255,255,255,0.04)',
+        bgcolor: t.border.subtle,
         borderRadius: '4px',
         px: 1.5,
         height: 36,
@@ -36,7 +38,7 @@ export function UpCoinsBalance({ balance }: UpCoinsBalanceProps) {
         sx={{
           fontSize: '0.85rem',
           fontWeight: 600,
-          color: '#fff',
+          color: t.text.primary,
           fontVariantNumeric: 'tabular-nums',
         }}
       >

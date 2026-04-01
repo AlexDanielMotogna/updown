@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { Box, Typography, TextField, Button, CircularProgress } from '@mui/material';
-import { DOWN_COLOR } from '@/lib/constants';
 import { submitTournamentPrediction } from '@/lib/api';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { PREDICT_COLOR } from './tournament-utils';
+import { useThemeTokens } from '@/app/providers';
 
 export function PredictionInput({
   matchId,
@@ -18,6 +18,7 @@ export function PredictionInput({
   currentPrice: string | null;
   onSubmitted: () => void;
 }) {
+  const t = useThemeTokens();
   const { walletAddress } = useWalletBridge();
   const [price, setPrice] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -59,9 +60,9 @@ export function PredictionInput({
           inputProps={{ step: 'any', min: 0 }}
           sx={{
             flex: 1,
-            '& .MuiInputBase-root': { height: 28, fontSize: '0.72rem', bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '4px' },
-            '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.08)' },
-            '& .MuiInputBase-input': { color: '#fff', py: 0.5, px: 1 },
+            '& .MuiInputBase-root': { height: 28, fontSize: '0.72rem', bgcolor: t.hover.light, borderRadius: '4px' },
+            '& .MuiOutlinedInput-notchedOutline': { borderColor: t.border.medium },
+            '& .MuiInputBase-input': { color: t.text.primary, py: 0.5, px: 1 },
           }}
           onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
         />
@@ -77,24 +78,24 @@ export function PredictionInput({
             height: 28,
             fontSize: '0.65rem',
             fontWeight: 700,
-            bgcolor: PREDICT_COLOR,
-            color: '#fff',
+            bgcolor: t.predict,
+            color: t.text.primary,
             textTransform: 'none',
-            borderRadius: 0,
-            '&:hover': { bgcolor: PREDICT_COLOR, filter: 'brightness(1.15)' },
-            '&:disabled': { bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)' },
+            borderRadius: 1,
+            '&:hover': { bgcolor: t.predict, filter: 'brightness(1.15)' },
+            '&:disabled': { bgcolor: t.border.default, color: t.text.dimmed },
           }}
         >
-          {submitting ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : 'Predict'}
+          {submitting ? <CircularProgress size={14} sx={{ color: t.text.primary }} /> : 'Predict'}
         </Button>
       </Box>
       {currentPrice && !price && (
-        <Typography sx={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.2)' }}>
+        <Typography sx={{ fontSize: '0.55rem', color: t.text.muted }}>
           Current: ${Number(currentPrice).toLocaleString('en-US', { maximumFractionDigits: 2 })}
         </Typography>
       )}
       {error && (
-        <Typography sx={{ fontSize: '0.6rem', color: DOWN_COLOR }}>{error}</Typography>
+        <Typography sx={{ fontSize: '0.6rem', color: t.down }}>{error}</Typography>
       )}
     </Box>
   );

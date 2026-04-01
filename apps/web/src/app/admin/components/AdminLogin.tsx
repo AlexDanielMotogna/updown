@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Box, Card, TextField, Button, Typography, Alert, CircularProgress } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { verifyKey } from '../lib/adminApi';
+import { darkTokens as t } from '@/lib/theme';
 
 export function AdminLogin({ onLogin }: { onLogin: () => void }) {
   const [key, setKey] = useState('');
@@ -27,10 +28,10 @@ export function AdminLogin({ onLogin }: { onLogin: () => void }) {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#0B0F14' }}>
-      <Card sx={{ p: 4, maxWidth: 400, width: '100%', bgcolor: '#111820' }}>
+    <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: t.bg.app }}>
+      <Card sx={{ p: 4, maxWidth: 400, width: '100%', bgcolor: t.bg.surface, border: t.surfaceBorder, boxShadow: t.surfaceShadow }}>
         <Box sx={{ textAlign: 'center', mb: 3 }}>
-          <LockOutlinedIcon sx={{ fontSize: 48, color: 'rgba(255,255,255,0.3)', mb: 1 }} />
+          <LockOutlinedIcon sx={{ fontSize: 48, color: t.text.dimmed, mb: 1 }} />
           <Typography variant="h5" fontWeight={600}>Admin Panel</Typography>
           <Typography variant="body2" color="text.secondary">Enter your API key to continue</Typography>
         </Box>

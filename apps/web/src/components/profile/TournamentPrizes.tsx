@@ -15,7 +15,8 @@ import {
   type TournamentPrize,
 } from '@/lib/api';
 import { formatDate } from '@/lib/format';
-import { GAIN_COLOR, UP_COLOR, ACCENT_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 interface TournamentPrizesProps {
   walletAddress: string | null;
@@ -25,6 +26,7 @@ interface TournamentPrizesProps {
 }
 
 export function TournamentPrizes({ walletAddress, prizes, setPrizes, prizesLoading }: TournamentPrizesProps) {
+  const t = useThemeTokens();
   const [claimingTournamentId, setClaimingTournamentId] = useState<string | null>(null);
   const [claimTxResult, setClaimTxResult] = useState<{ id: string; tx: string } | null>(null);
   const [claimPrizeError, setClaimPrizeError] = useState<string | null>(null);
@@ -53,7 +55,7 @@ export function TournamentPrizes({ walletAddress, prizes, setPrizes, prizesLoadi
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
       {prizesLoading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-          <CircularProgress size={28} sx={{ color: 'rgba(255,255,255,0.3)' }} />
+          <CircularProgress size={28} sx={{ color: t.text.dimmed }} />
         </Box>
       )}
 
@@ -74,7 +76,9 @@ export function TournamentPrizes({ walletAddress, prizes, setPrizes, prizesLoadi
               gridTemplateColumns: '2.5fr 1fr 1fr 1fr 1fr 1fr 1.2fr',
               px: 0,
               py: 1,
-              bgcolor: '#0D1219',
+              bgcolor: t.bg.surfaceAlt,
+              border: t.surfaceBorder,
+              boxShadow: t.surfaceShadow,
             }}
           >
             {['Tournament', 'Asset', 'Prize Pool', 'Fee', 'Payout', 'Date', 'Action'].map((h) => (
@@ -102,18 +106,20 @@ export function TournamentPrizes({ walletAddress, prizes, setPrizes, prizesLoadi
                     display: { xs: 'none', md: 'grid' },
                     gridTemplateColumns: '2.5fr 1fr 1fr 1fr 1fr 1fr 1.2fr',
                     alignItems: 'center',
-                    bgcolor: '#0D1219',
+                    bgcolor: t.bg.surfaceAlt,
+                    border: t.surfaceBorder,
+                    boxShadow: t.surfaceShadow,
                     py: 1.5,
                     transition: 'background 0.15s ease',
-                    '&:hover': { background: 'rgba(255,255,255,0.04)' },
+                    '&:hover': { background: t.border.subtle },
                   }}
                 >
                   <Typography sx={{ fontWeight: 600, fontSize: '0.85rem' }}>{prize.name}</Typography>
-                  <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>{prize.asset}</Typography>
+                  <Typography sx={{ fontSize: '0.85rem', color: t.text.strong }}>{prize.asset}</Typography>
                   <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>${prizeUsdc}</Typography>
-                  <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', fontVariantNumeric: 'tabular-nums' }}>${feeUsdc}</Typography>
-                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: GAIN_COLOR, fontVariantNumeric: 'tabular-nums' }}>${netUsdc}</Typography>
-                  <Typography sx={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)' }}>
+                  <Typography sx={{ fontSize: '0.85rem', color: t.text.tertiary, fontVariantNumeric: 'tabular-nums' }}>${feeUsdc}</Typography>
+                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: t.gain, fontVariantNumeric: 'tabular-nums' }}>${netUsdc}</Typography>
+                  <Typography sx={{ fontSize: '0.8rem', color: t.text.tertiary }}>
                     {prize.completedAt ? formatDate(prize.completedAt) : '--'}
                   </Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -124,20 +130,20 @@ export function TournamentPrizes({ walletAddress, prizes, setPrizes, prizesLoadi
                         disabled={isClaiming}
                         onClick={() => handleClaimPrize(prize.id)}
                         sx={{
-                          bgcolor: UP_COLOR, color: '#000', fontWeight: 700, fontSize: '0.75rem',
-                          textTransform: 'none', px: 2, borderRadius: 0,
-                          '&:hover': { bgcolor: UP_COLOR, filter: 'brightness(1.15)' },
-                          '&:disabled': { bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)' },
+                          bgcolor: t.up, color: t.text.contrast, fontWeight: 700, fontSize: '0.75rem',
+                          textTransform: 'none', px: 2, borderRadius: 1,
+                          '&:hover': { bgcolor: t.up, filter: 'brightness(1.15)' },
+                          '&:disabled': { bgcolor: t.border.default, color: t.text.dimmed },
                         }}
                       >
-                        {isClaiming ? <CircularProgress size={14} sx={{ color: '#000' }} /> : 'Claim'}
+                        {isClaiming ? <CircularProgress size={14} sx={{ color: t.text.contrast }} /> : 'Claim'}
                       </Button>
                     ) : (
                       <>
-                        <Typography variant="caption" sx={{ color: GAIN_COLOR, fontWeight: 600 }}>Claimed</Typography>
+                        <Typography variant="caption" sx={{ color: t.gain, fontWeight: 600 }}>Claimed</Typography>
                         {tx && (
                           <a href={`https://explorer.solana.com/tx/${tx}?cluster=devnet`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex' }}>
-                            <OpenInNew sx={{ fontSize: 14, color: ACCENT_COLOR, '&:hover': { color: '#fff' }, transition: 'color 0.15s' }} />
+                            <OpenInNew sx={{ fontSize: 14, color: t.accent, '&:hover': { color: t.text.primary }, transition: 'color 0.15s' }} />
                           </a>
                         )}
                       </>
@@ -149,23 +155,25 @@ export function TournamentPrizes({ walletAddress, prizes, setPrizes, prizesLoadi
                 <Box
                   sx={{
                     display: { xs: 'block', md: 'none' },
-                    bgcolor: '#0D1219',
+                    bgcolor: t.bg.surfaceAlt,
+                    border: t.surfaceBorder,
+                    boxShadow: t.surfaceShadow,
                     p: 2,
                   }}
                 >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
                     <Box>
                       <Typography sx={{ fontWeight: 600, fontSize: '0.9rem' }}>{prize.name}</Typography>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
+                      <Typography variant="caption" sx={{ color: t.text.tertiary }}>
                         {prize.asset} · {prize.completedAt ? formatDate(prize.completedAt) : ''}
                       </Typography>
                     </Box>
-                    <Typography sx={{ fontWeight: 700, fontSize: '0.95rem', color: GAIN_COLOR, fontVariantNumeric: 'tabular-nums' }}>
+                    <Typography sx={{ fontWeight: 700, fontSize: '0.95rem', color: t.gain, fontVariantNumeric: 'tabular-nums' }}>
                       ${netUsdc}
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.35)' }}>
+                    <Typography variant="caption" sx={{ color: t.text.quaternary }}>
                       Pool ${prizeUsdc} · Fee ${feeUsdc}
                     </Typography>
                     {!claimed && !justClaimed ? (
@@ -175,20 +183,20 @@ export function TournamentPrizes({ walletAddress, prizes, setPrizes, prizesLoadi
                         disabled={isClaiming}
                         onClick={() => handleClaimPrize(prize.id)}
                         sx={{
-                          bgcolor: UP_COLOR, color: '#000', fontWeight: 700, fontSize: '0.75rem',
-                          textTransform: 'none', px: 2, borderRadius: 0,
-                          '&:hover': { bgcolor: UP_COLOR, filter: 'brightness(1.15)' },
-                          '&:disabled': { bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)' },
+                          bgcolor: t.up, color: t.text.contrast, fontWeight: 700, fontSize: '0.75rem',
+                          textTransform: 'none', px: 2, borderRadius: 1,
+                          '&:hover': { bgcolor: t.up, filter: 'brightness(1.15)' },
+                          '&:disabled': { bgcolor: t.border.default, color: t.text.dimmed },
                         }}
                       >
-                        {isClaiming ? <CircularProgress size={14} sx={{ color: '#000' }} /> : 'Claim'}
+                        {isClaiming ? <CircularProgress size={14} sx={{ color: t.text.contrast }} /> : 'Claim'}
                       </Button>
                     ) : (
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                        <Typography variant="caption" sx={{ color: GAIN_COLOR, fontWeight: 600 }}>Claimed</Typography>
+                        <Typography variant="caption" sx={{ color: t.gain, fontWeight: 600 }}>Claimed</Typography>
                         {tx && (
                           <a href={`https://explorer.solana.com/tx/${tx}?cluster=devnet`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex' }}>
-                            <OpenInNew sx={{ fontSize: 14, color: ACCENT_COLOR }} />
+                            <OpenInNew sx={{ fontSize: 14, color: t.accent }} />
                           </a>
                         )}
                       </Box>
@@ -202,7 +210,7 @@ export function TournamentPrizes({ walletAddress, prizes, setPrizes, prizesLoadi
       )}
 
       {claimPrizeError && (
-        <Alert severity="error" onClose={() => setClaimPrizeError(null)} sx={{ bgcolor: 'rgba(248,113,113,0.1)', border: 'none', borderRadius: 0 }}>
+        <Alert severity="error" onClose={() => setClaimPrizeError(null)} sx={{ bgcolor: withAlpha(t.down, 0.1), border: 'none', borderRadius: 1 }}>
           {claimPrizeError}
         </Alert>
       )}

@@ -2,7 +2,8 @@
 
 import { Box, Typography } from '@mui/material';
 import { ShowChart, SportsSoccer } from '@mui/icons-material';
-import { UP_COLOR, DRAW_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 interface Props {
   value: 'ALL' | 'CRYPTO' | 'SPORTS';
@@ -16,11 +17,13 @@ const TABS = [
 ] as const;
 
 export function SportsFilter({ value, onChange }: Props) {
+  const t = useThemeTokens();
+
   return (
     <Box sx={{ display: 'flex', gap: 0.5 }}>
       {TABS.map((tab) => {
         const active = value === tab.key;
-        const color = tab.key === 'SPORTS' ? DRAW_COLOR : tab.key === 'CRYPTO' ? UP_COLOR : '#fff';
+        const color = tab.key === 'SPORTS' ? t.draw : tab.key === 'CRYPTO' ? t.up : t.text.primary;
         return (
           <Box
             key={tab.key}
@@ -32,11 +35,11 @@ export function SportsFilter({ value, onChange }: Props) {
               px: 1.5,
               py: 0.5,
               cursor: 'pointer',
-              bgcolor: active ? `${color}15` : 'transparent',
-              border: active ? `1px solid ${color}25` : '1px solid transparent',
-              color: active ? color : 'rgba(255,255,255,0.4)',
+              bgcolor: active ? withAlpha(color, 0.08) : 'transparent',
+              border: active ? `1px solid ${withAlpha(color, 0.15)}` : '1px solid transparent',
+              color: active ? color : t.text.tertiary,
               transition: 'all 0.15s ease',
-              '&:hover': { color, bgcolor: `${color}08` },
+              '&:hover': { color, bgcolor: withAlpha(color, 0.03) },
             }}
           >
             {'icon' in tab && tab.icon}

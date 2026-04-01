@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, createContext, useContext, useMemo } from 'react';
+import { ReactNode, createContext, useContext, useMemo, useState, useCallback, useEffect } from 'react';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PrivyProvider } from '@privy-io/react-auth';
@@ -12,6 +12,7 @@ import { ReferralDialog } from '@/components/ReferralDialog';
 import { ReferralBanner } from '@/components/ReferralBanner';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useReferral } from '@/hooks/useReferral';
+import { darkTokens, lightTokens, type ThemeTokens } from '@/lib/theme';
 
 function NotificationLayer({ children }: { children: ReactNode }) {
   useNotifications();
@@ -52,230 +53,157 @@ function ReferralLayer({ children }: { children: ReactNode }) {
   );
 }
 
-// Minimalist dark theme
-const darkTheme = createTheme({
-  palette: {
-    mode: 'dark',
-    primary: {
-      main: '#FFFFFF',
-      light: '#FFFFFF',
-      dark: 'rgba(255, 255, 255, 0.8)',
-      contrastText: '#0A0A0A',
+// ─── Theme mode context ──────────────────────────────────────────────────────
+type ThemeMode = 'dark' | 'light';
+
+interface ThemeModeContextValue {
+  mode: ThemeMode;
+  tokens: ThemeTokens;
+  toggle: () => void;
+  setMode: (m: ThemeMode) => void;
+}
+
+const ThemeModeContext = createContext<ThemeModeContextValue | null>(null);
+
+export function useThemeMode(): ThemeModeContextValue {
+  const ctx = useContext(ThemeModeContext);
+  if (!ctx) throw new Error('useThemeMode must be used within Providers');
+  return ctx;
+}
+
+export function useThemeTokens(): ThemeTokens {
+  return useThemeMode().tokens;
+}
+
+// ─── Build MUI theme from tokens ─────────────────────────────────────────────
+function buildMuiTheme(t: ThemeTokens) {
+  return createTheme({
+    palette: {
+      mode: t.mode,
+      primary: {
+        main: t.text.primary,
+        light: t.text.primary,
+        dark: t.text.secondary,
+        contrastText: t.text.contrast,
+      },
+      secondary: {
+        main: t.text.secondary,
+        light: t.text.bright,
+        dark: t.text.dimmed,
+        contrastText: t.text.contrast,
+      },
+      background: {
+        default: t.bg.app,
+        paper: t.bg.surface,
+      },
+      text: {
+        primary: t.text.primary,
+        secondary: t.text.secondary,
+        disabled: t.text.disabled,
+      },
+      divider: t.border.medium,
+      success: {
+        main: t.success,
+        dark: t.successDark,
+      },
+      warning: {
+        main: t.warning,
+      },
+      error: {
+        main: t.error,
+      },
     },
-    secondary: {
-      main: 'rgba(255, 255, 255, 0.5)',
-      light: 'rgba(255, 255, 255, 0.7)',
-      dark: 'rgba(255, 255, 255, 0.3)',
-      contrastText: '#0A0A0A',
+    typography: {
+      fontFamily: 'var(--font-satoshi), "Satoshi", -apple-system, BlinkMacSystemFont, sans-serif',
+      fontWeightLight: 300,
+      fontWeightRegular: 400,
+      fontWeightMedium: 500,
+      fontWeightBold: 600,
+      h1: { fontSize: '3.5rem', fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.1 },
+      h2: { fontSize: '2.75rem', fontWeight: 300, letterSpacing: '-0.02em', lineHeight: 1.2 },
+      h3: { fontSize: '2rem', fontWeight: 400, letterSpacing: '-0.01em', lineHeight: 1.3 },
+      h4: { fontSize: '1.5rem', fontWeight: 400, lineHeight: 1.4 },
+      h5: { fontSize: '1.25rem', fontWeight: 500, lineHeight: 1.4 },
+      h6: { fontSize: '1rem', fontWeight: 500, lineHeight: 1.5 },
+      body1: { fontSize: '1rem', fontWeight: 300, lineHeight: 1.6 },
+      body2: { fontSize: '0.875rem', fontWeight: 300, lineHeight: 1.6 },
+      caption: { fontSize: '0.75rem', fontWeight: 500, letterSpacing: '0.02em' },
     },
-    background: {
-      default: '#0B0F14',
-      paper: '#111820',
-    },
-    text: {
-      primary: '#FFFFFF',
-      secondary: 'rgba(255, 255, 255, 0.5)',
-      disabled: 'rgba(255, 255, 255, 0.38)',
-    },
-    divider: 'rgba(255, 255, 255, 0.08)',
-    success: {
-      main: '#22C55E',
-      dark: '#16A34A',
-    },
-    warning: {
-      main: '#F59E0B',
-    },
-    error: {
-      main: '#F87171',
-    },
-  },
-  typography: {
-    fontFamily: 'var(--font-satoshi), "Satoshi", -apple-system, BlinkMacSystemFont, sans-serif',
-    fontWeightLight: 300,
-    fontWeightRegular: 400,
-    fontWeightMedium: 500,
-    fontWeightBold: 600,
-    h1: {
-      fontSize: '3.5rem',
-      fontWeight: 600,
-      letterSpacing: '-0.02em',
-      lineHeight: 1.1,
-    },
-    h2: {
-      fontSize: '2.75rem',
-      fontWeight: 300,
-      letterSpacing: '-0.02em',
-      lineHeight: 1.2,
-    },
-    h3: {
-      fontSize: '2rem',
-      fontWeight: 400,
-      letterSpacing: '-0.01em',
-      lineHeight: 1.3,
-    },
-    h4: {
-      fontSize: '1.5rem',
-      fontWeight: 400,
-      lineHeight: 1.4,
-    },
-    h5: {
-      fontSize: '1.25rem',
-      fontWeight: 500,
-      lineHeight: 1.4,
-    },
-    h6: {
-      fontSize: '1rem',
-      fontWeight: 500,
-      lineHeight: 1.5,
-    },
-    body1: {
-      fontSize: '1rem',
-      fontWeight: 300,
-      lineHeight: 1.6,
-    },
-    body2: {
-      fontSize: '0.875rem',
-      fontWeight: 300,
-      lineHeight: 1.6,
-    },
-    caption: {
-      fontSize: '0.75rem',
-      fontWeight: 500,
-      letterSpacing: '0.02em',
-    },
-  },
-  shape: {
-    borderRadius: 0,
-  },
-  components: {
-    MuiCssBaseline: {
-      styleOverrides: {
-        html: {
-          scrollbarWidth: 'thin',
-          scrollbarColor: 'rgba(255,255,255,0.1) #0B0F14',
-          '&::-webkit-scrollbar': {
-            width: '8px',
-          },
-          '&::-webkit-scrollbar-track': {
-            background: '#0B0F14',
-          },
-          '&::-webkit-scrollbar-thumb': {
-            background: 'rgba(255,255,255,0.1)',
-            borderRadius: '4px',
+    shape: { borderRadius: 6 },
+    components: {
+      MuiCssBaseline: {
+        styleOverrides: {
+          html: {
+            scrollbarWidth: 'thin',
+            scrollbarColor: `${t.scrollbar.thumb} ${t.scrollbar.track}`,
+            '&::-webkit-scrollbar': { width: '8px' },
+            '&::-webkit-scrollbar-track': { background: t.scrollbar.track },
+            '&::-webkit-scrollbar-thumb': { background: t.scrollbar.thumb, borderRadius: '6px' },
           },
         },
       },
-    },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          borderRadius: 0,
-          background: '#111820',
-          border: 'none',
-          transition: 'all 0.2s ease',
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: 4,
-          textTransform: 'none',
-          fontWeight: 500,
-          letterSpacing: '0.02em',
-          padding: '10px 20px',
-          transition: 'all 0.2s ease',
-        },
-        contained: {
-          boxShadow: 'none',
-          '&:hover': {
-            boxShadow: 'none',
-          },
-        },
-        outlined: {
-          borderWidth: 1,
-          borderColor: 'rgba(255, 255, 255, 0.1)',
-          '&:hover': {
-            borderWidth: 1,
-            backgroundColor: 'rgba(255, 255, 255, 0.04)',
+      MuiCard: {
+        styleOverrides: {
+          root: {
+            borderRadius: 6,
+            background: t.bg.surface,
+            border: t.surfaceBorder,
+            boxShadow: t.surfaceShadow,
+            transition: 'all 0.2s ease',
           },
         },
       },
-    },
-    MuiTextField: {
-      styleOverrides: {
-        root: {
-          '& .MuiOutlinedInput-root': {
-            borderRadius: 0,
-            backgroundColor: 'rgba(255, 255, 255, 0.02)',
-            '& fieldset': {
-              borderColor: 'rgba(255, 255, 255, 0.06)',
-            },
-            '&:hover fieldset': {
-              borderColor: 'rgba(255, 255, 255, 0.12)',
-            },
-            '&.Mui-focused fieldset': {
-              borderColor: 'rgba(255, 255, 255, 0.2)',
-              borderWidth: 1,
+      MuiButton: {
+        styleOverrides: {
+          root: { borderRadius: 4, textTransform: 'none', fontWeight: 500, letterSpacing: '0.02em', padding: '10px 20px', transition: 'all 0.2s ease' },
+          contained: { boxShadow: 'none', '&:hover': { boxShadow: 'none' } },
+          outlined: { borderWidth: 1, borderColor: t.border.strong, '&:hover': { borderWidth: 1, backgroundColor: t.hover.default } },
+        },
+      },
+      MuiTextField: {
+        styleOverrides: {
+          root: {
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 4,
+              backgroundColor: t.bg.input,
+              '& fieldset': { borderColor: t.border.default },
+              '&:hover fieldset': { borderColor: t.border.emphasis },
+              '&.Mui-focused fieldset': { borderColor: t.border.hover, borderWidth: 1 },
             },
           },
         },
       },
-    },
-    MuiChip: {
-      styleOverrides: {
-        root: {
-          borderRadius: 2,
-          fontWeight: 500,
-          letterSpacing: '0.02em',
+      MuiChip: {
+        styleOverrides: {
+          root: { borderRadius: 3, fontWeight: 500, letterSpacing: '0.02em' },
+          outlined: { borderColor: t.border.strong },
         },
-        outlined: {
-          borderColor: 'rgba(255, 255, 255, 0.1)',
+      },
+      MuiTabs: {
+        styleOverrides: { indicator: { backgroundColor: t.text.primary, height: 2 } },
+      },
+      MuiTab: {
+        styleOverrides: {
+          root: { textTransform: 'none', fontWeight: 400, color: t.text.secondary, '&.Mui-selected': { color: t.text.primary } },
+        },
+      },
+      MuiDialog: {
+        styleOverrides: { paper: {
+          background: t.bg.surface,
+          border: t.surfaceBorder,
+          boxShadow: t.surfaceShadow,
+          borderRadius: 6,
+        } },
+      },
+      MuiLinearProgress: {
+        styleOverrides: {
+          root: { borderRadius: 6, backgroundColor: `${t.error}4D` },
+          bar: { borderRadius: 6 },
         },
       },
     },
-    MuiTabs: {
-      styleOverrides: {
-        indicator: {
-          backgroundColor: '#FFFFFF',
-          height: 2,
-        },
-      },
-    },
-    MuiTab: {
-      styleOverrides: {
-        root: {
-          textTransform: 'none',
-          fontWeight: 400,
-          color: 'rgba(255, 255, 255, 0.5)',
-          '&.Mui-selected': {
-            color: '#FFFFFF',
-          },
-        },
-      },
-    },
-    MuiDialog: {
-      styleOverrides: {
-        paper: {
-          background: '#111820',
-          border: 'none',
-          borderRadius: 0,
-        },
-      },
-    },
-    MuiLinearProgress: {
-      styleOverrides: {
-        root: {
-          borderRadius: 0,
-          backgroundColor: 'rgba(248, 113, 113, 0.3)',
-        },
-        bar: {
-          borderRadius: 0,
-        },
-      },
-    },
-  },
-});
+  });
+}
 
 const queryClient = new QueryClient();
 
@@ -292,7 +220,31 @@ const solanaConnectors = toSolanaWalletConnectors({
   shouldAutoConnect: true,
 });
 
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({ children, initialTheme = 'dark' }: { children: ReactNode; initialTheme?: 'dark' | 'light' }) {
+  const [mode, setModeState] = useState<ThemeMode>(initialTheme);
+
+  const setMode = useCallback((m: ThemeMode) => {
+    setModeState(m);
+    localStorage.setItem('theme-mode', m);
+    document.cookie = `theme-mode=${m};path=/;max-age=31536000;SameSite=Lax`;
+    document.documentElement.style.background = m === 'dark' ? darkTokens.bg.app : lightTokens.bg.app;
+    document.documentElement.style.colorScheme = m;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', m === 'dark' ? darkTokens.bg.app : lightTokens.bg.app);
+  }, []);
+
+  const toggle = useCallback(() => {
+    setMode(mode === 'dark' ? 'light' : 'dark');
+  }, [mode, setMode]);
+
+  const tokens = mode === 'dark' ? darkTokens : lightTokens;
+  const muiTheme = useMemo(() => buildMuiTheme(tokens), [tokens]);
+
+  const themeModeValue = useMemo<ThemeModeContextValue>(
+    () => ({ mode, tokens, toggle, setMode }),
+    [mode, tokens, toggle, setMode],
+  );
+
   const endpoint = useMemo(
     () => process.env.NEXT_PUBLIC_SOLANA_RPC_URL || clusterApiUrl('devnet'),
     [],
@@ -305,10 +257,10 @@ export function Providers({ children }: { children: ReactNode }) {
       clientId={process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID!}
       config={{
         appearance: {
-          theme: 'dark',
+          theme: mode,
           accentColor: '#FFFFFF',
           walletChainType: 'solana-only',
-          logo: '/updown-logos/Logo_cyan_text_white.png',
+          logo: mode === 'dark' ? '/updown-logos/Logo_cyan_text_white.png' : '/updown-logos/Logo_cyan_text_dark_Medium.png',
           walletList: ['phantom', 'solflare', 'backpack', 'coinbase_wallet', 'metamask', 'detected_solana_wallets'],
           showWalletLoginFirst: true,
         },
@@ -324,16 +276,18 @@ export function Providers({ children }: { children: ReactNode }) {
     >
       <SolanaConnectionContext.Provider value={connection}>
         <QueryClientProvider client={queryClient}>
-          <ThemeProvider theme={darkTheme}>
-            <CssBaseline />
-            <ErrorBoundary>
-              <NotificationLayer>
-                <ReferralLayer>
-                  {children}
-                </ReferralLayer>
-              </NotificationLayer>
-            </ErrorBoundary>
-          </ThemeProvider>
+          <ThemeModeContext.Provider value={themeModeValue}>
+            <ThemeProvider theme={muiTheme}>
+              <CssBaseline />
+              <ErrorBoundary>
+                <NotificationLayer>
+                  <ReferralLayer>
+                    {children}
+                  </ReferralLayer>
+                </NotificationLayer>
+              </ErrorBoundary>
+            </ThemeProvider>
+          </ThemeModeContext.Provider>
         </QueryClientProvider>
       </SolanaConnectionContext.Provider>
     </PrivyProvider>

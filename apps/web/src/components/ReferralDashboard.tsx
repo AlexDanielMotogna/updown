@@ -9,7 +9,6 @@ import {
 } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchReferralStats, fetchReferralEarnings, fetchReferralPayouts, claimReferralPayout } from '@/lib/api';
-import { ACCENT_COLOR, UP_COLOR } from '@/lib/constants';
 import { USDC_DIVISOR } from '@/lib/format';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { buildNotification } from '@/lib/notifications';
@@ -18,12 +17,14 @@ import { ReferralStatsCards } from './referral/ReferralStatsCards';
 import { ReferralTab } from './referral/ReferralTab';
 import { EarningsTab } from './referral/EarningsTab';
 import { PayoutsTab } from './referral/PayoutsTab';
+import { useThemeTokens } from '@/app/providers';
 
 interface ReferralDashboardProps {
   walletAddress: string;
 }
 
 export function ReferralDashboard({ walletAddress }: ReferralDashboardProps) {
+  const t = useThemeTokens();
   const queryClient = useQueryClient();
   const [copied, setCopied] = useState(false);
   const [claiming, setClaiming] = useState(false);
@@ -94,7 +95,7 @@ export function ReferralDashboard({ walletAddress }: ReferralDashboardProps) {
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-        <CircularProgress size={32} sx={{ color: UP_COLOR }} />
+        <CircularProgress size={32} sx={{ color: t.up }} />
       </Box>
     );
   }
@@ -122,7 +123,7 @@ export function ReferralDashboard({ walletAddress }: ReferralDashboardProps) {
 
       {/* ─── Tabs ─── */}
       <Box sx={{ px: 0, pt: { xs: 2, md: 3 } }}>
-        <Box sx={{ borderBottom: '1px solid rgba(255, 255, 255, 0.06)', mb: 3 }}>
+        <Box sx={{ borderBottom: `1px solid ${t.border.default}`, mb: 3 }}>
           <Tabs
             value={tab}
             onChange={handleTabChange}
@@ -130,7 +131,7 @@ export function ReferralDashboard({ walletAddress }: ReferralDashboardProps) {
             scrollButtons={false}
             sx={{
               minHeight: 44,
-              '& .MuiTabs-indicator': { backgroundColor: ACCENT_COLOR, height: 2 },
+              '& .MuiTabs-indicator': { backgroundColor: t.accent, height: 2 },
               '& .MuiTab-root': {
                 color: 'text.secondary',
                 fontWeight: 500,
@@ -139,7 +140,7 @@ export function ReferralDashboard({ walletAddress }: ReferralDashboardProps) {
                 px: { xs: 1.5, sm: 2.5 },
                 minHeight: 44,
                 minWidth: 'auto',
-                '&.Mui-selected': { color: '#FFFFFF' },
+                '&.Mui-selected': { color: t.text.primary },
               },
             }}
           >

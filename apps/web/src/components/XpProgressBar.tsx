@@ -2,7 +2,8 @@
 
 import { Box, Typography } from '@mui/material';
 import { motion } from 'framer-motion';
-import { ACCENT_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 interface XpProgressBarProps {
   level: number;
@@ -12,6 +13,7 @@ interface XpProgressBarProps {
 }
 
 export function XpProgressBar({ level, progress, totalXp, xpToNextLevel }: XpProgressBarProps) {
+  const t = useThemeTokens();
   const pct = Math.min(Math.max(progress, 0), 1);
 
   return (
@@ -30,7 +32,7 @@ export function XpProgressBar({ level, progress, totalXp, xpToNextLevel }: XpPro
         sx={{
           height: 6,
           borderRadius: '3px',
-          bgcolor: 'rgba(255,255,255,0.06)',
+          bgcolor: t.border.default,
           overflow: 'hidden',
         }}
       >
@@ -41,7 +43,7 @@ export function XpProgressBar({ level, progress, totalXp, xpToNextLevel }: XpPro
           style={{
             height: '100%',
             borderRadius: '3px',
-            background: `linear-gradient(90deg, ${ACCENT_COLOR}, ${ACCENT_COLOR}CC)`,
+            background: `linear-gradient(90deg, ${t.accent}, ${withAlpha(t.accent, 0.8)})`,
           }}
         />
       </Box>

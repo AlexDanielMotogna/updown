@@ -9,6 +9,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { formatDate } from '@/lib/format';
 import { adminFetch, adminPost } from '../lib/adminApi';
+import { darkTokens as t } from '@/lib/theme';
 
 interface PoolRow {
   id: string;
@@ -31,10 +32,10 @@ interface PoolDetail extends PoolRow {
 }
 
 const statusColors: Record<string, string> = {
-  JOINING: '#F59E0B',
-  ACTIVE: '#3B82F6',
-  RESOLVED: '#8B5CF6',
-  CLAIMABLE: '#22C55E',
+  JOINING: t.warning,
+  ACTIVE: t.link,
+  RESOLVED: t.prediction,
+  CLAIMABLE: t.gain,
 };
 
 export function PoolManagement() {
@@ -100,7 +101,7 @@ export function PoolManagement() {
               <TableBody>
                 {stuckPools.map(p => (
                   <TableRow key={p.id}>
-                    <TableCell sx={{ fontSize: 11, cursor: 'pointer', '&:hover': { color: '#F59E0B' } }} onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(p.id); }} title="Click to copy">{p.id}</TableCell>
+                    <TableCell sx={{ fontSize: 11, cursor: 'pointer', '&:hover': { color: t.warning } }} onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(p.id); }} title="Click to copy">{p.id}</TableCell>
                     <TableCell>{p.asset}</TableCell>
                     <TableCell><Chip label={p.status} size="small" sx={{ bgcolor: statusColors[p.status] + '22', color: statusColors[p.status] }} /></TableCell>
                     <TableCell>{p.stuckMinutes}m</TableCell>
@@ -148,7 +149,7 @@ export function PoolManagement() {
             <TableBody>
               {(poolsData?.data ?? []).map(p => (
                 <TableRow key={p.id} hover sx={{ cursor: 'pointer' }} onClick={() => setSelectedPoolId(p.id)}>
-                  <TableCell sx={{ fontSize: 11, cursor: 'pointer', '&:hover': { color: '#F59E0B' } }} onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(p.id); }} title="Click to copy">{p.id}</TableCell>
+                  <TableCell sx={{ fontSize: 11, cursor: 'pointer', '&:hover': { color: t.warning } }} onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(p.id); }} title="Click to copy">{p.id}</TableCell>
                   <TableCell>{p.asset}</TableCell>
                   <TableCell>{p.interval}</TableCell>
                   <TableCell><Chip label={p.status} size="small" sx={{ bgcolor: (statusColors[p.status] || '#666') + '22', color: statusColors[p.status] || '#666' }} /></TableCell>
@@ -188,7 +189,7 @@ export function PoolManagement() {
                       {detailData.data.bets.map(b => (
                         <TableRow key={b.id}>
                           <TableCell sx={{ fontSize: 11 }}>{b.walletAddress.slice(0, 8)}...{b.walletAddress.slice(-4)}</TableCell>
-                          <TableCell><Chip label={b.side} size="small" sx={{ bgcolor: b.side === 'UP' ? '#22C55E22' : '#F8717122', color: b.side === 'UP' ? '#22C55E' : '#F87171' }} /></TableCell>
+                          <TableCell><Chip label={b.side} size="small" sx={{ bgcolor: b.side === 'UP' ? `${t.gain}22` : `${t.error}22`, color: b.side === 'UP' ? t.gain : t.error }} /></TableCell>
                           <TableCell>{b.amount}</TableCell>
                           <TableCell>{b.claimed ? 'Yes' : 'No'}</TableCell>
                         </TableRow>

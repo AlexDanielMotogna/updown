@@ -26,7 +26,8 @@ import {
 import { Header } from '@/components/Header';
 import { RewardPopup } from '@/components/RewardPopup';
 import { AssetIcon } from '@/components/AssetIcon';
-import { UP_COLOR, DOWN_COLOR, GAIN_COLOR, ACCENT_COLOR } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { darkTokens, withAlpha } from '@/lib/theme';
 
 function Img({ src, size = 20, alt = '' }: { src: string; size?: number; alt?: string }) {
   return <Box component="img" src={src} alt={alt} sx={{ width: size, height: size, objectFit: 'contain' }} />;
@@ -35,6 +36,7 @@ function Img({ src, size = 20, alt = '' }: { src: string; size?: number; alt?: s
 /* ── Building blocks ─────────────────────────────────────────────── */
 
 function SectionTitle({ children, id }: { children: React.ReactNode; id?: string }) {
+  const t = useThemeTokens();
   return (
     <Typography
       component="div"
@@ -42,7 +44,7 @@ function SectionTitle({ children, id }: { children: React.ReactNode; id?: string
       sx={{
         fontSize: { xs: '0.75rem', md: '0.85rem' },
         fontWeight: 600,
-        color: 'rgba(255,255,255,0.4)',
+        color: t.text.tertiary,
         letterSpacing: '0.12em',
         textTransform: 'uppercase',
         mb: 2,
@@ -56,6 +58,7 @@ function SectionTitle({ children, id }: { children: React.ReactNode; id?: string
 }
 
 function StepCard({ step, title, desc }: { step: number; title: string; desc: string }) {
+  const t = useThemeTokens();
   return (
     <Box
       sx={{
@@ -64,55 +67,60 @@ function StepCard({ step, title, desc }: { step: number; title: string; desc: st
         gap: 2,
         px: { xs: 2, md: 2.5 },
         py: { xs: 2, md: 2.5 },
-        bgcolor: '#0D1219',
+        bgcolor: t.bg.surfaceAlt,
+        border: t.surfaceBorder,
+        boxShadow: t.surfaceShadow,
         transition: 'background 0.15s ease',
-        '&:hover': { background: 'rgba(255,255,255,0.03)' },
+        '&:hover': { background: t.hover.light },
       }}
     >
       <Box
         sx={{
           width: 36, height: 36, borderRadius: '50%',
-          bgcolor: 'rgba(255,255,255,0.06)',
+          bgcolor: t.border.default,
           display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
         }}
       >
-        <Typography sx={{ fontSize: '0.9rem', fontWeight: 800, color: 'rgba(255,255,255,0.5)' }}>{step}</Typography>
+        <Typography sx={{ fontSize: '0.9rem', fontWeight: 800, color: t.text.secondary }}>{step}</Typography>
       </Box>
       <Box>
         <Typography sx={{ fontWeight: 700, fontSize: '0.95rem', mb: 0.25 }}>{title}</Typography>
-        <Typography sx={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.65)', lineHeight: 1.6 }}>{desc}</Typography>
+        <Typography sx={{ fontSize: '0.9rem', color: t.text.rich, lineHeight: 1.6 }}>{desc}</Typography>
       </Box>
     </Box>
   );
 }
 
 function InfoCard({ label, value }: { label: string; value: string }) {
+  const t = useThemeTokens();
   return (
-    <Box sx={{ bgcolor: '#0D1219', p: { xs: 1.5, md: 2 }, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.05em' }}>{label}</Typography>
+    <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: { xs: 1.5, md: 2 }, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.05em' }}>{label}</Typography>
       <Typography sx={{ fontSize: { xs: '0.95rem', md: '1.1rem' }, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{value}</Typography>
     </Box>
   );
 }
 
 function DataRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  const t = useThemeTokens();
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1, px: { xs: 1, sm: 1.5 }, gap: 1, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-      <Typography sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' }, color: 'rgba(255,255,255,0.65)', minWidth: 0 }}>{label}</Typography>
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1, px: { xs: 1, sm: 1.5 }, gap: 1, borderBottom: `1px solid ${t.border.subtle}` }}>
+      <Typography sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' }, color: t.text.rich, minWidth: 0 }}>{label}</Typography>
       <Typography sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' }, fontWeight: bold ? 700 : 500, fontVariantNumeric: 'tabular-nums', flexShrink: 0, textAlign: 'right' }}>{value}</Typography>
     </Box>
   );
 }
 
 function LevelRow({ level, title, xp, fee, mult, icon, tierColor }: { level: number; title: string; xp: string; fee: string; mult: string; icon: string; tierColor: string }) {
+  const t = useThemeTokens();
   return (
     <Box
       sx={{
         display: 'grid',
         gridTemplateColumns: { xs: '40px 1fr 1fr 48px 48px', sm: '50px 1fr 1fr 60px 60px', md: '60px 1.2fr 1.2fr 100px 100px' },
         alignItems: 'center', py: 1, px: { xs: 0.75, sm: 1.5 },
-        borderBottom: '1px solid rgba(255,255,255,0.04)',
-        '&:hover': { bgcolor: 'rgba(255,255,255,0.02)' },
+        borderBottom: `1px solid ${t.border.subtle}`,
+        '&:hover': { bgcolor: t.hover.subtle },
         transition: 'background 0.15s ease',
       }}
     >
@@ -121,7 +129,7 @@ function LevelRow({ level, title, xp, fee, mult, icon, tierColor }: { level: num
         <Typography sx={{ fontSize: { xs: '0.78rem', sm: '0.88rem' }, fontWeight: 700, color: tierColor }}>{level}</Typography>
       </Box>
       <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, fontWeight: 600, color: tierColor }}>{title}</Typography>
-      <Typography sx={{ fontSize: { xs: '0.72rem', sm: '0.85rem' }, color: 'rgba(255,255,255,0.65)', fontVariantNumeric: 'tabular-nums' }}>{xp}</Typography>
+      <Typography sx={{ fontSize: { xs: '0.72rem', sm: '0.85rem' }, color: t.text.rich, fontVariantNumeric: 'tabular-nums' }}>{xp}</Typography>
       <Typography sx={{ fontSize: { xs: '0.72rem', sm: '0.85rem' }, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fee}</Typography>
       <Typography sx={{ fontSize: { xs: '0.72rem', sm: '0.85rem' }, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{mult}</Typography>
     </Box>
@@ -131,35 +139,35 @@ function LevelRow({ level, title, xp, fee, mult, icon, tierColor }: { level: num
 /* ── Data ─────────────────────────────────────────────────────────── */
 
 const LEVELS = [
-  { level: 1, title: 'Newcomer', xp: '0', fee: '5.00%', mult: '1.0x', icon: '/Level/Level_1-4.png', color: 'rgba(255,255,255,0.5)' },
-  { level: 5, title: 'Observer', xp: '11,915', fee: '4.75%', mult: '1.0x', icon: '/Level/Level_5-8.png', color: UP_COLOR },
-  { level: 10, title: 'Analyst', xp: '97,362', fee: '4.50%', mult: '1.1x', icon: '/Level/Level_9-12.png', color: GAIN_COLOR },
-  { level: 15, title: 'Trader', xp: '318,562', fee: '4.25%', mult: '1.2x', icon: '/Level/Level_13-16.png', color: ACCENT_COLOR },
-  { level: 20, title: 'Veteran', xp: '730,569', fee: '4.00%', mult: '1.35x', icon: '/Level/Level_17-20.png', color: '#A78BFA' },
-  { level: 25, title: 'Expert', xp: '1,384,587', fee: '3.75%', mult: '1.5x', icon: '/Level/Level_25-28.png', color: '#FB923C' },
-  { level: 30, title: 'Legend', xp: '2,329,192', fee: '3.50%', mult: '1.7x', icon: '/Level/Level_29-32.png', color: '#F43F5E' },
-  { level: 35, title: 'Titan', xp: '3,610,991', fee: '3.25%', mult: '1.9x', icon: '/Level/Level_33-36.png', color: '#E879F9' },
-  { level: 40, title: 'Apex Legend', xp: '5,275,014', fee: '3.00%', mult: '2.0x', icon: '/Level/Level_37-40.png', color: '#FACC15' },
+  { level: 1, title: 'Newcomer', xp: '0', fee: '5.00%', mult: '1.0x', icon: '/Level/Level_1-4.png', color: darkTokens.levelTiers[0] },
+  { level: 5, title: 'Observer', xp: '11,915', fee: '4.75%', mult: '1.0x', icon: '/Level/Level_5-8.png', color: darkTokens.levelTiers[1] },
+  { level: 10, title: 'Analyst', xp: '97,362', fee: '4.50%', mult: '1.1x', icon: '/Level/Level_9-12.png', color: darkTokens.levelTiers[2] },
+  { level: 15, title: 'Trader', xp: '318,562', fee: '4.25%', mult: '1.2x', icon: '/Level/Level_13-16.png', color: darkTokens.levelTiers[3] },
+  { level: 20, title: 'Veteran', xp: '730,569', fee: '4.00%', mult: '1.35x', icon: '/Level/Level_17-20.png', color: darkTokens.levelTiers[4] },
+  { level: 25, title: 'Expert', xp: '1,384,587', fee: '3.75%', mult: '1.5x', icon: '/Level/Level_25-28.png', color: darkTokens.levelTiers[6] },
+  { level: 30, title: 'Legend', xp: '2,329,192', fee: '3.50%', mult: '1.7x', icon: '/Level/Level_29-32.png', color: darkTokens.levelTiers[7] },
+  { level: 35, title: 'Titan', xp: '3,610,991', fee: '3.25%', mult: '1.9x', icon: '/Level/Level_33-36.png', color: darkTokens.levelTiers[8] },
+  { level: 40, title: 'Apex Legend', xp: '5,275,014', fee: '3.00%', mult: '2.0x', icon: '/Level/Level_37-40.png', color: darkTokens.levelTiers[9] },
 ];
 
 const ALLOCATIONS = [
-  { label: 'Play-to-Earn', pct: 40, tokens: '4,000,000,000', color: '#22C55E', desc: 'Distributed to players through gameplay' },
-  { label: 'Liquidity', pct: 15, tokens: '1,500,000,000', color: '#4ADE80', desc: 'DEX liquidity on Raydium / Orca' },
-  { label: 'Team', pct: 15, tokens: '1,500,000,000', color: '#F59E0B', desc: '24-month vesting, 6-month cliff' },
-  { label: 'Treasury', pct: 10, tokens: '1,000,000,000', color: '#A78BFA', desc: 'Protocol growth & partnerships' },
-  { label: 'Community', pct: 10, tokens: '1,000,000,000', color: '#F472B6', desc: 'Community initiatives & early adopters' },
-  { label: 'Marketing', pct: 5, tokens: '500,000,000', color: '#FB923C', desc: 'Exchange listings, campaigns, KOLs' },
-  { label: 'Advisors', pct: 5, tokens: '500,000,000', color: '#E879F9', desc: '18-month vesting, 3-month cliff' },
+  { label: 'Play-to-Earn', pct: 40, tokens: '4,000,000,000', color: darkTokens.allocationColors.playToEarn, desc: 'Distributed to players through gameplay' },
+  { label: 'Liquidity', pct: 15, tokens: '1,500,000,000', color: darkTokens.allocationColors.liquidity, desc: 'DEX liquidity on Raydium / Orca' },
+  { label: 'Team', pct: 15, tokens: '1,500,000,000', color: darkTokens.allocationColors.team, desc: '24-month vesting, 6-month cliff' },
+  { label: 'Treasury', pct: 10, tokens: '1,000,000,000', color: darkTokens.allocationColors.treasury, desc: 'Protocol growth & partnerships' },
+  { label: 'Community', pct: 10, tokens: '1,000,000,000', color: darkTokens.allocationColors.community, desc: 'Community initiatives & early adopters' },
+  { label: 'Marketing', pct: 5, tokens: '500,000,000', color: darkTokens.allocationColors.marketing, desc: 'Exchange listings, campaigns, KOLs' },
+  { label: 'Advisors', pct: 5, tokens: '500,000,000', color: darkTokens.allocationColors.advisors, desc: '18-month vesting, 3-month cliff' },
 ];
 
 const VESTING = [
-  { label: 'Play-to-Earn', color: '#22C55E', cliff: 0, end: 30, note: 'Ongoing via gameplay' },
-  { label: 'Liquidity', color: '#4ADE80', cliff: 0, end: 1, note: '100% at TGE' },
-  { label: 'Team', color: '#F59E0B', cliff: 6, end: 30, note: '6mo cliff, 24mo linear' },
-  { label: 'Treasury', color: '#A78BFA', cliff: 0, end: 12, note: '12mo linear' },
-  { label: 'Community', color: '#F472B6', cliff: 0, end: 24, note: 'Airdrop waves' },
-  { label: 'Marketing', color: '#FB923C', cliff: 0, end: 24, note: 'Per milestone' },
-  { label: 'Advisors', color: '#E879F9', cliff: 3, end: 21, note: '3mo cliff, 18mo linear' },
+  { label: 'Play-to-Earn', color: darkTokens.allocationColors.playToEarn, cliff: 0, end: 30, note: 'Ongoing via gameplay' },
+  { label: 'Liquidity', color: darkTokens.allocationColors.liquidity, cliff: 0, end: 1, note: '100% at TGE' },
+  { label: 'Team', color: darkTokens.allocationColors.team, cliff: 6, end: 30, note: '6mo cliff, 24mo linear' },
+  { label: 'Treasury', color: darkTokens.allocationColors.treasury, cliff: 0, end: 12, note: '12mo linear' },
+  { label: 'Community', color: darkTokens.allocationColors.community, cliff: 0, end: 24, note: 'Airdrop waves' },
+  { label: 'Marketing', color: darkTokens.allocationColors.marketing, cliff: 0, end: 24, note: 'Per milestone' },
+  { label: 'Advisors', color: darkTokens.allocationColors.advisors, cliff: 3, end: 21, note: '3mo cliff, 18mo linear' },
 ];
 
 const DONUT_R = 70;
@@ -213,6 +221,7 @@ const NAV_SECTIONS = NAV_GROUPS.flatMap(g => g.items);
 /* ── Sidebar nav ─────────────────────────────────────────────────── */
 
 function SidebarGroup({ group, items, activeId, onClose }: NavGroup & { activeId: string; onClose?: () => void }) {
+  const t = useThemeTokens();
   const hasActive = items.some(i => i.id === activeId);
   const [open, setOpen] = useState(hasActive);
 
@@ -227,13 +236,13 @@ function SidebarGroup({ group, items, activeId, onClose }: NavGroup & { activeId
         sx={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           px: 2, py: 0.75, cursor: 'pointer',
-          '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' },
+          '&:hover': { bgcolor: t.hover.light },
         }}
       >
-        <Typography sx={{ fontSize: '0.72rem', fontWeight: 600, color: hasActive ? '#fff' : 'rgba(255,255,255,0.4)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+        <Typography sx={{ fontSize: '0.72rem', fontWeight: 600, color: hasActive ? t.text.primary : t.text.tertiary, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
           {group}
         </Typography>
-        <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.2)', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>
+        <Typography sx={{ fontSize: '0.65rem', color: t.border.hover, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>
           {'>'}
         </Typography>
       </Box>
@@ -249,10 +258,10 @@ function SidebarGroup({ group, items, activeId, onClose }: NavGroup & { activeId
             textDecoration: 'none',
             fontSize: '0.8rem',
             fontWeight: activeId === s.id ? 600 : 400,
-            color: activeId === s.id ? '#fff' : 'rgba(255,255,255,0.45)',
-            borderLeft: activeId === s.id ? '2px solid #fff' : '2px solid transparent',
+            color: activeId === s.id ? t.text.primary : t.text.soft,
+            borderLeft: activeId === s.id ? `2px solid ${t.text.primary}` : '2px solid transparent',
             transition: 'all 0.15s ease',
-            '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.03)' },
+            '&:hover': { color: t.text.primary, bgcolor: t.hover.light },
           }}
         >
           {s.label}
@@ -263,9 +272,10 @@ function SidebarGroup({ group, items, activeId, onClose }: NavGroup & { activeId
 }
 
 function DocsSidebar({ activeId, onClose }: { activeId: string; onClose?: () => void }) {
+  const t = useThemeTokens();
   return (
     <Box sx={{ py: 2, display: 'flex', flexDirection: 'column', gap: 0 }}>
-      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', textTransform: 'uppercase', px: 2, mb: 1.5 }}>
+      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: t.text.dimmed, letterSpacing: '0.1em', textTransform: 'uppercase', px: 2, mb: 1.5 }}>
         Documentation
       </Typography>
       {NAV_GROUPS.map((g) => (
@@ -278,6 +288,7 @@ function DocsSidebar({ activeId, onClose }: { activeId: string; onClose?: () => 
 /* ── Page ─────────────────────────────────────────────────────────── */
 
 export default function DocsPage() {
+  const t = useThemeTokens();
   const getBadge = useBadgeLookup();
   const [activeId, setActiveId] = useState('quick-start');
   const [mobileNav, setMobileNav] = useState(false);
@@ -306,7 +317,7 @@ export default function DocsPage() {
       <Header />
       <RewardPopup />
 
-      <Box sx={{ display: 'flex', bgcolor: '#0B0F14' }}>
+      <Box sx={{ display: 'flex', bgcolor: t.bg.app }}>
         {/* Desktop sidebar */}
         <Box
           sx={{
@@ -319,7 +330,7 @@ export default function DocsPage() {
             overflowY: 'auto',
             borderRight: '1px solid rgba(255,255,255,0.04)',
             '&::-webkit-scrollbar': { width: 3 },
-            '&::-webkit-scrollbar-thumb': { background: 'rgba(255,255,255,0.08)', borderRadius: 2 },
+            '&::-webkit-scrollbar-thumb': { background: t.border.medium, borderRadius: 1 },
           }}
         >
           <DocsSidebar activeId={activeId} />
@@ -335,7 +346,7 @@ export default function DocsPage() {
             left: 0,
             transform: 'translateY(-50%)',
             zIndex: 99,
-            bgcolor: '#0D1219',
+            bgcolor: t.bg.surfaceAlt,
             borderRight: '1px solid rgba(255,255,255,0.08)',
             borderTop: '1px solid rgba(255,255,255,0.08)',
             borderBottom: '1px solid rgba(255,255,255,0.08)',
@@ -345,10 +356,10 @@ export default function DocsPage() {
             borderBottomLeftRadius: 0,
             px: 0.5,
             py: 1.5,
-            '&:hover': { bgcolor: 'rgba(255,255,255,0.06)' },
+            '&:hover': { bgcolor: t.border.default },
           }}
         >
-          <MenuOpen sx={{ fontSize: 16, color: 'rgba(255,255,255,0.5)' }} />
+          <MenuOpen sx={{ fontSize: 16, color: t.text.secondary }} />
         </IconButton>
 
         {/* Mobile drawer */}
@@ -359,7 +370,7 @@ export default function DocsPage() {
           sx={{
             display: { xs: 'block', lg: 'none' },
             '& .MuiDrawer-paper': { width: 240, backgroundColor: '#0B0F14 !important', backgroundImage: 'none', borderRight: '1px solid rgba(255,255,255,0.06)' },
-            '& .MuiBackdrop-root': { bgcolor: 'rgba(0,0,0,0.6)' },
+            '& .MuiBackdrop-root': { bgcolor: t.shadow.deep },
           }}
         >
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 1 }}>
@@ -377,17 +388,17 @@ export default function DocsPage() {
             {/* Hero */}
             <Box sx={{ textAlign: 'center', mb: 5, mt: { xs: 1, md: 2 } }}>
               <Box component="img" src="/updown-logos/Logo_cyan_text_white.png" alt="UpDown" sx={{ height: { xs: 36, md: 48 }, mb: 2 }} />
-              <Typography sx={{ fontSize: { xs: '0.85rem', md: '1rem' }, color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>
+              <Typography sx={{ fontSize: { xs: '0.85rem', md: '1rem' }, color: t.text.tertiary, fontWeight: 500 }}>
                 Predict crypto prices. Stake USDC. Win the pool.
               </Typography>
             </Box>
 
             {/* ── Getting Started ─────────────────────────────────────── */}
             <SectionTitle id="quick-start">Getting Started</SectionTitle>
-            <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
-              <strong style={{ color: '#fff' }}>UpDown</strong> is a parimutuel prediction platform on Solana. Pick a crypto asset (BTC, ETH, SOL), predict whether its price will go <strong style={{ color: '#fff' }}>UP or DOWN</strong> within a timeframe, and stake USDC. If your side wins, you split the entire pool proportionally. All bets, payouts, and refunds happen on-chain — transparent and verifiable.
+            <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, mb: 2, lineHeight: 1.6 }}>
+              <strong style={{ color: t.text.primary }}>UpDown</strong> is a parimutuel prediction platform on Solana. Pick a crypto asset (BTC, ETH, SOL), predict whether its price will go <strong style={{ color: t.text.primary }}>UP or DOWN</strong> within a timeframe, and stake USDC. If your side wins, you split the entire pool proportionally. All bets, payouts, and refunds happen on-chain — transparent and verifiable.
             </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px', mb: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
               <StepCard step={1} title="Connect Wallet" desc="Click Connect Wallet. Choose embedded (no extension) or external (Phantom, Solflare)." />
               <StepCard step={2} title="Fund Your Wallet" desc="Deposit USDC (Solana) into your wallet. You need USDC to place predictions and a small amount of SOL for transaction fees." />
               <StepCard step={3} title="Pick a Pool" desc="Browse Markets. Pools marked JOINING are open for predictions." />
@@ -398,28 +409,28 @@ export default function DocsPage() {
 
             {/* ── Pool Lifecycle ──────────────────────────────────────── */}
             <SectionTitle id="how-pools-work">Pool Lifecycle</SectionTitle>
-            <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
-              Every pool follows the same lifecycle. Resolution varies by type: <strong style={{ color: '#fff' }}>crypto</strong> compares strike vs final price,{' '}
-              <strong style={{ color: '#fff' }}>sports</strong> uses the match result, and <strong style={{ color: '#fff' }}>predictions</strong> resolve via Polymarket.
+            <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, mb: 2, lineHeight: 1.6 }}>
+              Every pool follows the same lifecycle. Resolution varies by type: <strong style={{ color: t.text.primary }}>crypto</strong> compares strike vs final price,{' '}
+              <strong style={{ color: t.text.primary }}>sports</strong> uses the match result, and <strong style={{ color: t.text.primary }}>predictions</strong> resolve via Polymarket.
             </Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: '3px', mb: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 1.5, mb: 2 }}>
               {[
                 { label: 'JOINING', desc: 'Place predictions' },
                 { label: 'ACTIVE', desc: 'Bets locked' },
                 { label: 'RESOLVED', desc: 'Winner decided' },
                 { label: 'CLAIMABLE', desc: 'Claim payouts' },
               ].map((s) => (
-                <Box key={s.label} sx={{ bgcolor: '#0D1219', p: { xs: 1.25, md: 2 }, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Box key={s.label} sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: { xs: 1.25, md: 2 }, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                   <Typography sx={{ fontSize: { xs: '0.72rem', md: '0.85rem' }, fontWeight: 700, letterSpacing: '0.08em' }}>{s.label}</Typography>
-                  <Typography sx={{ fontSize: { xs: '0.78rem', md: '0.88rem' }, color: 'rgba(255,255,255,0.6)' }}>{s.desc}</Typography>
+                  <Typography sx={{ fontSize: { xs: '0.78rem', md: '0.88rem' }, color: t.text.rich }}>{s.desc}</Typography>
                 </Box>
               ))}
             </Box>
 
             {/* ── Assets & Timeframes ─────────────────────────────────── */}
             <SectionTitle id="assets-timeframes">Assets & Timeframes</SectionTitle>
-            <Box sx={{ bgcolor: '#0D1219', p: { xs: 2, md: 3 }, mb: 2 }}>
-              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 2 }}>ASSETS</Typography>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: { xs: 2, md: 3 }, mb: 2 }}>
+              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 2 }}>ASSETS</Typography>
               <Box sx={{ display: 'flex', gap: { xs: 2, md: 4 }, mb: 3, justifyContent: 'center' }}>
                 {['BTC', 'ETH', 'SOL'].map((a) => (
                   <Box key={a} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
@@ -428,7 +439,7 @@ export default function DocsPage() {
                   </Box>
                 ))}
               </Box>
-              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 2 }}>TIMEFRAMES</Typography>
+              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 2 }}>TIMEFRAMES</Typography>
               <Box sx={{ display: 'flex', gap: { xs: 1.5, md: 3 }, flexWrap: 'wrap', justifyContent: 'center' }}>
                 {[
                   { key: '3m', img: '/assets/turbo-tag.png' },
@@ -443,11 +454,11 @@ export default function DocsPage() {
 
             {/* ── Sports Markets ──────────────────────────────────────── */}
             <SectionTitle id="sports-markets">Sports Markets</SectionTitle>
-            <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
-              Predict match outcomes across multiple sports. Football uses 3-way (<strong style={{ color: UP_COLOR }}>Home</strong> / <strong style={{ color: ACCENT_COLOR }}>Draw</strong> / <strong style={{ color: DOWN_COLOR }}>Away</strong>), other sports use 2-way (<strong style={{ color: UP_COLOR }}>Home</strong> / <strong style={{ color: DOWN_COLOR }}>Away</strong>).
+            <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, mb: 2, lineHeight: 1.6 }}>
+              Predict match outcomes across multiple sports. Football uses 3-way (<strong style={{ color: t.up }}>Home</strong> / <strong style={{ color: t.accent }}>Draw</strong> / <strong style={{ color: t.down }}>Away</strong>), other sports use 2-way (<strong style={{ color: t.up }}>Home</strong> / <strong style={{ color: t.down }}>Away</strong>).
             </Typography>
-            <Box sx={{ bgcolor: '#0D1219', p: { xs: 2, md: 3 }, mb: 2 }}>
-              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 2 }}>FOOTBALL LEAGUES</Typography>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: { xs: 2, md: 3 }, mb: 2 }}>
+              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 2 }}>FOOTBALL LEAGUES</Typography>
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3 }}>
                 {[
                   { code: 'CL', name: 'Champions League' },
@@ -458,13 +469,13 @@ export default function DocsPage() {
                   { code: 'FL1', name: 'Ligue 1' },
                   { code: 'BSA', name: 'Brasileirao' },
                 ].map((l) => (
-                  <Box key={l.code} sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(255,255,255,0.04)', px: 1.5, py: 0.75, borderRadius: '6px' }}>
+                  <Box key={l.code} sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: t.hover.default, px: 1.5, py: 0.75, borderRadius: '6px' }}>
                     <Box component="img" src={getBadge(l.code.toUpperCase()) || ''} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
                     <Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>{l.name}</Typography>
                   </Box>
                 ))}
               </Box>
-              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.08em', mb: 2 }}>COMING SOON</Typography>
+              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.muted, letterSpacing: '0.08em', mb: 2 }}>COMING SOON</Typography>
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3, opacity: 0.4 }}>
                 {[
                   { name: 'Championship', code: 'ELC' },
@@ -474,13 +485,13 @@ export default function DocsPage() {
                   { name: 'Copa Libertadores', code: 'CLI' },
                   { name: 'World Cup', code: 'WC' },
                 ].map((l) => (
-                  <Box key={l.name} sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(255,255,255,0.04)', px: 1.5, py: 0.75, borderRadius: '6px' }}>
+                  <Box key={l.name} sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: t.hover.default, px: 1.5, py: 0.75, borderRadius: '6px' }}>
                     <Box component="img" src={getBadge(l.code) || ''} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
                     <Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>{l.name}</Typography>
                   </Box>
                 ))}
               </Box>
-              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 2 }}>OTHER SPORTS</Typography>
+              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 2 }}>OTHER SPORTS</Typography>
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
                 {[
                   { name: 'NBA', badge: 'https://r2.thesportsdb.com/images/media/league/badge/frdjqy1536585083.png' },
@@ -488,13 +499,13 @@ export default function DocsPage() {
                   { name: 'NFL', badge: 'https://r2.thesportsdb.com/images/media/league/badge/g85fqz1662057187.png' },
                   { name: 'UFC', badge: 'https://r2.thesportsdb.com/images/media/league/badge/bewnz31717531281.png' },
                 ].map((s) => (
-                  <Box key={s.name} sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(255,255,255,0.04)', px: 1.5, py: 0.75, borderRadius: '6px' }}>
+                  <Box key={s.name} sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: t.hover.default, px: 1.5, py: 0.75, borderRadius: '6px' }}>
                     <Box component="img" src={s.badge} alt="" sx={{ width: 20, height: 20, objectFit: 'contain' }} />
                     <Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>{s.name}</Typography>
                   </Box>
                 ))}
               </Box>
-              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.08em', mb: 2 }}>COMING SOON</Typography>
+              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.muted, letterSpacing: '0.08em', mb: 2 }}>COMING SOON</Typography>
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3, opacity: 0.4 }}>
                 {[
                   { name: 'MLB', badge: 'https://r2.thesportsdb.com/images/media/league/badge/c5r83j1521893739.png' },
@@ -506,100 +517,100 @@ export default function DocsPage() {
                   { name: 'Boxing', badge: 'https://r2.thesportsdb.com/images/media/league/badge/6enin21740228549.png' },
                   { name: 'Golf', badge: 'https://r2.thesportsdb.com/images/media/league/badge/quvqqr1423564787.png' },
                 ].map((s) => (
-                  <Box key={s.name} sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(255,255,255,0.04)', px: 1.5, py: 0.75, borderRadius: '6px' }}>
+                  <Box key={s.name} sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: t.hover.default, px: 1.5, py: 0.75, borderRadius: '6px' }}>
                     <Box component="img" src={s.badge} alt="" sx={{ width: 20, height: 20, objectFit: 'contain' }} />
                     <Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>{s.name}</Typography>
                   </Box>
                 ))}
               </Box>
               <Box>
-                <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>All sports data from TheSportsDB with ChatGPT fallback</Typography>
-                <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Live scores updated every 30 seconds during matches</Typography>
-                <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Results checked every 5 min during match windows</Typography>
-                <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>AI-generated analysis for each match</Typography>
-                <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Categories managed from admin panel — new sports added without code</Typography>
+                <Typography component="div" sx={{ fontSize: '0.85rem', color: t.text.rich, py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: t.up } }}>All sports data from TheSportsDB with ChatGPT fallback</Typography>
+                <Typography component="div" sx={{ fontSize: '0.85rem', color: t.text.rich, py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: t.up } }}>Live scores updated every 30 seconds during matches</Typography>
+                <Typography component="div" sx={{ fontSize: '0.85rem', color: t.text.rich, py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: t.up } }}>Results checked every 5 min during match windows</Typography>
+                <Typography component="div" sx={{ fontSize: '0.85rem', color: t.text.rich, py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: t.up } }}>AI-generated analysis for each match</Typography>
+                <Typography component="div" sx={{ fontSize: '0.85rem', color: t.text.rich, py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: t.up } }}>Categories managed from admin panel — new sports added without code</Typography>
               </Box>
             </Box>
 
             {/* ── Prediction Markets ─────────────────────────────────────── */}
             <SectionTitle id="prediction-markets">Prediction Markets</SectionTitle>
-            <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
-              Predict real-world events: <strong style={{ color: UP_COLOR }}>Yes</strong> or <strong style={{ color: DOWN_COLOR }}>No</strong>. Powered by Polymarket data with on-chain USDC pools.
+            <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, mb: 2, lineHeight: 1.6 }}>
+              Predict real-world events: <strong style={{ color: t.up }}>Yes</strong> or <strong style={{ color: t.down }}>No</strong>. Powered by Polymarket data with on-chain USDC pools.
             </Typography>
-            <Box sx={{ bgcolor: '#0D1219', p: { xs: 2, md: 3 }, mb: 2 }}>
-              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 2 }}>CATEGORIES</Typography>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: { xs: 2, md: 3 }, mb: 2 }}>
+              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 2 }}>CATEGORIES</Typography>
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3 }}>
                 {[
-                  { name: 'Politics', color: '#A78BFA' },
-                  { name: 'Geopolitics', color: '#60A5FA' },
-                  { name: 'Culture', color: '#F472B6' },
-                  { name: 'Finance', color: '#34D399' },
+                  { name: 'Politics', color: t.categoryColors.politics },
+                  { name: 'Geopolitics', color: t.categoryColors.geopolitics },
+                  { name: 'Culture', color: t.categoryColors.culture },
+                  { name: 'Finance', color: t.categoryColors.finance },
                 ].map((c) => (
                   <Box key={c.name} sx={{ px: 2, py: 0.75, borderRadius: '6px', bgcolor: `${c.color}15`, border: `1px solid ${c.color}30` }}>
                     <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: c.color }}>{c.name}</Typography>
                   </Box>
                 ))}
               </Box>
-              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.08em', mb: 2 }}>COMING SOON</Typography>
+              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.muted, letterSpacing: '0.08em', mb: 2 }}>COMING SOON</Typography>
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3, opacity: 0.4 }}>
                 {[
-                  { name: 'Science & Tech', color: '#06B6D4' },
-                  { name: 'Sports Futures', color: '#F59E0B' },
-                  { name: 'Climate', color: '#10B981' },
-                  { name: 'Crypto Markets', color: '#F97316' },
+                  { name: 'Science & Tech', color: t.categoryColors.scienceTech },
+                  { name: 'Sports Futures', color: t.categoryColors.sportsFutures },
+                  { name: 'Climate', color: t.categoryColors.climate },
+                  { name: 'Crypto Markets', color: t.categoryColors.cryptoMarkets },
                 ].map((c) => (
                   <Box key={c.name} sx={{ px: 2, py: 0.75, borderRadius: '6px', bgcolor: `${c.color}15`, border: `1px solid ${c.color}30` }}>
                     <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: c.color }}>{c.name}</Typography>
                   </Box>
                 ))}
               </Box>
-              <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Global odds chart from Polymarket (auto-refreshes every 30s)</Typography>
-              <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>UpDown platform odds chart (live via WebSocket)</Typography>
-              <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Toggle between Polymarket and UpDown data sources</Typography>
-              <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Market Rules and Context tabs show resolution criteria</Typography>
-              <Typography component="div" sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: UP_COLOR } }}>Pools resolve when Polymarket marks the event as resolved (~10 min check)</Typography>
+              <Typography component="div" sx={{ fontSize: '0.85rem', color: t.text.rich, py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: t.up } }}>Global odds chart from Polymarket (auto-refreshes every 30s)</Typography>
+              <Typography component="div" sx={{ fontSize: '0.85rem', color: t.text.rich, py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: t.up } }}>UpDown platform odds chart (live via WebSocket)</Typography>
+              <Typography component="div" sx={{ fontSize: '0.85rem', color: t.text.rich, py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: t.up } }}>Toggle between Polymarket and UpDown data sources</Typography>
+              <Typography component="div" sx={{ fontSize: '0.85rem', color: t.text.rich, py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: t.up } }}>Market Rules and Context tabs show resolution criteria</Typography>
+              <Typography component="div" sx={{ fontSize: '0.85rem', color: t.text.rich, py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: t.up } }}>Pools resolve when Polymarket marks the event as resolved (~10 min check)</Typography>
             </Box>
 
             {/* ── Odds & Payouts ──────────────────────────────────────── */}
             <SectionTitle id="odds-payouts">Odds & Payouts</SectionTitle>
-            <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
-              <strong style={{ color: '#fff' }}>Parimutuel</strong>: winners split the entire pool proportionally. Odds update in real-time as bets come in.
+            <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, mb: 2, lineHeight: 1.6 }}>
+              <strong style={{ color: t.text.primary }}>Parimutuel</strong>: winners split the entire pool proportionally. Odds update in real-time as bets come in.
             </Typography>
-            <Box sx={{ bgcolor: '#0D1219', mb: 2 }}>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, mb: 2 }}>
               <DataRow label="Your Stake" value="$100 on UP" />
               <DataRow label="Odds" value="1.50x" />
               <DataRow label="Gross Payout" value="$150.00" />
               <DataRow label="Platform Fee (5%)" value="-$7.50" />
               <DataRow label="You Receive" value="$142.50" bold />
             </Box>
-            <Box sx={{ bgcolor: '#0D1219', borderLeft: '3px solid rgba(255,255,255,0.15)', px: 2, py: 1.5, mb: 2 }}>
-              <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', lineHeight: 1.6 }}>
-                If a pool is one-sided (everyone bet the same direction), all bets are <strong style={{ color: '#fff' }}>refunded</strong>.
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, boxShadow: t.surfaceShadow, borderLeft: '3px solid rgba(255,255,255,0.15)', px: 2, py: 1.5, mb: 2 }}>
+              <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, lineHeight: 1.6 }}>
+                If a pool is one-sided (everyone bet the same direction), all bets are <strong style={{ color: t.text.primary }}>refunded</strong>.
               </Typography>
             </Box>
 
             {/* ── Claiming ────────────────────────────────────────────── */}
             <SectionTitle id="claiming">Claiming Payouts</SectionTitle>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: '3px', mb: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 1.5, mb: 2 }}>
               {[
                 { title: 'From Profile', desc: 'Go to /profile > Resolved tab > Claim Payout' },
                 { title: 'Claim All', desc: 'Multiple wins? Use the Claim All banner to batch-claim' },
                 { title: 'From Pool', desc: 'Open the resolved pool and claim directly' },
               ].map((c) => (
-                <Box key={c.title} sx={{ bgcolor: '#0D1219', p: 2 }}>
+                <Box key={c.title} sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: 2 }}>
                   <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, mb: 0.5 }}>{c.title}</Typography>
-                  <Typography sx={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.65)', lineHeight: 1.6 }}>{c.desc}</Typography>
+                  <Typography sx={{ fontSize: '0.9rem', color: t.text.rich, lineHeight: 1.6 }}>{c.desc}</Typography>
                 </Box>
               ))}
             </Box>
 
             {/* ── Squad Pools ─────────────────────────────────────────── */}
             <SectionTitle id="squad-pools">Squad Pools</SectionTitle>
-            <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
+            <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, mb: 2, lineHeight: 1.6 }}>
               Private pools between friends. Create a squad, invite friends with a code, and play pools that only your squad can see and bet on. Same parimutuel mechanics, same on-chain flow, but private.
             </Typography>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px', mb: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
               <StepCard step={1} title="Create a Squad" desc="Go to Squads page and create one. You become the Owner." />
               <StepCard step={2} title="Invite Friends" desc="Share your invite code or link. Friends open the link, connect wallet, and join." />
               <StepCard step={3} title="Create Private Pools" desc="Any member can create a pool: choose asset (BTC/ETH/SOL), duration (3m to 1h), and optional max players." />
@@ -608,8 +619,8 @@ export default function DocsPage() {
               <StepCard step={6} title="Chat & Leaderboard" desc="Squad chat for trash talk. Leaderboard tracks W/L and PnL within the squad." />
             </Box>
 
-            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1 }}>SQUAD DETAILS</Typography>
-            <Box sx={{ bgcolor: '#0D1219', mb: 2 }}>
+            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1 }}>SQUAD DETAILS</Typography>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, mb: 2 }}>
               <DataRow label="Max members per squad" value="20" />
               <DataRow label="Who can create pools" value="Any member" />
               <DataRow label="Pool visibility" value="Squad members only" />
@@ -621,11 +632,11 @@ export default function DocsPage() {
 
             {/* ── Tournaments ────────────────────────────────────────── */}
             <SectionTitle id="tournaments">Tournaments</SectionTitle>
-            <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
+            <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, mb: 2, lineHeight: 1.6 }}>
               Single-elimination bracket tournaments. Pay an entry fee, predict prices in 1v1 matches, and the last player standing wins the entire prize pool.
             </Typography>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px', mb: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
               <StepCard step={1} title="Register" desc="Pay the entry fee to join. All entry fees go directly into the prize pool." />
               <StepCard step={2} title="Bracket" desc="Players are placed in a single-elimination bracket. Each round is a 1v1 match." />
               <StepCard step={3} title="Predict" desc="Before each match, both players have a limited time window to predict the closing price of the asset (e.g. BTC/USD)." />
@@ -634,8 +645,8 @@ export default function DocsPage() {
               <StepCard step={6} title="Claim prize" desc="The tournament winner can claim the full prize pool (minus 5% platform fee) directly to their wallet." />
             </Box>
 
-            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1 }}>TOURNAMENT DETAILS</Typography>
-            <Box sx={{ bgcolor: '#0D1219', mb: 2 }}>
+            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1 }}>TOURNAMENT DETAILS</Typography>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, mb: 2 }}>
               <DataRow label="Format" value="Single elimination" />
               <DataRow label="Match type" value="1v1 price prediction" />
               <DataRow label="Winning condition" value="Closest to final price" />
@@ -646,27 +657,27 @@ export default function DocsPage() {
               <DataRow label="Missed prediction" value="Opponent advances" />
             </Box>
 
-            <Box sx={{ bgcolor: '#0D1219', borderLeft: '3px solid rgba(255,255,255,0.15)', px: 2, py: 1.5, mb: 2 }}>
-              <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', lineHeight: 1.6 }}>
-                <strong style={{ color: '#fff' }}>Example:</strong> An 8-player tournament with a $10 entry fee creates an $80 prize pool. After 3 rounds of 1v1 matches, the winner claims <strong style={{ color: '#fff' }}>$76.00 USDC</strong> (pool minus 5% fee).
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, boxShadow: t.surfaceShadow, borderLeft: '3px solid rgba(255,255,255,0.15)', px: 2, py: 1.5, mb: 2 }}>
+              <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, lineHeight: 1.6 }}>
+                <strong style={{ color: t.text.primary }}>Example:</strong> An 8-player tournament with a $10 entry fee creates an $80 prize pool. After 3 rounds of 1v1 matches, the winner claims <strong style={{ color: t.text.primary }}>$76.00 USDC</strong> (pool minus 5% fee).
               </Typography>
             </Box>
 
             {/* ── Referral Program ────────────────────────────────────── */}
             <SectionTitle id="referrals">Referral Program</SectionTitle>
-            <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
-              Invite friends and earn <strong style={{ color: '#fff' }}>1% of their bet amounts</strong> as USDC commission every time a pool resolves normally. No extra cost to them.
+            <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, mb: 2, lineHeight: 1.6 }}>
+              Invite friends and earn <strong style={{ color: t.text.primary }}>1% of their bet amounts</strong> as USDC commission every time a pool resolves normally. No extra cost to them.
             </Typography>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px', mb: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
               <StepCard step={1} title="Share Your Link" desc="Go to Referrals page or click the share icon on your profile. Copy your unique referral link." />
               <StepCard step={2} title="Friend Opens Link" desc="They open the link. If not connected, a banner shows they were invited. Once they connect, a dialog asks them to accept." />
               <StepCard step={3} title="They Play" desc="Your friend places bets normally. Every time a pool they bet in resolves (not a refund), you earn 1% of their bet amount." />
               <StepCard step={4} title="Claim Earnings" desc="Go to Referrals page. When your unpaid balance reaches $1, click Claim. USDC is sent directly to your wallet on-chain." />
             </Box>
 
-            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1 }}>HOW IT WORKS</Typography>
-            <Box sx={{ bgcolor: '#0D1219', mb: 2 }}>
+            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1 }}>HOW IT WORKS</Typography>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, mb: 2 }}>
               <DataRow label="Referrer reward on accept" value="+500 XP + 50 UP Coins" bold />
               <DataRow label="Commission rate" value="1% of bet amount" bold />
               <DataRow label="When earned" value="Pool resolves normally" />
@@ -676,23 +687,23 @@ export default function DocsPage() {
               <DataRow label="Self-referral" value="Blocked" />
             </Box>
 
-            <Box sx={{ bgcolor: '#0D1219', borderLeft: '3px solid rgba(255,255,255,0.15)', px: 2, py: 1.5, mb: 2 }}>
-              <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', lineHeight: 1.6 }}>
-                <strong style={{ color: '#fff' }}>Example:</strong> Your friend bets $100 on a pool. The pool resolves with a winner. You earn <strong style={{ color: '#fff' }}>$1.00 USDC</strong> regardless of whether your friend won or lost.
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, boxShadow: t.surfaceShadow, borderLeft: '3px solid rgba(255,255,255,0.15)', px: 2, py: 1.5, mb: 2 }}>
+              <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, lineHeight: 1.6 }}>
+                <strong style={{ color: t.text.primary }}>Example:</strong> Your friend bets $100 on a pool. The pool resolves with a winner. You earn <strong style={{ color: t.text.primary }}>$1.00 USDC</strong> regardless of whether your friend won or lost.
               </Typography>
             </Box>
 
             {/* ── XP & Rewards ────────────────────────────────────────── */}
             <SectionTitle id="xp-rewards">XP & Rewards</SectionTitle>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: '3px', mb: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 1.5, mb: 2 }}>
               <InfoCard label="BET PLACED" value="+100 XP" />
               <InfoCard label="DAILY FIRST BET" value="+200 XP" />
               <InfoCard label="BET WON" value="+150 XP" />
               <InfoCard label="CLAIM COMPLETED" value="+50 XP" />
             </Box>
 
-            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1 }}>WIN STREAK XP BONUS</Typography>
-            <Box sx={{ bgcolor: '#0D1219', mb: 2 }}>
+            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1 }}>WIN STREAK XP BONUS</Typography>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, mb: 2 }}>
               <DataRow label="3 consecutive wins" value="+100 XP" />
               <DataRow label="4 consecutive wins" value="+200 XP" />
               <DataRow label="5 consecutive wins" value="+300 XP" />
@@ -701,22 +712,22 @@ export default function DocsPage() {
 
             {/* ── Level Progression ───────────────────────────────────── */}
             <SectionTitle id="levels">Level Progression (1-40)</SectionTitle>
-            <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
-              Higher levels unlock lower fees and higher coin multipliers. XP curve: <strong style={{ color: '#fff' }}>500 x (level - 1)^1.8</strong> per level.
+            <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, mb: 2, lineHeight: 1.6 }}>
+              Higher levels unlock lower fees and higher coin multipliers. XP curve: <strong style={{ color: t.text.primary }}>500 x (level - 1)^1.8</strong> per level.
             </Typography>
 
             <Box
               sx={{
                 display: 'grid',
                 gridTemplateColumns: { xs: '40px 1fr 1fr 48px 48px', sm: '50px 1fr 1fr 60px 60px', md: '60px 1.2fr 1.2fr 100px 100px' },
-                py: 1, px: { xs: 0.75, sm: 1.5 }, bgcolor: '#0D1219', borderBottom: '1px solid rgba(255,255,255,0.08)',
+                py: 1, px: { xs: 0.75, sm: 1.5 }, bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, borderBottom: '1px solid rgba(255,255,255,0.08)',
               }}
             >
               {['LVL', 'TITLE', 'TOTAL XP', 'FEE', 'COINS'].map((h) => (
-                <Typography key={h} sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' }, fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em' }}>{h}</Typography>
+                <Typography key={h} sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' }, fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em' }}>{h}</Typography>
               ))}
             </Box>
-            <Box sx={{ bgcolor: '#0D1219', mb: 2 }}>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, mb: 2 }}>
               {LEVELS.map((l) => (
                 <LevelRow key={l.level} level={l.level} title={l.title} xp={l.xp} fee={l.fee} mult={l.mult} icon={l.icon} tierColor={l.color} />
               ))}
@@ -724,20 +735,20 @@ export default function DocsPage() {
 
             {/* ── UP Coins ────────────────────────────────────────────── */}
             <SectionTitle id="up-coins">UP Coins</SectionTitle>
-            <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
-              Coins are <strong style={{ color: '#fff' }}>only awarded when you claim</strong> a winning bet, never at deposit time.
+            <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, mb: 2, lineHeight: 1.6 }}>
+              Coins are <strong style={{ color: t.text.primary }}>only awarded when you claim</strong> a winning bet, never at deposit time.
             </Typography>
 
-            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1 }}>EARNING SOURCES</Typography>
-            <Box sx={{ bgcolor: '#0D1219', mb: 2 }}>
+            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1 }}>EARNING SOURCES</Typography>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, mb: 2 }}>
               <DataRow label="Base bet coins" value="$amount x 0.10 UP x level mult" />
               <DataRow label="Win bonus" value="50% of base x level mult" />
               <DataRow label="Streak bonus (3+ wins)" value="min(streak x 2.00, 20.00) UP" />
               <DataRow label="Level-up bonus" value="newLevel x 5.00 UP" />
             </Box>
 
-            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1 }}>DAILY LIMITS</Typography>
-            <Box sx={{ bgcolor: '#0D1219', mb: 2 }}>
+            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1 }}>DAILY LIMITS</Typography>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, mb: 2 }}>
               <DataRow label="Daily cap per wallet" value="500 UP max" bold />
               <DataRow label="Minimum bet for coins" value="$1 USDC" />
               <DataRow label="Bets 1-20 / day" value="100% rate" />
@@ -747,20 +758,20 @@ export default function DocsPage() {
 
             {/* ── Tokenomics ──────────────────────────────────────────── */}
             <SectionTitle id="tokenomics">UP Token Tokenomics</SectionTitle>
-            <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
-              The <strong style={{ color: '#fff' }}>UP Token</strong> is the native cryptocurrency of UpDown, built on Solana (SPL).
+            <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, mb: 2, lineHeight: 1.6 }}>
+              The <strong style={{ color: t.text.primary }}>UP Token</strong> is the native cryptocurrency of UpDown, built on Solana (SPL).
               UP Coins earned in-app will convert to UP Tokens at launch.
             </Typography>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: '3px', mb: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 1.5, mb: 2 }}>
               <InfoCard label="TOTAL SUPPLY" value="10,000,000,000" />
               <InfoCard label="BLOCKCHAIN" value="Solana (SPL)" />
               <InfoCard label="TICKER" value="$UP" />
               <InfoCard label="DECIMALS" value="6" />
             </Box>
 
-            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1 }}>TOKEN DISTRIBUTION</Typography>
-            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center', gap: { xs: 2, md: 4 }, bgcolor: '#0D1219', p: { xs: 2, md: 3 }, mb: '3px' }}>
+            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1 }}>TOKEN DISTRIBUTION</Typography>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center', gap: { xs: 2, md: 4 }, bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: { xs: 2, md: 3 }, mb: '3px' }}>
               {/* Donut Chart */}
               <Box sx={{ position: 'relative', flexShrink: 0, width: { xs: 170, sm: 200, md: 220 }, height: { xs: 170, sm: 200, md: 220 } }}>
                 <svg viewBox="0 0 220 220" width="100%" height="100%">
@@ -770,10 +781,10 @@ export default function DocsPage() {
                       title={<Box sx={{ textAlign: 'center', py: 0.5 }}>
                         <Typography sx={{ fontWeight: 700, fontSize: '0.85rem', color: seg.color }}>{seg.label}</Typography>
                         <Typography sx={{ fontSize: '0.8rem' }}>{seg.pct}% &middot; {seg.tokens} UP</Typography>
-                        <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)' }}>{seg.desc}</Typography>
+                        <Typography sx={{ fontSize: '0.75rem', color: t.text.rich }}>{seg.desc}</Typography>
                       </Box>}
                       arrow
-                      slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', maxWidth: 220 } }, arrow: { sx: { color: '#1a1f2e' } } }}
+                      slotProps={{ tooltip: { sx: { bgcolor: t.bg.tooltip, border: '1px solid rgba(255,255,255,0.1)', maxWidth: 220 } }, arrow: { sx: { color: t.bg.tooltip } } }}
                     >
                       <circle
                         cx="110"
@@ -790,19 +801,19 @@ export default function DocsPage() {
                   ))}
                 </svg>
                 <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
-                  <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.08em' }}>TOTAL</Typography>
-                  <Typography sx={{ fontSize: { xs: '1rem', md: '1.2rem' }, fontWeight: 800, color: '#FACC15' }}>10B</Typography>
-                  <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)' }}>$UP</Typography>
+                  <Typography sx={{ fontSize: '0.6rem', color: t.text.quaternary, letterSpacing: '0.08em' }}>TOTAL</Typography>
+                  <Typography sx={{ fontSize: { xs: '1rem', md: '1.2rem' }, fontWeight: 800, color: t.gold }}>10B</Typography>
+                  <Typography sx={{ fontSize: '0.6rem', color: t.text.dimmed }}>$UP</Typography>
                 </Box>
               </Box>
               {/* Legend */}
               <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1.25, width: '100%' }}>
                 {ALLOCATIONS.map((a) => (
-                  <Tooltip key={a.label} title={`${a.tokens} UP - ${a.desc}`} placement="left" arrow slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.78rem' } }, arrow: { sx: { color: '#1a1f2e' } } }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer', py: 0.25, mx: -0.5, px: 0.5, borderRadius: '4px', transition: 'background 0.15s', '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' } }}>
+                  <Tooltip key={a.label} title={`${a.tokens} UP - ${a.desc}`} placement="left" arrow slotProps={{ tooltip: { sx: { bgcolor: t.bg.tooltip, border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.78rem' } }, arrow: { sx: { color: t.bg.tooltip } } }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer', py: 0.25, mx: -0.5, px: 0.5, borderRadius: '4px', transition: 'background 0.15s', '&:hover': { bgcolor: t.hover.default } }}>
                       <Box sx={{ width: 10, height: 10, borderRadius: '2px', bgcolor: a.color, flexShrink: 0 }} />
                       <Typography sx={{ fontSize: { xs: '0.82rem', md: '0.88rem' }, fontWeight: 600, color: a.color, flex: 1 }}>{a.label}</Typography>
-                      <Typography sx={{ fontSize: { xs: '0.82rem', md: '0.88rem' }, fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>{a.pct}%</Typography>
+                      <Typography sx={{ fontSize: { xs: '0.82rem', md: '0.88rem' }, fontWeight: 700, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>{a.pct}%</Typography>
                     </Box>
                   </Tooltip>
                 ))}
@@ -810,11 +821,11 @@ export default function DocsPage() {
             </Box>
 
             {/* Vesting Timeline */}
-            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1, mt: 2 }}>VESTING SCHEDULE</Typography>
-            <Box sx={{ bgcolor: '#0D1219', p: { xs: 1.5, md: 2.5 }, mb: '3px' }}>
+            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1, mt: 2 }}>VESTING SCHEDULE</Typography>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: { xs: 1.5, md: 2.5 }, mb: '3px' }}>
               <Box sx={{ display: 'flex', ml: { xs: '65px', sm: '80px', md: '100px' }, mr: { xs: '70px', sm: '90px', md: '120px' }, mb: 1 }}>
                 {[0, 6, 12, 18, 24, 30].map((m) => (
-                  <Typography key={m} sx={{ fontSize: { xs: '0.58rem', md: '0.68rem' }, color: 'rgba(255,255,255,0.3)', flex: 1 }}>
+                  <Typography key={m} sx={{ fontSize: { xs: '0.58rem', md: '0.68rem' }, color: t.text.dimmed, flex: 1 }}>
                     {m === 0 ? 'TGE' : `${m}mo`}
                   </Typography>
                 ))}
@@ -826,28 +837,28 @@ export default function DocsPage() {
                     <Typography sx={{ fontWeight: 700, fontSize: '0.82rem', color: v.color }}>{v.label}</Typography>
                     {v.cliff > 0 && <Typography sx={{ fontSize: '0.78rem' }}>Cliff: {v.cliff} months</Typography>}
                     <Typography sx={{ fontSize: '0.78rem' }}>Vesting: month {v.cliff} to {v.end}</Typography>
-                    <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)' }}>{v.note}</Typography>
+                    <Typography sx={{ fontSize: '0.75rem', color: t.text.rich }}>{v.note}</Typography>
                   </Box>}
                   arrow
                   placement="top"
-                  slotProps={{ tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', maxWidth: 200 } }, arrow: { sx: { color: '#1a1f2e' } } }}
+                  slotProps={{ tooltip: { sx: { bgcolor: t.bg.tooltip, border: '1px solid rgba(255,255,255,0.1)', maxWidth: 200 } }, arrow: { sx: { color: t.bg.tooltip } } }}
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.75, gap: { xs: 0.75, md: 1.5 }, cursor: 'pointer', py: 0.25, borderRadius: '4px', transition: 'background 0.15s', '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.75, gap: { xs: 0.75, md: 1.5 }, cursor: 'pointer', py: 0.25, borderRadius: '4px', transition: 'background 0.15s', '&:hover': { bgcolor: t.hover.light } }}>
                     <Typography sx={{ fontSize: { xs: '0.65rem', md: '0.78rem' }, color: v.color, fontWeight: 600, width: { xs: 55, sm: 70, md: 90 }, flexShrink: 0, textAlign: 'right' }}>{v.label}</Typography>
-                    <Box sx={{ flex: 1, height: { xs: 14, md: 18 }, bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '3px', position: 'relative', overflow: 'hidden' }}>
+                    <Box sx={{ flex: 1, height: { xs: 14, md: 18 }, bgcolor: t.hover.default, borderRadius: '3px', position: 'relative', overflow: 'hidden' }}>
                       {v.cliff > 0 && (
                         <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${(v.cliff / VESTING_MAX) * 100}%`, bgcolor: `${v.color}10`, borderRight: `1px dashed ${v.color}50` }} />
                       )}
                       <Box sx={{ position: 'absolute', top: 0, bottom: 0, left: `${(v.cliff / VESTING_MAX) * 100}%`, width: `${((v.end - v.cliff) / VESTING_MAX) * 100}%`, background: `linear-gradient(90deg, ${v.color}90, ${v.color}50)`, borderRadius: '3px' }} />
                     </Box>
-                    <Typography sx={{ fontSize: { xs: '0.55rem', md: '0.68rem' }, color: 'rgba(255,255,255,0.4)', width: { xs: 65, sm: 80, md: 110 }, flexShrink: 0 }}>{v.note}</Typography>
+                    <Typography sx={{ fontSize: { xs: '0.55rem', md: '0.68rem' }, color: t.text.tertiary, width: { xs: 65, sm: 80, md: 110 }, flexShrink: 0 }}>{v.note}</Typography>
                   </Box>
                 </Tooltip>
               ))}
             </Box>
 
-            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1 }}>TOKEN UTILITY</Typography>
-            <Box sx={{ bgcolor: '#0D1219', mb: 2 }}>
+            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1 }}>TOKEN UTILITY</Typography>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, mb: 2 }}>
               <DataRow label="Fee Discounts" value="Pay fees in $UP for up to 50% discount" />
               <DataRow label="Staking Rewards" value="Earn share of platform fee revenue" />
               <DataRow label="Governance" value="Vote on assets, fees, treasury" />
@@ -855,21 +866,21 @@ export default function DocsPage() {
               <DataRow label="Boosted Earnings" value="Burn $UP for 2x coin multiplier" />
             </Box>
 
-            <Box sx={{ bgcolor: '#0D1219', borderLeft: '3px solid rgba(255,255,255,0.15)', px: 2, py: 1.5, mb: 2 }}>
-              <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', lineHeight: 1.6 }}>
-                <strong style={{ color: '#fff' }}>Early Player Advantage:</strong> UP Coins earned now will convert to $UP tokens at launch.
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, boxShadow: t.surfaceShadow, borderLeft: '3px solid rgba(255,255,255,0.15)', px: 2, py: 1.5, mb: 2 }}>
+              <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, lineHeight: 1.6 }}>
+                <strong style={{ color: t.text.primary }}>Early Player Advantage:</strong> UP Coins earned now will convert to $UP tokens at launch.
                 The earlier you play, the more tokens you accumulate.
               </Typography>
             </Box>
 
             {/* ── Security ────────────────────────────────────────────── */}
             <SectionTitle id="security">Security & Transparency</SectionTitle>
-            <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', mb: 2, lineHeight: 1.6 }}>
-              Every pool, deposit, payout and refund happens on the <strong style={{ color: '#fff' }}>Solana blockchain</strong>.
+            <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, mb: 2, lineHeight: 1.6 }}>
+              Every pool, deposit, payout and refund happens on the <strong style={{ color: t.text.primary }}>Solana blockchain</strong>.
               All transactions are public and verifiable.
             </Typography>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px', mb: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
               {[
                 { title: 'Wallet via Privy', desc: 'Embedded or external wallet. Privy handles key management. UpDown never has access to your private keys.' },
                 { title: 'Pool Creation (On-Chain)', desc: 'Each pool creates a unique PDA and vault on Solana. Only the smart contract controls the vault.' },
@@ -879,23 +890,23 @@ export default function DocsPage() {
                 { title: 'Payouts & Claims', desc: 'Smart contract transfers USDC from vault to your wallet. Fees are level-based (5% to 3%).' },
                 { title: 'Refunds', desc: 'One-sided pools are automatically refunded in full, no fees. No action required.' },
               ].map((item) => (
-                <Box key={item.title} sx={{ bgcolor: '#0D1219', px: { xs: 2, md: 2.5 }, py: { xs: 1.5, md: 2 }, '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' }, transition: 'background 0.15s ease' }}>
+                <Box key={item.title} sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, px: { xs: 2, md: 2.5 }, py: { xs: 1.5, md: 2 }, '&:hover': { bgcolor: t.hover.light }, transition: 'background 0.15s ease' }}>
                   <Typography sx={{ fontSize: { xs: '0.88rem', md: '0.95rem' }, fontWeight: 700, mb: 0.25 }}>{item.title}</Typography>
-                  <Typography sx={{ fontSize: { xs: '0.82rem', md: '0.9rem' }, color: 'rgba(255,255,255,0.65)', lineHeight: 1.6 }}>{item.desc}</Typography>
+                  <Typography sx={{ fontSize: { xs: '0.82rem', md: '0.9rem' }, color: t.text.rich, lineHeight: 1.6 }}>{item.desc}</Typography>
                 </Box>
               ))}
             </Box>
 
-            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1 }}>ON-CHAIN ARCHITECTURE</Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: '3px', mb: 2 }}>
-              <Box sx={{ bgcolor: '#0D1219', p: { xs: 1.5, md: 2 } }}>
+            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1 }}>ON-CHAIN ARCHITECTURE</Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 1.5, mb: 2 }}>
+              <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: { xs: 1.5, md: 2 } }}>
                 <DataRow label="Blockchain" value="Solana" />
                 <DataRow label="Framework" value="Anchor (Rust)" />
                 <DataRow label="Token" value="USDC (SPL)" />
                 <DataRow label="Vault type" value="PDA Token Account" />
                 <DataRow label="Vault authority" value="Program only" />
               </Box>
-              <Box sx={{ bgcolor: '#0D1219', p: { xs: 1.5, md: 2 } }}>
+              <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: { xs: 1.5, md: 2 } }}>
                 <DataRow label="Pool data" value="PDA per pool" />
                 <DataRow label="Bet records" value="PDA per user per pool" />
                 <DataRow label="USDC vault" value="PDA token account" />
@@ -904,8 +915,8 @@ export default function DocsPage() {
               </Box>
             </Box>
 
-            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1 }}>WHO SIGNS WHAT</Typography>
-            <Box sx={{ bgcolor: '#0D1219', mb: 2 }}>
+            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1 }}>WHO SIGNS WHAT</Typography>
+            <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, mb: 2 }}>
               <DataRow label="Deposit" value="You sign" />
               <DataRow label="Claim payout" value="You + Platform co-sign" />
               <DataRow label="Pool resolution" value="Platform signs" />
@@ -914,7 +925,7 @@ export default function DocsPage() {
 
             {/* ── Features ────────────────────────────────────────────── */}
             <SectionTitle id="features">Features</SectionTitle>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: '3px', mb: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 1.5, mb: 2 }}>
               {[
                 { title: 'Markets', desc: 'Filter by asset, interval, status. Real-time pool updates via WebSocket.' },
                 { title: 'Pool Detail', desc: 'Live price chart, strike vs final, UP/DOWN arena, bet form with presets, payout preview.' },
@@ -926,16 +937,16 @@ export default function DocsPage() {
                 { title: 'AI Analyzer Bot', desc: 'Draggable bot on pool pages. RSI, MACD, EMA, Bollinger analysis.' },
                 { title: 'Notifications', desc: 'Real-time alerts for wins, losses, claims, XP, coins, level ups, refunds.' },
               ].map((f) => (
-                <Box key={f.title} sx={{ bgcolor: '#0D1219', p: 2, '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' }, transition: 'background 0.15s ease' }}>
+                <Box key={f.title} sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: 2, '&:hover': { bgcolor: t.hover.light }, transition: 'background 0.15s ease' }}>
                   <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, mb: 0.5 }}>{f.title}</Typography>
-                  <Typography sx={{ fontSize: '0.88rem', color: 'rgba(255,255,255,0.65)', lineHeight: 1.6 }}>{f.desc}</Typography>
+                  <Typography sx={{ fontSize: '0.88rem', color: t.text.rich, lineHeight: 1.6 }}>{f.desc}</Typography>
                 </Box>
               ))}
             </Box>
 
             {/* ── Tips ────────────────────────────────────────────────── */}
             <SectionTitle id="tips">Tips</SectionTitle>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               {[
                 'Start small, $10-$50 bets to learn how odds shift.',
                 'Watch the odds. Early bets on the minority side get better multipliers.',
@@ -945,9 +956,9 @@ export default function DocsPage() {
                 'Create a squad and invite friends for private competitive pools.',
                 'Share your referral link to earn 1% USDC on every bet your friends place.',
               ].map((tip, i) => (
-                <Box key={i} sx={{ bgcolor: '#0D1219', borderLeft: '3px solid rgba(255,255,255,0.1)', px: 2, py: 1.5 }}>
-                  <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.65)', lineHeight: 1.6 }}>
-                    <strong style={{ color: 'rgba(255,255,255,0.4)' }}>#{i + 1}</strong> {tip}
+                <Box key={i} sx={{ bgcolor: t.bg.surfaceAlt, boxShadow: t.surfaceShadow, borderLeft: '3px solid rgba(255,255,255,0.1)', px: 2, py: 1.5 }}>
+                  <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, lineHeight: 1.6 }}>
+                    <strong style={{ color: t.text.tertiary }}>#{i + 1}</strong> {tip}
                   </Typography>
                 </Box>
               ))}
@@ -958,7 +969,7 @@ export default function DocsPage() {
               <Typography
                 component="a"
                 href="/privacy"
-                sx={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)', textDecoration: 'none', '&:hover': { color: '#fff' }, transition: 'color 0.15s' }}
+                sx={{ fontSize: '0.82rem', color: t.text.tertiary, textDecoration: 'none', '&:hover': { color: t.text.primary }, transition: 'color 0.15s' }}
               >
                 Disclaimer & Privacy Policy
               </Typography>

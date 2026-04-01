@@ -5,11 +5,14 @@ import { Box, Container, Typography, TextField, Button, CircularProgress } from 
 import { CheckCircle, ErrorOutline } from '@mui/icons-material';
 import { AppShell } from '@/components';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
-import { API_BASE_URL, UP_COLOR, GAIN_COLOR, DOWN_COLOR, ACCENT_COLOR, EXPLORER_URL, SOLANA_CLUSTER } from '@/lib/constants';
+import { API_BASE_URL, EXPLORER_URL, SOLANA_CLUSTER } from '@/lib/constants';
+import { useThemeTokens, useThemeMode } from '@/app/providers';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
 
 export default function FaucetPage() {
+  const t = useThemeTokens();
+  const { mode } = useThemeMode();
   const { connected, walletAddress } = useWalletBridge();
   const [address, setAddress] = useState('');
   const [status, setStatus] = useState<Status>('idle');
@@ -55,19 +58,19 @@ export default function FaucetPage() {
     <AppShell>
       <Container maxWidth="sm" sx={{ py: { xs: 4, md: 8 } }}>
         <Box sx={{ textAlign: 'center', mb: 4 }}>
-          <Box component="img" src="/updown-logos/Logo_cyan_text_white.png" alt="UpDown" sx={{ height: 36, mb: 2 }} />
+          <Box component="img" src={mode === 'dark' ? '/updown-logos/Logo_cyan_text_white.png' : '/updown-logos/Logo_cyan_text_dark_Medium.png'} alt="UpDown" sx={{ height: 36, mb: 2 }} />
           <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, mb: 1 }}>
             Devnet USDC Faucet
           </Typography>
-          <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.6)', lineHeight: 1.6 }}>
+          <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, lineHeight: 1.6 }}>
             Mint free test USDC + SOL on Solana devnet to start playing on UpDown. 1,000 USDC + 0.05 SOL per request, 1 hour cooldown.
           </Typography>
         </Box>
 
-        <Box sx={{ bgcolor: '#0D1219', p: { xs: 3, md: 4 }, display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, p: { xs: 3, md: 4 }, display: 'flex', flexDirection: 'column', gap: 3 }}>
           {/* Wallet input */}
           <Box>
-            <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', mb: 1 }}>
+            <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.text.soft, letterSpacing: '0.08em', mb: 1 }}>
               WALLET ADDRESS
             </Typography>
             <TextField
@@ -78,21 +81,21 @@ export default function FaucetPage() {
               disabled={status === 'loading'}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  bgcolor: 'rgba(255,255,255,0.03)',
-                  color: '#fff',
+                  bgcolor: t.hover.light,
+                  color: t.text.primary,
                   fontSize: '0.9rem',
-                  '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
-                  '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
-                  '&.Mui-focused fieldset': { borderColor: UP_COLOR },
+                  '& fieldset': { borderColor: t.border.strong },
+                  '&:hover fieldset': { borderColor: t.border.hover },
+                  '&.Mui-focused fieldset': { borderColor: t.up },
                 },
                 '& .MuiOutlinedInput-input': {
                   py: 1.5,
-                  '&::placeholder': { color: 'rgba(255,255,255,0.3)', opacity: 1 },
+                  '&::placeholder': { color: t.text.dimmed, opacity: 1 },
                 },
               }}
             />
             {connected && !address && (
-              <Typography sx={{ fontSize: '0.8rem', color: UP_COLOR, mt: 0.5 }}>
+              <Typography sx={{ fontSize: '0.8rem', color: t.up, mt: 0.5 }}>
                 Using your connected wallet
               </Typography>
             )}
@@ -110,10 +113,10 @@ export default function FaucetPage() {
                 fontSize: '1rem',
                 fontWeight: 700,
                 textTransform: 'none',
-                background: `linear-gradient(135deg, ${UP_COLOR}, ${GAIN_COLOR})`,
-                color: '#000',
-                '&:hover': { background: `linear-gradient(135deg, ${UP_COLOR}DD, ${GAIN_COLOR}DD)` },
-                '&:disabled': { background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.3)' },
+                background: `linear-gradient(135deg, ${t.up}, ${t.gain})`,
+                color: t.text.contrast,
+                '&:hover': { background: `linear-gradient(135deg, ${t.up}DD, ${t.gain}DD)` },
+                '&:disabled': { background: t.border.strong, color: t.text.dimmed },
               }}
             >
               Mint 1,000 USDC + 0.05 SOL
@@ -123,8 +126,8 @@ export default function FaucetPage() {
           {/* Loading */}
           {status === 'loading' && (
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, py: 2 }}>
-              <CircularProgress size={40} sx={{ color: UP_COLOR }} />
-              <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.7)' }}>
+              <CircularProgress size={40} sx={{ color: t.up }} />
+              <Typography sx={{ fontSize: '0.95rem', color: t.text.bright }}>
                 Minting USDC + SOL to your wallet...
               </Typography>
             </Box>
@@ -133,8 +136,8 @@ export default function FaucetPage() {
           {/* Success */}
           {status === 'success' && (
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, py: 2 }}>
-              <CheckCircle sx={{ fontSize: 48, color: GAIN_COLOR }} />
-              <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: GAIN_COLOR }}>
+              <CheckCircle sx={{ fontSize: 48, color: t.gain }} />
+              <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: t.gain }}>
                 {amount} USDC{solAmount > 0 ? ` + ${solAmount} SOL` : ''} Minted!
               </Typography>
               {txSignature && (
@@ -145,7 +148,7 @@ export default function FaucetPage() {
                   rel="noopener noreferrer"
                   sx={{
                     fontSize: '0.85rem',
-                    color: ACCENT_COLOR,
+                    color: t.accent,
                     textDecoration: 'none',
                     '&:hover': { textDecoration: 'underline' },
                   }}
@@ -159,9 +162,9 @@ export default function FaucetPage() {
                 sx={{
                   mt: 1,
                   textTransform: 'none',
-                  borderColor: 'rgba(255,255,255,0.2)',
-                  color: '#fff',
-                  '&:hover': { borderColor: 'rgba(255,255,255,0.4)' },
+                  borderColor: t.border.hover,
+                  color: t.text.primary,
+                  '&:hover': { borderColor: t.border.active },
                 }}
               >
                 Mint Again
@@ -172,8 +175,8 @@ export default function FaucetPage() {
           {/* Error */}
           {status === 'error' && (
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, py: 2 }}>
-              <ErrorOutline sx={{ fontSize: 48, color: DOWN_COLOR }} />
-              <Typography sx={{ fontSize: '0.95rem', color: DOWN_COLOR, textAlign: 'center' }}>
+              <ErrorOutline sx={{ fontSize: 48, color: t.down }} />
+              <Typography sx={{ fontSize: '0.95rem', color: t.down, textAlign: 'center' }}>
                 {error}
               </Typography>
               <Button
@@ -181,9 +184,9 @@ export default function FaucetPage() {
                 onClick={handleReset}
                 sx={{
                   textTransform: 'none',
-                  borderColor: 'rgba(255,255,255,0.2)',
-                  color: '#fff',
-                  '&:hover': { borderColor: 'rgba(255,255,255,0.4)' },
+                  borderColor: t.border.hover,
+                  color: t.text.primary,
+                  '&:hover': { borderColor: t.border.active },
                 }}
               >
                 Try Again
@@ -193,16 +196,16 @@ export default function FaucetPage() {
         </Box>
 
         {/* Info */}
-        <Box sx={{ mt: 3, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+        <Box sx={{ mt: 3, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           {[
-            { label: 'Network', value: 'Solana Devnet', color: UP_COLOR },
-            { label: 'USDC per mint', value: '1,000 USDC', color: GAIN_COLOR },
-            { label: 'SOL per mint', value: '0.05 SOL (for tx fees)', color: ACCENT_COLOR },
-            { label: 'Cooldown', value: '1 hour per wallet', color: ACCENT_COLOR },
-            { label: 'Tokens', value: 'Devnet only (not real)', color: 'rgba(255,255,255,0.5)' },
+            { label: 'Network', value: 'Solana Devnet', color: t.up },
+            { label: 'USDC per mint', value: '1,000 USDC', color: t.gain },
+            { label: 'SOL per mint', value: '0.05 SOL (for tx fees)', color: t.accent },
+            { label: 'Cooldown', value: '1 hour per wallet', color: t.accent },
+            { label: 'Tokens', value: 'Devnet only (not real)', color: t.text.secondary },
           ].map((row) => (
-            <Box key={row.label} sx={{ display: 'flex', justifyContent: 'space-between', px: 2, py: 1, bgcolor: '#0D1219' }}>
-              <Typography sx={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.6)' }}>{row.label}</Typography>
+            <Box key={row.label} sx={{ display: 'flex', justifyContent: 'space-between', px: 2, py: 1, bgcolor: t.bg.surfaceAlt }}>
+              <Typography sx={{ fontSize: '0.9rem', color: t.text.rich }}>{row.label}</Typography>
               <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: row.color }}>{row.value}</Typography>
             </Box>
           ))}

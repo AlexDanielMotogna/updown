@@ -1,4 +1,5 @@
 import { EXPLORER_URL, SOLANA_CLUSTER } from '@/lib/constants';
+import { darkTokens, withAlpha } from '@/lib/theme';
 
 export const USDC_DECIMALS = 6;
 export const USDC_DIVISOR = 1_000_000;
@@ -60,23 +61,23 @@ export function getExplorerTxUrl(signature: string): string {
 
 export const statusStyles: Record<string, { bgcolor: string; color: string }> = {
   UPCOMING: {
-    bgcolor: 'rgba(255, 255, 255, 0.05)',
-    color: 'rgba(255, 255, 255, 0.4)',
+    bgcolor: darkTokens.hover.default,
+    color: darkTokens.text.tertiary,
   },
   JOINING: {
-    bgcolor: 'rgba(74, 222, 128, 0.10)',
-    color: '#4ADE80',
+    bgcolor: withAlpha(darkTokens.up, 0.10),
+    color: darkTokens.up,
   },
   ACTIVE: {
-    bgcolor: 'rgba(245, 158, 11, 0.10)',
-    color: '#FBBF24',
+    bgcolor: withAlpha(darkTokens.accent, 0.10),
+    color: darkTokens.draw,
   },
   RESOLVED: {
-    bgcolor: 'rgba(255, 255, 255, 0.05)',
-    color: 'rgba(255, 255, 255, 0.4)',
+    bgcolor: darkTokens.hover.default,
+    color: darkTokens.text.tertiary,
   },
   CLAIMABLE: {
-    bgcolor: 'rgba(34, 197, 94, 0.12)',
-    color: '#22C55E',
+    bgcolor: withAlpha(darkTokens.gain, 0.12),
+    color: darkTokens.gain,
   },
 };

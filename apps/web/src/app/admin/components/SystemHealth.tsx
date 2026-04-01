@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { adminFetch } from '../lib/adminApi';
+import { darkTokens as t, withAlpha } from '@/lib/theme';
 
 interface JobInfo {
   name: string;
@@ -78,8 +79,8 @@ function StatusChip({ ok, label }: { ok: boolean; label: string }) {
       label={label}
       size="small"
       sx={{
-        bgcolor: ok ? 'rgba(34,197,94,0.15)' : 'rgba(248,113,113,0.15)',
-        color: ok ? '#22C55E' : '#F87171',
+        bgcolor: ok ? withAlpha(t.gain, 0.15) : withAlpha(t.error, 0.15),
+        color: ok ? t.gain : t.error,
         fontWeight: 600,
       }}
     />
@@ -156,7 +157,7 @@ function LivescoreHealth() {
         </Box>
         <Box>
           <Typography variant="caption" color="text.secondary" display="block">Odds API Credits</Typography>
-          <Typography variant="h6" sx={{ color: creditsLow ? '#F87171' : creditsRemaining != null ? '#22C55E' : 'text.secondary' }}>
+          <Typography variant="h6" sx={{ color: creditsLow ? t.error : creditsRemaining != null ? t.gain : 'text.secondary' }}>
             {creditsRemaining != null ? creditsRemaining.toLocaleString() : '—'}
           </Typography>
           {creditsLow && <Typography variant="caption" color="error.main">Low credits!</Typography>}
@@ -219,7 +220,7 @@ function LivescoreHealth() {
                     <TableCell sx={{ fontSize: 11 }}>{ev.sport}</TableCell>
                     <TableCell sx={{ fontSize: 11 }}>{Math.round((Date.now() - ev.missingSince) / 60000)}m</TableCell>
                     <TableCell sx={{ fontSize: 11 }}>
-                      <Chip label={ev.reason} size="small" sx={{ fontSize: 10, height: 20, bgcolor: 'rgba(245,158,11,0.15)', color: '#F59E0B' }} />
+                      <Chip label={ev.reason} size="small" sx={{ fontSize: 10, height: 20, bgcolor: withAlpha(t.warning, 0.15), color: t.warning }} />
                     </TableCell>
                     <TableCell sx={{ fontSize: 11 }}>{ev.chatgptAttempted ? 'Yes' : 'No'}</TableCell>
                   </TableRow>
@@ -240,20 +241,20 @@ function LivescoreHealth() {
             {[...m.incidents].reverse().slice(0, 50).map((inc, i) => {
               const time = new Date(inc.timestamp).toLocaleTimeString();
               const typeColor: Record<string, string> = {
-                SPORTSDB_POLL_FAIL: '#F87171',
-                SPORTSDB_429: '#F87171',
-                EVENT_DISAPPEARED: '#F59E0B',
-                STUCK_NS: '#F59E0B',
-                SCORE_FROZEN: '#F59E0B',
-                CHATGPT_TRIGGERED: '#60A5FA',
-                CHATGPT_SUCCESS: '#22C55E',
-                CHATGPT_REJECTED: '#F59E0B',
-                CHATGPT_ERROR: '#F87171',
-                ODDS_API_TRIGGERED: '#818CF8',
-                ODDS_API_SUCCESS: '#22C55E',
-                ODDS_API_REJECTED: '#F59E0B',
-                ODDS_API_ERROR: '#F87171',
-                MIDNIGHT_BOUNDARY: '#A78BFA',
+                SPORTSDB_POLL_FAIL: t.error,
+                SPORTSDB_429: t.error,
+                EVENT_DISAPPEARED: t.warning,
+                STUCK_NS: t.warning,
+                SCORE_FROZEN: t.warning,
+                CHATGPT_TRIGGERED: t.info,
+                CHATGPT_SUCCESS: t.gain,
+                CHATGPT_REJECTED: t.warning,
+                CHATGPT_ERROR: t.error,
+                ODDS_API_TRIGGERED: t.predict,
+                ODDS_API_SUCCESS: t.gain,
+                ODDS_API_REJECTED: t.warning,
+                ODDS_API_ERROR: t.error,
+                MIDNIGHT_BOUNDARY: t.prediction,
               };
               return (
                 <Typography key={i} variant="caption" display="block" sx={{ fontFamily: 'monospace', fontSize: 10, lineHeight: 1.6 }}>
@@ -352,7 +353,7 @@ export function SystemHealth() {
             </TableHead>
             <TableBody>
               {h.jobs.map(job => (
-                <TableRow key={job.name} sx={{ bgcolor: !job.healthy ? 'rgba(248,113,113,0.05)' : undefined }}>
+                <TableRow key={job.name} sx={{ bgcolor: !job.healthy ? withAlpha(t.error, 0.05) : undefined }}>
                   <TableCell sx={{ fontSize: 12, fontWeight: 500 }}>{job.name}</TableCell>
                   <TableCell sx={{ fontSize: 11 }}>{job.schedule}</TableCell>
                   <TableCell>
@@ -360,15 +361,15 @@ export function SystemHealth() {
                       label={job.healthy ? 'OK' : job.lastRunAt ? 'Error' : 'Pending'}
                       size="small"
                       sx={{
-                        bgcolor: job.healthy ? 'rgba(34,197,94,0.15)' : !job.lastRunAt ? 'rgba(245,158,11,0.15)' : 'rgba(248,113,113,0.15)',
-                        color: job.healthy ? '#22C55E' : !job.lastRunAt ? '#F59E0B' : '#F87171',
+                        bgcolor: job.healthy ? withAlpha(t.gain, 0.15) : !job.lastRunAt ? withAlpha(t.warning, 0.15) : withAlpha(t.error, 0.15),
+                        color: job.healthy ? t.gain : !job.lastRunAt ? t.warning : t.error,
                         fontSize: 11,
                       }}
                     />
                   </TableCell>
                   <TableCell sx={{ fontSize: 11 }}>{timeAgo(job.lastRunAt)}</TableCell>
                   <TableCell>{job.runCount}</TableCell>
-                  <TableCell sx={{ color: job.errorCount > 0 ? '#F87171' : undefined }}>{job.errorCount}</TableCell>
+                  <TableCell sx={{ color: job.errorCount > 0 ? t.error : undefined }}>{job.errorCount}</TableCell>
                   <TableCell sx={{ maxWidth: 200, fontSize: 10 }}>
                     {job.lastError ? (
                       <Tooltip title={job.lastError} arrow>

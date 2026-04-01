@@ -19,13 +19,11 @@ import {
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { formatUSDC, formatDate, formatPrice, getExplorerTxUrl, statusStyles, USDC_DIVISOR } from '@/lib/format';
-import { GAIN_COLOR, UP_COLOR, DOWN_COLOR, ACCENT_COLOR, getBoxImage } from '@/lib/constants';
+import { getBoxImage } from '@/lib/constants';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 import { Countdown, AssetIcon } from '@/components';
 import type { Bet } from '@/lib/api';
-
-const PM_COLORS: Record<string, string> = {
-  PM_POLITICS: '#A78BFA', PM_GEO: '#60A5FA', PM_CULTURE: '#F472B6', PM_FINANCE: '#34D399',
-};
 const PM_MUI_ICONS: Record<string, React.ReactNode> = {
   PM_POLITICS: <Gavel sx={{ fontSize: 28 }} />,
   PM_GEO: <Public sx={{ fontSize: 28 }} />,
@@ -34,6 +32,10 @@ const PM_MUI_ICONS: Record<string, React.ReactNode> = {
 };
 
 /* ─── Table Row for a single prediction ─── */
+
+const PM_COLORS_KEYS: Record<string, 'politics' | 'geopolitics' | 'culture' | 'finance'> = {
+  PM_POLITICS: 'politics', PM_GEO: 'geopolitics', PM_CULTURE: 'culture', PM_FINANCE: 'finance',
+};
 
 export function BetRow({
   bet,
@@ -44,6 +46,7 @@ export function BetRow({
   onClaim?: () => void;
   isClaiming?: boolean;
 }) {
+  const t = useThemeTokens();
   const isRefund = bet.claimed && bet.payoutAmount != null && bet.payoutAmount === bet.amount;
   const isWinner = bet.isWinner === true && !isRefund;
   const isLoser = bet.isWinner === false;
@@ -51,7 +54,7 @@ export function BetRow({
   const isActive = bet.pool.status === 'JOINING' || bet.pool.status === 'ACTIVE';
   const isResolving = bet.pool.status === 'ACTIVE' && new Date(bet.pool.endTime).getTime() <= Date.now();
   const statusStyle = statusStyles[bet.pool.status] || statusStyles.UPCOMING;
-  const sideColor = bet.side === 'UP' ? UP_COLOR : DOWN_COLOR;
+  const sideColor = bet.side === 'UP' ? t.up : t.down;
   const isSports = bet.pool.poolType === 'SPORTS';
   const isPM = bet.pool.league?.startsWith('PM_');
   const poolLink = isSports ? `/match/${bet.pool.id}` : `/pool/${bet.pool.id}`;
@@ -79,25 +82,28 @@ export function BetRow({
     ? 'Active'
     : 'Pending';
 
+  const pmKey = PM_COLORS_KEYS[bet.pool.league || ''];
+  const pmColor = pmKey ? t.categoryColors[pmKey] : t.prediction;
+
   const resultColor = bet.claimed
-    ? (isRefund ? '#60A5FA' : 'rgba(255,255,255,0.5)')
+    ? (isRefund ? t.info : t.text.secondary)
     : isWinner
-    ? GAIN_COLOR
+    ? t.gain
     : isLoser
-    ? DOWN_COLOR
+    ? t.down
     : isActive
-    ? UP_COLOR
+    ? t.up
     : 'text.secondary';
 
   const resultBg = bet.claimed
-    ? (isRefund ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.05)')
+    ? (isRefund ? 'rgba(59,130,246,0.12)' : t.hover.medium)
     : isWinner
-    ? `${GAIN_COLOR}18`
+    ? withAlpha(t.gain, 0.09)
     : isLoser
-    ? `${DOWN_COLOR}12`
+    ? withAlpha(t.down, 0.07)
     : isActive
-    ? `${UP_COLOR}12`
-    : 'rgba(255,255,255,0.05)';
+    ? withAlpha(t.up, 0.07)
+    : t.hover.medium;
 
   return (
     <Box
@@ -109,10 +115,12 @@ export function BetRow({
         alignItems: 'stretch',
         px: 0,
         py: 0,
-        bgcolor: '#0D1219',
+        bgcolor: t.bg.surfaceAlt,
+        border: t.surfaceBorder,
+        boxShadow: t.surfaceShadow,
         transition: 'background 0.15s ease',
         '&:hover': {
-          background: 'rgba(255,255,255,0.04)',
+          background: t.hover.default,
           '& .box-img': {
             transform: 'scale(1.08)',
             filter: 'brightness(1.15)',
@@ -152,11 +160,11 @@ export function BetRow({
             <Box component="img" src={teamCrest} alt="" sx={{ width: 40, height: 40, objectFit: 'contain' }} />
           </Box>
         ) : isPM ? (
-          <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: PM_COLORS[bet.pool.league || ''] || '#A78BFA' }}>
+          <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: pmColor }}>
             {PM_MUI_ICONS[bet.pool.league || ''] || <TrendingUp sx={{ fontSize: 28 }} />}
           </Box>
         ) : (
-          <Box sx={{ width: '100%', height: '100%', bgcolor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Box sx={{ width: '100%', height: '100%', bgcolor: t.hover.medium, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <AssetIcon asset={bet.pool.asset} size={24} />
           </Box>
         )}
@@ -165,7 +173,7 @@ export function BetRow({
       {/* Mobile card layout */}
       <Box sx={{ display: { xs: 'block', md: 'none' }, p: 2 }}>
         {/* Header: asset icon, name, side chip, result chip, status */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', pb: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', pb: 1.5, borderBottom: `1px solid ${t.border.subtle}` }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             {boxImageUrl ? (
               <Box
@@ -177,11 +185,11 @@ export function BetRow({
             ) : teamCrest ? (
               <Box component="img" src={teamCrest} alt="" sx={{ width: 40, height: 40, objectFit: 'contain', flexShrink: 0 }} />
             ) : isPM ? (
-              <Box sx={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: PM_COLORS[bet.pool.league || ''] || '#A78BFA' }}>
+              <Box sx={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: pmColor }}>
                 {PM_MUI_ICONS[bet.pool.league || ''] || <TrendingUp sx={{ fontSize: 24 }} />}
               </Box>
             ) : (
-              <Box sx={{ width: 40, height: 40, bgcolor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px', flexShrink: 0 }}>
+              <Box sx={{ width: 40, height: 40, bgcolor: t.hover.medium, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px', flexShrink: 0 }}>
                 <AssetIcon asset={bet.pool.asset} size={20} />
               </Box>
             )}
@@ -198,7 +206,7 @@ export function BetRow({
                     height: 20,
                     fontSize: '0.6rem',
                     fontWeight: 600,
-                    bgcolor: `${sideColor}18`,
+                    bgcolor: withAlpha(sideColor, 0.09),
                     color: sideColor,
                     borderRadius: '2px',
                     '& .MuiChip-icon': { color: 'inherit' },
@@ -213,19 +221,19 @@ export function BetRow({
               <Chip
                 label={isResolving ? 'Resolving...' : bet.pool.status}
                 size="small"
-                sx={{ ...(isResolving ? { bgcolor: 'rgba(251,191,36,0.12)', color: '#FBBF24' } : statusStyle), height: 20, fontSize: '0.55rem', fontWeight: 600, borderRadius: '2px', mt: 0.5 }}
+                sx={{ ...(isResolving ? { bgcolor: withAlpha(t.draw, 0.12), color: t.draw } : statusStyle), height: 20, fontSize: '0.55rem', fontWeight: 600, borderRadius: '2px', mt: 0.5 }}
               />
             </Box>
           </Box>
         </Box>
 
         {/* Stake and payout */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5, borderBottom: `1px solid ${t.border.subtle}` }}>
           <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
             Stake: <Box component="span" sx={{ color: 'text.primary', fontWeight: 500 }}>{formatUSDC(bet.amount, { min: 2 })}</Box>
           </Typography>
           {bet.payoutAmount ? (
-            <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: isRefund ? '#60A5FA' : GAIN_COLOR }}>
+            <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: isRefund ? t.info : t.gain }}>
               {isRefund ? 'Refund' : 'Payout'}: {formatUSDC(bet.payoutAmount!, { min: 2 })}
             </Typography>
           ) : (
@@ -234,10 +242,10 @@ export function BetRow({
         </Box>
 
         {/* Price movement + time */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5, borderBottom: `1px solid ${t.border.subtle}` }}>
           <Box>
             {bet.pool.strikePrice && bet.pool.finalPrice ? (
-              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: bet.pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: bet.pool.winner === 'UP' ? t.up : t.down }}>
                 {formatPrice(bet.pool.strikePrice)} → {formatPrice(bet.pool.finalPrice)}
               </Typography>
             ) : bet.pool.strikePrice ? (
@@ -269,8 +277,8 @@ export function BetRow({
               disabled={isClaiming}
               sx={{
                 py: 1, fontSize: '0.85rem', fontWeight: 700, minHeight: 44,
-                bgcolor: GAIN_COLOR, color: '#000', borderRadius: '2px', textTransform: 'none',
-                '&:hover': { bgcolor: GAIN_COLOR, filter: 'brightness(1.15)' },
+                bgcolor: t.gain, color: t.text.contrast, borderRadius: '2px', textTransform: 'none',
+                '&:hover': { bgcolor: t.gain, filter: 'brightness(1.15)' },
               }}
             >
               {isClaiming ? 'Claiming...' : 'Claim'}
@@ -282,8 +290,8 @@ export function BetRow({
                 size="small"
                 sx={{
                   py: 1, fontSize: '0.8rem', fontWeight: 600, minHeight: 44,
-                  color: 'text.secondary', borderRadius: '2px', bgcolor: 'rgba(255,255,255,0.06)',
-                  textTransform: 'none', '&:hover': { bgcolor: 'rgba(255,255,255,0.10)' },
+                  color: 'text.secondary', borderRadius: '2px', bgcolor: t.border.default,
+                  textTransform: 'none', '&:hover': { bgcolor: t.hover.emphasis },
                 }}
               >
                 View
@@ -299,8 +307,8 @@ export function BetRow({
               size="small"
               sx={{
                 minWidth: 44, minHeight: 44, px: 1.5, fontSize: '0.7rem', color: 'text.secondary',
-                textTransform: 'none', borderRadius: '2px', bgcolor: 'rgba(255,255,255,0.04)',
-                gap: 0.5, '&:hover': { color: '#FFFFFF', bgcolor: 'rgba(255,255,255,0.08)' },
+                textTransform: 'none', borderRadius: '2px', bgcolor: t.hover.default,
+                gap: 0.5, '&:hover': { color: t.text.primary, bgcolor: t.hover.strong },
               }}
             >
               Tx <OpenInNew sx={{ fontSize: 12 }} />
@@ -314,7 +322,7 @@ export function BetRow({
       {/* Asset + Side */}
       <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', alignSelf: 'center', gap: 0.75, pl: 1.5 }}>
         <Link href={poolLink} style={{ textDecoration: 'none', color: 'inherit' }}>
-          <Typography sx={{ fontWeight: 600, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180, '&:hover': { color: 'rgba(255,255,255,0.7)' } }}>
+          <Typography sx={{ fontWeight: 600, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180, '&:hover': { color: t.text.bright } }}>
             {poolName}
           </Typography>
         </Link>
@@ -326,7 +334,7 @@ export function BetRow({
             height: 20,
             fontSize: '0.6rem',
             fontWeight: 600,
-            bgcolor: `${sideColor}18`,
+            bgcolor: withAlpha(sideColor, 0.09),
             color: sideColor,
             borderRadius: '2px',
             '& .MuiChip-icon': { color: 'inherit' },
@@ -336,7 +344,7 @@ export function BetRow({
           label={isResolving ? 'Resolving' : bet.pool.status}
           size="small"
           sx={{
-            ...(isResolving ? { bgcolor: 'rgba(251,191,36,0.12)', color: '#FBBF24' } : statusStyle),
+            ...(isResolving ? { bgcolor: withAlpha(t.draw, 0.12), color: t.draw } : statusStyle),
             height: 20, fontSize: '0.55rem', fontWeight: 600, borderRadius: '2px',
           }}
         />
@@ -361,7 +369,7 @@ export function BetRow({
       {/* Payout */}
       <Box sx={{ display: { xs: 'none', md: 'block' }, alignSelf: 'center' }}>
         {bet.payoutAmount ? (
-          <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: isRefund ? '#60A5FA' : GAIN_COLOR, fontVariantNumeric: 'tabular-nums' }}>
+          <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: isRefund ? t.info : t.gain, fontVariantNumeric: 'tabular-nums' }}>
             {formatUSDC(bet.payoutAmount!, { min: 2 })}
           </Typography>
         ) : (
@@ -372,7 +380,7 @@ export function BetRow({
       {/* Price */}
       <Box sx={{ display: { xs: 'none', md: 'block' }, alignSelf: 'center' }}>
         {bet.pool.strikePrice && bet.pool.finalPrice ? (
-          <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: bet.pool.winner === 'UP' ? UP_COLOR : DOWN_COLOR }}>
+          <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: bet.pool.winner === 'UP' ? t.up : t.down }}>
             {formatPrice(bet.pool.strikePrice)} → {formatPrice(bet.pool.finalPrice)}
           </Typography>
         ) : bet.pool.strikePrice ? (
@@ -388,8 +396,8 @@ export function BetRow({
       <Box sx={{ display: { xs: 'none', md: 'block' }, alignSelf: 'center' }}>
         {isResolving ? (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <CircularProgress size={12} sx={{ color: '#FBBF24' }} />
-            <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: '#FBBF24' }}>Resolving</Typography>
+            <CircularProgress size={12} sx={{ color: t.draw }} />
+            <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.draw }}>Resolving</Typography>
           </Box>
         ) : isActive ? (
           <Countdown targetDate={bet.pool.endTime} compact />
@@ -409,8 +417,8 @@ export function BetRow({
             disabled={isClaiming}
             sx={{
               minWidth: 0, px: 2.5, py: 0.5, fontSize: '0.75rem', fontWeight: 700,
-              bgcolor: GAIN_COLOR, color: '#000', borderRadius: '2px', textTransform: 'none',
-              '&:hover': { bgcolor: GAIN_COLOR, filter: 'brightness(1.15)' },
+              bgcolor: t.gain, color: t.text.contrast, borderRadius: '2px', textTransform: 'none',
+              '&:hover': { bgcolor: t.gain, filter: 'brightness(1.15)' },
             }}
           >
             {isClaiming ? 'Claiming...' : 'Claim'}
@@ -421,8 +429,8 @@ export function BetRow({
               size="small"
               sx={{
                 minWidth: 0, px: 2, py: 0.5, fontSize: '0.75rem', fontWeight: 600,
-                color: 'text.secondary', borderRadius: '2px', bgcolor: 'rgba(255,255,255,0.06)',
-                textTransform: 'none', '&:hover': { bgcolor: 'rgba(255,255,255,0.10)' },
+                color: 'text.secondary', borderRadius: '2px', bgcolor: t.border.default,
+                textTransform: 'none', '&:hover': { bgcolor: t.hover.emphasis },
               }}
             >
               View
@@ -443,7 +451,7 @@ export function BetRow({
             sx={{
               minWidth: 0, px: 1, py: 0.25, fontSize: '0.65rem', color: 'text.secondary',
               textTransform: 'none', gap: 0.5,
-              '&:hover': { color: '#FFFFFF' },
+              '&:hover': { color: t.text.primary },
             }}
           >
             Deposit <OpenInNew sx={{ fontSize: 12 }} />
@@ -459,7 +467,7 @@ export function BetRow({
             sx={{
               minWidth: 0, px: 1, py: 0.25, fontSize: '0.65rem', color: 'text.secondary',
               textTransform: 'none', gap: 0.5,
-              '&:hover': { color: '#FFFFFF' },
+              '&:hover': { color: t.text.primary },
             }}
           >
             Claim <OpenInNew sx={{ fontSize: 12 }} />
@@ -476,6 +484,7 @@ export function BetRow({
 /* ─── Skeleton Row ─── */
 
 export function BetRowSkeleton() {
+  const t = useThemeTokens();
   return (
     <>
       {/* Desktop row skeleton */}
@@ -487,50 +496,52 @@ export function BetRowSkeleton() {
           px: 0,
           py: 0,
           minHeight: 70,
-          bgcolor: '#0D1219',
+          bgcolor: t.bg.surfaceAlt,
+          border: t.surfaceBorder,
+          boxShadow: t.surfaceShadow,
         }}
       >
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 1.5 }}>
-          <Skeleton variant="rounded" width={60} height={50} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+          <Skeleton variant="rounded" width={60} height={50} sx={{ bgcolor: t.hover.default }} />
         </Box>
         <Box sx={{ pl: 1.5 }}>
-          <Skeleton variant="text" width={90} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.06)' }} />
+          <Skeleton variant="text" width={90} height={18} sx={{ bgcolor: t.border.default }} />
           <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5 }}>
-            <Skeleton variant="rounded" width={36} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '2px' }} />
-            <Skeleton variant="rounded" width={52} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '2px' }} />
+            <Skeleton variant="rounded" width={36} height={16} sx={{ bgcolor: t.hover.default, borderRadius: '2px' }} />
+            <Skeleton variant="rounded" width={52} height={16} sx={{ bgcolor: t.hover.default, borderRadius: '2px' }} />
           </Box>
         </Box>
-        <Skeleton variant="rounded" width={48} height={20} sx={{ bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '2px' }} />
-        <Skeleton variant="text" width={55} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.06)' }} />
-        <Skeleton variant="text" width={55} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
-        <Skeleton variant="text" width={120} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
-        <Skeleton variant="text" width={70} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
-        <Skeleton variant="rounded" width={56} height={28} sx={{ bgcolor: 'rgba(255,255,255,0.06)', borderRadius: '2px' }} />
-        <Skeleton variant="text" width={60} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+        <Skeleton variant="rounded" width={48} height={20} sx={{ bgcolor: t.hover.default, borderRadius: '2px' }} />
+        <Skeleton variant="text" width={55} height={18} sx={{ bgcolor: t.border.default }} />
+        <Skeleton variant="text" width={55} height={18} sx={{ bgcolor: t.hover.default }} />
+        <Skeleton variant="text" width={120} height={18} sx={{ bgcolor: t.hover.default }} />
+        <Skeleton variant="text" width={70} height={18} sx={{ bgcolor: t.hover.default }} />
+        <Skeleton variant="rounded" width={56} height={28} sx={{ bgcolor: t.border.default, borderRadius: '2px' }} />
+        <Skeleton variant="text" width={60} height={16} sx={{ bgcolor: t.hover.default }} />
       </Box>
 
       {/* Mobile card skeleton */}
       <Box sx={{ display: { xs: 'block', md: 'none' }, bgcolor: '#0D1219', p: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-          <Skeleton variant="rounded" width={40} height={40} sx={{ bgcolor: 'rgba(255,255,255,0.04)', flexShrink: 0 }} />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1.5, borderBottom: `1px solid ${t.border.subtle}` }}>
+          <Skeleton variant="rounded" width={40} height={40} sx={{ bgcolor: t.hover.default, flexShrink: 0 }} />
           <Box sx={{ flex: 1 }}>
-            <Skeleton variant="text" width={100} height={18} sx={{ bgcolor: 'rgba(255,255,255,0.06)' }} />
+            <Skeleton variant="text" width={100} height={18} sx={{ bgcolor: t.border.default }} />
             <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5 }}>
-              <Skeleton variant="rounded" width={36} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '2px' }} />
-              <Skeleton variant="rounded" width={44} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '2px' }} />
+              <Skeleton variant="rounded" width={36} height={16} sx={{ bgcolor: t.hover.default, borderRadius: '2px' }} />
+              <Skeleton variant="rounded" width={44} height={16} sx={{ bgcolor: t.hover.default, borderRadius: '2px' }} />
             </Box>
           </Box>
         </Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-          <Skeleton variant="text" width={90} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
-          <Skeleton variant="text" width={80} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.06)' }} />
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1.5, borderBottom: `1px solid ${t.border.subtle}` }}>
+          <Skeleton variant="text" width={90} height={16} sx={{ bgcolor: t.hover.default }} />
+          <Skeleton variant="text" width={80} height={16} sx={{ bgcolor: t.border.default }} />
         </Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-          <Skeleton variant="text" width={120} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
-          <Skeleton variant="text" width={60} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.04)' }} />
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1.5, borderBottom: `1px solid ${t.border.subtle}` }}>
+          <Skeleton variant="text" width={120} height={16} sx={{ bgcolor: t.hover.default }} />
+          <Skeleton variant="text" width={60} height={16} sx={{ bgcolor: t.hover.default }} />
         </Box>
         <Box sx={{ pt: 1.5 }}>
-          <Skeleton variant="rounded" width="100%" height={44} sx={{ bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '2px' }} />
+          <Skeleton variant="rounded" width="100%" height={44} sx={{ bgcolor: t.hover.default, borderRadius: '2px' }} />
         </Box>
       </Box>
     </>

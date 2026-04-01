@@ -2,22 +2,19 @@
 
 import { Box, Typography } from '@mui/material';
 import Link from 'next/link';
-import { GAIN_COLOR, UP_COLOR, ACCENT_COLOR } from '@/lib/constants';
 import { useBadgeLookup } from '@/hooks/useCategories';
+import { useThemeTokens } from '@/app/providers';
 import type { TournamentSummary } from '@/lib/api';
 
-const STATUS_COLORS: Record<string, string> = {
-  REGISTERING: UP_COLOR,
-  ACTIVE: ACCENT_COLOR,
-  COMPLETED: 'rgba(255,255,255,0.35)',
-};
-
-interface TournamentSidebarListProps {
-  tournaments: TournamentSummary[];
-}
-
-export function TournamentSidebarList({ tournaments }: TournamentSidebarListProps) {
+export function TournamentSidebarList({ tournaments }: { tournaments: TournamentSummary[] }) {
+  const t = useThemeTokens();
   const getBadge = useBadgeLookup();
+
+  const STATUS_COLORS: Record<string, string> = {
+    REGISTERING: t.up,
+    ACTIVE: t.accent,
+    COMPLETED: t.text.quaternary,
+  };
 
   if (tournaments.length === 0) {
     return (
@@ -31,43 +28,45 @@ export function TournamentSidebarList({ tournaments }: TournamentSidebarListProp
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-      {tournaments.map((t) => {
-        const filled = t.participantCount ?? t._count?.participants ?? 0;
-        const pot = (Number(t.entryFee) * t.size / 1_000_000).toFixed(2);
-        const statusColor = STATUS_COLORS[t.status] || 'rgba(255,255,255,0.35)';
+      {tournaments.map((tour) => {
+        const filled = tour.participantCount ?? tour._count?.participants ?? 0;
+        const pot = (Number(tour.entryFee) * tour.size / 1_000_000).toFixed(2);
+        const statusColor = STATUS_COLORS[tour.status] || t.text.quaternary;
         return (
-          <Link key={t.id} href={`/tournament/${t.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+          <Link key={tour.id} href={`/tournament/${tour.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
             <Box
               sx={{
                 px: 2,
                 py: 1.5,
-                bgcolor: '#0D1219',
+                bgcolor: t.bg.surfaceAlt,
+                border: t.surfaceBorder,
+                boxShadow: t.surfaceShadow,
                 cursor: 'pointer',
                 transition: 'background 0.15s ease',
-                '&:hover': { background: 'rgba(255,255,255,0.04)' },
+                '&:hover': { background: t.hover.default },
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
                 <Box
                   component="img"
-                  src={t.asset.includes(':') ? (getBadge(t.asset.split(':')[1]) || '') : `/tournaments/tournament-${t.asset.toLowerCase()}.png`}
-                  alt={t.asset}
-                  sx={{ width: 22, height: 22, objectFit: 'contain', ...(t.asset.includes(':') && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }) }}
+                  src={tour.asset.includes(':') ? (getBadge(tour.asset.split(':')[1]) || '') : `/tournaments/tournament-${tour.asset.toLowerCase()}.png`}
+                  alt={tour.asset}
+                  sx={{ width: 22, height: 22, objectFit: 'contain', ...(tour.asset.includes(':') && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }) }}
                 />
                 <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {t.name}
+                  {tour.name}
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
                 <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: statusColor }}>
-                  {t.status === 'REGISTERING' ? 'Open' : t.status === 'ACTIVE' ? 'Live' : 'Ended'}
+                  {tour.status === 'REGISTERING' ? 'Open' : tour.status === 'ACTIVE' ? 'Live' : 'Ended'}
                 </Typography>
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: GAIN_COLOR }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: t.gain }}>
                   ${pot}
                 </Typography>
               </Box>
               <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
-                {filled}/{t.size} players · Round {t.currentRound}/{t.totalRounds}
+                {filled}/{tour.size} players · Round {tour.currentRound}/{tour.totalRounds}
               </Typography>
             </Box>
           </Link>

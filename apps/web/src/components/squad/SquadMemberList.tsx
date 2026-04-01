@@ -3,9 +3,11 @@
 import { Box, Typography, IconButton, Chip } from '@mui/material';
 import Avatar from '@mui/material/Avatar';
 import { RemoveCircleOutline } from '@mui/icons-material';
-import { ACCENT_COLOR, getAvatarUrl, UP_COLOR } from '@/lib/constants';
+import { getAvatarUrl } from '@/lib/constants';
 import { formatDateTime } from '@/lib/format';
 import type { SquadMemberEntry } from '@/lib/api';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 interface SquadMemberListProps {
   members: SquadMemberEntry[];
@@ -19,6 +21,7 @@ function shortWallet(addr: string) {
 }
 
 export function SquadMemberList({ members, currentWallet, isOwner, onKick }: SquadMemberListProps) {
+  const t = useThemeTokens();
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
       {/* Header — desktop only */}
@@ -28,7 +31,9 @@ export function SquadMemberList({ members, currentWallet, isOwner, onKick }: Squ
           gridTemplateColumns: '1fr 100px 140px 60px',
           px: 2,
           py: 1,
-          bgcolor: '#0D1219',
+          bgcolor: t.bg.surfaceAlt,
+          border: t.surfaceBorder,
+          boxShadow: t.surfaceShadow,
         }}
       >
         {['Player', 'Role', 'Joined', ''].map((h) => (
@@ -51,9 +56,11 @@ export function SquadMemberList({ members, currentWallet, isOwner, onKick }: Squ
               px: 2,
               py: 1.2,
               minHeight: 52,
-              bgcolor: '#0D1219',
+              bgcolor: t.bg.surfaceAlt,
+              border: t.surfaceBorder,
+              boxShadow: t.surfaceShadow,
               transition: 'background 0.15s ease',
-              '&:hover': { background: 'rgba(255,255,255,0.04)' },
+              '&:hover': { background: t.border.subtle },
             }}
           >
             {/* Player */}
@@ -61,14 +68,14 @@ export function SquadMemberList({ members, currentWallet, isOwner, onKick }: Squ
               <Avatar
                 src={getAvatarUrl(m.walletAddress)}
                 alt={m.walletAddress}
-                sx={{ width: 32, height: 32, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}
+                sx={{ width: 32, height: 32, borderRadius: '50%', border: `1px solid ${t.border.default}`, flexShrink: 0 }}
               />
               <Box sx={{ minWidth: 0 }}>
                 <Typography
                   sx={{
                     fontSize: '0.85rem',
                     fontWeight: 600,
-                    color: '#fff',
+                    color: t.text.primary,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
@@ -76,7 +83,7 @@ export function SquadMemberList({ members, currentWallet, isOwner, onKick }: Squ
                 >
                   {shortWallet(m.walletAddress)}
                   {isMe && (
-                    <Typography component="span" sx={{ color: UP_COLOR, fontSize: '0.7rem', ml: 0.5 }}>
+                    <Typography component="span" sx={{ color: t.up, fontSize: '0.7rem', ml: 0.5 }}>
                       (you)
                     </Typography>
                   )}
@@ -91,8 +98,8 @@ export function SquadMemberList({ members, currentWallet, isOwner, onKick }: Squ
                   label="Owner"
                   size="small"
                   sx={{
-                    backgroundColor: `${ACCENT_COLOR}20`,
-                    color: ACCENT_COLOR,
+                    backgroundColor: withAlpha(t.accent, 0.13),
+                    color: t.accent,
                     fontWeight: 600,
                     fontSize: '0.6rem',
                     height: 20,
@@ -119,7 +126,7 @@ export function SquadMemberList({ members, currentWallet, isOwner, onKick }: Squ
                 <IconButton
                   size="small"
                   onClick={() => onKick(m.walletAddress)}
-                  sx={{ color: '#F87171', '&:hover': { backgroundColor: 'rgba(248,113,113,0.1)' } }}
+                  sx={{ color: t.down, '&:hover': { backgroundColor: withAlpha(t.down, 0.1) } }}
                 >
                   <RemoveCircleOutline sx={{ fontSize: 18 }} />
                 </IconButton>

@@ -1,12 +1,13 @@
 // ─── Design tokens ───────────────────────────────────────────────────────────
+import { darkTokens } from '@/lib/theme';
 
-export const BG = '#0B0F14';
-export const SURFACE = '#111820';
-export const BORDER = 'rgba(255,255,255,0.06)';
+export const BG = darkTokens.bg.app;
+export const SURFACE = darkTokens.bg.surface;
+export const BORDER = darkTokens.border.default;
 export const MATCH_W = 280;
 export const CARD_H = 124;
 export const CARD_GAP = 32;
-export const PREDICT_COLOR = '#818CF8';
+export const PREDICT_COLOR = darkTokens.predict;
 
 // Header = label (20px) + gap (16px) + optional fixtures info
 const LABEL_H = 20;

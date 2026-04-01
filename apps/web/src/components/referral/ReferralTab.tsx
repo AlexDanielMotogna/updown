@@ -4,13 +4,9 @@ import Avatar from '@mui/material/Avatar';
 import { Box, Typography, Tooltip } from '@mui/material';
 import { InfoOutlined } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getAvatarUrl, GAIN_COLOR } from '@/lib/constants';
+import { getAvatarUrl } from '@/lib/constants';
 import { USDC_DIVISOR, formatDate } from '@/lib/format';
-
-const tooltipSlotProps = {
-  tooltip: { sx: { bgcolor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' } },
-  arrow: { sx: { color: '#1a1f2e' } },
-} as const;
+import { useThemeTokens } from '@/app/providers';
 
 export interface ReferralTabProps {
   referrals: Array<{ wallet: string; joinedAt: string; earned: string }>;
@@ -18,6 +14,11 @@ export interface ReferralTabProps {
 }
 
 export function ReferralTab({ referrals, totalReferrals }: ReferralTabProps) {
+  const t = useThemeTokens();
+  const tooltipSlotProps = {
+    tooltip: { sx: { bgcolor: t.bg.tooltip, border: `1px solid ${t.border.strong}`, fontSize: '0.75rem' } },
+    arrow: { sx: { color: t.bg.tooltip } },
+  } as const;
   if (totalReferrals === 0) {
     return (
       <Box sx={{ textAlign: 'center', py: 8, px: 4 }}>
@@ -31,7 +32,7 @@ export function ReferralTab({ referrals, totalReferrals }: ReferralTabProps) {
   return (
     <Box
       sx={{
-        borderRadius: 0,
+        borderRadius: 1,
         display: 'flex',
         flexDirection: 'column',
         gap: '3px',
@@ -45,7 +46,9 @@ export function ReferralTab({ referrals, totalReferrals }: ReferralTabProps) {
           gridTemplateColumns: '50px 2fr 1.5fr 1fr',
           px: 2,
           py: 1,
-          bgcolor: '#0D1219',
+          bgcolor: t.bg.surfaceAlt,
+          border: t.surfaceBorder,
+          boxShadow: t.surfaceShadow,
         }}
       >
         {[
@@ -59,7 +62,7 @@ export function ReferralTab({ referrals, totalReferrals }: ReferralTabProps) {
               {h.label}
             </Typography>
             <Tooltip title={h.tip} arrow placement="top" slotProps={tooltipSlotProps}>
-              <InfoOutlined sx={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.5)' }, transition: 'color 0.15s' }} />
+              <InfoOutlined sx={{ fontSize: 11, color: t.text.muted, cursor: 'help', '&:hover': { color: t.text.secondary }, transition: 'color 0.15s' }} />
             </Tooltip>
           </Box>
         ))}
@@ -84,9 +87,11 @@ export function ReferralTab({ referrals, totalReferrals }: ReferralTabProps) {
                 px: 2,
                 py: 0,
                 minHeight: 56,
-                bgcolor: '#0D1219',
+                bgcolor: t.bg.surfaceAlt,
+                border: t.surfaceBorder,
+                boxShadow: t.surfaceShadow,
                 transition: 'background 0.15s ease',
-                '&:hover': { background: 'rgba(255,255,255,0.04)' },
+                '&:hover': { background: t.border.subtle },
               }}
             >
               {/* # */}
@@ -99,13 +104,13 @@ export function ReferralTab({ referrals, totalReferrals }: ReferralTabProps) {
                 <Avatar
                   src={getAvatarUrl(ref.wallet)}
                   alt={ref.wallet}
-                  sx={{ width: 32, height: 32, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}
+                  sx={{ width: 32, height: 32, borderRadius: '50%', border: `1px solid ${t.border.default}`, flexShrink: 0 }}
                 />
                 <Typography
                   sx={{
                     fontSize: '0.85rem',
                     fontWeight: 600,
-                    color: '#fff',
+                    color: t.text.primary,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
@@ -121,7 +126,7 @@ export function ReferralTab({ referrals, totalReferrals }: ReferralTabProps) {
               </Typography>
 
               {/* Earned */}
-              <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: GAIN_COLOR, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>
+              <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: t.gain, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>
                 ${(Number(ref.earned) / USDC_DIVISOR).toFixed(2)}
               </Typography>
             </Box>
@@ -130,24 +135,26 @@ export function ReferralTab({ referrals, totalReferrals }: ReferralTabProps) {
             <Box
               sx={{
                 display: { xs: 'block', md: 'none' },
-                bgcolor: '#0D1219',
+                bgcolor: t.bg.surfaceAlt,
+                border: t.surfaceBorder,
+                boxShadow: t.surfaceShadow,
                 p: 2,
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1.5, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1.5, borderBottom: `1px solid ${t.border.subtle}` }}>
                 <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'text.secondary', width: 28, textAlign: 'center', flexShrink: 0 }}>
                   {i + 1}
                 </Typography>
                 <Avatar
                   src={getAvatarUrl(ref.wallet)}
                   alt={ref.wallet}
-                  sx={{ width: 28, height: 28, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}
+                  sx={{ width: 28, height: 28, borderRadius: '50%', border: `1px solid ${t.border.default}`, flexShrink: 0 }}
                 />
                 <Typography
                   sx={{
                     fontSize: '0.85rem',
                     fontWeight: 600,
-                    color: '#fff',
+                    color: t.text.primary,
                     flex: 1,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -167,7 +174,7 @@ export function ReferralTab({ referrals, totalReferrals }: ReferralTabProps) {
                   </Typography>
                 </Box>
                 <Box sx={{ textAlign: 'right' }}>
-                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: GAIN_COLOR, fontVariantNumeric: 'tabular-nums' }}>
+                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: t.gain, fontVariantNumeric: 'tabular-nums' }}>
                     ${(Number(ref.earned) / USDC_DIVISOR).toFixed(2)}
                   </Typography>
                   <Typography sx={{ fontSize: '0.6rem', color: 'text.secondary', textTransform: 'uppercase' }}>

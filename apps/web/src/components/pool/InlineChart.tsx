@@ -10,8 +10,8 @@ import {
 } from '@mui/material';
 import { ShowChart, CandlestickChart } from '@mui/icons-material';
 import { usePacificaCandles, type Candle } from '@/hooks';
-import { UP_COLOR, DOWN_COLOR, ACCENT_COLOR } from '@/lib/constants';
 import { USDC_DIVISOR } from '@/lib/format';
+import { useThemeTokens } from '@/app/providers';
 
 type ChartType = 'line' | 'candles';
 
@@ -160,18 +160,19 @@ interface AxesProps {
 }
 
 function ChartAxes({ dims, yTicks, xTicks, duration }: AxesProps) {
+  const t = useThemeTokens();
   return (
     <>
       {yTicks.map((tick, i) => (
         <g key={`y-${i}`}>
-          <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={tick.y} y2={tick.y} stroke="rgba(255,255,255,0.06)" strokeWidth={1} />
-          <text x={dims.width - PADDING.right + 8} y={tick.y + 4} fill="rgba(255,255,255,0.4)" fontSize={11} fontFamily="var(--font-satoshi), Satoshi, sans-serif">
+          <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={tick.y} y2={tick.y} stroke={t.border.default} strokeWidth={1} />
+          <text x={dims.width - PADDING.right + 8} y={tick.y + 4} fill={t.text.tertiary} fontSize={11} fontFamily="var(--font-satoshi), Satoshi, sans-serif">
             {formatChartPrice(tick.price)}
           </text>
         </g>
       ))}
       {xTicks.map((tick, i) => (
-        <text key={`x-${i}`} x={tick.x} y={dims.height - 6} fill="rgba(255,255,255,0.4)" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" textAnchor="middle">
+        <text key={`x-${i}`} x={tick.x} y={dims.height - 6} fill={t.text.tertiary} fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" textAnchor="middle">
           {formatTime(tick.time, duration)}
         </text>
       ))}
@@ -200,6 +201,7 @@ function smoothPath(points: { x: number; y: number }[]): string {
 }
 
 function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
+  const t = useThemeTokens();
   const layout = useChartLayout(candles, 'line');
   const { containerRef, dims, parsed, chartH, toX, toY, yTicks, xTicks, hoverIndex, hoverY, hoverPrice, handleMouseMove, handleMouseLeave } = layout;
 
@@ -217,7 +219,7 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
   }, [linePath, points, chartH]);
 
   const isUp = closes.length > 1 ? closes[closes.length - 1] >= closes[0] : true;
-  const lineColor = isUp ? UP_COLOR : DOWN_COLOR;
+  const lineColor = isUp ? t.up : t.down;
 
   const lastPoint = points.length > 0 ? points[points.length - 1] : null;
 
@@ -242,9 +244,9 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
           if (sy >= PADDING.top && sy <= PADDING.top + chartH) {
             return (
               <g style={{ transition: 'transform 0.4s ease' }}>
-                <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={sy} y2={sy} stroke={ACCENT_COLOR} strokeWidth={1} strokeDasharray="6,4" strokeOpacity={0.5} />
-                <rect x={0} y={sy - 11} width={PADDING.left + 72} height={22} rx={3} fill={ACCENT_COLOR} />
-                <text x={6} y={sy + 4} fill="#000" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700}>
+                <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={sy} y2={sy} stroke={t.accent} strokeWidth={1} strokeDasharray="6,4" strokeOpacity={0.5} />
+                <rect x={0} y={sy - 11} width={PADDING.left + 72} height={22} rx={3} fill={t.accent} />
+                <text x={6} y={sy + 4} fill={t.text.contrast} fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700}>
                   Strike {formatChartPrice(strikePrice)}
                 </text>
               </g>
@@ -266,7 +268,7 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
                   <animate attributeName="r" values="3.5;5;3.5" dur="2s" repeatCount="indefinite" />
                 </circle>
                 <rect x={dims.width - PADDING.right + 1} y={ly - 10} width={PADDING.right - 4} height={20} rx={3} fill={lineColor} style={{ transition: 'y 0.4s ease' }} />
-                <text x={dims.width - PADDING.right + 8} y={ly + 4} fill="#000" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700} style={{ transition: 'y 0.4s ease' }}>
+                <text x={dims.width - PADDING.right + 8} y={ly + 4} fill={t.text.contrast} fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700} style={{ transition: 'y 0.4s ease' }}>
                   {formatChartPrice(livePrice)}
                 </text>
               </>
@@ -277,16 +279,16 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
 
         {hoverData && (
           <>
-            <line x1={hoverData.x} x2={hoverData.x} y1={PADDING.top} y2={PADDING.top + chartH} stroke="rgba(255,255,255,0.2)" strokeWidth={1} strokeDasharray="3,3" />
+            <line x1={hoverData.x} x2={hoverData.x} y1={PADDING.top} y2={PADDING.top + chartH} stroke={t.text.muted} strokeWidth={1} strokeDasharray="3,3" />
             <circle cx={hoverData.x} cy={hoverData.y} r={4} fill={lineColor} stroke="#111820" strokeWidth={2} />
           </>
         )}
 
         {hoverY !== null && hoverPrice !== null && (
           <>
-            <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={hoverY} y2={hoverY} stroke="rgba(255,255,255,0.25)" strokeWidth={1} strokeDasharray="3,3" />
+            <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={hoverY} y2={hoverY} stroke={t.text.muted} strokeWidth={1} strokeDasharray="3,3" />
             <rect x={dims.width - PADDING.right + 1} y={hoverY - 10} width={PADDING.right - 4} height={20} rx={3} fill="rgba(255,255,255,0.12)" />
-            <text x={dims.width - PADDING.right + 8} y={hoverY + 4} fill="#FFFFFF" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={500}>
+            <text x={dims.width - PADDING.right + 8} y={hoverY + 4} fill={t.text.primary} fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={500}>
               {formatChartPrice(hoverPrice)}
             </text>
           </>
@@ -308,6 +310,7 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
 }
 
 function CandlesChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
+  const t = useThemeTokens();
   const layout = useChartLayout(candles, 'candles');
   const { containerRef, dims, parsed, chartW, chartH, toX, toY, yTicks, xTicks, hoverIndex, hoverY, hoverPrice, handleMouseMove, handleMouseLeave } = layout;
 
@@ -328,9 +331,9 @@ function CandlesChart({ candles, duration, livePrice, strikePrice }: ChartProps)
           if (sy >= PADDING.top && sy <= PADDING.top + chartH) {
             return (
               <g style={{ transition: 'transform 0.4s ease' }}>
-                <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={sy} y2={sy} stroke={ACCENT_COLOR} strokeWidth={1} strokeDasharray="6,4" strokeOpacity={0.5} />
-                <rect x={0} y={sy - 11} width={PADDING.left + 72} height={22} rx={3} fill={ACCENT_COLOR} />
-                <text x={6} y={sy + 4} fill="#000" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700}>
+                <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={sy} y2={sy} stroke={t.accent} strokeWidth={1} strokeDasharray="6,4" strokeOpacity={0.5} />
+                <rect x={0} y={sy - 11} width={PADDING.left + 72} height={22} rx={3} fill={t.accent} />
+                <text x={6} y={sy + 4} fill={t.text.contrast} fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700}>
                   Strike {formatChartPrice(strikePrice)}
                 </text>
               </g>
@@ -342,7 +345,7 @@ function CandlesChart({ candles, duration, livePrice, strikePrice }: ChartProps)
         {parsed.map((c, i) => {
           const x = toX(i);
           const isUp = c.c >= c.o;
-          const color = isUp ? UP_COLOR : DOWN_COLOR;
+          const color = isUp ? t.up : t.down;
           const bodyTop = toY(Math.max(c.o, c.c));
           const bodyBottom = toY(Math.min(c.o, c.c));
           const bodyHeight = Math.max(1, bodyBottom - bodyTop);
@@ -361,13 +364,13 @@ function CandlesChart({ candles, duration, livePrice, strikePrice }: ChartProps)
         {livePrice != null && (() => {
           const ly = toY(livePrice);
           const lastX = parsed.length > 0 ? toX(parsed.length - 1) : PADDING.left;
-          const lvColor = parsed.length > 1 ? (parsed[parsed.length - 1].c >= parsed[0].c ? UP_COLOR : DOWN_COLOR) : UP_COLOR;
+          const lvColor = parsed.length > 1 ? (parsed[parsed.length - 1].c >= parsed[0].c ? t.up : t.down) : t.up;
           if (ly >= PADDING.top && ly <= PADDING.top + chartH) {
             return (
               <>
                 <line x1={lastX} x2={dims.width - PADDING.right} y1={ly} y2={ly} stroke={lvColor} strokeWidth={1} strokeDasharray="3,3" strokeOpacity={0.6} style={{ transition: 'y1 0.4s ease, y2 0.4s ease' }} />
                 <rect x={dims.width - PADDING.right + 1} y={ly - 10} width={PADDING.right - 4} height={20} rx={3} fill={lvColor} style={{ transition: 'y 0.4s ease' }} />
-                <text x={dims.width - PADDING.right + 8} y={ly + 4} fill="#000" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700} style={{ transition: 'y 0.4s ease' }}>
+                <text x={dims.width - PADDING.right + 8} y={ly + 4} fill={t.text.contrast} fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700} style={{ transition: 'y 0.4s ease' }}>
                   {formatChartPrice(livePrice)}
                 </text>
               </>
@@ -377,14 +380,14 @@ function CandlesChart({ candles, duration, livePrice, strikePrice }: ChartProps)
         })()}
 
         {hoverCandle && hoverIndex !== null && (
-          <line x1={toX(hoverIndex)} x2={toX(hoverIndex)} y1={PADDING.top} y2={PADDING.top + chartH} stroke="rgba(255,255,255,0.2)" strokeWidth={1} strokeDasharray="3,3" />
+          <line x1={toX(hoverIndex)} x2={toX(hoverIndex)} y1={PADDING.top} y2={PADDING.top + chartH} stroke={t.text.muted} strokeWidth={1} strokeDasharray="3,3" />
         )}
 
         {hoverY !== null && hoverPrice !== null && (
           <>
-            <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={hoverY} y2={hoverY} stroke="rgba(255,255,255,0.25)" strokeWidth={1} strokeDasharray="3,3" />
+            <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={hoverY} y2={hoverY} stroke={t.text.muted} strokeWidth={1} strokeDasharray="3,3" />
             <rect x={dims.width - PADDING.right + 1} y={hoverY - 10} width={PADDING.right - 4} height={20} rx={3} fill="rgba(255,255,255,0.12)" />
-            <text x={dims.width - PADDING.right + 8} y={hoverY + 4} fill="#FFFFFF" fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={500}>
+            <text x={dims.width - PADDING.right + 8} y={hoverY + 4} fill={t.text.primary} fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={500}>
               {formatChartPrice(hoverPrice)}
             </text>
           </>
@@ -406,10 +409,10 @@ function CandlesChart({ candles, duration, livePrice, strikePrice }: ChartProps)
             {formatChartPrice(hoverCandle.l)}
           </Typography>
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>C</Typography>
-          <Typography variant="caption" sx={{ fontWeight: 600, color: hoverCandle.c >= hoverCandle.o ? UP_COLOR : DOWN_COLOR, fontVariantNumeric: 'tabular-nums' }}>
+          <Typography variant="caption" sx={{ fontWeight: 600, color: hoverCandle.c >= hoverCandle.o ? t.up : t.down, fontVariantNumeric: 'tabular-nums' }}>
             {formatChartPrice(hoverCandle.c)}
           </Typography>
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', ml: 0.5 }}>
+          <Typography variant="caption" sx={{ color: t.text.dimmed, ml: 0.5 }}>
             {new Date(hoverCandle.t).toLocaleString()}
           </Typography>
         </Box>
@@ -419,6 +422,7 @@ function CandlesChart({ candles, duration, livePrice, strikePrice }: ChartProps)
 }
 
 export function InlineChart({ asset, livePrice: livePriceStr, strikePrice: strikePriceStr }: InlineChartProps) {
+  const t = useThemeTokens();
   const livePriceNum = livePriceStr ? Number(livePriceStr) : null;
   const strikePriceNum = strikePriceStr ? Number(strikePriceStr) / USDC_DIVISOR : null;
   const [intervalIdx, setIntervalIdx] = useState(0); // default 1m
@@ -443,7 +447,7 @@ export function InlineChart({ asset, livePrice: livePriceStr, strikePrice: strik
         display: 'flex',
         flexDirection: 'column',
         height: { xs: 280, md: 460 },
-        bgcolor: '#0B0F14',
+        bgcolor: t.bg.app,
         borderRadius: { xs: 0, md: 2 },
         overflow: 'hidden',
       }}
@@ -466,8 +470,8 @@ export function InlineChart({ asset, livePrice: livePriceStr, strikePrice: strik
                 px: { xs: 0.75, md: 1.25 },
                 py: 0.15,
                 '&.Mui-selected': {
-                  color: '#FFFFFF',
-                  bgcolor: 'rgba(255, 255, 255, 0.08)',
+                  color: t.text.primary,
+                  bgcolor: t.hover.strong,
                 },
               },
             }}
@@ -492,8 +496,8 @@ export function InlineChart({ asset, livePrice: livePriceStr, strikePrice: strik
               px: 0.75,
               py: 0.15,
               '&.Mui-selected': {
-                color: '#FFFFFF',
-                bgcolor: 'rgba(255, 255, 255, 0.08)',
+                color: t.text.primary,
+                bgcolor: t.hover.strong,
               },
             },
           }}
@@ -511,12 +515,12 @@ export function InlineChart({ asset, livePrice: livePriceStr, strikePrice: strik
       <Box sx={{ flex: 1, position: 'relative', minHeight: 0 }}>
         {loading && (
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-            <CircularProgress size={28} sx={{ color: 'rgba(255,255,255,0.3)' }} />
+            <CircularProgress size={28} sx={{ color: t.text.dimmed }} />
           </Box>
         )}
         {error && (
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-            <Typography variant="body2" sx={{ color: DOWN_COLOR }}>{error}</Typography>
+            <Typography variant="body2" sx={{ color: t.down }}>{error}</Typography>
           </Box>
         )}
         {!loading && !error && candles.length > 0 && (

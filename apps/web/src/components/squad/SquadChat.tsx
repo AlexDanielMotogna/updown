@@ -5,8 +5,10 @@ import { Box, TextField, IconButton, Typography, Badge, Fab } from '@mui/materia
 import Avatar from '@mui/material/Avatar';
 import { Send, Chat as ChatIcon, Close, KeyboardArrowDown } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UP_COLOR, getAvatarUrl } from '@/lib/constants';
+import { getAvatarUrl } from '@/lib/constants';
 import type { SquadChatMessage } from '@/lib/api';
+import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 interface SquadChatProps {
   messages: SquadChatMessage[] | undefined;
@@ -25,6 +27,7 @@ function shortWallet(addr: string) {
 }
 
 export function SquadChat({ messages, onSend, isSending, currentWallet }: SquadChatProps) {
+  const t = useThemeTokens();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [unread, setUnread] = useState(0);
@@ -88,8 +91,8 @@ export function SquadChat({ messages, onSend, isSending, currentWallet }: SquadC
                 display: 'flex',
                 flexDirection: 'column',
                 height: { xs: 360, md: 480 },
-                bgcolor: '#0B0F14',
-                border: '1px solid rgba(255,255,255,0.08)',
+                bgcolor: t.bg.app,
+                border: `1px solid ${t.border.medium}`,
                 overflow: 'hidden',
                 boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
               }}
@@ -102,13 +105,15 @@ export function SquadChat({ messages, onSend, isSending, currentWallet }: SquadC
                   justifyContent: 'space-between',
                   px: 2,
                   py: 1.2,
-                  bgcolor: '#0D1219',
-                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                  bgcolor: t.bg.surfaceAlt,
+                  border: t.surfaceBorder,
+                  boxShadow: t.surfaceShadow,
+                  borderBottom: `1px solid ${t.border.default}`,
                   flexShrink: 0,
                 }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <ChatIcon sx={{ fontSize: 18, color: UP_COLOR }} />
+                  <ChatIcon sx={{ fontSize: 18, color: t.up }} />
                   <Typography sx={{ fontWeight: 600, fontSize: '0.85rem' }}>
                     Squad Chat
                   </Typography>
@@ -116,7 +121,7 @@ export function SquadChat({ messages, onSend, isSending, currentWallet }: SquadC
                 <IconButton
                   size="small"
                   onClick={() => setOpen(false)}
-                  sx={{ color: 'text.secondary', '&:hover': { color: '#fff' } }}
+                  sx={{ color: 'text.secondary', '&:hover': { color: t.text.primary } }}
                 >
                   <Close sx={{ fontSize: 18 }} />
                 </IconButton>
@@ -133,7 +138,7 @@ export function SquadChat({ messages, onSend, isSending, currentWallet }: SquadC
                   flexDirection: 'column',
                   gap: 0.8,
                   '&::-webkit-scrollbar': { width: 3 },
-                  '&::-webkit-scrollbar-thumb': { background: 'rgba(255,255,255,0.08)', borderRadius: 2 },
+                  '&::-webkit-scrollbar-thumb': { background: t.border.medium, borderRadius: 1 },
                 }}
               >
                 {sorted.length === 0 && (
@@ -159,19 +164,19 @@ export function SquadChat({ messages, onSend, isSending, currentWallet }: SquadC
                         <Avatar
                           src={getAvatarUrl(msg.walletAddress)}
                           alt=""
-                          sx={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0, border: '1px solid rgba(255,255,255,0.06)' }}
+                          sx={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0, border: `1px solid ${t.border.default}` }}
                         />
                       )}
                       <Box
                         sx={{
                           maxWidth: '75%',
-                          backgroundColor: isMe ? `${UP_COLOR}12` : 'rgba(255,255,255,0.04)',
+                          backgroundColor: isMe ? withAlpha(t.up, 0.07) : t.border.subtle,
                           px: 1.2,
                           py: 0.6,
                         }}
                       >
                         {!isMe && (
-                          <Typography sx={{ fontSize: '0.6rem', color: UP_COLOR, fontWeight: 600, lineHeight: 1 }}>
+                          <Typography sx={{ fontSize: '0.6rem', color: t.up, fontWeight: 600, lineHeight: 1 }}>
                             {shortWallet(msg.walletAddress)}
                           </Typography>
                         )}
@@ -189,7 +194,7 @@ export function SquadChat({ messages, onSend, isSending, currentWallet }: SquadC
               </Box>
 
               {/* Input area */}
-              <Box sx={{ display: 'flex', gap: 0.8, p: 1.2, borderTop: '1px solid rgba(255,255,255,0.06)', bgcolor: '#0D1219', flexShrink: 0 }}>
+              <Box sx={{ display: 'flex', gap: 0.8, p: 1.2, bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, borderTop: `1px solid ${t.border.default}`, flexShrink: 0 }}>
                 <TextField
                   fullWidth
                   size="small"
@@ -206,7 +211,7 @@ export function SquadChat({ messages, onSend, isSending, currentWallet }: SquadC
                   sx={{
                     '& .MuiInputBase-root': { fontSize: '0.82rem', py: 0 },
                     '& .MuiOutlinedInput-root': {
-                      bgcolor: 'rgba(255,255,255,0.03)',
+                      bgcolor: t.hover.light,
                     },
                   }}
                 />
@@ -214,7 +219,7 @@ export function SquadChat({ messages, onSend, isSending, currentWallet }: SquadC
                   onClick={handleSend}
                   disabled={!input.trim() || isSending}
                   size="small"
-                  sx={{ color: UP_COLOR, '&:hover': { bgcolor: `${UP_COLOR}15` } }}
+                  sx={{ color: t.up, '&:hover': { bgcolor: withAlpha(t.up, 0.08) } }}
                 >
                   <Send sx={{ fontSize: 18 }} />
                 </IconButton>
@@ -241,10 +246,10 @@ export function SquadChat({ messages, onSend, isSending, currentWallet }: SquadC
             width: { xs: 40, lg: 48 },
             height: { xs: 40, lg: 48 },
             minHeight: 0,
-            bgcolor: open ? 'rgba(255,255,255,0.1)' : UP_COLOR,
-            color: open ? '#fff' : '#000',
+            bgcolor: open ? t.border.strong : t.up,
+            color: open ? t.text.primary : t.text.contrast,
             '&:hover': {
-              bgcolor: open ? 'rgba(255,255,255,0.15)' : UP_COLOR,
+              bgcolor: open ? t.border.emphasis : t.up,
               filter: open ? undefined : 'brightness(1.15)',
             },
             boxShadow: '0 4px 20px rgba(0,0,0,0.4)',

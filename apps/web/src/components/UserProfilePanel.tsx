@@ -5,13 +5,15 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import { UserLevelBadge } from './UserLevelBadge';
 import { XpProgressBar } from './XpProgressBar';
 import { UpCoinsBalance } from './UpCoinsBalance';
-import { GAIN_COLOR, ACCENT_COLOR, UP_COINS_DIVISOR } from '@/lib/constants';
+import { UP_COINS_DIVISOR } from '@/lib/constants';
 import { USDC_DIVISOR } from '@/lib/format';
+import { useThemeTokens } from '@/app/providers';
 
 function StatItem({ label, value }: { label: string; value: string | number }) {
+  const t = useThemeTokens();
   return (
     <Box sx={{ textAlign: 'center' }}>
-      <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff' }}>
+      <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: t.text.primary }}>
         {value}
       </Typography>
       <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
@@ -22,6 +24,7 @@ function StatItem({ label, value }: { label: string; value: string | number }) {
 }
 
 export function UserProfilePanel() {
+  const t = useThemeTokens();
   const { data: profile, isLoading } = useUserProfile();
 
   if (isLoading || !profile) {
@@ -70,14 +73,14 @@ export function UserProfilePanel() {
           p: 2,
           mb: 3,
           borderRadius: '4px',
-          bgcolor: 'rgba(255,255,255,0.03)',
+          bgcolor: t.hover.light,
         }}
       >
         <Box>
           <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', mb: 0.5 }}>
             UP Coins Balance
           </Typography>
-          <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: ACCENT_COLOR }}>
+          <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: t.accent }}>
             {(Number(profile.coinsBalance) / UP_COINS_DIVISOR).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </Typography>
         </Box>
@@ -85,7 +88,7 @@ export function UserProfilePanel() {
           <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', mb: 0.5 }}>
             Fee Discount
           </Typography>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: GAIN_COLOR }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: t.gain }}>
             {profile.feePercent}%
           </Typography>
         </Box>
@@ -99,7 +102,7 @@ export function UserProfilePanel() {
           gap: 2,
           p: 2,
           borderRadius: '4px',
-          bgcolor: 'rgba(255,255,255,0.03)',
+          bgcolor: t.hover.light,
         }}
       >
         <StatItem label="Bets" value={profile.stats.totalBets} />
