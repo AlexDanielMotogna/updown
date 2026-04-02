@@ -92,5 +92,9 @@ export const LEAGUE_TO_ODDS_API: Record<string, string> = {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 export function normalizeTeam(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return name
+    .normalize('NFD')               // decompose accents: ã → a + combining mark
+    .replace(/[\u0300-\u036f]/g, '') // strip combining marks
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
 }

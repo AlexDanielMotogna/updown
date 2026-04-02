@@ -20,6 +20,8 @@ import {
 
 let polling = false;
 let pollInterval: ReturnType<typeof setInterval> | null = null;
+let lastDaysFromCall = 0;
+const DAYS_FROM_INTERVAL_MS = 2 * 60_000; // daysFrom=1 every 2 min max (costs 2 credits)
 
 // ─── Active pool helpers ─────────────────────────────────────────────────────
 
@@ -162,14 +164,16 @@ async function pollOddsApiParallel(
     const sportKeys = getOddsApiSportKeys(leagues);
     if (sportKeys.length === 0) return;
 
-    // Check if any pool started more than 4h ago (might need daysFrom=1 for yesterday's results)
+    // daysFrom=1 costs 2 credits instead of 1 — only use every 5 min for old pools
     const fourHoursAgo = Date.now() - 4 * 3600_000;
     const hasOldPools = activePools.some(p => p.startTime.getTime() < fourHoursAgo);
+    const useDaysFrom = hasOldPools && Date.now() - lastDaysFromCall > DAYS_FROM_INTERVAL_MS;
+    if (useDaysFrom) lastDaysFromCall = Date.now();
 
     // Fetch all sports in parallel
     const allGames = await Promise.all(
       sportKeys.map(async (key) => {
-        const games = await fetchOddsApiScores(key, hasOldPools ? 1 : undefined);
+        const games = await fetchOddsApiScores(key, useDaysFrom ? 1 : undefined);
         return { key, games };
       }),
     );
