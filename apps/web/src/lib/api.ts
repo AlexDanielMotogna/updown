@@ -50,6 +50,7 @@ export interface Pool {
   awayScore?: number | null;
   marketOdds?: number | null;
   clobTokenIds?: string | null;
+  tags?: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -17,6 +17,7 @@ export interface CategoryConfig {
   numSides: number;
   sideLabels: string[];
   sortOrder: number;
+  subcategories?: string[];
 }
 
 /**

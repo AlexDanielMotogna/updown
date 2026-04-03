@@ -292,6 +292,7 @@ async function createSportsPool(match: Match, leagueCode: string): Promise<void>
         marketOdds: cacheEntry?.marketOdds ?? null,
         clobTokenIds: cacheEntry?.clobTokenIds ?? null,
         matchAnalysis: cacheEntry?.groupItemTitle ?? null, // PM description/rules
+        tags: cacheEntry?.tags ?? null,
       },
     });
 

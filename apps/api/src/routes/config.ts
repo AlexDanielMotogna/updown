@@ -1,4 +1,5 @@
 import { Router, type Router as RouterType } from 'express';
+import { prisma } from '../db';
 import { getVisibleCategories } from '../services/category-config';
 import { sportsDbFetch } from '../services/sports/api-sports-fetch';
 
@@ -10,20 +11,24 @@ configRouter.get('/categories', async (_req, res) => {
     const categories = await getVisibleCategories();
     res.json({
       success: true,
-      data: categories.map(c => ({
-        code: c.code,
-        type: c.type,
-        enabled: c.enabled,
-        comingSoon: c.comingSoon,
-        label: c.label,
-        shortLabel: c.shortLabel,
-        color: c.color,
-        badgeUrl: c.badgeUrl,
-        iconKey: c.iconKey,
-        numSides: c.numSides,
-        sideLabels: c.sideLabels,
-        sortOrder: c.sortOrder,
-      })),
+      data: categories.map(c => {
+        const cfg = c.config as Record<string, unknown> | null;
+        return {
+          code: c.code,
+          type: c.type,
+          enabled: c.enabled,
+          comingSoon: c.comingSoon,
+          label: c.label,
+          shortLabel: c.shortLabel,
+          color: c.color,
+          badgeUrl: c.badgeUrl,
+          iconKey: c.iconKey,
+          numSides: c.numSides,
+          sideLabels: c.sideLabels,
+          sortOrder: c.sortOrder,
+          subcategories: Array.isArray(cfg?.subcategories) ? cfg.subcategories : [],
+        };
+      }),
     });
   } catch {
     res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: 'Failed to fetch categories' } });
@@ -52,6 +57,35 @@ configRouter.get('/polymarket-tags', async (req, res) => {
     res.json({ success: true, data: sorted, totalEvents: events.length });
   } catch {
     res.json({ success: true, data: [], totalEvents: 0 });
+  }
+});
+
+// GET /api/config/pool-subcategories?league=PM_POLITICS — unique tags from pools for a league
+configRouter.get('/pool-subcategories', async (req, res) => {
+  try {
+    const league = req.query.league as string;
+    if (!league) return res.json({ success: true, data: [] });
+
+    const pools = await prisma.pool.findMany({
+      where: { league, tags: { not: null } },
+      select: { tags: true },
+    });
+
+    const counts: Record<string, number> = {};
+    for (const p of pools) {
+      try {
+        const tags: string[] = JSON.parse(p.tags!);
+        for (const t of tags) counts[t] = (counts[t] || 0) + 1;
+      } catch { /* skip */ }
+    }
+
+    const sorted = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, count]) => ({ label, count }));
+
+    res.json({ success: true, data: sorted });
+  } catch {
+    res.json({ success: true, data: [] });
   }
 });
 

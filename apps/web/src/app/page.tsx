@@ -229,10 +229,22 @@ export default function MarketsPage() {
     }
     return filtered;
   }, [sortedPools, sportFilter, leagueFilter]);
+  const pmTagFilter = searchParams.get('tag') ?? 'ALL';
   const predictionPools = useMemo(() => {
     if (!isPM) return [];
-    return sortedPools.filter(p => p.poolType === 'SPORTS' && p.league === marketType);
-  }, [sortedPools, marketType, isPM]);
+    let filtered = sortedPools.filter(p => p.poolType === 'SPORTS' && p.league === marketType);
+    if (pmTagFilter !== 'ALL') {
+      filtered = filtered.filter(p => {
+        if (!p.tags) return false;
+        try {
+          const tags: string[] = JSON.parse(p.tags);
+          return tags.some(t => t.toLowerCase() === pmTagFilter.toLowerCase());
+        } catch { return false; }
+      });
+    }
+    return filtered;
+  }, [sortedPools, marketType, isPM, pmTagFilter]);
+
   const pools = sortedPools;
 
   // Modal states

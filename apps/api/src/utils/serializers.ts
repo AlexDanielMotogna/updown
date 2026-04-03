@@ -54,6 +54,7 @@ export function serializePool(pool: Record<string, any> & {
     awayScore: pool.awayScore ?? null,
     marketOdds: pool.marketOdds ?? null,
     clobTokenIds: pool.clobTokenIds ?? null,
+    tags: pool.tags ?? null,
     createdAt: pool.createdAt.toISOString(),
     updatedAt: pool.updatedAt.toISOString(),
   };

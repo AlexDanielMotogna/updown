@@ -13,6 +13,7 @@ function AllIcon(props: React.ComponentProps<typeof SvgIcon>) {
   );
 }
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { useCategories, type CategoryConfig } from '@/hooks/useCategories';
 import { getIcon } from '@/lib/icon-registry';
 import { useThemeTokens } from '@/app/providers';
@@ -131,6 +132,30 @@ export function MarketSidebar() {
   const isCrypto = marketType === 'CRYPTO';
   const isPM = marketType.startsWith('PM_');
   const isTournaments = pathname === '/tournaments';
+  const tagFilter = searchParams.get('tag') ?? 'ALL';
+
+  // Read admin-configured subcategories; fallback to auto-discovered from pools
+  const adminSubcats = useMemo(() => {
+    if (!isPM || !categories) return [];
+    const cat = categories.find(c => c.code === marketType);
+    return cat?.subcategories ?? [];
+  }, [isPM, categories, marketType]);
+
+  const API = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002') : '';
+  const { data: autoSubcats } = useQuery({
+    queryKey: ['pool-subcategories', marketType],
+    queryFn: async () => {
+      const res = await fetch(`${API}/api/config/pool-subcategories?league=${marketType}`);
+      const d = await res.json();
+      return (d.data || []) as Array<{ label: string; count: number }>;
+    },
+    enabled: isPM && adminSubcats.length === 0,
+    staleTime: 60_000,
+  });
+
+  const pmSubcategories = adminSubcats.length > 0
+    ? adminSubcats
+    : (autoSubcats || []).map(t => t.label);
 
   return (
     <Box sx={{
@@ -211,13 +236,26 @@ export function MarketSidebar() {
         </>
       )}
 
-      {/* PM: no filters needed */}
-      {isPM && (
-        <Box sx={{ px: 1, py: 2 }}>
-          <Typography sx={{ fontSize: '0.7rem', color: t.text.tertiary }}>
-            No filters for this market
-          </Typography>
-        </Box>
+      {/* PM subcategory filters — admin-managed via config.subcategories */}
+      {isPM && pmSubcategories.length > 0 && (
+        <SidebarSection>
+          <SidebarItem
+            label="All"
+            active={tagFilter === 'ALL'}
+            color={t.prediction}
+            icon={<AllIcon sx={{ fontSize: 16 }} />}
+            onClick={() => updateParam('tag', 'ALL')}
+          />
+          {pmSubcategories.map((tag) => (
+            <SidebarItem
+              key={tag}
+              label={tag}
+              active={tagFilter === tag}
+              color={t.prediction}
+              onClick={() => updateParam('tag', tag)}
+            />
+          ))}
+        </SidebarSection>
       )}
     </Box>
   );

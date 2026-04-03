@@ -94,6 +94,9 @@ async function bulkSync(): Promise<void> {
       const marketOdds = outcomePrices?.length ? parseFloat(outcomePrices[0]) : null;
       const groupItemTitle: string | null = description || market.groupItemTitle || null; // Store description in groupItemTitle for cache
       const clobTokenIds: string | null = market.clobTokenIds || null;
+      const tags: string | null = Array.isArray(event.tags) && event.tags.length > 0
+        ? JSON.stringify(event.tags.map((t: any) => t.label || t).filter(Boolean))
+        : null;
 
       // Determine status from Polymarket fields
       let status = 'SCHEDULED';
@@ -147,6 +150,7 @@ async function bulkSync(): Promise<void> {
             marketOdds,
             groupItemTitle,
             clobTokenIds,
+            tags,
             apiSource: API_SOURCE,
             lastSyncedAt: new Date(),
           },
@@ -161,6 +165,7 @@ async function bulkSync(): Promise<void> {
             marketOdds,
             groupItemTitle,
             clobTokenIds,
+            tags,
             lastSyncedAt: new Date(),
           },
         });

@@ -128,59 +128,36 @@ function PolymarketConfigFields({ selectedTags, onTagsChange, minVolume, onMinVo
   maxDays: string;
   onMaxDaysChange: (v: string) => void;
 }) {
-  const [availableTags, setAvailableTags] = useState<Array<{ label: string; count: number }>>([]);
-  const [loading, setLoading] = useState(false);
-  const [tagFilter, setTagFilter] = useState('');
-
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    const seeds = selectedTags.length > 0 ? `?seeds=${encodeURIComponent(selectedTags.join(','))}` : '';
-    fetch(`${API}/api/config/polymarket-tags${seeds}`)
-      .then(r => r.json())
-      .then((d: { success: boolean; data: Array<{ label: string; count: number }> }) => {
-        if (!active) return;
-        if (d.success) setAvailableTags(d.data);
-      })
-      .catch(() => {})
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [selectedTags.join(',')]);
-
-  const filtered = tagFilter ? availableTags.filter(t => t.label.toLowerCase().includes(tagFilter.toLowerCase())) : availableTags.slice(0, 50);
+  const [newTag, setNewTag] = useState('');
 
   return (
     <>
+      {/* Source Tags — which Polymarket events belong to this category */}
       <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', mt: 1 }}>
-        Polymarket Tags
+        Source Tags
       </Typography>
-      <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', mb: 0.5 }}>
-        {selectedTags.length} selected: {selectedTags.join(', ') || 'none'}
+      <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', mb: 0.5 }}>
+        Polymarket events with these tags will be imported into this category
       </Typography>
-      <TextField label="Search tags" size="small" value={tagFilter} onChange={e => setTagFilter(e.target.value)} placeholder="Filter tags..." />
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}><CircularProgress size={20} /></Box>
-      ) : (
-        <Box sx={{ maxHeight: 200, overflow: 'auto', bgcolor: 'rgba(255,255,255,0.02)', borderRadius: '4px', '&::-webkit-scrollbar': { width: 2 }, '&::-webkit-scrollbar-track': { bgcolor: 'transparent' }, '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.06)' } }}>
-          {filtered.map(t => {
-            const selected = selectedTags.includes(t.label);
-            return (
-              <Box key={t.label} onClick={() => onTagsChange(selected ? selectedTags.filter(s => s !== t.label) : [...selectedTags, t.label])}
-                sx={{ display: 'flex', alignItems: 'center', px: 1, py: 0.25, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' } }}
-              >
-                <Checkbox checked={selected} size="small" sx={{ p: 0.5, color: 'rgba(255,255,255,0.2)', '&.Mui-checked': { color: dt.gain } }} />
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: selected ? 600 : 400, color: selected ? '#fff' : 'rgba(255,255,255,0.6)', flex: 1 }}>
-                  {t.label}
-                </Typography>
-                <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)' }}>
-                  {t.count}
-                </Typography>
-              </Box>
-            );
-          })}
-        </Box>
-      )}
-      <Box sx={{ display: 'flex', gap: 2 }}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 0.5 }}>
+        {selectedTags.map(tag => (
+          <Chip key={tag} label={tag} size="small" onDelete={() => onTagsChange(selectedTags.filter(t => t !== tag))}
+            sx={{ fontSize: '0.7rem', fontWeight: 600, bgcolor: withAlpha(dt.gain, 0.15), color: dt.gain, '& .MuiChip-deleteIcon': { color: withAlpha(dt.gain, 0.5), '&:hover': { color: dt.gain } } }}
+          />
+        ))}
+      </Box>
+      <Box sx={{ display: 'flex', gap: 1 }}>
+        <TextField label="Add tag" size="small" value={newTag} onChange={e => setNewTag(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && newTag.trim()) { onTagsChange([...selectedTags, newTag.trim()]); setNewTag(''); } }}
+          placeholder="e.g. Science, AI" sx={{ flex: 1 }}
+        />
+        <Button size="small" variant="outlined" disabled={!newTag.trim()}
+          onClick={() => { if (newTag.trim()) { onTagsChange([...selectedTags, newTag.trim()]); setNewTag(''); } }}
+          sx={{ textTransform: 'none', borderColor: dt.border.strong, color: dt.text.secondary, minWidth: 60 }}
+        >Add</Button>
+      </Box>
+
+      <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
         <TextField label="Min Volume 24h ($)" size="small" type="number" value={minVolume} onChange={e => onMinVolumeChange(e.target.value)} sx={{ flex: 1 }} />
         <TextField label="Max Days Ahead" size="small" type="number" value={maxDays} onChange={e => onMaxDaysChange(e.target.value)} sx={{ flex: 1 }} />
       </Box>
@@ -259,6 +236,9 @@ function EditDialog({ cat, open, onClose, onSave }: {
   const [configSportQuery, setConfigSportQuery] = useState('');
   const [configLeagueFilter, setConfigLeagueFilter] = useState('');
   const [configLeagueId, setConfigLeagueId] = useState('');
+  const [configSubcategories, setConfigSubcategories] = useState<string[]>([]);
+  const [availableSubcats, setAvailableSubcats] = useState<Array<{ label: string; count: number }>>([]);
+  const [subcatFilter, setSubcatFilter] = useState('');
 
   const handleOpen = () => {
     if (!cat) return;
@@ -270,6 +250,16 @@ function EditDialog({ cat, open, onClose, onSave }: {
     setConfigSportQuery(typeof cfg?.sportQuery === 'string' ? cfg.sportQuery : '');
     setConfigLeagueFilter(typeof cfg?.leagueFilter === 'string' ? cfg.leagueFilter : '');
     setConfigLeagueId(typeof cfg?.theSportsDbLeagueId === 'string' ? cfg.theSportsDbLeagueId : '');
+    setConfigSubcategories(Array.isArray(cfg?.subcategories) ? cfg.subcategories as string[] : []);
+    setSubcatFilter('');
+
+    // Fetch available subcategory tags for PM categories
+    if (cat.type === 'POLYMARKET') {
+      fetch(`${API}/api/config/pool-subcategories?league=${cat.code}`)
+        .then(r => r.json())
+        .then(d => { if (d.success) setAvailableSubcats(d.data); })
+        .catch(() => setAvailableSubcats([]));
+    }
   };
 
   const handleSave = () => {
@@ -278,6 +268,7 @@ function EditDialog({ cat, open, onClose, onSave }: {
       if (configTags) config.tags = configTags.split(',').map(t => t.trim()).filter(Boolean);
       if (configMinVolume) config.minVolume24h = Number(configMinVolume);
       if (configMaxDays) config.maxDaysAhead = Number(configMaxDays);
+      if (configSubcategories.length > 0) config.subcategories = configSubcategories;
     } else if (cat?.type === 'SPORTSDB_SPORT') {
       if (configSportQuery) config.sportQuery = configSportQuery;
       if (configLeagueFilter) config.leagueFilter = configLeagueFilter;
@@ -317,6 +308,55 @@ function EditDialog({ cat, open, onClose, onSave }: {
             maxDays={configMaxDays}
             onMaxDaysChange={setConfigMaxDays}
           />
+        )}
+
+        {/* Sidebar Filters — PM only */}
+        {cat?.type === 'POLYMARKET' && (
+          <>
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', mt: 2 }}>
+              Sidebar Filters
+            </Typography>
+            <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', mb: 0.5 }}>
+              These appear as filter options in the user sidebar. Click to remove.
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 0.5 }}>
+              {configSubcategories.map(sub => (
+                <Chip key={sub} label={sub} size="small"
+                  onDelete={() => setConfigSubcategories(prev => prev.filter(s => s !== sub))}
+                  sx={{ fontSize: '0.7rem', fontWeight: 600, bgcolor: withAlpha(dt.accent, 0.15), color: dt.accent, '& .MuiChip-deleteIcon': { color: withAlpha(dt.accent, 0.5), '&:hover': { color: dt.accent } } }}
+                />
+              ))}
+              {configSubcategories.length === 0 && (
+                <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>No filters set — add below or pick from suggestions</Typography>
+              )}
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <TextField label="Add filter" size="small" value={subcatFilter} onChange={e => setSubcatFilter(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && subcatFilter.trim() && !configSubcategories.includes(subcatFilter.trim())) { setConfigSubcategories(prev => [...prev, subcatFilter.trim()]); setSubcatFilter(''); } }}
+                placeholder="e.g. Trump, Iran" sx={{ flex: 1 }}
+              />
+              <Button size="small" variant="outlined" disabled={!subcatFilter.trim() || configSubcategories.includes(subcatFilter.trim())}
+                onClick={() => { if (subcatFilter.trim()) { setConfigSubcategories(prev => [...prev, subcatFilter.trim()]); setSubcatFilter(''); } }}
+                sx={{ textTransform: 'none', borderColor: dt.border.strong, color: dt.text.secondary, minWidth: 60 }}
+              >Add</Button>
+            </Box>
+            {/* Suggestions from actual pool tags */}
+            {availableSubcats.length > 0 && (
+              <>
+                <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', mt: 1 }}>
+                  Suggestions (from pool tags — click to add):
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                  {availableSubcats.filter(t => !configSubcategories.includes(t.label)).slice(0, 30).map(t => (
+                    <Chip key={t.label} label={`${t.label} (${t.count})`} size="small"
+                      onClick={() => setConfigSubcategories(prev => [...prev, t.label])}
+                      sx={{ fontSize: '0.6rem', cursor: 'pointer', bgcolor: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.5)', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' } }}
+                    />
+                  ))}
+                </Box>
+              </>
+            )}
+          </>
         )}
 
         {/* API Config — TheSportsDB */}
