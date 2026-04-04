@@ -25,7 +25,7 @@ function formatKickoff(dateStr: string, isResolved: boolean): string {
   return d.toLocaleDateString('en-US', opts);
 }
 
-export function MatchCard({ pool, onClick, isPopular, liveScore, category, userBet, onClaim }: { pool: Pool; onClick?: () => void; isPopular?: boolean; liveScore?: LiveScore | null; category?: CategoryConfig | null; userBet?: { side: string; isWinner: boolean | null; betId?: string } | null; onClaim?: (poolId: string, betId: string) => void }) {
+export function MatchCard({ pool, onClick, isPopular, liveScore, category, userBet, onClaim }: { pool: Pool; onClick?: () => void; isPopular?: boolean; liveScore?: LiveScore | null; category?: CategoryConfig | null; userBet?: { side: string; isWinner: boolean | null; betId?: string; claimed?: boolean; refunded?: boolean } | null; onClaim?: (poolId: string, betId: string) => void }) {
   const t = useThemeTokens();
   const isPrediction = pool.league?.startsWith('PM_');
   const catColor = category?.color || (isPrediction ? t.prediction : t.text.quaternary);
@@ -257,14 +257,18 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
                 size="small"
                 sx={{ height: 24, fontSize: '0.7rem', fontWeight: 700, bgcolor: withAlpha(pool.winner === 'UP' ? t.up : t.down, 0.1), color: pool.winner === 'UP' ? t.up : t.down }}
               />
-              {userBet?.isWinner && userBet.betId && onClaim && (
+              {userBet?.refunded ? (
+                <Chip label="Refunded" size="small" sx={{ height: 24, fontSize: '0.7rem', fontWeight: 700, bgcolor: withAlpha(t.accent, 0.1), color: t.accent }} />
+              ) : userBet?.isWinner && !userBet.claimed && userBet.betId && onClaim ? (
                 <Chip
                   label="Claim"
                   size="small"
                   onClick={(e) => { e.stopPropagation(); onClaim(pool.id, userBet.betId!); }}
                   sx={{ height: 24, fontSize: '0.7rem', fontWeight: 700, bgcolor: withAlpha(t.gain, 0.1), color: t.gain, cursor: 'pointer', '&:hover': { bgcolor: withAlpha(t.gain, 0.2) } }}
                 />
-              )}
+              ) : userBet?.isWinner && userBet.claimed ? (
+                <Chip label="Claimed" size="small" sx={{ height: 24, fontSize: '0.7rem', fontWeight: 700, bgcolor: withAlpha(t.gain, 0.1), color: t.gain }} />
+              ) : null}
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: t.text.secondary }}>{pool.betCount} predictions</Typography>
@@ -333,7 +337,11 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
             </Box>
 
             {/* Sports CTA */}
-            {isResolved && userBet?.isWinner && userBet.betId && onClaim ? (
+            {isResolved && userBet?.refunded ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 0.75 }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: t.accent }}>Refunded</Typography>
+              </Box>
+            ) : isResolved && userBet?.isWinner && !userBet.claimed && userBet.betId && onClaim ? (
               <Box
                 onClick={(e) => { e.stopPropagation(); onClaim(pool.id, userBet.betId!); }}
                 sx={{

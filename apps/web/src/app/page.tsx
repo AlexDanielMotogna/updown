@@ -192,9 +192,10 @@ export default function MarketsPage() {
   }, [allPools, getPoolLiveScore]);
 
   const userBetByPoolId = useMemo(() => {
-    const map = new Map<string, { side: 'UP' | 'DOWN' | 'DRAW'; isWinner: boolean | null; betId?: string }>();
+    const map = new Map<string, { side: 'UP' | 'DOWN' | 'DRAW'; isWinner: boolean | null; betId?: string; claimed?: boolean; refunded?: boolean }>();
     for (const bet of betsData?.data || []) {
-      map.set(bet.pool.id, { side: bet.side, isWinner: bet.isWinner, betId: bet.id });
+      const isRefund = bet.claimed && bet.payoutAmount != null && bet.payoutAmount === bet.amount;
+      map.set(bet.pool.id, { side: bet.side, isWinner: bet.isWinner, betId: bet.id, claimed: bet.claimed, refunded: isRefund });
     }
     // Merge claimable info (betId needed for claim action)
     for (const bet of claimableData?.data?.bets || []) {

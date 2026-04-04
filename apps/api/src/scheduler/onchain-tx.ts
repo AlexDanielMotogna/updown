@@ -168,12 +168,12 @@ export async function autoRefundBets(
 
     for (let attempt = 1; attempt <= REFUND_MAX_RETRIES; attempt++) {
       try {
-        await refundBetOnChain(deps, poolId, bet.walletAddress);
+        const txSig = await refundBetOnChain(deps, poolId, bet.walletAddress);
 
-        // Mark as claimed in DB
+        // Mark as claimed in DB with tx signature
         await deps.prisma.bet.update({
           where: { id: bet.id },
-          data: { claimed: true, payoutAmount: bet.amount },
+          data: { claimed: true, payoutAmount: bet.amount, claimTx: txSig },
         });
 
         await logEvent(deps.prisma, 'BET_AUTO_REFUNDED', 'bet', bet.id, {
@@ -181,12 +181,13 @@ export async function autoRefundBets(
           walletAddress: bet.walletAddress,
           amount: bet.amount.toString(),
           attempt: attempt.toString(),
+          txSignature: txSig,
         });
 
         emitRefund(bet.walletAddress, {
           poolId,
           amount: bet.amount.toString(),
-          txSignature: 'auto-refund',
+          txSignature: txSig,
         });
 
         console.log(`[Scheduler] Auto-refunded bet ${bet.id} (attempt ${attempt})`);
