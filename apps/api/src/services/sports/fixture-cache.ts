@@ -1,7 +1,7 @@
 import { prisma } from '../../db';
 import type { Match, MatchResult, MatchStatus } from './types';
 import { sportsDbFetchV2 } from './api-sports-fetch';
-import { FINISHED_STATUSES, API_LOOKUP_LIMIT } from './livescore';
+import { FINISHED_STATUSES, API_LOOKUP_LIMIT, isFinishedStatus, normalizeStatus } from './livescore';
 
 /**
  * Fixture cache read service.
@@ -163,11 +163,12 @@ export async function getCachedFixtureResults(
       const data = await sportsDbFetchV2(`lookup/event/${eventId}`);
       const evt = data?.lookup?.[0];
       if (!evt) continue;
-      const status = (evt.strStatus || '').trim();
+      const rawStatus = (evt.strStatus || '').trim();
+      const status = normalizeStatus(rawStatus);
       const homeScore = Number(evt.intHomeScore);
       const awayScore = Number(evt.intAwayScore);
       // Only use if the API confirms the match is finished with valid scores
-      if (!FINISHED_STATUSES.has(status) || isNaN(homeScore) || isNaN(awayScore)) continue;
+      if (!isFinishedStatus(rawStatus) || isNaN(homeScore) || isNaN(awayScore)) continue;
       const winner = homeScore > awayScore ? 'HOME' as const
         : awayScore > homeScore ? 'AWAY' as const
         : 'DRAW' as const;
@@ -227,12 +228,12 @@ export async function getFixturesNeedingPoll(): Promise<Array<{
   lastSyncedAt: Date;
 }>> {
   const now = new Date();
-  const threeHoursAgo = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+  const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
 
   return prisma.sportsFixtureCache.findMany({
     where: {
       status: { notIn: ['FINISHED', 'CANCELLED', 'POSTPONED'] },
-      kickoff: { lte: now, gte: threeHoursAgo },
+      kickoff: { lte: now, gte: sixHoursAgo },
     },
     select: { externalId: true, sport: true, league: true, apiSource: true, kickoff: true, lastSyncedAt: true },
   });

@@ -165,8 +165,8 @@ async function pollOddsApiParallel(
     if (sportKeys.length === 0) return;
 
     // daysFrom=1 costs 2 credits instead of 1 — only use every 5 min for old pools
-    const fourHoursAgo = Date.now() - 4 * 3600_000;
-    const hasOldPools = activePools.some(p => p.startTime.getTime() < fourHoursAgo);
+    const twoHoursAgo = Date.now() - 2 * 3600_000;
+    const hasOldPools = activePools.some(p => p.startTime.getTime() < twoHoursAgo);
     const useDaysFrom = hasOldPools && Date.now() - lastDaysFromCall > DAYS_FROM_INTERVAL_MS;
     if (useDaysFrom) lastDaysFromCall = Date.now();
 
@@ -195,19 +195,23 @@ async function pollOddsApiParallel(
       for (const entry of results) {
         const existing = toPersist.find(e => e.eventId === entry.eventId);
 
-        // If TheSportsDB already has this event with a more specific status, skip
-        // But if TheSportsDB has NS/stale and Odds API has LIVE/FT, Odds API wins
         if (existing) {
           const sdbIsStale = existing.status === 'NS' || existing.status === 'TBD' || existing.status === '';
-          if (!sdbIsStale && existing.updatedAt >= entry.updatedAt) continue;
-          // Replace stale TheSportsDB entry
+          // Odds API "LIVE" is less detailed than TheSportsDB (2H, P1, Q3, etc.)
+          // Only overwrite if: TheSportsDB is stale (NS/TBD) OR Odds API says FT (completed)
+          if (entry.status === 'LIVE' && !sdbIsStale) continue; // Keep TheSportsDB's detailed status
           const idx = toPersist.indexOf(existing);
           toPersist[idx] = entry;
         } else {
           toPersist.push(entry);
         }
 
-        cacheSet(entry);
+        // Only cache if Odds API has more info (FT) or cache has nothing/stale
+        const cached = cacheGet(entry.eventId);
+        const cacheIsStale = !cached || cached.status === 'NS' || cached.status === 'TBD' || cached.status === '';
+        if (entry.status !== 'LIVE' || cacheIsStale) {
+          cacheSet(entry);
+        }
         clearMissingEvent(entry.eventId);
         matched++;
 

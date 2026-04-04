@@ -1,5 +1,5 @@
 import type { LiveScore } from './types';
-import { FINISHED_STATUSES, SKIP_STATUSES, SCORE_FREEZE_THRESHOLD_MS, NS_STUCK_THRESHOLD_MS, MIDNIGHT_BUFFER_HOURS } from './types';
+import { SKIP_STATUSES, SCORE_FREEZE_THRESHOLD_MS, NS_STUCK_THRESHOLD_MS, MIDNIGHT_BUFFER_HOURS, isFinishedStatus } from './types';
 import { cacheGet, getLastScoreChangeAt } from './cache';
 
 /**
@@ -15,7 +15,7 @@ export function isScoreFrozen(eventId: string): boolean {
   if (!entry) return false;
 
   // Only check active (non-finished, non-skip) events
-  if (FINISHED_STATUSES.has(entry.status)) return false;
+  if (isFinishedStatus(entry.status)) return false;
   if (SKIP_STATUSES.has(entry.status)) return false;
 
   const lastChange = getLastScoreChangeAt(eventId);

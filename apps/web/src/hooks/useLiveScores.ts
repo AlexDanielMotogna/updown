@@ -56,7 +56,7 @@ export function isMatchFinished(status: string): boolean {
 const STATUS_LABELS: Record<string, string> = {
   // Soccer
   'TBD': 'TBD', 'NS': 'Not Started',
-  '1H': '1st Half', 'HT': 'Half Time', '2H': '2nd Half',
+  '1H': '1st Half', 'HT': 'HT Break', '2H': '2nd Half',
   'ET': 'Extra Time', 'P': 'Penalties', 'BT': 'Break',
   'FT': 'Full Time', 'AET': 'After Extra Time', 'PEN': 'After Penalties',
   'SUSP': 'Suspended', 'INT': 'Interrupted',

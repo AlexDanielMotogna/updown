@@ -38,6 +38,25 @@ export const FINISHED_STATUSES = new Set([
   'AP',                                  // After Penalties (hockey/handball)
 ]);
 
+/** Map variant status strings from TheSportsDB to canonical codes */
+const FINISHED_STATUS_MAP: Record<string, string> = {
+  'ft': 'FT', 'full time': 'FT', 'match finished': 'FT', 'finished': 'FT', 'final': 'FT',
+  'aet': 'AET', 'after extra time': 'AET',
+  'pen': 'PEN', 'after penalties': 'PEN', 'penalties': 'PEN',
+  'aot': 'AOT', 'after overtime': 'AOT', 'overtime': 'AOT', 'final/ot': 'AOT',
+  'ap': 'AP', 'final/so': 'AP',
+};
+
+/** Normalize any status string to its canonical form (e.g. "Match Finished" → "FT") */
+export function normalizeStatus(raw: string): string {
+  return FINISHED_STATUS_MAP[raw.trim().toLowerCase()] || raw.trim();
+}
+
+/** Check if a raw status string means the match is finished */
+export function isFinishedStatus(raw: string): boolean {
+  return FINISHED_STATUSES.has(normalizeStatus(raw));
+}
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 export const CACHE_TTL_MS = 1_200_000;          // 20 min — survives NHL/NBA intermissions
@@ -45,7 +64,7 @@ export const DB_FALLBACK_TTL_MS = 4 * 3_600_000; // 4h — max age for DB fallba
 export const DB_CLEANUP_AGE_MS = 24 * 3_600_000; // 24h — delete old DB entries
 export const CACHE_CLEANUP_MS = 1_500_000;        // 25 min — stale cache eviction
 export const POLL_INTERVAL_MS = 30_000;           // 30s — livescore polling interval
-export const API_LOOKUP_LIMIT = 5;                // Max API lookups per resolver cycle
+export const API_LOOKUP_LIMIT = 15;               // Max API lookups per resolver cycle
 
 // Staleness & fallback
 export const STALE_THRESHOLD_MS = 120_000;        // 2 min — re-fetch if data older than this

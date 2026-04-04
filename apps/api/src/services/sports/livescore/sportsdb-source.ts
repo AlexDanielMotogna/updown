@@ -1,14 +1,15 @@
 import { sportsDbFetchV2 } from '../api-sports-fetch';
 import type { LiveScore } from './types';
-import { SKIP_STATUSES } from './types';
+import { SKIP_STATUSES, normalizeStatus } from './types';
 
 // ─── Raw event parser ────────────────────────────────────────────────────────
 
 function parseEvent(e: any): LiveScore | null {
   if (!e.idEvent) return null;
-  const status = (e.strStatus || '').trim();
-  if (!status) return null;
-  if (SKIP_STATUSES.has(status)) return null;
+  const rawStatus = (e.strStatus || '').trim();
+  if (!rawStatus) return null;
+  if (SKIP_STATUSES.has(rawStatus)) return null;
+  const status = normalizeStatus(rawStatus);
 
   return {
     eventId: String(e.idEvent),
@@ -71,8 +72,9 @@ export async function fetchEventLookup(eventId: string): Promise<LiveScore | nul
   const evt = data?.lookup?.[0];
   if (!evt) return null;
 
-  const status = (evt.strStatus || '').trim();
-  if (!status) return null;
+  const rawStatus = (evt.strStatus || '').trim();
+  if (!rawStatus) return null;
+  const status = normalizeStatus(rawStatus);
 
   return {
     eventId: String(evt.idEvent),

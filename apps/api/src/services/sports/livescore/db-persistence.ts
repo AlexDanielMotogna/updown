@@ -1,6 +1,6 @@
 import { prisma } from '../../../db';
 import type { LiveScore } from './types';
-import { DB_FALLBACK_TTL_MS, DB_CLEANUP_AGE_MS, FINISHED_STATUSES, normalizeTeam } from './types';
+import { DB_FALLBACK_TTL_MS, DB_CLEANUP_AGE_MS, isFinishedStatus, normalizeTeam } from './types';
 
 // ─── DB → LiveScore conversion ───────────────────────────────────────────────
 
@@ -73,7 +73,7 @@ export async function persistToDb(entries: LiveScore[]): Promise<void> {
  * the 5-minute resolver cycle.
  */
 export async function syncFinishedToUi(entries: LiveScore[]): Promise<void> {
-  const finished = entries.filter(e => FINISHED_STATUSES.has(e.status));
+  const finished = entries.filter(e => isFinishedStatus(e.status));
   if (finished.length === 0) return;
 
   for (const e of finished) {

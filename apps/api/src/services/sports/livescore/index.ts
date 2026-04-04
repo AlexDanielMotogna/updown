@@ -6,7 +6,7 @@
  */
 
 // Re-export constants used by fixture-cache.ts
-export { FINISHED_STATUSES, API_LOOKUP_LIMIT } from './types';
+export { FINISHED_STATUSES, API_LOOKUP_LIMIT, isFinishedStatus, normalizeStatus } from './types';
 export type { LiveScore } from './types';
 
 // Re-export lifecycle

@@ -125,8 +125,59 @@ async function _createMatchPoolsInner(): Promise<void> {
 }
 
 /**
+ * Safety net: force-check all overdue pools (kickoff >3h ago, still unresolved).
+ * Bypasses the normal API_LOOKUP_LIMIT since these are clearly stuck.
+ * Runs every 15 minutes.
+ */
+async function sweepUnresolvedPools(): Promise<void> {
+  const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const overdue = await prisma.pool.findMany({
+    where: {
+      poolType: 'SPORTS',
+      status: { in: ['ACTIVE', 'JOINING'] },
+      matchId: { not: null },
+      startTime: { lte: threeHoursAgo },
+    },
+  });
+
+  if (overdue.length === 0) return;
+
+  console.warn(`[Sports] SWEEP: ${overdue.length} overdue pool(s) — force-checking all APIs`);
+  const matchIds = [...new Set(overdue.map(p => p.matchId!).filter(Boolean))];
+  const resultMap = await getCachedFixtureResults(matchIds);
+
+  for (const pool of overdue) {
+    if (!pool.matchId) continue;
+    const result = resultMap.get(pool.matchId);
+    if (!result) {
+      console.warn(`[Sports] SWEEP: ${pool.matchId} (${pool.homeTeam} vs ${pool.awayTeam}) — still no result after 3h+`);
+      continue;
+    }
+
+    try {
+      const adapter = getAdapterForLeague(pool.league);
+      const winnerSide = adapter.resolveWinner(result);
+
+      await prisma.pool.update({
+        where: { id: pool.id },
+        data: { homeScore: result.homeScore, awayScore: result.awayScore },
+      });
+
+      const betCount = await prisma.bet.count({ where: { poolId: pool.id } });
+      console.log(`[Sports] SWEEP: Resolving ${pool.homeTeam} vs ${pool.awayTeam} (${result.homeScore}-${result.awayScore}, ${betCount} bets)`);
+
+      // Delegate to the normal resolver (same logic)
+      await resolveMatchPools();
+      return; // Let the normal resolver handle all remaining
+    } catch (error) {
+      console.error(`[Sports] SWEEP: Failed to resolve ${pool.id}:`, error);
+    }
+  }
+}
+
+/**
  * Check finished matches and resolve their pools.
- * Runs every 5 minutes. Does NOT rely on endTime — only checks the real match result from API.
+ * Runs every 2 minutes. Does NOT rely on endTime — only checks the real match result from API.
  */
 export async function resolveMatchPools(): Promise<void> {
   const unresolved = await prisma.pool.findMany({
@@ -363,14 +414,23 @@ export function startSportsScheduler(): void {
     }
   }, 2 * 60 * 60 * 1000);
 
-  // Resolve finished matches every 5 minutes
+  // Resolve finished matches every 2 minutes
   const resolveInterval = setInterval(async () => {
     try {
       await resolveMatchPools();
     } catch (error) {
       console.error('[Sports] Scheduler resolve error:', error);
     }
-  }, 5 * 60 * 1000);
+  }, 2 * 60 * 1000);
+
+  // Safety net: sweep overdue pools every 15 minutes (kickoff >3h ago, still unresolved)
+  setInterval(async () => {
+    try {
+      await sweepUnresolvedPools();
+    } catch (error) {
+      console.error('[Sports] Sweep error:', error);
+    }
+  }, 15 * 60 * 1000);
 
   // Initial pool creation is handled by fixture-sync.ts after dailySync completes.
   // Do NOT call createMatchPools() here to avoid duplicate pool creation.
@@ -380,5 +440,5 @@ export function startSportsScheduler(): void {
     resolveMatchPools().catch(e => console.error('[Sports] Initial resolve error:', e));
   }, 15_000);
 
-  console.log('[Sports] Scheduler started (create: 2h, resolve: 5m, initial resolve: 15s)');
+  console.log('[Sports] Scheduler started (create: 2h, resolve: 2m, sweep: 15m, initial resolve: 15s)');
 }

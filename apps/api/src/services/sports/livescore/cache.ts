@@ -1,5 +1,5 @@
 import type { LiveScore } from './types';
-import { CACHE_TTL_MS, CACHE_CLEANUP_MS, FINISHED_STATUSES, normalizeTeam } from './types';
+import { CACHE_TTL_MS, CACHE_CLEANUP_MS, isFinishedStatus, normalizeTeam } from './types';
 
 // ─── In-memory stores ────────────────────────────────────────────────────────
 
@@ -79,7 +79,7 @@ export function getLastScoreChangeAt(eventId: string): number | undefined {
  */
 export function updatePreviousPollIds(currentIds: Set<string>): string[] {
   const disappeared = [...previousPollIds].filter(
-    id => !currentIds.has(id) && cache.has(id) && !FINISHED_STATUSES.has(cache.get(id)!.status),
+    id => !currentIds.has(id) && cache.has(id) && !isFinishedStatus(cache.get(id)!.status),
   );
   previousPollIds = currentIds;
   return disappeared;
