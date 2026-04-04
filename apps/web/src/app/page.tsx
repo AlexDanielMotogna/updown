@@ -142,18 +142,11 @@ export default function MarketsPage() {
     });
   }, [data]);
 
-  // Resolve livescore for a pool: by matchId first, team name fallback only for football
+  // Resolve livescore for a pool by matchId only (team name fallback caused cross-match contamination)
   const getPoolLiveScore = useCallback((p: typeof allPools[0]) => {
     if (!p.matchId) return undefined;
-    const byId = liveScores.get(p.matchId);
-    if (byId) return byId;
-    // Team name fallback for football pools
-    const cat = p.league ? categoryMap.get(p.league) : undefined;
-    if (cat?.type === 'FOOTBALL_LEAGUE' && p.homeTeam) {
-      return liveScores.get(p.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, ''));
-    }
-    return undefined;
-  }, [liveScores, categoryMap]);
+    return liveScores.get(p.matchId) ?? undefined;
+  }, [liveScores]);
 
   // Sort pools: live first, then popular+upcoming, then upcoming, then ended
   const { sortedPools, popularPoolIds } = useMemo(() => {
