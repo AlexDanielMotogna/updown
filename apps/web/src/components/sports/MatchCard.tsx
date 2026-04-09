@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Box, Typography, Chip, Tooltip } from '@mui/material';
 import { TrendingUp, Star, IosShare } from '@mui/icons-material';
 import { AnimatedValue } from '@/components/AnimatedValue';
@@ -27,6 +28,7 @@ function formatKickoff(dateStr: string, isResolved: boolean): string {
 
 export function MatchCard({ pool, onClick, isPopular, liveScore, category, userBet, onClaim }: { pool: Pool; onClick?: () => void; isPopular?: boolean; liveScore?: LiveScore | null; category?: CategoryConfig | null; userBet?: { side: string; isWinner: boolean | null; betId?: string; claimed?: boolean; refunded?: boolean } | null; onClaim?: (poolId: string, betId: string) => void }) {
   const t = useThemeTokens();
+  const router = useRouter();
   const isPrediction = pool.league?.startsWith('PM_');
   const catColor = category?.color || (isPrediction ? t.prediction : t.text.quaternary);
   const catLabel = category?.label || pool.league || '';
@@ -357,17 +359,24 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
               </Box>
             ) : !isResolved && (
               <Box
-                onClick={!isLocked && !matchLive && !matchFinished ? onClick : undefined}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!isLocked && !matchLive && !matchFinished) {
+                    onClick?.();
+                  } else {
+                    router.push(`/match/${pool.id}`);
+                  }
+                }}
                 sx={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   py: 0.75, borderRadius: '4px',
                   bgcolor: isLocked || matchLive || matchFinished ? t.hover.subtle : t.up,
-                  cursor: !isLocked && !matchLive && !matchFinished ? 'pointer' : undefined,
+                  cursor: 'pointer',
                   transition: 'background 0.15s',
-                  ...(!isLocked && !matchLive && !matchFinished && { '&:hover': { filter: 'brightness(1.1)' } }),
+                  '&:hover': { filter: 'brightness(1.1)' },
                 }}>
                 <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.04em', color: isLocked || matchLive || matchFinished ? t.text.muted : t.text.contrast }}>
-                  {matchLive || matchFinished ? 'Predictions Closed' : isLocked ? 'Predictions Closed' : 'Predict Now'}
+                  {matchLive || matchFinished ? 'View Match' : isLocked ? 'View Match' : 'Predict Now'}
                 </Typography>
               </Box>
             )}

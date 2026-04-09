@@ -160,10 +160,8 @@ export function MarketSidebar() {
   return (
     <Box sx={{
       display: 'flex', flexDirection: 'column', height: '100%', py: 2, px: 0.5, overflow: 'auto',
-      scrollbarWidth: 'thin', scrollbarColor: `${t.hover.default} transparent`,
-      '&::-webkit-scrollbar': { width: '3px' },
-      '&::-webkit-scrollbar-track': { background: 'transparent' },
-      '&::-webkit-scrollbar-thumb': { background: t.hover.default, borderRadius: '3px', '&:hover': { background: t.hover.medium } },
+      scrollbarWidth: 'none',
+      '&::-webkit-scrollbar': { display: 'none' },
     }}>
       {/* Crypto filters */}
       {isCrypto && (

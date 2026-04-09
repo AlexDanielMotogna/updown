@@ -365,26 +365,6 @@ export default function MatchDetailPage() {
         </Box>
       </Box>
 
-      {/* ── Live / Full Time score banner ── */}
-      {(matchLive || matchFinished || awaitingResolution) && !isResolved && (
-        <Box sx={{ px: { xs: 2, md: 3 }, py: 2, textAlign: 'center', bgcolor: matchLive ? `${t.gain}0A` : t.hover.subtle }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 0.5 }}>
-            {matchLive && <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: t.gain, animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1, transform: 'scale(1)' }, '50%': { opacity: 0.4, transform: 'scale(0.8)' } } }} />}
-            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: matchLive ? t.gain : t.text.secondary, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              {matchLive && liveScore ? `Live - ${formatLiveStatus(liveScore.status, liveScore.progress)}` : 'Full Time — Resolving'}
-            </Typography>
-          </Box>
-          <Typography sx={{ fontSize: '1.6rem', fontWeight: 700, color: t.text.primary }}>
-            {pool.homeTeam} {liveScore ? liveScore.homeScore : pool.homeScore} - {liveScore ? liveScore.awayScore : pool.awayScore} {pool.awayTeam}
-          </Typography>
-          {isLocked && matchLive && (
-            <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: t.accent, mt: 0.5 }}>
-              Predictions locked
-            </Typography>
-          )}
-        </Box>
-      )}
-
       {/* ── Winner banner ── */}
       {isResolved && winnerLabel && (
         <Box sx={{ px: { xs: 2, md: 3 }, py: 2, textAlign: 'center' }}>
@@ -431,6 +411,7 @@ export default function MatchDetailPage() {
               matchAnalysis={pool.matchAnalysis}
               homeTeam={pool.homeTeam || 'Home'}
               awayTeam={pool.awayTeam || 'Away'}
+              numSides={pool.numSides}
             />
           )}
 
@@ -609,8 +590,8 @@ export default function MatchDetailPage() {
             );
           })()}
 
-          {/* Bet form - only when pool is open */}
-          {!isResolved && (
+          {/* Bet form - only when pool is open and accepting bets */}
+          {!isResolved && !isLocked && !matchLive && !matchFinished && !awaitingResolution && (
             <>
               {/* Presets */}
               <Box sx={{ display: 'flex', gap: 0.5 }}>
@@ -701,6 +682,15 @@ export default function MatchDetailPage() {
                 {!connected ? 'Connect Wallet' : !side ? 'Select Side' : amountNum <= 0 ? 'Enter Amount' : 'Place Prediction'}
               </Button>
             </>
+          )}
+
+          {/* Predictions closed message */}
+          {!isResolved && (isLocked || matchLive || matchFinished || awaitingResolution) && (
+            <Box sx={{ textAlign: 'center', py: 2, bgcolor: t.hover.subtle, borderRadius: '5px' }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: t.text.muted }}>
+                {matchFinished || awaitingResolution ? 'Match Ended — Resolving' : matchLive ? 'Match In Progress — Predictions Closed' : 'Predictions Closed'}
+              </Typography>
+            </Box>
           )}
         </Box>
       </Box>

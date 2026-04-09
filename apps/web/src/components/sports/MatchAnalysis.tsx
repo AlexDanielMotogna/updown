@@ -15,9 +15,10 @@ interface Props {
   matchAnalysis: string | null | undefined;
   homeTeam: string;
   awayTeam: string;
+  numSides?: number;
 }
 
-export function MatchAnalysis({ matchAnalysis, homeTeam, awayTeam }: Props) {
+export function MatchAnalysis({ matchAnalysis, homeTeam, awayTeam, numSides = 3 }: Props) {
   const t = useThemeTokens();
 
   const data = useMemo<H2HData | null>(() => {
@@ -29,8 +30,9 @@ export function MatchAnalysis({ matchAnalysis, homeTeam, awayTeam }: Props) {
 
   const { h2h, matches, analysis } = data;
   const total = h2h.total || 1;
+  const showDraw = numSides >= 3 && h2h.draws > 0;
   const homePct = Math.round((h2h.homeWins / total) * 100);
-  const drawPct = Math.round((h2h.draws / total) * 100);
+  const drawPct = showDraw ? Math.round((h2h.draws / total) * 100) : 0;
   const awayPct = 100 - homePct - drawPct;
 
   return (
@@ -44,9 +46,11 @@ export function MatchAnalysis({ matchAnalysis, homeTeam, awayTeam }: Props) {
         <Box sx={{ flex: homePct || 1, bgcolor: withAlpha(t.up, 0.15), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: t.up }}>{h2h.homeWins}W</Typography>
         </Box>
-        <Box sx={{ flex: drawPct || 1, bgcolor: withAlpha(t.draw, 0.13), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: t.draw }}>{h2h.draws}D</Typography>
-        </Box>
+        {showDraw && (
+          <Box sx={{ flex: drawPct || 1, bgcolor: withAlpha(t.draw, 0.13), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: t.draw }}>{h2h.draws}D</Typography>
+          </Box>
+        )}
         <Box sx={{ flex: awayPct || 1, bgcolor: withAlpha(t.down, 0.13), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: t.down }}>{h2h.awayWins}W</Typography>
         </Box>
