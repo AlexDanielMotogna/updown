@@ -9,7 +9,7 @@ export function useBets(params?: { page?: number; limit?: number }) {
     queryKey: ['bets', wallet, params],
     queryFn: () => fetchBets(wallet!, params),
     enabled: !!wallet,
-    refetchInterval: 10000,
+    refetchInterval: 60_000,
   });
 }
 
@@ -30,7 +30,7 @@ export function useInfiniteBets() {
         : undefined;
     },
     enabled: !!wallet,
-    refetchInterval: 10000,
+    refetchInterval: 60_000,
     placeholderData: keepPreviousData,
   });
 }
@@ -42,6 +42,6 @@ export function useClaimableBets() {
     queryKey: ['claimableBets', wallet],
     queryFn: () => fetchClaimableBets(wallet!),
     enabled: !!wallet,
-    refetchInterval: 10000,
+    refetchInterval: 60_000,
   });
 }

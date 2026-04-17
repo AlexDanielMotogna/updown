@@ -124,7 +124,7 @@ export function useLiveScores() {
     };
 
     fetchScores();
-    const iv = setInterval(fetchScores, 30_000);
+    const iv = setInterval(fetchScores, 60_000);
     return () => clearInterval(iv);
   }, []);
 
@@ -149,7 +149,7 @@ export function useLiveScore(poolId: string | null) {
     };
 
     fetchScore();
-    const iv = setInterval(fetchScore, 30_000);
+    const iv = setInterval(fetchScore, 60_000);
     return () => clearInterval(iv);
   }, [poolId]);
 

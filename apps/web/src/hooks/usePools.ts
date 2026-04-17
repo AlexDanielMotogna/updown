@@ -8,6 +8,8 @@ export interface PoolFilters {
   interval?: string;
   status?: string;
   type?: string;
+  league?: string;
+  tag?: string;
   page?: number;
   limit?: number;
 }
@@ -42,7 +44,9 @@ export function usePools(filters?: PoolFilters) {
   return useQuery({
     queryKey: ['pools', filters],
     queryFn: () => fetchPools(filters),
-    refetchInterval: 10_000,
+    // No polling — WebSocket listeners above invalidate on pools:new / pool:status.
+    refetchInterval: false,
+    staleTime: 30_000,
   });
 }
 
@@ -192,6 +196,7 @@ export function usePool(id: string | null) {
     queryKey: ['pool', id],
     queryFn: () => fetchPool(id!),
     enabled: !!id,
-    refetchInterval: 5_000,
+    // WebSocket invalidates on pool:updated / pool:status above; poll is just a fallback.
+    refetchInterval: 30_000,
   });
 }
