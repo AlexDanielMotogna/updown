@@ -64,6 +64,12 @@ async function bulkSync(): Promise<void> {
     for (const market of marketsToSync) {
       if (!market?.id || !market.outcomes || !market.endDate) continue;
 
+      // Skip inactive placeholder markets (e.g. "Player I", "Person P")
+      if (market.active === false) continue;
+
+      // Skip markets with no odds (placeholder slots)
+      if (!market.outcomePrices) continue;
+
       // Check per-category cap
       counts[cat.code] = (counts[cat.code] ?? 0);
       if (counts[cat.code] >= maxPerCat) break;

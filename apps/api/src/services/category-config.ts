@@ -146,6 +146,17 @@ export async function getPolymarketCategories(): Promise<PolymarketCategoryConfi
   }));
 }
 
+/** Tags from disabled/comingSoon PM categories — used to reject miscategorized events. */
+export async function getDisabledPolymarketTags(): Promise<Set<string>> {
+  await refreshCache();
+  const disabled = cachedCategories.filter(c => c.type === 'POLYMARKET' && !c.enabled);
+  const tags = new Set<string>();
+  for (const c of disabled) {
+    for (const t of (c.config as any)?.tags || []) tags.add(t);
+  }
+  return tags;
+}
+
 const DEFAULT_MATCH_DURATION_HOURS = 4; // fallback if not configured
 
 /** Get the match duration in hours for a given category code. */

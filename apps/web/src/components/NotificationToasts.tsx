@@ -98,10 +98,11 @@ const ToastItem = memo(function ToastItem({ notification, onDismiss }: ToastItem
 
   const handleClick = useCallback(() => {
     if (notification.poolId) {
-      router.push(`/pool/${notification.poolId}`);
+      const path = notification.poolType === 'SPORTS' ? `/match/${notification.poolId}` : `/pool/${notification.poolId}`;
+      router.push(path);
       onDismiss(notification.id);
     }
-  }, [notification.poolId, notification.id, onDismiss, router]);
+  }, [notification.poolId, notification.poolType, notification.id, onDismiss, router]);
 
   const borderColor = BORDER_COLORS[notification.severity];
 

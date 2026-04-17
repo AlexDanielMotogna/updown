@@ -1,6 +1,6 @@
 import { SportAdapter, Match, MatchResult } from './types';
 import { polymarketFetch } from './polymarket-fetch';
-import { getPolymarketCategories, type PolymarketCategoryConfig } from '../category-config';
+import { getPolymarketCategories, getDisabledPolymarketTags, type PolymarketCategoryConfig } from '../category-config';
 
 // Re-export for backward compat
 export type PolymarketCategory = PolymarketCategoryConfig;
@@ -9,10 +9,19 @@ const MAX_PER_CATEGORY = Number(process.env.POLYMARKET_MAX_MARKETS_PER_CATEGORY)
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Match an event's tags to one of our categories (first match wins). */
+/** Match an event's tags to one of our categories (first match wins).
+ *  If any tag belongs to a disabled/comingSoon category, skip the event
+ *  entirely to prevent miscategorization (e.g. "Sports" event landing in "Geopolitics"). */
 export async function categorizeEvent(eventTags: Array<{ label?: string; slug?: string }>): Promise<PolymarketCategoryConfig | null> {
   const cats = await getPolymarketCategories();
-  const labels = new Set(eventTags.map(t => t.label).filter(Boolean));
+  const labels = new Set(eventTags.map(t => t.label).filter((l): l is string => !!l));
+
+  // Reject events that belong to a disabled category
+  const disabledTags = await getDisabledPolymarketTags();
+  for (const label of labels) {
+    if (disabledTags.has(label)) return null;
+  }
+
   for (const cat of cats) {
     if (cat.tags.some(tag => labels.has(tag))) return cat;
   }

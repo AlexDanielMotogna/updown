@@ -169,6 +169,8 @@ export async function fetchPools(params?: {
   interval?: string;
   status?: string;
   type?: string;
+  league?: string;
+  tag?: string;
   page?: number;
   limit?: number;
 }): Promise<ApiResponse<Pool[]>> {
@@ -177,6 +179,8 @@ export async function fetchPools(params?: {
   if (params?.interval) searchParams.set('interval', params.interval);
   if (params?.status) searchParams.set('status', params.status);
   if (params?.type) searchParams.set('type', params.type);
+  if (params?.league) searchParams.set('league', params.league);
+  if (params?.tag) searchParams.set('tag', params.tag);
   if (params?.page) searchParams.set('page', params.page.toString());
   if (params?.limit) searchParams.set('limit', params.limit.toString());
 

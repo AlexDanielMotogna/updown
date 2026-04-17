@@ -13,6 +13,8 @@ const poolFilterSchema = z.object({
   interval: z.string().optional(),
   status: z.string().optional(), // Single status or comma-separated list (e.g. "JOINING,ACTIVE")
   type: z.enum(['CRYPTO', 'SPORTS']).optional(), // Pool type filter
+  league: z.string().optional(), // League/category code (e.g. "PL", "PM_POLITICS")
+  tag: z.string().optional(), // Subcategory tag filter (PM pools)
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(500).default(20),
 });
@@ -33,13 +35,19 @@ poolsRouter.get('/', async (req, res) => {
       });
     }
 
-    const { asset, interval, status, type, page, limit } = parsed.data;
+    const { asset, interval, status, type, league, tag, page, limit } = parsed.data;
     const skip = (page - 1) * limit;
 
     // Build where clause — exclude squad pools from public markets
     const where: Prisma.PoolWhereInput = { squadId: null };
     if (type) {
       where.poolType = type;
+    }
+    if (league) {
+      where.league = league;
+    }
+    if (tag) {
+      where.tags = { contains: tag };
     }
     if (asset) {
       where.asset = asset.toUpperCase();

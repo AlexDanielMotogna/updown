@@ -70,6 +70,7 @@ model Pool {
   @@index([asset, interval, status])
   @@index([squadId, status])
   @@index([poolType])
+  @@index([poolType, league])
   @@map("pools")
 }
 

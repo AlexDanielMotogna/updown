@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { Box, Typography, Alert, Chip } from '@mui/material';
 import { Circle, ArrowBack } from '@mui/icons-material';
 import Link from 'next/link';
@@ -24,6 +24,7 @@ import { InlineChart } from '@/components/pool/InlineChart';
 
 export default function PoolDetailPage() {
   const t = useThemeTokens();
+  const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
   const poolId = params.id as string;
@@ -36,6 +37,13 @@ export default function PoolDetailPage() {
   const betFormRef = useRef<HTMLDivElement>(null);
 
   const pool = data?.data;
+
+  // Redirect sports/PM pools to the match detail page
+  useEffect(() => {
+    if (pool?.poolType === 'SPORTS') {
+      router.replace(`/match/${pool.id}`);
+    }
+  }, [pool, router]);
 
   const { getPrice, isConnected } = usePriceStream(
     pool?.asset ? [pool.asset] : [],
