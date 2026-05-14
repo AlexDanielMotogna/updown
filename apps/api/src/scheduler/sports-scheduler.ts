@@ -17,8 +17,11 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Mutex: prevent concurrent createMatchPools calls (fixture-sync + polymarket-sync both call it at startup)
+// Mutex: prevent concurrent createMatchPools calls (fixture-sync + polymarket-sync both call it at startup).
+// _pendingRun: if a second call comes in while running, run once more after current finishes
+// so we don't lose work (e.g. fixture-sync calling while polymarket-sync still holds the mutex).
 let _creating = false;
+let _pendingRun = false;
 
 /** Derive the correct adapter based on the pool's league code. */
 function getAdapterForLeague(league: string | null | undefined) {
@@ -37,12 +40,16 @@ function getAdapterForLeague(league: string | null | undefined) {
  */
 export async function createMatchPools(): Promise<void> {
   if (_creating) {
-    console.log('[Sports] createMatchPools already running — skipping');
+    _pendingRun = true;
+    console.log('[Sports] createMatchPools already running — queued follow-up run');
     return;
   }
   _creating = true;
   try {
-    await _createMatchPoolsInner();
+    do {
+      _pendingRun = false;
+      await _createMatchPoolsInner();
+    } while (_pendingRun);
   } finally {
     _creating = false;
   }
