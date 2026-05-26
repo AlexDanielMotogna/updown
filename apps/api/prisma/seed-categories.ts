@@ -229,28 +229,28 @@ const CATEGORIES: CategorySeed[] = [
     label: 'Politics', shortLabel: 'Politics', color: '#A78BFA',
     iconKey: 'Gavel', apiSource: 'predictions', adapterKey: 'POLYMARKET',
     numSides: 2, sideLabels: ['Yes', 'No'], sortOrder: 40,
-    config: { tags: ['Politics', 'Elections', 'Global Elections'], minVolume24h: 10000, maxDaysAhead: 1100 },
+    config: { tags: ['Politics', 'Elections', 'Global Elections'], minVolume24h: 10000, maxDaysAhead: 1100, subcategories: ['Trump', 'Biden', 'Harris', 'US Election', 'Presidential Election', 'Midterms', 'Primaries', 'Democrats', 'Republicans', 'Government Shutdown', 'Impeachment', 'Congress', 'Senate', 'House', 'Supreme Court', 'Cabinet', 'Mayoral Elections', 'UK', 'France', 'Germany', 'Canada', 'Brazil', 'Venezuela', 'Argentina', 'India', 'Trade War', 'Tariffs', 'Middle East', 'Israel', 'Global Elections', 'Elections'] },
   },
   {
     code: 'PM_GEO', type: 'POLYMARKET', enabled: true, comingSoon: false,
     label: 'Geopolitics', shortLabel: 'Geo', color: '#60A5FA',
     iconKey: 'Public', apiSource: 'predictions', adapterKey: 'POLYMARKET',
     numSides: 2, sideLabels: ['Yes', 'No'], sortOrder: 41,
-    config: { tags: ['Geopolitics', 'Middle East'], minVolume24h: 10000, maxDaysAhead: 90 },
+    config: { tags: ['Geopolitics', 'Middle East'], minVolume24h: 10000, maxDaysAhead: 90, subcategories: ['Strait of Hormuz', 'Iran', 'Israel', 'Gaza', 'Palestine', 'Lebanon', 'Syria', 'Yemen', 'Russia', 'Ukraine', 'China', 'Taiwan', 'North Korea', 'India', 'Pakistan', 'Venezuela', 'Cuba', 'Sudan', 'Ceasefire', 'Sanctions', 'Nuclear', 'NATO', 'War', 'Middle East', 'Foreign Policy', 'Geopolitics'] },
   },
   {
     code: 'PM_CULTURE', type: 'POLYMARKET', enabled: true, comingSoon: false,
     label: 'Culture & Entertainment', shortLabel: 'Culture', color: '#F472B6',
     iconKey: 'TheaterComedy', apiSource: 'predictions', adapterKey: 'POLYMARKET',
     numSides: 2, sideLabels: ['Yes', 'No'], sortOrder: 42,
-    config: { tags: ['Culture', 'Entertainment', 'Pop Culture'], minVolume24h: 5000, maxDaysAhead: 180 },
+    config: { tags: ['Culture', 'Entertainment', 'Pop Culture'], minVolume24h: 5000, maxDaysAhead: 180, subcategories: ['GTA VI', 'Gaming', 'Movies', 'Box Office', 'Oscars', 'Grammys', 'Emmys', 'Golden Globes', 'Awards', 'Music', 'Taylor Swift', 'TV', 'Reality TV', 'Streaming', 'Celebrities', 'Elon Musk', 'MrBeast', 'YouTube', 'Twitter', 'Tweet Markets', 'Aliens', 'Pop Culture', 'Entertainment', 'Culture'] },
   },
   {
     code: 'PM_FINANCE', type: 'POLYMARKET', enabled: true, comingSoon: false,
     label: 'Finance & Economy', shortLabel: 'Finance', color: '#34D399',
     iconKey: 'AccountBalance', apiSource: 'predictions', adapterKey: 'POLYMARKET',
     numSides: 2, sideLabels: ['Yes', 'No'], sortOrder: 43,
-    config: { tags: ['Business', 'Commodities', 'Economics', 'Gold', 'Oil', 'Stocks'], minVolume24h: 10000, maxDaysAhead: 60 },
+    config: { tags: ['Business', 'Commodities', 'Economics', 'Gold', 'Oil', 'Stocks'], minVolume24h: 10000, maxDaysAhead: 60, subcategories: ['Bitcoin', 'Ethereum', 'Solana', 'XRP', 'Crypto', 'MicroStrategy', 'Coinbase', 'Tesla', 'Nvidia', 'Apple', 'Stocks', 'Earnings', 'Indices', 'S&P 500', 'Nasdaq', 'IPOs', 'Acquisitions', 'Oil', 'Gas', 'Gold', 'Silver', 'Commodities', 'Forex', 'Fed', 'Interest Rates', 'Inflation', 'Recession', 'GDP', 'Treasuries', 'Economy', 'Business', 'Tech'] },
   },
 
   // ── Polymarket Categories (coming soon) ──────────────────────────────────
