@@ -86,12 +86,12 @@ export async function awardBetPlacement(
     const totalXpAward = xpBase + xpDaily;
 
     const newTotalXp = user.totalXp + totalXpAward;
-    const newLevel = getLevelForXp(newTotalXp);
-    const didLevelUp = newLevel > user.level;
+    let newLevel = getLevelForXp(newTotalXp);
+    let didLevelUp = newLevel > user.level;
 
     // Atomic update  XP only, no coins
     await prisma.$transaction(async (tx) => {
-      await tx.user.update({
+      const updated = await tx.user.update({
         where: { walletAddress },
         data: {
           totalXp: { increment: totalXpAward },
@@ -102,6 +102,17 @@ export async function awardBetPlacement(
           lastActiveDate: new Date(),
         },
       });
+
+      // Reconcile level against the authoritative post-increment XP total. The
+      // atomic increment serializes under a row lock, so updated.totalXp already
+      // reflects every concurrent award  recomputing here keeps the stored level
+      // from lagging behind totalXp (the level-stuck bug).
+      const reconciledLevel = getLevelForXp(updated.totalXp);
+      if (reconciledLevel !== newLevel) {
+        didLevelUp = reconciledLevel > user.level;
+        newLevel = reconciledLevel;
+        await tx.user.update({ where: { walletAddress }, data: { level: reconciledLevel } });
+      }
 
       // Log XP
       await tx.rewardLog.create({
@@ -187,8 +198,8 @@ export async function awardBetWin(
     const streakCoins = calculateStreakBonus(newStreak, user.dailyCoins + betCoins + winCoins);
 
     const newTotalXp = user.totalXp + totalXpAward;
-    const newLevel = getLevelForXp(newTotalXp);
-    const didLevelUp = newLevel > user.level;
+    let newLevel = getLevelForXp(newTotalXp);
+    let didLevelUp = newLevel > user.level;
 
     let levelUpCoins = 0n;
     if (didLevelUp) {
@@ -198,7 +209,7 @@ export async function awardBetWin(
     const totalCoins = betCoins + winCoins + streakCoins + levelUpCoins;
 
     await prisma.$transaction(async (tx) => {
-      await tx.user.update({
+      const updated = await tx.user.update({
         where: { walletAddress },
         data: {
           totalXp: { increment: totalXpAward },
@@ -211,6 +222,15 @@ export async function awardBetWin(
           dailyCoins: { increment: totalCoins },
         },
       });
+
+      // Reconcile level against the authoritative post-increment XP total so the
+      // stored level never lags behind totalXp under concurrent awards.
+      const reconciledLevel = getLevelForXp(updated.totalXp);
+      if (reconciledLevel !== newLevel) {
+        didLevelUp = reconciledLevel > user.level;
+        newLevel = reconciledLevel;
+        await tx.user.update({ where: { walletAddress }, data: { level: reconciledLevel } });
+      }
 
       await tx.rewardLog.create({
         data: {
@@ -308,16 +328,24 @@ export async function awardClaimCompleted(walletAddress: string): Promise<void> 
 
     const xp = XP_ACTIONS.CLAIM_COMPLETED;
     const newTotalXp = user.totalXp + xp;
-    const newLevel = getLevelForXp(newTotalXp);
+    let newLevel = getLevelForXp(newTotalXp);
 
     await prisma.$transaction(async (tx) => {
-      await tx.user.update({
+      const updated = await tx.user.update({
         where: { walletAddress },
         data: {
           totalXp: { increment: xp },
           level: newLevel,
         },
       });
+
+      // Reconcile level against the authoritative post-increment XP total so the
+      // stored level never lags behind totalXp under concurrent awards.
+      const reconciledLevel = getLevelForXp(updated.totalXp);
+      if (reconciledLevel !== newLevel) {
+        newLevel = reconciledLevel;
+        await tx.user.update({ where: { walletAddress }, data: { level: reconciledLevel } });
+      }
 
       await tx.rewardLog.create({
         data: {

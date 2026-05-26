@@ -96,10 +96,10 @@ export async function acceptReferral(
     });
     if (referrerUser) {
       const newTotalXp = referrerUser.totalXp + REFERRAL_XP_REWARD;
-      const newLevel = getLevelForXp(newTotalXp);
-      const didLevelUp = newLevel > referrerUser.level;
+      let newLevel = getLevelForXp(newTotalXp);
+      let didLevelUp = newLevel > referrerUser.level;
 
-      await tx.user.update({
+      const updated = await tx.user.update({
         where: { walletAddress: referrer.walletAddress },
         data: {
           totalXp: { increment: REFERRAL_XP_REWARD },
@@ -108,6 +108,15 @@ export async function acceptReferral(
           coinsLifetime: { increment: REFERRAL_COINS_REWARD },
         },
       });
+
+      // Reconcile level against the authoritative post-increment XP total so the
+      // stored level never lags behind totalXp under concurrent awards.
+      const reconciledLevel = getLevelForXp(updated.totalXp);
+      if (reconciledLevel !== newLevel) {
+        didLevelUp = reconciledLevel > referrerUser.level;
+        newLevel = reconciledLevel;
+        await tx.user.update({ where: { walletAddress: referrer.walletAddress }, data: { level: reconciledLevel } });
+      }
 
       await tx.rewardLog.create({
         data: {

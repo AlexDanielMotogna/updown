@@ -1,5 +1,5 @@
 import type { PoolStatus, Side } from '@prisma/client';
-import { getLevelTitle, getXpForLevel, getXpToNextLevel } from './levels';
+import { getLevelTitle, getXpForLevel, getXpToNextLevel, getLevelForXp } from './levels';
 import { getFeeBps, DEFAULT_FEE_BPS } from './fees';
 import { calculatePayout } from './payout';
 
@@ -158,24 +158,29 @@ export function serializeUserProfile(user: {
   referralCode: string | null;
   createdAt: Date;
 }) {
+  // Derive level from totalXp (the source of truth) instead of trusting the
+  // stored `level` column. A concurrent XP write can leave `level` lagging behind
+  // `totalXp`; deriving here guarantees the XP bar is always internally consistent
+  // and self-heals any already-desynced rows on read — no migration required.
+  const level = getLevelForXp(user.totalXp);
   return {
     walletAddress: user.walletAddress,
     referralCode: user.referralCode,
-    level: user.level,
-    title: getLevelTitle(user.level),
+    level,
+    title: getLevelTitle(level),
     totalXp: user.totalXp.toString(),
-    xpForCurrentLevel: getXpForLevel(user.level).toString(),
-    xpForNextLevel: getXpForLevel(user.level + 1).toString(),
-    xpToNextLevel: getXpToNextLevel(user.level).toString(),
-    xpProgress: user.level >= 40
+    xpForCurrentLevel: getXpForLevel(level).toString(),
+    xpForNextLevel: getXpForLevel(level + 1).toString(),
+    xpToNextLevel: getXpToNextLevel(level).toString(),
+    xpProgress: level >= 40
       ? 1
-      : Number(user.totalXp - getXpForLevel(user.level)) /
-        Number(getXpToNextLevel(user.level) || 1n),
+      : Number(user.totalXp - getXpForLevel(level)) /
+        Number(getXpToNextLevel(level) || 1n),
     coinsBalance: user.coinsBalance.toString(),
     coinsLifetime: user.coinsLifetime.toString(),
     coinsRedeemed: user.coinsRedeemed.toString(),
-    feeBps: getFeeBps(user.level),
-    feePercent: (getFeeBps(user.level) / 100).toFixed(2),
+    feeBps: getFeeBps(level),
+    feePercent: (getFeeBps(level) / 100).toFixed(2),
     stats: {
       totalBets: user.totalBets,
       totalWins: user.totalWins,
