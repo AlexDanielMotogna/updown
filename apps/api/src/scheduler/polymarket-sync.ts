@@ -3,6 +3,7 @@ import { prisma } from '../db';
 import { getAdapter } from '../services/sports';
 import { polymarketFetch } from '../services/sports/polymarket-fetch';
 import { categorizeEvent } from '../services/sports/polymarket-adapter';
+import { pickSubcategory } from '../services/category-config';
 import type { MatchResult } from '../services/sports/types';
 import { createMatchPools } from './sports-scheduler';
 
@@ -41,7 +42,11 @@ async function bulkSync(): Promise<void> {
   }
 
   const counts: Record<string, number> = {};
-  const maxPerCat = Number(process.env.POLYMARKET_MAX_MARKETS_PER_CATEGORY) || 10;
+  const maxPerCat = Number(process.env.POLYMARKET_MAX_MARKETS_PER_CATEGORY) || 30;
+  // One sub-market per event by default: a multi-market "ladder" (e.g. WTI
+  // $110..$150) would otherwise flood a category with near-duplicate pools and
+  // crowd out other topics, leaving few distinct subcategory filters.
+  const maxSubmarketsPerEvent = Number(process.env.POLYMARKET_MAX_SUBMARKETS_PER_EVENT) || 1;
   let totalSynced = 0;
 
   for (const event of events) {
@@ -51,17 +56,16 @@ async function bulkSync(): Promise<void> {
     // Volume filter
     if ((event.volume24hr ?? 0) < cat.minVolume24h) continue;
 
-    // Process sub-markets: for multi-market events, sync each sub-market as its own entry
     const markets = event.markets ?? [];
     if (markets.length === 0) continue;
 
-    // For single-market events, take the one market.
-    // For multi-market events (like price targets), take up to 5 most relevant.
-    const marketsToSync = markets.length === 1
-      ? markets
-      : markets.slice(0, 5);
+    // Iterate ALL markets but keep only the first N *valid* ones for this event
+    // (skipping inactive/no-price placeholders), so events still contribute even
+    // if their first sub-market is a placeholder.
+    let perEventSynced = 0;
 
-    for (const market of marketsToSync) {
+    for (const market of markets) {
+      if (perEventSynced >= maxSubmarketsPerEvent) break;
       if (!market?.id || !market.outcomes || !market.endDate) continue;
 
       // Skip inactive placeholder markets (e.g. "Player I", "Person P")
@@ -100,9 +104,13 @@ async function bulkSync(): Promise<void> {
       const marketOdds = outcomePrices?.length ? parseFloat(outcomePrices[0]) : null;
       const groupItemTitle: string | null = description || market.groupItemTitle || null; // Store description in groupItemTitle for cache
       const clobTokenIds: string | null = market.clobTokenIds || null;
-      const tags: string | null = Array.isArray(event.tags) && event.tags.length > 0
-        ? JSON.stringify(event.tags.map((t: any) => t.label || t).filter(Boolean))
-        : null;
+      const tagLabels: string[] = Array.isArray(event.tags)
+        ? event.tags.map((t: any) => t.label || t).filter(Boolean)
+        : [];
+      const tags: string | null = tagLabels.length > 0 ? JSON.stringify(tagLabels) : null;
+      // Resolve the single subcategory bucket (exact-match filter key) from the
+      // category's ordered whitelist. null when no whitelisted tag is present.
+      const subcategory = await pickSubcategory(cat.code, tagLabels);
 
       // Determine status from Polymarket fields
       let status = 'SCHEDULED';
@@ -157,6 +165,7 @@ async function bulkSync(): Promise<void> {
             groupItemTitle,
             clobTokenIds,
             tags,
+            subcategory,
             apiSource: API_SOURCE,
             lastSyncedAt: new Date(),
           },
@@ -172,12 +181,14 @@ async function bulkSync(): Promise<void> {
             groupItemTitle,
             clobTokenIds,
             tags,
+            subcategory,
             lastSyncedAt: new Date(),
           },
         });
 
         counts[cat.code]++;
         totalSynced++;
+        perEventSynced++;
       } catch (error) {
         console.warn(`[PolymarketSync] Upsert failed for market ${market.id}:`, error instanceof Error ? error.message : error);
       }

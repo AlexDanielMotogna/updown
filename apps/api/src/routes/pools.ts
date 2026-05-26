@@ -47,7 +47,9 @@ poolsRouter.get('/', async (req, res) => {
       where.league = league;
     }
     if (tag) {
-      where.tags = { contains: tag };
+      // Exact-match on the resolved subcategory bucket (one per pool), not a
+      // substring scan of the raw tag list — so each filter maps to a distinct set.
+      where.subcategory = tag;
     }
     if (asset) {
       where.asset = asset.toUpperCase();

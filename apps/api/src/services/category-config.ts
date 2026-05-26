@@ -33,10 +33,10 @@ const FALLBACK: PoolCategoryConfig[] = [
   { code: 'NHL', type: 'SPORTSDB_SPORT', enabled: true, comingSoon: false, label: 'NHL', shortLabel: 'NHL', color: '#3B82F6', badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/4cem2k1619616539.png', iconKey: 'SportsHockey', apiSource: 'sports', adapterKey: 'NHL', numSides: 2, sideLabels: ['Home', 'Away'], config: { sportQuery: 'Ice Hockey', leagueFilter: 'NHL', externalLeagueId: '4380' }, sortOrder: 21 },
   { code: 'NFL', type: 'SPORTSDB_SPORT', enabled: true, comingSoon: false, label: 'NFL', shortLabel: 'NFL', color: '#22C55E', badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/g85fqz1662057187.png', iconKey: 'SportsFootball', apiSource: 'sports', adapterKey: 'NFL', numSides: 2, sideLabels: ['Home', 'Away'], config: { sportQuery: 'American Football', leagueFilter: 'NFL', externalLeagueId: '4391' }, sortOrder: 22 },
   { code: 'MMA', type: 'SPORTSDB_SPORT', enabled: true, comingSoon: false, label: 'UFC', shortLabel: 'MMA', color: '#EF4444', badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/bewnz31717531281.png', iconKey: 'SportsMma', apiSource: 'sports', adapterKey: 'MMA', numSides: 2, sideLabels: ['Fighter 1', 'Fighter 2'], config: { sportQuery: 'Fighting', leagueFilter: 'UFC', externalLeagueId: '4443' }, sortOrder: 23 },
-  { code: 'PM_POLITICS', type: 'POLYMARKET', enabled: true, comingSoon: false, label: 'Politics', shortLabel: 'Politics', color: '#A78BFA', badgeUrl: null, iconKey: 'Gavel', apiSource: 'predictions', adapterKey: 'POLYMARKET', numSides: 2, sideLabels: ['Yes', 'No'], config: { tags: ['Politics', 'Elections', 'Global Elections'], minVolume24h: 10000, maxDaysAhead: 1100 }, sortOrder: 40 },
-  { code: 'PM_GEO', type: 'POLYMARKET', enabled: true, comingSoon: false, label: 'Geopolitics', shortLabel: 'Geo', color: '#60A5FA', badgeUrl: null, iconKey: 'Public', apiSource: 'predictions', adapterKey: 'POLYMARKET', numSides: 2, sideLabels: ['Yes', 'No'], config: { tags: ['Geopolitics', 'Middle East'], minVolume24h: 10000, maxDaysAhead: 90 }, sortOrder: 41 },
-  { code: 'PM_CULTURE', type: 'POLYMARKET', enabled: true, comingSoon: false, label: 'Culture & Entertainment', shortLabel: 'Culture', color: '#F472B6', badgeUrl: null, iconKey: 'TheaterComedy', apiSource: 'predictions', adapterKey: 'POLYMARKET', numSides: 2, sideLabels: ['Yes', 'No'], config: { tags: ['Culture', 'Entertainment', 'Pop Culture'], minVolume24h: 5000, maxDaysAhead: 180 }, sortOrder: 42 },
-  { code: 'PM_FINANCE', type: 'POLYMARKET', enabled: true, comingSoon: false, label: 'Finance & Economy', shortLabel: 'Finance', color: '#34D399', badgeUrl: null, iconKey: 'AccountBalance', apiSource: 'predictions', adapterKey: 'POLYMARKET', numSides: 2, sideLabels: ['Yes', 'No'], config: { tags: ['Business', 'Commodities', 'Economics', 'Gold', 'Oil', 'Stocks'], minVolume24h: 10000, maxDaysAhead: 60 }, sortOrder: 43 },
+  { code: 'PM_POLITICS', type: 'POLYMARKET', enabled: true, comingSoon: false, label: 'Politics', shortLabel: 'Politics', color: '#A78BFA', badgeUrl: null, iconKey: 'Gavel', apiSource: 'predictions', adapterKey: 'POLYMARKET', numSides: 2, sideLabels: ['Yes', 'No'], config: { tags: ['Politics', 'Elections', 'Global Elections'], minVolume24h: 10000, maxDaysAhead: 1100, subcategories: ['Trump', 'Biden', 'Harris', 'US Election', 'Presidential Election', 'Midterms', 'Primaries', 'Democrats', 'Republicans', 'Government Shutdown', 'Impeachment', 'Congress', 'Senate', 'House', 'Supreme Court', 'Cabinet', 'Mayoral Elections', 'UK', 'France', 'Germany', 'Canada', 'Brazil', 'Venezuela', 'Argentina', 'India', 'Trade War', 'Tariffs', 'Middle East', 'Israel', 'Global Elections', 'Elections'] }, sortOrder: 40 },
+  { code: 'PM_GEO', type: 'POLYMARKET', enabled: true, comingSoon: false, label: 'Geopolitics', shortLabel: 'Geo', color: '#60A5FA', badgeUrl: null, iconKey: 'Public', apiSource: 'predictions', adapterKey: 'POLYMARKET', numSides: 2, sideLabels: ['Yes', 'No'], config: { tags: ['Geopolitics', 'Middle East'], minVolume24h: 10000, maxDaysAhead: 90, subcategories: ['Strait of Hormuz', 'Iran', 'Israel', 'Gaza', 'Palestine', 'Lebanon', 'Syria', 'Yemen', 'Russia', 'Ukraine', 'China', 'Taiwan', 'North Korea', 'India', 'Pakistan', 'Venezuela', 'Cuba', 'Sudan', 'Ceasefire', 'Sanctions', 'Nuclear', 'NATO', 'War', 'Middle East', 'Foreign Policy', 'Geopolitics'] }, sortOrder: 41 },
+  { code: 'PM_CULTURE', type: 'POLYMARKET', enabled: true, comingSoon: false, label: 'Culture & Entertainment', shortLabel: 'Culture', color: '#F472B6', badgeUrl: null, iconKey: 'TheaterComedy', apiSource: 'predictions', adapterKey: 'POLYMARKET', numSides: 2, sideLabels: ['Yes', 'No'], config: { tags: ['Culture', 'Entertainment', 'Pop Culture'], minVolume24h: 5000, maxDaysAhead: 180, subcategories: ['GTA VI', 'Gaming', 'Movies', 'Box Office', 'Oscars', 'Grammys', 'Emmys', 'Golden Globes', 'Awards', 'Music', 'Taylor Swift', 'TV', 'Reality TV', 'Streaming', 'Celebrities', 'Elon Musk', 'MrBeast', 'YouTube', 'Twitter', 'Tweet Markets', 'Aliens', 'Pop Culture', 'Entertainment', 'Culture'] }, sortOrder: 42 },
+  { code: 'PM_FINANCE', type: 'POLYMARKET', enabled: true, comingSoon: false, label: 'Finance & Economy', shortLabel: 'Finance', color: '#34D399', badgeUrl: null, iconKey: 'AccountBalance', apiSource: 'predictions', adapterKey: 'POLYMARKET', numSides: 2, sideLabels: ['Yes', 'No'], config: { tags: ['Business', 'Commodities', 'Economics', 'Gold', 'Oil', 'Stocks'], minVolume24h: 10000, maxDaysAhead: 60, subcategories: ['Bitcoin', 'Ethereum', 'Solana', 'XRP', 'Crypto', 'MicroStrategy', 'Coinbase', 'Tesla', 'Nvidia', 'Apple', 'Stocks', 'Earnings', 'Indices', 'S&P 500', 'Nasdaq', 'IPOs', 'Acquisitions', 'Oil', 'Gas', 'Gold', 'Silver', 'Commodities', 'Forex', 'Fed', 'Interest Rates', 'Inflation', 'Recession', 'GDP', 'Treasuries', 'Economy', 'Business', 'Tech'] }, sortOrder: 43 },
 ];
 
 // ── In-memory cache ─────────────────────────────────────────────────────────
@@ -144,6 +144,48 @@ export async function getPolymarketCategories(): Promise<PolymarketCategoryConfi
     minVolume24h: (c.config as any)?.minVolume24h || 5000,
     maxDaysAhead: (c.config as any)?.maxDaysAhead || 90,
   }));
+}
+
+/**
+ * Operational / non-topic Polymarket tags that should never be offered as
+ * subcategories (promo buckets, scheduling labels, internal flags). Used to
+ * keep admin suggestions clean. Matching is case-insensitive.
+ */
+export const OPERATIONAL_PM_TAGS = new Set<string>([
+  'earn 4%', 'monthly', 'weekly', 'daily', 'recurring', 'hit price',
+  'hide from new', 'finance updown', 'pyth finance', '2025 predictions',
+  'breaking news', '10-point', 'main election', 'new', 'all', 'featured',
+  'trending', 'live',
+]);
+
+/** True if a raw Polymarket tag is an operational/non-topic tag. */
+export function isOperationalTag(tag: string): boolean {
+  return OPERATIONAL_PM_TAGS.has(tag.trim().toLowerCase());
+}
+
+/** Ordered subcategory whitelist for a PM category code (priority order). */
+export async function getCategorySubcategories(code: string): Promise<string[]> {
+  await refreshCache();
+  const cat = cachedCategories.find(c => c.code === code);
+  const subs = (cat?.config as any)?.subcategories;
+  return Array.isArray(subs) ? subs.filter((s): s is string => typeof s === 'string') : [];
+}
+
+/**
+ * Resolve a single subcategory bucket for a pool from its raw event tags.
+ * Returns the FIRST entry of the category's ordered subcategory whitelist that
+ * appears in the event tags (case-insensitive), or null if none match. This is
+ * what makes each sidebar filter map to a distinct set of pools.
+ */
+export async function pickSubcategory(code: string, eventTags: string[]): Promise<string | null> {
+  const subs = await getCategorySubcategories(code);
+  if (subs.length === 0) return null;
+  const tagSet = new Set(eventTags.map(t => t.trim().toLowerCase()));
+  for (const sub of subs) {
+    if (isOperationalTag(sub)) continue; // never bucket by an operational/non-topic tag, even if it slipped into the whitelist
+    if (tagSet.has(sub.trim().toLowerCase())) return sub;
+  }
+  return null;
 }
 
 /** Tags from disabled/comingSoon PM categories — used to reject miscategorized events. */

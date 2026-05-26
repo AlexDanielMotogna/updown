@@ -1,6 +1,6 @@
 import { Router, type Router as RouterType } from 'express';
 import { prisma } from '../db';
-import { getVisibleCategories } from '../services/category-config';
+import { getVisibleCategories, getCategorySubcategories, isOperationalTag } from '../services/category-config';
 import { sportsDbFetch } from '../services/sports/api-sports-fetch';
 
 export const configRouter: RouterType = Router();
@@ -60,8 +60,40 @@ configRouter.get('/polymarket-tags', async (req, res) => {
   }
 });
 
-// GET /api/config/pool-subcategories?league=PM_POLITICS — unique tags from pools for a league
+// GET /api/config/pool-subcategories?league=PM_POLITICS
+// Sidebar source: distinct resolved subcategory buckets that actually have pools,
+// ordered by the category's configured priority (unknowns last). Only non-empty
+// buckets are returned, so the sidebar never shows a filter with zero results.
 configRouter.get('/pool-subcategories', async (req, res) => {
+  try {
+    const league = req.query.league as string;
+    if (!league) return res.json({ success: true, data: [] });
+
+    const grouped = await prisma.pool.groupBy({
+      by: ['subcategory'],
+      where: { league, subcategory: { not: null } },
+      _count: { _all: true },
+    });
+
+    const order = await getCategorySubcategories(league);
+    const rank = (label: string) => {
+      const i = order.indexOf(label);
+      return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+    };
+    const data = grouped
+      .map(g => ({ label: g.subcategory as string, count: g._count._all }))
+      .sort((a, b) => rank(a.label) - rank(b.label) || b.count - a.count);
+
+    res.json({ success: true, data });
+  } catch {
+    res.json({ success: true, data: [] });
+  }
+});
+
+// GET /api/config/pool-tags?league=PM_POLITICS
+// Admin suggestion source: raw tag labels found on a league's pools (operational
+// tags filtered out), so the admin can pick which become curated subcategories.
+configRouter.get('/pool-tags', async (req, res) => {
   try {
     const league = req.query.league as string;
     if (!league) return res.json({ success: true, data: [] });
@@ -75,7 +107,10 @@ configRouter.get('/pool-subcategories', async (req, res) => {
     for (const p of pools) {
       try {
         const tags: string[] = JSON.parse(p.tags!);
-        for (const t of tags) counts[t] = (counts[t] || 0) + 1;
+        for (const t of tags) {
+          if (isOperationalTag(t)) continue;
+          counts[t] = (counts[t] || 0) + 1;
+        }
       } catch { /* skip */ }
     }
 
