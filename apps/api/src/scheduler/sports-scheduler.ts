@@ -351,6 +351,7 @@ async function createSportsPool(match: Match, leagueCode: string): Promise<void>
         clobTokenIds: cacheEntry?.clobTokenIds ?? null,
         matchAnalysis: cacheEntry?.groupItemTitle ?? null, // PM description/rules
         tags: cacheEntry?.tags ?? null,
+        subcategory: cacheEntry?.subcategory ?? null,
       },
     });
 

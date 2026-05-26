@@ -57,7 +57,8 @@ model Pool {
   marketOdds      Float?     @map("market_odds")
   groupItemTitle  String?    @map("group_item_title")
   clobTokenIds    String?    @map("clob_token_ids")
-  tags            String?                                    // JSON array of tag labels (Polymarket subcategories)
+  tags            String?                                    // JSON array of raw tag labels from Polymarket (display/debug)
+  subcategory     String?                                    // Single resolved subcategory bucket (exact-match filter key)
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
 
@@ -71,6 +72,7 @@ model Pool {
   @@index([squadId, status])
   @@index([poolType])
   @@index([poolType, league])
+  @@index([league, subcategory])
   @@map("pools")
 }
 
@@ -442,7 +444,8 @@ model SportsFixtureCache {
   marketOdds      Float?           @map("market_odds")
   groupItemTitle  String?          @map("group_item_title")
   clobTokenIds    String?          @map("clob_token_ids")
-  tags            String?                                  // JSON array of tag labels from Polymarket
+  tags            String?                                  // JSON array of raw tag labels from Polymarket
+  subcategory     String?                                  // Single resolved subcategory bucket (carried to Pool on creation)
   apiSource       String   @default("sports") @map("api_source")
   lastSyncedAt    DateTime @map("last_synced_at")
   createdAt       DateTime @default(now()) @map("created_at")

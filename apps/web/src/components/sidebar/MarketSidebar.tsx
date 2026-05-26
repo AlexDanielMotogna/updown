@@ -134,28 +134,22 @@ export function MarketSidebar() {
   const isTournaments = pathname === '/tournaments';
   const tagFilter = searchParams.get('tag') ?? 'ALL';
 
-  // Read admin-configured subcategories; fallback to auto-discovered from pools
-  const adminSubcats = useMemo(() => {
-    if (!isPM || !categories) return [];
-    const cat = categories.find(c => c.code === marketType);
-    return cat?.subcategories ?? [];
-  }, [isPM, categories, marketType]);
-
+  // PM sidebar chips = resolved subcategory buckets that actually have pools.
+  // The server returns only non-empty buckets, already ordered by the category's
+  // configured priority — so each chip maps to a distinct, non-empty set of pools.
   const API = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002') : '';
-  const { data: autoSubcats } = useQuery({
+  const { data: pmBuckets } = useQuery({
     queryKey: ['pool-subcategories', marketType],
     queryFn: async () => {
       const res = await fetch(`${API}/api/config/pool-subcategories?league=${marketType}`);
       const d = await res.json();
       return (d.data || []) as Array<{ label: string; count: number }>;
     },
-    enabled: isPM && adminSubcats.length === 0,
+    enabled: isPM,
     staleTime: 60_000,
   });
 
-  const pmSubcategories = adminSubcats.length > 0
-    ? adminSubcats
-    : (autoSubcats || []).map(t => t.label);
+  const pmSubcategories = (pmBuckets || []).map(b => b.label);
 
   return (
     <Box sx={{

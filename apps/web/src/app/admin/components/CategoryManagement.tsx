@@ -253,9 +253,10 @@ function EditDialog({ cat, open, onClose, onSave }: {
     setConfigSubcategories(Array.isArray(cfg?.subcategories) ? cfg.subcategories as string[] : []);
     setSubcatFilter('');
 
-    // Fetch available subcategory tags for PM categories
+    // Suggestions = raw tags found on this league's pools (operational tags
+    // filtered server-side), so the admin can pick which become subcategories.
     if (cat.type === 'POLYMARKET') {
-      fetch(`${API}/api/config/pool-subcategories?league=${cat.code}`)
+      fetch(`${API}/api/config/pool-tags?league=${cat.code}`)
         .then(r => r.json())
         .then(d => { if (d.success) setAvailableSubcats(d.data); })
         .catch(() => setAvailableSubcats([]));
