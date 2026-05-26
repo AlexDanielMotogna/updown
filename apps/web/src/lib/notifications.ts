@@ -101,12 +101,17 @@ export const NOTIFICATION_DEFS: Record<NotificationType, NotificationDef> = {
   COINS_EARNED: {
     severity: 'info',
     autoHideDuration: 4000,
-    build: (ctx) => ({
-      title: `+${(Number(ctx.coins) / UP_COINS_DIVISOR).toFixed(2)} UP Coins`,
-      message: ctx.reason === 'referral'
-        ? 'Referral bonus! Someone accepted your invite.'
-        : 'Keep betting to earn more!',
-    }),
+    build: (ctx) => {
+      const xp = Number(ctx.xp) || 0;
+      return {
+        title: `+${(Number(ctx.coins) / UP_COINS_DIVISOR).toFixed(2)} UP Coins`,
+        message: ctx.reason === 'referral'
+          ? 'Referral bonus! Someone accepted your invite.'
+          : xp > 0
+            ? `Plus +${xp} XP for the win!`
+            : 'Keep betting to earn more!',
+      };
+    },
   },
   LEVEL_UP: {
     severity: 'success',

@@ -129,18 +129,20 @@ export function useNotifications() {
       // Only handle events for the connected wallet
       if (!walletAddress || data.walletAddress !== walletAddress) return;
 
-      // Show floating popup
+      // Floating "+XP / +Coins" popup — the non-invasive channel for routine gains.
       showRewardPopup({ xp: data.xp, coins: data.coins, levelUp: data.levelUp, level: data.level });
 
-      // Push UP Coins notification
+      // Coins are only awarded on wins / referrals (never per-bet), so a bell + toast
+      // entry here is meaningful, not spammy. Fold the XP into the same entry so the
+      // user sees both gains at once.
       if (data.coins > 0) {
-        push(buildNotification('COINS_EARNED', { coins: data.coins, reason: data.reason }));
-      }
-
-      // Push XP notification for referral
-      if (data.xp > 0 && data.reason === 'referral') {
+        push(buildNotification('COINS_EARNED', { coins: data.coins, xp: data.xp, reason: data.reason }));
+      } else if (data.xp > 0 && data.reason === 'referral') {
+        // Referral XP that arrives without coins still warrants its own notification.
         push(buildNotification('XP_EARNED', { xp: data.xp, totalXp: data.totalXp, reason: data.reason }));
       }
+      // Routine per-bet XP (coins === 0, no reason) is surfaced only via the floating
+      // popup above — toasting on every bet placed would be invasive.
 
       // Push level-up notification (fires confetti via NotificationToasts)
       if (data.levelUp) {

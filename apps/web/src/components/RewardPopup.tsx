@@ -24,7 +24,6 @@ let popupCounter = 0;
 const listeners = new Set<(item: RewardPopupItem) => void>();
 
 export function showRewardPopup(data: { xp: number; coins: number; levelUp: boolean; level: number }) {
-  const t = useThemeTokens();
   const item: RewardPopupItem = { ...data, id: `rp-${++popupCounter}` };
   listeners.forEach((fn) => fn(item));
 }
