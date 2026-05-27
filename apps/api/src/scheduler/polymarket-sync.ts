@@ -3,7 +3,7 @@ import { prisma } from '../db';
 import { getAdapter } from '../services/sports';
 import { polymarketFetch } from '../services/sports/polymarket-fetch';
 import { categorizeEvent } from '../services/sports/polymarket-adapter';
-import { pickSubcategory } from '../services/category-config';
+import { pickSubcategory, getPolymarketCategories } from '../services/category-config';
 import type { MatchResult } from '../services/sports/types';
 import { createMatchPools } from './sports-scheduler';
 
@@ -26,23 +26,44 @@ function safeJsonParse<T>(str: string | null | undefined): T | null {
  * 1 API call per sync cycle.
  */
 export async function bulkSync(): Promise<void> {
-  let events: any[];
-  try {
-    events = await polymarketFetch(
-      '/events?active=true&closed=false&order=volume&ascending=false&limit=200',
-    );
-  } catch (error) {
-    console.error('[PolymarketSync] Bulk sync fetch failed:', error instanceof Error ? error.message : error);
+  // Fetch per Gamma tag_id (paginated) instead of one global top-100-by-volume
+  // page, so each category sees its FULL inventory regardless of what's trending
+  // globally. Dedup events by id, then sort by volume so the per-category cap
+  // keeps the highest-volume markets.
+  const pmCats = await getPolymarketCategories();
+  const tagIds = [...new Set(pmCats.flatMap(c => c.tagIds))];
+  if (tagIds.length === 0) {
+    console.warn('[PolymarketSync] No tagIds configured on any category — skipping bulk sync');
     return;
   }
-
-  if (!Array.isArray(events)) {
-    console.warn('[PolymarketSync] Unexpected response format from /events');
+  const maxPagesPerTag = Number(process.env.POLYMARKET_MAX_PAGES_PER_TAG) || 4;
+  const eventsById = new Map<string, any>();
+  for (const tagId of tagIds) {
+    let offset = 0;
+    while (offset < maxPagesPerTag * 100) {
+      let page: any = null;
+      for (let attempt = 0; attempt < 2 && page === null; attempt++) {
+        try {
+          page = await polymarketFetch(`/events?closed=false&tag_id=${tagId}&limit=100&offset=${offset}`);
+        } catch (error) {
+          if (attempt === 0) { await sleep(2_000); continue; } // transient 5xx — retry once
+          console.warn(`[PolymarketSync] fetch failed (tag ${tagId} offset ${offset}):`, error instanceof Error ? error.message : error);
+        }
+      }
+      if (!Array.isArray(page) || page.length === 0) break;
+      for (const e of page) eventsById.set(String(e.id), e);
+      if (page.length < 100) break;
+      offset += 100;
+    }
+  }
+  const events = [...eventsById.values()].sort((a, b) => (b.volume24hr ?? 0) - (a.volume24hr ?? 0));
+  if (events.length === 0) {
+    console.warn('[PolymarketSync] Per-tag fetch returned no events');
     return;
   }
 
   const counts: Record<string, number> = {};
-  const maxPerCat = Number(process.env.POLYMARKET_MAX_MARKETS_PER_CATEGORY) || 30;
+  const maxPerCat = Number(process.env.POLYMARKET_MAX_MARKETS_PER_CATEGORY) || 50;
   // One sub-market per event by default: a multi-market "ladder" (e.g. WTI
   // $110..$150) would otherwise flood a category with near-duplicate pools and
   // crowd out other topics, leaving few distinct subcategory filters.
@@ -195,7 +216,7 @@ export async function bulkSync(): Promise<void> {
     }
   }
 
-  console.log(`[PolymarketSync] Bulk sync complete: ${totalSynced} markets (${Object.entries(counts).map(([k, v]) => `${k}:${v}`).join(', ')})`);
+  console.log(`[PolymarketSync] Bulk sync complete: ${totalSynced} markets from ${events.length} events across ${tagIds.length} tags (${Object.entries(counts).map(([k, v]) => `${k}:${v}`).join(', ')})`);
 }
 
 // ── Resolution Poll ─────────────────────────────────────────────────────────
