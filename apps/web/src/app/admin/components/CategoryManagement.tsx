@@ -208,6 +208,12 @@ function PolymarketConfigFields({ pm, onChange }: { pm: PmConfig; onChange: (pm:
         >Add</Button>
       </Box>
 
+      {pm.tags.length === 0 && (
+        <Typography sx={{ fontSize: '0.7rem', color: dt.down, fontWeight: 600 }}>
+          ⚠ Add at least one Polymarket tag — a category with no tag imports nothing.
+        </Typography>
+      )}
+
       <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
         <TextField label="Min Volume 24h ($)" size="small" type="number" value={pm.minVolume24h} onChange={e => set({ minVolume24h: e.target.value })} sx={{ flex: 1 }} />
         <TextField label="Max Days Ahead" size="small" type="number" value={pm.maxDaysAhead} onChange={e => set({ maxDaysAhead: e.target.value })} sx={{ flex: 1 }} />
@@ -376,7 +382,9 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
     onSave({ ...form, config: Object.keys(config).length > 0 ? config : undefined });
   };
 
-  const canSave = isNew ? !!(form.code && form.type && form.label) : true;
+  // A PM category with no tag imports nothing — block saving it (dead category).
+  const pmNeedsTag = type === 'POLYMARKET' && pm.tagIds.length === 0;
+  const canSave = !pmNeedsTag && (isNew ? !!(form.code && form.type && form.label) : true);
 
   return (
     <Dialog open={open} onClose={onClose} TransitionProps={{ onEnter: handleOpen }} maxWidth="sm" fullWidth PaperProps={{ sx: { bgcolor: dt.bg.surfaceAlt, border: dt.surfaceBorder, boxShadow: dt.surfaceShadow, backgroundImage: 'none' } }}>
