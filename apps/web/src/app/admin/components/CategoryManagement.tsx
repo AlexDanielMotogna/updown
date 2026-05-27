@@ -5,8 +5,9 @@ import {
   Box, Card, Typography, Switch, Chip, CircularProgress,
   FormControlLabel, Alert, TextField, Select, MenuItem, Button,
   Dialog, DialogTitle, DialogContent, DialogActions, FormControl, InputLabel,
-  Checkbox,
+  Checkbox, Autocomplete, Tooltip, InputAdornment,
 } from '@mui/material';
+import InfoOutlined from '@mui/icons-material/InfoOutlined';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminFetch } from '../lib/adminApi';
 import { darkTokens as dt, palette, withAlpha } from '@/lib/theme';
@@ -136,22 +137,40 @@ interface PmConfig {
   subcategories: string[];
 }
 
-const SectionLabel = ({ children }: { children: ReactNode }) => (
-  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', mt: 1.5 }}>{children}</Typography>
+const InfoTip = ({ text }: { text: string }) => (
+  <Tooltip title={text} arrow placement="top" slotProps={{ tooltip: { sx: { fontSize: '0.72rem', maxWidth: 280, lineHeight: 1.4 } } }}>
+    <InfoOutlined sx={{ fontSize: 15, color: 'rgba(255,255,255,0.35)', cursor: 'help', '&:hover': { color: 'rgba(255,255,255,0.7)' } }} />
+  </Tooltip>
+);
+const tipAdornment = (text: string) => ({ endAdornment: <InputAdornment position="end"><InfoTip text={text} /></InputAdornment> });
+
+const SectionLabel = ({ children, tip }: { children: ReactNode; tip?: string }) => (
+  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 1.5 }}>
+    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{children}</Typography>
+    {tip && <InfoTip text={tip} />}
+  </Box>
 );
 const Helper = ({ children }: { children: ReactNode }) => (
   <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', mb: 0.5 }}>{children}</Typography>
 );
 
 function PolymarketConfigFields({ pm, onChange }: { pm: PmConfig; onChange: (pm: PmConfig) => void }) {
-  const [tagName, setTagName] = useState('');
   const [resolving, setResolving] = useState(false);
   const [tagError, setTagError] = useState('');
   const [related, setRelated] = useState<Array<{ id: string; label: string; rank: number }>>([]);
   const [loadingRelated, setLoadingRelated] = useState(false);
+  const [tagOptions, setTagOptions] = useState<Array<{ id: string; label: string; count: number }>>([]);
 
   const set = (patch: Partial<PmConfig>) => onChange({ ...pm, ...patch });
   const tagIdsKey = pm.tagIds.join(',');
+
+  // Load Polymarket's active tags (clean, ranked) for the picker — no blind typing.
+  useEffect(() => {
+    fetch(`${API}/api/config/pm-tags`)
+      .then(r => r.json())
+      .then(d => setTagOptions(d.success ? d.data : []))
+      .catch(() => setTagOptions([]));
+  }, []);
 
   // Load Polymarket's REAL sub-tags for this category's tag(s) — the only source
   // for sidebar filters (no free text => no dead filters).
@@ -165,19 +184,19 @@ function PolymarketConfigFields({ pm, onChange }: { pm: PmConfig; onChange: (pm:
       .finally(() => setLoadingRelated(false));
   }, [tagIdsKey]);
 
-  const addTag = async () => {
-    const name = tagName.trim();
-    if (!name) return;
+  const addPickedTag = (id: string, label: string) => {
+    if (!pm.tagIds.includes(id)) set({ tags: [...pm.tags, label], tagIds: [...pm.tagIds, id] });
+  };
+  // Fallback for a typed name not in the active list — resolve it against PM.
+  const addTypedTag = async (name: string) => {
+    const n = name.trim();
+    if (!n) return;
     setResolving(true); setTagError('');
     try {
-      const r = await fetch(`${API}/api/config/pm-tag?name=${encodeURIComponent(name)}`);
+      const r = await fetch(`${API}/api/config/pm-tag?name=${encodeURIComponent(n)}`);
       const d = await r.json();
-      if (d.success && d.data) {
-        if (!pm.tagIds.includes(d.data.id)) set({ tags: [...pm.tags, d.data.label], tagIds: [...pm.tagIds, d.data.id] });
-        setTagName('');
-      } else {
-        setTagError(`Polymarket has no tag "${name}"`);
-      }
+      if (d.success && d.data) addPickedTag(String(d.data.id), d.data.label);
+      else setTagError(`Polymarket has no tag "${n}"`);
     } catch { setTagError('Lookup failed'); }
     finally { setResolving(false); }
   };
@@ -186,9 +205,9 @@ function PolymarketConfigFields({ pm, onChange }: { pm: PmConfig; onChange: (pm:
 
   return (
     <>
-      {/* Polymarket tags — what this category imports (resolved against PM, never free text) */}
-      <SectionLabel>Polymarket Tags</SectionLabel>
-      <Helper>Top-level Polymarket tags this category imports. Type a name; it's resolved against Polymarket&apos;s tag list.</Helper>
+      {/* Polymarket tags — what this category imports. Picked from PM's active tags. */}
+      <SectionLabel tip="The Polymarket tags this category imports markets from. THIS is what creates the pools — each matching event becomes a pool (up to Max Pools). Pick from Polymarket's active tags.">Polymarket Tags</SectionLabel>
+      <Helper>Top-level Polymarket tags this category imports. Pick from Polymarket&apos;s active tags below.</Helper>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 0.5 }}>
         {pm.tags.map((tag, i) => (
           <Chip key={pm.tagIds[i] || tag} label={`${tag} #${pm.tagIds[i] ?? '?'}`} size="small" onDelete={() => removeTag(i)}
@@ -196,17 +215,29 @@ function PolymarketConfigFields({ pm, onChange }: { pm: PmConfig; onChange: (pm:
           />
         ))}
       </Box>
-      <Box sx={{ display: 'flex', gap: 1 }}>
-        <TextField label="Add Polymarket tag" size="small" value={tagName} error={!!tagError} helperText={tagError || undefined}
-          onChange={e => { setTagName(e.target.value); setTagError(''); }}
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
-          placeholder="e.g. Geopolitics" sx={{ flex: 1 }}
-        />
-        <Button size="small" variant="outlined" disabled={!tagName.trim() || resolving} onClick={addTag}
-          startIcon={resolving ? <CircularProgress size={12} sx={{ color: 'inherit' }} /> : undefined}
-          sx={{ textTransform: 'none', borderColor: dt.border.strong, color: dt.text.secondary, minWidth: 60, alignSelf: 'flex-start' }}
-        >Add</Button>
-      </Box>
+      <Autocomplete
+        size="small"
+        freeSolo
+        options={tagOptions.filter(o => !pm.tagIds.includes(o.id))}
+        getOptionLabel={(o) => typeof o === 'string' ? o : o.label}
+        value={null}
+        blurOnSelect
+        onChange={(_, val) => {
+          if (!val) return;
+          if (typeof val === 'string') addTypedTag(val);
+          else addPickedTag(val.id, val.label);
+        }}
+        renderOption={(props, o) => (
+          <li {...props} key={o.id}>{o.label}<Box component="span" sx={{ opacity: 0.45, ml: 0.75, fontSize: '0.8em' }}>{o.count} events</Box></li>
+        )}
+        renderInput={(params) => (
+          <TextField {...params} label="Add Polymarket tag" size="small" error={!!tagError}
+            onChange={() => setTagError('')}
+            helperText={tagError || 'Pick from Polymarket’s active tags (or type a name to look it up)'}
+            InputProps={{ ...params.InputProps, endAdornment: <>{resolving ? <CircularProgress size={14} /> : null}{params.InputProps.endAdornment}</> }}
+          />
+        )}
+      />
 
       {pm.tags.length === 0 && (
         <Typography sx={{ fontSize: '0.7rem', color: dt.down, fontWeight: 600 }}>
@@ -215,19 +246,24 @@ function PolymarketConfigFields({ pm, onChange }: { pm: PmConfig; onChange: (pm:
       )}
 
       <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
-        <TextField label="Min Volume 24h ($)" size="small" type="number" value={pm.minVolume24h} onChange={e => set({ minVolume24h: e.target.value })} sx={{ flex: 1 }} />
-        <TextField label="Max Days Ahead" size="small" type="number" value={pm.maxDaysAhead} onChange={e => set({ maxDaysAhead: e.target.value })} sx={{ flex: 1 }} />
+        <TextField label="Min Volume 24h ($)" size="small" type="number" value={pm.minVolume24h} onChange={e => set({ minVolume24h: e.target.value })} sx={{ flex: 1 }}
+          InputProps={tipAdornment('Only import events with at least this much 24h trading volume on Polymarket. Higher = fewer but more active markets. Lower = more pools.')} />
+        <TextField label="Max Days Ahead" size="small" type="number" value={pm.maxDaysAhead} onChange={e => set({ maxDaysAhead: e.target.value })} sx={{ flex: 1 }}
+          InputProps={tipAdornment('Only import events resolving within this many days from now. Higher = include longer-dated markets (more pools).')} />
       </Box>
       <Box sx={{ display: 'flex', gap: 2 }}>
-        <TextField label="Max Pools" size="small" type="number" value={pm.maxMarkets} onChange={e => set({ maxMarkets: e.target.value })} sx={{ flex: 1 }} helperText="Cap of pools per category" />
-        <TextField label="Sub-markets / event" size="small" type="number" value={pm.maxSubmarketsPerEvent} onChange={e => set({ maxSubmarketsPerEvent: e.target.value })} sx={{ flex: 1 }} helperText="1 = no price ladders" />
+        <TextField label="Max Pools" size="small" type="number" value={pm.maxMarkets} onChange={e => set({ maxMarkets: e.target.value })} sx={{ flex: 1 }}
+          InputProps={tipAdornment('Hard cap on how many pools this category imports per sync (highest-volume first). This is the main lever for how many pools you get.')} />
+        <TextField label="Sub-markets / event" size="small" type="number" value={pm.maxSubmarketsPerEvent} onChange={e => set({ maxSubmarketsPerEvent: e.target.value })} sx={{ flex: 1 }}
+          InputProps={tipAdornment('How many questions to import from a multi-market event (e.g. a price ladder $110/$120/...). 1 = one representative pool per event, avoids near-duplicates.')} />
       </Box>
       <TextField label="Match Priority (advanced)" size="small" type="number" value={pm.matchPriority} onChange={e => set({ matchPriority: e.target.value })}
-        helperText="Lower = matched first. Set high (e.g. 99) for the generic catch-all category." />
+        InputProps={tipAdornment('When an event matches several categories, the LOWEST priority wins. Use a low number to make a specific category beat a broad one; high (e.g. 99) for a catch-all. Leave blank to use Sort Order.')}
+        helperText="Lower = matched first. Leave blank unless categories overlap." />
 
       {/* Sidebar Filters — only from Polymarket's real related-tags for this category */}
-      <SectionLabel>Sidebar Filters</SectionLabel>
-      <Helper>Polymarket&apos;s sub-tags for this category. Click to add/remove — you can only use what Polymarket offers.</Helper>
+      <SectionLabel tip="Sidebar filters do NOT create pools — they GROUP this category's already-imported pools into sub-views. A filter only appears on the site when at least one pool falls into it (an imported event carrying that sub-tag). So 'Music' shows however many music pools were imported, not a new one.">Sidebar Filters</SectionLabel>
+      <Helper>Polymarket&apos;s sub-tags for this category. Click to add/remove — these group the imported pools, they don&apos;t create them.</Helper>
       {pm.tagIds.length === 0 ? (
         <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>Add a Polymarket tag above first — sub-tags come from it.</Typography>
       ) : (
@@ -393,7 +429,8 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
         {isNew && (
           <Box sx={{ display: 'flex', gap: 2 }}>
             <TextField label="Code" size="small" value={form.code || ''} onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase().replace(/\s+/g, '_') }))}
-              placeholder="PM_SCIENCE" sx={{ flex: 1 }} helperText="Unique & permanent" />
+              placeholder="PM_SCIENCE" sx={{ flex: 1 }} helperText="Unique & permanent"
+              InputProps={tipAdornment('Internal unique id, e.g. PM_TECH. Permanent — pools store this code, so it can’t be changed later. PM categories start with PM_.')} />
             <FormControl size="small" sx={{ flex: 1 }}>
               <InputLabel>Type</InputLabel>
               <Select value={form.type || 'POLYMARKET'} label="Type"
@@ -405,12 +442,18 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
             </FormControl>
           </Box>
         )}
-        <TextField label="Label" size="small" value={form.label || ''} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} />
-        <TextField label="Short Label" size="small" value={form.shortLabel || ''} onChange={e => setForm(f => ({ ...f, shortLabel: e.target.value }))} />
+        <TextField label="Label" size="small" value={form.label || ''} onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
+          InputProps={tipAdornment('Full display name of the category (e.g. "Culture & Entertainment").')} />
+        <TextField label="Short Label" size="small" value={form.shortLabel || ''} onChange={e => setForm(f => ({ ...f, shortLabel: e.target.value }))}
+          InputProps={tipAdornment('Short name shown on the category tab / sidebar (e.g. "Culture").')} />
         <TextField label="Color (hex)" size="small" value={form.color || ''} onChange={e => setForm(f => ({ ...f, color: e.target.value }))}
-          InputProps={{ startAdornment: form.color ? <Box sx={{ width: 16, height: 16, borderRadius: '50%', bgcolor: form.color, mr: 1, flexShrink: 0 }} /> : null }}
+          InputProps={{
+            startAdornment: form.color ? <Box sx={{ width: 16, height: 16, borderRadius: '50%', bgcolor: form.color, mr: 1, flexShrink: 0 }} /> : null,
+            endAdornment: <InputAdornment position="end"><InfoTip text="Accent color for this category (hex, e.g. #34D399). Cosmetic only." /></InputAdornment>,
+          }}
         />
-        <TextField label="Badge URL" size="small" value={form.badgeUrl || ''} onChange={e => setForm(f => ({ ...f, badgeUrl: e.target.value }))} />
+        <TextField label="Badge URL" size="small" value={form.badgeUrl || ''} onChange={e => setForm(f => ({ ...f, badgeUrl: e.target.value }))}
+          InputProps={tipAdornment('Optional image URL for the category icon. Leave blank to use the Icon below. Cosmetic only.')} />
         <FormControl size="small">
           <InputLabel>Icon</InputLabel>
           <Select label="Icon" value={form.iconKey && ICON_REGISTRY[form.iconKey] ? form.iconKey : ''}
@@ -421,7 +464,8 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
             ))}
           </Select>
         </FormControl>
-        <TextField label="Sort Order" size="small" type="number" value={form.sortOrder ?? 0} onChange={e => setForm(f => ({ ...f, sortOrder: Number(e.target.value) }))} helperText="Position in the tab bar — lower shows first" />
+        <TextField label="Sort Order" size="small" type="number" value={form.sortOrder ?? 0} onChange={e => setForm(f => ({ ...f, sortOrder: Number(e.target.value) }))} helperText="Position in the tab bar — lower shows first"
+          InputProps={tipAdornment('Position of this category in the tab bar. Lower numbers show further left.')} />
         <FormControl size="small">
           <InputLabel>Sides</InputLabel>
           <Select value={form.numSides ?? 2} label="Sides" onChange={e => setForm(f => ({ ...f, numSides: Number(e.target.value) }))}>
