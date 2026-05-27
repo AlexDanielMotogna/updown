@@ -229,14 +229,14 @@ const CATEGORIES: CategorySeed[] = [
     label: 'Politics', shortLabel: 'Politics', color: '#A78BFA',
     iconKey: 'Gavel', apiSource: 'predictions', adapterKey: 'POLYMARKET',
     numSides: 2, sideLabels: ['Yes', 'No'], sortOrder: 40,
-    config: { tags: ['Politics', 'Elections', 'Global Elections'], minVolume24h: 10000, maxDaysAhead: 1100, subcategories: ['Trump', 'Biden', 'Harris', 'US Election', 'Presidential Election', 'Midterms', 'Primaries', 'Democrats', 'Republicans', 'Government Shutdown', 'Impeachment', 'Congress', 'Senate', 'House', 'Supreme Court', 'Cabinet', 'Mayoral Elections', 'UK', 'France', 'Germany', 'Canada', 'Brazil', 'Venezuela', 'Argentina', 'India', 'Trade War', 'Tariffs', 'Middle East', 'Israel', 'Global Elections', 'Elections'] },
+    config: { tags: ['Politics', 'Elections', 'Global Elections'], minVolume24h: 10000, maxDaysAhead: 1100, matchPriority: 99, subcategories: ['Trump', 'Biden', 'Harris', 'US Election', 'Presidential Election', 'Midterms', 'Primaries', 'Democrats', 'Republicans', 'Government Shutdown', 'Impeachment', 'Congress', 'Senate', 'House', 'Supreme Court', 'Cabinet', 'Mayoral Elections', 'UK', 'France', 'Germany', 'Canada', 'Brazil', 'Venezuela', 'Argentina', 'India', 'Trade War', 'Tariffs', 'Middle East', 'Israel', 'Global Elections', 'Elections'] },
   },
   {
     code: 'PM_GEO', type: 'POLYMARKET', enabled: true, comingSoon: false,
     label: 'Geopolitics', shortLabel: 'Geo', color: '#60A5FA',
     iconKey: 'Public', apiSource: 'predictions', adapterKey: 'POLYMARKET',
     numSides: 2, sideLabels: ['Yes', 'No'], sortOrder: 41,
-    config: { tags: ['Geopolitics', 'Middle East'], minVolume24h: 10000, maxDaysAhead: 90, subcategories: ['Strait of Hormuz', 'Iran', 'Israel', 'Gaza', 'Palestine', 'Lebanon', 'Syria', 'Yemen', 'Russia', 'Ukraine', 'China', 'Taiwan', 'North Korea', 'India', 'Pakistan', 'Venezuela', 'Cuba', 'Sudan', 'Ceasefire', 'Sanctions', 'Nuclear', 'NATO', 'War', 'Middle East', 'Foreign Policy', 'Geopolitics'] },
+    config: { tags: ['Geopolitics', 'Middle East'], minVolume24h: 10000, maxDaysAhead: 365, subcategories: ['Strait of Hormuz', 'Iran', 'Israel', 'Gaza', 'Palestine', 'Lebanon', 'Syria', 'Yemen', 'Russia', 'Ukraine', 'China', 'Taiwan', 'North Korea', 'India', 'Pakistan', 'Venezuela', 'Cuba', 'Sudan', 'Ceasefire', 'Sanctions', 'Nuclear', 'NATO', 'War', 'Middle East', 'Foreign Policy', 'Geopolitics'] },
   },
   {
     code: 'PM_CULTURE', type: 'POLYMARKET', enabled: true, comingSoon: false,
