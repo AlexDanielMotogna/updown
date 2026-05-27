@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import {
   Box, Card, Typography, Switch, Chip, CircularProgress,
   FormControlLabel, Alert, TextField, Select, MenuItem, Button,
@@ -50,11 +50,12 @@ function StatusChip({ enabled, comingSoon }: { enabled: boolean; comingSoon: boo
   return <Chip label="Hidden" size="small" sx={{ bgcolor: dt.hover.medium, color: dt.text.dimmed, fontWeight: 700, fontSize: '0.65rem', height: 22 }} />;
 }
 
-function CategoryCard({ cat, onToggle, onToggleComingSoon, onEdit }: {
+function CategoryCard({ cat, onToggle, onToggleComingSoon, onEdit, onDelete }: {
   cat: Category;
   onToggle: () => void;
   onToggleComingSoon: () => void;
   onEdit: () => void;
+  onDelete: () => void;
 }) {
   return (
     <Card sx={{
@@ -114,53 +115,138 @@ function CategoryCard({ cat, onToggle, onToggleComingSoon, onEdit }: {
           <Button size="small" onClick={onEdit} sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', textTransform: 'none', minWidth: 0 }}>
             Edit
           </Button>
+          <Button size="small" onClick={onDelete} sx={{ fontSize: '0.65rem', color: withAlpha(dt.down, 0.7), textTransform: 'none', minWidth: 0, '&:hover': { color: dt.down } }}>
+            Delete
+          </Button>
         </Box>
       </Box>
     </Card>
   );
 }
 
-function PolymarketConfigFields({ selectedTags, onTagsChange, minVolume, onMinVolumeChange, maxDays, onMaxDaysChange }: {
-  selectedTags: string[];
-  onTagsChange: (tags: string[]) => void;
-  minVolume: string;
-  onMinVolumeChange: (v: string) => void;
-  maxDays: string;
-  onMaxDaysChange: (v: string) => void;
-}) {
-  const [newTag, setNewTag] = useState('');
+interface PmConfig {
+  tags: string[];        // labels — kept in sync with tagIds (one PM tag = one pair)
+  tagIds: string[];      // Gamma tag ids (for per-tag fetch)
+  minVolume24h: string;
+  maxDaysAhead: string;
+  matchPriority: string;
+  maxMarkets: string;
+  maxSubmarketsPerEvent: string;
+  subcategories: string[];
+}
+
+const SectionLabel = ({ children }: { children: ReactNode }) => (
+  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', mt: 1.5 }}>{children}</Typography>
+);
+const Helper = ({ children }: { children: ReactNode }) => (
+  <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', mb: 0.5 }}>{children}</Typography>
+);
+
+function PolymarketConfigFields({ pm, onChange }: { pm: PmConfig; onChange: (pm: PmConfig) => void }) {
+  const [tagName, setTagName] = useState('');
+  const [resolving, setResolving] = useState(false);
+  const [tagError, setTagError] = useState('');
+  const [related, setRelated] = useState<Array<{ id: string; label: string; rank: number }>>([]);
+  const [loadingRelated, setLoadingRelated] = useState(false);
+
+  const set = (patch: Partial<PmConfig>) => onChange({ ...pm, ...patch });
+  const tagIdsKey = pm.tagIds.join(',');
+
+  // Load Polymarket's REAL sub-tags for this category's tag(s) — the only source
+  // for sidebar filters (no free text => no dead filters).
+  useEffect(() => {
+    if (pm.tagIds.length === 0) { setRelated([]); return; }
+    setLoadingRelated(true);
+    fetch(`${API}/api/config/pm-related-tags?tagIds=${tagIdsKey}`)
+      .then(r => r.json())
+      .then(d => setRelated(d.success ? d.data : []))
+      .catch(() => setRelated([]))
+      .finally(() => setLoadingRelated(false));
+  }, [tagIdsKey]);
+
+  const addTag = async () => {
+    const name = tagName.trim();
+    if (!name) return;
+    setResolving(true); setTagError('');
+    try {
+      const r = await fetch(`${API}/api/config/pm-tag?name=${encodeURIComponent(name)}`);
+      const d = await r.json();
+      if (d.success && d.data) {
+        if (!pm.tagIds.includes(d.data.id)) set({ tags: [...pm.tags, d.data.label], tagIds: [...pm.tagIds, d.data.id] });
+        setTagName('');
+      } else {
+        setTagError(`Polymarket has no tag "${name}"`);
+      }
+    } catch { setTagError('Lookup failed'); }
+    finally { setResolving(false); }
+  };
+  const removeTag = (i: number) => set({ tags: pm.tags.filter((_, j) => j !== i), tagIds: pm.tagIds.filter((_, j) => j !== i) });
+  const selectedSubs = new Set(pm.subcategories);
 
   return (
     <>
-      {/* Source Tags — which Polymarket events belong to this category */}
-      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', mt: 1 }}>
-        Source Tags
-      </Typography>
-      <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', mb: 0.5 }}>
-        Polymarket events with these tags will be imported into this category
-      </Typography>
+      {/* Polymarket tags — what this category imports (resolved against PM, never free text) */}
+      <SectionLabel>Polymarket Tags</SectionLabel>
+      <Helper>Top-level Polymarket tags this category imports. Type a name; it's resolved against Polymarket&apos;s tag list.</Helper>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 0.5 }}>
-        {selectedTags.map(tag => (
-          <Chip key={tag} label={tag} size="small" onDelete={() => onTagsChange(selectedTags.filter(t => t !== tag))}
+        {pm.tags.map((tag, i) => (
+          <Chip key={pm.tagIds[i] || tag} label={`${tag} #${pm.tagIds[i] ?? '?'}`} size="small" onDelete={() => removeTag(i)}
             sx={{ fontSize: '0.7rem', fontWeight: 600, bgcolor: withAlpha(dt.gain, 0.15), color: dt.gain, '& .MuiChip-deleteIcon': { color: withAlpha(dt.gain, 0.5), '&:hover': { color: dt.gain } } }}
           />
         ))}
       </Box>
       <Box sx={{ display: 'flex', gap: 1 }}>
-        <TextField label="Add tag" size="small" value={newTag} onChange={e => setNewTag(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && newTag.trim()) { onTagsChange([...selectedTags, newTag.trim()]); setNewTag(''); } }}
-          placeholder="e.g. Science, AI" sx={{ flex: 1 }}
+        <TextField label="Add Polymarket tag" size="small" value={tagName} error={!!tagError} helperText={tagError || undefined}
+          onChange={e => { setTagName(e.target.value); setTagError(''); }}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
+          placeholder="e.g. Geopolitics" sx={{ flex: 1 }}
         />
-        <Button size="small" variant="outlined" disabled={!newTag.trim()}
-          onClick={() => { if (newTag.trim()) { onTagsChange([...selectedTags, newTag.trim()]); setNewTag(''); } }}
-          sx={{ textTransform: 'none', borderColor: dt.border.strong, color: dt.text.secondary, minWidth: 60 }}
+        <Button size="small" variant="outlined" disabled={!tagName.trim() || resolving} onClick={addTag}
+          startIcon={resolving ? <CircularProgress size={12} sx={{ color: 'inherit' }} /> : undefined}
+          sx={{ textTransform: 'none', borderColor: dt.border.strong, color: dt.text.secondary, minWidth: 60, alignSelf: 'flex-start' }}
         >Add</Button>
       </Box>
 
       <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
-        <TextField label="Min Volume 24h ($)" size="small" type="number" value={minVolume} onChange={e => onMinVolumeChange(e.target.value)} sx={{ flex: 1 }} />
-        <TextField label="Max Days Ahead" size="small" type="number" value={maxDays} onChange={e => onMaxDaysChange(e.target.value)} sx={{ flex: 1 }} />
+        <TextField label="Min Volume 24h ($)" size="small" type="number" value={pm.minVolume24h} onChange={e => set({ minVolume24h: e.target.value })} sx={{ flex: 1 }} />
+        <TextField label="Max Days Ahead" size="small" type="number" value={pm.maxDaysAhead} onChange={e => set({ maxDaysAhead: e.target.value })} sx={{ flex: 1 }} />
       </Box>
+      <Box sx={{ display: 'flex', gap: 2 }}>
+        <TextField label="Max Pools" size="small" type="number" value={pm.maxMarkets} onChange={e => set({ maxMarkets: e.target.value })} sx={{ flex: 1 }} helperText="Cap of pools per category" />
+        <TextField label="Sub-markets / event" size="small" type="number" value={pm.maxSubmarketsPerEvent} onChange={e => set({ maxSubmarketsPerEvent: e.target.value })} sx={{ flex: 1 }} helperText="1 = no price ladders" />
+      </Box>
+      <TextField label="Match Priority (advanced)" size="small" type="number" value={pm.matchPriority} onChange={e => set({ matchPriority: e.target.value })}
+        helperText="Lower = matched first. Set high (e.g. 99) for the generic catch-all category." />
+
+      {/* Sidebar Filters — only from Polymarket's real related-tags for this category */}
+      <SectionLabel>Sidebar Filters</SectionLabel>
+      <Helper>Polymarket&apos;s sub-tags for this category. Click to add/remove — you can only use what Polymarket offers.</Helper>
+      {pm.tagIds.length === 0 ? (
+        <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>Add a Polymarket tag above first — sub-tags come from it.</Typography>
+      ) : (
+        <>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 0.5 }}>
+            {pm.subcategories.map(sub => (
+              <Chip key={sub} label={sub} size="small" onDelete={() => set({ subcategories: pm.subcategories.filter(s => s !== sub) })}
+                sx={{ fontSize: '0.7rem', fontWeight: 600, bgcolor: withAlpha(dt.accent, 0.15), color: dt.accent, '& .MuiChip-deleteIcon': { color: withAlpha(dt.accent, 0.5), '&:hover': { color: dt.accent } } }}
+              />
+            ))}
+            {pm.subcategories.length === 0 && <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>No filters yet — pick from Polymarket&apos;s sub-tags below.</Typography>}
+          </Box>
+          {loadingRelated ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><CircularProgress size={14} /><Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>Loading Polymarket sub-tags…</Typography></Box>
+          ) : (
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+              {related.filter(t => !selectedSubs.has(t.label)).map(t => (
+                <Chip key={t.id} label={t.label} size="small" onClick={() => set({ subcategories: [...pm.subcategories, t.label] })}
+                  sx={{ fontSize: '0.6rem', cursor: 'pointer', bgcolor: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.5)', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' } }}
+                />
+              ))}
+              {related.length === 0 && <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)' }}>Polymarket returned no sub-tags for these tag(s).</Typography>}
+            </Box>
+          )}
+        </>
+      )}
     </>
   );
 }
@@ -223,66 +309,91 @@ function SportsDbConfigFields({ sportQuery, onSportQueryChange, leagueFilter, on
   );
 }
 
-function EditDialog({ cat, open, onClose, onSave }: {
+const EMPTY_PM: PmConfig = { tags: [], tagIds: [], minVolume24h: '', maxDaysAhead: '', matchPriority: '', maxMarkets: '', maxSubmarketsPerEvent: '', subcategories: [] };
+
+function EditDialog({ cat, isNew, open, onClose, onSave }: {
   cat: Category | null;
+  isNew: boolean;
   open: boolean;
   onClose: () => void;
   onSave: (data: Partial<Category>) => void;
 }) {
   const [form, setForm] = useState<Partial<Category>>({});
-  const [configTags, setConfigTags] = useState('');
-  const [configMinVolume, setConfigMinVolume] = useState('');
-  const [configMaxDays, setConfigMaxDays] = useState('');
+  const [pm, setPm] = useState<PmConfig>(EMPTY_PM);
   const [configSportQuery, setConfigSportQuery] = useState('');
   const [configLeagueFilter, setConfigLeagueFilter] = useState('');
   const [configLeagueId, setConfigLeagueId] = useState('');
-  const [configSubcategories, setConfigSubcategories] = useState<string[]>([]);
-  const [availableSubcats, setAvailableSubcats] = useState<Array<{ label: string; count: number }>>([]);
-  const [subcatFilter, setSubcatFilter] = useState('');
+
+  const str = (v: unknown) => (v != null ? String(v) : '');
 
   const handleOpen = () => {
-    if (!cat) return;
-    setForm({ label: cat.label, shortLabel: cat.shortLabel, color: cat.color, badgeUrl: cat.badgeUrl, iconKey: cat.iconKey, sortOrder: cat.sortOrder, numSides: cat.numSides });
-    const cfg = cat.config as Record<string, unknown> | null;
-    setConfigTags(Array.isArray(cfg?.tags) ? (cfg.tags as string[]).join(', ') : '');
-    setConfigMinVolume(cfg?.minVolume24h != null ? String(cfg.minVolume24h) : '');
-    setConfigMaxDays(cfg?.maxDaysAhead != null ? String(cfg.maxDaysAhead) : '');
-    setConfigSportQuery(typeof cfg?.sportQuery === 'string' ? cfg.sportQuery : '');
-    setConfigLeagueFilter(typeof cfg?.leagueFilter === 'string' ? cfg.leagueFilter : '');
-    setConfigLeagueId(typeof cfg?.theSportsDbLeagueId === 'string' ? cfg.theSportsDbLeagueId : '');
-    setConfigSubcategories(Array.isArray(cfg?.subcategories) ? cfg.subcategories as string[] : []);
-    setSubcatFilter('');
-
-    // Suggestions = raw tags found on this league's pools (operational tags
-    // filtered server-side), so the admin can pick which become subcategories.
-    if (cat.type === 'POLYMARKET') {
-      fetch(`${API}/api/config/pool-tags?league=${cat.code}`)
-        .then(r => r.json())
-        .then(d => { if (d.success) setAvailableSubcats(d.data); })
-        .catch(() => setAvailableSubcats([]));
+    setConfigSportQuery(''); setConfigLeagueFilter(''); setConfigLeagueId(''); setPm(EMPTY_PM);
+    if (isNew) {
+      setForm({ code: '', type: 'POLYMARKET', label: '', shortLabel: '', color: '', badgeUrl: '', iconKey: '', sortOrder: 50, numSides: 2, enabled: true, comingSoon: false, apiSource: 'predictions', adapterKey: 'POLYMARKET', sideLabels: ['Yes', 'No'] });
+      return;
     }
+    if (!cat) return;
+    setForm({ code: cat.code, type: cat.type, label: cat.label, shortLabel: cat.shortLabel, color: cat.color, badgeUrl: cat.badgeUrl, iconKey: cat.iconKey, sortOrder: cat.sortOrder, numSides: cat.numSides, enabled: cat.enabled, comingSoon: cat.comingSoon, apiSource: cat.apiSource, adapterKey: cat.adapterKey, sideLabels: cat.sideLabels });
+    const cfg = (cat.config || {}) as Record<string, unknown>;
+    setPm({
+      tags: Array.isArray(cfg.tags) ? cfg.tags as string[] : [],
+      tagIds: Array.isArray(cfg.tagIds) ? (cfg.tagIds as unknown[]).map(String) : [],
+      minVolume24h: str(cfg.minVolume24h),
+      maxDaysAhead: str(cfg.maxDaysAhead),
+      matchPriority: str(cfg.matchPriority),
+      maxMarkets: str(cfg.maxMarkets),
+      maxSubmarketsPerEvent: str(cfg.maxSubmarketsPerEvent),
+      subcategories: Array.isArray(cfg.subcategories) ? cfg.subcategories as string[] : [],
+    });
+    setConfigSportQuery(typeof cfg.sportQuery === 'string' ? cfg.sportQuery : '');
+    setConfigLeagueFilter(typeof cfg.leagueFilter === 'string' ? cfg.leagueFilter : '');
+    setConfigLeagueId(typeof cfg.theSportsDbLeagueId === 'string' ? cfg.theSportsDbLeagueId : '');
   };
 
+  const type = form.type;
+
   const handleSave = () => {
+    // Build the FULL config so nothing is dropped (tagIds, matchPriority, caps...).
     const config: Record<string, unknown> = {};
-    if (cat?.type === 'POLYMARKET') {
-      if (configTags) config.tags = configTags.split(',').map(t => t.trim()).filter(Boolean);
-      if (configMinVolume) config.minVolume24h = Number(configMinVolume);
-      if (configMaxDays) config.maxDaysAhead = Number(configMaxDays);
-      if (configSubcategories.length > 0) config.subcategories = configSubcategories;
-    } else if (cat?.type === 'SPORTSDB_SPORT') {
+    if (type === 'POLYMARKET') {
+      if (pm.tags.length) config.tags = pm.tags;
+      if (pm.tagIds.length) config.tagIds = pm.tagIds;
+      if (pm.minVolume24h) config.minVolume24h = Number(pm.minVolume24h);
+      if (pm.maxDaysAhead) config.maxDaysAhead = Number(pm.maxDaysAhead);
+      if (pm.matchPriority) config.matchPriority = Number(pm.matchPriority);
+      if (pm.maxMarkets) config.maxMarkets = Number(pm.maxMarkets);
+      if (pm.maxSubmarketsPerEvent) config.maxSubmarketsPerEvent = Number(pm.maxSubmarketsPerEvent);
+      if (pm.subcategories.length) config.subcategories = pm.subcategories;
+    } else if (type === 'SPORTSDB_SPORT') {
       if (configSportQuery) config.sportQuery = configSportQuery;
       if (configLeagueFilter) config.leagueFilter = configLeagueFilter;
-    } else if (cat?.type === 'FOOTBALL_LEAGUE') {
+    } else if (type === 'FOOTBALL_LEAGUE') {
       if (configLeagueId) config.theSportsDbLeagueId = configLeagueId;
     }
     onSave({ ...form, config: Object.keys(config).length > 0 ? config : undefined });
   };
 
+  const canSave = isNew ? !!(form.code && form.type && form.label) : true;
+
   return (
     <Dialog open={open} onClose={onClose} TransitionProps={{ onEnter: handleOpen }} maxWidth="sm" fullWidth PaperProps={{ sx: { bgcolor: dt.bg.surfaceAlt, border: dt.surfaceBorder, boxShadow: dt.surfaceShadow, backgroundImage: 'none' } }}>
-      <DialogTitle sx={{ fontSize: '1rem', fontWeight: 700 }}>Edit {cat?.code}</DialogTitle>
+      <DialogTitle sx={{ fontSize: '1rem', fontWeight: 700 }}>{isNew ? 'New Category' : `Edit ${cat?.code}`}</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
+        {isNew && (
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <TextField label="Code" size="small" value={form.code || ''} onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase().replace(/\s+/g, '_') }))}
+              placeholder="PM_SCIENCE" sx={{ flex: 1 }} helperText="Unique & permanent" />
+            <FormControl size="small" sx={{ flex: 1 }}>
+              <InputLabel>Type</InputLabel>
+              <Select value={form.type || 'POLYMARKET'} label="Type"
+                onChange={e => setForm(f => ({ ...f, type: e.target.value, ...(e.target.value === 'POLYMARKET' ? { apiSource: 'predictions', adapterKey: 'POLYMARKET', numSides: 2, sideLabels: ['Yes', 'No'] } : { apiSource: 'sports' }) }))}>
+                <MenuItem value="POLYMARKET">Prediction (Polymarket)</MenuItem>
+                <MenuItem value="SPORTSDB_SPORT">Sport (TheSportsDB)</MenuItem>
+                <MenuItem value="FOOTBALL_LEAGUE">Football League</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        )}
         <TextField label="Label" size="small" value={form.label || ''} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} />
         <TextField label="Short Label" size="small" value={form.shortLabel || ''} onChange={e => setForm(f => ({ ...f, shortLabel: e.target.value }))} />
         <TextField label="Color (hex)" size="small" value={form.color || ''} onChange={e => setForm(f => ({ ...f, color: e.target.value }))}
@@ -293,75 +404,15 @@ function EditDialog({ cat, open, onClose, onSave }: {
         <TextField label="Sort Order" size="small" type="number" value={form.sortOrder ?? 0} onChange={e => setForm(f => ({ ...f, sortOrder: Number(e.target.value) }))} />
         <FormControl size="small">
           <InputLabel>Sides</InputLabel>
-          <Select value={form.numSides ?? 3} label="Sides" onChange={e => setForm(f => ({ ...f, numSides: Number(e.target.value) }))}>
+          <Select value={form.numSides ?? 2} label="Sides" onChange={e => setForm(f => ({ ...f, numSides: Number(e.target.value) }))}>
             <MenuItem value={2}>2-way (Home/Away or Yes/No)</MenuItem>
             <MenuItem value={3}>3-way (Home/Draw/Away)</MenuItem>
           </Select>
         </FormControl>
 
-        {/* API Config — Polymarket */}
-        {cat?.type === 'POLYMARKET' && (
-          <PolymarketConfigFields
-            selectedTags={configTags ? configTags.split(',').map(t => t.trim()).filter(Boolean) : []}
-            onTagsChange={(tags) => setConfigTags(tags.join(', '))}
-            minVolume={configMinVolume}
-            onMinVolumeChange={setConfigMinVolume}
-            maxDays={configMaxDays}
-            onMaxDaysChange={setConfigMaxDays}
-          />
-        )}
+        {type === 'POLYMARKET' && <PolymarketConfigFields pm={pm} onChange={setPm} />}
 
-        {/* Sidebar Filters — PM only */}
-        {cat?.type === 'POLYMARKET' && (
-          <>
-            <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', mt: 2 }}>
-              Sidebar Filters
-            </Typography>
-            <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', mb: 0.5 }}>
-              These appear as filter options in the user sidebar. Click to remove.
-            </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 0.5 }}>
-              {configSubcategories.map(sub => (
-                <Chip key={sub} label={sub} size="small"
-                  onDelete={() => setConfigSubcategories(prev => prev.filter(s => s !== sub))}
-                  sx={{ fontSize: '0.7rem', fontWeight: 600, bgcolor: withAlpha(dt.accent, 0.15), color: dt.accent, '& .MuiChip-deleteIcon': { color: withAlpha(dt.accent, 0.5), '&:hover': { color: dt.accent } } }}
-                />
-              ))}
-              {configSubcategories.length === 0 && (
-                <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>No filters set — add below or pick from suggestions</Typography>
-              )}
-            </Box>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <TextField label="Add filter" size="small" value={subcatFilter} onChange={e => setSubcatFilter(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && subcatFilter.trim() && !configSubcategories.includes(subcatFilter.trim())) { setConfigSubcategories(prev => [...prev, subcatFilter.trim()]); setSubcatFilter(''); } }}
-                placeholder="e.g. Trump, Iran" sx={{ flex: 1 }}
-              />
-              <Button size="small" variant="outlined" disabled={!subcatFilter.trim() || configSubcategories.includes(subcatFilter.trim())}
-                onClick={() => { if (subcatFilter.trim()) { setConfigSubcategories(prev => [...prev, subcatFilter.trim()]); setSubcatFilter(''); } }}
-                sx={{ textTransform: 'none', borderColor: dt.border.strong, color: dt.text.secondary, minWidth: 60 }}
-              >Add</Button>
-            </Box>
-            {/* Suggestions from actual pool tags */}
-            {availableSubcats.length > 0 && (
-              <>
-                <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', mt: 1 }}>
-                  Suggestions (from pool tags — click to add):
-                </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                  {availableSubcats.filter(t => !configSubcategories.includes(t.label)).slice(0, 30).map(t => (
-                    <Chip key={t.label} label={`${t.label} (${t.count})`} size="small"
-                      onClick={() => setConfigSubcategories(prev => [...prev, t.label])}
-                      sx={{ fontSize: '0.6rem', cursor: 'pointer', bgcolor: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.5)', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' } }}
-                    />
-                  ))}
-                </Box>
-              </>
-            )}
-          </>
-        )}
-
-        {/* API Config — TheSportsDB */}
-        {cat?.type === 'SPORTSDB_SPORT' && (
+        {type === 'SPORTSDB_SPORT' && (
           <SportsDbConfigFields
             sportQuery={configSportQuery}
             onSportQueryChange={setConfigSportQuery}
@@ -370,23 +421,14 @@ function EditDialog({ cat, open, onClose, onSave }: {
           />
         )}
 
-        {/* Football league config — TheSportsDB league ID */}
-        {cat?.type === 'FOOTBALL_LEAGUE' && (
-          <>
-            <TextField
-              label="TheSportsDB League ID"
-              size="small"
-              value={configLeagueId}
-              onChange={e => setConfigLeagueId(e.target.value)}
-              placeholder="e.g. 4480 (Champions League)"
-              helperText="Numeric ID from TheSportsDB. Required for fixture sync."
-            />
-          </>
+        {type === 'FOOTBALL_LEAGUE' && (
+          <TextField label="TheSportsDB League ID" size="small" value={configLeagueId} onChange={e => setConfigLeagueId(e.target.value)}
+            placeholder="e.g. 4480 (Champions League)" helperText="Numeric ID from TheSportsDB. Required for fixture sync." />
         )}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} sx={{ color: 'rgba(255,255,255,0.5)', textTransform: 'none' }}>Cancel</Button>
-        <Button onClick={handleSave} variant="contained" sx={{ bgcolor: dt.gain, color: dt.text.contrast, textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: palette.green600 } }}>Save</Button>
+        <Button onClick={handleSave} disabled={!canSave} variant="contained" sx={{ bgcolor: dt.gain, color: dt.text.contrast, textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: palette.green600 }, '&.Mui-disabled': { bgcolor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.3)' } }}>{isNew ? 'Create' : 'Save'}</Button>
       </DialogActions>
     </Dialog>
   );
@@ -395,6 +437,7 @@ function EditDialog({ cat, open, onClose, onSave }: {
 export function CategoryManagement() {
   const qc = useQueryClient();
   const [editCat, setEditCat] = useState<Category | null>(null);
+  const [creating, setCreating] = useState(false);
   const [result, setResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const { data, isLoading } = useQuery({
@@ -418,6 +461,19 @@ export function CategoryManagement() {
     mutationFn: ({ id, data }: { id: string; data: Partial<Category> }) =>
       adminFetch(`/categories/${id}`, { method: 'PUT', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-categories'] }); setEditCat(null); setResult({ type: 'success', message: 'Category updated' }); },
+    onError: (e: Error) => setResult({ type: 'error', message: e.message }),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: Partial<Category>) =>
+      adminFetch('/categories', { method: 'POST', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-categories'] }); setCreating(false); setResult({ type: 'success', message: 'Category created' }); },
+    onError: (e: Error) => setResult({ type: 'error', message: e.message }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => adminFetch(`/categories/${id}`, { method: 'DELETE' }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-categories'] }); setResult({ type: 'success', message: 'Category deleted' }); },
     onError: (e: Error) => setResult({ type: 'error', message: e.message }),
   });
 
@@ -454,6 +510,14 @@ export function CategoryManagement() {
         </Typography>
         <Box sx={{ flex: 1 }} />
         <Button
+          variant="contained"
+          size="small"
+          onClick={() => { setEditCat(null); setCreating(true); }}
+          sx={{ textTransform: 'none', bgcolor: dt.gain, color: dt.text.contrast, fontWeight: 700, whiteSpace: 'nowrap', '&:hover': { bgcolor: palette.green600 } }}
+        >
+          + New Category
+        </Button>
+        <Button
           variant="outlined"
           size="small"
           disabled={syncMutation.isPending}
@@ -486,7 +550,8 @@ export function CategoryManagement() {
                   cat={cat}
                   onToggle={() => toggleMutation.mutate(cat.id)}
                   onToggleComingSoon={() => comingSoonMutation.mutate(cat.id)}
-                  onEdit={() => setEditCat(cat)}
+                  onEdit={() => { setCreating(false); setEditCat(cat); }}
+                  onDelete={() => { if (window.confirm(`Delete category "${cat.label}" (${cat.code})? Existing pools are NOT affected on-chain, but will lose this category in the UI.`)) deleteMutation.mutate(cat.id); }}
                 />
               ))}
             </Box>
@@ -496,9 +561,13 @@ export function CategoryManagement() {
 
       <EditDialog
         cat={editCat}
-        open={!!editCat}
-        onClose={() => setEditCat(null)}
-        onSave={(data) => editCat && updateMutation.mutate({ id: editCat.id, data })}
+        isNew={creating}
+        open={creating || !!editCat}
+        onClose={() => { setCreating(false); setEditCat(null); }}
+        onSave={(data) => {
+          if (creating) createMutation.mutate(data);
+          else if (editCat) updateMutation.mutate({ id: editCat.id, data });
+        }}
       />
     </Box>
   );
