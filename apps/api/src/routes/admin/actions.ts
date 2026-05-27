@@ -4,7 +4,7 @@ import { prisma } from '../../db';
 import { PoolStatus, Prisma } from '@prisma/client';
 import { getScheduler } from '../../scheduler/pool-scheduler';
 import { serializePool } from '../../utils/serializers';
-import { bulkSync as polymarketBulkSync } from '../../scheduler/polymarket-sync';
+import { bulkSync as polymarketBulkSync, recategorizePmPools } from '../../scheduler/polymarket-sync';
 import { dailySync as fixtureDailySync } from '../../scheduler/fixture-sync';
 import { createMatchPools } from '../../scheduler/sports-scheduler';
 
@@ -221,6 +221,9 @@ adminActionsRouter.post('/sync-pools', async (req, res) => {
       if (scope === 'all' || scope === 'predictions') await polymarketBulkSync();
       if (scope === 'all' || scope === 'sports') await fixtureDailySync();
       await createMatchPools();
+      // Re-apply categorization/subcategories to EXISTING pools so admin config
+      // changes (new sidebar filters, etc.) show up without recreating pools.
+      if (scope === 'all' || scope === 'predictions') await recategorizePmPools();
       console.log(`[Admin] sync-pools (${scope}) complete`);
     } catch (err) {
       console.error('[Admin] sync-pools failed:', err instanceof Error ? err.message : err);

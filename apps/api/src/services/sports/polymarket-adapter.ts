@@ -1,6 +1,6 @@
 import { SportAdapter, Match, MatchResult } from './types';
 import { polymarketFetch } from './polymarket-fetch';
-import { getPolymarketCategories, getDisabledPolymarketTags, type PolymarketCategoryConfig } from '../category-config';
+import { getPolymarketCategories, type PolymarketCategoryConfig } from '../category-config';
 
 // Re-export for backward compat
 export type PolymarketCategory = PolymarketCategoryConfig;
@@ -9,18 +9,20 @@ const MAX_PER_CATEGORY = Number(process.env.POLYMARKET_MAX_MARKETS_PER_CATEGORY)
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Match an event's tags to one of our categories (first match wins).
- *  If any tag belongs to a disabled/comingSoon category, skip the event
- *  entirely to prevent miscategorization (e.g. "Sports" event landing in "Geopolitics"). */
+/**
+ * Match an event's tags to one of our ENABLED categories — lowest matchPriority
+ * wins (getPolymarketCategories returns them in that order).
+ *
+ * An enabled category that claims one of the event's tags ALWAYS wins, even if the
+ * event also carries a tag owned by a disabled/coming-soon category. (Previously
+ * any disabled-category tag rejected the whole event up front — which silently
+ * killed events for newly-created categories, e.g. a Tech event carrying an "AI"
+ * tag owned by the disabled PM_SCIENCE.) Events that match no enabled category are
+ * left uncategorized (null) and simply not imported.
+ */
 export async function categorizeEvent(eventTags: Array<{ label?: string; slug?: string }>): Promise<PolymarketCategoryConfig | null> {
   const cats = await getPolymarketCategories();
   const labels = new Set(eventTags.map(t => t.label).filter((l): l is string => !!l));
-
-  // Reject events that belong to a disabled category
-  const disabledTags = await getDisabledPolymarketTags();
-  for (const label of labels) {
-    if (disabledTags.has(label)) return null;
-  }
 
   for (const cat of cats) {
     if (cat.tags.some(tag => labels.has(tag))) return cat;

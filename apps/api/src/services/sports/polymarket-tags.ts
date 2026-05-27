@@ -76,6 +76,49 @@ export async function getRelatedTags(tagId: string): Promise<Array<TagRec & { ra
   return out;
 }
 
+// ── Active tag list (for the admin "Add Polymarket tag" picker) ──────────────
+let activeTagsCache: { at: number; data: Array<TagRec & { count: number }> } | null = null;
+const ACTIVE_TTL_MS = 60 * 60 * 1000;
+
+/**
+ * Tags that appear on currently-active, high-volume Polymarket events — i.e. the
+ * tags that would actually produce pools. Aggregated from the top events by
+ * volume (a few pages), deduped by id, ranked by how many events carry the tag.
+ * This is the clean, pickable list for the admin (vs the 1200+ noisy /tags).
+ */
+export async function getActiveTags(): Promise<Array<TagRec & { count: number }>> {
+  if (activeTagsCache && Date.now() - activeTagsCache.at < ACTIVE_TTL_MS) return activeTagsCache.data;
+  const byId = new Map<string, TagRec & { count: number }>();
+  let offset = 0;
+  for (let i = 0; i < 4; i++) {
+    let page: any;
+    try {
+      page = await gget(`/events?active=true&closed=false&order=volume&ascending=false&limit=100&offset=${offset}`);
+    } catch {
+      break;
+    }
+    if (!Array.isArray(page) || page.length === 0) break;
+    for (const ev of page) {
+      for (const t of (ev.tags || [])) {
+        if (!t?.label || !t?.id) continue;
+        const id = String(t.id);
+        const prev = byId.get(id);
+        if (prev) prev.count++;
+        else {
+          const rec = { id, label: t.label, slug: t.slug || '', count: 1 };
+          byId.set(id, rec);
+          labelCache.set(id, { id, label: t.label, slug: t.slug || '' });
+        }
+      }
+    }
+    if (page.length < 100) break;
+    offset += 100;
+  }
+  const data = [...byId.values()].sort((a, b) => b.count - a.count);
+  if (data.length > 0) activeTagsCache = { at: Date.now(), data };
+  return data;
+}
+
 /** Merge related-tags across several parent tag ids, dedup by id, keep best (min) rank. */
 export async function getRelatedTagsForMany(tagIds: string[]): Promise<Array<TagRec & { rank: number }>> {
   const byId = new Map<string, TagRec & { rank: number }>();

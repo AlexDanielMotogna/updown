@@ -2,7 +2,7 @@ import { Router, type Router as RouterType } from 'express';
 import { prisma } from '../db';
 import { getVisibleCategories, getCategorySubcategories, isOperationalTag } from '../services/category-config';
 import { sportsDbFetch } from '../services/sports/api-sports-fetch';
-import { getRelatedTagsForMany, tagBySlug } from '../services/sports/polymarket-tags';
+import { getRelatedTagsForMany, tagBySlug, getActiveTags } from '../services/sports/polymarket-tags';
 
 export const configRouter: RouterType = Router();
 
@@ -134,6 +134,19 @@ configRouter.get('/pm-related-tags', async (req, res) => {
     if (tagIds.length === 0) return res.json({ success: true, data: [] });
     const data = await getRelatedTagsForMany(tagIds);
     res.json({ success: true, data });
+  } catch {
+    res.json({ success: true, data: [] });
+  }
+});
+
+// GET /api/config/pm-tags?q=geo — Polymarket tags that appear on active events
+// (clean, ranked, operational tags filtered). Source for the admin tag picker.
+configRouter.get('/pm-tags', async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim().toLowerCase();
+    let tags = (await getActiveTags()).filter(t => !isOperationalTag(t.label));
+    if (q) tags = tags.filter(t => t.label.toLowerCase().includes(q));
+    res.json({ success: true, data: tags.slice(0, 80) });
   } catch {
     res.json({ success: true, data: [] });
   }

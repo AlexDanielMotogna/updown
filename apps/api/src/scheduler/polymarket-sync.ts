@@ -220,6 +220,35 @@ export async function bulkSync(): Promise<void> {
   console.log(`[PolymarketSync] Bulk sync complete: ${totalSynced} markets from ${events.length} events across ${tagIds.length} tags (${Object.entries(counts).map(([k, v]) => `${k}:${v}`).join(', ')})`);
 }
 
+// ── Re-bucket existing pools ──────────────────────────────────────────────────
+
+/**
+ * Re-apply the current categorization to EXISTING PM pools: recompute each pool's
+ * `league` (matchPriority) and `subcategory` (pickSubcategory) from its stored tags.
+ * Lets admin config changes (new subcategories, priority tweaks) take effect on
+ * pools that already exist, instead of only on newly-created ones. Idempotent.
+ */
+export async function recategorizePmPools(): Promise<{ moved: number; rebucketed: number }> {
+  const pools = await prisma.pool.findMany({
+    where: { league: { startsWith: 'PM_' } },
+    select: { id: true, league: true, tags: true, subcategory: true },
+  });
+  let moved = 0, rebucketed = 0;
+  for (const p of pools) {
+    const tags = safeJsonParse<string[]>(p.tags) || [];
+    const cat = await categorizeEvent(tags.map(l => ({ label: l })));
+    const newLeague = cat?.code ?? p.league!;
+    const newSub = await pickSubcategory(newLeague, tags);
+    if (newLeague !== p.league || newSub !== p.subcategory) {
+      await prisma.pool.update({ where: { id: p.id }, data: { league: newLeague, subcategory: newSub } });
+      if (newLeague !== p.league) moved++;
+      if (newSub !== p.subcategory) rebucketed++;
+    }
+  }
+  if (moved || rebucketed) console.log(`[PolymarketSync] Re-bucketed PM pools: ${moved} moved category, ${rebucketed} sub-bucket changed`);
+  return { moved, rebucketed };
+}
+
 // ── Resolution Poll ─────────────────────────────────────────────────────────
 
 /**
