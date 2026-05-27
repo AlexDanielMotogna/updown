@@ -9,6 +9,7 @@ import { Transaction } from '@solana/web3.js';
 import crypto from 'crypto';
 import { emitPoolStatus } from '../websocket';
 import { generateMatchAnalysis } from '../services/sports/match-analysis';
+import { awardBetResolution } from '../services/rewards';
 import { getFootballLeagueCodes, getSportsDbConfigs, getPolymarketCategories, getMatchDurationHours } from '../services/category-config';
 const POOL_OPEN_HOURS_BEFORE = 720; // Open pool 30 days before kickoff
 const TX_DELAY_MS = 2_000; // 2s between on-chain transactions to avoid RPC 429s
@@ -285,6 +286,12 @@ export async function resolveMatchPools(): Promise<void> {
 
       emitPoolStatus(pool.id, { id: pool.id, status: 'RESOLVED', winner: winnerLabel });
       notifyPoolResolved({ ...pool, winner: winnerLabel }).catch(() => {});
+
+      // Award participation XP to every bettor of this resolved match. Outcome is
+      // real-world (not farmable). Mirrors the crypto resolver.
+      const xpBettors = await prisma.bet.findMany({ where: { poolId: pool.id }, select: { walletAddress: true } });
+      const xpWallets = [...new Set(xpBettors.map((b) => b.walletAddress))];
+      await Promise.all(xpWallets.map((wallet) => awardBetResolution(wallet)));
 
       console.log(`[Sports] Resolved ${pool.homeTeam} vs ${pool.awayTeam}: ${result.homeScore}-${result.awayScore} → ${winnerLabel} (${betCount} bets)`);
     } catch (error) {
