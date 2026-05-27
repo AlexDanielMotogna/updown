@@ -25,7 +25,7 @@ function safeJsonParse<T>(str: string | null | undefined): T | null {
  * Fetch top events by volume from Polymarket, categorize, and upsert to cache.
  * 1 API call per sync cycle.
  */
-async function bulkSync(): Promise<void> {
+export async function bulkSync(): Promise<void> {
   let events: any[];
   try {
     events = await polymarketFetch(

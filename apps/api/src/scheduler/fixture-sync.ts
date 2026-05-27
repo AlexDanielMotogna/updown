@@ -98,7 +98,7 @@ async function updateCacheFromResult(result: MatchResult): Promise<void> {
  * Daily sync: fetch 14 days of fixtures per league, upsert into cache.
  * ~6 API calls (1 per league).
  */
-async function dailySync(): Promise<void> {
+export async function dailySync(): Promise<void> {
   let totalSynced = 0;
   let sourceCount = 0;
 

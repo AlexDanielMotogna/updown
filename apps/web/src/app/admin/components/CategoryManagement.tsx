@@ -421,6 +421,15 @@ export function CategoryManagement() {
     onError: (e: Error) => setResult({ type: 'error', message: e.message }),
   });
 
+  // Re-sync sources with the latest config and create pools now (background job).
+  const syncMutation = useMutation({
+    mutationFn: () => adminFetch<{ success: boolean; message?: string }>('/actions/sync-pools', {
+      method: 'POST', body: JSON.stringify({ scope: 'all' }), headers: { 'Content-Type': 'application/json' },
+    }),
+    onSuccess: (r) => setResult({ type: 'success', message: r?.message || 'Sync started' }),
+    onError: (e: Error) => setResult({ type: 'error', message: e.message }),
+  });
+
   const categories = data?.data || [];
   const grouped = categories.reduce<Record<string, Category[]>>((acc, cat) => {
     (acc[cat.type] = acc[cat.type] || []).push(cat);
@@ -443,6 +452,17 @@ export function CategoryManagement() {
         <Typography sx={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)' }}>
           {categories.length} categories | {categories.filter(c => c.enabled).length} active | {categories.filter(c => c.comingSoon).length} coming soon
         </Typography>
+        <Box sx={{ flex: 1 }} />
+        <Button
+          variant="outlined"
+          size="small"
+          disabled={syncMutation.isPending}
+          onClick={() => syncMutation.mutate()}
+          startIcon={syncMutation.isPending ? <CircularProgress size={14} sx={{ color: 'inherit' }} /> : undefined}
+          sx={{ textTransform: 'none', borderColor: dt.border.strong, color: dt.text.secondary, whiteSpace: 'nowrap', '&:hover': { borderColor: dt.accent, color: dt.accent } }}
+        >
+          {syncMutation.isPending ? 'Syncing…' : 'Sync pools now'}
+        </Button>
       </Box>
 
       {Object.entries(TYPE_LABELS).map(([type, label]) => {
