@@ -3,7 +3,7 @@ import { prisma } from '../db';
 import { getAdapter } from '../services/sports';
 import { polymarketFetch } from '../services/sports/polymarket-fetch';
 import { categorizeEvent } from '../services/sports/polymarket-adapter';
-import { pickSubcategory } from '../services/category-config';
+import { pickSubcategory, getPolymarketCategories } from '../services/category-config';
 import type { MatchResult } from '../services/sports/types';
 import { createMatchPools } from './sports-scheduler';
 
@@ -25,28 +25,49 @@ function safeJsonParse<T>(str: string | null | undefined): T | null {
  * Fetch top events by volume from Polymarket, categorize, and upsert to cache.
  * 1 API call per sync cycle.
  */
-async function bulkSync(): Promise<void> {
-  let events: any[];
-  try {
-    events = await polymarketFetch(
-      '/events?active=true&closed=false&order=volume&ascending=false&limit=200',
-    );
-  } catch (error) {
-    console.error('[PolymarketSync] Bulk sync fetch failed:', error instanceof Error ? error.message : error);
+export async function bulkSync(): Promise<void> {
+  // Fetch per Gamma tag_id (paginated) instead of one global top-100-by-volume
+  // page, so each category sees its FULL inventory regardless of what's trending
+  // globally. Dedup events by id, then sort by volume so the per-category cap
+  // keeps the highest-volume markets.
+  const pmCats = await getPolymarketCategories();
+  const tagIds = [...new Set(pmCats.flatMap(c => c.tagIds))];
+  if (tagIds.length === 0) {
+    console.warn('[PolymarketSync] No tagIds configured on any category — skipping bulk sync');
     return;
   }
-
-  if (!Array.isArray(events)) {
-    console.warn('[PolymarketSync] Unexpected response format from /events');
+  const maxPagesPerTag = Number(process.env.POLYMARKET_MAX_PAGES_PER_TAG) || 4;
+  const eventsById = new Map<string, any>();
+  for (const tagId of tagIds) {
+    let offset = 0;
+    while (offset < maxPagesPerTag * 100) {
+      let page: any = null;
+      for (let attempt = 0; attempt < 2 && page === null; attempt++) {
+        try {
+          page = await polymarketFetch(`/events?closed=false&tag_id=${tagId}&limit=100&offset=${offset}`);
+        } catch (error) {
+          if (attempt === 0) { await sleep(2_000); continue; } // transient 5xx — retry once
+          console.warn(`[PolymarketSync] fetch failed (tag ${tagId} offset ${offset}):`, error instanceof Error ? error.message : error);
+        }
+      }
+      if (!Array.isArray(page) || page.length === 0) break;
+      for (const e of page) eventsById.set(String(e.id), e);
+      if (page.length < 100) break;
+      offset += 100;
+    }
+  }
+  const events = [...eventsById.values()].sort((a, b) => (b.volume24hr ?? 0) - (a.volume24hr ?? 0));
+  if (events.length === 0) {
+    console.warn('[PolymarketSync] Per-tag fetch returned no events');
     return;
   }
 
   const counts: Record<string, number> = {};
-  const maxPerCat = Number(process.env.POLYMARKET_MAX_MARKETS_PER_CATEGORY) || 30;
-  // One sub-market per event by default: a multi-market "ladder" (e.g. WTI
-  // $110..$150) would otherwise flood a category with near-duplicate pools and
-  // crowd out other topics, leaving few distinct subcategory filters.
-  const maxSubmarketsPerEvent = Number(process.env.POLYMARKET_MAX_SUBMARKETS_PER_EVENT) || 1;
+  // Per-category caps from each category's config (admin-tunable), keyed by code.
+  // maxSubmarketsPerEvent defaults to 1 so a multi-market "ladder" (e.g. WTI
+  // $110..$150) doesn't flood a category with near-duplicate pools.
+  const limits: Record<string, { maxMarkets: number; maxSubmarketsPerEvent: number }> = {};
+  for (const c of pmCats) limits[c.code] = { maxMarkets: c.maxMarkets, maxSubmarketsPerEvent: c.maxSubmarketsPerEvent };
   let totalSynced = 0;
 
   for (const event of events) {
@@ -56,6 +77,7 @@ async function bulkSync(): Promise<void> {
     // Volume filter
     if ((event.volume24hr ?? 0) < cat.minVolume24h) continue;
 
+    const lim = limits[cat.code] ?? { maxMarkets: 50, maxSubmarketsPerEvent: 1 };
     const markets = event.markets ?? [];
     if (markets.length === 0) continue;
 
@@ -65,7 +87,7 @@ async function bulkSync(): Promise<void> {
     let perEventSynced = 0;
 
     for (const market of markets) {
-      if (perEventSynced >= maxSubmarketsPerEvent) break;
+      if (perEventSynced >= lim.maxSubmarketsPerEvent) break;
       if (!market?.id || !market.outcomes || !market.endDate) continue;
 
       // Skip inactive placeholder markets (e.g. "Player I", "Person P")
@@ -76,7 +98,7 @@ async function bulkSync(): Promise<void> {
 
       // Check per-category cap
       counts[cat.code] = (counts[cat.code] ?? 0);
-      if (counts[cat.code] >= maxPerCat) break;
+      if (counts[cat.code] >= lim.maxMarkets) break;
 
       const outcomes = safeJsonParse<string[]>(market.outcomes);
       if (!outcomes || outcomes.length < 2) continue;
@@ -195,7 +217,36 @@ async function bulkSync(): Promise<void> {
     }
   }
 
-  console.log(`[PolymarketSync] Bulk sync complete: ${totalSynced} markets (${Object.entries(counts).map(([k, v]) => `${k}:${v}`).join(', ')})`);
+  console.log(`[PolymarketSync] Bulk sync complete: ${totalSynced} markets from ${events.length} events across ${tagIds.length} tags (${Object.entries(counts).map(([k, v]) => `${k}:${v}`).join(', ')})`);
+}
+
+// ── Re-bucket existing pools ──────────────────────────────────────────────────
+
+/**
+ * Re-apply the current categorization to EXISTING PM pools: recompute each pool's
+ * `league` (matchPriority) and `subcategory` (pickSubcategory) from its stored tags.
+ * Lets admin config changes (new subcategories, priority tweaks) take effect on
+ * pools that already exist, instead of only on newly-created ones. Idempotent.
+ */
+export async function recategorizePmPools(): Promise<{ moved: number; rebucketed: number }> {
+  const pools = await prisma.pool.findMany({
+    where: { league: { startsWith: 'PM_' } },
+    select: { id: true, league: true, tags: true, subcategory: true },
+  });
+  let moved = 0, rebucketed = 0;
+  for (const p of pools) {
+    const tags = safeJsonParse<string[]>(p.tags) || [];
+    const cat = await categorizeEvent(tags.map(l => ({ label: l })));
+    const newLeague = cat?.code ?? p.league!;
+    const newSub = await pickSubcategory(newLeague, tags);
+    if (newLeague !== p.league || newSub !== p.subcategory) {
+      await prisma.pool.update({ where: { id: p.id }, data: { league: newLeague, subcategory: newSub } });
+      if (newLeague !== p.league) moved++;
+      if (newSub !== p.subcategory) rebucketed++;
+    }
+  }
+  if (moved || rebucketed) console.log(`[PolymarketSync] Re-bucketed PM pools: ${moved} moved category, ${rebucketed} sub-bucket changed`);
+  return { moved, rebucketed };
 }
 
 // ── Resolution Poll ─────────────────────────────────────────────────────────

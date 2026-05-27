@@ -4,8 +4,14 @@ import { prisma } from '../../db';
 import { PoolStatus, Prisma } from '@prisma/client';
 import { getScheduler } from '../../scheduler/pool-scheduler';
 import { serializePool } from '../../utils/serializers';
+import { bulkSync as polymarketBulkSync, recategorizePmPools } from '../../scheduler/polymarket-sync';
+import { dailySync as fixtureDailySync } from '../../scheduler/fixture-sync';
+import { createMatchPools } from '../../scheduler/sports-scheduler';
 
 export const adminActionsRouter: RouterType = Router();
+
+// Guard so concurrent button clicks don't stack overlapping syncs.
+let syncPoolsRunning = false;
 
 async function logAdminEvent(eventType: string, entityId: string, payload: Record<string, string>) {
   await prisma.eventLog.create({
@@ -188,6 +194,46 @@ adminActionsRouter.post('/stop-recovery', async (_req, res) => {
   } else {
     res.json({ success: true, message: 'No recovery running' });
   }
+});
+
+// POST /actions/sync-pools — re-sync sources with the latest category config and
+// create pools immediately, instead of waiting for the next scheduled cycle.
+// Runs in the background (sync + on-chain pool creation can take a minute or two).
+const syncPoolsSchema = z.object({
+  scope: z.enum(['all', 'predictions', 'sports']).default('all'),
+});
+
+adminActionsRouter.post('/sync-pools', async (req, res) => {
+  const parsed = syncPoolsSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid scope' } });
+  }
+  const { scope } = parsed.data;
+
+  if (syncPoolsRunning) {
+    return res.status(409).json({ success: false, error: { code: 'ALREADY_RUNNING', message: 'A sync is already in progress' } });
+  }
+  syncPoolsRunning = true;
+
+  // Fire-and-forget: respond right away, do the slow work in the background.
+  (async () => {
+    try {
+      if (scope === 'all' || scope === 'predictions') await polymarketBulkSync();
+      if (scope === 'all' || scope === 'sports') await fixtureDailySync();
+      await createMatchPools();
+      // Re-apply categorization/subcategories to EXISTING pools so admin config
+      // changes (new sidebar filters, etc.) show up without recreating pools.
+      if (scope === 'all' || scope === 'predictions') await recategorizePmPools();
+      console.log(`[Admin] sync-pools (${scope}) complete`);
+    } catch (err) {
+      console.error('[Admin] sync-pools failed:', err instanceof Error ? err.message : err);
+    } finally {
+      syncPoolsRunning = false;
+    }
+  })();
+
+  await logAdminEvent('ADMIN_SYNC_POOLS', 'system', { scope });
+  res.json({ success: true, message: 'Sync started — new pools will be created within a minute or two. Refresh to see them.' });
 });
 
 // POST /actions/create-pool (moved from /api/pools/test)
