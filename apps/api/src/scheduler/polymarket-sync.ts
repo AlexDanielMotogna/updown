@@ -126,6 +126,9 @@ export async function bulkSync(): Promise<void> {
       const marketOdds = outcomePrices?.length ? parseFloat(outcomePrices[0]) : null;
       const groupItemTitle: string | null = description || market.groupItemTitle || null; // Store description in groupItemTitle for cache
       const clobTokenIds: string | null = market.clobTokenIds || null;
+      // Polymarket image for the pool badge — prefer the specific market image,
+      // fall back to the event image. Stored as homeTeamCrest (the pool badge field).
+      const crest: string | null = market.image || market.icon || event.image || event.icon || null;
       const tagLabels: string[] = Array.isArray(event.tags)
         ? event.tags.map((t: any) => t.label || t).filter(Boolean)
         : [];
@@ -176,7 +179,7 @@ export async function bulkSync(): Promise<void> {
             matchday: null,
             homeTeam,
             awayTeam,
-            homeTeamCrest: null,
+            homeTeamCrest: crest,
             awayTeamCrest: null,
             kickoff: endDate,
             status,
@@ -194,6 +197,7 @@ export async function bulkSync(): Promise<void> {
           update: {
             homeTeam,
             awayTeam,
+            homeTeamCrest: crest,
             kickoff: endDate,
             status,
             homeScore,
@@ -228,25 +232,34 @@ export async function bulkSync(): Promise<void> {
  * Lets admin config changes (new subcategories, priority tweaks) take effect on
  * pools that already exist, instead of only on newly-created ones. Idempotent.
  */
-export async function recategorizePmPools(): Promise<{ moved: number; rebucketed: number }> {
+export async function recategorizePmPools(): Promise<{ moved: number; rebucketed: number; badged: number }> {
   const pools = await prisma.pool.findMany({
     where: { league: { startsWith: 'PM_' } },
-    select: { id: true, league: true, tags: true, subcategory: true },
+    select: { id: true, league: true, tags: true, subcategory: true, matchId: true, homeTeamCrest: true },
   });
-  let moved = 0, rebucketed = 0;
+  // Badge URLs from the (freshly-synced) cache, keyed by externalId == pool.matchId.
+  const cacheRows = await prisma.sportsFixtureCache.findMany({
+    where: { sport: 'POLYMARKET', homeTeamCrest: { not: null } },
+    select: { externalId: true, homeTeamCrest: true },
+  });
+  const crestByMatchId = new Map(cacheRows.map(r => [r.externalId, r.homeTeamCrest]));
+
+  let moved = 0, rebucketed = 0, badged = 0;
   for (const p of pools) {
     const tags = safeJsonParse<string[]>(p.tags) || [];
     const cat = await categorizeEvent(tags.map(l => ({ label: l })));
     const newLeague = cat?.code ?? p.league!;
     const newSub = await pickSubcategory(newLeague, tags);
-    if (newLeague !== p.league || newSub !== p.subcategory) {
-      await prisma.pool.update({ where: { id: p.id }, data: { league: newLeague, subcategory: newSub } });
+    const newCrest = (p.matchId && crestByMatchId.get(p.matchId)) || p.homeTeamCrest;
+    if (newLeague !== p.league || newSub !== p.subcategory || newCrest !== p.homeTeamCrest) {
+      await prisma.pool.update({ where: { id: p.id }, data: { league: newLeague, subcategory: newSub, homeTeamCrest: newCrest } });
       if (newLeague !== p.league) moved++;
       if (newSub !== p.subcategory) rebucketed++;
+      if (newCrest !== p.homeTeamCrest) badged++;
     }
   }
-  if (moved || rebucketed) console.log(`[PolymarketSync] Re-bucketed PM pools: ${moved} moved category, ${rebucketed} sub-bucket changed`);
-  return { moved, rebucketed };
+  if (moved || rebucketed || badged) console.log(`[PolymarketSync] Re-bucketed PM pools: ${moved} moved, ${rebucketed} re-bucketed, ${badged} badged`);
+  return { moved, rebucketed, badged };
 }
 
 // ── Resolution Poll ─────────────────────────────────────────────────────────

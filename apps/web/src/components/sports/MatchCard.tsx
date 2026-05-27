@@ -158,8 +158,14 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
 
         {/* Teams / Question */}
         {isPrediction ? (
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 48, px: 1 }}>
-            <Typography sx={{ fontSize: { xs: '0.85rem', md: '0.95rem' }, fontWeight: 700, textAlign: 'center', color: t.text.primary, lineHeight: 1.3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minHeight: 48, px: 1 }}>
+            {/* Fixed badge slot on the left (category-icon fallback when no image) */}
+            <Box sx={{ width: 36, height: 36, flexShrink: 0, borderRadius: 1, overflow: 'hidden', bgcolor: withAlpha(catColor, 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {pool.homeTeamCrest
+                ? <Box component="img" src={pool.homeTeamCrest} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : (CatIcon ? <CatIcon sx={{ fontSize: 18, color: catColor }} /> : <TrendingUp sx={{ fontSize: 18, color: catColor }} />)}
+            </Box>
+            <Typography sx={{ flex: 1, minWidth: 0, fontSize: { xs: '0.85rem', md: '0.95rem' }, fontWeight: 700, textAlign: 'left', color: t.text.primary, lineHeight: 1.3 }}>
               {/* If awayTeam is empty, homeTeam IS the question title. Otherwise show both outcomes. */}
               {pool.awayTeam ? `${pool.homeTeam} vs ${pool.awayTeam}` : pool.homeTeam || 'Prediction Market'}
             </Typography>
