@@ -1,5 +1,6 @@
 import { prisma } from '../db';
 import type { SportsDbConfig } from './sports/api-sports-adapter';
+import { CATEGORY_DEFAULTS, seedCategories } from './category-defaults';
 
 export interface PoolCategoryConfig {
   code: string;
@@ -19,25 +20,26 @@ export interface PoolCategoryConfig {
   sortOrder: number;
 }
 
-// ── Hardcoded fallback (identical to current values) ────────────────────────
+// ── In-memory fallback, derived from the single canonical default list ──────
+// Used only until the DB (poolCategory) is populated (auto-seeded on boot).
 
-const FALLBACK: PoolCategoryConfig[] = [
-  { code: 'CL', type: 'FOOTBALL_LEAGUE', enabled: true, comingSoon: false, label: 'Champions League', shortLabel: 'UCL', color: null, badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/facv1u1742998896.png', iconKey: 'SportsSoccer', apiSource: 'sports', adapterKey: 'FOOTBALL', numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], config: { externalLeagueId: '4480' }, sortOrder: 0 },
-  { code: 'PL', type: 'FOOTBALL_LEAGUE', enabled: true, comingSoon: false, label: 'Premier League', shortLabel: 'Premier', color: null, badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/gasy9d1737743125.png', iconKey: 'SportsSoccer', apiSource: 'sports', adapterKey: 'FOOTBALL', numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], config: { externalLeagueId: '4328' }, sortOrder: 1 },
-  { code: 'PD', type: 'FOOTBALL_LEAGUE', enabled: true, comingSoon: false, label: 'La Liga', shortLabel: 'La Liga', color: null, badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/ja4it51687628717.png', iconKey: 'SportsSoccer', apiSource: 'sports', adapterKey: 'FOOTBALL', numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], config: { externalLeagueId: '4335' }, sortOrder: 2 },
-  { code: 'SA', type: 'FOOTBALL_LEAGUE', enabled: true, comingSoon: false, label: 'Serie A', shortLabel: 'Serie A', color: null, badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/67q3q21679951383.png', iconKey: 'SportsSoccer', apiSource: 'sports', adapterKey: 'FOOTBALL', numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], config: { externalLeagueId: '4332' }, sortOrder: 3 },
-  { code: 'BL1', type: 'FOOTBALL_LEAGUE', enabled: true, comingSoon: false, label: 'Bundesliga', shortLabel: 'Bundesliga', color: null, badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/teqh1b1679952008.png', iconKey: 'SportsSoccer', apiSource: 'sports', adapterKey: 'FOOTBALL', numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], config: { externalLeagueId: '4331' }, sortOrder: 4 },
-  { code: 'FL1', type: 'FOOTBALL_LEAGUE', enabled: true, comingSoon: false, label: 'Ligue 1', shortLabel: 'Ligue 1', color: null, badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/9f7z9d1742983155.png', iconKey: 'SportsSoccer', apiSource: 'sports', adapterKey: 'FOOTBALL', numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], config: { externalLeagueId: '4334' }, sortOrder: 5 },
-  { code: 'BSA', type: 'FOOTBALL_LEAGUE', enabled: true, comingSoon: false, label: 'Brasileirao', shortLabel: 'Brasileirao', color: null, badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/lywv7t1766787179.png', iconKey: 'SportsSoccer', apiSource: 'sports', adapterKey: 'FOOTBALL', numSides: 3, sideLabels: ['Home', 'Draw', 'Away'], config: { externalLeagueId: '4351' }, sortOrder: 6 },
-  { code: 'NBA', type: 'SPORTSDB_SPORT', enabled: true, comingSoon: false, label: 'NBA', shortLabel: 'NBA', color: '#F97316', badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/frdjqy1536585083.png', iconKey: 'SportsBasketball', apiSource: 'sports', adapterKey: 'NBA', numSides: 2, sideLabels: ['Home', 'Away'], config: { sportQuery: 'Basketball', leagueFilter: 'NBA', externalLeagueId: '4387' }, sortOrder: 20 },
-  { code: 'NHL', type: 'SPORTSDB_SPORT', enabled: true, comingSoon: false, label: 'NHL', shortLabel: 'NHL', color: '#3B82F6', badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/4cem2k1619616539.png', iconKey: 'SportsHockey', apiSource: 'sports', adapterKey: 'NHL', numSides: 2, sideLabels: ['Home', 'Away'], config: { sportQuery: 'Ice Hockey', leagueFilter: 'NHL', externalLeagueId: '4380' }, sortOrder: 21 },
-  { code: 'NFL', type: 'SPORTSDB_SPORT', enabled: true, comingSoon: false, label: 'NFL', shortLabel: 'NFL', color: '#22C55E', badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/g85fqz1662057187.png', iconKey: 'SportsFootball', apiSource: 'sports', adapterKey: 'NFL', numSides: 2, sideLabels: ['Home', 'Away'], config: { sportQuery: 'American Football', leagueFilter: 'NFL', externalLeagueId: '4391' }, sortOrder: 22 },
-  { code: 'MMA', type: 'SPORTSDB_SPORT', enabled: true, comingSoon: false, label: 'UFC', shortLabel: 'MMA', color: '#EF4444', badgeUrl: 'https://r2.thesportsdb.com/images/media/league/badge/bewnz31717531281.png', iconKey: 'SportsMma', apiSource: 'sports', adapterKey: 'MMA', numSides: 2, sideLabels: ['Fighter 1', 'Fighter 2'], config: { sportQuery: 'Fighting', leagueFilter: 'UFC', externalLeagueId: '4443' }, sortOrder: 23 },
-  { code: 'PM_POLITICS', type: 'POLYMARKET', enabled: true, comingSoon: false, label: 'Politics', shortLabel: 'Politics', color: '#A78BFA', badgeUrl: null, iconKey: 'Gavel', apiSource: 'predictions', adapterKey: 'POLYMARKET', numSides: 2, sideLabels: ['Yes', 'No'], config: { tags: ['Politics', 'Elections', 'Global Elections'], tagIds: ['2', '144', '1597'], minVolume24h: 10000, maxDaysAhead: 1100, matchPriority: 99, subcategories: ['Trump', 'Biden', 'Harris', 'US Election', 'Presidential Election', 'Midterms', 'Primaries', 'Democrats', 'Republicans', 'Government Shutdown', 'Impeachment', 'Congress', 'Senate', 'House', 'Supreme Court', 'Cabinet', 'Mayoral Elections', 'UK', 'France', 'Germany', 'Canada', 'Brazil', 'Venezuela', 'Argentina', 'India', 'Trade War', 'Tariffs', 'Middle East', 'Israel', 'Global Elections', 'Elections'] }, sortOrder: 40 },
-  { code: 'PM_GEO', type: 'POLYMARKET', enabled: true, comingSoon: false, label: 'Geopolitics', shortLabel: 'Geo', color: '#60A5FA', badgeUrl: null, iconKey: 'Public', apiSource: 'predictions', adapterKey: 'POLYMARKET', numSides: 2, sideLabels: ['Yes', 'No'], config: { tags: ['Geopolitics', 'Middle East'], tagIds: ['100265', '154'], minVolume24h: 10000, maxDaysAhead: 365, subcategories: ['Strait of Hormuz', 'Iran', 'Israel', 'Gaza', 'Palestine', 'Lebanon', 'Syria', 'Yemen', 'Russia', 'Ukraine', 'China', 'Taiwan', 'North Korea', 'India', 'Pakistan', 'Venezuela', 'Cuba', 'Sudan', 'Ceasefire', 'Sanctions', 'Nuclear', 'NATO', 'War', 'Middle East', 'Foreign Policy', 'Geopolitics'] }, sortOrder: 41 },
-  { code: 'PM_CULTURE', type: 'POLYMARKET', enabled: true, comingSoon: false, label: 'Culture & Entertainment', shortLabel: 'Culture', color: '#F472B6', badgeUrl: null, iconKey: 'TheaterComedy', apiSource: 'predictions', adapterKey: 'POLYMARKET', numSides: 2, sideLabels: ['Yes', 'No'], config: { tags: ['Culture', 'Entertainment', 'Pop Culture'], tagIds: ['596', '315'], minVolume24h: 5000, maxDaysAhead: 180, subcategories: ['GTA VI', 'Gaming', 'Movies', 'Box Office', 'Oscars', 'Grammys', 'Emmys', 'Golden Globes', 'Awards', 'Music', 'Taylor Swift', 'TV', 'Reality TV', 'Streaming', 'Celebrities', 'Elon Musk', 'MrBeast', 'YouTube', 'Twitter', 'Tweet Markets', 'Aliens', 'Pop Culture', 'Entertainment', 'Culture'] }, sortOrder: 42 },
-  { code: 'PM_FINANCE', type: 'POLYMARKET', enabled: true, comingSoon: false, label: 'Finance & Economy', shortLabel: 'Finance', color: '#34D399', badgeUrl: null, iconKey: 'AccountBalance', apiSource: 'predictions', adapterKey: 'POLYMARKET', numSides: 2, sideLabels: ['Yes', 'No'], config: { tags: ['Business', 'Commodities', 'Economics', 'Gold', 'Oil', 'Stocks'], tagIds: ['107', '101031', '225', '101589', '309', '604'], minVolume24h: 10000, maxDaysAhead: 60, subcategories: ['Bitcoin', 'Ethereum', 'Solana', 'XRP', 'Crypto', 'MicroStrategy', 'Coinbase', 'Tesla', 'Nvidia', 'Apple', 'Stocks', 'Earnings', 'Indices', 'S&P 500', 'Nasdaq', 'IPOs', 'Acquisitions', 'Oil', 'Gas', 'Gold', 'Silver', 'Commodities', 'Forex', 'Fed', 'Interest Rates', 'Inflation', 'Recession', 'GDP', 'Treasuries', 'Economy', 'Business', 'Tech'] }, sortOrder: 43 },
-];
+const FALLBACK: PoolCategoryConfig[] = CATEGORY_DEFAULTS.map(c => ({
+  code: c.code,
+  type: c.type,
+  enabled: c.enabled,
+  comingSoon: c.comingSoon,
+  label: c.label,
+  shortLabel: c.shortLabel ?? null,
+  color: c.color ?? null,
+  badgeUrl: c.badgeUrl ?? null,
+  iconKey: c.iconKey ?? null,
+  apiSource: c.apiSource ?? null,
+  adapterKey: c.adapterKey ?? null,
+  numSides: c.numSides,
+  sideLabels: c.sideLabels,
+  config: c.config ?? null,
+  sortOrder: c.sortOrder,
+}));
 
 // ── In-memory cache ─────────────────────────────────────────────────────────
 
@@ -226,4 +228,21 @@ export async function getMatchDurationHours(leagueCode: string): Promise<number>
 
 export function invalidateCache(): void {
   lastFetchedAt = 0;
+}
+
+/**
+ * Seed the poolCategory table from the canonical defaults IF it's empty.
+ * Run once on boot so a fresh DB becomes admin-driven immediately (no more
+ * "empty table silently runs on the hardcoded fallback" footgun). Idempotent.
+ */
+export async function seedCategoriesIfEmpty(): Promise<void> {
+  try {
+    const n = await prisma.poolCategory.count();
+    if (n > 0) return;
+    const count = await seedCategories(prisma);
+    invalidateCache();
+    console.log(`[CategoryConfig] poolCategory was empty — auto-seeded ${count} categories`);
+  } catch (err) {
+    console.warn('[CategoryConfig] auto-seed skipped:', err instanceof Error ? err.message : err);
+  }
 }

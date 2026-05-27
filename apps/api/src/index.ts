@@ -18,6 +18,7 @@ import { startTournamentScheduler } from './scheduler/tournament-scheduler';
 import { startSportsScheduler } from './scheduler/sports-scheduler';
 import { startFixtureSyncScheduler } from './scheduler/fixture-sync';
 import { startPolymarketSyncScheduler } from './scheduler/polymarket-sync';
+import { seedCategoriesIfEmpty } from './services/category-config';
 import { startLiveScorePolling } from './services/sports/livescore';
 import { initWebSocket, shutdownWebSocket } from './websocket';
 
@@ -77,6 +78,10 @@ initWebSocket(httpServer);
 // Start server and scheduler
 httpServer.listen(PORT, async () => {
   console.log(`API server running on port ${PORT}`);
+
+  // Auto-seed category config if the table is empty (must run before schedulers,
+  // which read category config). Makes a fresh DB admin-driven from the start.
+  await seedCategoriesIfEmpty();
 
   // Start the pool scheduler
   try {
