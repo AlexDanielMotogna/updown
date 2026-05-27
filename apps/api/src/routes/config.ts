@@ -2,6 +2,7 @@ import { Router, type Router as RouterType } from 'express';
 import { prisma } from '../db';
 import { getVisibleCategories, getCategorySubcategories, isOperationalTag } from '../services/category-config';
 import { sportsDbFetch } from '../services/sports/api-sports-fetch';
+import { getRelatedTagsForMany, tagBySlug } from '../services/sports/polymarket-tags';
 
 export const configRouter: RouterType = Router();
 
@@ -121,6 +122,34 @@ configRouter.get('/pool-tags', async (req, res) => {
     res.json({ success: true, data: sorted });
   } catch {
     res.json({ success: true, data: [] });
+  }
+});
+
+// GET /api/config/pm-related-tags?tagIds=100265,154
+// Polymarket's official ranked sub-tags for a category's parent tag(s) — the
+// source for the admin "Sidebar Filters" picker (only real PM tags, no free text).
+configRouter.get('/pm-related-tags', async (req, res) => {
+  try {
+    const tagIds = String(req.query.tagIds || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (tagIds.length === 0) return res.json({ success: true, data: [] });
+    const data = await getRelatedTagsForMany(tagIds);
+    res.json({ success: true, data });
+  } catch {
+    res.json({ success: true, data: [] });
+  }
+});
+
+// GET /api/config/pm-tag?name=Geopolitics — resolve a typed category tag name to
+// its Gamma tag_id (so the admin never types raw ids). Returns null if PM has none.
+configRouter.get('/pm-tag', async (req, res) => {
+  try {
+    const name = String(req.query.name || '').trim();
+    if (!name) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'name required' } });
+    const tag = await tagBySlug(name);
+    if (!tag) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: `No Polymarket tag for "${name}"` } });
+    res.json({ success: true, data: tag });
+  } catch {
+    res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: 'Failed to resolve tag' } });
   }
 });
 

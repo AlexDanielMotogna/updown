@@ -135,6 +135,8 @@ export interface PolymarketCategoryConfig {
   minVolume24h: number;
   maxDaysAhead: number;
   matchPriority: number;
+  maxMarkets: number;
+  maxSubmarketsPerEvent: number;
 }
 
 export async function getPolymarketCategories(): Promise<PolymarketCategoryConfig[]> {
@@ -153,6 +155,9 @@ export async function getPolymarketCategories(): Promise<PolymarketCategoryConfi
       // "Politics" catch-all so specific categories (Geo, Finance, ...) win when
       // an event carries both a specific tag AND the broad "Politics" tag.
       matchPriority: (c.config as any)?.matchPriority ?? c.sortOrder,
+      // Per-category import caps (admin-tunable). Default to the legacy globals.
+      maxMarkets: (c.config as any)?.maxMarkets || 50,
+      maxSubmarketsPerEvent: (c.config as any)?.maxSubmarketsPerEvent || 1,
     }))
     .sort((a, b) => a.matchPriority - b.matchPriority);
 }

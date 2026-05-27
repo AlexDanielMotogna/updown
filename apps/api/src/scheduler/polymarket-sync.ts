@@ -63,11 +63,11 @@ export async function bulkSync(): Promise<void> {
   }
 
   const counts: Record<string, number> = {};
-  const maxPerCat = Number(process.env.POLYMARKET_MAX_MARKETS_PER_CATEGORY) || 50;
-  // One sub-market per event by default: a multi-market "ladder" (e.g. WTI
-  // $110..$150) would otherwise flood a category with near-duplicate pools and
-  // crowd out other topics, leaving few distinct subcategory filters.
-  const maxSubmarketsPerEvent = Number(process.env.POLYMARKET_MAX_SUBMARKETS_PER_EVENT) || 1;
+  // Per-category caps from each category's config (admin-tunable), keyed by code.
+  // maxSubmarketsPerEvent defaults to 1 so a multi-market "ladder" (e.g. WTI
+  // $110..$150) doesn't flood a category with near-duplicate pools.
+  const limits: Record<string, { maxMarkets: number; maxSubmarketsPerEvent: number }> = {};
+  for (const c of pmCats) limits[c.code] = { maxMarkets: c.maxMarkets, maxSubmarketsPerEvent: c.maxSubmarketsPerEvent };
   let totalSynced = 0;
 
   for (const event of events) {
@@ -77,6 +77,7 @@ export async function bulkSync(): Promise<void> {
     // Volume filter
     if ((event.volume24hr ?? 0) < cat.minVolume24h) continue;
 
+    const lim = limits[cat.code] ?? { maxMarkets: 50, maxSubmarketsPerEvent: 1 };
     const markets = event.markets ?? [];
     if (markets.length === 0) continue;
 
@@ -86,7 +87,7 @@ export async function bulkSync(): Promise<void> {
     let perEventSynced = 0;
 
     for (const market of markets) {
-      if (perEventSynced >= maxSubmarketsPerEvent) break;
+      if (perEventSynced >= lim.maxSubmarketsPerEvent) break;
       if (!market?.id || !market.outcomes || !market.endDate) continue;
 
       // Skip inactive placeholder markets (e.g. "Player I", "Person P")
@@ -97,7 +98,7 @@ export async function bulkSync(): Promise<void> {
 
       // Check per-category cap
       counts[cat.code] = (counts[cat.code] ?? 0);
-      if (counts[cat.code] >= maxPerCat) break;
+      if (counts[cat.code] >= lim.maxMarkets) break;
 
       const outcomes = safeJsonParse<string[]>(market.outcomes);
       if (!outcomes || outcomes.length < 2) continue;
