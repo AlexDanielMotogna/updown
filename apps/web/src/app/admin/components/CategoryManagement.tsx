@@ -10,6 +10,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminFetch } from '../lib/adminApi';
 import { darkTokens as dt, palette, withAlpha } from '@/lib/theme';
+import { ICON_REGISTRY } from '@/lib/icon-registry';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
 
@@ -329,7 +330,9 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
   const handleOpen = () => {
     setConfigSportQuery(''); setConfigLeagueFilter(''); setConfigLeagueId(''); setPm(EMPTY_PM);
     if (isNew) {
-      setForm({ code: '', type: 'POLYMARKET', label: '', shortLabel: '', color: '', badgeUrl: '', iconKey: '', sortOrder: 50, numSides: 2, enabled: true, comingSoon: false, apiSource: 'predictions', adapterKey: 'POLYMARKET', sideLabels: ['Yes', 'No'] });
+      setForm({ code: '', type: 'POLYMARKET', label: '', shortLabel: '', color: '#A78BFA', badgeUrl: '', iconKey: 'Public', sortOrder: 50, numSides: 2, enabled: true, comingSoon: false, apiSource: 'predictions', adapterKey: 'POLYMARKET', sideLabels: ['Yes', 'No'] });
+      // Sensible PM defaults so the admin isn't guessing blank numbers.
+      setPm({ ...EMPTY_PM, minVolume24h: '5000', maxDaysAhead: '90', maxMarkets: '50', maxSubmarketsPerEvent: '1' });
       return;
     }
     if (!cat) return;
@@ -400,8 +403,17 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
           InputProps={{ startAdornment: form.color ? <Box sx={{ width: 16, height: 16, borderRadius: '50%', bgcolor: form.color, mr: 1, flexShrink: 0 }} /> : null }}
         />
         <TextField label="Badge URL" size="small" value={form.badgeUrl || ''} onChange={e => setForm(f => ({ ...f, badgeUrl: e.target.value }))} />
-        <TextField label="Icon Key (MUI)" size="small" value={form.iconKey || ''} onChange={e => setForm(f => ({ ...f, iconKey: e.target.value }))} placeholder="e.g. SportsBasketball, Gavel" />
-        <TextField label="Sort Order" size="small" type="number" value={form.sortOrder ?? 0} onChange={e => setForm(f => ({ ...f, sortOrder: Number(e.target.value) }))} />
+        <FormControl size="small">
+          <InputLabel>Icon</InputLabel>
+          <Select label="Icon" value={form.iconKey && ICON_REGISTRY[form.iconKey] ? form.iconKey : ''}
+            onChange={e => setForm(f => ({ ...f, iconKey: e.target.value }))}
+            renderValue={(v) => { const Ic = ICON_REGISTRY[v as string]; return <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>{Ic ? <Ic sx={{ fontSize: 18 }} /> : null}{String(v || '')}</Box>; }}>
+            {Object.entries(ICON_REGISTRY).map(([key, Ic]) => (
+              <MenuItem key={key} value={key}><Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Ic sx={{ fontSize: 18 }} /> {key}</Box></MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <TextField label="Sort Order" size="small" type="number" value={form.sortOrder ?? 0} onChange={e => setForm(f => ({ ...f, sortOrder: Number(e.target.value) }))} helperText="Position in the tab bar — lower shows first" />
         <FormControl size="small">
           <InputLabel>Sides</InputLabel>
           <Select value={form.numSides ?? 2} label="Sides" onChange={e => setForm(f => ({ ...f, numSides: Number(e.target.value) }))}>
