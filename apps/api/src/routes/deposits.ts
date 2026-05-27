@@ -7,7 +7,7 @@ import { getPoolPDA, getVaultPDA, getUserBetPDA, PROGRAM_ID } from 'solana-clien
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { getConnection, getUsdcMint, derivePoolSeed } from '../utils/solana';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
-import { awardBetPlacement } from '../services/rewards';
+import { trackBetPlacement } from '../services/rewards';
 import { isSquadMember } from '../services/squads';
 
 export const depositsRouter: RouterType = Router();
@@ -448,8 +448,9 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
       totalDraw: updatedPool.totalDraw.toString(),
     });
 
-    // Award XP + coins (fire-and-forget, non-blocking)
-    awardBetPlacement(walletAddress, betAmount).catch(e => console.warn('[Deposits] awardBetPlacement failed:', e instanceof Error ? e.message : e));
+    // Track placement stats only (fire-and-forget). XP is awarded at pool
+    // resolution (awardBetResolution), not here — see trackBetPlacement docs.
+    trackBetPlacement(walletAddress, betAmount).catch(e => console.warn('[Deposits] trackBetPlacement failed:', e instanceof Error ? e.message : e));
 
     res.json({
       success: true,

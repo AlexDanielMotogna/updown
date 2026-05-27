@@ -68,11 +68,17 @@ async function ensureDailyReset(walletAddress: string) {
 }
 
 /**
- * Award XP when a bet is placed (after confirm-deposit).
- * Coins are NOT awarded here  only after pool resolution (in awardBetWin).
- * Fire-and-forget  errors logged but never thrown.
+ * Track bet-placement STATS when a bet is placed (after confirm-deposit).
+ * Intentionally awards NO XP and NO coins here — both are granted only when the
+ * pool resolves normally (awardBetResolution / awardBetWin).
+ *
+ * Why: awarding XP at deposit time was farmable. XP had no minimum bet and no
+ * daily cap, and one-sided / single-bettor pools get fully auto-refunded — so a
+ * user could place dust bets in pools that will be refunded, recover the full
+ * stake, and keep the XP for free. Deferring XP to normal resolution means you
+ * only earn it after a real two-sided contest. Fire-and-forget.
  */
-export async function awardBetPlacement(
+export async function trackBetPlacement(
   walletAddress: string,
   betAmountRaw: bigint,
 ): Promise<void> {
@@ -80,33 +86,63 @@ export async function awardBetPlacement(
     let user = await ensureDailyReset(walletAddress);
     if (!user) user = await registerUser(walletAddress);
 
-    const isFirstBetToday = user.dailyBetCount === 0;
-    const xpBase = XP_ACTIONS.BET_PLACED;
-    const xpDaily = isFirstBetToday ? XP_ACTIONS.DAILY_FIRST_BET : 0n;
-    const totalXpAward = xpBase + xpDaily;
+    // Stats only. dailyBetCount feeds the coin diminishing-returns tiers at claim
+    // (calculateCoinsForBet), so it still increments per placement.
+    await prisma.user.update({
+      where: { walletAddress },
+      data: {
+        totalBets: { increment: 1 },
+        totalWagered: { increment: betAmountRaw },
+        dailyBetCount: { increment: 1 },
+        lastActiveDate: new Date(),
+      },
+    });
+  } catch (error) {
+    console.error('[Rewards] trackBetPlacement failed:', error);
+  }
+}
+
+/**
+ * Award participation XP when a pool resolves NORMALLY — both sides had bets and
+ * a real winner was decided. Called once per bettor (winner OR loser) from the
+ * resolver. It is deliberately NOT called for refunded one-sided / single-bettor /
+ * empty pools, which is exactly what makes XP unfarmable.
+ *
+ * Grants BET_PLACED XP plus a once-per-UTC-day first-bet bonus. Coins and win XP
+ * are handled separately at claim (awardBetWin). Fire-and-forget.
+ */
+export async function awardBetResolution(walletAddress: string): Promise<void> {
+  try {
+    let user = await ensureDailyReset(walletAddress);
+    if (!user) user = await registerUser(walletAddress);
+
+    // Daily first-bet bonus: granted once per UTC day, on the first bet that
+    // resolves that day. Tracked via rewardLog so no schema change is needed.
+    const startOfDay = new Date();
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    const dailyAlreadyGranted = await prisma.rewardLog.findFirst({
+      where: { walletAddress, reason: 'DAILY_BONUS', createdAt: { gte: startOfDay } },
+      select: { id: true },
+    });
+    const xpDaily = dailyAlreadyGranted ? 0n : XP_ACTIONS.DAILY_FIRST_BET;
+    const totalXpAward = XP_ACTIONS.BET_PLACED + xpDaily;
 
     const newTotalXp = user.totalXp + totalXpAward;
     let newLevel = getLevelForXp(newTotalXp);
     let didLevelUp = newLevel > user.level;
 
-    // Atomic update  XP only, no coins
     await prisma.$transaction(async (tx) => {
       const updated = await tx.user.update({
         where: { walletAddress },
         data: {
           totalXp: { increment: totalXpAward },
           level: newLevel,
-          totalBets: { increment: 1 },
-          totalWagered: { increment: betAmountRaw },
-          dailyBetCount: { increment: 1 },
-          lastActiveDate: new Date(),
         },
       });
 
-      // Reconcile level against the authoritative post-increment XP total. The
-      // atomic increment serializes under a row lock, so updated.totalXp already
-      // reflects every concurrent award  recomputing here keeps the stored level
-      // from lagging behind totalXp (the level-stuck bug).
+      // Reconcile level against the authoritative post-increment XP total (same
+      // pattern as the claim/referral awards) to avoid the stored level lagging
+      // behind totalXp under concurrent awards.
       const reconciledLevel = getLevelForXp(updated.totalXp);
       if (reconciledLevel !== newLevel) {
         didLevelUp = reconciledLevel > user.level;
@@ -114,18 +150,26 @@ export async function awardBetPlacement(
         await tx.user.update({ where: { walletAddress }, data: { level: reconciledLevel } });
       }
 
-      // Log XP
       await tx.rewardLog.create({
         data: {
           walletAddress,
           rewardType: 'XP',
           reason: 'BET_PLACED',
-          amount: totalXpAward,
-          metadata: { betAmount: betAmountRaw.toString(), isFirstBetToday },
+          amount: XP_ACTIONS.BET_PLACED,
         },
       });
 
-      // Log level-up
+      if (xpDaily > 0n) {
+        await tx.rewardLog.create({
+          data: {
+            walletAddress,
+            rewardType: 'XP',
+            reason: 'DAILY_BONUS',
+            amount: xpDaily,
+          },
+        });
+      }
+
       if (didLevelUp) {
         await tx.rewardLog.create({
           data: {
@@ -137,21 +181,8 @@ export async function awardBetPlacement(
           },
         });
       }
-
-      // Daily bonus log
-      if (isFirstBetToday) {
-        await tx.rewardLog.create({
-          data: {
-            walletAddress,
-            rewardType: 'XP',
-            reason: 'DAILY_BONUS',
-            amount: xpDaily,
-          },
-        });
-      }
     });
 
-    // Emit WS reward event  XP only
     emitUserReward(walletAddress, {
       xp: Number(totalXpAward),
       coins: 0,
@@ -161,7 +192,7 @@ export async function awardBetPlacement(
       xpToNextLevel: Number(getXpForLevel(newLevel + 1) - newTotalXp),
     });
   } catch (error) {
-    console.error('[Rewards] awardBetPlacement failed:', error);
+    console.error('[Rewards] awardBetResolution failed:', error);
   }
 }
 

@@ -1,6 +1,6 @@
 import { PoolStatus, Side } from '@prisma/client';
 import { emitPoolStatus } from '../websocket';
-import { resetStreak } from '../services/rewards';
+import { resetStreak, awardBetResolution } from '../services/rewards';
 import { recordReferralCommissions } from '../services/referrals';
 import { ResolverDeps, logEvent, handleRpcError } from './resolver-types';
 import { notifyPoolResolved } from '../services/notifications';
@@ -341,6 +341,12 @@ export async function resolvePool(
       select: { id: true, walletAddress: true, amount: true },
     });
     recordReferralCommissions(pool.id, allBets).catch(e => console.warn('[Resolver] referral commissions failed:', e instanceof Error ? e.message : e));
+
+    // Award participation XP to every bettor (winner OR loser). Only reached on a
+    // normal two-sided resolution — refunded one-sided/single-bettor pools never
+    // get here, so XP cannot be farmed via dust bets that get refunded.
+    const xpWallets = [...new Set(allBets.map((b) => b.walletAddress))];
+    await Promise.all(xpWallets.map((wallet) => awardBetResolution(wallet)));
 
     // Reset streak for losers
     const losingSide = winner === Side.UP ? Side.DOWN : Side.UP;
