@@ -487,7 +487,12 @@ export default function MatchDetailPage() {
         }}>
           {/* Teams / Question */}
           {isPrediction ? (
-            <Box sx={{ py: 2, px: 1, textAlign: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 2, px: 1 }}>
+              <Box sx={{ width: 48, height: 48, flexShrink: 0, borderRadius: 1.5, overflow: 'hidden', bgcolor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {pool.homeTeamCrest
+                  ? <Box component="img" src={pool.homeTeamCrest} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <TrendingUp sx={{ fontSize: 24, color: catColor }} />}
+              </Box>
               <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: t.text.primary, lineHeight: 1.4 }}>
                 {pool.awayTeam ? `${pool.homeTeam} vs ${pool.awayTeam}` : pool.homeTeam}
               </Typography>
