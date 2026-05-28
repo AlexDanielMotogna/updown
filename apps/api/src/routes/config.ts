@@ -106,6 +106,24 @@ configRouter.get('/pool-subcategories', async (req, res) => {
   }
 });
 
+// GET /api/config/pool-counts → { [categoryCode]: number }
+// Live pool count per category (by league code), so the admin sees at a glance
+// which categories actually have pools.
+configRouter.get('/pool-counts', async (_req, res) => {
+  try {
+    const grouped = await prisma.pool.groupBy({
+      by: ['league'],
+      where: { league: { not: null } },
+      _count: { _all: true },
+    });
+    const data: Record<string, number> = {};
+    for (const g of grouped) if (g.league) data[g.league] = g._count._all;
+    res.json({ success: true, data });
+  } catch {
+    res.json({ success: true, data: {} });
+  }
+});
+
 // GET /api/config/pool-tags?league=PM_POLITICS
 // Admin suggestion source: raw tag labels found on a league's pools (operational
 // tags filtered out), so the admin can pick which become curated subcategories.

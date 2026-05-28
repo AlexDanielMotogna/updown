@@ -52,8 +52,9 @@ function StatusChip({ enabled, comingSoon }: { enabled: boolean; comingSoon: boo
   return <Chip label="Hidden" size="small" sx={{ bgcolor: dt.hover.medium, color: dt.text.dimmed, fontWeight: 700, fontSize: '0.65rem', height: 22 }} />;
 }
 
-function CategoryCard({ cat, onToggle, onToggleComingSoon, onEdit, onDelete }: {
+function CategoryCard({ cat, poolCount, onToggle, onToggleComingSoon, onEdit, onDelete }: {
   cat: Category;
+  poolCount?: number;
   onToggle: () => void;
   onToggleComingSoon: () => void;
   onEdit: () => void;
@@ -81,9 +82,16 @@ function CategoryCard({ cat, onToggle, onToggleComingSoon, onEdit, onDelete }: {
           )}
           <Box>
             <Typography sx={{ fontWeight: 700, fontSize: '0.9rem' }}>{cat.label}</Typography>
-            <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>
-              {cat.code} {cat.apiSource ? `(${cat.apiSource})` : ''}
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>
+                {cat.code} {cat.apiSource ? `(${cat.apiSource})` : ''}
+              </Typography>
+              {poolCount !== undefined && (
+                <Typography sx={{ fontSize: '0.68rem', fontWeight: 700, color: poolCount > 0 ? dt.gain : 'rgba(255,255,255,0.3)' }}>
+                  · {poolCount} pool{poolCount === 1 ? '' : 's'}
+                </Typography>
+              )}
+            </Box>
           </Box>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -150,16 +158,34 @@ const SectionLabel = ({ children, tip }: { children: ReactNode; tip?: string }) 
     {tip && <InfoTip text={tip} />}
   </Box>
 );
-const Helper = ({ children }: { children: ReactNode }) => (
-  <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', mb: 0.5 }}>{children}</Typography>
+// Always-visible, plain-language explanation shown under a field (not a hover tip).
+const FieldExplain = ({ children }: { children: ReactNode }) => (
+  <Typography sx={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.5, mt: 0.5, mb: 1.5 }}>{children}</Typography>
+);
+const Eg = ({ children }: { children: ReactNode }) => (
+  <Box component="span" sx={{ color: dt.accent, fontWeight: 600 }}>{children}</Box>
 );
 
-function PolymarketConfigFields({ pm, onChange }: { pm: PmConfig; onChange: (pm: PmConfig) => void }) {
+function PolymarketConfigFields({ pm, onChange, code }: { pm: PmConfig; onChange: (pm: PmConfig) => void; code?: string }) {
   const [resolving, setResolving] = useState(false);
   const [tagError, setTagError] = useState('');
   const [related, setRelated] = useState<Array<{ id: string; label: string; rank: number }>>([]);
   const [loadingRelated, setLoadingRelated] = useState(false);
   const [tagOptions, setTagOptions] = useState<Array<{ id: string; label: string; count: number }>>([]);
+  // How many imported pools currently match each sidebar filter (by tag membership).
+  const [filterCounts, setFilterCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!code) { setFilterCounts({}); return; }
+    fetch(`${API}/api/config/pool-subcategories?league=${encodeURIComponent(code)}`)
+      .then(r => r.json())
+      .then(d => {
+        const m: Record<string, number> = {};
+        for (const f of (d.data || [])) m[f.label] = f.count;
+        setFilterCounts(m);
+      })
+      .catch(() => setFilterCounts({}));
+  }, [code]);
 
   const set = (patch: Partial<PmConfig>) => onChange({ ...pm, ...patch });
   const tagIdsKey = pm.tagIds.join(',');
@@ -205,9 +231,19 @@ function PolymarketConfigFields({ pm, onChange }: { pm: PmConfig; onChange: (pm:
 
   return (
     <>
-      {/* Polymarket tags — what this category imports. Picked from PM's active tags. */}
-      <SectionLabel tip="The Polymarket tags this category imports markets from. THIS is what creates the pools — each matching event becomes a pool (up to Max Pools). Pick from Polymarket's active tags.">Polymarket Tags</SectionLabel>
-      <Helper>Top-level Polymarket tags this category imports. Pick from Polymarket&apos;s active tags below.</Helper>
+      {/* Plain-language mental model up top — the two concepts people confuse. */}
+      <Box sx={{ p: 1.25, mb: 1.5, borderRadius: 1, bgcolor: withAlpha(dt.accent, 0.08), border: `1px solid ${withAlpha(dt.accent, 0.2)}` }}>
+        <Typography sx={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.8)', lineHeight: 1.6 }}>
+          <b>How this works:</b>{' '}
+          <Box component="span" sx={{ color: dt.gain, fontWeight: 700 }}>Polymarket Tags</Box> decide <b>what gets imported</b> — every Polymarket market with one of these tags becomes a pool.{' '}
+          <Box component="span" sx={{ color: dt.accent, fontWeight: 700 }}>Sidebar Filters</Box> only <b>group</b> the pools you already imported into sub-views — they never create pools.
+        </Typography>
+      </Box>
+
+      <SectionLabel>Polymarket Tags — these create the pools</SectionLabel>
+      <FieldExplain>
+        Every Polymarket market tagged with one of these is imported as a pool (up to <b>Max Pools</b>). Pick from Polymarket&apos;s real tags below — e.g. <Eg>Politics</Eg>, <Eg>Elections</Eg>. <b>No tags here = nothing is imported.</b>
+      </FieldExplain>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 0.5 }}>
         {pm.tags.map((tag, i) => (
           <Chip key={pm.tagIds[i] || tag} label={`${tag} #${pm.tagIds[i] ?? '?'}`} size="small" onDelete={() => removeTag(i)}
@@ -245,35 +281,46 @@ function PolymarketConfigFields({ pm, onChange }: { pm: PmConfig; onChange: (pm:
         </Typography>
       )}
 
-      <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
-        <TextField label="Min Volume 24h ($)" size="small" type="number" value={pm.minVolume24h} onChange={e => set({ minVolume24h: e.target.value })} sx={{ flex: 1 }}
-          InputProps={tipAdornment('Only import events with at least this much 24h trading volume on Polymarket. Higher = fewer but more active markets. Lower = more pools.')} />
-        <TextField label="Max Days Ahead" size="small" type="number" value={pm.maxDaysAhead} onChange={e => set({ maxDaysAhead: e.target.value })} sx={{ flex: 1 }}
-          InputProps={tipAdornment('Only import events resolving within this many days from now. Higher = include longer-dated markets (more pools).')} />
+      <Box sx={{ mt: 1.5 }}>
+        <TextField fullWidth label="Min Volume 24h ($)" size="small" type="number" value={pm.minVolume24h} onChange={e => set({ minVolume24h: e.target.value })} />
+        <FieldExplain>Skip markets with less than this much trading in the last 24h on Polymarket. <Eg>100</Eg> drops nearly-dead markets; <Eg>0</Eg> imports everything (lots of inactive pools). Higher = fewer but livelier pools.</FieldExplain>
+
+        <TextField fullWidth label="Max Days Ahead" size="small" type="number" value={pm.maxDaysAhead} onChange={e => set({ maxDaysAhead: e.target.value })} />
+        <FieldExplain>Only import markets that resolve within this many days. <Eg>90</Eg> = nothing that settles more than ~3 months out.</FieldExplain>
+
+        <TextField fullWidth label="Max Pools" size="small" type="number" value={pm.maxMarkets} onChange={e => set({ maxMarkets: e.target.value })} />
+        <FieldExplain>Cap on how many pools this category imports per sync (highest-volume markets first). This is the main dial for how many pools you get.</FieldExplain>
+
+        <TextField fullWidth label="Sub-markets per event" size="small" type="number" value={pm.maxSubmarketsPerEvent} onChange={e => set({ maxSubmarketsPerEvent: e.target.value })} />
+        <FieldExplain>One Polymarket event can hold many questions — e.g. a price ladder <Eg>&gt;$110 / &gt;$120 / &gt;$130</Eg>. This sets how many to import per event. <Eg>1</Eg> = one representative pool, avoids near-duplicates.</FieldExplain>
+
+        <TextField fullWidth label="Match Priority (advanced)" size="small" type="number" value={pm.matchPriority} onChange={e => set({ matchPriority: e.target.value })} />
+        <FieldExplain>Only matters when a market fits more than one category — the <b>lowest number wins</b>. e.g. give Geopolitics <Eg>1</Eg> so it beats Politics <Eg>99</Eg>. Leave blank if your categories don&apos;t overlap.</FieldExplain>
       </Box>
-      <Box sx={{ display: 'flex', gap: 2 }}>
-        <TextField label="Max Pools" size="small" type="number" value={pm.maxMarkets} onChange={e => set({ maxMarkets: e.target.value })} sx={{ flex: 1 }}
-          InputProps={tipAdornment('Hard cap on how many pools this category imports per sync (highest-volume first). This is the main lever for how many pools you get.')} />
-        <TextField label="Sub-markets / event" size="small" type="number" value={pm.maxSubmarketsPerEvent} onChange={e => set({ maxSubmarketsPerEvent: e.target.value })} sx={{ flex: 1 }}
-          InputProps={tipAdornment('How many questions to import from a multi-market event (e.g. a price ladder $110/$120/...). 1 = one representative pool per event, avoids near-duplicates.')} />
-      </Box>
-      <TextField label="Match Priority (advanced)" size="small" type="number" value={pm.matchPriority} onChange={e => set({ matchPriority: e.target.value })}
-        InputProps={tipAdornment('When an event matches several categories, the LOWEST priority wins. Use a low number to make a specific category beat a broad one; high (e.g. 99) for a catch-all. Leave blank to use Sort Order.')}
-        helperText="Lower = matched first. Leave blank unless categories overlap." />
 
       {/* Sidebar Filters — only from Polymarket's real related-tags for this category */}
-      <SectionLabel tip="Sidebar filters do NOT create pools — they GROUP this category's already-imported pools into sub-views. A filter only appears on the site when at least one pool falls into it (an imported event carrying that sub-tag). So 'Music' shows however many music pools were imported, not a new one.">Sidebar Filters</SectionLabel>
-      <Helper>Polymarket&apos;s sub-tags for this category. Click to add/remove — these group the imported pools, they don&apos;t create them.</Helper>
+      <SectionLabel>Sidebar Filters — these only group, they don&apos;t import</SectionLabel>
+      <FieldExplain>
+        These do <b>not</b> create pools — they group the pools you already imported into sub-views. The number on each chip = <b>how many imported pools match it right now</b>. <Box component="span" sx={{ color: 'rgba(255,255,255,0.4)' }}>Gray = 0</Box> means no imported pool carries that exact Polymarket tag (the label may not match Polymarket&apos;s, or there are no active markets) — it won&apos;t show on the site.
+      </FieldExplain>
       {pm.tagIds.length === 0 ? (
         <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>Add a Polymarket tag above first — sub-tags come from it.</Typography>
       ) : (
         <>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 0.5 }}>
-            {pm.subcategories.map(sub => (
-              <Chip key={sub} label={sub} size="small" onDelete={() => set({ subcategories: pm.subcategories.filter(s => s !== sub) })}
-                sx={{ fontSize: '0.7rem', fontWeight: 600, bgcolor: withAlpha(dt.accent, 0.15), color: dt.accent, '& .MuiChip-deleteIcon': { color: withAlpha(dt.accent, 0.5), '&:hover': { color: dt.accent } } }}
-              />
-            ))}
+            {pm.subcategories.map(sub => {
+              const n = filterCounts[sub] ?? 0;
+              const empty = n === 0;
+              return (
+                <Chip key={sub} label={`${sub} · ${n}`} size="small" onDelete={() => set({ subcategories: pm.subcategories.filter(s => s !== sub) })}
+                  title={empty ? "0 pools — no imported pool carries this exact Polymarket tag right now" : `${n} pool(s) match this filter`}
+                  sx={{ fontSize: '0.7rem', fontWeight: 600,
+                    bgcolor: empty ? 'rgba(255,255,255,0.05)' : withAlpha(dt.accent, 0.15),
+                    color: empty ? 'rgba(255,255,255,0.35)' : dt.accent,
+                    '& .MuiChip-deleteIcon': { color: empty ? 'rgba(255,255,255,0.25)' : withAlpha(dt.accent, 0.5), '&:hover': { color: empty ? 'rgba(255,255,255,0.5)' : dt.accent } } }}
+                />
+              );
+            })}
             {pm.subcategories.length === 0 && <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>No filters yet — pick from Polymarket&apos;s sub-tags below.</Typography>}
           </Box>
           {loadingRelated ? (
@@ -474,7 +521,7 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
           </Select>
         </FormControl>
 
-        {type === 'POLYMARKET' && <PolymarketConfigFields pm={pm} onChange={setPm} />}
+        {type === 'POLYMARKET' && <PolymarketConfigFields pm={pm} onChange={setPm} code={form.code} />}
 
         {type === 'SPORTSDB_SPORT' && (
           <SportsDbConfigFields
@@ -508,6 +555,17 @@ export function CategoryManagement() {
     queryKey: ['admin-categories'],
     queryFn: () => adminFetch<{ success: boolean; data: Category[] }>('/categories'),
   });
+
+  // Live pool count per category code, so the list shows which categories have pools.
+  const { data: poolCountsData } = useQuery({
+    queryKey: ['admin-pool-counts'],
+    queryFn: async () => {
+      const r = await fetch(`${API}/api/config/pool-counts`);
+      const d = await r.json();
+      return (d.data || {}) as Record<string, number>;
+    },
+  });
+  const poolCounts = poolCountsData || {};
 
   const toggleMutation = useMutation({
     mutationFn: (id: string) => adminFetch(`/categories/${id}/toggle`, { method: 'PATCH' }),
@@ -612,6 +670,7 @@ export function CategoryManagement() {
                 <CategoryCard
                   key={cat.id}
                   cat={cat}
+                  poolCount={poolCounts[cat.code] ?? 0}
                   onToggle={() => toggleMutation.mutate(cat.id)}
                   onToggleComingSoon={() => comingSoonMutation.mutate(cat.id)}
                   onEdit={() => { setCreating(false); setEditCat(cat); }}
