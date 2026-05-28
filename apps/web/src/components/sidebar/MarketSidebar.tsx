@@ -155,7 +155,13 @@ export function MarketSidebar() {
     staleTime: 60_000,
   });
 
-  const pmSubcategories = adminSubcats.length > 0 ? adminSubcats : (pmBuckets || []).map(b => b.label);
+  // Public sidebar filters with their live pool count. Prefer the faceted result
+  // (curated filters that actually have pools, ordered, with counts); fall back to
+  // the admin whitelist labels (no count) only while that request is loading.
+  const pmSubcategories: Array<{ label: string; count?: number }> =
+    (pmBuckets && pmBuckets.length > 0)
+      ? pmBuckets
+      : adminSubcats.map(label => ({ label }));
 
   return (
     <Box sx={{
@@ -244,10 +250,10 @@ export function MarketSidebar() {
             icon={<AllIcon sx={{ fontSize: 16 }} />}
             onClick={() => updateParam('tag', 'ALL')}
           />
-          {pmSubcategories.map((tag) => (
+          {pmSubcategories.map(({ label: tag, count }) => (
             <SidebarItem
               key={tag}
-              label={tag}
+              label={count !== undefined ? `${tag} (${count})` : tag}
               active={tagFilter === tag}
               color={t.prediction}
               onClick={() => updateParam('tag', tag)}
