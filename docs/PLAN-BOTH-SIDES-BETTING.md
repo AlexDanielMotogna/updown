@@ -94,13 +94,30 @@ El resto del plan asume **Opción A**. (Si se elige B, cambian §4.1, §4.5 y §
 - `sports-scheduler.ts` (`resolveMatchPools`): resuelve por resultado real; cubre deportes **y PM**. Revisar que el claim posterior tome la fila del lado ganador (mismo cambio que §4.5). Caso "todos los bettors en lados perdedores" → nadie reclama (sin refund), igual que hoy.
 
 ### 4.7 Notificaciones — `apps/web/src/hooks/useNotifications.ts`
-- `onPoolStatus`: hoy `bets.find(b => b.pool.id === data.id)` devuelve **una** apuesta y decide WON/LOST por su side. Con hedge la wallet tiene posición ganadora **y** perdedora. Cambiar a: si **alguna** de sus filas en ese pool está en el lado ganador → `POOL_WON`/`POOL_CLAIMABLE`; si no, `POOL_LOST`. (Filtrar `bets.filter(pool.id===)` y evaluar el conjunto.)
+- `onPoolStatus`: hoy `bets.find(b => b.pool.id === data.id)` devuelve **una** apuesta y decide WON/LOST por su side. Con hedge la wallet tiene posición ganadora **y** perdedora.
+- Cambio: evaluar el **conjunto** (`bets.filter(b => b.pool.id === id)`). Si **alguna** posición está en el lado ganador → **una sola** notif `POOL_WON`/`POOL_CLAIMABLE`. El lado perdedor **no** emite un `LOST` aparte (sería contradictorio). → **una notificación limpia por pool.**
 
 ### 4.8 Frontend — formularios y vistas
-- **Crypto** (`components/BetForm.tsx`, `bet/SideSelector.tsx`, `pool/CryptoPoolModal.tsx`, `app/pool/[id]/page.tsx`): permitir apostar el lado contrario aunque ya exista posición; quitar el lock de side; mostrar ambas posiciones y el neto.
-- **Deportes/PM** (`components/sports/MatchBetModal.tsx`, `sports/ThreeWaySelector.tsx`, `app/match/[id]/page.tsx`): permitir agregar más de uno de los 3 lados; mostrar las posiciones por lado.
-- **Estado "ya apostaste"**: cualquier `bets.find(b => b.pool.id === id)` que asuma 1 posición (en páginas/cards/sidebar) debe manejar varias filas. Revisar: `app/pool/[id]`, `app/match/[id]`, `components/pool/PoolRow*.tsx`, `BetCard.tsx`, `profile/BetRow.tsx`, `profile/PoolsBetTable.tsx`.
-- **Claim en UI**: el botón "Claim" por pool debe apuntar a la fila del lado **ganador** (no a "la" apuesta).
+Confirmado revisando el código actual:
+
+- **Form de apuesta** — el lock por `existingBetSide` (`BetForm.tsx:43,56,63,317`) fuerza el lado y cambia el botón a "Add to UP". En la práctica casi no se pasa esa prop hoy; **el bloqueo real es el servidor** (`SIDE_MISMATCH`). Cambios:
+  - Quitar el lock para que el selector permita elegir cualquier lado siempre.
+  - Crypto: `BetForm.tsx`, `bet/SideSelector.tsx`, `pool/ArenaSection.tsx`, `pool/CryptoPoolModal.tsx`, `app/pool/[id]/page.tsx`.
+  - Deportes/PM: `sports/MatchBetModal.tsx`, `sports/ThreeWaySelector.tsx`, `app/match/[id]/page.tsx` (permitir cualquier combo de los 2-3 lados).
+- **"Tu posición"**: hoy se asume 1. Mostrar **todas** las posiciones del usuario en el pool (ej. *"$10 UP · $5 DOWN · neto …"*). Revisar todo `bets.find(b => b.pool.id === id)` que asuma una sola: `app/pool/[id]`, `app/match/[id]`, `components/pool/PoolRow*.tsx`, `BetCard.tsx`.
+- **Activity feed** (`app/match/[id]/page.tsx:436+`): ya itera **todas** las apuestas por fila → muestra varias por wallet sin cambios. ✓
+- **Sidebar de pools activos** (`components/sidebar/PoolsSidebarList.tsx`): es **pool-céntrico** (ganador/odds/totales), **no muestra el lado del usuario** → **sin cambios**.
+- **Profile** (`profile/PoolsBetTable.tsx`, `profile/BetRow.tsx`): listar varias filas por pool (una por lado); el botón **Claim** por pool debe apuntar a la fila del lado **ganador**.
+
+#### Resumen por superficie de display
+| Superficie | ¿Muestra ambos lados? | Cambio |
+|---|---|---|
+| Notificaciones | 1 notif/pool (gana si algún lado ganó) | Evaluar el conjunto |
+| Sidebar pools activos | N/A (pool-céntrico) | **Ninguno** |
+| Pool page — form | permite elegir/sumar cualquier lado | Quitar lock |
+| Pool page — tu posición | **Sí, ambas** | Listar posiciones |
+| Pool page — Activity feed | Sí (ya funciona) | Ninguno |
+| Profile (tabla/row) | filas por lado | Listar varias + Claim al lado ganador |
 
 ### 4.9 Rewards — `apps/api/src/services/rewards.ts`
 - `trackBetPlacement` corre por confirm-deposit (por fila/lado) → un hedger acumula `dailyBetCount` por cada lado. Aceptable (sigue siendo actividad), pero notar para los tiers de coins.
