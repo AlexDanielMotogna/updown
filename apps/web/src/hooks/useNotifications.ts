@@ -79,10 +79,14 @@ export function useNotifications() {
       const poolIds = getPoolIds();
       if (!poolIds.has(data.id)) return;
 
-      // Find the user's bet for this pool from the query cache
+      // A wallet may hold positions on multiple sides of the same pool (hedge),
+      // so evaluate ALL its bets for this pool, not just the first.
       const bets = betsQuery.data?.data;
-      const userBet = bets?.find((b) => b.pool.id === data.id);
-      if (!userBet) return;
+      const userBets = bets?.filter((b) => b.pool.id === data.id) ?? [];
+      if (userBets.length === 0) return;
+
+      const userBet = userBets[0]; // pool-level fields are identical across rows
+      const won = !!data.winner && userBets.some((b) => b.side === data.winner);
 
       const ctx = {
         poolId: data.id,
@@ -92,15 +96,13 @@ export function useNotifications() {
         winner: data.winner ?? null,
       };
 
+      // One clean notification per pool: if any position is on the winning side
+      // the user won (and can claim); otherwise it's a loss. No contradictory pair.
       if (data.status === 'RESOLVED' && data.winner) {
-        if (userBet.side === data.winner) {
-          push(buildNotification('POOL_WON', ctx));
-        } else {
-          push(buildNotification('POOL_LOST', ctx));
-        }
+        push(buildNotification(won ? 'POOL_WON' : 'POOL_LOST', ctx));
       }
 
-      if (data.status === 'CLAIMABLE' && data.winner && userBet.side === data.winner) {
+      if (data.status === 'CLAIMABLE' && won) {
         push(buildNotification('POOL_CLAIMABLE', ctx));
       }
     };
