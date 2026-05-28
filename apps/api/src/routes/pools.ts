@@ -47,9 +47,12 @@ poolsRouter.get('/', async (req, res) => {
       where.league = league;
     }
     if (tag) {
-      // Exact-match on the resolved subcategory bucket (one per pool), not a
-      // substring scan of the raw tag list — so each filter maps to a distinct set.
-      where.subcategory = tag;
+      // Faceted filter: match any pool whose raw Polymarket tag list includes this
+      // tag. `tags` is a JSON array string (e.g. ["Trump","US Election"]); quoting
+      // the needle (`"Trump"`) prevents prefix false-positives like "Trumpism".
+      // Multi-tag by design — a pool legitimately appears under each of its tags,
+      // and every imported pool is covered (no orphaned/uncategorised pools).
+      where.tags = { contains: JSON.stringify(tag) };
     }
     if (asset) {
       where.asset = asset.toUpperCase();

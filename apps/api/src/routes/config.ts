@@ -62,28 +62,43 @@ configRouter.get('/polymarket-tags', async (req, res) => {
 });
 
 // GET /api/config/pool-subcategories?league=PM_POLITICS
-// Sidebar source: distinct resolved subcategory buckets that actually have pools,
-// ordered by the category's configured priority (unknowns last). Only non-empty
-// buckets are returned, so the sidebar never shows a filter with zero results.
+// Sidebar filters = the category's CURATED subcategory whitelist (admin-controlled,
+// which keeps out noise like the broad "Politics" tag, promo/automation tags, and
+// cross-category tags), counted by TAG MEMBERSHIP. A pool counts toward EVERY
+// curated tag it carries (multi-tag) rather than a single "winning" bucket, so
+// filters are full and a pool is never lost to bucket precedence. Only non-empty
+// filters are returned, in the admin's configured priority order.
 configRouter.get('/pool-subcategories', async (req, res) => {
   try {
     const league = req.query.league as string;
     if (!league) return res.json({ success: true, data: [] });
 
-    const grouped = await prisma.pool.groupBy({
-      by: ['subcategory'],
-      where: { league, subcategory: { not: null } },
-      _count: { _all: true },
+    const order = await getCategorySubcategories(league); // curated labels, priority order
+    if (order.length === 0) return res.json({ success: true, data: [] });
+    const labelByLower = new Map(order.map(label => [label.toLowerCase(), label]));
+
+    const pools = await prisma.pool.findMany({
+      where: { league, tags: { not: null } },
+      select: { tags: true },
     });
 
-    const order = await getCategorySubcategories(league);
-    const rank = (label: string) => {
-      const i = order.indexOf(label);
-      return i === -1 ? Number.MAX_SAFE_INTEGER : i;
-    };
-    const data = grouped
-      .map(g => ({ label: g.subcategory as string, count: g._count._all }))
-      .sort((a, b) => rank(a.label) - rank(b.label) || b.count - a.count);
+    const counts: Record<string, number> = {};
+    for (const p of pools) {
+      try {
+        const seen = new Set<string>();
+        for (const t of JSON.parse(p.tags!) as string[]) {
+          const label = labelByLower.get(String(t).trim().toLowerCase());
+          if (label && !seen.has(label)) {
+            counts[label] = (counts[label] || 0) + 1;
+            seen.add(label); // count each pool once per tag
+          }
+        }
+      } catch { /* skip malformed tag JSON */ }
+    }
+
+    const data = Object.entries(counts)
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => order.indexOf(a.label) - order.indexOf(b.label));
 
     res.json({ success: true, data });
   } catch {
