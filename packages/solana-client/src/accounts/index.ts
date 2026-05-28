@@ -24,6 +24,18 @@ export function getVaultPDA(poolId: Uint8Array): [PublicKey, number] {
   );
 }
 
+/** Pool side label as used across the app / DB. */
+export type SideLabel = 'UP' | 'DOWN' | 'DRAW';
+
+/**
+ * Map a side label to its on-chain index (UP=0, DOWN=1, DRAW=2) — the single
+ * source of truth for the `side` byte used in UserBet PDA seeds and instruction
+ * data. Use this everywhere instead of inlining the ternary.
+ */
+export function sideToIndex(side: SideLabel): 0 | 1 | 2 {
+  return side === 'UP' ? 0 : side === 'DOWN' ? 1 : 2;
+}
+
 /**
  * Derive UserBet PDA for a given side.
  * The `side` byte (0=Up/Home, 1=Down/Away, 2=Draw) is part of the seeds, so a
