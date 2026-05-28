@@ -99,13 +99,15 @@ depositsRouter.post('/deposit', async (req, res) => {
       }
 
       if (pool.maxBettors) {
-        const currentBettors = await prisma.bet.count({
+        // Count DISTINCT wallets — a wallet may hold rows on multiple sides (hedge).
+        const bettorWallets = await prisma.bet.findMany({
           where: { poolId: pool.id },
+          select: { walletAddress: true },
+          distinct: ['walletAddress'],
         });
-        const existingBetForUser = await prisma.bet.findUnique({
-          where: { poolId_walletAddress: { poolId: pool.id, walletAddress } },
-        });
-        // Only check limit if this wallet doesn't already have a bet
+        const currentBettors = bettorWallets.length;
+        const existingBetForUser = bettorWallets.some((b) => b.walletAddress === walletAddress);
+        // Only check limit if this wallet doesn't already participate
         if (!existingBetForUser && currentBettors >= pool.maxBettors) {
           return res.status(400).json({
             success: false,
@@ -118,32 +120,14 @@ depositsRouter.post('/deposit', async (req, res) => {
       }
     }
 
-    // Check if user already has a bet in this pool — allow re-deposit on same side only
-    const existingBet = await prisma.bet.findUnique({
-      where: {
-        poolId_walletAddress: {
-          poolId: pool.id,
-          walletAddress,
-        },
-      },
-    });
-
-    if (existingBet && existingBet.side !== side) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'SIDE_MISMATCH',
-          message: `You already have a ${existingBet.side} bet in this pool. Cannot switch sides.`,
-        },
-      });
-    }
-
-    // Derive PDAs using deterministic seed from pool UUID
+    // Both-sides allowed: a wallet may hold an independent position per side, so
+    // there is no side-lock here. The UserBet PDA is derived per (pool, user, side).
     const seed = derivePoolSeed(pool.id);
     const user = new PublicKey(walletAddress);
+    const sideIdx = side === 'UP' ? 0 : side === 'DOWN' ? 1 : 2;
     const [poolPDA] = getPoolPDA(seed);
     const [vaultPDA] = getVaultPDA(seed);
-    const [userBet] = getUserBetPDA(poolPDA, user);
+    const [userBet] = getUserBetPDA(poolPDA, user, sideIdx);
     const userTokenAccount = await getAssociatedTokenAddress(getUsdcMint(), user);
 
     // Return accounts needed for transaction
@@ -260,25 +244,7 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
       });
     }
 
-    // Check side mismatch for existing bets
-    const existingBet = await prisma.bet.findUnique({
-      where: {
-        poolId_walletAddress: {
-          poolId: pool.id,
-          walletAddress,
-        },
-      },
-    });
-
-    if (existingBet && existingBet.side !== side) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'SIDE_MISMATCH',
-          message: `You already have a ${existingBet.side} bet in this pool. Cannot switch sides.`,
-        },
-      });
-    }
+    // Both-sides allowed: no side-lock. Each (pool, wallet, side) is its own row.
 
     // Verify transaction on-chain
     const tx = await getConnection().getTransaction(txSignature, {
@@ -389,9 +355,10 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
     const [bet, updatedPool] = await prisma.$transaction(async (tx) => {
       const newBet = await tx.bet.upsert({
         where: {
-          poolId_walletAddress: {
+          poolId_walletAddress_side: {
             poolId: pool.id,
             walletAddress,
+            side,
           },
         },
         create: {

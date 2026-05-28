@@ -107,13 +107,15 @@ export async function refundBetOnChain(
   deps: ResolverDeps,
   poolId: string,
   walletAddress: string,
+  side: string,
 ): Promise<string> {
   const connection = getConnection();
   const seed = derivePoolSeed(poolId);
   const [poolPda] = getPoolPDA(seed);
   const [vaultPda] = getVaultPDA(seed);
   const user = new PublicKey(walletAddress);
-  const [userBetPda] = getUserBetPDA(poolPda, user);
+  const sideIdx: 0 | 1 | 2 = side === 'UP' ? 0 : side === 'DOWN' ? 1 : 2;
+  const [userBetPda] = getUserBetPDA(poolPda, user, sideIdx);
   const userTokenAccount = await getAssociatedTokenAddress(getUsdcMint(), user);
 
   const ix = buildRefundIx(
@@ -123,6 +125,7 @@ export async function refundBetOnChain(
     userTokenAccount,
     user,
     deps.wallet.publicKey,
+    sideIdx,
   );
 
   const transaction = new Transaction().add(ix);
@@ -168,7 +171,7 @@ export async function autoRefundBets(
 
     for (let attempt = 1; attempt <= REFUND_MAX_RETRIES; attempt++) {
       try {
-        const txSig = await refundBetOnChain(deps, poolId, bet.walletAddress);
+        const txSig = await refundBetOnChain(deps, poolId, bet.walletAddress, bet.side);
 
         // Mark as claimed in DB with tx signature
         await deps.prisma.bet.update({
