@@ -2,7 +2,7 @@ import { Router, type Router as RouterType } from 'express';
 import { z } from 'zod';
 import { PublicKey, Transaction } from '@solana/web3.js';
 import { prisma } from '../db';
-import { getPoolPDA, getVaultPDA, getUserBetPDA, buildClaimIx } from 'solana-client';
+import { getPoolPDA, getVaultPDA, getUserBetPDA, buildClaimIx, sideToIndex } from 'solana-client';
 import {
   getAssociatedTokenAddress,
   TOKEN_PROGRAM_ID,
@@ -10,6 +10,7 @@ import {
 import { getConnection, getUsdcMint, getAuthorityKeypair, derivePoolSeed } from '../utils/solana';
 import { calculatePayout, resolveFeeBps } from '../utils/payout';
 import { awardBetWin, awardClaimCompleted } from '../services/rewards';
+import { getDistinctBettorWallets } from '../utils/bets';
 
 export const claimsRouter: RouterType = Router();
 
@@ -117,7 +118,7 @@ claimsRouter.post('/claim', async (req, res) => {
     // Derive PDAs — UserBet is per (pool, user, side); claim the winning side.
     const seed = derivePoolSeed(pool.id);
     const user = new PublicKey(walletAddress);
-    const sideIdx: 0 | 1 | 2 = bet.side === 'UP' ? 0 : bet.side === 'DOWN' ? 1 : 2;
+    const sideIdx = sideToIndex(bet.side);
     const [poolPDA] = getPoolPDA(seed);
     const [vaultPDA] = getVaultPDA(seed);
     const [userBet] = getUserBetPDA(poolPDA, user, sideIdx);
@@ -128,11 +129,7 @@ claimsRouter.post('/claim', async (req, res) => {
     const feeWallet = await getAssociatedTokenAddress(getUsdcMint(), authority.publicKey);
 
     // Fee is waived only when there's a single distinct bettor (no counterparty).
-    const distinctBettors = await prisma.bet.findMany({
-      where: { poolId: pool.id },
-      select: { walletAddress: true },
-      distinct: ['walletAddress'],
-    });
+    const bettorCount = (await getDistinctBettorWallets(pool.id)).length;
     const feeBps = await resolveFeeBps(prisma, walletAddress);
     const { grossPayout, fee, payout } = calculatePayout({
       betAmount: bet.amount,
@@ -140,7 +137,7 @@ claimsRouter.post('/claim', async (req, res) => {
       totalDown: pool.totalDown,
       totalDraw: pool.totalDraw,
       side: bet.side as 'UP' | 'DOWN' | 'DRAW',
-      betCount: distinctBettors.length,
+      betCount: bettorCount,
       feeBps,
     });
 
@@ -309,11 +306,7 @@ claimsRouter.post('/confirm-claim', async (req, res) => {
 
     // Fallback: if we can't read on-chain payout, use server-calculated value
     if (payout === BigInt(0)) {
-      const distinctBettors = await prisma.bet.findMany({
-        where: { poolId: pool.id },
-        select: { walletAddress: true },
-        distinct: ['walletAddress'],
-      });
+      const bettorCount = (await getDistinctBettorWallets(pool.id)).length;
       const feeBps = await resolveFeeBps(prisma, bet.walletAddress);
       const calc = calculatePayout({
         betAmount: bet.amount,
@@ -321,7 +314,7 @@ claimsRouter.post('/confirm-claim', async (req, res) => {
         totalDown: pool.totalDown,
         totalDraw: pool.totalDraw,
         side: bet.side as 'UP' | 'DOWN' | 'DRAW',
-        betCount: distinctBettors.length,
+        betCount: bettorCount,
         feeBps,
       });
       payout = calc.payout;

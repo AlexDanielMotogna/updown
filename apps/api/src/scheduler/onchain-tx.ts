@@ -1,6 +1,6 @@
 import { PublicKey, Transaction } from '@solana/web3.js';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
-import { getPoolPDA, getVaultPDA, getUserBetPDA, buildResolveIx, buildRefundIx, buildClosePoolIx } from 'solana-client';
+import { getPoolPDA, getVaultPDA, getUserBetPDA, buildResolveIx, buildRefundIx, buildClosePoolIx, sideToIndex, type SideLabel } from 'solana-client';
 import { derivePoolSeed, getUsdcMint, getConnection } from '../utils/solana';
 import { emitRefund } from '../websocket';
 import { ResolverDeps, REFUND_MAX_RETRIES, logEvent, handleRpcError } from './resolver-types';
@@ -114,7 +114,7 @@ export async function refundBetOnChain(
   const [poolPda] = getPoolPDA(seed);
   const [vaultPda] = getVaultPDA(seed);
   const user = new PublicKey(walletAddress);
-  const sideIdx: 0 | 1 | 2 = side === 'UP' ? 0 : side === 'DOWN' ? 1 : 2;
+  const sideIdx = sideToIndex(side as SideLabel);
   const [userBetPda] = getUserBetPDA(poolPda, user, sideIdx);
   const userTokenAccount = await getAssociatedTokenAddress(getUsdcMint(), user);
 

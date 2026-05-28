@@ -9,7 +9,7 @@ import {
   prepareClaim,
   confirmClaim,
 } from '@/lib/api';
-import { buildDepositIx } from 'solana-client';
+import { buildDepositIx, sideToIndex } from 'solana-client';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { buildNotification } from '@/lib/notifications';
 
@@ -110,7 +110,7 @@ export function useDeposit() {
         const userBetPubkey = new PublicKey(accounts.userBet);
         const vaultPubkey = new PublicKey(accounts.vault);
         const userTokenAccount = new PublicKey(accounts.userTokenAccount);
-        const sideValue = side === 'UP' ? 0 : side === 'DOWN' ? 1 : 2;
+        const sideValue = sideToIndex(side);
 
         const ix = buildDepositIx(
           poolPubkey,
@@ -118,7 +118,7 @@ export function useDeposit() {
           vaultPubkey,
           userTokenAccount,
           publicKey,
-          sideValue as 0 | 1 | 2,
+          sideValue,
           BigInt(amount),
         );
 

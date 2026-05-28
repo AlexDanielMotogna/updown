@@ -3,12 +3,13 @@ import { z } from 'zod';
 import { PublicKey } from '@solana/web3.js';
 import { prisma } from '../db';
 import { emitPoolUpdate } from '../websocket';
-import { getPoolPDA, getVaultPDA, getUserBetPDA, PROGRAM_ID } from 'solana-client';
+import { getPoolPDA, getVaultPDA, getUserBetPDA, PROGRAM_ID, sideToIndex } from 'solana-client';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { getConnection, getUsdcMint, derivePoolSeed } from '../utils/solana';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { trackBetPlacement } from '../services/rewards';
 import { isSquadMember } from '../services/squads';
+import { getDistinctBettorWallets } from '../utils/bets';
 
 export const depositsRouter: RouterType = Router();
 
@@ -99,16 +100,11 @@ depositsRouter.post('/deposit', async (req, res) => {
       }
 
       if (pool.maxBettors) {
-        // Count DISTINCT wallets — a wallet may hold rows on multiple sides (hedge).
-        const bettorWallets = await prisma.bet.findMany({
-          where: { poolId: pool.id },
-          select: { walletAddress: true },
-          distinct: ['walletAddress'],
-        });
-        const currentBettors = bettorWallets.length;
-        const existingBetForUser = bettorWallets.some((b) => b.walletAddress === walletAddress);
+        // A wallet may hold rows on multiple sides (hedge) — count DISTINCT wallets.
+        const bettorWallets = await getDistinctBettorWallets(pool.id);
+        const existingBetForUser = bettorWallets.includes(walletAddress);
         // Only check limit if this wallet doesn't already participate
-        if (!existingBetForUser && currentBettors >= pool.maxBettors) {
+        if (!existingBetForUser && bettorWallets.length >= pool.maxBettors) {
           return res.status(400).json({
             success: false,
             error: {
@@ -124,7 +120,7 @@ depositsRouter.post('/deposit', async (req, res) => {
     // there is no side-lock here. The UserBet PDA is derived per (pool, user, side).
     const seed = derivePoolSeed(pool.id);
     const user = new PublicKey(walletAddress);
-    const sideIdx = side === 'UP' ? 0 : side === 'DOWN' ? 1 : 2;
+    const sideIdx = sideToIndex(side);
     const [poolPDA] = getPoolPDA(seed);
     const [vaultPDA] = getVaultPDA(seed);
     const [userBet] = getUserBetPDA(poolPDA, user, sideIdx);
