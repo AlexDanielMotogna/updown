@@ -180,10 +180,12 @@ export function buildClaimIx(
   authority: PublicKey,
   feeWallet: PublicKey,
   feeBps: number,
+  side: 0 | 1 | 2, // winning side — must match the userBet PDA's side seed
 ): TransactionInstruction {
   const data = Buffer.concat([
     CLAIM_DISC,
     encodeU16(feeBps),            // u16
+    Buffer.from([side]),          // enum Side { Up=0, Down=1, Draw=2 }
   ]);
 
   const keys = [
@@ -211,7 +213,13 @@ export function buildRefundIx(
   userTokenAccount: PublicKey,
   user: PublicKey,
   authority: PublicKey,
+  side: 0 | 1 | 2, // side being refunded — must match the userBet PDA's side seed
 ): TransactionInstruction {
+  const data = Buffer.concat([
+    REFUND_DISC,
+    Buffer.from([side]),          // enum Side { Up=0, Down=1, Draw=2 }
+  ]);
+
   const keys = [
     { pubkey: pool, isSigner: false, isWritable: true },
     { pubkey: userBet, isSigner: false, isWritable: true },
@@ -222,7 +230,7 @@ export function buildRefundIx(
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
   ];
 
-  return new TransactionInstruction({ keys, programId: PROGRAM_ID, data: REFUND_DISC });
+  return new TransactionInstruction({ keys, programId: PROGRAM_ID, data });
 }
 
 /**

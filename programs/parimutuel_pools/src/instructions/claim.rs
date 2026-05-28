@@ -4,18 +4,22 @@ use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use crate::errors::PoolError;
 use crate::events::PayoutClaimed;
 use crate::state::{Pool, PoolStatus, UserBet};
+use crate::Side;
 
 #[derive(Accounts)]
+#[instruction(fee_bps: u16, side: Side)]
 pub struct Claim<'info> {
     #[account(
         constraint = pool.status == PoolStatus::Resolved @ PoolError::NotResolved
     )]
     pub pool: Account<'info, Pool>,
 
+    // Claim the user's account for the winning `side` (per-side PDA). A hedger's
+    // losing-side account is simply never claimed (same as any loser today).
     #[account(
         mut,
         close = user,
-        seeds = [UserBet::SEED_PREFIX, pool.key().as_ref(), user.key().as_ref()],
+        seeds = [UserBet::SEED_PREFIX, pool.key().as_ref(), user.key().as_ref(), &[side as u8]],
         bump = user_bet.bump,
         constraint = user_bet.user == user.key(),
         constraint = !user_bet.claimed @ PoolError::AlreadyClaimed
@@ -54,7 +58,7 @@ pub struct Claim<'info> {
     pub token_program: Program<'info, Token>,
 }
 
-pub fn handler(ctx: Context<Claim>, fee_bps: u16) -> Result<()> {
+pub fn handler(ctx: Context<Claim>, fee_bps: u16, _side: Side) -> Result<()> {
     require!(fee_bps <= 10000, PoolError::InvalidFeeBps);
 
     let pool = &ctx.accounts.pool;

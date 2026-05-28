@@ -91,7 +91,9 @@ model Bet {
 
   pool Pool @relation(fields: [poolId], references: [id])
 
-  @@unique([poolId, walletAddress])
+  // One row per (pool, wallet, side): a wallet can hold positions on multiple
+  // sides of the same pool (hedge). Maps 1:1 to the per-side on-chain UserBet PDA.
+  @@unique([poolId, walletAddress, side])
   @@map("bets")
 }
 

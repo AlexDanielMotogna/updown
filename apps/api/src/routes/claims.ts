@@ -61,26 +61,7 @@ claimsRouter.post('/claim', async (req, res) => {
       });
     }
 
-    const bet = await prisma.bet.findUnique({
-      where: {
-        poolId_walletAddress: {
-          poolId: pool.id,
-          walletAddress,
-        },
-      },
-    });
-
-    if (!bet) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'BET_NOT_FOUND',
-          message: 'No bet found for this wallet in this pool',
-        },
-      });
-    }
-
-    // Verify pool is resolved/claimable
+    // Verify pool is resolved/claimable with a winner
     if (pool.status !== 'CLAIMABLE' && pool.status !== 'RESOLVED') {
       return res.status(400).json({
         success: false,
@@ -91,8 +72,28 @@ claimsRouter.post('/claim', async (req, res) => {
       });
     }
 
-    // Verify bet is a winner
-    if (pool.winner !== bet.side) {
+    if (!pool.winner) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'NOT_WINNER',
+          message: 'Pool has no winning side to claim',
+        },
+      });
+    }
+
+    // A wallet may hold positions on multiple sides — claim the WINNING-side row.
+    const bet = await prisma.bet.findUnique({
+      where: {
+        poolId_walletAddress_side: {
+          poolId: pool.id,
+          walletAddress,
+          side: pool.winner,
+        },
+      },
+    });
+
+    if (!bet) {
       return res.status(400).json({
         success: false,
         error: {
@@ -113,31 +114,37 @@ claimsRouter.post('/claim', async (req, res) => {
       });
     }
 
-    // Derive PDAs
+    // Derive PDAs — UserBet is per (pool, user, side); claim the winning side.
     const seed = derivePoolSeed(pool.id);
     const user = new PublicKey(walletAddress);
+    const sideIdx: 0 | 1 | 2 = bet.side === 'UP' ? 0 : bet.side === 'DOWN' ? 1 : 2;
     const [poolPDA] = getPoolPDA(seed);
     const [vaultPDA] = getVaultPDA(seed);
-    const [userBet] = getUserBetPDA(poolPDA, user);
+    const [userBet] = getUserBetPDA(poolPDA, user, sideIdx);
     const userTokenAccount = await getAssociatedTokenAddress(getUsdcMint(), user);
 
     // Get authority keypair and fee wallet (authority's USDC ATA)
     const authority = getAuthorityKeypair();
     const feeWallet = await getAssociatedTokenAddress(getUsdcMint(), authority.publicKey);
 
-    // Calculate fee based on user level
-    const betCount = await prisma.bet.count({ where: { poolId: pool.id } });
+    // Fee is waived only when there's a single distinct bettor (no counterparty).
+    const distinctBettors = await prisma.bet.findMany({
+      where: { poolId: pool.id },
+      select: { walletAddress: true },
+      distinct: ['walletAddress'],
+    });
     const feeBps = await resolveFeeBps(prisma, walletAddress);
     const { grossPayout, fee, payout } = calculatePayout({
       betAmount: bet.amount,
       totalUp: pool.totalUp,
       totalDown: pool.totalDown,
-      side: bet.side as 'UP' | 'DOWN',
-      betCount,
+      totalDraw: pool.totalDraw,
+      side: bet.side as 'UP' | 'DOWN' | 'DRAW',
+      betCount: distinctBettors.length,
       feeBps,
     });
 
-    // Build claim instruction with fee
+    // Build claim instruction with fee (side selects the per-side UserBet account)
     const ix = buildClaimIx(
       poolPDA,
       userBet,
@@ -147,6 +154,7 @@ claimsRouter.post('/claim', async (req, res) => {
       authority.publicKey,
       feeWallet,
       feeBps,
+      sideIdx,
     );
 
     // Build transaction
@@ -301,14 +309,19 @@ claimsRouter.post('/confirm-claim', async (req, res) => {
 
     // Fallback: if we can't read on-chain payout, use server-calculated value
     if (payout === BigInt(0)) {
-      const betCount = await prisma.bet.count({ where: { poolId: pool.id } });
+      const distinctBettors = await prisma.bet.findMany({
+        where: { poolId: pool.id },
+        select: { walletAddress: true },
+        distinct: ['walletAddress'],
+      });
       const feeBps = await resolveFeeBps(prisma, bet.walletAddress);
       const calc = calculatePayout({
         betAmount: bet.amount,
         totalUp: pool.totalUp,
         totalDown: pool.totalDown,
-        side: bet.side as 'UP' | 'DOWN',
-        betCount,
+        totalDraw: pool.totalDraw,
+        side: bet.side as 'UP' | 'DOWN' | 'DRAW',
+        betCount: distinctBettors.length,
         feeBps,
       });
       payout = calc.payout;

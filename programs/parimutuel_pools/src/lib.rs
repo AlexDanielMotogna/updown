@@ -49,14 +49,15 @@ pub mod parimutuel_pools {
         instructions::resolve::handler_with_winner(ctx, winner)
     }
 
-    /// Claim payout from resolved pool (user + authority co-sign, with fee)
-    pub fn claim(ctx: Context<Claim>, fee_bps: u16) -> Result<()> {
-        instructions::claim::handler(ctx, fee_bps)
+    /// Claim payout from resolved pool (user + authority co-sign, with fee).
+    /// `side` selects which per-side UserBet account to claim (the winning side).
+    pub fn claim(ctx: Context<Claim>, fee_bps: u16, side: Side) -> Result<()> {
+        instructions::claim::handler(ctx, fee_bps, side)
     }
 
-    /// Refund a user's bet (authority-only, no user signature needed)
-    pub fn refund(ctx: Context<Refund>) -> Result<()> {
-        instructions::refund::handler(ctx)
+    /// Refund a user's bet on a given `side` (authority-only, no user signature needed)
+    pub fn refund(ctx: Context<Refund>, side: Side) -> Result<()> {
+        instructions::refund::handler(ctx, side)
     }
 
     /// Close a resolved pool and reclaim rent (authority only)

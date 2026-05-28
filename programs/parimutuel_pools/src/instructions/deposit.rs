@@ -7,6 +7,7 @@ use crate::state::{Pool, PoolStatus, UserBet};
 use crate::Side;
 
 #[derive(Accounts)]
+#[instruction(side: Side, amount: u64)]
 pub struct Deposit<'info> {
     #[account(
         mut,
@@ -14,11 +15,14 @@ pub struct Deposit<'info> {
     )]
     pub pool: Account<'info, Pool>,
 
+    // One UserBet account per (pool, user, side): the `side` byte is part of the
+    // seeds, so the same wallet can hold independent positions on multiple sides
+    // (hedge). Each side's account is created/accumulated separately.
     #[account(
         init_if_needed,
         payer = user,
         space = 8 + UserBet::INIT_SPACE,
-        seeds = [UserBet::SEED_PREFIX, pool.key().as_ref(), user.key().as_ref()],
+        seeds = [UserBet::SEED_PREFIX, pool.key().as_ref(), user.key().as_ref(), &[side as u8]],
         bump
     )]
     pub user_bet: Account<'info, UserBet>,
@@ -83,7 +87,8 @@ pub fn handler(ctx: Context<Deposit>, side: Side, amount: u64) -> Result<()> {
         }
     }
 
-    // Initialize or accumulate user bet
+    // Initialize (first deposit on this side) or accumulate. The per-side PDA seed
+    // guarantees this account belongs to `side`, so re-deposits just add to it.
     let user_bet = &mut ctx.accounts.user_bet;
     if user_bet.user == Pubkey::default() {
         // New bet — initialize all fields
@@ -94,8 +99,7 @@ pub fn handler(ctx: Context<Deposit>, side: Side, amount: u64) -> Result<()> {
         user_bet.claimed = false;
         user_bet.bump = ctx.bumps.user_bet;
     } else {
-        // Existing bet — must be same side
-        require!(user_bet.side == side, PoolError::SideMismatch);
+        // Same side guaranteed by the per-side seed — accumulate.
         user_bet.amount = user_bet.amount.checked_add(amount).ok_or(PoolError::Overflow)?;
     }
 

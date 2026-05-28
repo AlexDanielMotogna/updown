@@ -4,11 +4,13 @@ use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use crate::errors::PoolError;
 use crate::events::Refunded;
 use crate::state::{Pool, PoolStatus, UserBet};
+use crate::Side;
 
 /// Authority-signed refund: returns funds to a user without requiring the user's signature.
 /// Used for single-bettor and one-sided pools where the pool is resolved with synthetic prices
-/// that make the bettor's side win.
+/// that make the bettor's side win. Refunds one (pool, user, side) position at a time.
 #[derive(Accounts)]
+#[instruction(side: Side)]
 pub struct Refund<'info> {
     #[account(
         constraint = pool.status == PoolStatus::Resolved @ PoolError::NotResolved
@@ -18,7 +20,7 @@ pub struct Refund<'info> {
     #[account(
         mut,
         close = user,
-        seeds = [UserBet::SEED_PREFIX, pool.key().as_ref(), user.key().as_ref()],
+        seeds = [UserBet::SEED_PREFIX, pool.key().as_ref(), user.key().as_ref(), &[side as u8]],
         bump = user_bet.bump,
         constraint = user_bet.user == user.key(),
         constraint = !user_bet.claimed @ PoolError::AlreadyClaimed
@@ -49,7 +51,7 @@ pub struct Refund<'info> {
     pub token_program: Program<'info, Token>,
 }
 
-pub fn handler(ctx: Context<Refund>) -> Result<()> {
+pub fn handler(ctx: Context<Refund>, _side: Side) -> Result<()> {
     let pool = &ctx.accounts.pool;
     let user_bet = &mut ctx.accounts.user_bet;
 
