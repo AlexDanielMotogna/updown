@@ -23,10 +23,8 @@ import { useLiveScores } from '@/hooks/useLiveScores';
 import { useCategoryMap } from '@/hooks/useCategories';
 import { PoolTable, AppShell } from '@/components';
 import { MatchCard } from '@/components/sports/MatchCard';
-import { MatchBetModal } from '@/components/sports/MatchBetModal';
 import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter';
 import { TournamentBanner } from '@/components/tournament/TournamentBanner';
-import { CryptoPoolModal } from '@/components/pool/CryptoPoolModal';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 
@@ -233,9 +231,6 @@ export default function MarketsPage() {
 
   const pools = sortedPools;
 
-  // Modal states
-  const [selectedSportsPool, setSelectedSportsPool] = useState<typeof allPools[number] | null>(null);
-  const [selectedCryptoPool, setSelectedCryptoPool] = useState<typeof allPools[number] | null>(null);
   const CARDS_PER_PAGE = 12;
   const [sportsVisible, setSportsVisible] = useState(CARDS_PER_PAGE);
   const [predVisible, setPredVisible] = useState(CARDS_PER_PAGE);
@@ -376,7 +371,7 @@ export default function MarketsPage() {
                       }}
                     >
                       {sportsPools.slice(0, sportsVisible).map((pool) => (
-                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} liveScore={getPoolLiveScore(pool)} category={pool.league ? categoryMap.get(pool.league) : undefined} userBet={userBetByPoolId.get(pool.id)} onClaim={(poolId, betId) => claim(poolId, betId)} onClick={() => setSelectedSportsPool(pool)} />
+                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} liveScore={getPoolLiveScore(pool)} category={pool.league ? categoryMap.get(pool.league) : undefined} userBet={userBetByPoolId.get(pool.id)} onClaim={(poolId, betId) => claim(poolId, betId)} onClick={() => router.push(`/match/${pool.id}`)} />
                       ))}
                     </Box>
                     {sportsVisible < sportsPools.length && (
@@ -429,7 +424,7 @@ export default function MarketsPage() {
                       }}
                     >
                       {predictionPools.slice(0, predVisible).map((pool) => (
-                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} liveScore={getPoolLiveScore(pool)} category={pool.league ? categoryMap.get(pool.league) : undefined} userBet={userBetByPoolId.get(pool.id)} onClaim={(poolId, betId) => claim(poolId, betId)} onClick={() => setSelectedSportsPool(pool)} />
+                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} liveScore={getPoolLiveScore(pool)} category={pool.league ? categoryMap.get(pool.league) : undefined} userBet={userBetByPoolId.get(pool.id)} onClaim={(poolId, betId) => claim(poolId, betId)} onClick={() => router.push(`/match/${pool.id}`)} />
                       ))}
                     </Box>
                     {predVisible < predictionPools.length && (
@@ -462,7 +457,7 @@ export default function MarketsPage() {
                     getPrice={getPrice}
                     isPlaceholderData={isPlaceholderData}
                     popularPoolIds={popularPoolIds}
-                    onPoolClick={(pool) => setSelectedCryptoPool(pool)}
+                    onPoolClick={(pool) => router.push(`/pool/${pool.id}`)}
                   />
                 )}
 
@@ -491,8 +486,6 @@ export default function MarketsPage() {
             )}
       </Container>
 
-      <MatchBetModal pool={selectedSportsPool} onClose={() => setSelectedSportsPool(null)} />
-      <CryptoPoolModal pool={selectedCryptoPool} onClose={() => setSelectedCryptoPool(null)} />
     </AppShell>
   );
 }
