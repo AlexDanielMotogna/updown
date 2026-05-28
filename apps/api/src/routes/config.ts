@@ -1,6 +1,6 @@
 import { Router, type Router as RouterType } from 'express';
 import { prisma } from '../db';
-import { getVisibleCategories, getCategorySubcategories, isOperationalTag } from '../services/category-config';
+import { getVisibleCategories, getCategorySubcategories, getCategoryParentTags, isOperationalTag } from '../services/category-config';
 import { sportsDbFetch } from '../services/sports/api-sports-fetch';
 import { getRelatedTagsForMany, tagBySlug, getActiveTags } from '../services/sports/polymarket-tags';
 
@@ -62,19 +62,23 @@ configRouter.get('/polymarket-tags', async (req, res) => {
 });
 
 // GET /api/config/pool-subcategories?league=PM_POLITICS
-// Sidebar filters = the category's CURATED subcategory whitelist (admin-controlled,
-// which keeps out noise like the broad "Politics" tag, promo/automation tags, and
-// cross-category tags), counted by TAG MEMBERSHIP. A pool counts toward EVERY
-// curated tag it carries (multi-tag) rather than a single "winning" bucket, so
-// filters are full and a pool is never lost to bucket precedence. Only non-empty
-// filters are returned, in the admin's configured priority order.
+// Sidebar filters with live pool counts, in two passes:
+//   1. CURATED — the category's admin-defined subcategory whitelist (keeps out
+//      noise like the broad "Politics" tag, promo/automation tags, cross-category
+//      tags), counted by TAG MEMBERSHIP. A pool counts toward EVERY curated tag it
+//      carries (multi-tag) rather than one "winning" bucket, so filters are full
+//      and no pool is lost to precedence. Returned in the admin's priority order.
+//   2. FALLBACK — if the whitelist matches no pool (mislabeled or unconfigured),
+//      auto-derive filters from the pools' REAL tags so the category still shows
+//      useful, counted filters. Operational/promo junk and the broad parent tag
+//      are excluded; results are ordered by frequency and capped.
+// Either way only non-empty filters are returned.
 configRouter.get('/pool-subcategories', async (req, res) => {
   try {
     const league = req.query.league as string;
     if (!league) return res.json({ success: true, data: [] });
 
     const order = await getCategorySubcategories(league); // curated labels, priority order
-    if (order.length === 0) return res.json({ success: true, data: [] });
     const labelByLower = new Map(order.map(label => [label.toLowerCase(), label]));
 
     const pools = await prisma.pool.findMany({
@@ -82,6 +86,7 @@ configRouter.get('/pool-subcategories', async (req, res) => {
       select: { tags: true },
     });
 
+    // Pass 1 — curated whitelist facets.
     const counts: Record<string, number> = {};
     for (const p of pools) {
       try {
@@ -96,9 +101,31 @@ configRouter.get('/pool-subcategories', async (req, res) => {
       } catch { /* skip malformed tag JSON */ }
     }
 
-    const data = Object.entries(counts)
+    let data = Object.entries(counts)
       .map(([label, count]) => ({ label, count }))
       .sort((a, b) => order.indexOf(a.label) - order.indexOf(b.label));
+
+    // Pass 2 — fallback to real tags when the whitelist matched nothing.
+    if (data.length === 0 && pools.length > 0) {
+      const parents = new Set((await getCategoryParentTags(league)).map(t => t.trim().toLowerCase()));
+      const raw: Record<string, number> = {};
+      for (const p of pools) {
+        try {
+          const seen = new Set<string>();
+          for (const t of JSON.parse(p.tags!) as string[]) {
+            const label = String(t).trim();
+            const lower = label.toLowerCase();
+            if (!label || isOperationalTag(label) || parents.has(lower) || seen.has(lower)) continue;
+            raw[label] = (raw[label] || 0) + 1;
+            seen.add(lower); // count each pool once per tag
+          }
+        } catch { /* skip malformed tag JSON */ }
+      }
+      data = Object.entries(raw)
+        .map(([label, count]) => ({ label, count }))
+        .sort((a, b) => b.count - a.count) // most common first
+        .slice(0, 12); // keep the sidebar tidy
+    }
 
     res.json({ success: true, data });
   } catch {

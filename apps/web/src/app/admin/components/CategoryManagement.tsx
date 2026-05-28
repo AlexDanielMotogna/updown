@@ -291,8 +291,11 @@ function PolymarketConfigFields({ pm, onChange, code }: { pm: PmConfig; onChange
         <TextField fullWidth label="Max Pools" size="small" type="number" value={pm.maxMarkets} onChange={e => set({ maxMarkets: e.target.value })} />
         <FieldExplain>Cap on how many pools this category imports per sync (highest-volume markets first). This is the main dial for how many pools you get.</FieldExplain>
 
-        <TextField fullWidth label="Sub-markets per event" size="small" type="number" value={pm.maxSubmarketsPerEvent} onChange={e => set({ maxSubmarketsPerEvent: e.target.value })} />
-        <FieldExplain>One Polymarket event can hold many questions — e.g. a price ladder <Eg>&gt;$110 / &gt;$120 / &gt;$130</Eg>. This sets how many to import per event. <Eg>1</Eg> = one representative pool, avoids near-duplicates.</FieldExplain>
+        <TextField fullWidth label="Pools per event (sub-markets)" size="small" type="number" value={pm.maxSubmarketsPerEvent} onChange={e => set({ maxSubmarketsPerEvent: e.target.value })} />
+        <FieldExplain>
+          On Polymarket, one <b>event</b> (a topic) bundles several yes/no <b>questions</b>. Each question = one pool here. Example — the event <i>&quot;How high will Bitcoin go?&quot;</i> contains <Eg>Above $100k?</Eg>, <Eg>Above $110k?</Eg>, <Eg>Above $120k?</Eg>…
+          <br />This sets how many of those questions to turn into pools, per event. <Eg>1</Eg> = one pool per topic (recommended) so the category isn&apos;t flooded with ~10 almost-identical pools. <Eg>5</Eg> = up to 5 pools from the same event.
+        </FieldExplain>
 
         <TextField fullWidth label="Match Priority (advanced)" size="small" type="number" value={pm.matchPriority} onChange={e => set({ matchPriority: e.target.value })} />
         <FieldExplain>Only matters when a market fits more than one category — the <b>lowest number wins</b>. e.g. give Geopolitics <Eg>1</Eg> so it beats Politics <Eg>99</Eg>. Leave blank if your categories don&apos;t overlap.</FieldExplain>

@@ -176,9 +176,21 @@ export const OPERATIONAL_PM_TAGS = new Set<string>([
   'trending', 'live',
 ]);
 
+/**
+ * Operational tags that vary numerically and so can't be listed exhaustively —
+ * reward/automation config buckets like "Rewards 50, 4.5, 20" or
+ * "Rewards Automation 100 4.5 50 (1)". Matched by prefix, case-insensitive.
+ */
+const OPERATIONAL_PM_PATTERNS: RegExp[] = [
+  /^rewards\b/i,
+  /^automation\b/i,
+];
+
 /** True if a raw Polymarket tag is an operational/non-topic tag. */
 export function isOperationalTag(tag: string): boolean {
-  return OPERATIONAL_PM_TAGS.has(tag.trim().toLowerCase());
+  const t = tag.trim();
+  if (OPERATIONAL_PM_TAGS.has(t.toLowerCase())) return true;
+  return OPERATIONAL_PM_PATTERNS.some(re => re.test(t));
 }
 
 /** Ordered subcategory whitelist for a PM category code (priority order). */
@@ -187,6 +199,18 @@ export async function getCategorySubcategories(code: string): Promise<string[]> 
   const cat = cachedCategories.find(c => c.code === code);
   const subs = (cat?.config as any)?.subcategories;
   return Array.isArray(subs) ? subs.filter((s): s is string => typeof s === 'string') : [];
+}
+
+/**
+ * The category's own top-level Polymarket tags (e.g. "Culture", "Politics").
+ * These sit on ~every pool in the category, so they make a useless sidebar
+ * facet — excluded when auto-deriving filters from real pool tags.
+ */
+export async function getCategoryParentTags(code: string): Promise<string[]> {
+  await refreshCache();
+  const cat = cachedCategories.find(c => c.code === code);
+  const tags = (cat?.config as any)?.tags;
+  return Array.isArray(tags) ? tags.filter((t): t is string => typeof t === 'string') : [];
 }
 
 /**
