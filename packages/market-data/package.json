@@ -10,7 +10,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "shared": "workspace:*",
     "ws": "^8.16.0"
   },
   "devDependencies": {
