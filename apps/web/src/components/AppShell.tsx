@@ -1,8 +1,11 @@
 'use client';
 
-import { Box, Typography } from '@mui/material';
+import { useState, useEffect } from 'react';
+import { Box, Typography, Drawer } from '@mui/material';
+import ViewSidebarRounded from '@mui/icons-material/ViewSidebarRounded';
 import { Header } from './Header';
 import { MarketSidebar } from './sidebar/MarketSidebar';
+import { ActivePoolsSidebar } from './sidebar/ActivePoolsSidebar';
 import { RewardPopup } from './RewardPopup';
 import { useThemeTokens } from '@/app/providers';
 
@@ -81,6 +84,13 @@ function Footer() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const t = useThemeTokens();
+  const [rightOpen, setRightOpen] = useState(true);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  useEffect(() => {
+    const v = localStorage.getItem('activePoolsOpen');
+    if (v !== null) setRightOpen(v === 'true');
+  }, []);
+  const setRight = (v: boolean) => { setRightOpen(v); try { localStorage.setItem('activePoolsOpen', String(v)); } catch { /* ignore */ } };
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: { xs: 'calc(72px + env(safe-area-inset-bottom, 0px))', lg: 0 } }}>
@@ -106,7 +116,64 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Box>
           <Footer />
         </Box>
+        {/* Right sidebar: user's active pools (desktop, closeable) */}
+        <Box
+          sx={{
+            display: { xs: 'none', lg: rightOpen ? 'block' : 'none' },
+            width: 240,
+            flexShrink: 0,
+            position: 'sticky',
+            top: 64,
+            height: 'calc(100vh - 64px)',
+          }}
+        >
+          <ActivePoolsSidebar onClose={() => setRight(false)} />
+        </Box>
       </Box>
+
+      {/* Reopen tab when the right sidebar is closed (desktop) */}
+      {!rightOpen && (
+        <Box
+          onClick={() => setRight(true)}
+          sx={{
+            display: { xs: 'none', lg: 'flex' },
+            position: 'fixed', right: 0, top: '50%', transform: 'translateY(-50%)',
+            alignItems: 'center', gap: 0.5, cursor: 'pointer', zIndex: 1100,
+            bgcolor: t.bg.surfaceAlt, border: `1px solid ${t.border.subtle}`, borderRight: 'none',
+            borderRadius: '6px 0 0 6px', px: 0.75, py: 1.25,
+            color: t.text.dimmed, '&:hover': { color: t.text.primary },
+          }}
+        >
+          <ViewSidebarRounded sx={{ fontSize: 18, transform: 'scaleX(-1)' }} />
+          <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, writingMode: 'vertical-rl', transform: 'rotate(180deg)', letterSpacing: '0.05em' }}>PREDICTIONS</Typography>
+        </Box>
+      )}
+
+      {/* Mobile: floating button opens the predictions panel as a right drawer */}
+      <Box
+        onClick={() => setMobileOpen(true)}
+        sx={{
+          display: { xs: 'flex', lg: 'none' },
+          position: 'fixed', right: 16, bottom: 'calc(72px + env(safe-area-inset-bottom, 0px))',
+          width: 46, height: 46, borderRadius: '50%', zIndex: 1100, cursor: 'pointer',
+          alignItems: 'center', justifyContent: 'center',
+          bgcolor: t.accent, color: '#fff', boxShadow: '0 4px 14px rgba(0,0,0,0.45)',
+        }}
+      >
+        <ViewSidebarRounded sx={{ fontSize: 22, transform: 'scaleX(-1)' }} />
+      </Box>
+      <Drawer
+        anchor="right"
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        sx={{
+          display: { xs: 'block', lg: 'none' },
+          '& .MuiDrawer-paper': { width: 280, maxWidth: '85vw', bgcolor: t.bg.app, backgroundImage: 'none' },
+          '& .MuiBackdrop-root': { bgcolor: t.shadow.default },
+        }}
+      >
+        <ActivePoolsSidebar onClose={() => setMobileOpen(false)} />
+      </Drawer>
     </Box>
   );
 }
