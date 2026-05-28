@@ -25,11 +25,13 @@ export function getVaultPDA(poolId: Uint8Array): [PublicKey, number] {
 }
 
 /**
- * Derive UserBet PDA
+ * Derive UserBet PDA for a given side.
+ * The `side` byte (0=Up/Home, 1=Down/Away, 2=Draw) is part of the seeds, so a
+ * wallet can hold one independent UserBet account per side (hedge).
  */
-export function getUserBetPDA(pool: PublicKey, user: PublicKey): [PublicKey, number] {
+export function getUserBetPDA(pool: PublicKey, user: PublicKey, side: number): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
-    [Buffer.from('bet'), pool.toBuffer(), user.toBuffer()],
+    [Buffer.from('bet'), pool.toBuffer(), user.toBuffer(), Buffer.from([side])],
     PROGRAM_ID
   );
 }
