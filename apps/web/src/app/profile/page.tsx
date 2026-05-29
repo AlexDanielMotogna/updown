@@ -18,19 +18,23 @@ import { useInfiniteBets, useClaimableBets, useClaim, useIntersectionObserver } 
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { TransactionModal, AppShell } from '@/components';
+import { ReferralDashboard } from '@/components/ReferralDashboard';
 import { formatUSDC } from '@/lib/format';
 import { useThemeTokens } from '@/app/providers';
-import { withAlpha } from '@/lib/theme';
-import { ShowChart, SportsSoccer, Gavel, Public, TheaterComedy, AccountBalance, GridView, FilterList } from '@mui/icons-material';
+import { GridView, FilterList } from '@mui/icons-material';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { PoolsBetTable } from '@/components/profile/PoolsBetTable';
 import { TournamentPrizes } from '@/components/profile/TournamentPrizes';
+import { OverviewTab } from '@/components/profile/OverviewTab';
+import { RewardsTab } from '@/components/profile/RewardsTab';
+import { HISTORY_FILTERS, getCategoryMeta } from '@/components/profile/category-meta';
 import {
   fetchMyTournamentPrizes,
   type TournamentPrize,
 } from '@/lib/api';
 
-const TAB_KEYS = ['pools', 'tournaments'] as const;
+const TAB_KEYS = ['overview', 'history', 'rewards', 'referrals', 'tournaments'] as const;
+type TabKey = typeof TAB_KEYS[number];
 
 export default function MyBetsPage() {
   const t = useThemeTokens();
@@ -40,8 +44,8 @@ export default function MyBetsPage() {
   const { connected, walletAddress } = useWalletBridge();
   const { data: userProfile } = useUserProfile();
   const { data: balance } = useUsdcBalance();
-  const tabParam = searchParams.get('tab') ?? 'pools';
-  const tabIndex = TAB_KEYS.indexOf(tabParam as typeof TAB_KEYS[number]);
+  const tabParam = searchParams.get('tab') ?? 'overview';
+  const tabIndex = TAB_KEYS.indexOf(tabParam as TabKey);
   const tab = tabIndex >= 0 ? tabIndex : 0;
   const [claimingBetId, setClaimingBetId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -72,17 +76,17 @@ export default function MyBetsPage() {
   const { data: claimableData } = useClaimableBets();
   const { claim, state: claimState, reset: resetClaim } = useClaim();
 
-  const handleTabChange = useCallback((_: React.SyntheticEvent, newValue: number) => {
+  const goToTab = useCallback((key: TabKey) => {
     const params = new URLSearchParams(searchParams.toString());
-    const key = TAB_KEYS[newValue]!;
-    if (key === 'pools') {
-      params.delete('tab');
-    } else {
-      params.set('tab', key);
-    }
+    if (key === 'overview') params.delete('tab');
+    else params.set('tab', key);
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }, [searchParams, router, pathname]);
+
+  const handleTabChange = useCallback((_: React.SyntheticEvent, newValue: number) => {
+    goToTab(TAB_KEYS[newValue]!);
+  }, [goToTab]);
 
   const handleClaim = async (poolId: string, betId: string) => {
     setClaimingBetId(betId);
@@ -111,7 +115,7 @@ export default function MyBetsPage() {
         resetClaim();
         await claim(bet.pool.id, bet.id);
       } catch {
-        // Stop on first error  user can retry or claim remaining individually
+        // Stop on first error — user can retry or claim remaining individually
         return;
       }
     }
@@ -143,10 +147,6 @@ export default function MyBetsPage() {
     return bets.filter(b => b.pool.league === poolFilter);
   }, [bets, poolFilter]);
 
-  const wonBets = bets.filter((b) => b.isWinner === true && !(b.claimed && b.payoutAmount != null && b.payoutAmount === b.amount));
-  const lostBets = bets.filter((b) => b.isWinner === false);
-  const totalStaked = useMemo(() => bets.reduce((sum, b) => sum + Number(b.amount), 0), [bets]);
-  const totalPayout = useMemo(() => wonBets.filter((b) => b.payoutAmount).reduce((sum, b) => sum + Number(b.payoutAmount!), 0), [wonBets]);
   const hasClaimable = claimable && claimable.summary.count > 0;
 
   const sentinelRef = useIntersectionObserver(
@@ -161,17 +161,12 @@ export default function MyBetsPage() {
         walletAddress={walletAddress}
         userProfile={userProfile}
         balance={balance}
-        totalBets={bets.length}
-        wonCount={wonBets.length}
-        lostCount={lostBets.length}
-        totalStaked={totalStaked}
-        totalPayout={totalPayout}
       />
 
       <Container maxWidth={false} sx={{ pb: { xs: 3, md: 6 }, pt: { xs: 2, md: 3 }, px: { xs: 2, md: 3 } }}>
-        {connected && (
+        {connected && walletAddress && (
           <>
-            {/* Claim All Banner */}
+            {/* Claim All Banner (global CTA) */}
             {hasClaimable && (
               <Box
                 sx={{
@@ -186,7 +181,7 @@ export default function MyBetsPage() {
                 }}
               >
                 <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.gain }}>
-                  {claimable!.summary.count} TO CLAIM  {formatUSDC(claimable!.summary.totalClaimable, { min: 2 })}
+                  {claimable!.summary.count} TO CLAIM — {formatUSDC(claimable!.summary.totalClaimable, { min: 2 })}
                 </Typography>
                 <Button
                   variant="contained"
@@ -232,10 +227,13 @@ export default function MyBetsPage() {
                   },
                 }}
               >
-                <Tab label={`Pools (${bets.length})`} />
+                <Tab label="Overview" />
+                <Tab label={`History${bets.length ? ` (${bets.length})` : ''}`} />
+                <Tab label="Rewards" />
+                <Tab label="Referrals" />
                 <Tab label={`Tournaments${prizes.length > 0 ? ` (${prizes.length})` : ''}`} />
               </Tabs>
-              {tab === 0 && (
+              {tab === 1 && (
                 <IconButton
                   onClick={() => setShowPoolFilters(!showPoolFilters)}
                   size="small"
@@ -246,51 +244,47 @@ export default function MyBetsPage() {
               )}
             </Box>
 
-            {/* Error */}
-            {betsError && (
-              <Alert
-                severity="error"
-                sx={{ mb: 4, backgroundColor: 'rgba(255, 82, 82, 0.1)', border: 'none', borderRadius: 1 }}
-              >
-                Failed to load predictions
-              </Alert>
+            {/* ─── Overview ─── */}
+            {tab === 0 && (
+              <OverviewTab walletAddress={walletAddress} userProfile={userProfile} onViewTab={goToTab} />
             )}
 
-            {/* Pools Tab */}
-            {tab === 0 && (
+            {/* ─── History ─── */}
+            {tab === 1 && (
               <>
+                {betsError && (
+                  <Alert severity="error" sx={{ mb: 4, backgroundColor: 'rgba(255, 82, 82, 0.1)', border: 'none', borderRadius: 1 }}>
+                    Failed to load predictions
+                  </Alert>
+                )}
+
                 {showPoolFilters && (
-                <Box sx={{ display: 'flex', gap: 0, mb: 2, overflow: 'auto', '&::-webkit-scrollbar': { display: 'none' } }}>
-                  {[
-                    { key: 'ALL', label: 'All', icon: <GridView sx={{ fontSize: 16 }} />, color: t.text.primary },
-                    { key: 'CRYPTO', label: 'Crypto', icon: <ShowChart sx={{ fontSize: 16 }} />, color: t.up },
-                    { key: 'SPORTS', label: 'Sports', icon: <SportsSoccer sx={{ fontSize: 16 }} />, color: t.draw },
-                    { key: 'PM_POLITICS', label: 'Politics', icon: <Gavel sx={{ fontSize: 16 }} />, color: t.prediction },
-                    { key: 'PM_GEO', label: 'Geopolitics', icon: <Public sx={{ fontSize: 16 }} />, color: t.info },
-                    { key: 'PM_CULTURE', label: 'Culture', icon: <TheaterComedy sx={{ fontSize: 16 }} />, color: t.categoryColors.culture },
-                    { key: 'PM_FINANCE', label: 'Finance', icon: <AccountBalance sx={{ fontSize: 16 }} />, color: t.categoryColors.finance },
-                  ].map(f => {
-                    const active = poolFilter === f.key;
-                    return (
-                      <Box
-                        key={f.key}
-                        onClick={() => setPoolFilter(f.key)}
-                        sx={{
-                          display: 'flex', alignItems: 'center', gap: 0.75,
-                          px: { xs: 1.25, md: 2 }, py: 1, cursor: 'pointer', whiteSpace: 'nowrap',
-                          borderBottom: active ? `2px solid ${f.color}` : '2px solid transparent',
-                          color: active ? f.color : t.text.quaternary,
-                          transition: 'all 0.15s ease', '&:hover': { color: f.color },
-                        }}
-                      >
-                        {f.icon}
-                        <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: active ? 700 : 500 }}>
-                          {f.label}
-                        </Typography>
-                      </Box>
-                    );
-                  })}
-                </Box>
+                  <Box sx={{ display: 'flex', gap: 0, mb: 2, overflow: 'auto', '&::-webkit-scrollbar': { display: 'none' } }}>
+                    {HISTORY_FILTERS.map(key => {
+                      const meta = key === 'ALL'
+                        ? { label: 'All', color: t.text.primary, icon: <GridView sx={{ fontSize: 16 }} /> }
+                        : getCategoryMeta(key, t, 16);
+                      const active = poolFilter === key;
+                      return (
+                        <Box
+                          key={key}
+                          onClick={() => setPoolFilter(key)}
+                          sx={{
+                            display: 'flex', alignItems: 'center', gap: 0.75,
+                            px: { xs: 1.25, md: 2 }, py: 1, cursor: 'pointer', whiteSpace: 'nowrap',
+                            borderBottom: active ? `2px solid ${meta.color}` : '2px solid transparent',
+                            color: active ? meta.color : t.text.quaternary,
+                            transition: 'all 0.15s ease', '&:hover': { color: meta.color },
+                          }}
+                        >
+                          {meta.icon}
+                          <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: active ? 700 : 500 }}>
+                            {meta.label}
+                          </Typography>
+                        </Box>
+                      );
+                    })}
+                  </Box>
                 )}
 
                 <PoolsBetTable
@@ -299,21 +293,24 @@ export default function MyBetsPage() {
                   claimingBetId={claimingBetId}
                   onClaim={handleClaim}
                 />
+
+                <Box ref={sentinelRef} />
+                {isFetchingNextPage && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, pb: 4 }}>
+                    <CircularProgress size={32} sx={{ color: t.text.primary }} />
+                  </Box>
+                )}
               </>
             )}
 
-            {/* Sentinel for infinite scroll */}
-            {tab === 0 && <Box ref={sentinelRef} />}
+            {/* ─── Rewards ─── */}
+            {tab === 2 && <RewardsTab walletAddress={walletAddress} />}
 
-            {/* Loading next page */}
-            {tab === 0 && isFetchingNextPage && (
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, pb: 4 }}>
-                <CircularProgress size={32} sx={{ color: t.text.primary }} />
-              </Box>
-            )}
+            {/* ─── Referrals ─── */}
+            {tab === 3 && <ReferralDashboard walletAddress={walletAddress} />}
 
-            {/* Tournaments Tab */}
-            {tab === 1 && (
+            {/* ─── Tournaments ─── */}
+            {tab === 4 && (
               <TournamentPrizes
                 walletAddress={walletAddress}
                 prizes={prizes}

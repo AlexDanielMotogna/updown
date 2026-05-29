@@ -335,11 +335,21 @@ export interface UserProfile {
   coinsRedeemed: string;
   feeBps: number;
   feePercent: string;
+  coinMultiplier: number;
+  nextLevel: {
+    level: number;
+    title: string;
+    feePercent: string;
+    coinMultiplier: number;
+  } | null;
+  rank: number | null;
+  totalUsers: number | null;
   stats: {
     totalBets: number;
     totalWins: number;
     winRate: string;
     totalWagered: string;
+    totalWon: string;
     currentStreak: number;
     bestStreak: number;
   };
@@ -353,6 +363,15 @@ export interface RewardEntry {
   amount: string;
   metadata: Record<string, unknown> | null;
   createdAt: string;
+}
+
+export interface CategoryStatEntry {
+  category: string;
+  bets: number;
+  wins: number;
+  winRate: string;
+  wagered: string;
+  won: string;
 }
 
 export interface LeaderboardEntry {
@@ -391,6 +410,12 @@ export async function fetchRewardHistory(
   if (params?.page) searchParams.set('page', params.page.toString());
   if (params?.limit) searchParams.set('limit', params.limit.toString());
   return fetchApi<RewardEntry[]>(`/api/users/rewards?${searchParams.toString()}`);
+}
+
+export async function fetchUserCategoryStats(
+  wallet: string,
+): Promise<ApiResponse<CategoryStatEntry[]>> {
+  return fetchApi<CategoryStatEntry[]>(`/api/users/category-stats?wallet=${wallet}`);
 }
 
 export async function fetchLeaderboard(

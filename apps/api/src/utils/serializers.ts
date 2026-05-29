@@ -1,5 +1,5 @@
 import type { PoolStatus, Side } from '@prisma/client';
-import { getLevelTitle, getXpForLevel, getXpToNextLevel, getLevelForXp } from './levels';
+import { getLevelTitle, getXpForLevel, getXpToNextLevel, getLevelForXp, getLevelMultiplier } from './levels';
 import { getFeeBps, DEFAULT_FEE_BPS } from './fees';
 import { calculatePayout } from './payout';
 
@@ -143,6 +143,20 @@ export function serializeBet(bet: {
 
 /* ─── User Profile Serializer ─── */
 
+/**
+ * Optional aggregates the /profile route computes from related tables (the User
+ * row alone can't supply them). All optional so /register can serialize a fresh
+ * user without extra queries.
+ *  - totalWon: sum of realized (claimed) winning payouts — matches the squad
+ *    leaderboard's netPnl convention (payout - wagered).
+ *  - rank / totalUsers: leaderboard position by XP, for the rank chip.
+ */
+export interface UserProfileExtras {
+  totalWon?: bigint;
+  rank?: number;
+  totalUsers?: number;
+}
+
 export function serializeUserProfile(user: {
   walletAddress: string;
   totalXp: bigint;
@@ -157,12 +171,13 @@ export function serializeUserProfile(user: {
   bestStreak: number;
   referralCode: string | null;
   createdAt: Date;
-}) {
+}, extras: UserProfileExtras = {}) {
   // Derive level from totalXp (the source of truth) instead of trusting the
   // stored `level` column. A concurrent XP write can leave `level` lagging behind
   // `totalXp`; deriving here guarantees the XP bar is always internally consistent
   // and self-heals any already-desynced rows on read — no migration required.
   const level = getLevelForXp(user.totalXp);
+  const isMaxLevel = level >= 40;
   return {
     walletAddress: user.walletAddress,
     referralCode: user.referralCode,
@@ -172,7 +187,7 @@ export function serializeUserProfile(user: {
     xpForCurrentLevel: getXpForLevel(level).toString(),
     xpForNextLevel: getXpForLevel(level + 1).toString(),
     xpToNextLevel: getXpToNextLevel(level).toString(),
-    xpProgress: level >= 40
+    xpProgress: isMaxLevel
       ? 1
       : Number(user.totalXp - getXpForLevel(level)) /
         Number(getXpToNextLevel(level) || 1n),
@@ -181,6 +196,17 @@ export function serializeUserProfile(user: {
     coinsRedeemed: user.coinsRedeemed.toString(),
     feeBps: getFeeBps(level),
     feePercent: (getFeeBps(level) / 100).toFixed(2),
+    coinMultiplier: getLevelMultiplier(level),
+    // Perks unlocked at the next level — surfaced so the profile can show the
+    // user what progressing actually buys them (lower fee, higher coin rate).
+    nextLevel: isMaxLevel ? null : {
+      level: level + 1,
+      title: getLevelTitle(level + 1),
+      feePercent: (getFeeBps(level + 1) / 100).toFixed(2),
+      coinMultiplier: getLevelMultiplier(level + 1),
+    },
+    rank: extras.rank ?? null,
+    totalUsers: extras.totalUsers ?? null,
     stats: {
       totalBets: user.totalBets,
       totalWins: user.totalWins,
@@ -188,6 +214,7 @@ export function serializeUserProfile(user: {
         ? ((user.totalWins / user.totalBets) * 100).toFixed(1)
         : '0.0',
       totalWagered: user.totalWagered.toString(),
+      totalWon: (extras.totalWon ?? 0n).toString(),
       currentStreak: user.currentStreak,
       bestStreak: user.bestStreak,
     },
