@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { Box, Typography, Chip } from '@mui/material';
-import { TrendingUp, TrendingDown, Star } from '@mui/icons-material';
+import { Star } from '@mui/icons-material';
 import { AnimatedValue } from '@/components/AnimatedValue';
 import { getIcon } from '@/lib/icon-registry';
 import { INTERVAL_LABELS } from '@/lib/constants';
@@ -93,8 +93,8 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
 
   const outcomes: Outcome[] = [];
   if (isCrypto) {
-    outcomes.push({ side: 'UP', name: 'Up', color: t.up, icon: <TrendingUp sx={{ fontSize: 16 }} />, ...odds(totalUp, 50) });
-    outcomes.push({ side: 'DOWN', name: 'Down', color: t.down, icon: <TrendingDown sx={{ fontSize: 16 }} />, ...odds(totalDown, 50) });
+    outcomes.push({ side: 'UP', name: 'Up', color: t.up, icon: <Box component="img" src="/assets/up-icon-64x64.png" alt="" sx={{ width: 18, height: 18 }} />, ...odds(totalUp, 50) });
+    outcomes.push({ side: 'DOWN', name: 'Down', color: t.down, icon: <Box component="img" src="/assets/down-icon-64x64.png" alt="" sx={{ width: 18, height: 18 }} />, ...odds(totalDown, 50) });
   } else if (isPrediction) {
     // Yes/No (or named) outcomes use a colour dot — the market's image is the
     // card thumbnail (shown next to the title), not a per-outcome icon.
