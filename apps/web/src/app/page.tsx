@@ -7,9 +7,7 @@ import {
   Container,
   Typography,
   Alert,
-  Button,
   CircularProgress,
-  Chip,
 } from '@mui/material';
 import {
   GridView,
@@ -18,15 +16,15 @@ import {
   AvTimer,
   Schedule,
 } from '@mui/icons-material';
-import { useInfinitePools, useBets, useClaimableBets, useClaim, usePriceStream, useIntersectionObserver, type PoolFilters } from '@/hooks';
+import { useInfinitePools, useBets, useClaimableBets, useClaim, useIntersectionObserver, type PoolFilters } from '@/hooks';
 import { useLiveScores } from '@/hooks/useLiveScores';
 import { useCategoryMap } from '@/hooks/useCategories';
-import { PoolTable, AppShell } from '@/components';
-import { MatchCard } from '@/components/sports/MatchCard';
+import { AppShell } from '@/components';
 import { MarketCard } from '@/components/MarketCard';
+import { MarketSections } from '@/components/MarketSections';
 import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter';
 import { useQuery } from '@tanstack/react-query';
-import { fetchTrendingPools } from '@/lib/api';
+import { fetchPools } from '@/lib/api';
 import { useThemeTokens } from '@/app/providers';
 
 const ASSET_FILTERS = [
@@ -106,20 +104,25 @@ export default function MarketsPage() {
   const { data: betsData } = useBets();
   const { data: claimableData } = useClaimableBets();
   const { claim } = useClaim();
-  const { getPrice } = usePriceStream(['BTC', 'ETH', 'SOL']);
   const liveScores = useLiveScores();
   const categoryMap = useCategoryMap();
 
-  // Trending: cross-category pools ranked by recent activity (its own query,
-  // independent of the type-filtered infinite list above).
-  const { data: trendingRes, isLoading: trendingLoading } = useQuery({
-    queryKey: ['trending-pools'],
-    queryFn: fetchTrendingPools,
+  // Home (Trending tab): all active pools, grouped into category sections below.
+  const { data: homeRes, isLoading: homeLoading } = useQuery({
+    queryKey: ['markets-home'],
+    queryFn: () => fetchPools({ status: 'JOINING,ACTIVE', limit: 300 }),
     enabled: isTrending,
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
-  const trendingPools = trendingRes?.data ?? [];
+  const homePools = homeRes?.data ?? [];
+
+  const goToType = useCallback((key: string) => {
+    const params = new URLSearchParams();
+    if (key !== 'CRYPTO') params.set('type', key);
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }, [router, pathname]);
 
   const allPools = useMemo(() => {
     const flat = data?.pages.flatMap((p) => p.data ?? []) ?? [];
@@ -220,8 +223,6 @@ export default function MarketsPage() {
     return sortedPools.filter(p => p.poolType === 'SPORTS' && p.league === marketType);
   }, [sortedPools, marketType, isPM]);
 
-  const pools = sortedPools;
-
   const CARDS_PER_PAGE = 12;
   const [sportsVisible, setSportsVisible] = useState(CARDS_PER_PAGE);
   const [predVisible, setPredVisible] = useState(CARDS_PER_PAGE);
@@ -270,38 +271,22 @@ export default function MarketsPage() {
               onLeagueChange={(v) => updateParam('league', v)}
             />
 
-            {/* Trending — cross-category grid ranked by recent activity.
-                Each pool keeps its own card (events → MatchCard, crypto → PoolCard). */}
+            {/* Trending / Home — pools grouped into Kalshi-style category sections. */}
             {isTrending && (
-              trendingLoading ? (
+              homeLoading && homePools.length === 0 ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
                   <CircularProgress size={32} sx={{ color: t.accent }} />
                 </Box>
-              ) : trendingPools.length === 0 ? (
-                <Box sx={{ textAlign: 'center', py: 8 }}>
-                  <Typography sx={{ color: t.text.dimmed, fontSize: '0.9rem' }}>No trending markets right now</Typography>
-                </Box>
               ) : (
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
-                    gap: { xs: 1.5, md: 2 },
-                    mb: 6,
-                  }}
-                >
-                  {trendingPools.map((pool) => (
-                    <MarketCard
-                      key={pool.id}
-                      pool={pool}
-                      category={pool.league ? categoryMap.get(pool.league) : undefined}
-                      liveScore={getPoolLiveScore(pool)}
-                      userBet={userBetByPoolId.get(pool.id)}
-                      onClaim={(poolId, betId) => claim(poolId, betId)}
-                      onClick={() => router.push(pool.poolType !== 'SPORTS' ? `/pool/${pool.id}` : `/match/${pool.id}`)}
-                    />
-                  ))}
-                </Box>
+                <MarketSections
+                  pools={homePools}
+                  categoryMap={categoryMap}
+                  liveScores={liveScores}
+                  userBetByPoolId={userBetByPoolId}
+                  onClaim={(poolId, betId) => claim(poolId, betId)}
+                  onSeeAll={goToType}
+                  onCardClick={(pool) => router.push(pool.poolType !== 'SPORTS' ? `/pool/${pool.id}` : `/match/${pool.id}`)}
+                />
               )
             )}
 
@@ -342,7 +327,7 @@ export default function MarketsPage() {
                       }}
                     >
                       {sportsPools.slice(0, sportsVisible).map((pool) => (
-                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} liveScore={getPoolLiveScore(pool)} category={pool.league ? categoryMap.get(pool.league) : undefined} userBet={userBetByPoolId.get(pool.id)} onClaim={(poolId, betId) => claim(poolId, betId)} onClick={() => router.push(`/match/${pool.id}`)} />
+                        <MarketCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} liveScore={getPoolLiveScore(pool)} category={pool.league ? categoryMap.get(pool.league) : undefined} userBet={userBetByPoolId.get(pool.id)} onClaim={(poolId, betId) => claim(poolId, betId)} onClick={() => router.push(`/match/${pool.id}`)} />
                       ))}
                     </Box>
                     {sportsVisible < sportsPools.length && (
@@ -395,7 +380,7 @@ export default function MarketsPage() {
                       }}
                     >
                       {predictionPools.slice(0, predVisible).map((pool) => (
-                        <MatchCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} liveScore={getPoolLiveScore(pool)} category={pool.league ? categoryMap.get(pool.league) : undefined} userBet={userBetByPoolId.get(pool.id)} onClaim={(poolId, betId) => claim(poolId, betId)} onClick={() => router.push(`/match/${pool.id}`)} />
+                        <MarketCard key={pool.id} pool={pool} isPopular={popularPoolIds.has(pool.id)} liveScore={getPoolLiveScore(pool)} category={pool.league ? categoryMap.get(pool.league) : undefined} userBet={userBetByPoolId.get(pool.id)} onClaim={(poolId, betId) => claim(poolId, betId)} onClick={() => router.push(`/match/${pool.id}`)} />
                       ))}
                     </Box>
                     {predVisible < predictionPools.length && (
@@ -420,16 +405,30 @@ export default function MarketsPage() {
                   </>
                 )}
 
-                {/* Crypto pool table */}
-                {marketType === 'CRYPTO' && (
-                  <PoolTable
-                    pools={cryptoPools}
-                    userBetByPoolId={userBetByPoolId}
-                    getPrice={getPrice}
-                    isPlaceholderData={isPlaceholderData}
-                    popularPoolIds={popularPoolIds}
-                    onPoolClick={(pool) => router.push(`/pool/${pool.id}`)}
-                  />
+                {/* Crypto cards */}
+                {marketType === 'CRYPTO' && cryptoPools.length > 0 && (
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+                      gap: { xs: 1.5, md: 2 },
+                    }}
+                  >
+                    {cryptoPools.map((pool) => (
+                      <MarketCard
+                        key={pool.id}
+                        pool={pool}
+                        isPopular={popularPoolIds.has(pool.id)}
+                        userBet={userBetByPoolId.get(pool.id)}
+                        onClick={() => router.push(`/pool/${pool.id}`)}
+                      />
+                    ))}
+                  </Box>
+                )}
+                {marketType === 'CRYPTO' && !isPlaceholderData && cryptoPools.length === 0 && (
+                  <Box sx={{ textAlign: 'center', py: 8 }}>
+                    <Typography sx={{ color: t.text.dimmed, fontSize: '0.9rem' }}>No crypto pools open right now</Typography>
+                  </Box>
                 )}
 
                 {/* Sentinel for infinite scroll */}
