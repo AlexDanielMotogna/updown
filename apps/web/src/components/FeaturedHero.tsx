@@ -8,6 +8,7 @@ import { getIcon } from '@/lib/icon-registry';
 import { INTERVAL_LABELS } from '@/lib/constants';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
+import { getSocket, connectSocket, subscribePool, unsubscribePool } from '@/lib/socket';
 import { OddsChart } from '@/components/pool/OddsChart';
 import type { Pool } from '@/lib/api';
 import type { CategoryConfig } from '@/hooks/useCategories';
@@ -25,12 +26,35 @@ interface Props {
 export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
   const t = useThemeTokens();
   const [index, setIndex] = useState(0);
+  const [live, setLive] = useState<{ up: string; down: string; draw: string } | null>(null);
+  const [flash, setFlash] = useState(false);
 
   const count = pools.length;
   useEffect(() => { if (index >= count) setIndex(0); }, [count, index]);
 
+  const safeIndex = count > 0 ? Math.min(index, count - 1) : 0;
+  const currentId = pools[safeIndex]?.id;
+
+  // Live totals via WebSocket — re-subscribes whenever the featured pool changes.
+  useEffect(() => {
+    setLive(null);
+    setFlash(false);
+    if (typeof window === 'undefined' || !currentId) return;
+    const sock = getSocket();
+    connectSocket();
+    subscribePool(currentId);
+    const onUpdate = (d: { id: string; totalUp: string; totalDown: string; totalDraw: string }) => {
+      if (d.id !== currentId) return;
+      setLive({ up: d.totalUp, down: d.totalDown, draw: d.totalDraw });
+      setFlash(true);
+      setTimeout(() => setFlash(false), 900);
+    };
+    sock.on('pool:updated', onUpdate);
+    return () => { sock.off('pool:updated', onUpdate); unsubscribePool(currentId); };
+  }, [currentId]);
+
   if (count === 0) return null;
-  const pool = pools[Math.min(index, count - 1)];
+  const pool = pools[safeIndex];
 
   const isPrediction = !!pool.league?.startsWith('PM_');
   const isCrypto = pool.poolType !== 'SPORTS';
@@ -53,7 +77,10 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
       ? (pool.awayTeam ? `${pool.homeTeam} vs ${pool.awayTeam}` : pool.homeTeam || 'Prediction market')
       : `${pool.homeTeam || 'Home'} vs ${pool.awayTeam || 'Away'}`;
 
-  const totalUp = Number(pool.totalUp), totalDown = Number(pool.totalDown), totalDraw = Number(pool.totalDraw);
+  const tUp = live?.up ?? pool.totalUp;
+  const tDown = live?.down ?? pool.totalDown;
+  const tDraw = live?.draw ?? pool.totalDraw;
+  const totalUp = Number(tUp), totalDown = Number(tDown), totalDraw = Number(tDraw);
   const tot = totalUp + totalDown + totalDraw;
   const pct = (s: number, def: number) => (tot > 0 ? Math.round((s / tot) * 100) : def);
   const upIcon = <Box component="img" src="/assets/up-icon-64x64.png" alt="" sx={{ width: 18, height: 18 }} />;
@@ -68,7 +95,9 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
           { name: pool.awayTeam || 'Away', color: t.down, pct: pct(totalDown, isTwoWay ? 50 : 33), crest: pool.awayTeamCrest },
         ];
 
-  const volUsd = Number(pool.totalPool) / 1_000_000;
+  let livePoolNum = Number(pool.totalPool);
+  try { livePoolNum = Number(BigInt(tUp || '0') + BigInt(tDown || '0') + BigInt(tDraw || '0')); } catch { /* keep */ }
+  const volUsd = livePoolNum / 1_000_000;
   const volLabel = volUsd >= 1e6 ? `$${(volUsd / 1e6).toFixed(1)}M` : volUsd >= 1e3 ? `$${(volUsd / 1e3).toFixed(1)}K` : `$${volUsd.toFixed(0)}`;
 
   return (
@@ -125,7 +154,9 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
           >
             View market <ChevronRight sx={{ fontSize: 16 }} />
           </Box>
-          <Typography sx={{ fontSize: '0.72rem', color: t.text.quaternary, mt: 1.25 }}>{volLabel} Vol. · {pool.betCount} {isPrediction ? 'predictions' : 'bets'}</Typography>
+          <Typography sx={{ fontSize: '0.72rem', color: t.text.quaternary, mt: 1.25 }}>
+            <Box component="span" sx={{ fontWeight: 700, color: flash ? t.gain : t.text.tertiary, px: 0.5, borderRadius: 0.75, bgcolor: flash ? withAlpha(t.gain, 0.15) : 'transparent', transition: 'background-color 0.4s ease, color 0.4s ease' }}>{volLabel} Vol.</Box> · {pool.betCount} {isPrediction ? 'predictions' : 'bets'}
+          </Typography>
         </Box>
 
         <Box sx={{ minWidth: 0 }}>
