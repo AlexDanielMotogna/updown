@@ -24,9 +24,7 @@ import { useCategoryMap } from '@/hooks/useCategories';
 import { PoolTable, AppShell } from '@/components';
 import { MatchCard } from '@/components/sports/MatchCard';
 import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter';
-import { TournamentBanner } from '@/components/tournament/TournamentBanner';
 import { useThemeTokens } from '@/app/providers';
-import { withAlpha } from '@/lib/theme';
 
 const ASSET_FILTERS = [
   { value: 'ALL', label: 'All', icon: <GridView sx={{ fontSize: 16 }} /> },
@@ -43,30 +41,8 @@ const INTERVAL_FILTERS = [
   { value: '1h', label: '1 hour', icon: <Schedule sx={{ fontSize: 16 }} /> },
 ];
 
-function useHowToPlayCards() {
-  const t = useThemeTokens();
-  return {
-    crypto: [
-      { image: '/assets/asset-card-1.png', title: 'Pick a Pool', desc: 'Choose your asset & timeframe. BTC, ETH, SOL from 3min turbo to 1hr rounds.', gradient: `linear-gradient(135deg, ${withAlpha(t.accent, 0.08)}, ${withAlpha(t.accent, 0.02)})` },
-      { image: '/assets/asset-card-2.png', title: 'Go UP or DOWN', desc: 'Stake USDC on your prediction. All bets go into the pool — winner takes all.', gradient: `linear-gradient(135deg, ${withAlpha(t.up, 0.08)}, ${withAlpha(t.up, 0.02)})` },
-      { image: '/assets/asset-card-3.png', title: 'Collect Winnings', desc: 'Price moves your way? Claim your share of the entire pool. Instant payout.', gradient: `linear-gradient(135deg, ${withAlpha(t.gain, 0.08)}, ${withAlpha(t.gain, 0.02)})` },
-    ],
-    sports: [
-      { image: '/assets/asset-card-1.png', title: 'Pick a Match', desc: 'Browse upcoming football matches across Champions League, Premier League, La Liga & more.', gradient: `linear-gradient(135deg, ${withAlpha(t.accent, 0.08)}, ${withAlpha(t.accent, 0.02)})` },
-      { image: '/assets/asset-card-2.png', title: 'Home, Draw or Away', desc: 'Stake USDC on your prediction. All bets go into the pool — winner takes all.', gradient: `linear-gradient(135deg, ${withAlpha(t.up, 0.08)}, ${withAlpha(t.up, 0.02)})` },
-      { image: '/assets/asset-card-3.png', title: 'Collect Winnings', desc: 'Your team wins? Claim your share of the entire pool. Payout after full time.', gradient: `linear-gradient(135deg, ${withAlpha(t.gain, 0.08)}, ${withAlpha(t.gain, 0.02)})` },
-    ],
-    predictions: [
-      { image: '/assets/asset-card-1.png', title: 'Pick a Market', desc: 'Politics, geopolitics, culture, sports futures — real-world events with real odds.', gradient: `linear-gradient(135deg, ${withAlpha(t.prediction, 0.08)}, ${withAlpha(t.prediction, 0.02)})` },
-      { image: '/assets/asset-card-2.png', title: 'Yes or No', desc: 'Stake USDC on your prediction. All bets go into the pool — winner takes all.', gradient: `linear-gradient(135deg, ${withAlpha(t.up, 0.08)}, ${withAlpha(t.up, 0.02)})` },
-      { image: '/assets/asset-card-3.png', title: 'Collect Winnings', desc: 'Event resolves your way? Claim your share of the entire pool.', gradient: `linear-gradient(135deg, ${withAlpha(t.gain, 0.08)}, ${withAlpha(t.gain, 0.02)})` },
-    ],
-  };
-}
-
 export default function MarketsPage() {
   const t = useThemeTokens();
-  const howToPlay = useHowToPlayCards();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -255,62 +231,7 @@ export default function MarketsPage() {
 
   return (
     <AppShell>
-      <Container maxWidth={false} sx={{ px: { xs: 2, md: 3 } }}>
-            <TournamentBanner />
-
-            {/* How to Play  3 cards */}
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
-                gap: { xs: 1.5, md: 2 },
-                mt: { xs: 2, md: 3 },
-                mb: 3,
-              }}
-            >
-              {(isPM ? howToPlay.predictions : marketType === 'SPORTS' ? howToPlay.sports : howToPlay.crypto).map((card) => (
-                <Box
-                  key={card.title}
-                  sx={{
-                    position: 'relative',
-                    overflow: 'hidden',
-                    display: 'flex',
-                    alignItems: 'center',
-                    minHeight: { xs: 90, md: 110 },
-                    px: { xs: 2, md: 2.5 },
-                    py: { xs: 1.5, md: 2 },
-                    background: card.gradient,
-                    transition: 'background 0.2s ease',
-                    '&:hover': { background: t.hover.light },
-                  }}
-                >
-                  <Box sx={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
-                    <Typography sx={{ fontWeight: 800, fontSize: { xs: '0.9rem', md: '1rem' }, mb: 0.5 }}>
-                      {card.title}
-                    </Typography>
-                    <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.82rem' }, fontWeight: 500, color: 'text.secondary', lineHeight: 1.5, maxWidth: { xs: '80%', md: '70%' } }}>
-                      {card.desc}
-                    </Typography>
-                  </Box>
-                  <Box
-                    component="img"
-                    src={card.image}
-                    alt={card.title}
-                    sx={{
-                      position: 'absolute',
-                      right: 10,
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      height: { xs: '85%', md: '100%' },
-                      width: 'auto',
-                      objectFit: 'contain',
-                      opacity: { xs: 0.6, md: 0.9 },
-                    }}
-                  />
-                </Box>
-              ))}
-            </Box>
-
+      <Container maxWidth={false} sx={{ px: { xs: 2, md: 3 }, pt: { xs: 2, md: 2.5 } }}>
             {/* Filters */}
             <MarketFilter
               marketType={marketType}

@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Box, Typography, Chip } from '@mui/material';
-import { ShowChart, SportsSoccer, GridView, Schedule, Bolt, Speed, Timer } from '@mui/icons-material';
+import { ShowChart, SportsSoccer, GridView, Schedule, Bolt, Speed, Timer, Search, Close } from '@mui/icons-material';
 import { SvgIcon } from '@mui/material';
 
 function AllIcon(props: React.ComponentProps<typeof SvgIcon>) {
@@ -86,6 +86,7 @@ export function MarketSidebar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { data: categories } = useCategories();
+  const [search, setSearch] = useState('');
 
   // Only show on pages with market filters
   if (pathname !== '/' && pathname !== '/tournaments') return null;
@@ -134,6 +135,12 @@ export function MarketSidebar() {
   const isTournaments = pathname === '/tournaments';
   const tagFilter = searchParams.get('tag') ?? 'ALL';
 
+  // Topic search — narrows the filter lists below (sports/leagues, PM topics),
+  // like the search on Polymarket/Kalshi. Shown only where there are many topics.
+  const q = search.trim().toLowerCase();
+  const matches = (label: string) => !q || label.toLowerCase().includes(q);
+  const showSearch = isPM || isSports;
+
   // The admin-configured "Sidebar Filters" whitelist for this category — used as a
   // labels-only fallback while the counted result loads (or if a category has no
   // pools at all yet).
@@ -171,6 +178,38 @@ export function MarketSidebar() {
       scrollbarWidth: 'none',
       '&::-webkit-scrollbar': { display: 'none' },
     }}>
+      {/* Topic search */}
+      {showSearch && (
+        <Box sx={{ px: 1, mb: 1.5 }}>
+          <Box sx={{
+            display: 'flex', alignItems: 'center', gap: 0.75,
+            bgcolor: t.hover.light, borderRadius: 1, px: 1.25, py: 0.6,
+            border: `1px solid ${t.border.subtle}`,
+            transition: 'border-color 0.15s',
+            '&:focus-within': { borderColor: t.border.medium },
+          }}>
+            <Search sx={{ fontSize: 16, color: t.text.dimmed, flexShrink: 0 }} />
+            <Box
+              component="input"
+              value={search}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+              placeholder="Search topics"
+              sx={{
+                flex: 1, minWidth: 0, bgcolor: 'transparent', border: 'none', outline: 'none',
+                color: t.text.primary, fontSize: '0.8rem', fontFamily: 'inherit',
+                '&::placeholder': { color: t.text.dimmed },
+              }}
+            />
+            {search && (
+              <Close
+                onClick={() => setSearch('')}
+                sx={{ fontSize: 14, color: t.text.dimmed, cursor: 'pointer', flexShrink: 0, '&:hover': { color: t.text.primary } }}
+              />
+            )}
+          </Box>
+        </Box>
+      )}
+
       {/* Crypto filters */}
       {isCrypto && (
         <>
@@ -210,7 +249,7 @@ export function MarketSidebar() {
       {isSports && (
         <>
           <SidebarSection>
-            {sportOptions.map(o => (
+            {sportOptions.filter(o => o.value === 'ALL' || matches(o.label)).map(o => (
               <SidebarItem
                 key={o.value}
                 label={o.label}
@@ -224,7 +263,7 @@ export function MarketSidebar() {
           </SidebarSection>
           {(sportFilter === 'ALL' || sportFilter === 'SOCCER') && (
             <SidebarSection>
-              {leagueOptions.map(o => (
+              {leagueOptions.filter(o => o.value === 'ALL' || matches(o.label)).map(o => (
                 <SidebarItem
                   key={o.value}
                   label={o.label}
@@ -252,7 +291,7 @@ export function MarketSidebar() {
             icon={<AllIcon sx={{ fontSize: 16 }} />}
             onClick={() => updateParam('tag', 'ALL')}
           />
-          {pmSubcategories.map(({ label: tag, count }) => (
+          {pmSubcategories.filter(({ label }) => matches(label)).map(({ label: tag, count }) => (
             <SidebarItem
               key={tag}
               label={count !== undefined ? `${tag} (${count})` : tag}
@@ -261,6 +300,11 @@ export function MarketSidebar() {
               onClick={() => updateParam('tag', tag)}
             />
           ))}
+          {q && pmSubcategories.filter(({ label }) => matches(label)).length === 0 && (
+            <Typography sx={{ fontSize: '0.75rem', color: t.text.dimmed, px: 1.5, py: 1 }}>
+              No topics match “{search}”
+            </Typography>
+          )}
         </SidebarSection>
       )}
     </Box>
