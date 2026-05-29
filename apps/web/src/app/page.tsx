@@ -22,6 +22,7 @@ import { useCategoryMap } from '@/hooks/useCategories';
 import { AppShell } from '@/components';
 import { MarketCard } from '@/components/MarketCard';
 import { MarketSections } from '@/components/MarketSections';
+import { FeaturedHero } from '@/components/FeaturedHero';
 import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter';
 import { useQuery } from '@tanstack/react-query';
 import { fetchPools } from '@/lib/api';
@@ -116,6 +117,10 @@ export default function MarketsPage() {
     staleTime: 15_000,
   });
   const homePools = homeRes?.data ?? [];
+  const heroPools = useMemo(
+    () => [...homePools].sort((a, b) => (b.betCount - a.betCount) || (Number(b.totalPool) - Number(a.totalPool))).slice(0, 5),
+    [homePools],
+  );
 
   const goToType = useCallback((key: string) => {
     const params = new URLSearchParams();
@@ -278,15 +283,22 @@ export default function MarketsPage() {
                   <CircularProgress size={32} sx={{ color: t.accent }} />
                 </Box>
               ) : (
-                <MarketSections
-                  pools={homePools}
-                  categoryMap={categoryMap}
-                  liveScores={liveScores}
-                  userBetByPoolId={userBetByPoolId}
-                  onClaim={(poolId, betId) => claim(poolId, betId)}
-                  onSeeAll={goToType}
-                  onCardClick={(pool) => router.push(pool.poolType !== 'SPORTS' ? `/pool/${pool.id}` : `/match/${pool.id}`)}
-                />
+                <>
+                  <FeaturedHero
+                    pools={heroPools}
+                    categoryMap={categoryMap}
+                    onSelect={(pool) => router.push(pool.poolType !== 'SPORTS' ? `/pool/${pool.id}` : `/match/${pool.id}`)}
+                  />
+                  <MarketSections
+                    pools={homePools}
+                    categoryMap={categoryMap}
+                    liveScores={liveScores}
+                    userBetByPoolId={userBetByPoolId}
+                    onClaim={(poolId, betId) => claim(poolId, betId)}
+                    onSeeAll={goToType}
+                    onCardClick={(pool) => router.push(pool.poolType !== 'SPORTS' ? `/pool/${pool.id}` : `/match/${pool.id}`)}
+                  />
+                </>
               )
             )}
 

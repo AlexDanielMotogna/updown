@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { fetchTrendingPools, fetchPools, type Pool } from '@/lib/api';
 import { INTERVAL_LABELS } from '@/lib/constants';
 import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 const ASSET_NAMES: Record<string, string> = { BTC: 'Bitcoin', ETH: 'Ethereum', SOL: 'Solana' };
 
@@ -98,6 +99,17 @@ export function MarketsRightRail({ onClose }: { onClose?: () => void }) {
             <Close sx={{ fontSize: 16 }} />
           </Box>
         )}
+      </Box>
+
+      {/* Promo / onboarding card */}
+      <Box sx={{ borderRadius: 2, p: 1.75, mb: 2.5, background: `linear-gradient(135deg, ${withAlpha(t.gain, 0.18)}, ${withAlpha(t.gain, 0.04)})`, border: `1px solid ${withAlpha(t.gain, 0.2)}` }}>
+        <Typography sx={{ fontSize: '0.92rem', fontWeight: 800, color: t.text.primary, mb: 0.5 }}>New to UpDown?</Typography>
+        <Typography sx={{ fontSize: '0.74rem', color: t.text.secondary, lineHeight: 1.45, mb: 1.5 }}>
+          Grab free test USDC and start predicting crypto, sports &amp; world events.
+        </Typography>
+        <Box component="button" onClick={() => router.push('/faucet')} sx={{ width: '100%', border: 'none', cursor: 'pointer', borderRadius: 1, py: 0.85, bgcolor: t.gain, color: '#04130b', fontWeight: 800, fontSize: '0.8rem', transition: 'filter 0.15s', '&:hover': { filter: 'brightness(1.08)' } }}>
+          Get test USDC
+        </Box>
       </Box>
 
       <List title="Trending" icon={<LocalFireDepartment sx={{ fontSize: 15 }} />} color={t.accent} pools={trending} metric={(p) => { const v = leadPct(p); return v != null ? `${v}%` : null; }} />
