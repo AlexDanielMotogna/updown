@@ -1,9 +1,11 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { Box, Typography, Chip } from '@mui/material';
 import { Star } from '@mui/icons-material';
 import { AnimatedValue } from '@/components/AnimatedValue';
+import { getSocket, connectSocket, subscribePool, unsubscribePool } from '@/lib/socket';
 import { getIcon } from '@/lib/icon-registry';
 import { INTERVAL_LABELS } from '@/lib/constants';
 import { useThemeTokens } from '@/app/providers';
@@ -67,6 +69,31 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
   const matchLive = !isResolved && liveScore != null && isMatchActive(liveScore);
   const matchFinished = !isResolved && liveScore != null && isMatchFinished(liveScore.status);
 
+  // ── Live totals via WebSocket: subscribe to this pool's room and update the
+  // odds/volume in real time as bets land (with a brief flash). ──
+  const [live, setLive] = useState<{ up: string; down: string; draw: string } | null>(null);
+  const [flash, setFlash] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sock = getSocket();
+    connectSocket();
+    subscribePool(pool.id);
+    const onUpdate = (d: { id: string; totalUp: string; totalDown: string; totalDraw: string }) => {
+      if (d.id !== pool.id) return;
+      setLive({ up: d.totalUp, down: d.totalDown, draw: d.totalDraw });
+      setFlash(true);
+      setTimeout(() => setFlash(false), 900);
+    };
+    sock.on('pool:updated', onUpdate);
+    return () => { sock.off('pool:updated', onUpdate); unsubscribePool(pool.id); };
+  }, [pool.id]);
+
+  const tUp = live?.up ?? pool.totalUp;
+  const tDown = live?.down ?? pool.totalDown;
+  const tDraw = live?.draw ?? pool.totalDraw;
+  let livePoolStr = pool.totalPool;
+  try { livePoolStr = (BigInt(tUp || '0') + BigInt(tDown || '0') + BigInt(tDraw || '0')).toString(); } catch { /* keep */ }
+
   // ── Category chip ──
   const catColor = isCrypto ? t.up : category?.color || (isPrediction ? t.prediction : t.draw);
   const catLabel = isCrypto ? 'Crypto' : category?.shortLabel || category?.label || pool.league || 'Sports';
@@ -82,9 +109,9 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
       : `${pool.homeTeam || 'Home'} vs ${pool.awayTeam || 'Away'}`;
 
   // ── Outcomes ──
-  const totalUp = Number(pool.totalUp);
-  const totalDown = Number(pool.totalDown);
-  const totalDraw = Number(pool.totalDraw);
+  const totalUp = Number(tUp);
+  const totalDown = Number(tDown);
+  const totalDraw = Number(tDraw);
   const total = totalUp + totalDown + totalDraw;
   const odds = (sideTotal: number, defPct: number) => ({
     pct: total > 0 ? Math.round((sideTotal / total) * 100) : defPct,
@@ -204,8 +231,8 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
 
       {/* Footer: volume + meta / claim */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pt: 0.75, borderTop: `1px solid ${t.border.subtle}` }}>
-        <Typography sx={{ fontSize: '0.72rem', fontWeight: 600, color: t.text.tertiary, fontVariantNumeric: 'tabular-nums' }}>
-          <AnimatedValue usdcValue={pool.totalPool} prefix="$" /> Vol.
+        <Typography component="span" sx={{ fontSize: '0.72rem', fontWeight: 700, color: flash ? t.gain : t.text.tertiary, fontVariantNumeric: 'tabular-nums', px: 0.5, borderRadius: 0.75, bgcolor: flash ? withAlpha(t.gain, 0.15) : 'transparent', transition: 'background-color 0.4s ease, color 0.4s ease' }}>
+          <AnimatedValue usdcValue={livePoolStr} prefix="$" /> Vol.
         </Typography>
         {canClaim ? (
           <Chip

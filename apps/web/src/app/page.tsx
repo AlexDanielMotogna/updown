@@ -25,6 +25,7 @@ import { MarketSections } from '@/components/MarketSections';
 import { FeaturedHero } from '@/components/FeaturedHero';
 import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter';
 import { useQuery } from '@tanstack/react-query';
+import { useMarketsLiveSync } from '@/hooks/useMarketsLiveSync';
 import { fetchPools } from '@/lib/api';
 import { useThemeTokens } from '@/app/providers';
 
@@ -107,6 +108,7 @@ export default function MarketsPage() {
   const { claim } = useClaim();
   const liveScores = useLiveScores();
   const categoryMap = useCategoryMap();
+  useMarketsLiveSync();
 
   // Home (Trending tab): all active pools, grouped into category sections below.
   const { data: homeRes, isLoading: homeLoading } = useQuery({
