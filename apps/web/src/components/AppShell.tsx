@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { Box, Typography, Drawer } from '@mui/material';
 import ViewSidebarRounded from '@mui/icons-material/ViewSidebarRounded';
 import { Header } from './Header';
 import { MarketSidebar } from './sidebar/MarketSidebar';
 import { ActivePoolsSidebar } from './sidebar/ActivePoolsSidebar';
+import { MarketsRightRail } from './sidebar/MarketsRightRail';
 import { RewardPopup } from './RewardPopup';
 import { useThemeTokens } from '@/app/providers';
 
@@ -84,6 +86,8 @@ function Footer() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const t = useThemeTokens();
+  const pathname = usePathname();
+  const isMarkets = pathname === '/';
   const [rightOpen, setRightOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   useEffect(() => {
@@ -127,7 +131,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             height: 'calc(100vh - 64px)',
           }}
         >
-          <ActivePoolsSidebar onClose={() => setRight(false)} />
+          {isMarkets
+            ? <MarketsRightRail onClose={() => setRight(false)} />
+            : <ActivePoolsSidebar onClose={() => setRight(false)} />}
         </Box>
       </Box>
 
@@ -145,7 +151,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           }}
         >
           <ViewSidebarRounded sx={{ fontSize: 18, transform: 'scaleX(-1)' }} />
-          <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, writingMode: 'vertical-rl', transform: 'rotate(180deg)', letterSpacing: '0.05em' }}>PREDICTIONS</Typography>
+          <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, writingMode: 'vertical-rl', transform: 'rotate(180deg)', letterSpacing: '0.05em' }}>{isMarkets ? 'MARKETS' : 'PREDICTIONS'}</Typography>
         </Box>
       )}
 
