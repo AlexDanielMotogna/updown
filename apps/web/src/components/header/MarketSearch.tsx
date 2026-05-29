@@ -51,7 +51,6 @@ export function MarketSearch() {
   };
 
   const showDropdown = open && debounced.length >= 2;
-  const statusColor = (s: string) => (s === 'ACTIVE' ? t.gain : t.up);
 
   return (
     <ClickAwayListener onClickAway={() => setOpen(false)}>
@@ -126,12 +125,6 @@ export function MarketSearch() {
                     </Typography>
                     <Typography sx={{ fontSize: '0.68rem', color: t.text.quaternary }}>
                       {resultCategory(r)}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
-                    <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: statusColor(r.status) }} />
-                    <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, color: statusColor(r.status), textTransform: 'uppercase' }}>
-                      {r.status}
                     </Typography>
                   </Box>
                 </Box>
