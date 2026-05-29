@@ -23,7 +23,10 @@ import { useLiveScores } from '@/hooks/useLiveScores';
 import { useCategoryMap } from '@/hooks/useCategories';
 import { PoolTable, AppShell } from '@/components';
 import { MatchCard } from '@/components/sports/MatchCard';
+import { PoolCard } from '@/components/PoolCard';
 import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter';
+import { useQuery } from '@tanstack/react-query';
+import { fetchTrendingPools } from '@/lib/api';
 import { useThemeTokens } from '@/app/providers';
 
 const ASSET_FILTERS = [
@@ -52,8 +55,9 @@ export default function MarketsPage() {
   const intervalValues = INTERVAL_FILTERS.map(f => f.value);
   const rawType = searchParams.get('type');
   // Accept any type that starts with PM_ or is CRYPTO/SPORTS (dynamic from DB)
-  const marketType: MarketType = rawType && (rawType === 'CRYPTO' || rawType === 'SPORTS' || rawType.startsWith('PM_')) ? rawType : 'CRYPTO';
+  const marketType: MarketType = rawType && (rawType === 'TRENDING' || rawType === 'CRYPTO' || rawType === 'SPORTS' || rawType.startsWith('PM_')) ? rawType : 'CRYPTO';
   const isPM = marketType.startsWith('PM_');
+  const isTrending = marketType === 'TRENDING';
   const sportFilter = searchParams.get('sport') ?? 'ALL';
   const assetFilter = assetValues.includes(searchParams.get('asset') ?? '') ? searchParams.get('asset')! : 'ALL';
   const intervalFilter = intervalValues.includes(searchParams.get('interval') ?? '') ? searchParams.get('interval')! : 'ALL';
@@ -75,7 +79,7 @@ export default function MarketsPage() {
   const filters = useMemo(() => ({
     asset: assetFilter === 'ALL' ? undefined : assetFilter,
     interval: intervalFilter === 'ALL' ? undefined : intervalFilter,
-    type: isPM ? 'SPORTS' : marketType,
+    type: isPM ? 'SPORTS' : (marketType === 'TRENDING' ? undefined : marketType),
     league: isPM ? marketType : undefined,
     tag: isPM && pmTagFilter !== 'ALL' ? pmTagFilter : undefined,
     status: marketType === 'SPORTS' || isPM ? 'JOINING,ACTIVE,CLAIMABLE,RESOLVED' : 'JOINING',
@@ -105,6 +109,17 @@ export default function MarketsPage() {
   const { getPrice } = usePriceStream(['BTC', 'ETH', 'SOL']);
   const liveScores = useLiveScores();
   const categoryMap = useCategoryMap();
+
+  // Trending: cross-category pools ranked by recent activity (its own query,
+  // independent of the type-filtered infinite list above).
+  const { data: trendingRes, isLoading: trendingLoading } = useQuery({
+    queryKey: ['trending-pools'],
+    queryFn: fetchTrendingPools,
+    enabled: isTrending,
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  });
+  const trendingPools = trendingRes?.data ?? [];
 
   const allPools = useMemo(() => {
     const flat = data?.pages.flatMap((p) => p.data ?? []) ?? [];
@@ -255,8 +270,39 @@ export default function MarketsPage() {
               onLeagueChange={(v) => updateParam('league', v)}
             />
 
+            {/* Trending — cross-category grid ranked by recent activity.
+                Each pool keeps its own card (events → MatchCard, crypto → PoolCard). */}
+            {isTrending && (
+              trendingLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+                  <CircularProgress size={32} sx={{ color: t.accent }} />
+                </Box>
+              ) : trendingPools.length === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 8 }}>
+                  <Typography sx={{ color: t.text.dimmed, fontSize: '0.9rem' }}>No trending markets right now</Typography>
+                </Box>
+              ) : (
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+                    gap: { xs: 1.5, md: 2 },
+                    mb: 6,
+                  }}
+                >
+                  {trendingPools.map((pool) => (
+                    pool.poolType === 'SPORTS' ? (
+                      <MatchCard key={pool.id} pool={pool} liveScore={getPoolLiveScore(pool)} category={pool.league ? categoryMap.get(pool.league) : undefined} userBet={userBetByPoolId.get(pool.id)} onClaim={(poolId, betId) => claim(poolId, betId)} onClick={() => router.push(`/match/${pool.id}`)} />
+                    ) : (
+                      <PoolCard key={pool.id} pool={pool} livePrice={getPrice(pool.asset)} userBet={userBetByPoolId.get(pool.id)} />
+                    )
+                  ))}
+                </Box>
+              )
+            )}
+
             {/* Error State */}
-            {error && (
+            {!isTrending && error && (
               <Alert
                 severity="error"
                 sx={{
@@ -271,14 +317,14 @@ export default function MarketsPage() {
             )}
 
             {/* Loading State */}
-            {isLoading && (
+            {!isTrending && isLoading && (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
                 <CircularProgress size={32} sx={{ color: t.up }} />
               </Box>
             )}
 
             {/* Pool Table + Sports Cards */}
-            {!isLoading && (
+            {!isTrending && !isLoading && (
               <>
                 {/* Sports match cards */}
                 {marketType === 'SPORTS' && sportsPools.length > 0 && (

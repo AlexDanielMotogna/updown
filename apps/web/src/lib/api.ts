@@ -209,6 +209,10 @@ export async function searchPools(q: string): Promise<ApiResponse<PoolSearchResu
   return fetchApi<PoolSearchResult[]>(`/api/pools/search?q=${encodeURIComponent(q)}`);
 }
 
+export async function fetchTrendingPools(): Promise<ApiResponse<Pool[]>> {
+  return fetchApi<Pool[]>('/api/pools/trending');
+}
+
 // Bet endpoints
 export async function fetchBets(
   wallet: string,

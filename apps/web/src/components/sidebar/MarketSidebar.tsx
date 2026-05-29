@@ -91,7 +91,7 @@ export function MarketSidebar() {
   if (pathname !== '/' && pathname !== '/tournaments') return null;
 
   const rawType = searchParams.get('type') ?? 'CRYPTO';
-  const marketType = rawType && (rawType === 'CRYPTO' || rawType === 'SPORTS' || rawType.startsWith('PM_')) ? rawType : 'CRYPTO';
+  const marketType = rawType && (rawType === 'TRENDING' || rawType === 'CRYPTO' || rawType === 'SPORTS' || rawType.startsWith('PM_')) ? rawType : 'CRYPTO';
   const assetFilter = searchParams.get('asset') ?? 'ALL';
   const intervalFilter = searchParams.get('interval') ?? 'ALL';
   const sportFilter = searchParams.get('sport') ?? 'ALL';
