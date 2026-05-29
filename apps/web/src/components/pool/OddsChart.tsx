@@ -19,6 +19,29 @@ interface OddsChartProps {
   currentOdds?: number | null;
   totalUp?: string;
   totalDown?: string;
+  /** Lock the data source (hides the source toggle). */
+  lockSource?: Source;
+  /** Hide the header controls (source toggle, settings, value readout). */
+  hideControls?: boolean;
+}
+
+/** Smooth (Catmull-Rom → cubic bezier) path through points for a flowing line. */
+function smoothPath(pts: Array<[number, number]>): string {
+  if (pts.length < 2) return '';
+  if (pts.length === 2) return `M${pts[0][0]},${pts[0][1]} L${pts[1][0]},${pts[1][1]}`;
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i === 0 ? 0 : i - 1];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2 < pts.length ? i + 2 : i + 1];
+    const cp1x = p1[0] + (p2[0] - p0[0]) / 6;
+    const cp1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const cp2x = p2[0] - (p3[0] - p1[0]) / 6;
+    const cp2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += ` C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+  }
+  return d;
 }
 
 const PADDING = { top: 20, right: 56, bottom: 30, left: 12 };
@@ -42,7 +65,7 @@ function formatTime(ts: number): string {
   return new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
+export function OddsChart({ poolId, totalUp, totalDown, lockSource, hideControls }: OddsChartProps) {
   const t = useThemeTokens();
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(600);
@@ -50,7 +73,7 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
   const [udHistory, setUdHistory] = useState<OddsPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-  const [source, setSource] = useState<Source>('polymarket');
+  const [source, setSource] = useState<Source>(lockSource ?? 'polymarket');
   const [showYes, setShowYes] = useState(true);
   const [showNo, setShowNo] = useState(true);
   const [settingsAnchor, setSettingsAnchor] = useState<HTMLElement | null>(null);
@@ -158,15 +181,9 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
     [chartH],
   );
 
-  const yesPath = useMemo(() => {
-    if (history.length < 2) return '';
-    return history.map((h, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(h.p).toFixed(1)}`).join(' ');
-  }, [history, toX, toY]);
+  const yesPath = useMemo(() => smoothPath(history.map((h, i) => [toX(i), toY(h.p)])), [history, toX, toY]);
 
-  const noPath = useMemo(() => {
-    if (history.length < 2) return '';
-    return history.map((h, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(1 - h.p).toFixed(1)}`).join(' ');
-  }, [history, toX, toY]);
+  const noPath = useMemo(() => smoothPath(history.map((h, i) => [toX(i), toY(1 - h.p)])), [history, toX, toY]);
 
   const yesAreaPath = useMemo(() => {
     if (history.length < 2) return '';
@@ -206,6 +223,7 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
   return (
     <Box>
       {/* Header */}
+      {!hideControls && (
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
         {/* Left: source toggle + legend */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -298,6 +316,7 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
           </Popover>
         </Box>
       </Box>
+      )}
 
       {/* Chart */}
       <Box ref={containerRef} sx={{ width: '100%', height: CHART_H }}>

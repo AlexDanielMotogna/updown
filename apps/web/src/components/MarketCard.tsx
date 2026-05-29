@@ -135,7 +135,9 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
       {/* Header: category + right meta */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6, minWidth: 0 }}>
-          {catBadge ? (
+          {isCrypto ? (
+            <Box component="img" src={`/coins/${pool.asset.toLowerCase()}-coin.png`} alt="" sx={{ width: 18, height: 18, borderRadius: '50%' }} />
+          ) : catBadge ? (
             <Box component="img" src={catBadge} alt="" sx={{ width: 18, height: 18, objectFit: 'contain', ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '1px' }) }} />
           ) : CatIcon ? (
             <CatIcon sx={{ fontSize: 16, color: catColor }} />
