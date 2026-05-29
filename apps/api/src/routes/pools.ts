@@ -149,6 +149,54 @@ poolsRouter.get('/livescores', async (_req, res) => {
   res.json({ success: true, data });
 });
 
+// GET /api/pools/search?q=bitcoin — typeahead search over ACTIVE pools (open for
+// betting). Matches the market question/team (homeTeam, awayTeam) and crypto asset.
+// Returns a lightweight shape for the navbar search dropdown. Must be before /:id.
+poolsRouter.get('/search', async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    if (q.length < 2) return res.json({ success: true, data: [] });
+
+    const pools = await prisma.pool.findMany({
+      where: {
+        squadId: null,
+        status: { in: ['JOINING', 'ACTIVE'] },
+        OR: [
+          { homeTeam: { contains: q, mode: 'insensitive' } },
+          { awayTeam: { contains: q, mode: 'insensitive' } },
+          { asset: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+      orderBy: [{ status: 'asc' }, { startTime: 'asc' }],
+      take: 12,
+      select: {
+        id: true, status: true, poolType: true, league: true,
+        asset: true, interval: true, homeTeam: true, awayTeam: true,
+        homeTeamCrest: true, startTime: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      data: pools.map(p => ({
+        id: p.id,
+        status: p.status,
+        poolType: p.poolType,
+        league: p.league,
+        asset: p.asset,
+        interval: p.interval,
+        homeTeam: p.homeTeam,
+        awayTeam: p.awayTeam,
+        homeTeamCrest: p.homeTeamCrest,
+        startTime: p.startTime.toISOString(),
+      })),
+    });
+  } catch (error) {
+    console.error('Error searching pools:', error);
+    res.json({ success: true, data: [] });
+  }
+});
+
 // GET /api/pools/:id - Get single pool with details
 poolsRouter.get('/:id', async (req, res) => {
   try {
