@@ -96,8 +96,10 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
     outcomes.push({ side: 'UP', name: 'Up', color: t.up, icon: <TrendingUp sx={{ fontSize: 16 }} />, ...odds(totalUp, 50) });
     outcomes.push({ side: 'DOWN', name: 'Down', color: t.down, icon: <TrendingDown sx={{ fontSize: 16 }} />, ...odds(totalDown, 50) });
   } else if (isPrediction) {
-    outcomes.push({ side: 'UP', name: pool.awayTeam ? pool.homeTeam! : 'Yes', color: t.up, crest: pool.homeTeamCrest, ...odds(totalUp, 50) });
-    outcomes.push({ side: 'DOWN', name: pool.awayTeam || 'No', color: t.down, crest: pool.awayTeamCrest, ...odds(totalDown, 50) });
+    // Yes/No (or named) outcomes use a colour dot — the market's image is the
+    // card thumbnail (shown next to the title), not a per-outcome icon.
+    outcomes.push({ side: 'UP', name: pool.awayTeam ? pool.homeTeam! : 'Yes', color: t.up, ...odds(totalUp, 50) });
+    outcomes.push({ side: 'DOWN', name: pool.awayTeam || 'No', color: t.down, ...odds(totalDown, 50) });
   } else {
     outcomes.push({ side: 'UP', name: pool.homeTeam || 'Home', color: t.up, crest: pool.homeTeamCrest, ...odds(totalUp, isTwoWay ? 50 : 33) });
     if (!isTwoWay) outcomes.push({ side: 'DRAW', name: 'Draw', color: t.draw, ...odds(totalDraw, 34) });
@@ -159,10 +161,15 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
         </Box>
       </Box>
 
-      {/* Title */}
-      <Typography sx={{ fontSize: { xs: '0.88rem', md: '0.92rem' }, fontWeight: 700, color: t.text.primary, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', minHeight: '2.4em' }}>
-        {title}
-      </Typography>
+      {/* Title (PM markets show the market image as a thumbnail) */}
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, minHeight: '2.4em' }}>
+        {isPrediction && pool.homeTeamCrest && (
+          <Box component="img" src={pool.homeTeamCrest} alt="" sx={{ width: 30, height: 30, borderRadius: 1, objectFit: 'cover', flexShrink: 0 }} />
+        )}
+        <Typography sx={{ fontSize: { xs: '0.88rem', md: '0.92rem' }, fontWeight: 700, color: t.text.primary, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          {title}
+        </Typography>
+      </Box>
 
       {/* Outcomes */}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
