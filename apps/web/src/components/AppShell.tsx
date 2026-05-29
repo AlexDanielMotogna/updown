@@ -120,10 +120,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Box>
           <Footer />
         </Box>
-        {/* Right sidebar: user's active pools (desktop, closeable) */}
+        {/* Right sidebar. On Markets it's the always-on market rail; elsewhere
+            it's the user's active pools (closeable). */}
         <Box
           sx={{
-            display: { xs: 'none', lg: rightOpen ? 'block' : 'none' },
+            display: { xs: 'none', lg: (isMarkets || rightOpen) ? 'block' : 'none' },
             width: 240,
             flexShrink: 0,
             position: 'sticky',
@@ -132,13 +133,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           }}
         >
           {isMarkets
-            ? <MarketsRightRail onClose={() => setRight(false)} />
+            ? <MarketsRightRail />
             : <ActivePoolsSidebar onClose={() => setRight(false)} />}
         </Box>
       </Box>
 
-      {/* Reopen tab when the right sidebar is closed (desktop) */}
-      {!rightOpen && (
+      {/* Reopen tab when the (closeable) predictions sidebar is closed — never on Markets */}
+      {!rightOpen && !isMarkets && (
         <Box
           onClick={() => setRight(true)}
           sx={{
@@ -151,7 +152,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           }}
         >
           <ViewSidebarRounded sx={{ fontSize: 18, transform: 'scaleX(-1)' }} />
-          <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, writingMode: 'vertical-rl', transform: 'rotate(180deg)', letterSpacing: '0.05em' }}>{isMarkets ? 'MARKETS' : 'PREDICTIONS'}</Typography>
+          <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, writingMode: 'vertical-rl', transform: 'rotate(180deg)', letterSpacing: '0.05em' }}>PREDICTIONS</Typography>
         </Box>
       )}
 
