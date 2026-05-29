@@ -23,7 +23,7 @@ import { useLiveScores } from '@/hooks/useLiveScores';
 import { useCategoryMap } from '@/hooks/useCategories';
 import { PoolTable, AppShell } from '@/components';
 import { MatchCard } from '@/components/sports/MatchCard';
-import { PoolCard } from '@/components/PoolCard';
+import { MarketCard } from '@/components/MarketCard';
 import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter';
 import { useQuery } from '@tanstack/react-query';
 import { fetchTrendingPools } from '@/lib/api';
@@ -291,11 +291,15 @@ export default function MarketsPage() {
                   }}
                 >
                   {trendingPools.map((pool) => (
-                    pool.poolType === 'SPORTS' ? (
-                      <MatchCard key={pool.id} pool={pool} liveScore={getPoolLiveScore(pool)} category={pool.league ? categoryMap.get(pool.league) : undefined} userBet={userBetByPoolId.get(pool.id)} onClaim={(poolId, betId) => claim(poolId, betId)} onClick={() => router.push(`/match/${pool.id}`)} />
-                    ) : (
-                      <PoolCard key={pool.id} pool={pool} livePrice={getPrice(pool.asset)} userBet={userBetByPoolId.get(pool.id)} />
-                    )
+                    <MarketCard
+                      key={pool.id}
+                      pool={pool}
+                      category={pool.league ? categoryMap.get(pool.league) : undefined}
+                      liveScore={getPoolLiveScore(pool)}
+                      userBet={userBetByPoolId.get(pool.id)}
+                      onClaim={(poolId, betId) => claim(poolId, betId)}
+                      onClick={() => router.push(pool.poolType !== 'SPORTS' ? `/pool/${pool.id}` : `/match/${pool.id}`)}
+                    />
                   ))}
                 </Box>
               )
