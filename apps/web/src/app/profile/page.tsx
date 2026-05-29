@@ -155,7 +155,7 @@ export default function MyBetsPage() {
   );
 
   return (
-    <AppShell>
+    <AppShell centered>
       <ProfileHeader
         connected={connected}
         walletAddress={walletAddress}
@@ -163,7 +163,7 @@ export default function MyBetsPage() {
         balance={balance}
       />
 
-      <Container maxWidth={false} sx={{ pb: { xs: 3, md: 6 }, pt: { xs: 2, md: 3 }, px: { xs: 2, md: 3 } }}>
+      <Container maxWidth={false} sx={{ maxWidth: 1400, pb: { xs: 3, md: 6 }, pt: { xs: 2, md: 3 }, px: { xs: 2, md: 3 } }}>
         {connected && walletAddress && (
           <>
             {/* Claim All Banner (global CTA) */}

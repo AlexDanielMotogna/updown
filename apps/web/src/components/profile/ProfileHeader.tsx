@@ -137,21 +137,22 @@ export function ProfileHeader({
 
   return (
     <>
-      {/* ─── Banner ─── */}
-      <Box
-        sx={{
-          width: '100%',
-          height: { xs: 120, sm: 150, md: 180 },
-          backgroundImage: 'url(/Banner/banner-web-1500x300.gif)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          backgroundColor: t.bg.app,
-        }}
-      />
-
       <Box sx={{ bgcolor: t.bg.app, borderBottom: `1px solid ${t.border.subtle}` }}>
-        <Container maxWidth={false} sx={{ px: { xs: 2, md: 3 } }}>
+        <Container maxWidth={false} sx={{ maxWidth: 1400, px: { xs: 2, md: 3 } }}>
+          {/* ─── Banner — lives inside the same container so its edges line up
+              exactly with the content below (no overhang) ─── */}
+          <Box
+            sx={{
+              width: '100%',
+              height: { xs: 120, sm: 150, md: 180 },
+              borderRadius: 2,
+              backgroundImage: 'url(/Banner/banner-web-1500x300.gif)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+              backgroundColor: t.bg.app,
+            }}
+          />
           {!connected ? (
             <Box sx={{ textAlign: 'center', py: 8 }}>
               <Typography sx={{ color: 'text.secondary', fontWeight: 400, mb: 3, fontSize: '1rem' }}>
