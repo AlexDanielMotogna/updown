@@ -84,7 +84,7 @@ function Footer() {
   );
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, centered = false }: { children: React.ReactNode; centered?: boolean }) {
   const t = useThemeTokens();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -93,6 +93,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // its 200px gutter — let the content grow into that space.
   const hideMarketSidebar = isMarkets && searchParams.get('type') === 'TRENDING';
   const [rightOpen, setRightOpen] = useState(true);
+  const RIGHT_SIDEBAR_WIDTH = 240;
   const [mobileOpen, setMobileOpen] = useState(false);
   useEffect(() => {
     const v = localStorage.getItem('activePoolsOpen');
@@ -104,11 +105,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: { xs: 'calc(72px + env(safe-area-inset-bottom, 0px))', lg: 0 } }}>
       <Header />
       <RewardPopup />
-      <Box sx={{ display: 'flex', bgcolor: t.bg.app, maxWidth: 1400, mx: 'auto' }}>
-        {/* Desktop market sidebar — collapsed on Trending (no filters there). */}
+      <Box sx={{ display: 'flex', bgcolor: t.bg.app }}>
+        {/* Desktop market sidebar — hidden in `centered` mode (e.g. profile),
+            where there's no filter sidebar, so its 200px gutter isn't reserved. */}
         <Box
           sx={{
-            display: { xs: 'none', lg: hideMarketSidebar ? 'none' : 'block' },
+            display: { xs: 'none', lg: centered ? 'none' : 'block' },
             width: 200,
             flexShrink: 0,
             position: 'sticky',
@@ -118,7 +120,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         >
           <MarketSidebar />
         </Box>
-        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 64px)' }}>
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 'calc(100vh - 64px)',
+            // In `centered` mode, mirror the right sidebar's width on the left
+            // (only while it's open) so the content stays centered on the
+            // viewport instead of being shoved off-centre when Predictions opens.
+            pl: { lg: centered && rightOpen ? `${RIGHT_SIDEBAR_WIDTH}px` : 0 },
+          }}
+        >
           <Box sx={{ flex: 1 }}>
             {children}
           </Box>

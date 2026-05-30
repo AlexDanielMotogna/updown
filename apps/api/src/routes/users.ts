@@ -82,9 +82,24 @@ usersRouter.get('/profile', async (req, res) => {
       });
     }
 
+    // Aggregates the User row can't supply: realized winnings (for Net P&L) and
+    // the user's leaderboard rank by XP. Run in parallel with each other.
+    const [wonAgg, higherXpCount, totalUsers] = await Promise.all([
+      prisma.bet.aggregate({
+        _sum: { payoutAmount: true },
+        where: { walletAddress: user.walletAddress, payoutAmount: { not: null } },
+      }),
+      prisma.user.count({ where: { totalXp: { gt: user.totalXp } } }),
+      prisma.user.count(),
+    ]);
+
     res.json({
       success: true,
-      data: serializeUserProfile(user),
+      data: serializeUserProfile(user, {
+        totalWon: wonAgg._sum.payoutAmount ?? 0n,
+        rank: higherXpCount + 1,
+        totalUsers,
+      }),
     });
   } catch (error) {
     console.error('[Users] profile error:', error);
@@ -141,6 +156,71 @@ usersRouter.get('/rewards', async (req, res) => {
     res.status(500).json({
       success: false,
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch rewards' },
+    });
+  }
+});
+
+/**
+ * GET /api/users/category-stats?wallet=
+ * Per-category performance breakdown (Crypto / Sports / each PM_* category),
+ * aggregated over all of the user's bets. Mirrors the profile History filter
+ * buckets so the Overview matches what the user can drill into.
+ */
+usersRouter.get('/category-stats', async (req, res) => {
+  try {
+    const parsed = profileQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'wallet query parameter required' },
+      });
+    }
+
+    const bets = await prisma.bet.findMany({
+      where: { walletAddress: parsed.data.wallet },
+      select: {
+        side: true,
+        amount: true,
+        payoutAmount: true,
+        pool: { select: { poolType: true, league: true, winner: true } },
+      },
+    });
+
+    type Agg = { bets: number; wins: number; wagered: bigint; won: bigint };
+    const map = new Map<string, Agg>();
+    for (const b of bets) {
+      const league = b.pool.league ?? '';
+      const category =
+        b.pool.poolType !== 'SPORTS' ? 'CRYPTO'
+        : league.startsWith('PM_') ? league
+        : 'SPORTS';
+      const agg = map.get(category) ?? { bets: 0, wins: 0, wagered: 0n, won: 0n };
+      agg.bets++;
+      agg.wagered += b.amount;
+      if (b.pool.winner && b.pool.winner === b.side) {
+        agg.wins++;
+        if (b.payoutAmount) agg.won += b.payoutAmount;
+      }
+      map.set(category, agg);
+    }
+
+    const data = [...map.entries()]
+      .map(([category, a]) => ({
+        category,
+        bets: a.bets,
+        wins: a.wins,
+        winRate: a.bets > 0 ? ((a.wins / a.bets) * 100).toFixed(0) : '0',
+        wagered: a.wagered.toString(),
+        won: a.won.toString(),
+      }))
+      .sort((x, y) => y.bets - x.bets);
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('[Users] category-stats error:', error);
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch category stats' },
     });
   }
 });
