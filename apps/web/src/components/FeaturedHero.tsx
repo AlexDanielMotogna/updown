@@ -176,7 +176,7 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
         </Box>
 
         <Box sx={{ minWidth: 0 }}>
-          <OddsChart key={pool.id} poolId={pool.id} totalUp={pool.totalUp} totalDown={pool.totalDown} totalDraw={pool.totalDraw} lockSource="updown" hideControls seedDefault />
+          <OddsChart key={pool.id} poolId={pool.id} totalUp={pool.totalUp} totalDown={pool.totalDown} totalDraw={pool.totalDraw} lockSource="updown" hideControls seedDefault threeWay={pool.numSides === 3} />
         </Box>
       </Box>
     </Box>
