@@ -105,12 +105,12 @@ export function AppShell({ children, centered = false }: { children: React.React
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: { xs: 'calc(72px + env(safe-area-inset-bottom, 0px))', lg: 0 } }}>
       <Header />
       <RewardPopup />
-      <Box sx={{ display: 'flex', bgcolor: t.bg.app }}>
-        {/* Desktop market sidebar — hidden in `centered` mode (e.g. profile),
-            where there's no filter sidebar, so its 200px gutter isn't reserved. */}
+      <Box sx={{ display: 'flex', bgcolor: t.bg.app, maxWidth: 1400, mx: 'auto' }}>
+        {/* Desktop market sidebar — hidden in `centered` mode (e.g. profile)
+            and on the Trending cross-category view (no filters there). */}
         <Box
           sx={{
-            display: { xs: 'none', lg: centered ? 'none' : 'block' },
+            display: { xs: 'none', lg: (centered || hideMarketSidebar) ? 'none' : 'block' },
             width: 200,
             flexShrink: 0,
             position: 'sticky',
