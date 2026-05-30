@@ -133,10 +133,11 @@ function buildResolveWithWinnerIx(pool, authority, winner) {
  * Build `claim` TransactionInstruction (with fee).
  * Accounts: pool, userBet, vault, userTokenAccount, user, authority, feeWallet, tokenProgram
  */
-function buildClaimIx(pool, userBet, vault, userTokenAccount, user, authority, feeWallet, feeBps) {
+function buildClaimIx(pool, userBet, vault, userTokenAccount, user, authority, feeWallet, feeBps, side) {
     const data = Buffer.concat([
         CLAIM_DISC,
         encodeU16(feeBps), // u16
+        Buffer.from([side]), // enum Side { Up=0, Down=1, Draw=2 }
     ]);
     const keys = [
         { pubkey: pool, isSigner: false, isWritable: true },
@@ -154,7 +155,11 @@ function buildClaimIx(pool, userBet, vault, userTokenAccount, user, authority, f
  * Build `refund` TransactionInstruction (authority-signed, no user signature).
  * Accounts: pool, userBet, vault, userTokenAccount, user (not signer), authority, tokenProgram
  */
-function buildRefundIx(pool, userBet, vault, userTokenAccount, user, authority) {
+function buildRefundIx(pool, userBet, vault, userTokenAccount, user, authority, side) {
+    const data = Buffer.concat([
+        REFUND_DISC,
+        Buffer.from([side]), // enum Side { Up=0, Down=1, Draw=2 }
+    ]);
     const keys = [
         { pubkey: pool, isSigner: false, isWritable: true },
         { pubkey: userBet, isSigner: false, isWritable: true },
@@ -164,7 +169,7 @@ function buildRefundIx(pool, userBet, vault, userTokenAccount, user, authority) 
         { pubkey: authority, isSigner: true, isWritable: true },
         { pubkey: spl_token_1.TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     ];
-    return new web3_js_1.TransactionInstruction({ keys, programId: accounts_1.PROGRAM_ID, data: REFUND_DISC });
+    return new web3_js_1.TransactionInstruction({ keys, programId: accounts_1.PROGRAM_ID, data });
 }
 /**
  * Build `close_pool` TransactionInstruction.
