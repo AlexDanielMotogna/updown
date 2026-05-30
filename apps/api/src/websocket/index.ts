@@ -216,6 +216,25 @@ export function emitRefund(walletAddress: string, data: {
 }
 
 /**
+ * Emit an auto-payout notification to a specific wallet address.
+ * Fires the moment the scheduler's auto-claim job confirms the on-chain
+ * transfer — frontends should treat this as "your winnings just hit your
+ * wallet, no further action needed" (vs `wallet:refund` which fires for
+ * single-bettor / one-sided pool unwinds).
+ */
+export function emitBetPaid(walletAddress: string, data: {
+  poolId: string;
+  betId: string;
+  side: string;
+  amount: string;
+  txSignature: string;
+}): void {
+  if (io) {
+    io.emit('wallet:bet-paid', { walletAddress, ...data });
+  }
+}
+
+/**
  * Emit a user reward event (XP / coins / level-up).
  * Broadcasts globally  the frontend filters by wallet address.
  */
