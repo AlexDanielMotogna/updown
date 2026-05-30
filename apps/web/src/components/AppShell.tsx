@@ -100,7 +100,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: { xs: 'calc(72px + env(safe-area-inset-bottom, 0px))', lg: 0 } }}>
       <Header />
       <RewardPopup />
-      <Box sx={{ display: 'flex', bgcolor: t.bg.app }}>
+      <Box sx={{ display: 'flex', bgcolor: t.bg.app, maxWidth: 1400, mx: 'auto' }}>
         {/* Desktop market sidebar */}
         <Box
           sx={{
@@ -144,7 +144,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           onClick={() => setRight(true)}
           sx={{
             display: { xs: 'none', lg: 'flex' },
-            position: 'fixed', right: 0, top: '50%', transform: 'translateY(-50%)',
+            // Pin to the right edge of the 1400px frame (not the viewport) so it
+            // matches the body cap on wide screens.
+            position: 'fixed', right: 'max(0px, calc(50vw - 700px))', top: '50%', transform: 'translateY(-50%)',
             alignItems: 'center', gap: 0.5, cursor: 'pointer', zIndex: 1100,
             bgcolor: t.bg.surfaceAlt, border: `1px solid ${t.border.subtle}`, borderRight: 'none',
             borderRadius: '6px 0 0 6px', px: 0.75, py: 1.25,

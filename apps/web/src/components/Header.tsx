@@ -31,7 +31,8 @@ export function Header() {
         backgroundColor: t.bg.app,
       }}
     >
-      {/* Main bar */}
+      {/* Main bar — capped to the same 1400px frame as the body so the navbar
+          edges line up with the sidebars. */}
       <Box
         sx={{
           display: 'flex',
@@ -40,6 +41,8 @@ export function Header() {
           position: 'relative',
           height: { xs: 44, sm: 52, lg: 64 },
           px: { xs: 1, sm: 2, lg: 3, xl: 4 },
+          maxWidth: 1400,
+          mx: 'auto',
         }}
       >
         {/* Left: Logo */}
