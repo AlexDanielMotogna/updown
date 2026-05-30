@@ -252,31 +252,33 @@ export default function MarketsPage() {
     prevPredCount.current = predictionPools.length;
   }, [predictionPools.length]);
 
+  const filterBar = (
+    <MarketFilter
+      marketType={marketType}
+      onMarketTypeChange={(v: MarketType) => {
+        const params = new URLSearchParams();
+        if (v !== 'CRYPTO') params.set('type', v);
+        const qs = params.toString();
+        router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+        setSportsVisible(CARDS_PER_PAGE);
+        setPredVisible(CARDS_PER_PAGE);
+      }}
+      assetFilter={assetFilter}
+      intervalFilter={intervalFilter}
+      onAssetChange={(v) => updateParam('asset', v)}
+      onIntervalChange={(v) => updateParam('interval', v)}
+      assetOptions={ASSET_FILTERS}
+      intervalOptions={INTERVAL_FILTERS}
+      sportFilter={sportFilter}
+      onSportChange={(v) => updateParam('sport', v)}
+      leagueFilter={leagueFilter}
+      onLeagueChange={(v) => updateParam('league', v)}
+    />
+  );
+
   return (
-    <AppShell>
+    <AppShell topBar={filterBar}>
       <Container maxWidth={false} sx={{ px: { xs: 2, md: 3 }, pt: { xs: 2, md: 2.5 } }}>
-            {/* Filters */}
-            <MarketFilter
-              marketType={marketType}
-              onMarketTypeChange={(v: MarketType) => {
-                const params = new URLSearchParams();
-                if (v !== 'CRYPTO') params.set('type', v);
-                const qs = params.toString();
-                router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-                setSportsVisible(CARDS_PER_PAGE);
-                setPredVisible(CARDS_PER_PAGE);
-              }}
-              assetFilter={assetFilter}
-              intervalFilter={intervalFilter}
-              onAssetChange={(v) => updateParam('asset', v)}
-              onIntervalChange={(v) => updateParam('interval', v)}
-              assetOptions={ASSET_FILTERS}
-              intervalOptions={INTERVAL_FILTERS}
-              sportFilter={sportFilter}
-              onSportChange={(v) => updateParam('sport', v)}
-              leagueFilter={leagueFilter}
-              onLeagueChange={(v) => updateParam('league', v)}
-            />
 
             {/* Trending / Home — pools grouped into Kalshi-style category sections. */}
             {isTrending && (
