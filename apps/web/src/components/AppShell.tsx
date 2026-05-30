@@ -96,7 +96,6 @@ export function AppShell({ children, centered = false, topBar }: { children: Rea
   // its 200px gutter — let the content grow into that space.
   const hideMarketSidebar = isMarkets && searchParams.get('type') === 'TRENDING';
   const [rightOpen, setRightOpen] = useState(true);
-  const RIGHT_SIDEBAR_WIDTH = 240;
   const [mobileOpen, setMobileOpen] = useState(false);
   useEffect(() => {
     const v = localStorage.getItem('activePoolsOpen');
@@ -141,10 +140,6 @@ export function AppShell({ children, centered = false, topBar }: { children: Rea
             display: 'flex',
             flexDirection: 'column',
             minHeight: 'calc(100vh - 64px)',
-            // In `centered` mode, mirror the right sidebar's width on the left
-            // (only while it's open) so the content stays centered on the
-            // viewport instead of being shoved off-centre when Predictions opens.
-            pl: { lg: centered && rightOpen ? `${RIGHT_SIDEBAR_WIDTH}px` : 0 },
           }}
         >
           <Box sx={{ flex: 1 }}>
