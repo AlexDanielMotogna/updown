@@ -131,6 +131,14 @@ function buildResolveWithWinnerIx(pool, authority, winner) {
 }
 /**
  * Build `claim` TransactionInstruction (with fee).
+ *
+ * `user` is NOT marked as signer on the instruction's account meta — the
+ * relaxed claim.rs (user: AccountInfo) only requires authority to sign.
+ * The manual-claim path still works because the user wallet is the
+ * transaction fee payer, which forces a signature at the runtime level
+ * regardless of the per-account isSigner flag. The auto-payout path lets
+ * authority pay fees and be the sole signer.
+ *
  * Accounts: pool, userBet, vault, userTokenAccount, user, authority, feeWallet, tokenProgram
  */
 function buildClaimIx(pool, userBet, vault, userTokenAccount, user, authority, feeWallet, feeBps, side) {
@@ -144,7 +152,7 @@ function buildClaimIx(pool, userBet, vault, userTokenAccount, user, authority, f
         { pubkey: userBet, isSigner: false, isWritable: true },
         { pubkey: vault, isSigner: false, isWritable: true },
         { pubkey: userTokenAccount, isSigner: false, isWritable: true },
-        { pubkey: user, isSigner: true, isWritable: true },
+        { pubkey: user, isSigner: false, isWritable: true },
         { pubkey: authority, isSigner: true, isWritable: true },
         { pubkey: feeWallet, isSigner: false, isWritable: true },
         { pubkey: spl_token_1.TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
