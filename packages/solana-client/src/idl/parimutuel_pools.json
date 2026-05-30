@@ -40,7 +40,7 @@
     {
       "name": "claim",
       "docs": [
-        "Claim payout from resolved pool (user + authority co-sign, with fee).",
+        "Claim payout from resolved pool. Authority signs; user does NOT need to sign — the manual-claim path keeps working because the user wallet is the transaction fee payer, while the auto-payout path lets authority be the sole signer.",
         "`side` selects which per-side UserBet account to claim (the winning side)."
       ],
       "discriminator": [
@@ -71,13 +71,15 @@
         },
         {
           "name": "user",
-          "writable": true,
-          "signer": true
+          "docs": [
+            "User receives the closed user_bet's rent. NOT required to sign — validated via user_bet.user == user.key()."
+          ],
+          "writable": true
         },
         {
           "name": "authority",
           "docs": [
-            "Authority co-signs to enforce fee_bps — prevents users from passing fee_bps=0"
+            "Authority signs — enforces fee_bps (prevents users from passing fee_bps=0) AND authorises authority-driven auto-payout when the user wallet isn't available to sign."
           ],
           "signer": true
         },

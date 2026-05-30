@@ -48,6 +48,21 @@ export const NOTIFICATION_DEFS: Record<NotificationType, NotificationDef> = {
       message: ctx.message as string || 'A refund has been issued to your wallet',
     }),
   },
+  // Auto-payout settled: emitted on the wallet:bet-paid socket event. The
+  // amount lives in ctx.amount (USDC raw, 6 decimals); the asset / poolType
+  // are passed through for the icon picker.
+  BET_PAID: {
+    severity: 'success',
+    autoHideDuration: 8000,
+    build: (ctx) => {
+      const amount = ctx.amount as string | undefined;
+      const usdc = amount ? (Number(amount) / 1_000_000).toFixed(2) : null;
+      return {
+        title: usdc ? `You won $${usdc}` : 'Bet paid',
+        message: 'Payout sent to your wallet',
+      };
+    },
+  },
   DEPOSIT_SUCCESS: {
     severity: 'info',
     autoHideDuration: 4000,

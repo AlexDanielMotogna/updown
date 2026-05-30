@@ -80,6 +80,11 @@ export interface Bet {
   claimTx: string | null;
   payoutAmount: string | null;
   isWinner: boolean | null;
+  // Auto-payout state — populated by the scheduler when AUTO_PAYOUT is on
+  // for this pool's category. Stays at defaults on manual-claim bets.
+  payoutFailed?: boolean;
+  payoutAttempts?: number;
+  lastAttemptedAt?: string | null;
   createdAt: string;
   pool: {
     id: string;

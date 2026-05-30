@@ -86,14 +86,23 @@ model Bet {
   claimed       Boolean  @default(false)
   claimTx       String?  @map("claim_tx")
   payoutAmount  BigInt?  @map("payout_amount")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  // Auto-payout tracking — set by the scheduler's autoClaimBets job. Stays
+  // null/0 for bets paid via the manual claim flow.
+  payoutFailed     Boolean   @default(false) @map("payout_failed")
+  payoutAttempts   Int       @default(0) @map("payout_attempts")
+  lastAttemptedAt  DateTime? @map("last_attempted_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
 
   pool Pool @relation(fields: [poolId], references: [id])
 
   // One row per (pool, wallet, side): a wallet can hold positions on multiple
   // sides of the same pool (hedge). Maps 1:1 to the per-side on-chain UserBet PDA.
   @@unique([poolId, walletAddress, side])
+  // Speeds up the autoClaimBets queue scan (poolId + claimed=false + winning side).
+  @@index([poolId, claimed, payoutFailed])
+  // Speeds up the admin "failed payouts" tab.
+  @@index([payoutFailed, lastAttemptedAt])
   @@map("bets")
 }
 

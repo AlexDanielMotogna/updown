@@ -7,6 +7,8 @@ import { getVaultPDA } from 'solana-client';
 import { ResolverDeps, logEvent, handleRpcError } from './resolver-types';
 import { resolvePool } from './resolve-logic';
 import { closePoolOnChain, resolvePoolOnChain } from './onchain-tx';
+import { autoClaimBets } from './auto-claim';
+import { autoPayoutEnabledFor } from '../utils/auto-payout-flag';
 import {
   forceResolvePool as _forceResolvePool,
   forceRefundPool as _forceRefundPool,
@@ -67,7 +69,7 @@ export class PoolResolver {
         status: PoolStatus.RESOLVED,
         updatedAt: { lte: twoSecondsAgo },
       },
-      select: { id: true, asset: true, poolType: true, winner: true, homeTeam: true, awayTeam: true },
+      select: { id: true, asset: true, poolType: true, winner: true, homeTeam: true, awayTeam: true, league: true },
     });
 
     for (const pool of staleResolved) {
@@ -76,8 +78,23 @@ export class PoolResolver {
         data: { status: PoolStatus.CLAIMABLE },
       });
       emitPoolStatus(pool.id, { id: pool.id, status: 'CLAIMABLE' });
-      notifyPoolClaimable(pool).catch(() => {});
       console.log(`[Scheduler] Pool ${pool.id} → CLAIMABLE`);
+
+      // Decide between auto-payout and the legacy "Claim Available" toast
+      // on a per-pool basis. When the feature flag is on for this pool's
+      // category, the scheduler does the work; otherwise the user gets the
+      // legacy notification and reclaims manually.
+      const autoEnabled = await autoPayoutEnabledFor(pool);
+      if (autoEnabled) {
+        // Fire-and-forget — autoClaimBets handles its own retries, logging,
+        // and per-bet failure paths. We don't await so the tick doesn't
+        // block on RPC for pools with many winners.
+        autoClaimBets(this.deps, pool).catch(err => {
+          console.error(`[Scheduler] autoClaimBets crashed for pool ${pool.id}:`, err);
+        });
+      } else {
+        notifyPoolClaimable(pool).catch(() => {});
+      }
     }
   }
 

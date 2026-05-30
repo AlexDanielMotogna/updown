@@ -122,3 +122,30 @@ export async function notifyRefund(walletAddress: string, poolId: string, messag
     poolId,
   });
 }
+
+/**
+ * Create a "Bet Paid" notification when the scheduler's auto-claim job
+ * has confirmed the on-chain transfer. Replaces the POOL_CLAIMABLE +
+ * subsequent CLAIM_SUCCESS pair for users on auto-payout-enabled pools.
+ */
+export async function notifyBetPaid(
+  walletAddress: string,
+  pool: { id: string; asset: string; poolType: string; homeTeam?: string | null; awayTeam?: string | null },
+  payoutUsdc: bigint,
+  txSignature: string,
+): Promise<void> {
+  const isSports = pool.poolType === 'SPORTS';
+  const matchLabel = isSports && pool.homeTeam
+    ? `${pool.homeTeam} vs ${pool.awayTeam}`
+    : `${pool.asset}`;
+  const dollarStr = (Number(payoutUsdc) / 1_000_000).toFixed(2);
+  await createNotification({
+    walletAddress,
+    type: 'BET_PAID',
+    title: `You won $${dollarStr}`,
+    message: `${matchLabel} — Payout sent to your wallet`,
+    severity: 'success',
+    poolId: pool.id,
+    poolType: pool.poolType,
+  });
+}

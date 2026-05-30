@@ -22,6 +22,14 @@ export declare function buildResolveIx(pool: PublicKey, authority: PublicKey, st
 export declare function buildResolveWithWinnerIx(pool: PublicKey, authority: PublicKey, winner: 0 | 1 | 2): TransactionInstruction;
 /**
  * Build `claim` TransactionInstruction (with fee).
+ *
+ * `user` is NOT marked as signer on the instruction's account meta — the
+ * relaxed claim.rs (user: AccountInfo) only requires authority to sign.
+ * The manual-claim path still works because the user wallet is the
+ * transaction fee payer, which forces a signature at the runtime level
+ * regardless of the per-account isSigner flag. The auto-payout path lets
+ * authority pay fees and be the sole signer.
+ *
  * Accounts: pool, userBet, vault, userTokenAccount, user, authority, feeWallet, tokenProgram
  */
 export declare function buildClaimIx(pool: PublicKey, userBet: PublicKey, vault: PublicKey, userTokenAccount: PublicKey, user: PublicKey, authority: PublicKey, feeWallet: PublicKey, feeBps: number, side: 0 | 1 | 2): TransactionInstruction;

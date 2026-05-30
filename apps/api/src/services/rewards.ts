@@ -200,12 +200,38 @@ export async function awardBetResolution(walletAddress: string): Promise<void> {
  * Award XP + coins when a bet is won (called during claim).
  * This is where ALL coins are awarded  base bet coins + win bonus + streak + level-up.
  * Coins are only given here (after pool resolution) to prevent rewarding refunded pools.
+ *
+ * Idempotency: when `betId` is passed (auto-claim path), this checks for an
+ * existing BET_WON reward_log entry tied to that bet and short-circuits if
+ * one is found. This guards against:
+ *   - the auto-claim job retrying after a partial failure;
+ *   - a manual claim landing concurrently with the scheduler;
+ *   - the optimistic lock allowing two writers to think they each won.
+ * Manual-claim callers (the legacy confirm-claim route) still pass no
+ * betId and behave exactly as before.
  */
 export async function awardBetWin(
   walletAddress: string,
   betAmountRaw: bigint,
+  betId?: string,
 ): Promise<void> {
   try {
+    if (betId) {
+      const existing = await prisma.rewardLog.findFirst({
+        where: {
+          walletAddress,
+          reason: 'BET_WON',
+          rewardType: 'XP',
+          metadata: { path: ['betId'], equals: betId },
+        },
+        select: { id: true },
+      });
+      if (existing) {
+        console.log(`[Rewards] awardBetWin: bet ${betId} already rewarded, skipping`);
+        return;
+      }
+    }
+
     let user = await ensureDailyReset(walletAddress);
     if (!user) user = await registerUser(walletAddress);
 
@@ -269,7 +295,7 @@ export async function awardBetWin(
           rewardType: 'XP',
           reason: 'BET_WON',
           amount: totalXpAward,
-          metadata: { streak: newStreak },
+          metadata: { streak: newStreak, ...(betId ? { betId } : {}) },
         },
       });
 

@@ -50,7 +50,11 @@ export function BetRow({
   const isRefund = bet.claimed && bet.payoutAmount != null && bet.payoutAmount === bet.amount;
   const isWinner = bet.isWinner === true && !isRefund;
   const isLoser = bet.isWinner === false;
-  const isClaimable = isWinner && !bet.claimed && bet.pool.status === 'CLAIMABLE';
+  // Auto-payout state — payoutFailed flag forces the manual-claim button back
+  // into view as a fallback even when auto-payout was in scope for the pool.
+  const isPayoutFailed = !!bet.payoutFailed && !bet.claimed;
+  const isPendingPayout = isWinner && !bet.claimed && !isPayoutFailed && bet.pool.status === 'CLAIMABLE';
+  const isClaimable = (isWinner && !bet.claimed && bet.pool.status === 'CLAIMABLE') || isPayoutFailed;
   const isActive = bet.pool.status === 'JOINING' || bet.pool.status === 'ACTIVE';
   const isResolving = bet.pool.status === 'ACTIVE' && new Date(bet.pool.endTime).getTime() <= Date.now();
   const statusStyle = statusStyles[bet.pool.status] || statusStyles.UPCOMING;
@@ -71,9 +75,16 @@ export function BetRow({
   const boxImageUrl = isSports ? null : getBoxImage(bet.pool.asset, bet.pool.interval);
   const teamCrest = isSports && !isPM ? bet.pool.homeTeamCrest : null;
 
-  // Result chip
-  const resultLabel = bet.claimed
-    ? (isRefund ? 'Refunded' : 'Claimed')
+  // Result chip — the auto-payout flow surfaces three new states between
+  // "Won" and "Claimed": Paying soon (pending the scheduler), Paid (auto-
+  // settled, same as Claimed but framed as automatic), and Payment failed
+  // (retries exhausted, user must fall back to the manual claim button).
+  const resultLabel = isPayoutFailed
+    ? 'Claim manually'
+    : isPendingPayout
+    ? 'Paying soon'
+    : bet.claimed
+    ? (isRefund ? 'Refunded' : 'Paid')
     : isWinner
     ? 'Won'
     : isLoser
@@ -85,8 +96,12 @@ export function BetRow({
   const pmKey = PM_COLORS_KEYS[bet.pool.league || ''];
   const pmColor = pmKey ? t.categoryColors[pmKey] : t.prediction;
 
-  const resultColor = bet.claimed
-    ? (isRefund ? t.info : t.text.secondary)
+  const resultColor = isPayoutFailed
+    ? t.down
+    : isPendingPayout
+    ? t.text.secondary
+    : bet.claimed
+    ? (isRefund ? t.info : t.gain)
     : isWinner
     ? t.gain
     : isLoser
@@ -95,8 +110,12 @@ export function BetRow({
     ? t.up
     : 'text.secondary';
 
-  const resultBg = bet.claimed
-    ? (isRefund ? 'rgba(59,130,246,0.12)' : t.hover.medium)
+  const resultBg = isPayoutFailed
+    ? withAlpha(t.down, 0.12)
+    : isPendingPayout
+    ? t.hover.medium
+    : bet.claimed
+    ? (isRefund ? 'rgba(59,130,246,0.12)' : withAlpha(t.gain, 0.09))
     : isWinner
     ? withAlpha(t.gain, 0.09)
     : isLoser
