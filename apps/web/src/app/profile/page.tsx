@@ -1,72 +1,40 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useState, useMemo, useCallback } from 'react';
 import {
   Box,
   Container,
-  Typography,
-  Tabs,
-  Tab,
   Alert,
   Button,
   CircularProgress,
-  IconButton,
 } from '@mui/material';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useInfiniteBets, useClaimableBets, useClaim, useIntersectionObserver } from '@/hooks';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { TransactionModal, AppShell } from '@/components';
-import { ReferralDashboard } from '@/components/ReferralDashboard';
 import { formatUSDC } from '@/lib/format';
 import { useThemeTokens } from '@/app/providers';
-import { GridView, FilterList } from '@mui/icons-material';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { PositionsTab } from '@/components/profile/PositionsTab';
-import { ActivityTab } from '@/components/profile/ActivityTab';
-import { TournamentPrizes } from '@/components/profile/TournamentPrizes';
-import { OverviewTab } from '@/components/profile/OverviewTab';
-import { RewardsTab } from '@/components/profile/RewardsTab';
-import { HISTORY_FILTERS, getCategoryMeta } from '@/components/profile/category-meta';
-import {
-  fetchMyTournamentPrizes,
-  type TournamentPrize,
-} from '@/lib/api';
+import { PnLChart } from '@/components/profile/PnLChart';
 
-const TAB_KEYS = ['overview', 'positions', 'activity', 'rewards', 'referrals', 'tournaments'] as const;
-type TabKey = typeof TAB_KEYS[number];
-
+/**
+ * /profile — intentionally minimal. Identity header + P&L chart + the single
+ * Positions surface with Active / Closed sub-tabs. Other sections of the
+ * product (Rewards is surfaced in the header via level / XP / coins;
+ * Referrals lives at /referrals; Tournaments at /tournaments) keep their own
+ * routes — surfacing them all here as tabs duplicated information without
+ * adding value.
+ */
 export default function MyBetsPage() {
   const t = useThemeTokens();
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
   const { connected, walletAddress } = useWalletBridge();
   const { data: userProfile } = useUserProfile();
   const { data: balance } = useUsdcBalance();
-  const tabParam = searchParams.get('tab') ?? 'overview';
-  // Backwards compat: ?tab=history now lands on positions.
-  const normalizedTab = tabParam === 'history' ? 'positions' : tabParam;
-  const tabIndex = TAB_KEYS.indexOf(normalizedTab as TabKey);
-  const tab = tabIndex >= 0 ? tabIndex : 0;
   const [claimingBetId, setClaimingBetId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [claimAllProgress, setClaimAllProgress] = useState<{ current: number; total: number } | null>(null);
-  const [poolFilter, setPoolFilter] = useState<string>('ALL');
-  const [showPoolFilters, setShowPoolFilters] = useState(false);
-
-  // Tournament prizes
-  const [prizes, setPrizes] = useState<TournamentPrize[]>([]);
-  const [prizesLoading, setPrizesLoading] = useState(false);
-
-  useEffect(() => {
-    if (!walletAddress) return;
-    setPrizesLoading(true);
-    fetchMyTournamentPrizes(walletAddress)
-      .then(res => { if (res.success && res.data) setPrizes(res.data); })
-      .finally(() => setPrizesLoading(false));
-  }, [walletAddress]);
 
   const {
     data: betsData,
@@ -79,37 +47,23 @@ export default function MyBetsPage() {
   const { data: claimableData } = useClaimableBets();
   const { claim, state: claimState, reset: resetClaim } = useClaim();
 
-  const goToTab = useCallback((key: TabKey) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (key === 'overview') params.delete('tab');
-    else params.set('tab', key);
-    const qs = params.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }, [searchParams, router, pathname]);
-
-  const handleTabChange = useCallback((_: React.SyntheticEvent, newValue: number) => {
-    goToTab(TAB_KEYS[newValue]!);
-  }, [goToTab]);
-
-  const handleClaim = async (poolId: string, betId: string) => {
+  const handleClaim = useCallback(async (poolId: string, betId: string) => {
     setClaimingBetId(betId);
     setClaimAllProgress(null);
     setShowModal(true);
     try {
       await claim(poolId, betId);
     } catch {
-      // Error handled in state
+      /* error surfaces via claim state */
     }
-  };
+  }, [claim]);
 
-  const handleClaimAll = async () => {
+  const handleClaimAll = useCallback(async () => {
     if (!claimable) return;
     const betsToProcess = claimable.bets.filter((b) => !b.claimed);
     if (betsToProcess.length === 0) return;
-
     setClaimAllProgress({ current: 1, total: betsToProcess.length });
     setShowModal(true);
-
     for (let i = 0; i < betsToProcess.length; i++) {
       const bet = betsToProcess[i];
       setClaimAllProgress({ current: i + 1, total: betsToProcess.length });
@@ -118,18 +72,17 @@ export default function MyBetsPage() {
         resetClaim();
         await claim(bet.pool.id, bet.id);
       } catch {
-        // Stop on first error — user can retry or claim remaining individually
-        return;
+        return; // stop on first failure
       }
     }
-  };
+  }, [claim, resetClaim]);
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setShowModal(false);
     setClaimingBetId(null);
     setClaimAllProgress(null);
     resetClaim();
-  };
+  }, [resetClaim]);
 
   const bets = useMemo(() => {
     const flat = betsData?.pages.flatMap((p) => p.data ?? []) ?? [];
@@ -140,16 +93,8 @@ export default function MyBetsPage() {
       return true;
     });
   }, [betsData]);
+
   const claimable = claimableData?.data;
-
-  const filteredBets = useMemo(() => {
-    if (poolFilter === 'ALL') return bets;
-    if (poolFilter === 'CRYPTO') return bets.filter(b => b.pool.poolType !== 'SPORTS');
-    if (poolFilter === 'SPORTS') return bets.filter(b => b.pool.poolType === 'SPORTS' && !b.pool.league?.startsWith('PM_'));
-    // PM categories
-    return bets.filter(b => b.pool.league === poolFilter);
-  }, [bets, poolFilter]);
-
   const hasClaimable = claimable && claimable.summary.count > 0;
 
   const sentinelRef = useIntersectionObserver(
@@ -169,7 +114,7 @@ export default function MyBetsPage() {
       <Container maxWidth={false} sx={{ maxWidth: 1400, pb: { xs: 3, md: 6 }, pt: { xs: 2, md: 3 }, px: { xs: 2, md: 3 } }}>
         {connected && walletAddress && (
           <>
-            {/* Claim All Banner (global CTA) */}
+            {/* Claim All Banner (manual fallback for payoutFailed bets) */}
             {hasClaimable && (
               <Box
                 sx={{
@@ -183,9 +128,9 @@ export default function MyBetsPage() {
                   background: `linear-gradient(135deg, ${t.gain}20, ${t.gain}08)`,
                 }}
               >
-                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.gain }}>
+                <Box sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.gain }}>
                   {claimable!.summary.count} TO CLAIM — {formatUSDC(claimable!.summary.totalClaimable, { min: 2 })}
-                </Typography>
+                </Box>
                 <Button
                   variant="contained"
                   onClick={handleClaimAll}
@@ -208,151 +153,41 @@ export default function MyBetsPage() {
               </Box>
             )}
 
-            {/* Tabs + filter icon */}
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${t.border.default}`, mb: 3 }}>
-              <Tabs
-                value={tab}
-                onChange={handleTabChange}
-                variant="scrollable"
-                scrollButtons={false}
-                sx={{
-                  minHeight: 44,
-                  '& .MuiTabs-indicator': { backgroundColor: t.up, height: 2 },
-                  '& .MuiTab-root': {
-                    color: 'text.secondary',
-                    fontWeight: 500,
-                    textTransform: 'none',
-                    fontSize: { xs: '0.8rem', sm: '0.85rem' },
-                    px: { xs: 1.5, sm: 2.5 },
-                    minHeight: 44,
-                    minWidth: 'auto',
-                    '&.Mui-selected': { color: t.text.primary },
-                  },
-                }}
-              >
-                <Tab label="Overview" />
-                <Tab label="Positions" />
-                <Tab label="Activity" />
-                <Tab label="Rewards" />
-                <Tab label="Referrals" />
-                <Tab label="Tournaments" />
-              </Tabs>
-              {tab === 1 && (
-                <IconButton
-                  onClick={() => setShowPoolFilters(!showPoolFilters)}
-                  size="small"
-                  sx={{ color: showPoolFilters ? t.text.primary : t.text.quaternary, '&:hover': { color: t.text.primary }, mr: 1 }}
-                >
-                  <FilterList sx={{ fontSize: 20 }} />
-                </IconButton>
-              )}
+            {/* P&L chart */}
+            <Box sx={{ mb: 4, bgcolor: t.bg.surface, border: `1px solid ${t.border.subtle}`, borderRadius: 1.5, p: 2 }}>
+              <PnLChart bets={bets} />
             </Box>
 
-            {/* ─── Overview ─── */}
-            {tab === 0 && (
-              <OverviewTab walletAddress={walletAddress} userProfile={userProfile} onViewTab={goToTab} />
-            )}
-
-            {/* ─── Positions (Activa / Cerrado) ─── */}
-            {tab === 1 && (
-              <>
-                {betsError && (
-                  <Alert severity="error" sx={{ mb: 4, backgroundColor: 'rgba(255, 82, 82, 0.1)', border: 'none', borderRadius: 1 }}>
-                    Failed to load positions
-                  </Alert>
-                )}
-
-                {showPoolFilters && (
-                  <Box sx={{ display: 'flex', gap: 0, mb: 2, overflow: 'auto', '&::-webkit-scrollbar': { display: 'none' } }}>
-                    {HISTORY_FILTERS.map(key => {
-                      const meta = key === 'ALL'
-                        ? { label: 'All', color: t.text.primary, icon: <GridView sx={{ fontSize: 16 }} /> }
-                        : getCategoryMeta(key, t, 16);
-                      const active = poolFilter === key;
-                      return (
-                        <Box
-                          key={key}
-                          onClick={() => setPoolFilter(key)}
-                          sx={{
-                            display: 'flex', alignItems: 'center', gap: 0.75,
-                            px: { xs: 1.25, md: 2 }, py: 1, cursor: 'pointer', whiteSpace: 'nowrap',
-                            borderBottom: active ? `2px solid ${meta.color}` : '2px solid transparent',
-                            color: active ? meta.color : t.text.quaternary,
-                            transition: 'all 0.15s ease', '&:hover': { color: meta.color },
-                          }}
-                        >
-                          {meta.icon}
-                          <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: active ? 700 : 500 }}>
-                            {meta.label}
-                          </Typography>
-                        </Box>
-                      );
-                    })}
-                  </Box>
-                )}
-
-                <PositionsTab
-                  bets={filteredBets}
-                  betsLoading={betsLoading}
-                  claimingBetId={claimingBetId}
-                  onClaim={handleClaim}
-                />
-
-                <Box ref={sentinelRef} />
-                {isFetchingNextPage && (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, pb: 4 }}>
-                    <CircularProgress size={32} sx={{ color: t.text.primary }} />
-                  </Box>
-                )}
-              </>
-            )}
-
-            {/* ─── Activity ─── */}
-            {tab === 2 && (
-              <>
-                {betsError && (
-                  <Alert severity="error" sx={{ mb: 4, backgroundColor: 'rgba(255, 82, 82, 0.1)', border: 'none', borderRadius: 1 }}>
-                    Failed to load activity
-                  </Alert>
-                )}
-                <ActivityTab bets={filteredBets} betsLoading={betsLoading} />
-                <Box ref={sentinelRef} />
-                {isFetchingNextPage && (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, pb: 4 }}>
-                    <CircularProgress size={32} sx={{ color: t.text.primary }} />
-                  </Box>
-                )}
-              </>
-            )}
-
-            {/* ─── Rewards ─── */}
-            {tab === 3 && <RewardsTab walletAddress={walletAddress} />}
-
-            {/* ─── Referrals ─── */}
-            {tab === 4 && <ReferralDashboard walletAddress={walletAddress} />}
-
-            {/* ─── Tournaments ─── */}
-            {tab === 5 && (
-              <TournamentPrizes
-                walletAddress={walletAddress}
-                prizes={prizes}
-                setPrizes={setPrizes}
-                prizesLoading={prizesLoading}
+            {/* Positions */}
+            {betsError ? (
+              <Alert severity="error" sx={{ mb: 4, backgroundColor: 'rgba(255, 82, 82, 0.1)', border: 'none', borderRadius: 1 }}>
+                Failed to load positions
+              </Alert>
+            ) : (
+              <PositionsTab
+                bets={bets}
+                betsLoading={betsLoading}
+                claimingBetId={claimingBetId}
+                onClaim={handleClaim}
               />
+            )}
+
+            <Box ref={sentinelRef} />
+            {isFetchingNextPage && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, pb: 4 }}>
+                <CircularProgress size={32} sx={{ color: t.text.primary }} />
+              </Box>
             )}
           </>
         )}
       </Container>
 
-      {/* Claim Modal */}
       <TransactionModal
         open={showModal}
         status={claimState.status}
-        title={
-          claimAllProgress
-            ? `Claiming Payout (${claimAllProgress.current}/${claimAllProgress.total})`
-            : 'Claiming Payout'
-        }
+        title={claimAllProgress
+          ? `Claiming Payout (${claimAllProgress.current}/${claimAllProgress.total})`
+          : 'Claiming Payout'}
         txSignature={claimState.txSignature}
         error={claimState.error}
         onClose={handleCloseModal}
