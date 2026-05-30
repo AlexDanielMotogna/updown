@@ -1,4 +1,5 @@
 import { prisma } from '../db';
+import { autoPayoutEnabledFor } from '../utils/auto-payout-flag';
 
 interface NotificationInput {
   walletAddress: string;
@@ -49,23 +50,38 @@ export async function notifyPoolResolved(pool: {
       ? ` (${pool.homeScore}-${pool.awayScore})`
       : '';
 
-    const notifications = bets.map(bet => {
-      const won = bet.side === pool.winner;
-      return {
-        walletAddress: bet.walletAddress,
-        type: won ? 'POOL_WON' : 'POOL_LOST',
-        title: won ? 'You Won!' : 'Better Luck Next Time',
-        message: won
-          ? `${matchLabel}${scoreLabel} — Collect your winnings`
-          : `${matchLabel}${scoreLabel} — Prediction was incorrect`,
-        severity: won ? 'success' as const : 'warning' as const,
-        poolId: pool.id,
-        poolType: pool.poolType,
-      };
+    // When auto-payout is on for this pool, skip the POOL_WON notification —
+    // it says "Collect your winnings" which is misleading because the
+    // scheduler is about to pay automatically. The follow-up BET_PAID toast
+    // from autoClaimBets is the right surface ("Payout sent to your wallet").
+    // POOL_LOST still fires in both modes (losers need closure).
+    const autoEnabled = await autoPayoutEnabledFor({
+      poolType: pool.poolType,
+      league: pool.league ?? null,
     });
 
+    const notifications = bets
+      .map(bet => {
+        const won = bet.side === pool.winner;
+        if (won && autoEnabled) return null; // BET_PAID will follow
+        return {
+          walletAddress: bet.walletAddress,
+          type: won ? 'POOL_WON' : 'POOL_LOST',
+          title: won ? 'You Won!' : 'Better Luck Next Time',
+          message: won
+            ? `${matchLabel}${scoreLabel} — Collect your winnings`
+            : `${matchLabel}${scoreLabel} — Prediction was incorrect`,
+          severity: won ? 'success' as const : 'warning' as const,
+          poolId: pool.id,
+          poolType: pool.poolType,
+        };
+      })
+      .filter((n): n is NonNullable<typeof n> => n !== null);
+
+    if (notifications.length === 0) return;
+
     await prisma.notification.createMany({ data: notifications });
-    console.log(`[Notifications] Created ${notifications.length} for pool ${pool.id}`);
+    console.log(`[Notifications] Created ${notifications.length} for pool ${pool.id}${autoEnabled ? ' (auto-payout: POOL_WON suppressed)' : ''}`);
   } catch (error) {
     console.error('[Notifications] Failed to notify pool resolved:', (error as Error).message);
   }
