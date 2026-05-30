@@ -165,7 +165,9 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
           {isCrypto ? (
             <Box component="img" src={`/coins/${pool.asset.toLowerCase()}-coin.png`} alt="" sx={{ width: 18, height: 18, borderRadius: '50%' }} />
           ) : catBadge ? (
-            <Box component="img" src={catBadge} alt="" sx={{ width: 18, height: 18, objectFit: 'contain', ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '1px' }) }} />
+            // Dark pad so the Champions League badge (whitish silver star)
+            // still reads against the card bg — white pad made it invisible.
+            <Box component="img" src={catBadge} alt="" sx={{ width: 18, height: 18, objectFit: 'contain', ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(13,18,25,0.92)', borderRadius: '50%', p: '1px' }) }} />
           ) : CatIcon ? (
             <CatIcon sx={{ fontSize: 16, color: catColor }} />
           ) : (

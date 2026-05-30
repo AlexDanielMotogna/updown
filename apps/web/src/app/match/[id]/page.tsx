@@ -279,7 +279,7 @@ export default function MatchDetailPage() {
               <ArrowBack sx={{ fontSize: 18, color: t.text.tertiary, '&:hover': { color: t.text.primary }, cursor: 'pointer' }} />
             </Link>
             {catBadge ? (
-              <Box component="img" src={catBadge} alt={league} sx={{ width: 22, height: 22, objectFit: 'contain', ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }) }} />
+              <Box component="img" src={catBadge} alt={league} sx={{ width: 22, height: 22, objectFit: 'contain', ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(13,18,25,0.92)', borderRadius: '50%', p: '2px' }) }} />
             ) : CatIcon ? (
               <Box sx={{ color: catColor, display: 'flex', alignItems: 'center' }}>
                 <CatIcon sx={{ fontSize: 20 }} />

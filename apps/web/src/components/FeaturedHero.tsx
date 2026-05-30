@@ -145,7 +145,9 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
   const catIcon: ReactNode = isCrypto
     ? <Box component="img" src={`/coins/${pool.asset.toLowerCase()}-coin.png`} alt="" sx={{ width: 18, height: 18, borderRadius: '50%' }} />
     : category?.badgeUrl
-      ? <Box component="img" src={category.badgeUrl} alt="" sx={{ width: 18, height: 18, objectFit: 'contain', ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '1px' }) }} />
+      // Dark pad: the Champions League badge is white/silver on transparent
+      // — a white pad made it disappear; dark keeps it readable everywhere.
+      ? <Box component="img" src={category.badgeUrl} alt="" sx={{ width: 18, height: 18, objectFit: 'contain', ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(13,18,25,0.92)', borderRadius: '50%', p: '1px' }) }} />
       : CatIcon ? <CatIcon sx={{ fontSize: 16 }} /> : !isPrediction ? <SportsSoccer sx={{ fontSize: 16 }} /> : null;
 
   const title = isCrypto

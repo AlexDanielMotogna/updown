@@ -73,7 +73,7 @@ function CategoryCard({ cat, poolCount, onToggle, onToggleComingSoon, onEdit, on
           {cat.badgeUrl ? (
             <Box component="img" src={cat.badgeUrl} alt="" sx={{
               width: 28, height: 28, objectFit: 'contain', borderRadius: '4px',
-              ...(cat.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(255,255,255,0.85)', p: '2px', borderRadius: '50%' }),
+              ...(cat.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(13,18,25,0.92)', p: '2px', borderRadius: '50%' }),
             }} />
           ) : (
             <Box sx={{ width: 28, height: 28, borderRadius: '4px', bgcolor: `${cat.color || TYPE_COLORS[cat.type] || '#666'}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

@@ -98,7 +98,7 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
             {catBadge ? (
-              <Box component="img" src={catBadge} alt={league} sx={{ width: 22, height: 22, objectFit: 'contain', ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }) }} />
+              <Box component="img" src={catBadge} alt={league} sx={{ width: 22, height: 22, objectFit: 'contain', ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(13,18,25,0.92)', borderRadius: '50%', p: '2px' }) }} />
             ) : isPrediction ? (
               <Box sx={{ width: 22, height: 22, borderRadius: '50%', bgcolor: withAlpha(catColor, 0.13), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: catColor }} />
