@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { Box, Typography, Drawer } from '@mui/material';
 import ViewSidebarRounded from '@mui/icons-material/ViewSidebarRounded';
 import { Header } from './Header';
 import { MarketSidebar } from './sidebar/MarketSidebar';
 import { ActivePoolsSidebar } from './sidebar/ActivePoolsSidebar';
+import { MarketsRightRail } from './sidebar/MarketsRightRail';
 import { RewardPopup } from './RewardPopup';
 import { useThemeTokens } from '@/app/providers';
 
@@ -84,6 +86,12 @@ function Footer() {
 
 export function AppShell({ children, centered = false }: { children: React.ReactNode; centered?: boolean }) {
   const t = useThemeTokens();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isMarkets = pathname === '/';
+  // Trending has no left filter sidebar (cross-category view), so don't reserve
+  // its 200px gutter — let the content grow into that space.
+  const hideMarketSidebar = isMarkets && searchParams.get('type') === 'TRENDING';
   const [rightOpen, setRightOpen] = useState(true);
   const RIGHT_SIDEBAR_WIDTH = 240;
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -130,10 +138,11 @@ export function AppShell({ children, centered = false }: { children: React.React
           </Box>
           <Footer />
         </Box>
-        {/* Right sidebar: user's active pools (desktop, closeable) */}
+        {/* Right sidebar. On Markets it's the always-on market rail; elsewhere
+            it's the user's active pools (closeable). */}
         <Box
           sx={{
-            display: { xs: 'none', lg: rightOpen ? 'block' : 'none' },
+            display: { xs: 'none', lg: (isMarkets || rightOpen) ? 'block' : 'none' },
             width: 240,
             flexShrink: 0,
             position: 'sticky',
@@ -141,17 +150,21 @@ export function AppShell({ children, centered = false }: { children: React.React
             height: 'calc(100vh - 64px)',
           }}
         >
-          <ActivePoolsSidebar onClose={() => setRight(false)} />
+          {isMarkets
+            ? <MarketsRightRail />
+            : <ActivePoolsSidebar onClose={() => setRight(false)} />}
         </Box>
       </Box>
 
-      {/* Reopen tab when the right sidebar is closed (desktop) */}
-      {!rightOpen && (
+      {/* Reopen tab when the (closeable) predictions sidebar is closed — never on Markets */}
+      {!rightOpen && !isMarkets && (
         <Box
           onClick={() => setRight(true)}
           sx={{
             display: { xs: 'none', lg: 'flex' },
-            position: 'fixed', right: 0, top: '50%', transform: 'translateY(-50%)',
+            // Pin to the right edge of the 1400px frame (not the viewport) so it
+            // matches the body cap on wide screens.
+            position: 'fixed', right: 'max(0px, calc(50vw - 700px))', top: '50%', transform: 'translateY(-50%)',
             alignItems: 'center', gap: 0.5, cursor: 'pointer', zIndex: 1100,
             bgcolor: t.bg.surfaceAlt, border: `1px solid ${t.border.subtle}`, borderRight: 'none',
             borderRadius: '6px 0 0 6px', px: 0.75, py: 1.25,

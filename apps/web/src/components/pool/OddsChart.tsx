@@ -19,6 +19,35 @@ interface OddsChartProps {
   currentOdds?: number | null;
   totalUp?: string;
   totalDown?: string;
+  /** 3-way pools (sports home/draw/away): pass the draw stake so the chart's
+   *  up% uses the FULL pool as denominator and matches the card's outcomes. */
+  totalDraw?: string;
+  /** Lock the data source (hides the source toggle). */
+  lockSource?: Source;
+  /** Hide the header controls (source toggle, settings, value readout). */
+  hideControls?: boolean;
+  /** When the pool has no bets yet, seed a gentle baseline curve so the chart
+   *  still renders instead of an empty-state placeholder. */
+  seedDefault?: boolean;
+}
+
+/** Smooth (Catmull-Rom → cubic bezier) path through points for a flowing line. */
+function smoothPath(pts: Array<[number, number]>): string {
+  if (pts.length < 2) return '';
+  if (pts.length === 2) return `M${pts[0][0]},${pts[0][1]} L${pts[1][0]},${pts[1][1]}`;
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i === 0 ? 0 : i - 1];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2 < pts.length ? i + 2 : i + 1];
+    const cp1x = p1[0] + (p2[0] - p0[0]) / 6;
+    const cp1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const cp2x = p2[0] - (p3[0] - p1[0]) / 6;
+    const cp2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += ` C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+  }
+  return d;
 }
 
 const PADDING = { top: 20, right: 56, bottom: 30, left: 12 };
@@ -42,7 +71,7 @@ function formatTime(ts: number): string {
   return new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
+export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, hideControls, seedDefault }: OddsChartProps) {
   const t = useThemeTokens();
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(600);
@@ -50,7 +79,7 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
   const [udHistory, setUdHistory] = useState<OddsPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-  const [source, setSource] = useState<Source>('polymarket');
+  const [source, setSource] = useState<Source>(lockSource ?? 'polymarket');
   const [showYes, setShowYes] = useState(true);
   const [showNo, setShowNo] = useState(true);
   const [settingsAnchor, setSettingsAnchor] = useState<HTMLElement | null>(null);
@@ -76,29 +105,41 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
   useEffect(() => {
     const up = Number(totalUp || 0);
     const down = Number(totalDown || 0);
-    if (up + down > 0) {
-      const now = Date.now() / 1000;
-      const currentP = up / (up + down);
-      // Build a realistic curve from 50/50 to current odds
+    const draw = Number(totalDraw || 0);
+    const total = up + down + draw;
+    const now = Date.now() / 1000;
+    if (total > 0) {
+      // up% of the FULL pool (matches the card's outcome percentages exactly,
+      // including 3-way sports where draw is part of the denominator).
+      const currentP = up / total;
       const points: OddsPoint[] = [];
       const steps = 12;
       for (let i = 0; i <= steps; i++) {
         const t = now - (steps - i) * 300; // 5 min intervals
         const progress = i / steps;
-        // Ease-in curve from 0.5 to currentP with some noise
         const noise = (Math.sin(i * 2.7) * 0.03);
         const p = 0.5 + (currentP - 0.5) * (progress * progress) + noise;
         points.push({ t, p: Math.max(0.01, Math.min(0.99, p)) });
       }
-      // Ensure last point is exact
       points[points.length - 1].p = currentP;
+      setUdHistory(points);
+    } else if (seedDefault) {
+      // No bets yet — seed a gentle ~50% baseline so the chart still renders
+      // (used by the trending hero so every featured market shows a chart).
+      const points: OddsPoint[] = [];
+      const steps = 12;
+      for (let i = 0; i <= steps; i++) {
+        const t = now - (steps - i) * 300;
+        const noise = (Math.sin(i * 1.3) * 0.02);
+        points.push({ t, p: 0.5 + noise });
+      }
       setUdHistory(points);
     }
   }, []);
 
   // ── UpDown data: WebSocket live updates ──
-  const addUdPoint = useCallback((up: number, down: number) => {
-    const total = up + down;
+  const addUdPoint = useCallback((up: number, down: number, draw: number = 0) => {
+    const total = up + down + draw;
     if (total === 0) return;
     setUdHistory(prev => {
       const p = up / total;
@@ -113,17 +154,17 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
     if (!poolId) return;
     const socket = getSocket();
     connectSocket();
-    const onUpdate = (data: { id: string; totalUp: string; totalDown: string }) => {
+    const onUpdate = (data: { id: string; totalUp: string; totalDown: string; totalDraw?: string }) => {
       if (data.id !== poolId) return;
-      addUdPoint(Number(data.totalUp), Number(data.totalDown));
+      addUdPoint(Number(data.totalUp), Number(data.totalDown), Number(data.totalDraw || 0));
     };
     socket.on('pool:updated', onUpdate);
     return () => { socket.off('pool:updated', onUpdate); };
   }, [poolId, addUdPoint]);
 
   useEffect(() => {
-    addUdPoint(Number(totalUp || 0), Number(totalDown || 0));
-  }, [totalUp, totalDown, addUdPoint]);
+    addUdPoint(Number(totalUp || 0), Number(totalDown || 0), Number(totalDraw || 0));
+  }, [totalUp, totalDown, totalDraw, addUdPoint]);
 
   // ── Pick active dataset ──
   const history = source === 'polymarket' ? pmHistory : udHistory;
@@ -158,15 +199,9 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
     [chartH],
   );
 
-  const yesPath = useMemo(() => {
-    if (history.length < 2) return '';
-    return history.map((h, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(h.p).toFixed(1)}`).join(' ');
-  }, [history, toX, toY]);
+  const yesPath = useMemo(() => smoothPath(history.map((h, i) => [toX(i), toY(h.p)])), [history, toX, toY]);
 
-  const noPath = useMemo(() => {
-    if (history.length < 2) return '';
-    return history.map((h, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(1 - h.p).toFixed(1)}`).join(' ');
-  }, [history, toX, toY]);
+  const noPath = useMemo(() => smoothPath(history.map((h, i) => [toX(i), toY(1 - h.p)])), [history, toX, toY]);
 
   const yesAreaPath = useMemo(() => {
     if (history.length < 2) return '';
@@ -206,6 +241,7 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
   return (
     <Box>
       {/* Header */}
+      {!hideControls && (
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
         {/* Left: source toggle + legend */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -298,6 +334,7 @@ export function OddsChart({ poolId, totalUp, totalDown }: OddsChartProps) {
           </Popover>
         </Box>
       </Box>
+      )}
 
       {/* Chart */}
       <Box ref={containerRef} sx={{ width: '100%', height: CHART_H }}>
