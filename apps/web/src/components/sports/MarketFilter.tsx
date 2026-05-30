@@ -244,7 +244,7 @@ export function MarketFilter({
   const intervalOpts = intervalOptions.map(o => ({ ...o, img: null }));
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 3 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, py: 0.5 }}>
       {/* Primary tabs */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Box

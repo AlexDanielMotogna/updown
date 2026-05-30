@@ -84,7 +84,10 @@ function Footer() {
   );
 }
 
-export function AppShell({ children, centered = false }: { children: React.ReactNode; centered?: boolean }) {
+const HEADER_LG = 64;
+const TOP_BAR_LG = 56; // approximate height of a typical MarketFilter row (tabs + padding)
+
+export function AppShell({ children, centered = false, topBar }: { children: React.ReactNode; centered?: boolean; topBar?: React.ReactNode }) {
   const t = useThemeTokens();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -105,6 +108,17 @@ export function AppShell({ children, centered = false }: { children: React.React
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: { xs: 'calc(72px + env(safe-area-inset-bottom, 0px))', lg: 0 } }}>
       <Header />
       <RewardPopup />
+      {/* Top filter bar (e.g. Markets tabs) — sticky just under the header, full
+          width above the sidebar+content row so the sidebars start below it. */}
+      {topBar && (
+        <Box sx={{
+          position: 'sticky', top: { xs: 44, sm: 52, lg: HEADER_LG },
+          zIndex: 30, bgcolor: t.bg.app, maxWidth: 1400, mx: 'auto',
+          px: { xs: 2, md: 3 },
+        }}>
+          {topBar}
+        </Box>
+      )}
       <Box sx={{ display: 'flex', bgcolor: t.bg.app, maxWidth: 1400, mx: 'auto' }}>
         {/* Desktop market sidebar — hidden in `centered` mode (e.g. profile)
             and on the Trending cross-category view (no filters there). */}
@@ -114,8 +128,8 @@ export function AppShell({ children, centered = false }: { children: React.React
             width: 200,
             flexShrink: 0,
             position: 'sticky',
-            top: 64,
-            height: 'calc(100vh - 64px)',
+            top: topBar ? HEADER_LG + TOP_BAR_LG : HEADER_LG,
+            height: topBar ? `calc(100vh - ${HEADER_LG + TOP_BAR_LG}px)` : `calc(100vh - ${HEADER_LG}px)`,
           }}
         >
           <MarketSidebar />
@@ -146,8 +160,8 @@ export function AppShell({ children, centered = false }: { children: React.React
             width: 240,
             flexShrink: 0,
             position: 'sticky',
-            top: 64,
-            height: 'calc(100vh - 64px)',
+            top: topBar ? HEADER_LG + TOP_BAR_LG : HEADER_LG,
+            height: topBar ? `calc(100vh - ${HEADER_LG + TOP_BAR_LG}px)` : `calc(100vh - ${HEADER_LG}px)`,
           }}
         >
           {isMarkets
