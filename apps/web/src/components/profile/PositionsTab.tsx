@@ -1,0 +1,145 @@
+'use client';
+
+import { useState, useMemo } from 'react';
+import { Box, Typography, TextField, InputAdornment } from '@mui/material';
+import { Search } from '@mui/icons-material';
+import { useThemeTokens } from '@/app/providers';
+import { PositionRow, PositionRowSkeleton } from './PositionRow';
+import type { Bet } from '@/lib/api';
+
+type SubTab = 'active' | 'closed';
+
+interface PositionsTabProps {
+  bets: Bet[];
+  betsLoading: boolean;
+  claimingBetId: string | null;
+  onClaim: (poolId: string, betId: string) => void;
+}
+
+/**
+ * Polymarket-style positions view: two sub-tabs (Activa / Cerrado) with a
+ * search box and the column-headed table of position rows.
+ *
+ * Activa  = bets on pools still open (JOINING / ACTIVE / UPCOMING).
+ * Cerrado = bets on pools that have resolved (RESOLVED / CLAIMABLE), regardless
+ *           of whether the user has actually claimed yet.
+ */
+export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim }: PositionsTabProps) {
+  const t = useThemeTokens();
+  const [sub, setSub] = useState<SubTab>('active');
+  const [query, setQuery] = useState('');
+
+  const { activeBets, closedBets } = useMemo(() => {
+    const a: Bet[] = [];
+    const c: Bet[] = [];
+    for (const bet of bets) {
+      const open = bet.pool.status === 'JOINING' || bet.pool.status === 'ACTIVE' || bet.pool.status === 'UPCOMING';
+      if (open) a.push(bet); else c.push(bet);
+    }
+    return { activeBets: a, closedBets: c };
+  }, [bets]);
+
+  const shown = sub === 'active' ? activeBets : closedBets;
+  const filtered = useMemo(() => {
+    if (!query.trim()) return shown;
+    const q = query.toLowerCase();
+    return shown.filter(b => {
+      const asset = b.pool.asset?.toLowerCase() ?? '';
+      const home = b.pool.homeTeam?.toLowerCase() ?? '';
+      const away = b.pool.awayTeam?.toLowerCase() ?? '';
+      return asset.includes(q) || home.includes(q) || away.includes(q);
+    });
+  }, [shown, query]);
+
+  const subTabSx = (active: boolean) => ({
+    px: 2.5, py: 0.85,
+    cursor: 'pointer',
+    fontSize: '0.82rem',
+    fontWeight: 600,
+    color: active ? t.text.primary : t.text.tertiary,
+    bgcolor: active ? t.bg.surfaceAlt : 'transparent',
+    border: `1px solid ${active ? t.border.medium : 'transparent'}`,
+    borderRadius: '6px',
+    transition: 'all 0.15s ease',
+    '&:hover': { color: t.text.primary },
+  });
+
+  return (
+    <Box>
+      {/* Sub-tabs + search bar */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', gap: 0.5, p: 0.4, bgcolor: t.bg.surface, borderRadius: '8px', border: `1px solid ${t.border.subtle}` }}>
+          <Box onClick={() => setSub('active')} sx={subTabSx(sub === 'active')}>
+            Activa {activeBets.length > 0 && <Box component="span" sx={{ ml: 0.5, color: t.text.quaternary, fontWeight: 500 }}>({activeBets.length})</Box>}
+          </Box>
+          <Box onClick={() => setSub('closed')} sx={subTabSx(sub === 'closed')}>
+            Cerrado {closedBets.length > 0 && <Box component="span" sx={{ ml: 0.5, color: t.text.quaternary, fontWeight: 500 }}>({closedBets.length})</Box>}
+          </Box>
+        </Box>
+        <TextField
+          placeholder="Buscar posiciones"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          size="small"
+          sx={{
+            flex: 1, minWidth: 200, maxWidth: 360,
+            '& .MuiOutlinedInput-root': {
+              fontSize: '0.85rem', bgcolor: t.bg.surface,
+              '& fieldset': { borderColor: t.border.subtle },
+              '&:hover fieldset': { borderColor: t.border.medium },
+            },
+          }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search sx={{ fontSize: 18, color: t.text.quaternary }} />
+              </InputAdornment>
+            ),
+          }}
+        />
+      </Box>
+
+      {/* Column headers (desktop only) */}
+      <Box sx={{
+        display: { xs: 'none', md: 'grid' },
+        gridTemplateColumns: '110px 1fr 130px 180px 100px',
+        gap: 2, px: 2, py: 1, mb: 0.5,
+        borderBottom: `1px solid ${t.border.subtle}`,
+      }}>
+        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Resultado</Typography>
+        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Mercado</Typography>
+        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' }}>Total negociado</Typography>
+        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' }}>Cantidad ganada</Typography>
+        <Box />
+      </Box>
+
+      {/* Table body */}
+      {betsLoading ? (
+        <Box>
+          {[1, 2, 3, 4].map(i => <PositionRowSkeleton key={i} />)}
+        </Box>
+      ) : filtered.length === 0 ? (
+        <Box sx={{ textAlign: 'center', py: 8, px: 4 }}>
+          <Typography sx={{ color: t.text.tertiary, fontSize: '0.9rem' }}>
+            {query.trim()
+              ? 'No matches for your search'
+              : sub === 'active'
+              ? 'No active positions — open one from the markets page'
+              : 'No closed positions yet'}
+          </Typography>
+        </Box>
+      ) : (
+        <Box>
+          {filtered.map(bet => (
+            <PositionRow
+              key={bet.id}
+              bet={bet}
+              onClaim={() => onClaim(bet.pool.id, bet.id)}
+              isClaiming={claimingBetId === bet.id}
+            />
+          ))}
+        </Box>
+      )}
+    </Box>
+  );
+}
