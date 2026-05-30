@@ -97,7 +97,10 @@ export function PositionRow({ bet, onClaim, isClaiming }: PositionRowProps) {
   const stakeNum = Number(bet.amount);
   const profitNum = payoutNum - stakeNum;
   const profitPct = stakeNum > 0 ? (profitNum / stakeNum) * 100 : 0;
-  const showProfit = bet.claimed && bet.isWinner === true && payoutNum > 0;
+  const isRefundRow = bet.claimed && bet.payoutAmount != null && bet.payoutAmount === bet.amount;
+  // Don't show "+\$0.00 (0%)" on refunds — the chip already says Refunded
+  // and the delta is mathematically meaningless (you got your stake back).
+  const showProfit = bet.claimed && payoutNum > 0 && !isRefundRow && bet.isWinner === true;
 
   // For active pools (no winner yet) show the "potential payout at current
   // odds" — straight parimutuel math, minus an approximate 5% protocol fee.

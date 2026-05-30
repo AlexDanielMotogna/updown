@@ -24,7 +24,8 @@ import {
   type SideLabel,
 } from 'solana-client';
 import { derivePoolSeed, getUsdcMint, getConnection } from '../utils/solana';
-import { resolveFeeBps } from '../utils/payout';
+import { resolveFeeBps, calculatePayout } from '../utils/payout';
+import { getDistinctBettorWallets } from '../utils/bets';
 import { awardBetWin, awardClaimCompleted } from '../services/rewards';
 import { notifyBetPaid } from '../services/notifications';
 import { emitBetPaid } from '../websocket';
@@ -142,6 +143,15 @@ export async function autoClaimBets(
     return { attempted: 0, succeeded: 0, failed: 0, skipped: 0 };
   }
 
+  // Read the totals once for the server-side payout calculation that mirrors
+  // the on-chain transfer. Same numbers the contract uses: payout =
+  // (stake × totalPool) / sideTotal − fee (fee waived if 1 distinct bettor).
+  const poolRow = await deps.prisma.pool.findUnique({
+    where: { id: pool.id },
+    select: { totalUp: true, totalDown: true, totalDraw: true },
+  });
+  const distinctWallets = (await getDistinctBettorWallets(pool.id)).length;
+
   const startedAt = Date.now();
   let succeeded = 0;
   let failed = 0;
@@ -176,6 +186,23 @@ export async function autoClaimBets(
           feeBps,
         );
 
+        // Mirror the on-chain payout math server-side and persist it. Without
+        // this, backend aggregations like `totalWon` (sum of payoutAmount on
+        // the user profile) miss auto-paid bets entirely — only refunds
+        // (which autoRefundBets already stores) show up in the Net P&L card,
+        // so the header desyncs from the table.
+        const { payout: payoutAmount } = poolRow
+          ? calculatePayout({
+              betAmount: bet.amount,
+              totalUp: poolRow.totalUp,
+              totalDown: poolRow.totalDown,
+              totalDraw: poolRow.totalDraw,
+              side: bet.side as 'UP' | 'DOWN' | 'DRAW',
+              betCount: distinctWallets,
+              feeBps,
+            })
+          : { payout: bet.amount };
+
         // Optimistic lock — manual confirm-claim may have already updated
         // the row; in that case updateMany returns count=0 and we skip
         // the rewards (they were already granted by confirm-claim).
@@ -184,6 +211,7 @@ export async function autoClaimBets(
           data: {
             claimed: true,
             claimTx: txSig,
+            payoutAmount,
             payoutAttempts: { increment: 1 },
             lastAttemptedAt: new Date(),
           },

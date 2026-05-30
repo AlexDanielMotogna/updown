@@ -64,9 +64,13 @@ export function PnLChart({ bets }: PnLChartProps) {
     return settled.map(b => {
       const stake = Number(b.amount);
       const payout = b.payoutAmount ? Number(b.payoutAmount) : 0;
-      // payoutAmount === stake is a refund; payout > stake is a real win.
+      // Refund detection MUST come before the isWinner check: for hedged
+      // single-bettor pools the scheduler picks one side as the synthetic
+      // winner, so the user's other (refunded) side ends up with
+      // isWinner=false even though they got their money back. Treating
+      // that as a -stake loss would double-count and skew the curve.
       const isRefund = payout > 0 && payout === stake;
-      const delta = b.isWinner === false ? -stake : isRefund ? 0 : payout - stake;
+      const delta = isRefund ? 0 : b.isWinner === false ? -stake : payout - stake;
       cum += delta;
       return { t: new Date(b.createdAt).getTime(), pnl: cum };
     });
