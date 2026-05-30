@@ -15,6 +15,46 @@ import type { CategoryConfig } from '@/hooks/useCategories';
 
 const ASSET_NAMES: Record<string, string> = { BTC: 'Bitcoin', ETH: 'Ethereum', SOL: 'Solana' };
 
+/**
+ * Pool.matchAnalysis is sometimes a free-text blurb and sometimes a JSON blob
+ * with head-to-head + recent matches. Turn it into a short readable string the
+ * News box can show. Returns null when there's nothing useful (so the section
+ * collapses cleanly).
+ */
+function formatMatchAnalysis(raw: string | null, homeTeam: string | null, awayTeam: string | null): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  // Free-text — keep as-is.
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return raw;
+  try {
+    const data = JSON.parse(trimmed) as {
+      h2h?: { total?: number; homeWins?: number; awayWins?: number; draws?: number };
+      matches?: Array<{ date?: string; home?: string; away?: string; homeScore?: number; awayScore?: number; score?: string }>;
+    };
+    const home = homeTeam?.trim() || 'Home';
+    const away = awayTeam?.trim() || 'Away';
+    const parts: string[] = [];
+    const h = data.h2h;
+    if (h && typeof h === 'object' && (h.total ?? 0) > 0) {
+      const hw = h.homeWins ?? 0, aw = h.awayWins ?? 0, dw = h.draws ?? 0;
+      parts.push(`Last ${h.total} H2H: ${home} ${hw}W · ${away} ${aw}W · ${dw} draws.`);
+    }
+    if (Array.isArray(data.matches) && data.matches.length > 0) {
+      const recent = data.matches.slice(0, 2).map(m => {
+        const d = m.date ? `${m.date}: ` : '';
+        const score = m.score || (m.homeScore != null && m.awayScore != null ? `${m.homeScore}-${m.awayScore}` : '');
+        const matchStr = score ? `${m.home || home} ${score} ${m.away || away}` : `${m.home || home} vs ${m.away || away}`;
+        return `${d}${matchStr}`;
+      });
+      parts.push(`Recent: ${recent.join('; ')}.`);
+    }
+    return parts.length > 0 ? parts.join(' ') : null;
+  } catch {
+    return raw;
+  }
+}
+
 interface Props {
   pools: Pool[];
   categoryMap: Map<string, CategoryConfig>;
@@ -104,7 +144,7 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
   const cryptoBlurb = isCrypto
     ? `Predict whether ${ASSET_NAMES[pool.asset] || pool.asset} closes higher or lower at the end of the next ${INTERVAL_LABELS[pool.interval] || pool.interval} round.`
     : null;
-  const newsText = pool.matchAnalysis || cryptoBlurb;
+  const newsText = formatMatchAnalysis(pool.matchAnalysis ?? null, pool.homeTeam ?? null, pool.awayTeam ?? null) || cryptoBlurb;
 
   return (
     <Box sx={{ bgcolor: t.bg.surface, border: t.surfaceBorder, borderRadius: 2, p: { xs: 1.75, md: 2.5 }, mb: { xs: 3, md: 4 } }}>
