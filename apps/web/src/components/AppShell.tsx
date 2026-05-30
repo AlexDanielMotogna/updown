@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { Box, Typography, Drawer } from '@mui/material';
 import ViewSidebarRounded from '@mui/icons-material/ViewSidebarRounded';
 import { Header } from './Header';
@@ -87,7 +87,11 @@ function Footer() {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const t = useThemeTokens();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isMarkets = pathname === '/';
+  // Trending has no left filter sidebar (cross-category view), so don't reserve
+  // its 200px gutter — let the content grow into that space.
+  const hideMarketSidebar = isMarkets && searchParams.get('type') === 'TRENDING';
   const [rightOpen, setRightOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   useEffect(() => {
@@ -101,10 +105,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Header />
       <RewardPopup />
       <Box sx={{ display: 'flex', bgcolor: t.bg.app, maxWidth: 1400, mx: 'auto' }}>
-        {/* Desktop market sidebar */}
+        {/* Desktop market sidebar — collapsed on Trending (no filters there). */}
         <Box
           sx={{
-            display: { xs: 'none', lg: 'block' },
+            display: { xs: 'none', lg: hideMarketSidebar ? 'none' : 'block' },
             width: 200,
             flexShrink: 0,
             position: 'sticky',
