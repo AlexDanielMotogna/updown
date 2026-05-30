@@ -8,7 +8,9 @@ import { useThemeTokens } from '@/app/providers';
 
 interface OddsPoint {
   t: number;
-  p: number;
+  p: number;          // up share (legacy single-value — also used by polymarket data)
+  down?: number;      // down share — set on 3-way pools so the "no" line isn't 1 - up
+  draw?: number;      // draw share — only set on 3-way pools
 }
 
 type Source = 'polymarket' | 'updown';
@@ -29,6 +31,8 @@ interface OddsChartProps {
   /** When the pool has no bets yet, seed a gentle baseline curve so the chart
    *  still renders instead of an empty-state placeholder. */
   seedDefault?: boolean;
+  /** 3-way pool (sports home/draw/away) — render a third line for draw. */
+  threeWay?: boolean;
 }
 
 /** Smooth (Catmull-Rom → cubic bezier) path through points for a flowing line. */
@@ -71,7 +75,7 @@ function formatTime(ts: number): string {
   return new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, hideControls, seedDefault }: OddsChartProps) {
+export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, hideControls, seedDefault, threeWay }: OddsChartProps) {
   const t = useThemeTokens();
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(600);
@@ -108,30 +112,44 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
     const draw = Number(totalDraw || 0);
     const total = up + down + draw;
     const now = Date.now() / 1000;
+    const defShare = threeWay ? 1 / 3 : 0.5;
+    const clamp = (x: number) => Math.max(0.01, Math.min(0.99, x));
     if (total > 0) {
-      // up% of the FULL pool (matches the card's outcome percentages exactly,
-      // including 3-way sports where draw is part of the denominator).
-      const currentP = up / total;
+      // Share of the FULL pool per outcome (matches the card percentages exactly).
+      const tgtUp = up / total;
+      const tgtDown = down / total;
+      const tgtDraw = draw / total;
       const points: OddsPoint[] = [];
       const steps = 12;
       for (let i = 0; i <= steps; i++) {
         const t = now - (steps - i) * 300; // 5 min intervals
         const progress = i / steps;
         const noise = (Math.sin(i * 2.7) * 0.03);
-        const p = 0.5 + (currentP - 0.5) * (progress * progress) + noise;
-        points.push({ t, p: Math.max(0.01, Math.min(0.99, p)) });
+        const interp = (target: number) => clamp(defShare + (target - defShare) * progress * progress + noise);
+        points.push({
+          t,
+          p: interp(tgtUp),
+          ...(threeWay && { down: interp(tgtDown), draw: interp(tgtDraw) }),
+        });
       }
-      points[points.length - 1].p = currentP;
+      const last = points[points.length - 1];
+      last.p = tgtUp;
+      if (threeWay) { last.down = tgtDown; last.draw = tgtDraw; }
       setUdHistory(points);
     } else if (seedDefault) {
-      // No bets yet — seed a gentle ~50% baseline so the chart still renders
-      // (used by the trending hero so every featured market shows a chart).
+      // No bets yet — seed a gentle baseline at the default share so the chart
+      // still renders (used by the trending hero so every featured market
+      // shows a chart).
       const points: OddsPoint[] = [];
       const steps = 12;
       for (let i = 0; i <= steps; i++) {
         const t = now - (steps - i) * 300;
         const noise = (Math.sin(i * 1.3) * 0.02);
-        points.push({ t, p: 0.5 + noise });
+        points.push({
+          t,
+          p: defShare + noise,
+          ...(threeWay && { down: defShare + noise * 0.7, draw: defShare + noise * 0.4 }),
+        });
       }
       setUdHistory(points);
     }
@@ -142,13 +160,18 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
     const total = up + down + draw;
     if (total === 0) return;
     setUdHistory(prev => {
-      const p = up / total;
+      const pUp = up / total;
       const last = prev[prev.length - 1];
-      if (last && Math.abs(last.p - p) < 0.001) return prev; // no meaningful change
-      const next = [...prev, { t: Date.now() / 1000, p }];
+      if (last && Math.abs(last.p - pUp) < 0.001) return prev; // no meaningful change
+      const point: OddsPoint = { t: Date.now() / 1000, p: pUp };
+      if (threeWay) {
+        point.down = down / total;
+        point.draw = draw / total;
+      }
+      const next = [...prev, point];
       return next.length > MAX_UPDOWN_POINTS ? next.slice(-MAX_UPDOWN_POINTS) : next;
     });
-  }, []);
+  }, [threeWay]);
 
   useEffect(() => {
     if (!poolId) return;
@@ -201,7 +224,17 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
 
   const yesPath = useMemo(() => smoothPath(history.map((h, i) => [toX(i), toY(h.p)])), [history, toX, toY]);
 
-  const noPath = useMemo(() => smoothPath(history.map((h, i) => [toX(i), toY(1 - h.p)])), [history, toX, toY]);
+  // 3-way pools: "no" line uses the actual down share, not 1 - up (which would
+  // incorrectly include the draw share). 2-way pools fall back to 1 - up.
+  const noPath = useMemo(
+    () => smoothPath(history.map((h, i) => [toX(i), toY(h.down ?? (1 - h.p))])),
+    [history, toX, toY],
+  );
+
+  const drawPath = useMemo(() => {
+    if (!threeWay) return '';
+    return smoothPath(history.map((h, i) => [toX(i), toY(h.draw ?? 0)]));
+  }, [history, toX, toY, threeWay]);
 
   const yesAreaPath = useMemo(() => {
     if (history.length < 2) return '';
@@ -370,6 +403,7 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
             {/* Lines */}
             {showYes && <path d={yesAreaPath} fill={`url(#og-${poolId}-${source})`} />}
             {showNo && <path d={noPath} fill="none" stroke={t.down} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.4} />}
+            {threeWay && drawPath && <path d={drawPath} fill="none" stroke={t.draw} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" opacity={0.7} />}
             {showYes && <path d={yesPath} fill="none" stroke={t.up} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />}
 
             {/* Hover */}
@@ -377,7 +411,8 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
               <>
                 <line x1={toX(hoverIndex)} y1={PADDING.top} x2={toX(hoverIndex)} y2={PADDING.top + chartH} stroke={t.border.strong} strokeDasharray="3,3" />
                 {showYes && <circle cx={toX(hoverIndex)} cy={toY(hoverPoint.p)} r={4} fill={t.up} stroke="#0D1219" strokeWidth={2} />}
-                {showNo && <circle cx={toX(hoverIndex)} cy={toY(1 - hoverPoint.p)} r={3.5} fill={t.down} stroke="#0D1219" strokeWidth={2} opacity={0.7} />}
+                {showNo && <circle cx={toX(hoverIndex)} cy={toY(hoverPoint.down ?? (1 - hoverPoint.p))} r={3.5} fill={t.down} stroke="#0D1219" strokeWidth={2} opacity={0.7} />}
+                {threeWay && hoverPoint.draw != null && <circle cx={toX(hoverIndex)} cy={toY(hoverPoint.draw)} r={3.5} fill={t.draw} stroke="#0D1219" strokeWidth={2} opacity={0.8} />}
               </>
             )}
 
@@ -397,9 +432,17 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
                 )}
                 {showNo && (
                   <>
-                    <circle cx={toX(history.length - 1)} cy={toY(1 - lastPoint.p)} r={3} fill={t.down} opacity={0.5} />
-                    <text x={toX(history.length - 1) + 8} y={toY(1 - lastPoint.p) + 4} fill={t.down} fontSize={10} fontWeight={600} fontFamily={FONT} opacity={0.5}>
-                      {formatPct(1 - lastPoint.p)}
+                    <circle cx={toX(history.length - 1)} cy={toY(lastPoint.down ?? (1 - lastPoint.p))} r={3} fill={t.down} opacity={0.5} />
+                    <text x={toX(history.length - 1) + 8} y={toY(lastPoint.down ?? (1 - lastPoint.p)) + 4} fill={t.down} fontSize={10} fontWeight={600} fontFamily={FONT} opacity={0.5}>
+                      {formatPct(lastPoint.down ?? (1 - lastPoint.p))}
+                    </text>
+                  </>
+                )}
+                {threeWay && lastPoint.draw != null && (
+                  <>
+                    <circle cx={toX(history.length - 1)} cy={toY(lastPoint.draw)} r={3} fill={t.draw} opacity={0.7} />
+                    <text x={toX(history.length - 1) + 8} y={toY(lastPoint.draw) + 4} fill={t.draw} fontSize={10} fontWeight={600} fontFamily={FONT} opacity={0.7}>
+                      {formatPct(lastPoint.draw)}
                     </text>
                   </>
                 )}
