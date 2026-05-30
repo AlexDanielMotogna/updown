@@ -24,12 +24,12 @@ export declare function buildResolveWithWinnerIx(pool: PublicKey, authority: Pub
  * Build `claim` TransactionInstruction (with fee).
  * Accounts: pool, userBet, vault, userTokenAccount, user, authority, feeWallet, tokenProgram
  */
-export declare function buildClaimIx(pool: PublicKey, userBet: PublicKey, vault: PublicKey, userTokenAccount: PublicKey, user: PublicKey, authority: PublicKey, feeWallet: PublicKey, feeBps: number): TransactionInstruction;
+export declare function buildClaimIx(pool: PublicKey, userBet: PublicKey, vault: PublicKey, userTokenAccount: PublicKey, user: PublicKey, authority: PublicKey, feeWallet: PublicKey, feeBps: number, side: 0 | 1 | 2): TransactionInstruction;
 /**
  * Build `refund` TransactionInstruction (authority-signed, no user signature).
  * Accounts: pool, userBet, vault, userTokenAccount, user (not signer), authority, tokenProgram
  */
-export declare function buildRefundIx(pool: PublicKey, userBet: PublicKey, vault: PublicKey, userTokenAccount: PublicKey, user: PublicKey, authority: PublicKey): TransactionInstruction;
+export declare function buildRefundIx(pool: PublicKey, userBet: PublicKey, vault: PublicKey, userTokenAccount: PublicKey, user: PublicKey, authority: PublicKey, side: 0 | 1 | 2): TransactionInstruction;
 /**
  * Build `close_pool` TransactionInstruction.
  * Closes a resolved pool + empty vault, reclaiming rent to authority.
