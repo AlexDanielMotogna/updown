@@ -120,6 +120,51 @@ export function MarketFilter({
   const [showFilters, setShowFilters] = useState(false);
   const { data: categories } = useCategories();
 
+  // Horizontal tabs overflow on narrow widths. No visible arrows — instead
+  // make the row drag-to-scroll (mouse + touch) and translate the vertical
+  // mouse wheel into horizontal scroll. Tab clicks still work because we only
+  // start "dragging" once the pointer moves past a small threshold.
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const dragState = useRef({ startX: 0, startScroll: 0, dragging: false, pointerId: -1 });
+  const DRAG_THRESHOLD = 5;
+  const onWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    const el = tabsRef.current;
+    if (!el) return;
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      el.scrollLeft += e.deltaY;
+    }
+  };
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const el = tabsRef.current;
+    if (!el) return;
+    dragState.current = { startX: e.clientX, startScroll: el.scrollLeft, dragging: false, pointerId: e.pointerId };
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const s = dragState.current;
+    if (s.pointerId !== e.pointerId) return;
+    const dx = e.clientX - s.startX;
+    if (!s.dragging) {
+      if (Math.abs(dx) < DRAG_THRESHOLD) return;
+      s.dragging = true;
+      try { tabsRef.current?.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    }
+    if (tabsRef.current) tabsRef.current.scrollLeft = s.startScroll - dx;
+  };
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const s = dragState.current;
+    if (s.pointerId !== e.pointerId) return;
+    const wasDragging = s.dragging;
+    s.dragging = false;
+    s.pointerId = -1;
+    try { tabsRef.current?.releasePointerCapture?.(e.pointerId); } catch { /* ignore */ }
+    if (wasDragging) {
+      // Swallow the click that would otherwise fire after a drag.
+      const stop = (ev: Event) => { ev.stopPropagation(); window.removeEventListener('click', stop, true); };
+      window.addEventListener('click', stop, true);
+    }
+  };
+
   // Build dynamic tabs from categories
   const { tabs, sportOptions, leagueOptions } = useMemo(() => {
     const cats = categories || [];
@@ -202,7 +247,20 @@ export function MarketFilter({
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 3 }}>
       {/* Primary tabs */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Box sx={{ display: 'flex', gap: 0, overflow: 'auto', '&::-webkit-scrollbar': { display: 'none' } }}>
+        <Box
+          ref={tabsRef}
+          onWheel={onWheel}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          sx={{
+            display: 'flex', gap: 0, overflow: 'auto', minWidth: 0,
+            cursor: 'grab', userSelect: 'none', touchAction: 'pan-x',
+            '&:active': { cursor: 'grabbing' },
+            '&::-webkit-scrollbar': { display: 'none' },
+          }}
+        >
           {tabs.map((tab) => {
             const active = marketType === tab.key;
             return (
