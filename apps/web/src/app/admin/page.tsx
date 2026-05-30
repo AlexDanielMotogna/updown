@@ -13,8 +13,9 @@ import { EventLog } from './components/EventLog';
 import { ManualActions } from './components/ManualActions';
 import { TournamentManagement } from './components/TournamentManagement';
 import { CategoryManagement } from './components/CategoryManagement';
+import { PayoutManagement } from './components/PayoutManagement';
 
-const TABS = ['Health', 'Pools', 'Finance', 'Users', 'Events', 'Actions', 'Tournaments', 'Categories'] as const;
+const TABS = ['Health', 'Pools', 'Payouts', 'Finance', 'Users', 'Events', 'Actions', 'Tournaments', 'Categories'] as const;
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
@@ -51,12 +52,13 @@ export default function AdminPage() {
       <Box>
         {tab === 0 && <SystemHealth />}
         {tab === 1 && <PoolManagement />}
-        {tab === 2 && <FinancialOverview />}
-        {tab === 3 && <UserOverview />}
-        {tab === 4 && <EventLog />}
-        {tab === 5 && <ManualActions />}
-        {tab === 6 && <TournamentManagement />}
-        {tab === 7 && <CategoryManagement />}
+        {tab === 2 && <PayoutManagement />}
+        {tab === 3 && <FinancialOverview />}
+        {tab === 4 && <UserOverview />}
+        {tab === 5 && <EventLog />}
+        {tab === 6 && <ManualActions />}
+        {tab === 7 && <TournamentManagement />}
+        {tab === 8 && <CategoryManagement />}
       </Box>
     </Box>
   );

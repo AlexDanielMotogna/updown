@@ -8,6 +8,7 @@ import { adminEventsRouter } from './events';
 import { adminActionsRouter } from './actions';
 import { adminTournamentsRouter } from './tournaments';
 import { adminCategoriesRouter } from './categories';
+import { adminPayoutsRouter, adminWalletRouter } from './payouts';
 
 export const adminRouter: RouterType = Router();
 
@@ -27,3 +28,5 @@ adminRouter.use('/events', adminEventsRouter);
 adminRouter.use('/actions', adminActionsRouter);
 adminRouter.use('/tournaments', adminTournamentsRouter);
 adminRouter.use('/categories', adminCategoriesRouter);
+adminRouter.use('/payouts', adminPayoutsRouter);
+adminRouter.use('/wallet', adminWalletRouter);
