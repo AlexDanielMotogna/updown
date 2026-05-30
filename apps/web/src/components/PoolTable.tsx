@@ -41,7 +41,8 @@ export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData,
     <Box
       sx={{
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+        // 2 cols up to xl matches Kalshi/Polymarket density.
+        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', xl: 'repeat(3, 1fr)' },
         gap: { xs: 1.5, md: 2 },
         opacity: isPlaceholderData ? 0.5 : 1,
         transition: 'opacity 0.2s ease',
