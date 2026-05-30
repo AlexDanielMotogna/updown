@@ -103,6 +103,12 @@ export interface Bet {
     awayTeam?: string | null;
     homeTeamCrest?: string | null;
     awayTeamCrest?: string | null;
+    // Pool totals for parimutuel math — used by /profile to render the
+    // potential payout on active bets at the current pool odds.
+    totalUp?: string;
+    totalDown?: string;
+    totalDraw?: string;
+    betCount?: number;
   };
 }
 

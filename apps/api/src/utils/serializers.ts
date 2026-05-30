@@ -145,6 +145,12 @@ export function serializeBet(bet: {
       awayTeam: (bet.pool as any).awayTeam ?? null,
       homeTeamCrest: (bet.pool as any).homeTeamCrest ?? null,
       awayTeamCrest: (bet.pool as any).awayTeamCrest ?? null,
+      // Pool totals — exposed so the profile UI can compute a "potential
+      // payout at current odds" hint for bets on active pools.
+      totalUp: bet.pool.totalUp.toString(),
+      totalDown: bet.pool.totalDown.toString(),
+      totalDraw: (bet.pool.totalDraw ?? 0n).toString(),
+      betCount: bet.pool._count.bets,
     },
   };
 }

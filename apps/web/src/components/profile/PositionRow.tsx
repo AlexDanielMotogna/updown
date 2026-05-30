@@ -99,6 +99,23 @@ export function PositionRow({ bet, onClaim, isClaiming }: PositionRowProps) {
   const profitPct = stakeNum > 0 ? (profitNum / stakeNum) * 100 : 0;
   const showProfit = bet.claimed && bet.isWinner === true && payoutNum > 0;
 
+  // For active pools (no winner yet) show the "potential payout at current
+  // odds" — straight parimutuel math, minus an approximate 5% protocol fee.
+  // Re-renders whenever the bet/pool query refreshes, so the number breathes
+  // with the pool's live totals.
+  const totalUp = Number(bet.pool.totalUp ?? 0);
+  const totalDown = Number(bet.pool.totalDown ?? 0);
+  const totalDraw = Number(bet.pool.totalDraw ?? 0);
+  const totalPool = totalUp + totalDown + totalDraw;
+  const sideTotal = bet.side === 'UP' ? totalUp : bet.side === 'DOWN' ? totalDown : totalDraw;
+  const isUnsettled = !bet.payoutAmount && (bet.pool.status === 'JOINING' || bet.pool.status === 'ACTIVE');
+  const potentialPayoutNum =
+    isUnsettled && sideTotal > 0 && totalPool > 0
+      ? ((stakeNum / sideTotal) * totalPool) * 0.95
+      : 0;
+  const potentialDelta = potentialPayoutNum - stakeNum;
+  const potentialPct = stakeNum > 0 ? (potentialDelta / stakeNum) * 100 : 0;
+
   const poolLink = isSports ? `/match/${bet.pool.id}` : `/pool/${bet.pool.id}`;
 
   return (
@@ -185,7 +202,10 @@ export function PositionRow({ bet, onClaim, isClaiming }: PositionRowProps) {
         </Typography>
       </Box>
 
-      {/* Payout / Cantidad ganada — header above carries the label */}
+      {/* Payout — header above carries the label.
+          Settled = on-chain amount + profit delta.
+          Unsettled = potential payout at current pool odds (parimutuel math).
+          Pending auto-payout = "Paying soon…" italic. */}
       <Box sx={{ display: { xs: 'none', md: 'block' }, textAlign: 'right' }}>
         {bet.payoutAmount ? (
           <>
@@ -202,6 +222,22 @@ export function PositionRow({ bet, onClaim, isClaiming }: PositionRowProps) {
           <Typography sx={{ fontSize: '0.78rem', color: t.text.tertiary, fontStyle: 'italic' }}>
             Paying soon…
           </Typography>
+        ) : isUnsettled && potentialPayoutNum > 0 ? (
+          <>
+            <Typography
+              sx={{
+                fontSize: '0.95rem',
+                fontWeight: 700,
+                color: t.text.secondary,
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              ~{formatUSDC(String(Math.round(potentialPayoutNum)), { min: 2 })}
+            </Typography>
+            <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, lineHeight: 1.2 }}>
+              if {bet.side === 'UP' ? 'Up' : bet.side === 'DOWN' ? 'Down' : 'Draw'} wins · {potentialDelta >= 0 ? '+' : ''}{potentialPct.toFixed(0)}%
+            </Typography>
+          </>
         ) : (
           <Typography sx={{ fontSize: '0.85rem', color: t.text.quaternary }}>—</Typography>
         )}
