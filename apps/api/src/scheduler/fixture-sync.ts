@@ -9,6 +9,7 @@ import {
 } from '../services/sports/fixture-cache';
 import { getFootballConfigs, getSportsDbConfigs } from '../services/category-config';
 import type { Match, MatchResult } from '../services/sports/types';
+import { regulationWinner } from '../services/sports/regulation-time';
 const RATE_LIMIT_DELAY_MS = 2_000; // 2s between API calls (TheSportsDB allows 100/min)
 const API_SOURCE = 'sports';
 
@@ -30,7 +31,7 @@ function addDays(d: Date, days: number): Date {
 
 async function upsertMatch(match: Match, source: string): Promise<void> {
   const winner = match.status === 'FINISHED' && match.homeScore != null && match.awayScore != null
-    ? (match.homeScore > match.awayScore ? 'HOME' : match.awayScore > match.homeScore ? 'AWAY' : 'DRAW')
+    ? regulationWinner(match.homeScore, match.awayScore, match.rawStatus)
     : null;
 
   await prisma.sportsFixtureCache.upsert({
@@ -77,8 +78,10 @@ async function upsertMatch(match: Match, source: string): Promise<void> {
 }
 
 async function updateCacheFromResult(result: MatchResult): Promise<void> {
-  const winner = result.homeScore > result.awayScore ? 'HOME'
-    : result.awayScore > result.homeScore ? 'AWAY' : 'DRAW';
+  // Prefer the regulation-time winner already on the MatchResult; fall back
+  // to recomputing from rawStatus + score for callers that don't populate it.
+  const winner = result.winner
+    ?? regulationWinner(result.homeScore, result.awayScore, result.rawStatus);
 
   await prisma.sportsFixtureCache.updateMany({
     where: { externalId: result.matchId },

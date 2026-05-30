@@ -1,5 +1,6 @@
 import { prisma } from '../db';
 import { getCachedFixtureResults } from '../services/sports/fixture-cache';
+import { regulationWinner } from '../services/sports/regulation-time';
 import {
   parseMatchdayPrediction,
   determineMatchdayWinner,
@@ -117,7 +118,10 @@ export async function processSportsTournament(tournament: {
         continue;
       }
 
-      const outcome = result.homeScore > result.awayScore ? 'HOME' : result.awayScore > result.homeScore ? 'AWAY' : 'DRAW';
+      // Regulation-time rules — extra time / penalties don't count for
+      // tournament outcome (same as pool resolution). result.winner is
+      // already the regulation winner when populated by the upstream cache.
+      const outcome = result.winner ?? regulationWinner(result.homeScore, result.awayScore, result.rawStatus);
       await prisma.tournamentRoundFixture.update({
         where: { id: fix.id },
         data: { resultHome: result.homeScore, resultAway: result.awayScore, resultOutcome: outcome, status: 'FINISHED' },
