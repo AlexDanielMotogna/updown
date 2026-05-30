@@ -149,6 +149,139 @@ poolsRouter.get('/livescores', async (_req, res) => {
   res.json({ success: true, data });
 });
 
+// GET /api/pools/search?q=bitcoin — typeahead search over ACTIVE pools (open for
+// betting). Matches the market question/team (homeTeam, awayTeam) and crypto asset.
+// Returns a lightweight shape for the navbar search dropdown. Must be before /:id.
+poolsRouter.get('/search', async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    if (q.length < 2) return res.json({ success: true, data: [] });
+
+    const pools = await prisma.pool.findMany({
+      where: {
+        squadId: null,
+        status: { in: ['JOINING', 'ACTIVE'] },
+        OR: [
+          { homeTeam: { contains: q, mode: 'insensitive' } },
+          { awayTeam: { contains: q, mode: 'insensitive' } },
+          { asset: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+      orderBy: [{ status: 'asc' }, { startTime: 'asc' }],
+      take: 12,
+      select: {
+        id: true, status: true, poolType: true, league: true,
+        asset: true, interval: true, homeTeam: true, awayTeam: true,
+        homeTeamCrest: true, startTime: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      data: pools.map(p => ({
+        id: p.id,
+        status: p.status,
+        poolType: p.poolType,
+        league: p.league,
+        asset: p.asset,
+        interval: p.interval,
+        homeTeam: p.homeTeam,
+        awayTeam: p.awayTeam,
+        homeTeamCrest: p.homeTeamCrest,
+        startTime: p.startTime.toISOString(),
+      })),
+    });
+  } catch (error) {
+    console.error('Error searching pools:', error);
+    res.json({ success: true, data: [] });
+  }
+});
+
+// GET /api/pools/trending — most active pools right now, across ALL types
+// (crypto + sports + PM). Ranked by 24h staked volume, then recent bet count,
+// then total pool size — the same "recent activity" signal Polymarket/Kalshi use.
+// Returns the same item shape as GET /api/pools so the grid can reuse the cards.
+poolsRouter.get('/trending', async (_req, res) => {
+  try {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const active = await prisma.pool.findMany({
+      where: { squadId: null, status: { in: ['JOINING', 'ACTIVE'] } },
+      include: { _count: { select: { bets: true } } },
+    });
+    if (active.length === 0) return res.json({ success: true, data: [] });
+
+    const ids = active.map(p => p.id);
+    const recent = await prisma.bet.groupBy({
+      by: ['poolId'],
+      where: { poolId: { in: ids }, createdAt: { gte: since } },
+      _sum: { amount: true },
+      _count: true,
+    });
+    const recentMap = new Map(recent.map(r => [r.poolId, { vol: r._sum.amount ?? 0n, count: r._count }]));
+
+    const scored = active.map(p => ({
+      pool: p,
+      recentVol: recentMap.get(p.id)?.vol ?? 0n,
+      recentCount: recentMap.get(p.id)?.count ?? 0,
+      totalPool: p.totalUp + p.totalDown + (p.totalDraw ?? 0n),
+    }));
+
+    // Most-active-first within a category.
+    const byActivity = (a: typeof scored[number], b: typeof scored[number]) =>
+      a.recentVol !== b.recentVol ? (a.recentVol > b.recentVol ? -1 : 1)
+      : a.recentCount !== b.recentCount ? b.recentCount - a.recentCount
+      : a.totalPool !== b.totalPool ? (a.totalPool > b.totalPool ? -1 : 1)
+      : b.pool._count.bets - a.pool._count.bets;
+
+    const bucketOf = (p: { poolType: string | null; league: string | null }) =>
+      p.poolType !== 'SPORTS' ? 'CRYPTO' : p.league?.startsWith('PM_') ? 'PM' : 'SPORTS';
+
+    const buckets: Record<string, typeof scored> = { SPORTS: [], PM: [], CRYPTO: [] };
+    for (const s of scored) buckets[bucketOf(s.pool)]!.push(s);
+    for (const k of Object.keys(buckets)) buckets[k]!.sort(byActivity);
+
+    // Round-robin across categories so the grid always mixes types (crypto
+    // included), with the most active of each type surfacing first.
+    const order = ['SPORTS', 'CRYPTO', 'PM'];
+    const ranked: typeof scored = [];
+    for (let i = 0; ranked.length < 24; i++) {
+      let pushed = false;
+      for (const k of order) {
+        const item = buckets[k]![i];
+        if (item) { ranked.push(item); pushed = true; if (ranked.length >= 24) break; }
+      }
+      if (!pushed) break;
+    }
+
+    const topIds = ranked.map(r => r.pool.id);
+    const sideCounts = await prisma.bet.groupBy({
+      by: ['poolId', 'side'],
+      where: { poolId: { in: topIds } },
+      _count: true,
+    });
+    const sideMap = new Map<string, { upCount: number; downCount: number; drawCount: number }>();
+    for (const row of sideCounts) {
+      const e = sideMap.get(row.poolId) || { upCount: 0, downCount: 0, drawCount: 0 };
+      if (row.side === 'UP') e.upCount = row._count;
+      else if (row.side === 'DOWN') e.downCount = row._count;
+      else if (row.side === 'DRAW') e.drawCount = row._count;
+      sideMap.set(row.poolId, e);
+    }
+
+    res.json({
+      success: true,
+      data: ranked.map(({ pool }) => {
+        const c = sideMap.get(pool.id) || { upCount: 0, downCount: 0, drawCount: 0 };
+        return { ...serializePool(pool), betCount: pool._count.bets, upCount: c.upCount, downCount: c.downCount, drawCount: c.drawCount };
+      }),
+    });
+  } catch (error) {
+    console.error('Error fetching trending pools:', error);
+    res.json({ success: true, data: [] });
+  }
+});
+
 // GET /api/pools/:id - Get single pool with details
 poolsRouter.get('/:id', async (req, res) => {
   try {

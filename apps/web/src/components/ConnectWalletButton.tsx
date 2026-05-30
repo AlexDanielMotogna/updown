@@ -11,9 +11,12 @@ import {
   Fade,
 } from '@mui/material';
 import { ContentCopy, Logout, CheckCircle } from '@mui/icons-material';
+import { usePathname } from 'next/navigation';
+import Link from 'next/link';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { UP_COINS_DIVISOR, getAvatarUrl } from '@/lib/constants';
+import { NAV_ITEMS } from '@/lib/navigation';
 import { UserLevelBadge } from './UserLevelBadge';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
@@ -28,11 +31,14 @@ function truncateAddress(address: string): string {
 
 export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonProps) {
   const t = useThemeTokens();
+  const pathname = usePathname();
   const { connected, walletAddress, login, logout } = useWalletBridge();
   const { data: userProfile } = useUserProfile();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const anchorRef = useRef<HTMLButtonElement>(null);
+
+  const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
 
   const isPage = variant === 'page';
   const height = isPage ? '48px' : '36px';
@@ -124,12 +130,14 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
               <Box
                 sx={{
                   mt: 1,
-                  minWidth: 200,
+                  minWidth: 220,
                   maxWidth: 280,
+                  maxHeight: 'calc(100vh - 80px)',
+                  overflowY: 'auto',
+                  overflowX: 'hidden',
                   bgcolor: t.bg.surfaceAlt,
                   border: t.surfaceBorder,
                   borderRadius: '6px',
-                  overflow: 'hidden',
                   boxShadow: t.surfaceShadow,
                 }}
               >
@@ -256,6 +264,42 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
                     </Typography>
                   </Box>
                 )}
+
+                {/* Navigation */}
+                <Box sx={{ py: 0.5, borderBottom: `1px solid ${t.border.default}` }}>
+                  {NAV_ITEMS.map((item) => {
+                    const Icon = item.icon;
+                    const active = isActive(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        style={{ textDecoration: 'none' }}
+                        onClick={() => setOpen(false)}
+                      >
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1.25,
+                            px: 2,
+                            py: 1,
+                            cursor: 'pointer',
+                            color: active ? t.text.primary : t.text.secondary,
+                            bgcolor: active ? t.hover.default : 'transparent',
+                            transition: 'all 0.12s ease',
+                            '&:hover': { bgcolor: t.border.subtle, color: t.text.primary },
+                          }}
+                        >
+                          <Icon sx={{ fontSize: 17, color: active ? t.up : 'inherit' }} />
+                          <Typography sx={{ fontSize: '0.82rem', fontWeight: active ? 700 : 500 }}>
+                            {item.label}
+                          </Typography>
+                        </Box>
+                      </Link>
+                    );
+                  })}
+                </Box>
 
                 {/* Disconnect */}
                 <Button

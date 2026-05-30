@@ -1,16 +1,15 @@
 'use client';
 
-import { Box, Typography, Button, IconButton } from '@mui/material';
+import { Box, Typography, IconButton } from '@mui/material';
 import { AttachMoney, LightMode, DarkMode } from '@mui/icons-material';
-import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { ConnectWalletButton } from './ConnectWalletButton';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { UP_COINS_DIVISOR } from '@/lib/constants';
-import { NAV_ITEMS, DESKTOP_NAV_ITEMS } from '@/lib/navigation';
 import { UserLevelBadge } from './UserLevelBadge';
+import { MarketSearch } from './header/MarketSearch';
 import { NotificationPanel } from './header/NotificationPanel';
 import { MobileBottomNav } from './header/MobileBottomNav';
 import { useThemeTokens, useThemeMode } from '@/app/providers';
@@ -18,13 +17,9 @@ import { useThemeTokens, useThemeMode } from '@/app/providers';
 export function Header() {
   const t = useThemeTokens();
   const { mode, toggle } = useThemeMode();
-  const pathname = usePathname();
   const { connected } = useWalletBridge();
   const { data: balance } = useUsdcBalance();
   const { data: userProfile } = useUserProfile();
-
-  const isActive = (href: string) =>
-    href === '/' ? pathname === '/' : pathname.startsWith(href);
 
   return (
     <Box
@@ -63,42 +58,8 @@ export function Header() {
           />
         </Link>
 
-        {/* Desktop nav — centered (only on lg+) */}
-        <Box
-          sx={{
-            display: { xs: 'none', lg: 'flex' },
-            position: 'absolute',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            alignItems: 'center',
-            gap: 0,
-          }}
-        >
-          {DESKTOP_NAV_ITEMS.map((item) => {
-            const active = isActive(item.href);
-            return (
-              <Link key={item.href} href={item.href} style={{ textDecoration: 'none' }}>
-                <Button
-                  sx={{
-                    color: active ? t.text.primary : 'text.secondary',
-                    px: { lg: 1, xl: 1.5 },
-                    fontSize: { lg: '0.75rem', xl: '0.8125rem' },
-                    borderBottom: active ? `2px solid ${t.up}` : '2px solid transparent',
-                    borderRadius: 0,
-                    whiteSpace: 'nowrap',
-                    minWidth: 0,
-                    '&:hover': {
-                      color: t.text.primary,
-                      backgroundColor: 'transparent',
-                    },
-                  }}
-                >
-                  {item.label}
-                </Button>
-              </Link>
-            );
-          })}
-        </Box>
+        {/* Search active markets (nav links now live in the account dropdown) */}
+        <MarketSearch />
 
         {/* Right: compact stats bar + notifications + wallet */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 } }}>

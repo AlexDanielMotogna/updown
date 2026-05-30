@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import { Box, Typography, IconButton, Collapse, Popover, Chip } from '@mui/material';
-import { ShowChart, FilterList, KeyboardArrowDown, Schedule, GridView, SportsSoccer } from '@mui/icons-material';
+import { ShowChart, FilterList, KeyboardArrowDown, Schedule, GridView, SportsSoccer, LocalFireDepartment } from '@mui/icons-material';
 import { useCategories, type CategoryConfig } from '@/hooks/useCategories';
 import { getIcon } from '@/lib/icon-registry';
 import { useThemeTokens } from '@/app/providers';
@@ -132,6 +132,7 @@ export function MarketFilter({
 
     // Tabs: CRYPTO + SPORTS + enabled PM categories + coming soon PM
     const tabs: Array<{ key: string; label: string; icon: React.ReactNode; color: string; comingSoon?: boolean }> = [
+      { key: 'TRENDING', label: 'Trending', icon: <LocalFireDepartment sx={{ fontSize: 16 }} />, color: t.accent },
       { key: 'CRYPTO', label: 'Crypto', icon: <ShowChart sx={{ fontSize: 16 }} />, color: t.up },
       { key: 'SPORTS', label: 'Sports', icon: <SportsSoccer sx={{ fontSize: 16 }} />, color: t.draw },
       ...pmCats.map(c => ({
@@ -192,7 +193,7 @@ export function MarketFilter({
   const currentTab = tabs.find(tab => tab.key === marketType) || tabs[0];
   const tabColor = currentTab.color;
   const isPM = marketType.startsWith('PM_');
-  const hideFilters = isPM;
+  const hideFilters = isPM || marketType === 'TRENDING';
 
   const assetOpts = assetOptions.map(o => ({ ...o, img: o.img || null }));
   const intervalOpts = intervalOptions.map(o => ({ ...o, img: null }));

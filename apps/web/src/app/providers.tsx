@@ -133,13 +133,11 @@ function buildMuiTheme(t: ThemeTokens) {
     components: {
       MuiCssBaseline: {
         styleOverrides: {
-          html: {
-            scrollbarWidth: 'thin',
-            scrollbarColor: `${t.scrollbar.thumb} ${t.scrollbar.track}`,
-            '&::-webkit-scrollbar': { width: '8px' },
-            '&::-webkit-scrollbar-track': { background: t.scrollbar.track },
-            '&::-webkit-scrollbar-thumb': { background: t.scrollbar.thumb, borderRadius: '6px' },
-          },
+          // Invisible scrollbars across the whole app — scrolling still works,
+          // the bar just isn't painted (Firefox/legacy-Edge via scrollbarWidth,
+          // WebKit via the ::-webkit-scrollbar pseudo-element).
+          '*': { scrollbarWidth: 'none', msOverflowStyle: 'none' },
+          '*::-webkit-scrollbar': { width: 0, height: 0, display: 'none' },
         },
       },
       MuiCard: {

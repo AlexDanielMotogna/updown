@@ -192,6 +192,27 @@ export async function fetchPool(id: string): Promise<ApiResponse<PoolDetail>> {
   return fetchApi<PoolDetail>(`/api/pools/${id}`);
 }
 
+export interface PoolSearchResult {
+  id: string;
+  status: string;
+  poolType: string;
+  league: string | null;
+  asset: string;
+  interval: string;
+  homeTeam: string | null;
+  awayTeam: string | null;
+  homeTeamCrest: string | null;
+  startTime: string;
+}
+
+export async function searchPools(q: string): Promise<ApiResponse<PoolSearchResult[]>> {
+  return fetchApi<PoolSearchResult[]>(`/api/pools/search?q=${encodeURIComponent(q)}`);
+}
+
+export async function fetchTrendingPools(): Promise<ApiResponse<Pool[]>> {
+  return fetchApi<Pool[]>('/api/pools/trending');
+}
+
 // Bet endpoints
 export async function fetchBets(
   wallet: string,
