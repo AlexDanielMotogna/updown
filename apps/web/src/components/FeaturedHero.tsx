@@ -107,9 +107,6 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
           <Box sx={{ color: catColor, display: 'flex' }}>{catIcon}</Box>
           <Typography sx={{ fontSize: '0.68rem', fontWeight: 800, color: catColor, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{catLabel}</Typography>
-          <Box sx={{ px: 0.75, py: 0.2, borderRadius: '999px', bgcolor: withAlpha(t.accent, 0.12) }}>
-            <Typography sx={{ fontSize: '0.58rem', fontWeight: 800, color: t.accent, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Featured</Typography>
-          </Box>
         </Box>
         {count > 1 && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
@@ -124,9 +121,10 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
         )}
       </Box>
 
-      {/* Body: outcomes (left) + chart (right) */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '300px 1fr' }, gap: { xs: 2, md: 3 }, alignItems: 'start' }}>
-        <Box>
+      {/* Body: outcomes (left) + chart (right). Left column stretches to match
+          the chart height so its content can spread (title at top, volume at bottom). */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '300px 1fr' }, gap: { xs: 2, md: 3 }, alignItems: 'stretch' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <Typography
             onClick={() => onSelect(pool)}
             sx={{ fontSize: { xs: '1.1rem', md: '1.35rem' }, fontWeight: 800, color: t.text.primary, lineHeight: 1.25, mb: 1.5, cursor: 'pointer', '&:hover': { color: t.up } }}
@@ -154,8 +152,8 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
           >
             View market <ChevronRight sx={{ fontSize: 16 }} />
           </Box>
-          <Typography sx={{ fontSize: '0.72rem', color: t.text.quaternary, mt: 1.25 }}>
-            <Box component="span" sx={{ fontWeight: 700, color: flash ? t.gain : t.text.tertiary, px: 0.5, borderRadius: 0.75, bgcolor: flash ? withAlpha(t.gain, 0.15) : 'transparent', transition: 'background-color 0.4s ease, color 0.4s ease' }}>{volLabel} Vol.</Box> · {pool.betCount} {isPrediction ? 'predictions' : 'bets'}
+          <Typography sx={{ fontSize: '0.72rem', color: t.text.quaternary, mt: 'auto', pt: 1.5 }}>
+            <Box component="span" sx={{ fontWeight: 700, color: flash ? t.gain : t.text.tertiary, px: 0.5, borderRadius: 0.75, bgcolor: flash ? withAlpha(t.gain, 0.15) : 'transparent', transition: 'background-color 0.4s ease, color 0.4s ease' }}>{volLabel} Vol.</Box>
           </Typography>
         </Box>
 
