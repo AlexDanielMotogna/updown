@@ -23,7 +23,8 @@ import { formatUSDC } from '@/lib/format';
 import { useThemeTokens } from '@/app/providers';
 import { GridView, FilterList } from '@mui/icons-material';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
-import { PoolsBetTable } from '@/components/profile/PoolsBetTable';
+import { PositionsTab } from '@/components/profile/PositionsTab';
+import { ActivityTab } from '@/components/profile/ActivityTab';
 import { TournamentPrizes } from '@/components/profile/TournamentPrizes';
 import { OverviewTab } from '@/components/profile/OverviewTab';
 import { RewardsTab } from '@/components/profile/RewardsTab';
@@ -33,7 +34,7 @@ import {
   type TournamentPrize,
 } from '@/lib/api';
 
-const TAB_KEYS = ['overview', 'history', 'rewards', 'referrals', 'tournaments'] as const;
+const TAB_KEYS = ['overview', 'positions', 'activity', 'rewards', 'referrals', 'tournaments'] as const;
 type TabKey = typeof TAB_KEYS[number];
 
 export default function MyBetsPage() {
@@ -45,7 +46,9 @@ export default function MyBetsPage() {
   const { data: userProfile } = useUserProfile();
   const { data: balance } = useUsdcBalance();
   const tabParam = searchParams.get('tab') ?? 'overview';
-  const tabIndex = TAB_KEYS.indexOf(tabParam as TabKey);
+  // Backwards compat: ?tab=history now lands on positions.
+  const normalizedTab = tabParam === 'history' ? 'positions' : tabParam;
+  const tabIndex = TAB_KEYS.indexOf(normalizedTab as TabKey);
   const tab = tabIndex >= 0 ? tabIndex : 0;
   const [claimingBetId, setClaimingBetId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -228,7 +231,8 @@ export default function MyBetsPage() {
                 }}
               >
                 <Tab label="Overview" />
-                <Tab label={`History${bets.length ? ` (${bets.length})` : ''}`} />
+                <Tab label={`Positions${bets.length ? ` (${bets.length})` : ''}`} />
+                <Tab label="Activity" />
                 <Tab label="Rewards" />
                 <Tab label="Referrals" />
                 <Tab label={`Tournaments${prizes.length > 0 ? ` (${prizes.length})` : ''}`} />
@@ -249,12 +253,12 @@ export default function MyBetsPage() {
               <OverviewTab walletAddress={walletAddress} userProfile={userProfile} onViewTab={goToTab} />
             )}
 
-            {/* ─── History ─── */}
+            {/* ─── Positions (Activa / Cerrado) ─── */}
             {tab === 1 && (
               <>
                 {betsError && (
                   <Alert severity="error" sx={{ mb: 4, backgroundColor: 'rgba(255, 82, 82, 0.1)', border: 'none', borderRadius: 1 }}>
-                    Failed to load predictions
+                    Failed to load positions
                   </Alert>
                 )}
 
@@ -287,7 +291,7 @@ export default function MyBetsPage() {
                   </Box>
                 )}
 
-                <PoolsBetTable
+                <PositionsTab
                   bets={filteredBets}
                   betsLoading={betsLoading}
                   claimingBetId={claimingBetId}
@@ -303,14 +307,32 @@ export default function MyBetsPage() {
               </>
             )}
 
+            {/* ─── Activity ─── */}
+            {tab === 2 && (
+              <>
+                {betsError && (
+                  <Alert severity="error" sx={{ mb: 4, backgroundColor: 'rgba(255, 82, 82, 0.1)', border: 'none', borderRadius: 1 }}>
+                    Failed to load activity
+                  </Alert>
+                )}
+                <ActivityTab bets={filteredBets} betsLoading={betsLoading} />
+                <Box ref={sentinelRef} />
+                {isFetchingNextPage && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, pb: 4 }}>
+                    <CircularProgress size={32} sx={{ color: t.text.primary }} />
+                  </Box>
+                )}
+              </>
+            )}
+
             {/* ─── Rewards ─── */}
-            {tab === 2 && <RewardsTab walletAddress={walletAddress} />}
+            {tab === 3 && <RewardsTab walletAddress={walletAddress} />}
 
             {/* ─── Referrals ─── */}
-            {tab === 3 && <ReferralDashboard walletAddress={walletAddress} />}
+            {tab === 4 && <ReferralDashboard walletAddress={walletAddress} />}
 
             {/* ─── Tournaments ─── */}
-            {tab === 4 && (
+            {tab === 5 && (
               <TournamentPrizes
                 walletAddress={walletAddress}
                 prizes={prizes}
