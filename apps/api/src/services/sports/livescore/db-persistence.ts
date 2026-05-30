@@ -1,6 +1,7 @@
 import { prisma } from '../../../db';
 import type { LiveScore } from './types';
 import { DB_FALLBACK_TTL_MS, DB_CLEANUP_AGE_MS, isFinishedStatus, normalizeTeam } from './types';
+import { regulationWinner } from '../regulation-time';
 
 // ─── DB → LiveScore conversion ───────────────────────────────────────────────
 
@@ -77,8 +78,10 @@ export async function syncFinishedToUi(entries: LiveScore[]): Promise<void> {
   if (finished.length === 0) return;
 
   for (const e of finished) {
-    const winner = e.homeScore > e.awayScore ? 'HOME'
-      : e.awayScore > e.homeScore ? 'AWAY' : 'DRAW';
+    // Regulation-time rules — when the upstream status indicates AET/PEN, the
+    // 90-minute result was a draw and the pool resolves to DRAW even though
+    // one side eventually won. Falls back to score-based winner for non-AET.
+    const winner = regulationWinner(e.homeScore, e.awayScore, e.status);
 
     // Update pool score for immediate UI display
     prisma.pool.updateMany({

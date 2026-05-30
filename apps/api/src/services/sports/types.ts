@@ -9,6 +9,10 @@ export interface Match {
   awayTeamCrest?: string;
   kickoff: Date;
   status: MatchStatus;
+  /** Raw status from the upstream API ('AET', 'PEN', 'After Extra Time', etc).
+   *  Preserved so resolution can distinguish a regulation-time draw from an
+   *  extra-time / penalty winner — pool resolution uses 90-minute rules. */
+  rawStatus?: string | null;
   homeScore?: number;
   awayScore?: number;
   matchday?: number;
@@ -20,6 +24,8 @@ export type MatchStatus = 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'POSTPONED' | 'CAN
 export interface MatchResult {
   matchId: string;
   status: MatchStatus;
+  /** Raw status from the upstream API. See Match.rawStatus. */
+  rawStatus?: string | null;
   homeScore: number;
   awayScore: number;
   winner: 'HOME' | 'AWAY' | 'DRAW';
