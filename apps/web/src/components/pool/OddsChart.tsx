@@ -5,7 +5,6 @@ import { Box, Typography, CircularProgress, IconButton, Popover } from '@mui/mat
 import { Settings } from '@mui/icons-material';
 import { getSocket, connectSocket } from '@/lib/socket';
 import { useThemeTokens } from '@/app/providers';
-import { withAlpha } from '@/lib/theme';
 
 interface OddsPoint {
   t: number;
@@ -34,41 +33,36 @@ interface OddsChartProps {
   seedDefault?: boolean;
   /** 3-way pool (sports home/draw/away) — render a third line for draw. */
   threeWay?: boolean;
+  /** Inline labels next to each outcome (Kalshi-style "Real Madrid 58%"). When
+   *  omitted the chart just shows the percentage. */
+  labels?: { up?: string; down?: string; draw?: string };
 }
 
-/** Smooth (Catmull-Rom → cubic bezier) path through points for a flowing line. */
-function smoothPath(pts: Array<[number, number]>): string {
+/**
+ * Step path — each point holds its value until the next x, then jumps vertically
+ * (the typical "stairs" shape Kalshi/Polymarket use for prediction market lines).
+ *   M x0,y0  L x1,y0  L x1,y1  L x2,y1  L x2,y2  …
+ */
+function stepPath(pts: Array<[number, number]>): string {
   if (pts.length < 2) return '';
-  if (pts.length === 2) return `M${pts[0][0]},${pts[0][1]} L${pts[1][0]},${pts[1][1]}`;
   let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i === 0 ? 0 : i - 1];
-    const p1 = pts[i];
-    const p2 = pts[i + 1];
-    const p3 = pts[i + 2 < pts.length ? i + 2 : i + 1];
-    const cp1x = p1[0] + (p2[0] - p0[0]) / 6;
-    const cp1y = p1[1] + (p2[1] - p0[1]) / 6;
-    const cp2x = p2[0] - (p3[0] - p1[0]) / 6;
-    const cp2y = p2[1] - (p3[1] - p1[1]) / 6;
-    d += ` C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+  for (let i = 1; i < pts.length; i++) {
+    const [x, y] = pts[i];
+    const prevY = pts[i - 1][1];
+    d += ` L${x.toFixed(1)},${prevY.toFixed(1)} L${x.toFixed(1)},${y.toFixed(1)}`;
   }
   return d;
 }
 
-const PADDING = { top: 20, right: 56, bottom: 30, left: 12 };
+// Right padding leaves room for the y-axis ticks AND the inline "65% Up" badges
+// at the end of each line so they don't get clipped against the right edge.
+const PADDING = { top: 28, right: 96, bottom: 26, left: 12 };
 const CHART_H = 300;
 const MAX_UPDOWN_POINTS = 100;
 const FONT = 'var(--font-satoshi), Satoshi, sans-serif';
-
-// End-point indicator (current value pulse).
-const DOT_R = 4;
-const HALO_MIN = 6;
-const HALO_MAX = 12;
-const PULSE_DUR = '2.2s';
-
-// Hover tooltip dimensions (per-outcome line).
-const TIP_PAD = 8;
-const TIP_LINE_H = 16;
+const DOT_R = 3.5;
+const LABEL_GAP = 8;       // px between end-point dot and inline label
+const HOVER_LABEL_OFFSET = 10;
 
 function formatPct(p: number): string {
   return `${Math.round(p * 100)}%`;
@@ -86,7 +80,16 @@ function formatTime(ts: number): string {
   return new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, hideControls, seedDefault, threeWay }: OddsChartProps) {
+/** Top-of-chart hover label, Kalshi style: "MAY 16, 2 PM" / "2:30 PM". */
+function formatHoverHeader(ts: number, source: Source): string {
+  const d = new Date(ts * 1000);
+  if (source === 'polymarket') {
+    return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', hour12: true }).toUpperCase();
+  }
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toUpperCase();
+}
+
+export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, hideControls, seedDefault, threeWay, labels }: OddsChartProps) {
   const t = useThemeTokens();
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(600);
@@ -233,25 +236,19 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
     [chartH],
   );
 
-  const yesPath = useMemo(() => smoothPath(history.map((h, i) => [toX(i), toY(h.p)])), [history, toX, toY]);
+  const yesPath = useMemo(() => stepPath(history.map((h, i) => [toX(i), toY(h.p)])), [history, toX, toY]);
 
   // 3-way pools: "no" line uses the actual down share, not 1 - up (which would
   // incorrectly include the draw share). 2-way pools fall back to 1 - up.
   const noPath = useMemo(
-    () => smoothPath(history.map((h, i) => [toX(i), toY(h.down ?? (1 - h.p))])),
+    () => stepPath(history.map((h, i) => [toX(i), toY(h.down ?? (1 - h.p))])),
     [history, toX, toY],
   );
 
   const drawPath = useMemo(() => {
     if (!threeWay) return '';
-    return smoothPath(history.map((h, i) => [toX(i), toY(h.draw ?? 0)]));
+    return stepPath(history.map((h, i) => [toX(i), toY(h.draw ?? 0)]));
   }, [history, toX, toY, threeWay]);
-
-  const yesAreaPath = useMemo(() => {
-    if (history.length < 2) return '';
-    const bottom = PADDING.top + chartH;
-    return yesPath + ` L${toX(history.length - 1).toFixed(1)},${bottom} L${toX(0).toFixed(1)},${bottom} Z`;
-  }, [yesPath, history.length, toX, chartH]);
 
   const yTicks = useMemo(() => [0, 0.25, 0.5, 0.75, 1].map(p => ({ p, y: toY(p) })), [toY]);
 
@@ -390,105 +387,90 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
           </Box>
         ) : (
           <svg width={width} height={CHART_H} onMouseMove={handleMouseMove} onMouseLeave={() => setHoverIndex(null)} style={{ cursor: 'crosshair', display: 'block' }}>
-            <defs>
-              <linearGradient id={`og-${poolId}-${source}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={t.up} stopOpacity={0.1} />
-                <stop offset="100%" stopColor={t.up} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-
-            {/* Grid */}
+            {/* Grid — subtle horizontals + percentage labels on the right. No
+                axis line, no 50% reference; just enough scaffolding to read the
+                lines (Kalshi/Polymarket style). */}
             {yTicks.map((yt, i) => (
               <g key={i}>
-                <line x1={PADDING.left} y1={yt.y} x2={PADDING.left + chartW} y2={yt.y} stroke={t.border.subtle} />
-                <text x={PADDING.left + chartW + 8} y={yt.y + 4} fill={t.text.muted} fontSize={10} fontFamily={FONT}>{formatPct(yt.p)}</text>
+                <line x1={PADDING.left} y1={yt.y} x2={PADDING.left + chartW} y2={yt.y} stroke={t.border.subtle} strokeWidth={0.6} opacity={0.55} />
+                <text x={PADDING.left + chartW + 6} y={yt.y + 3} fill={t.text.muted} fontSize={10} fontFamily={FONT} opacity={0.7}>
+                  {formatPct(yt.p)}
+                </text>
               </g>
             ))}
             {xTicks.map((xt, i) => (
-              <text key={i} x={xt.x} y={CHART_H - 6} fill={t.text.muted} fontSize={10} textAnchor="middle" fontFamily={FONT}>{xt.label}</text>
+              <text key={i} x={xt.x} y={CHART_H - 6} fill={t.text.muted} fontSize={10} textAnchor="middle" fontFamily={FONT} opacity={0.7}>
+                {xt.label}
+              </text>
             ))}
 
-            {/* 50% ref */}
-            <line x1={PADDING.left} y1={toY(0.5)} x2={PADDING.left + chartW} y2={toY(0.5)} stroke={t.border.default} strokeDasharray="6,4" />
+            {/* Lines — flat solid strokes. No glow, no area fill, no gradients.
+                Stacking: secondary first (no, draw) then primary (yes) on top. */}
+            {showNo && <path d={noPath} fill="none" stroke={t.down} strokeWidth={1.6} strokeLinejoin="round" />}
+            {threeWay && drawPath && <path d={drawPath} fill="none" stroke={t.draw} strokeWidth={1.6} strokeLinejoin="round" />}
+            {showYes && <path d={yesPath} fill="none" stroke={t.up} strokeWidth={1.8} strokeLinejoin="round" />}
 
-            {/* Lines — yes line gets a subtle drop-shadow glow for presence. */}
-            {showYes && <path d={yesAreaPath} fill={`url(#og-${poolId}-${source})`} />}
-            {showNo && <path d={noPath} fill="none" stroke={t.down} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.4} />}
-            {threeWay && drawPath && <path d={drawPath} fill="none" stroke={t.draw} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" opacity={0.75} />}
-            {showYes && <path d={yesPath} fill="none" stroke={t.up} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ filter: `drop-shadow(0 0 4px ${withAlpha(t.up, 0.45)})` }} />}
-
-            {/* Hover — vertical guide, focus dots, and a floating tooltip with
-                the historical % for each outcome at the cursor position. */}
-            {hoverIndex != null && hoverPoint && (() => {
-              const cx = toX(hoverIndex);
-              const lines: Array<{ color: string; value: number }> = [];
-              if (showYes) lines.push({ color: t.up, value: hoverPoint.p });
-              if (showNo) lines.push({ color: t.down, value: hoverPoint.down ?? (1 - hoverPoint.p) });
-              if (threeWay && hoverPoint.draw != null) lines.push({ color: t.draw, value: hoverPoint.draw });
-              const tipW = 92;
-              const tipH = TIP_PAD * 2 + TIP_LINE_H + TIP_LINE_H * lines.length;
-              const tipX = cx + tipW + 16 > PADDING.left + chartW
-                ? cx - tipW - 14
-                : cx + 14;
-              const tipY = Math.max(
-                PADDING.top,
-                Math.min(PADDING.top + chartH - tipH, toY(hoverPoint.p) - tipH / 2),
-              );
+            {/* End-point badges — when not hovering, show "{pct} {label}" next
+                to a small dot at each line's last point. */}
+            {lastPoint && hoverIndex == null && (() => {
+              const endX = toX(history.length - 1);
+              const items: Array<{ color: string; value: number; label?: string }> = [];
+              if (showYes) items.push({ color: t.up, value: lastPoint.p, label: labels?.up });
+              if (showNo) items.push({ color: t.down, value: lastPoint.down ?? (1 - lastPoint.p), label: labels?.down });
+              if (threeWay && lastPoint.draw != null) items.push({ color: t.draw, value: lastPoint.draw, label: labels?.draw });
               return (
                 <>
-                  <line x1={cx} y1={PADDING.top} x2={cx} y2={PADDING.top + chartH} stroke={t.border.strong} strokeDasharray="3,3" />
-                  {showYes && <circle cx={cx} cy={toY(hoverPoint.p)} r={4} fill={t.up} stroke={t.bg.app} strokeWidth={2} />}
-                  {showNo && <circle cx={cx} cy={toY(hoverPoint.down ?? (1 - hoverPoint.p))} r={3.5} fill={t.down} stroke={t.bg.app} strokeWidth={2} opacity={0.85} />}
-                  {threeWay && hoverPoint.draw != null && <circle cx={cx} cy={toY(hoverPoint.draw)} r={3.5} fill={t.draw} stroke={t.bg.app} strokeWidth={2} opacity={0.9} />}
-
-                  <g transform={`translate(${tipX},${tipY})`} pointerEvents="none">
-                    <rect x={0} y={0} width={tipW} height={tipH} rx={6} ry={6} fill={t.bg.surfaceAlt} stroke={t.border.strong} strokeWidth={1} opacity={0.97} />
-                    <text x={TIP_PAD} y={TIP_PAD + 10} fill={t.text.muted} fontSize={9} fontFamily={FONT}>
-                      {formatHoverTime(hoverPoint.t)}
-                    </text>
-                    {lines.map((ln, i) => {
-                      const y = TIP_PAD + TIP_LINE_H + (i + 1) * TIP_LINE_H - 4;
-                      return (
-                        <g key={i}>
-                          <circle cx={TIP_PAD + 4} cy={y - 3} r={3} fill={ln.color} />
-                          <text x={tipW - TIP_PAD} y={y} fill={ln.color} fontSize={11} fontWeight={700} fontFamily={FONT} textAnchor="end">
-                            {formatPct(ln.value)}
-                          </text>
-                        </g>
-                      );
-                    })}
-                  </g>
+                  {items.map((it, i) => (
+                    <g key={i}>
+                      <circle cx={endX} cy={toY(it.value)} r={DOT_R} fill={it.color} />
+                      <text x={endX + LABEL_GAP} y={toY(it.value) + 4} fill={it.color} fontSize={11} fontWeight={700} fontFamily={FONT}>
+                        {formatPct(it.value)}{it.label ? ` ${it.label}` : ''}
+                      </text>
+                    </g>
+                  ))}
                 </>
               );
             })()}
 
-            {/* End-point indicators — current value with a pulsing halo for
-                "alive" feel (Kalshi/Polymarket-style live tick). */}
-            {lastPoint && hoverIndex == null && (() => {
-              const endX = toX(history.length - 1);
-              const endpoint = (color: string, value: number, opts?: { primary?: boolean }) => {
-                const primary = opts?.primary !== false;
-                const dotR = primary ? DOT_R : DOT_R - 1;
-                const haloMin = primary ? HALO_MIN : HALO_MIN - 1;
-                const haloMax = primary ? HALO_MAX : HALO_MAX - 2;
-                return (
-                  <g>
-                    <circle cx={endX} cy={toY(value)} r={haloMin} fill={color} opacity={0.32}>
-                      <animate attributeName="r" values={`${haloMin};${haloMax};${haloMin}`} dur={PULSE_DUR} repeatCount="indefinite" />
-                      <animate attributeName="opacity" values="0.35;0;0.35" dur={PULSE_DUR} repeatCount="indefinite" />
-                    </circle>
-                    <circle cx={endX} cy={toY(value)} r={dotR} fill={color} stroke={t.bg.app} strokeWidth={2} />
-                    <text x={endX + 10} y={toY(value) + 4} fill={color} fontSize={primary ? 11 : 10} fontWeight={primary ? 800 : 600} fontFamily={FONT}>
-                      {formatPct(value)}
-                    </text>
-                  </g>
-                );
-              };
+            {/* Hover — thin solid vertical guide, top-of-chart date pill, and
+                inline "{pct} {label}" badges anchored to each line at cursor X.
+                Label flips left when too close to the right edge. */}
+            {hoverIndex != null && hoverPoint && (() => {
+              const cx = toX(hoverIndex);
+              const items: Array<{ color: string; value: number; label?: string }> = [];
+              if (showYes) items.push({ color: t.up, value: hoverPoint.p, label: labels?.up });
+              if (showNo) items.push({ color: t.down, value: hoverPoint.down ?? (1 - hoverPoint.p), label: labels?.down });
+              if (threeWay && hoverPoint.draw != null) items.push({ color: t.draw, value: hoverPoint.draw, label: labels?.draw });
+              const labelOnRight = cx + 90 < PADDING.left + chartW;
+              const labelX = labelOnRight ? cx + HOVER_LABEL_OFFSET : cx - HOVER_LABEL_OFFSET;
+              const labelAnchor: 'start' | 'end' = labelOnRight ? 'start' : 'end';
+              const headerX = Math.min(
+                Math.max(cx, PADDING.left + 40),
+                PADDING.left + chartW - 40,
+              );
               return (
                 <>
-                  {showYes && endpoint(t.up, lastPoint.p, { primary: true })}
-                  {showNo && endpoint(t.down, lastPoint.down ?? (1 - lastPoint.p), { primary: false })}
-                  {threeWay && lastPoint.draw != null && endpoint(t.draw, lastPoint.draw, { primary: false })}
+                  <line x1={cx} y1={PADDING.top} x2={cx} y2={PADDING.top + chartH} stroke={t.border.strong} strokeWidth={1} />
+                  <text
+                    x={headerX}
+                    y={PADDING.top - 10}
+                    fill={t.text.secondary}
+                    fontSize={10}
+                    fontWeight={800}
+                    textAnchor="middle"
+                    fontFamily={FONT}
+                    letterSpacing="0.06em"
+                  >
+                    {formatHoverHeader(hoverPoint.t, source)}
+                  </text>
+                  {items.map((it, i) => (
+                    <g key={i}>
+                      <circle cx={cx} cy={toY(it.value)} r={DOT_R} fill={it.color} stroke={t.bg.app} strokeWidth={1.5} />
+                      <text x={labelX} y={toY(it.value) + 4} fill={it.color} fontSize={11} fontWeight={700} fontFamily={FONT} textAnchor={labelAnchor}>
+                        {formatPct(it.value)}{it.label ? ` ${it.label}` : ''}
+                      </text>
+                    </g>
+                  ))}
                 </>
               );
             })()}

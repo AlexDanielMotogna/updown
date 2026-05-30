@@ -172,6 +172,20 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
           { name: pool.awayTeam || 'Away', color: t.down, pct: pct(totalDown, isTwoWay ? 50 : 33), crest: pool.awayTeamCrest },
         ];
 
+  // Inline labels for the chart's end-point / hover badges ("65% Up",
+  // "58% Real Madrid"). Short to avoid overflowing the right padding.
+  const shortChartLabel = (n: string | null | undefined): string | undefined =>
+    n ? (n.length > 11 ? n.split(' ')[0].slice(0, 11) : n) : undefined;
+  const chartLabels: { up?: string; down?: string; draw?: string } = isCrypto
+    ? { up: 'Up', down: 'Down' }
+    : isPrediction && !pool.awayTeam
+      ? { up: 'Yes', down: 'No' }
+      : {
+          up: shortChartLabel(pool.homeTeam) || 'Home',
+          down: shortChartLabel(pool.awayTeam) || 'Away',
+          ...(pool.numSides === 3 ? { draw: 'Draw' } : {}),
+        };
+
   let livePoolNum = Number(pool.totalPool);
   try { livePoolNum = Number(BigInt(tUp || '0') + BigInt(tDown || '0') + BigInt(tDraw || '0')); } catch { /* keep */ }
   const volUsd = livePoolNum / 1_000_000;
@@ -272,7 +286,7 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
         </Box>
 
         <Box sx={{ minWidth: 0, position: 'relative' }}>
-          <OddsChart key={pool.id} poolId={pool.id} totalUp={pool.totalUp} totalDown={pool.totalDown} totalDraw={pool.totalDraw} lockSource="updown" hideControls seedDefault threeWay={pool.numSides === 3} />
+          <OddsChart key={pool.id} poolId={pool.id} totalUp={pool.totalUp} totalDown={pool.totalDown} totalDraw={pool.totalDraw} lockSource="updown" hideControls seedDefault threeWay={pool.numSides === 3} labels={chartLabels} />
           {/* Live trade ticks — floating pills on incoming bets. */}
           {ticks.length > 0 && (
             <Box sx={{ position: 'absolute', top: 8, right: 64, pointerEvents: 'none', zIndex: 5, display: 'flex', flexDirection: 'column', gap: 0.25, alignItems: 'flex-end' }}>
