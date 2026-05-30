@@ -100,6 +100,22 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
   const volUsd = livePoolNum / 1_000_000;
   const volLabel = volUsd >= 1e6 ? `$${(volUsd / 1e6).toFixed(1)}M` : volUsd >= 1e3 ? `$${(volUsd / 1e3).toFixed(1)}K` : `$${volUsd.toFixed(0)}`;
 
+  // ── News + trending topics: real pool data (matchAnalysis for sports/PM,
+  // tags for PM, a derived blurb for crypto). Operational tags filtered out. ──
+  const tags: string[] = (() => {
+    if (!pool.tags) return [];
+    try {
+      const parsed = JSON.parse(pool.tags);
+      if (Array.isArray(parsed)) return parsed.filter((x: unknown): x is string => typeof x === 'string');
+    } catch { /* skip */ }
+    return [];
+  })();
+  const meaningfulTags = tags.filter(tag => !/^rewards\b/i.test(tag) && !/^automation\b/i.test(tag) && tag.toLowerCase() !== catLabel.toLowerCase());
+  const cryptoBlurb = isCrypto
+    ? `Predict whether ${ASSET_NAMES[pool.asset] || pool.asset} closes higher or lower at the end of the next ${INTERVAL_LABELS[pool.interval] || pool.interval} round.`
+    : null;
+  const newsText = pool.matchAnalysis || cryptoBlurb;
+
   return (
     <Box sx={{ bgcolor: t.bg.surface, border: t.surfaceBorder, borderRadius: 2, p: { xs: 1.75, md: 2.5 }, mb: { xs: 3, md: 4 } }}>
       {/* Header: category + pagination */}
@@ -146,6 +162,31 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
               </Box>
             ))}
           </Box>
+          {/* News + trending tags */}
+          {(newsText || meaningfulTags.length > 0) && (
+            <Box sx={{ mt: 0.5 }}>
+              {newsText && (
+                <>
+                  <Typography sx={{ fontSize: '0.58rem', fontWeight: 800, color: t.text.dimmed, textTransform: 'uppercase', letterSpacing: '0.07em', mb: 0.5 }}>
+                    {pool.matchAnalysis ? 'News' : 'About'}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.74rem', color: t.text.secondary, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                    {newsText}
+                  </Typography>
+                </>
+              )}
+              {meaningfulTags.length > 0 && (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: newsText ? 1 : 0 }}>
+                  {meaningfulTags.slice(0, 5).map(tag => (
+                    <Box key={tag} sx={{ px: 0.85, py: 0.25, borderRadius: '999px', border: `1px solid ${withAlpha(catColor, 0.3)}`, color: catColor, fontSize: '0.62rem', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                      {tag}
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </Box>
+          )}
+
           <Box
             onClick={() => onSelect(pool)}
             sx={{ display: 'inline-flex', alignSelf: 'flex-start', alignItems: 'center', gap: 0.5, px: 2, py: 0.75, borderRadius: 1, cursor: 'pointer', bgcolor: withAlpha(catColor, 0.12), color: catColor, fontSize: '0.8rem', fontWeight: 700, mt: 'auto', '&:hover': { bgcolor: withAlpha(catColor, 0.2) } }}
