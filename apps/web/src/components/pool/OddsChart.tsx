@@ -5,6 +5,7 @@ import { Box, Typography, CircularProgress, IconButton, Popover } from '@mui/mat
 import { Settings } from '@mui/icons-material';
 import { getSocket, connectSocket } from '@/lib/socket';
 import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 
 interface OddsPoint {
   t: number;
@@ -58,6 +59,16 @@ const PADDING = { top: 20, right: 56, bottom: 30, left: 12 };
 const CHART_H = 300;
 const MAX_UPDOWN_POINTS = 100;
 const FONT = 'var(--font-satoshi), Satoshi, sans-serif';
+
+// End-point indicator (current value pulse).
+const DOT_R = 4;
+const HALO_MIN = 6;
+const HALO_MAX = 12;
+const PULSE_DUR = '2.2s';
+
+// Hover tooltip dimensions (per-outcome line).
+const TIP_PAD = 8;
+const TIP_LINE_H = 16;
 
 function formatPct(p: number): string {
   return `${Math.round(p * 100)}%`;
@@ -400,54 +411,87 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
             {/* 50% ref */}
             <line x1={PADDING.left} y1={toY(0.5)} x2={PADDING.left + chartW} y2={toY(0.5)} stroke={t.border.default} strokeDasharray="6,4" />
 
-            {/* Lines */}
+            {/* Lines — yes line gets a subtle drop-shadow glow for presence. */}
             {showYes && <path d={yesAreaPath} fill={`url(#og-${poolId}-${source})`} />}
             {showNo && <path d={noPath} fill="none" stroke={t.down} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.4} />}
-            {threeWay && drawPath && <path d={drawPath} fill="none" stroke={t.draw} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" opacity={0.7} />}
-            {showYes && <path d={yesPath} fill="none" stroke={t.up} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />}
+            {threeWay && drawPath && <path d={drawPath} fill="none" stroke={t.draw} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" opacity={0.75} />}
+            {showYes && <path d={yesPath} fill="none" stroke={t.up} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ filter: `drop-shadow(0 0 4px ${withAlpha(t.up, 0.45)})` }} />}
 
-            {/* Hover */}
-            {hoverIndex != null && hoverPoint && (
-              <>
-                <line x1={toX(hoverIndex)} y1={PADDING.top} x2={toX(hoverIndex)} y2={PADDING.top + chartH} stroke={t.border.strong} strokeDasharray="3,3" />
-                {showYes && <circle cx={toX(hoverIndex)} cy={toY(hoverPoint.p)} r={4} fill={t.up} stroke="#0D1219" strokeWidth={2} />}
-                {showNo && <circle cx={toX(hoverIndex)} cy={toY(hoverPoint.down ?? (1 - hoverPoint.p))} r={3.5} fill={t.down} stroke="#0D1219" strokeWidth={2} opacity={0.7} />}
-                {threeWay && hoverPoint.draw != null && <circle cx={toX(hoverIndex)} cy={toY(hoverPoint.draw)} r={3.5} fill={t.draw} stroke="#0D1219" strokeWidth={2} opacity={0.8} />}
-              </>
-            )}
+            {/* Hover — vertical guide, focus dots, and a floating tooltip with
+                the historical % for each outcome at the cursor position. */}
+            {hoverIndex != null && hoverPoint && (() => {
+              const cx = toX(hoverIndex);
+              const lines: Array<{ color: string; value: number }> = [];
+              if (showYes) lines.push({ color: t.up, value: hoverPoint.p });
+              if (showNo) lines.push({ color: t.down, value: hoverPoint.down ?? (1 - hoverPoint.p) });
+              if (threeWay && hoverPoint.draw != null) lines.push({ color: t.draw, value: hoverPoint.draw });
+              const tipW = 92;
+              const tipH = TIP_PAD * 2 + TIP_LINE_H + TIP_LINE_H * lines.length;
+              const tipX = cx + tipW + 16 > PADDING.left + chartW
+                ? cx - tipW - 14
+                : cx + 14;
+              const tipY = Math.max(
+                PADDING.top,
+                Math.min(PADDING.top + chartH - tipH, toY(hoverPoint.p) - tipH / 2),
+              );
+              return (
+                <>
+                  <line x1={cx} y1={PADDING.top} x2={cx} y2={PADDING.top + chartH} stroke={t.border.strong} strokeDasharray="3,3" />
+                  {showYes && <circle cx={cx} cy={toY(hoverPoint.p)} r={4} fill={t.up} stroke={t.bg.app} strokeWidth={2} />}
+                  {showNo && <circle cx={cx} cy={toY(hoverPoint.down ?? (1 - hoverPoint.p))} r={3.5} fill={t.down} stroke={t.bg.app} strokeWidth={2} opacity={0.85} />}
+                  {threeWay && hoverPoint.draw != null && <circle cx={cx} cy={toY(hoverPoint.draw)} r={3.5} fill={t.draw} stroke={t.bg.app} strokeWidth={2} opacity={0.9} />}
 
-            {/* Live dots + labels */}
-            {lastPoint && hoverIndex == null && (
-              <>
-                {showYes && (
-                  <>
-                    <circle cx={toX(history.length - 1)} cy={toY(lastPoint.p)} r={4} fill={t.up}>
-                      {isLive && <animate attributeName="r" values="3;5;3" dur="2s" repeatCount="indefinite" />}
-                      {isLive && <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite" />}
+                  <g transform={`translate(${tipX},${tipY})`} pointerEvents="none">
+                    <rect x={0} y={0} width={tipW} height={tipH} rx={6} ry={6} fill={t.bg.surfaceAlt} stroke={t.border.strong} strokeWidth={1} opacity={0.97} />
+                    <text x={TIP_PAD} y={TIP_PAD + 10} fill={t.text.muted} fontSize={9} fontFamily={FONT}>
+                      {formatHoverTime(hoverPoint.t)}
+                    </text>
+                    {lines.map((ln, i) => {
+                      const y = TIP_PAD + TIP_LINE_H + (i + 1) * TIP_LINE_H - 4;
+                      return (
+                        <g key={i}>
+                          <circle cx={TIP_PAD + 4} cy={y - 3} r={3} fill={ln.color} />
+                          <text x={tipW - TIP_PAD} y={y} fill={ln.color} fontSize={11} fontWeight={700} fontFamily={FONT} textAnchor="end">
+                            {formatPct(ln.value)}
+                          </text>
+                        </g>
+                      );
+                    })}
+                  </g>
+                </>
+              );
+            })()}
+
+            {/* End-point indicators — current value with a pulsing halo for
+                "alive" feel (Kalshi/Polymarket-style live tick). */}
+            {lastPoint && hoverIndex == null && (() => {
+              const endX = toX(history.length - 1);
+              const endpoint = (color: string, value: number, opts?: { primary?: boolean }) => {
+                const primary = opts?.primary !== false;
+                const dotR = primary ? DOT_R : DOT_R - 1;
+                const haloMin = primary ? HALO_MIN : HALO_MIN - 1;
+                const haloMax = primary ? HALO_MAX : HALO_MAX - 2;
+                return (
+                  <g>
+                    <circle cx={endX} cy={toY(value)} r={haloMin} fill={color} opacity={0.32}>
+                      <animate attributeName="r" values={`${haloMin};${haloMax};${haloMin}`} dur={PULSE_DUR} repeatCount="indefinite" />
+                      <animate attributeName="opacity" values="0.35;0;0.35" dur={PULSE_DUR} repeatCount="indefinite" />
                     </circle>
-                    <text x={toX(history.length - 1) + 8} y={toY(lastPoint.p) + 4} fill={t.up} fontSize={11} fontWeight={700} fontFamily={FONT}>
-                      {formatPct(lastPoint.p)}
+                    <circle cx={endX} cy={toY(value)} r={dotR} fill={color} stroke={t.bg.app} strokeWidth={2} />
+                    <text x={endX + 10} y={toY(value) + 4} fill={color} fontSize={primary ? 11 : 10} fontWeight={primary ? 800 : 600} fontFamily={FONT}>
+                      {formatPct(value)}
                     </text>
-                  </>
-                )}
-                {showNo && (
-                  <>
-                    <circle cx={toX(history.length - 1)} cy={toY(lastPoint.down ?? (1 - lastPoint.p))} r={3} fill={t.down} opacity={0.5} />
-                    <text x={toX(history.length - 1) + 8} y={toY(lastPoint.down ?? (1 - lastPoint.p)) + 4} fill={t.down} fontSize={10} fontWeight={600} fontFamily={FONT} opacity={0.5}>
-                      {formatPct(lastPoint.down ?? (1 - lastPoint.p))}
-                    </text>
-                  </>
-                )}
-                {threeWay && lastPoint.draw != null && (
-                  <>
-                    <circle cx={toX(history.length - 1)} cy={toY(lastPoint.draw)} r={3} fill={t.draw} opacity={0.7} />
-                    <text x={toX(history.length - 1) + 8} y={toY(lastPoint.draw) + 4} fill={t.draw} fontSize={10} fontWeight={600} fontFamily={FONT} opacity={0.7}>
-                      {formatPct(lastPoint.draw)}
-                    </text>
-                  </>
-                )}
-              </>
-            )}
+                  </g>
+                );
+              };
+              return (
+                <>
+                  {showYes && endpoint(t.up, lastPoint.p, { primary: true })}
+                  {showNo && endpoint(t.down, lastPoint.down ?? (1 - lastPoint.p), { primary: false })}
+                  {threeWay && lastPoint.draw != null && endpoint(t.draw, lastPoint.draw, { primary: false })}
+                </>
+              );
+            })()}
           </svg>
         )}
       </Box>
