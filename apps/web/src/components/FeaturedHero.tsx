@@ -148,11 +148,11 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
           </Box>
           <Box
             onClick={() => onSelect(pool)}
-            sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, px: 2, py: 0.75, borderRadius: 1, cursor: 'pointer', bgcolor: withAlpha(catColor, 0.12), color: catColor, fontSize: '0.8rem', fontWeight: 700, '&:hover': { bgcolor: withAlpha(catColor, 0.2) } }}
+            sx={{ display: 'inline-flex', alignSelf: 'flex-start', alignItems: 'center', gap: 0.5, px: 2, py: 0.75, borderRadius: 1, cursor: 'pointer', bgcolor: withAlpha(catColor, 0.12), color: catColor, fontSize: '0.8rem', fontWeight: 700, mt: 'auto', '&:hover': { bgcolor: withAlpha(catColor, 0.2) } }}
           >
             View market <ChevronRight sx={{ fontSize: 16 }} />
           </Box>
-          <Typography sx={{ fontSize: '0.72rem', color: t.text.quaternary, mt: 'auto', pt: 1.5 }}>
+          <Typography sx={{ fontSize: '0.72rem', color: t.text.quaternary, mt: 1, pt: 0 }}>
             <Box component="span" sx={{ fontWeight: 700, color: flash ? t.gain : t.text.tertiary, px: 0.5, borderRadius: 0.75, bgcolor: flash ? withAlpha(t.gain, 0.15) : 'transparent', transition: 'background-color 0.4s ease, color 0.4s ease' }}>{volLabel} Vol.</Box>
           </Typography>
         </Box>
