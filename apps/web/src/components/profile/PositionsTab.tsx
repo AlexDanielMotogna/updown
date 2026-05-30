@@ -69,12 +69,8 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim }: Posi
       {/* Sub-tabs + search bar */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
         <Box sx={{ display: 'flex', gap: 0.5, p: 0.4, bgcolor: t.bg.surface, borderRadius: '8px', border: `1px solid ${t.border.subtle}` }}>
-          <Box onClick={() => setSub('active')} sx={subTabSx(sub === 'active')}>
-            Active {activeBets.length > 0 && <Box component="span" sx={{ ml: 0.5, color: t.text.quaternary, fontWeight: 500 }}>({activeBets.length})</Box>}
-          </Box>
-          <Box onClick={() => setSub('closed')} sx={subTabSx(sub === 'closed')}>
-            Closed {closedBets.length > 0 && <Box component="span" sx={{ ml: 0.5, color: t.text.quaternary, fontWeight: 500 }}>({closedBets.length})</Box>}
-          </Box>
+          <Box onClick={() => setSub('active')} sx={subTabSx(sub === 'active')}>Active</Box>
+          <Box onClick={() => setSub('closed')} sx={subTabSx(sub === 'closed')}>Closed</Box>
         </Box>
         <TextField
           placeholder="Search positions"

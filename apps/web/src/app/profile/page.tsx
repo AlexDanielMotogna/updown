@@ -231,11 +231,11 @@ export default function MyBetsPage() {
                 }}
               >
                 <Tab label="Overview" />
-                <Tab label={`Positions${bets.length ? ` (${bets.length})` : ''}`} />
+                <Tab label="Positions" />
                 <Tab label="Activity" />
                 <Tab label="Rewards" />
                 <Tab label="Referrals" />
-                <Tab label={`Tournaments${prizes.length > 0 ? ` (${prizes.length})` : ''}`} />
+                <Tab label="Tournaments" />
               </Tabs>
               {tab === 1 && (
                 <IconButton
