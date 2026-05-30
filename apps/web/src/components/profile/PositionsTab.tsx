@@ -70,14 +70,14 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim }: Posi
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
         <Box sx={{ display: 'flex', gap: 0.5, p: 0.4, bgcolor: t.bg.surface, borderRadius: '8px', border: `1px solid ${t.border.subtle}` }}>
           <Box onClick={() => setSub('active')} sx={subTabSx(sub === 'active')}>
-            Activa {activeBets.length > 0 && <Box component="span" sx={{ ml: 0.5, color: t.text.quaternary, fontWeight: 500 }}>({activeBets.length})</Box>}
+            Active {activeBets.length > 0 && <Box component="span" sx={{ ml: 0.5, color: t.text.quaternary, fontWeight: 500 }}>({activeBets.length})</Box>}
           </Box>
           <Box onClick={() => setSub('closed')} sx={subTabSx(sub === 'closed')}>
-            Cerrado {closedBets.length > 0 && <Box component="span" sx={{ ml: 0.5, color: t.text.quaternary, fontWeight: 500 }}>({closedBets.length})</Box>}
+            Closed {closedBets.length > 0 && <Box component="span" sx={{ ml: 0.5, color: t.text.quaternary, fontWeight: 500 }}>({closedBets.length})</Box>}
           </Box>
         </Box>
         <TextField
-          placeholder="Buscar posiciones"
+          placeholder="Search positions"
           value={query}
           onChange={e => setQuery(e.target.value)}
           size="small"
@@ -106,10 +106,10 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim }: Posi
         gap: 2, px: 2, py: 1, mb: 0.5,
         borderBottom: `1px solid ${t.border.subtle}`,
       }}>
-        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Resultado</Typography>
-        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Mercado</Typography>
-        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' }}>Total negociado</Typography>
-        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' }}>Cantidad ganada</Typography>
+        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Result</Typography>
+        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Market</Typography>
+        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' }}>Stake</Typography>
+        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' }}>Payout</Typography>
         <Box />
       </Box>
 

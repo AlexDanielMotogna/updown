@@ -106,10 +106,10 @@ export function ActivityTab({ bets, betsLoading }: ActivityTabProps) {
         gap: 2, px: 2, py: 1, mb: 0.5,
         borderBottom: `1px solid ${t.border.subtle}`,
       }}>
-        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Tipo</Typography>
-        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Mercado</Typography>
-        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' }}>Importe</Typography>
-        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' }}>Fecha</Typography>
+        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Type</Typography>
+        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Market</Typography>
+        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' }}>Amount</Typography>
+        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' }}>Date</Typography>
       </Box>
 
       {entries.map(e => <ActivityRow key={e.id} entry={e} />)}
@@ -129,11 +129,11 @@ interface TypeInfo {
 function getTypeInfo(type: ActivityType, t: ReturnType<typeof useThemeTokens>): TypeInfo {
   switch (type) {
     case 'BET':
-      return { label: 'Apuesta', color: t.text.primary, bg: t.hover.medium, icon: <ArrowDownward sx={{ fontSize: 14 }} /> };
+      return { label: 'Bet', color: t.text.primary, bg: t.hover.medium, icon: <ArrowDownward sx={{ fontSize: 14 }} /> };
     case 'PAID':
-      return { label: 'Cobrado', color: t.gain, bg: withAlpha(t.gain, 0.12), icon: <ArrowUpward sx={{ fontSize: 14 }} /> };
+      return { label: 'Payout', color: t.gain, bg: withAlpha(t.gain, 0.12), icon: <ArrowUpward sx={{ fontSize: 14 }} /> };
     case 'REFUND':
-      return { label: 'Reembolso', color: t.info, bg: 'rgba(59,130,246,0.12)', icon: <Refresh sx={{ fontSize: 14 }} /> };
+      return { label: 'Refund', color: t.info, bg: 'rgba(59,130,246,0.12)', icon: <Refresh sx={{ fontSize: 14 }} /> };
   }
 }
 
