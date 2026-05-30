@@ -2,6 +2,7 @@ import { prisma } from '../../db';
 import type { Match, MatchResult, MatchStatus } from './types';
 import { sportsDbFetchV2 } from './api-sports-fetch';
 import { FINISHED_STATUSES, API_LOOKUP_LIMIT, isFinishedStatus, normalizeStatus } from './livescore';
+import { regulationWinner } from './regulation-time';
 
 /**
  * Fixture cache read service.
@@ -169,10 +170,9 @@ export async function getCachedFixtureResults(
       const awayScore = Number(evt.intAwayScore);
       // Only use if the API confirms the match is finished with valid scores
       if (!isFinishedStatus(rawStatus) || isNaN(homeScore) || isNaN(awayScore)) continue;
-      const winner = homeScore > awayScore ? 'HOME' as const
-        : awayScore > homeScore ? 'AWAY' as const
-        : 'DRAW' as const;
-      map.set(eventId, { matchId: eventId, status: 'FINISHED', homeScore, awayScore, winner });
+      // Regulation-time rules: extra-time / penalty winners collapse to DRAW.
+      const winner = regulationWinner(homeScore, awayScore, rawStatus);
+      map.set(eventId, { matchId: eventId, status: 'FINISHED', rawStatus, homeScore, awayScore, winner });
       // Sync to both caches
       prisma.sportsFixtureCache.updateMany({
         where: { externalId: eventId },

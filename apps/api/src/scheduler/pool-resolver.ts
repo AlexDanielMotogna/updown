@@ -39,10 +39,16 @@ export class PoolResolver {
   async processResolutions(): Promise<void> {
     const bufferMs = 5000;
     const cutoff = new Date(Date.now() - bufferMs);
+    // Sports pools have their own resolver in sports-scheduler.ts (driven by
+    // the actual match result, not endTime). They land in this scheduler only
+    // by accident — and the crypto-style price-based resolution does the
+    // wrong thing for them (strikePrice on sports is 0n, which is falsy and
+    // sends them down handleNoStrikePricePool incorrectly).
     const poolsToResolve = await this.deps.prisma.pool.findMany({
       where: {
         status: { in: [PoolStatus.JOINING, PoolStatus.ACTIVE] },
         endTime: { lte: cutoff },
+        poolType: 'CRYPTO',
       },
     });
 

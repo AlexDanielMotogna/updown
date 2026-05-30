@@ -1,5 +1,6 @@
 import { SportAdapter, Match, MatchResult, MatchStatus } from './types';
 import { sportsDbFetch } from './api-sports-fetch';
+import { regulationWinner } from './regulation-time';
 
 // ── Sport Configurations ────────────────────────────────────────────────────
 
@@ -41,6 +42,7 @@ function mapEvent(e: any, sport: string, leagueOverride?: string): Match | null 
     awayTeamCrest: e.strAwayTeamBadge || undefined,
     kickoff,
     status: mapStatus(e.strStatus),
+    rawStatus: e.strStatus ?? null,
     homeScore: e.intHomeScore != null ? Number(e.intHomeScore) : undefined,
     awayScore: e.intAwayScore != null ? Number(e.intAwayScore) : undefined,
     matchday: e.intRound != null ? Number(e.intRound) : undefined,
@@ -153,13 +155,17 @@ export class SportsDbAdapter implements SportAdapter {
 
     const home = Number(e.intHomeScore ?? 0);
     const away = Number(e.intAwayScore ?? 0);
+    // Use regulation-time rules — football pools settle on the 90-minute
+    // result, so AET/PEN scores become DRAW even if one side eventually won.
+    const winner = regulationWinner(home, away, e.strStatus);
 
     return {
       matchId: String(e.idEvent),
       status: 'FINISHED',
+      rawStatus: e.strStatus ?? null,
       homeScore: home,
       awayScore: away,
-      winner: home > away ? 'HOME' : away > home ? 'AWAY' : 'DRAW',
+      winner,
     };
   }
 
