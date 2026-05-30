@@ -9,6 +9,10 @@ export type NotificationType =
   | 'POOL_CLAIMABLE'
   | 'POOL_RESOLVED'
   | 'REFUND_RECEIVED'
+  // Auto-payout settled: emitted when the scheduler's autoClaim has paid out
+  // the user's winning bet. Replaces the legacy POOL_CLAIMABLE + CLAIM_SUCCESS
+  // pair for users whose pool category has the feature flag enabled.
+  | 'BET_PAID'
   | 'DEPOSIT_SUCCESS'
   | 'PREDICTION_PLACED'
   | 'DEPOSIT_FAILED'

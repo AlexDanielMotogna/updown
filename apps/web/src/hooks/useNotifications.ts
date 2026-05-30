@@ -119,6 +119,24 @@ export function useNotifications() {
       );
     };
 
+    // Auto-payout settled — fires when the scheduler's autoClaim has confirmed
+    // the on-chain transfer to the user's wallet. Replaces the POOL_CLAIMABLE
+    // toast for users on auto-payout-enabled pools.
+    const onBetPaid = (payload: { walletAddress?: string; poolId?: string; betId?: string; amount?: string; txSignature?: string }) => {
+      if (!walletAddress || payload.walletAddress !== walletAddress) return;
+
+      push(
+        buildNotification('BET_PAID', {
+          poolId: payload.poolId,
+          amount: payload.amount,
+        }),
+      );
+      // Refresh bets so the row flips from "Paying soon" to "Paid" without a
+      // page reload.
+      queryClient.invalidateQueries({ queryKey: ['bets'] });
+      queryClient.invalidateQueries({ queryKey: ['claimableBets'] });
+    };
+
     const onUserReward = (data: {
       walletAddress: string;
       xp: number;
@@ -195,12 +213,14 @@ export function useNotifications() {
 
     socket.on('pool:status', onPoolStatus);
     socket.on('wallet:refund', onRefund);
+    socket.on('wallet:bet-paid', onBetPaid);
     socket.on('user:reward', onUserReward);
     socket.on('tournament:match:result', onTournamentMatchResult);
 
     return () => {
       socket.off('pool:status', onPoolStatus);
       socket.off('wallet:refund', onRefund);
+      socket.off('wallet:bet-paid', onBetPaid);
       socket.off('user:reward', onUserReward);
       socket.off('tournament:match:result', onTournamentMatchResult);
     };

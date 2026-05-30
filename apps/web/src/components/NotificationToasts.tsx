@@ -31,7 +31,7 @@ const BORDER_COLORS: Record<NotificationSeverity, string> = {
 };
 
 function getSeverityIcon(severity: NotificationSeverity, type: string) {
-  if (type === 'POOL_WON' || type === 'POOL_CLAIMABLE') return <EmojiEventsIcon sx={{ fontSize: 22, color: GAIN_COLOR }} />;
+  if (type === 'POOL_WON' || type === 'POOL_CLAIMABLE' || type === 'BET_PAID') return <EmojiEventsIcon sx={{ fontSize: 22, color: GAIN_COLOR }} />;
   if (type === 'TOURNAMENT_ENTRY_PAID' || type === 'DEPOSIT_SUCCESS') return <Typography sx={{ fontSize: 18, fontWeight: 800, color: GAIN_COLOR, width: 22, textAlign: 'center' }}>$</Typography>;
   if (type === 'CLAIM_SUCCESS' || type === 'REFUND_RECEIVED') return <Box component="img" src="/coins/usdc-coin.png" alt="USDC" sx={{ width: 22, height: 22 }} />;
   switch (severity) {

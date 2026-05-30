@@ -72,6 +72,11 @@ export function serializeBet(bet: {
   claimed: boolean;
   claimTx: string | null;
   payoutAmount: bigint | null;
+  // Auto-payout tracking — present on Bet but optional here so non-auto callers
+  // (existing test fixtures, force-resolve flows) can still serialize cleanly.
+  payoutFailed?: boolean;
+  payoutAttempts?: number;
+  lastAttemptedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   pool: {
@@ -119,6 +124,9 @@ export function serializeBet(bet: {
     claimTx: bet.claimTx,
     payoutAmount: bet.payoutAmount?.toString() ?? payout,
     isWinner: bet.pool.winner ? isWinner : null,
+    payoutFailed: bet.payoutFailed ?? false,
+    payoutAttempts: bet.payoutAttempts ?? 0,
+    lastAttemptedAt: bet.lastAttemptedAt?.toISOString() ?? null,
     createdAt: bet.createdAt.toISOString(),
     pool: {
       id: bet.pool.id,

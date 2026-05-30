@@ -37,7 +37,7 @@ const SEVERITY_COLORS: Record<NotificationSeverity, string> = {
 };
 
 function getSeverityIcon(severity: NotificationSeverity, type: string) {
-  if (type === 'POOL_WON' || type === 'POOL_CLAIMABLE')
+  if (type === 'POOL_WON' || type === 'POOL_CLAIMABLE' || type === 'BET_PAID')
     return <EmojiEvents sx={{ fontSize: 18, color: GAIN_COLOR }} />;
   if (type === 'TOURNAMENT_ENTRY_PAID' || type === 'DEPOSIT_SUCCESS')
     return <Typography sx={{ fontSize: 16, fontWeight: 800, color: GAIN_COLOR, width: 18, textAlign: 'center' }}>$</Typography>;

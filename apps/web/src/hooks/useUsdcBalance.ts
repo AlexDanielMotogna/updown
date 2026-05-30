@@ -28,17 +28,24 @@ export function useUsdcBalance() {
     const socket = getSocket();
     connectSocket();
 
-    const onRefund = (data: { walletAddress: string }) => {
+    const refreshOnWalletEvent = (kind: string) => (data: { walletAddress: string }) => {
       if (data.walletAddress === publicKey.toBase58()) {
-        console.log('[useUsdcBalance] Refund received, refreshing balance');
+        console.log(`[useUsdcBalance] ${kind} received, refreshing balance`);
         queryClient.invalidateQueries({ queryKey: ['usdc-balance'] });
         queryClient.invalidateQueries({ queryKey: ['bets'] });
         queryClient.invalidateQueries({ queryKey: ['claimableBets'] });
       }
     };
 
+    const onRefund = refreshOnWalletEvent('Refund');
+    const onBetPaid = refreshOnWalletEvent('Auto-payout');
+
     socket.on('wallet:refund', onRefund);
-    return () => { socket.off('wallet:refund', onRefund); };
+    socket.on('wallet:bet-paid', onBetPaid);
+    return () => {
+      socket.off('wallet:refund', onRefund);
+      socket.off('wallet:bet-paid', onBetPaid);
+    };
   }, [publicKey, queryClient]);
 
   return useQuery<UsdcBalance>({
