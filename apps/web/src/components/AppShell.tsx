@@ -154,9 +154,11 @@ export function AppShell({ children, centered = false, topBar }: { children: Rea
         </Box>
         {/* Right sidebar. On Markets it's the always-on market rail; elsewhere
             it's the user's active pools (closeable). */}
+        {/* Right rail in the flex flow only on Markets (the markets rail is part
+            of the layout, not an overlay). */}
         <Box
           sx={{
-            display: { xs: 'none', lg: (isMarkets || rightOpen) ? 'block' : 'none' },
+            display: { xs: 'none', lg: isMarkets ? 'block' : 'none' },
             width: 240,
             flexShrink: 0,
             position: 'sticky',
@@ -164,11 +166,28 @@ export function AppShell({ children, centered = false, topBar }: { children: Rea
             height: topBar ? `calc(100vh - ${HEADER_LG + TOP_BAR_LG}px)` : `calc(100vh - ${HEADER_LG}px)`,
           }}
         >
-          {isMarkets
-            ? <MarketsRightRail />
-            : <ActivePoolsSidebar onClose={() => setRight(false)} />}
+          {isMarkets && <MarketsRightRail />}
         </Box>
       </Box>
+
+      {/* Predictions sidebar — overlays the layout (doesn't push the content
+          column). Only used on non-Markets pages. */}
+      {!isMarkets && rightOpen && (
+        <Box sx={{
+          display: { xs: 'none', lg: 'block' },
+          position: 'fixed',
+          top: HEADER_LG,
+          right: 'max(0px, calc(50vw - 700px))',
+          width: 240,
+          height: `calc(100vh - ${HEADER_LG}px)`,
+          zIndex: 40,
+          bgcolor: t.bg.app,
+          borderLeft: `1px solid ${t.border.subtle}`,
+          boxShadow: '-4px 0 14px rgba(0,0,0,0.25)',
+        }}>
+          <ActivePoolsSidebar onClose={() => setRight(false)} />
+        </Box>
+      )}
 
       {/* Reopen tab when the (closeable) predictions sidebar is closed — never on Markets */}
       {!rightOpen && !isMarkets && (
