@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { Box, Typography } from '@mui/material';
 import { ChevronLeft, ChevronRight, SportsSoccer } from '@mui/icons-material';
@@ -68,6 +68,11 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
   const [index, setIndex] = useState(0);
   const [live, setLive] = useState<{ up: string; down: string; draw: string } | null>(null);
   const [flash, setFlash] = useState(false);
+  // Trade ticks — floating "+$X UP" pills that animate over the chart on each
+  // incoming bet (Kalshi/Polymarket-style live trade indicators).
+  type Tick = { id: number; side: 'UP' | 'DOWN' | 'DRAW'; amount: bigint; color: string };
+  const [ticks, setTicks] = useState<Tick[]>([]);
+  const prevTotalsRef = useRef<{ up: bigint; down: bigint; draw: bigint }>({ up: 0n, down: 0n, draw: 0n });
 
   const count = pools.length;
   useEffect(() => { if (index >= count) setIndex(0); }, [count, index]);
@@ -79,19 +84,51 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
   useEffect(() => {
     setLive(null);
     setFlash(false);
+    setTicks([]);
     if (typeof window === 'undefined' || !currentId) return;
+    // Seed prev totals from the current pool data so the first WS event's delta
+    // reflects just that bet (not the whole pool history).
+    const cp = pools.find(p => p.id === currentId);
+    try {
+      prevTotalsRef.current = {
+        up: BigInt(cp?.totalUp || '0'),
+        down: BigInt(cp?.totalDown || '0'),
+        draw: BigInt(cp?.totalDraw || '0'),
+      };
+    } catch { /* keep */ }
+    let tickId = 0;
     const sock = getSocket();
     connectSocket();
     subscribePool(currentId);
     const onUpdate = (d: { id: string; totalUp: string; totalDown: string; totalDraw: string }) => {
       if (d.id !== currentId) return;
+      // Delta against the previous totals = the size of this bet, per side.
+      try {
+        const newUp = BigInt(d.totalUp || '0');
+        const newDown = BigInt(d.totalDown || '0');
+        const newDraw = BigInt(d.totalDraw || '0');
+        const prev = prevTotalsRef.current;
+        const dUp = newUp - prev.up;
+        const dDown = newDown - prev.down;
+        const dDraw = newDraw - prev.draw;
+        prevTotalsRef.current = { up: newUp, down: newDown, draw: newDraw };
+        const created: Tick[] = [];
+        if (dUp > 0n) created.push({ id: ++tickId, side: 'UP', amount: dUp, color: t.up });
+        if (dDown > 0n) created.push({ id: ++tickId, side: 'DOWN', amount: dDown, color: t.down });
+        if (dDraw > 0n) created.push({ id: ++tickId, side: 'DRAW', amount: dDraw, color: t.draw });
+        if (created.length > 0) {
+          setTicks(prev => [...prev, ...created]);
+          created.forEach(tk => setTimeout(() => setTicks(prev => prev.filter(x => x.id !== tk.id)), 2400));
+        }
+      } catch { /* ignore parse errors */ }
       setLive({ up: d.totalUp, down: d.totalDown, draw: d.totalDraw });
       setFlash(true);
       setTimeout(() => setFlash(false), 900);
     };
     sock.on('pool:updated', onUpdate);
     return () => { sock.off('pool:updated', onUpdate); unsubscribePool(currentId); };
-  }, [currentId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentId, t.up, t.down, t.draw]);
 
   if (count === 0) return null;
   const pool = pools[safeIndex];
@@ -145,6 +182,25 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
     ? `Predict whether ${ASSET_NAMES[pool.asset] || pool.asset} closes higher or lower at the end of the next ${INTERVAL_LABELS[pool.interval] || pool.interval} round.`
     : null;
   const newsText = formatMatchAnalysis(pool.matchAnalysis ?? null, pool.homeTeam ?? null, pool.awayTeam ?? null) || cryptoBlurb;
+
+  // Trade tick helpers (used by the floating "+$X" pills on incoming bets).
+  const fmtTickAmount = (base: bigint): string => {
+    const n = Number(base) / 1_000_000;
+    if (n >= 1000) return `$${(n / 1000).toFixed(1)}K`;
+    if (n >= 100) return `$${n.toFixed(0)}`;
+    return `$${n.toFixed(2)}`;
+  };
+  const tickName = (side: 'UP' | 'DOWN' | 'DRAW'): string => {
+    if (isCrypto) return side === 'UP' ? 'UP' : 'DOWN';
+    if (isPrediction) {
+      if (side === 'UP') return pool.awayTeam ? pool.homeTeam || 'Yes' : 'Yes';
+      return pool.awayTeam || 'No';
+    }
+    if (side === 'UP') return pool.homeTeam || 'Home';
+    if (side === 'DOWN') return pool.awayTeam || 'Away';
+    return 'Draw';
+  };
+  const shortName = (s: string): string => (s.length > 12 ? s.slice(0, 12) + '…' : s);
 
   return (
     <Box sx={{ bgcolor: t.bg.surface, border: t.surfaceBorder, borderRadius: 2, p: { xs: 1.75, md: 2.5 }, mb: { xs: 3, md: 4 } }}>
@@ -215,8 +271,40 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
           </Typography>
         </Box>
 
-        <Box sx={{ minWidth: 0 }}>
+        <Box sx={{ minWidth: 0, position: 'relative' }}>
           <OddsChart key={pool.id} poolId={pool.id} totalUp={pool.totalUp} totalDown={pool.totalDown} totalDraw={pool.totalDraw} lockSource="updown" hideControls seedDefault threeWay={pool.numSides === 3} />
+          {/* Live trade ticks — floating pills on incoming bets. */}
+          {ticks.length > 0 && (
+            <Box sx={{ position: 'absolute', top: 8, right: 64, pointerEvents: 'none', zIndex: 5, display: 'flex', flexDirection: 'column', gap: 0.25, alignItems: 'flex-end' }}>
+              {ticks.map(tk => (
+                <Box
+                  key={tk.id}
+                  sx={{
+                    display: 'inline-flex', alignItems: 'center', gap: 0.5,
+                    px: 1, py: 0.4,
+                    borderRadius: '999px',
+                    border: `1px solid ${withAlpha(tk.color, 0.45)}`,
+                    bgcolor: withAlpha(tk.color, 0.18),
+                    backdropFilter: 'blur(8px)',
+                    whiteSpace: 'nowrap',
+                    '@keyframes floatTick': {
+                      '0%': { transform: 'translateY(0)', opacity: 0 },
+                      '15%': { transform: 'translateY(-4px)', opacity: 1 },
+                      '100%': { transform: 'translateY(-48px)', opacity: 0 },
+                    },
+                    animation: 'floatTick 2.4s ease-out forwards',
+                  }}
+                >
+                  <Typography sx={{ fontSize: '0.78rem', fontWeight: 800, color: tk.color, fontVariantNumeric: 'tabular-nums' }}>
+                    +{fmtTickAmount(tk.amount)}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, color: tk.color, textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.85 }}>
+                    {shortName(tickName(tk.side))}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          )}
         </Box>
       </Box>
     </Box>
