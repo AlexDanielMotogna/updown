@@ -54,15 +54,44 @@ function stepPath(pts: Array<[number, number]>): string {
   return d;
 }
 
-// Right padding leaves room for the y-axis ticks AND the inline "65% Up" badges
-// at the end of each line so they don't get clipped against the right edge.
-const PADDING = { top: 28, right: 96, bottom: 26, left: 12 };
+// Right padding leaves room for the inline "65% Up" outcome badges at the end
+// of each line + the (right-anchored) y-axis tick text on the far edge.
+const PADDING = { top: 28, right: 110, bottom: 26, left: 12 };
 const CHART_H = 300;
 const MAX_UPDOWN_POINTS = 100;
 const FONT = 'var(--font-satoshi), Satoshi, sans-serif';
 const DOT_R = 3.5;
-const LABEL_GAP = 8;       // px between end-point dot and inline label
+const LABEL_GAP = 8;          // px between end-point dot and inline label
 const HOVER_LABEL_OFFSET = 10;
+const LABEL_MIN_GAP = 14;     // vertical breathing room between stacked labels
+const LABEL_OFFSET_Y = 6;     // text drawn this many px above the dot
+
+/**
+ * Stack labels vertically so close-share outcomes don't write on top of each
+ * other. Sorts by line Y, lays out top-down with min-gap, then clamps from the
+ * bottom up so labels never escape the plot area.
+ */
+function placeLabels<T extends { color: string; value: number; label?: string }>(
+  items: T[],
+  toY: (v: number) => number,
+  minY: number,
+  maxY: number,
+): Array<T & { lineY: number; textY: number }> {
+  const sorted = items
+    .map(it => ({ ...it, lineY: toY(it.value), textY: 0 }))
+    .sort((a, b) => a.lineY - b.lineY);
+  let prev = minY - LABEL_MIN_GAP;
+  for (const s of sorted) {
+    s.textY = Math.max(s.lineY - LABEL_OFFSET_Y, prev + LABEL_MIN_GAP);
+    prev = s.textY;
+  }
+  let next = maxY;
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    if (sorted[i].textY > next) sorted[i].textY = next;
+    next = sorted[i].textY - LABEL_MIN_GAP;
+  }
+  return sorted;
+}
 
 function formatPct(p: number): string {
   return `${Math.round(p * 100)}%`;
@@ -387,13 +416,13 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
           </Box>
         ) : (
           <svg width={width} height={CHART_H} onMouseMove={handleMouseMove} onMouseLeave={() => setHoverIndex(null)} style={{ cursor: 'crosshair', display: 'block' }}>
-            {/* Grid — subtle horizontals + percentage labels on the right. No
-                axis line, no 50% reference; just enough scaffolding to read the
-                lines (Kalshi/Polymarket style). */}
+            {/* Grid — subtle horizontals + percentage labels anchored to the
+                far right edge so outcome badges have the whole padding-area
+                between line-end and tick to themselves (Kalshi layout). */}
             {yTicks.map((yt, i) => (
               <g key={i}>
                 <line x1={PADDING.left} y1={yt.y} x2={PADDING.left + chartW} y2={yt.y} stroke={t.border.subtle} strokeWidth={0.6} opacity={0.55} />
-                <text x={PADDING.left + chartW + 6} y={yt.y + 3} fill={t.text.muted} fontSize={10} fontFamily={FONT} opacity={0.7}>
+                <text x={width - 4} y={yt.y + 3} fill={t.text.muted} fontSize={10} fontFamily={FONT} opacity={0.6} textAnchor="end">
                   {formatPct(yt.p)}
                 </text>
               </g>
@@ -411,19 +440,46 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
             {showYes && <path d={yesPath} fill="none" stroke={t.up} strokeWidth={1.8} strokeLinejoin="round" />}
 
             {/* End-point badges — when not hovering, show "{pct} {label}" next
-                to a small dot at each line's last point. */}
+                to a small dot at each line's last point. Labels are stacked
+                vertically (above the dots) with min spacing so close-share
+                outcomes don't overwrite each other, and each label gets a
+                paint-order halo so it reads cleanly against the background. */}
             {lastPoint && hoverIndex == null && (() => {
               const endX = toX(history.length - 1);
               const items: Array<{ color: string; value: number; label?: string }> = [];
               if (showYes) items.push({ color: t.up, value: lastPoint.p, label: labels?.up });
               if (showNo) items.push({ color: t.down, value: lastPoint.down ?? (1 - lastPoint.p), label: labels?.down });
               if (threeWay && lastPoint.draw != null) items.push({ color: t.draw, value: lastPoint.draw, label: labels?.draw });
+              const placed = placeLabels(items, toY, PADDING.top + 8, PADDING.top + chartH - 4);
               return (
                 <>
-                  {items.map((it, i) => (
+                  {placed.map((it, i) => (
                     <g key={i}>
-                      <circle cx={endX} cy={toY(it.value)} r={DOT_R} fill={it.color} />
-                      <text x={endX + LABEL_GAP} y={toY(it.value) + 4} fill={it.color} fontSize={11} fontWeight={700} fontFamily={FONT}>
+                      <circle cx={endX} cy={it.lineY} r={DOT_R} fill={it.color} />
+                      {/* Faint leader line when the label is offset from the
+                          dot, so the reader can still tie label ↔ line. */}
+                      {Math.abs(it.textY - it.lineY) > 4 && (
+                        <line
+                          x1={endX + 2}
+                          y1={it.lineY}
+                          x2={endX + LABEL_GAP - 1}
+                          y2={it.textY - 3}
+                          stroke={it.color}
+                          strokeWidth={0.8}
+                          opacity={0.45}
+                        />
+                      )}
+                      <text
+                        x={endX + LABEL_GAP}
+                        y={it.textY}
+                        fill={it.color}
+                        stroke={t.bg.app}
+                        strokeWidth={3}
+                        paintOrder="stroke"
+                        fontSize={11}
+                        fontWeight={700}
+                        fontFamily={FONT}
+                      >
                         {formatPct(it.value)}{it.label ? ` ${it.label}` : ''}
                       </text>
                     </g>
@@ -433,8 +489,9 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
             })()}
 
             {/* Hover — thin solid vertical guide, top-of-chart date pill, and
-                inline "{pct} {label}" badges anchored to each line at cursor X.
-                Label flips left when too close to the right edge. */}
+                inline "{pct} {label}" badges stacked vertically next to each
+                line at the cursor X. Label flips left when too close to the
+                right edge; paint-order halo keeps text readable over lines. */}
             {hoverIndex != null && hoverPoint && (() => {
               const cx = toX(hoverIndex);
               const items: Array<{ color: string; value: number; label?: string }> = [];
@@ -448,6 +505,7 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
                 Math.max(cx, PADDING.left + 40),
                 PADDING.left + chartW - 40,
               );
+              const placed = placeLabels(items, toY, PADDING.top + 8, PADDING.top + chartH - 4);
               return (
                 <>
                   <line x1={cx} y1={PADDING.top} x2={cx} y2={PADDING.top + chartH} stroke={t.border.strong} strokeWidth={1} />
@@ -463,10 +521,32 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
                   >
                     {formatHoverHeader(hoverPoint.t, source)}
                   </text>
-                  {items.map((it, i) => (
+                  {placed.map((it, i) => (
                     <g key={i}>
-                      <circle cx={cx} cy={toY(it.value)} r={DOT_R} fill={it.color} stroke={t.bg.app} strokeWidth={1.5} />
-                      <text x={labelX} y={toY(it.value) + 4} fill={it.color} fontSize={11} fontWeight={700} fontFamily={FONT} textAnchor={labelAnchor}>
+                      <circle cx={cx} cy={it.lineY} r={DOT_R} fill={it.color} stroke={t.bg.app} strokeWidth={1.5} />
+                      {Math.abs(it.textY - it.lineY) > 4 && (
+                        <line
+                          x1={labelOnRight ? cx + 2 : cx - 2}
+                          y1={it.lineY}
+                          x2={labelOnRight ? labelX - 1 : labelX + 1}
+                          y2={it.textY - 3}
+                          stroke={it.color}
+                          strokeWidth={0.8}
+                          opacity={0.45}
+                        />
+                      )}
+                      <text
+                        x={labelX}
+                        y={it.textY}
+                        fill={it.color}
+                        stroke={t.bg.app}
+                        strokeWidth={3}
+                        paintOrder="stroke"
+                        fontSize={11}
+                        fontWeight={700}
+                        fontFamily={FONT}
+                        textAnchor={labelAnchor}
+                      >
                         {formatPct(it.value)}{it.label ? ` ${it.label}` : ''}
                       </text>
                     </g>
