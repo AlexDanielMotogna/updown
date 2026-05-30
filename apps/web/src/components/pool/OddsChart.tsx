@@ -66,6 +66,20 @@ const HOVER_LABEL_OFFSET = 10;
 const LABEL_MIN_GAP = 14;     // vertical breathing room between stacked labels
 const LABEL_OFFSET_Y = 6;     // text drawn this many px above the dot
 
+// Tween every position-y attribute on hover dots / guide / labels and on the
+// end-point indicators so the chart never "snaps" between data points. The
+// duration is short enough that the cursor feels responsive but long enough
+// that successive hover indices visibly interpolate. SVG2 geometry props
+// (cx/cy/x/y/x1/x2/y1/y2) are CSS-animatable in modern browsers.
+const SMOOTH: React.CSSProperties = {
+  transition:
+    'cx 120ms ease-out, cy 120ms ease-out, ' +
+    'x 120ms ease-out, y 120ms ease-out, ' +
+    'x1 120ms ease-out, x2 120ms ease-out, ' +
+    'y1 120ms ease-out, y2 120ms ease-out',
+};
+const SMOOTH_LABEL: React.CSSProperties = { ...SMOOTH, paintOrder: 'stroke' };
+
 /**
  * Stack labels vertically so close-share outcomes don't write on top of each
  * other. Sorts by line Y, lays out top-down with min-gap, then clamps from the
@@ -455,7 +469,7 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
                 <>
                   {placed.map((it, i) => (
                     <g key={i}>
-                      <circle cx={endX} cy={it.lineY} r={DOT_R} fill={it.color} />
+                      <circle cx={endX} cy={it.lineY} r={DOT_R} fill={it.color} style={SMOOTH} />
                       {/* Faint leader line when the label is offset from the
                           dot, so the reader can still tie label ↔ line. */}
                       {Math.abs(it.textY - it.lineY) > 4 && (
@@ -467,6 +481,7 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
                           stroke={it.color}
                           strokeWidth={0.8}
                           opacity={0.45}
+                          style={SMOOTH}
                         />
                       )}
                       <text
@@ -475,10 +490,10 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
                         fill={it.color}
                         stroke={t.bg.app}
                         strokeWidth={3}
-                        paintOrder="stroke"
                         fontSize={11}
                         fontWeight={700}
                         fontFamily={FONT}
+                        style={SMOOTH_LABEL}
                       >
                         {formatPct(it.value)}{it.label ? ` ${it.label}` : ''}
                       </text>
@@ -508,7 +523,7 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
               const placed = placeLabels(items, toY, PADDING.top + 8, PADDING.top + chartH - 4);
               return (
                 <>
-                  <line x1={cx} y1={PADDING.top} x2={cx} y2={PADDING.top + chartH} stroke={t.border.strong} strokeWidth={1} />
+                  <line x1={cx} y1={PADDING.top} x2={cx} y2={PADDING.top + chartH} stroke={t.border.strong} strokeWidth={1} style={SMOOTH} />
                   <text
                     x={headerX}
                     y={PADDING.top - 10}
@@ -518,12 +533,13 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
                     textAnchor="middle"
                     fontFamily={FONT}
                     letterSpacing="0.06em"
+                    style={SMOOTH}
                   >
                     {formatHoverHeader(hoverPoint.t, source)}
                   </text>
                   {placed.map((it, i) => (
                     <g key={i}>
-                      <circle cx={cx} cy={it.lineY} r={DOT_R} fill={it.color} stroke={t.bg.app} strokeWidth={1.5} />
+                      <circle cx={cx} cy={it.lineY} r={DOT_R} fill={it.color} stroke={t.bg.app} strokeWidth={1.5} style={SMOOTH} />
                       {Math.abs(it.textY - it.lineY) > 4 && (
                         <line
                           x1={labelOnRight ? cx + 2 : cx - 2}
@@ -533,6 +549,7 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
                           stroke={it.color}
                           strokeWidth={0.8}
                           opacity={0.45}
+                          style={SMOOTH}
                         />
                       )}
                       <text
@@ -541,11 +558,11 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
                         fill={it.color}
                         stroke={t.bg.app}
                         strokeWidth={3}
-                        paintOrder="stroke"
                         fontSize={11}
                         fontWeight={700}
                         fontFamily={FONT}
                         textAnchor={labelAnchor}
+                        style={SMOOTH_LABEL}
                       >
                         {formatPct(it.value)}{it.label ? ` ${it.label}` : ''}
                       </text>
