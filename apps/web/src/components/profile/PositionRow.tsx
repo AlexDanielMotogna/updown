@@ -178,21 +178,15 @@ export function PositionRow({ bet, onClaim, isClaiming }: PositionRowProps) {
         </Box>
       </Box>
 
-      {/* Stake / Total negociado */}
+      {/* Stake / Total negociado — header above carries the label */}
       <Box sx={{ display: { xs: 'none', md: 'block' }, textAlign: 'right' }}>
-        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.4 }}>
-          Total negociado
-        </Typography>
         <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
           {formatUSDC(bet.amount, { min: 2 })}
         </Typography>
       </Box>
 
-      {/* Payout / Cantidad ganada */}
+      {/* Payout / Cantidad ganada — header above carries the label */}
       <Box sx={{ display: { xs: 'none', md: 'block' }, textAlign: 'right' }}>
-        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.4 }}>
-          Cantidad ganada
-        </Typography>
         {bet.payoutAmount ? (
           <>
             <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
