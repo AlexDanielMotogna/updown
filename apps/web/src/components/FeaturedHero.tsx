@@ -143,7 +143,7 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
         <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <Typography
             onClick={() => onSelect(pool)}
-            sx={{ fontSize: { xs: '1.1rem', md: '1.35rem' }, fontWeight: 800, color: t.text.primary, lineHeight: 1.25, mb: 1.5, cursor: 'pointer', '&:hover': { color: t.up } }}
+            sx={{ fontSize: { xs: '0.95rem', md: '1.05rem' }, fontWeight: 800, color: t.text.primary, lineHeight: 1.3, mb: 1.5, cursor: 'pointer', '&:hover': { color: t.up } }}
           >
             {title}
           </Typography>
@@ -170,7 +170,7 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
                   <Typography sx={{ fontSize: '0.58rem', fontWeight: 800, color: t.text.dimmed, textTransform: 'uppercase', letterSpacing: '0.07em', mb: 0.5 }}>
                     {pool.matchAnalysis ? 'News' : 'About'}
                   </Typography>
-                  <Typography sx={{ fontSize: '0.74rem', color: t.text.secondary, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                  <Typography sx={{ fontSize: '0.74rem', color: t.text.bright, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                     {newsText}
                   </Typography>
                 </>
