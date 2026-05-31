@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { Box, Typography, Chip } from '@mui/material';
 import { Star } from '@mui/icons-material';
+import { AssetIcon } from '@/components/AssetIcon';
 import { AnimatedValue } from '@/components/AnimatedValue';
 import { getSocket, connectSocket, subscribePool, unsubscribePool } from '@/lib/socket';
 import { getIcon } from '@/lib/icon-registry';
@@ -167,7 +168,10 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6, minWidth: 0 }}>
           {isCrypto ? (
-            <Box component="img" src={`/coins/${pool.asset.toLowerCase()}-coin.png`} alt="" sx={{ width: 18, height: 18, borderRadius: '50%' }} />
+            // Per-asset round Pacifica token SVG — same identity the asset
+            // tile uses on /pool/[id] and in the sidebar market list, so the
+            // visual reads consistently across every crypto surface.
+            <AssetIcon asset={pool.asset} size={18} />
           ) : catBadge ? (
             // Dark pad so the Champions League badge (whitish silver star)
             // still reads against the card bg - white pad made it invisible.
