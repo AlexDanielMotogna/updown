@@ -92,9 +92,14 @@ export function AppShell({ children, centered = false, topBar }: { children: Rea
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isMarkets = pathname === '/';
-  // Trending has no left filter sidebar (cross-category view), so don't reserve
-  // its 200px gutter — let the content grow into that space.
-  const hideMarketSidebar = isMarkets && searchParams.get('type') === 'TRENDING';
+  // Detail pages (pool / match) are full-bleed two-column layouts (chart +
+  // bet card sidebar). Reserving the 200px MarketSidebar gutter on top of
+  // that squeezes the chart and wastes the 1400px frame.
+  const isDetailPage = pathname.startsWith('/pool/') || pathname.startsWith('/match/');
+  // Trending and detail pages skip the left filter sidebar — both are
+  // cross-category / single-market views, no filter rail needed.
+  const hideMarketSidebar =
+    (isMarkets && searchParams.get('type') === 'TRENDING') || isDetailPage;
   const [rightOpen, setRightOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   useEffect(() => {
