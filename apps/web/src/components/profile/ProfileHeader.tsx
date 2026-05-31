@@ -114,7 +114,10 @@ export function ProfileHeader({
   const pnlPositive = netPnl >= 0;
   const totalBets = userProfile?.stats.totalBets ?? 0;
   const totalWins = userProfile?.stats.totalWins ?? 0;
-  const losses = Math.max(0, totalBets - totalWins);
+  const totalRefunded = userProfile?.stats.totalRefunded ?? 0;
+  // Refunds aren't losses (stake came back) — drop them out of the L counter
+  // so 2W / 1L matches Win Rate's own (wins / settled) denominator.
+  const losses = Math.max(0, totalBets - totalWins - totalRefunded);
 
   const level = userProfile?.level ?? 1;
   const tierIndex = Math.min(Math.floor((level - 1) / 4), 9);
@@ -280,7 +283,7 @@ export function ProfileHeader({
                   tip="Share of your predictions that won"
                   color={t.gain}
                   value={`${userProfile?.stats.winRate ?? '0.0'}%`}
-                  sub={`${totalWins}W / ${losses}L`}
+                  sub={`${totalWins}W / ${losses}L${totalRefunded > 0 ? ` · ${totalRefunded}R` : ''}`}
                 />
                 <HeroTile
                   label="Volume Staked"

@@ -169,6 +169,9 @@ export interface UserProfileExtras {
   totalWon?: bigint;
   rank?: number;
   totalUsers?: number;
+  /** Number of refunded bets — pulled out of the Win Rate denominator since
+   *  a refund isn't a loss (stake came back to the user). */
+  totalRefunded?: number;
 }
 
 export function serializeUserProfile(user: {
@@ -221,17 +224,25 @@ export function serializeUserProfile(user: {
     },
     rank: extras.rank ?? null,
     totalUsers: extras.totalUsers ?? null,
-    stats: {
-      totalBets: user.totalBets,
-      totalWins: user.totalWins,
-      winRate: user.totalBets > 0
-        ? ((user.totalWins / user.totalBets) * 100).toFixed(1)
-        : '0.0',
-      totalWagered: user.totalWagered.toString(),
-      totalWon: (extras.totalWon ?? 0n).toString(),
-      currentStreak: user.currentStreak,
-      bestStreak: user.bestStreak,
-    },
+    stats: (() => {
+      const refunded = extras.totalRefunded ?? 0;
+      // Refunds aren't wins and aren't losses. Excluding them from the
+      // denominator gives a Win Rate of what the user actually bets against
+      // a real counterparty.
+      const settled = Math.max(0, user.totalBets - refunded);
+      return {
+        totalBets: user.totalBets,
+        totalWins: user.totalWins,
+        totalRefunded: refunded,
+        winRate: settled > 0
+          ? ((user.totalWins / settled) * 100).toFixed(1)
+          : '0.0',
+        totalWagered: user.totalWagered.toString(),
+        totalWon: (extras.totalWon ?? 0n).toString(),
+        currentStreak: user.currentStreak,
+        bestStreak: user.bestStreak,
+      };
+    })(),
     createdAt: user.createdAt.toISOString(),
   };
 }

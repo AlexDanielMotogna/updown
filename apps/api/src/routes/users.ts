@@ -82,16 +82,32 @@ usersRouter.get('/profile', async (req, res) => {
       });
     }
 
-    // Aggregates the User row can't supply: realized winnings (for Net P&L) and
-    // the user's leaderboard rank by XP. Run in parallel with each other.
-    const [wonAgg, higherXpCount, totalUsers] = await Promise.all([
+    // Aggregates the User row can't supply: realized winnings (for Net P&L),
+    // the user's rank by XP, and refunded-bet count (used to drop refunds
+    // out of the Win Rate denominator — they didn't lose, they got their
+    // stake back).
+    const [wonAgg, higherXpCount, totalUsers, refundedRows] = await Promise.all([
       prisma.bet.aggregate({
         _sum: { payoutAmount: true },
         where: { walletAddress: user.walletAddress, payoutAmount: { not: null } },
       }),
       prisma.user.count({ where: { totalXp: { gt: user.totalXp } } }),
       prisma.user.count(),
+      // Refund = claimed bet whose on-chain payout equals the original stake.
+      // Both autoRefundBets and the single-bettor / one-sided / hedger paths
+      // write payout_amount = amount, so a column-to-column comparison is the
+      // canonical test. Prisma's findMany can't express that directly, hence
+      // raw.
+      prisma.$queryRaw<Array<{ count: bigint }>>`
+        SELECT COUNT(*)::bigint AS count
+        FROM bets
+        WHERE wallet_address = ${user.walletAddress}
+          AND claimed = TRUE
+          AND payout_amount IS NOT NULL
+          AND payout_amount = amount
+      `,
     ]);
+    const totalRefunded = Number(refundedRows[0]?.count ?? 0n);
 
     res.json({
       success: true,
@@ -99,6 +115,7 @@ usersRouter.get('/profile', async (req, res) => {
         totalWon: wonAgg._sum.payoutAmount ?? 0n,
         rank: higherXpCount + 1,
         totalUsers,
+        totalRefunded,
       }),
     });
   } catch (error) {

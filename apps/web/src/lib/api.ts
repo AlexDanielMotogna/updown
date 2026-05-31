@@ -379,6 +379,8 @@ export interface UserProfile {
   stats: {
     totalBets: number;
     totalWins: number;
+    /** Number of refunded bets — excluded from winRate denominator. */
+    totalRefunded?: number;
     winRate: string;
     totalWagered: string;
     totalWon: string;
