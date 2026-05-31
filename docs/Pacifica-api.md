@@ -8250,9 +8250,9 @@ Order cancellation
 
 Heavy GET requests
 
-3–12
+3-12
 
-1–3
+1-3
 
 When credits are exhausted, requests return HTTP 429.
 

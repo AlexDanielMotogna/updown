@@ -111,7 +111,7 @@ Your Payout = (Your Stake / Total on Winning Side) × Total Pool − Fee
 - **Profile page** → Pools tab → Click "Claim" on winning predictions
 - **Claim All** → Banner at top for batch-claiming multiple wins
 - Each claim is a Solana transaction (user + authority co-sign)
-- Fees deducted at claim time (3%–5% based on level)
+- Fees deducted at claim time (3%-5% based on level)
 
 ---
 
@@ -147,7 +147,7 @@ Private groups where members create custom pools and compete against each other.
 
 ### Features
 - **Create a squad** — Generate invite code, set max members
-- **Create pools** — Members can create custom pools with any asset and duration (1min–24h)
+- **Create pools** — Members can create custom pools with any asset and duration (1min-24h)
 - **Leaderboard** — Track squad member performance
 - **Chat** — Real-time messaging within the squad
 - **Kick members** — Squad owner can remove members
@@ -209,7 +209,7 @@ For sports and prediction markets:
 | Claim a payout | +50 |
 | Win streak (3+) | +100 × (streak − 2), max +800 |
 
-### Levels (1–40)
+### Levels (1-40)
 | Level | Title | Fee |
 |---|---|---|
 | 1 | Newcomer | 5.00% |
@@ -332,7 +332,7 @@ Bell icon shows:
 
 ## Tips
 
-- **Start small** — Try $10–$50 to learn how odds shift
+- **Start small** — Try $10-$50 to learn how odds shift
 - **Watch the odds** — They change in real-time. Early minority bets get better odds
 - **Level up** — Lower fees (5% → 3%) and more UP Coins
 - **Diversify** — Mix crypto, sports, and prediction markets

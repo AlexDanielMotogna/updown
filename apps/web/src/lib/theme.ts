@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 
 // ─── Hex alpha helper ─────────────────────────────────────────────────────────
-/** Convert hex + opacity (0–1) to hex-alpha string, e.g. withAlpha('#FF0000', 0.5) → '#FF000080' */
+/** Convert hex + opacity (0-1) to hex-alpha string, e.g. withAlpha('#FF0000', 0.5) → '#FF000080' */
 export function withAlpha(hex: string, opacity: number): string {
   const clamped = Math.round(Math.max(0, Math.min(1, opacity)) * 255);
   return `${hex}${clamped.toString(16).padStart(2, '0').toUpperCase()}`;

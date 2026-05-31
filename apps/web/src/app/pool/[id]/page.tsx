@@ -19,7 +19,7 @@ import {
 } from '@/components';
 import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter';
 import { useThemeTokens } from '@/app/providers';
-import { ArenaSection } from '@/components/pool/ArenaSection';
+import { PlaceBetCard } from '@/components/pool/PlaceBetCard';
 import { InlineChart } from '@/components/pool/InlineChart';
 import { PoolPageHeader } from '@/components/pool/PoolPageHeader';
 import { PriceTargetStrip } from '@/components/pool/PriceTargetStrip';
@@ -200,6 +200,9 @@ export default function PoolDetailPage() {
           alignItems: 'start',
           maxWidth: 1400,
           mx: 'auto',
+          // Breathing room under the sticky category top bar so the header
+          // tile + place-bet card don't crash into the filter chips.
+          pt: { xs: 1.5, md: 2.5 },
           px: { xs: 0, md: 1 },
         }}
       >
@@ -227,11 +230,16 @@ export default function PoolDetailPage() {
               strikePrice={pool.strikePrice}
             />
           </Box>
+          {/* Recent activity feed sits under the chart in the main column —
+              the right rail keeps Place Bet + More Crypto Markets only. */}
+          <Box sx={{ px: { xs: 2, md: 3 }, pb: { xs: 3, md: 4 } }}>
+            <PoolActivityList poolId={poolId} />
+          </Box>
         </Box>
 
         {/* ── Right sidebar ── */}
         <Box sx={{ minWidth: 0, px: { xs: 1.5, md: 0 }, pb: { xs: 3, md: 4 } }}>
-          <ArenaSection
+          <PlaceBetCard
             pool={pool}
             selectedSide={selectedSide}
             onSelectSide={setSelectedSide}
@@ -239,7 +247,6 @@ export default function PoolDetailPage() {
             txState={txState}
             betFormRef={betFormRef}
           />
-          <PoolActivityList poolId={poolId} />
           <ActiveCryptoPoolsSidebar currentPoolId={poolId} />
         </Box>
       </Box>

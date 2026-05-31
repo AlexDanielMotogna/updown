@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Box, Typography, CircularProgress } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { motion } from 'framer-motion';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
@@ -138,19 +138,15 @@ export function Countdown({ targetDate, label, onComplete, compact = false, comp
             transition: 'all 0.3s ease',
           }}
         >
-          {isExpired ? (
-            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-              <CircularProgress size={12} sx={{ color: 'text.secondary' }} />
-              Resolving...
-            </Box>
-          ) : (
-            timeUnits.map((unit, i) => (
-              <span key={unit.label}>
-                {unit.value.toString().padStart(2, '0')}
-                {i < timeUnits.length - 1 ? ':' : ''}
-              </span>
-            ))
-          )}
+          {/* Once the timer hits zero we hold at 00:00:00 — the "resolving"
+              state is communicated by the PlaceBetCard's full-card swap, not
+              by the clock. Clock stays a clock. */}
+          {timeUnits.map((unit, i) => (
+            <span key={unit.label}>
+              {unit.value.toString().padStart(2, '0')}
+              {i < timeUnits.length - 1 ? ':' : ''}
+            </span>
+          ))}
         </Typography>
       </Box>
     );
@@ -192,15 +188,9 @@ export function Countdown({ targetDate, label, onComplete, compact = false, comp
         </Typography>
       )}
 
-      {isExpired ? (
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, py: 1 }}>
-          <CircularProgress size={24} sx={{ color: t.accent }} />
-          <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem', fontWeight: 500, letterSpacing: '0.05em' }}>
-            Resolving pool...
-          </Typography>
-        </Box>
-      ) : (
-        <Box sx={{ display: 'flex', gap: { xs: 1, sm: 1.5 }, justifyContent: 'center' }}>
+      {/* Same idea as the compact branch — clock holds at zeros once the
+          window closes; "resolving" is the card body's job, not the timer. */}
+      <Box sx={{ display: 'flex', gap: { xs: 1, sm: 1.5 }, justifyContent: 'center' }}>
           {timeUnits.map((unit) => (
             <motion.div
               key={unit.label}
@@ -263,8 +253,7 @@ export function Countdown({ targetDate, label, onComplete, compact = false, comp
             </Box>
             </motion.div>
           ))}
-        </Box>
-      )}
+      </Box>
     </Box>
   );
 }

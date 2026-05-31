@@ -30,8 +30,8 @@ export interface LiveScore {
  *   Basketball: Q1, Q2, Q3, Q4, OT, BT, HT
  *   Ice Hockey: P1, P2, P3, OT, PT, BT
  *   Am.Football:Q1, Q2, Q3, Q4, OT, HT
- *   Baseball:   IN1–IN9
- *   Volleyball: S1–S5
+ *   Baseball:   IN1-IN9
+ *   Volleyball: S1-S5
  *   Handball:   1H, 2H, HT, ET, BT, PT
  *   Rugby:      1H, 2H, HT, ET, BT, PT
  *

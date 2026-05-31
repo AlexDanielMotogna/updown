@@ -209,10 +209,10 @@ Remaining surface, mitigated:
 
 | Block | Days |
 |---|---|
-| Anchor instructions + program tests | 3–5 |
+| Anchor instructions + program tests | 3-5 |
 | DB migration + backend wiring | 2 |
 | Frontend: indicator, simulator, tooltips | 2 |
-| Redeploy plan + comms + dashboards | 1–2 |
+| Redeploy plan + comms + dashboards | 1-2 |
 | **Total** | **~2 weeks (1 dev)** |
 
 ## 9. Open questions

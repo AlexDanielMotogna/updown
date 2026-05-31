@@ -107,15 +107,15 @@ Source: `apps/api/src/utils/coins.ts`.
 | Referral accepted | 5,000 | 50 UP |
 
 **Daily cap**: 50,000 base units (500 UP) per wallet.
-**Diminishing returns**: bets 1–20/day at 100%, 21–40 at 50%, 41+ at 0%.
+**Diminishing returns**: bets 1-20/day at 100%, 21-40 at 50%, 41+ at 0%.
 
 **Critical gap**: there is **no spend sink for UP Coins**. They accrue
 forever with no catalog, no redemption, no perks. The economy is leaky.
 
 ### 2.3 Payout math
 
-Source: `programs/parimutuel_pools/src/instructions/claim.rs:77–90` (on-chain)
-+ `apps/api/src/utils/payout.ts:32–40` (preview).
+Source: `programs/parimutuel_pools/src/instructions/claim.rs:77-90` (on-chain)
++ `apps/api/src/utils/payout.ts:32-40` (preview).
 
 Formula:
 ```
@@ -128,7 +128,7 @@ net_payout   = gross_payout − fee
 3.00% (Lv≥40), per 5-level tier.
 
 **Fee waiver**: only if there's exactly **1 distinct wallet across the whole
-pool** (`apps/api/src/utils/bets.ts:11–18`). Not per-side.
+pool** (`apps/api/src/utils/bets.ts:11-18`). Not per-side.
 
 **Concrete scenarios**:
 
@@ -157,7 +157,7 @@ match detail page, `resolve-logic.ts`.
 - **SideSelector** shows "No predictions yet" — placeholder, not explanation.
 - **No banner / tooltip / disclaimer** anywhere explaining the cold-start
   situation or the auto-refund safety net.
-- **Resolution scheduler** (`apps/api/src/scheduler/resolve-logic.ts:308–328`):
+- **Resolution scheduler** (`apps/api/src/scheduler/resolve-logic.ts:308-328`):
   if `betCount === 1`, call `handleSingleBettorRefund` with synthetic prices
   that make the bettor's side "win", then `autoRefundBets`. If one-sided,
   invert winner and refund.
@@ -169,7 +169,7 @@ match detail page, `resolve-logic.ts`.
 ### 2.5 Tournaments
 
 Source: `apps/api/src/services/tournament.ts`,
-`apps/api/src/services/tournament-bracket.ts`, schema lines 324–427.
+`apps/api/src/services/tournament-bracket.ts`, schema lines 324-427.
 
 - Admin-created only (no auto-scheduling, no user-created).
 - Entry-fee funded, **no platform subsidy**.
@@ -181,7 +181,7 @@ Source: `apps/api/src/services/tournament.ts`,
 
 ### 2.6 Referrals
 
-Source: `apps/api/src/services/referrals.ts:9–11`.
+Source: `apps/api/src/services/referrals.ts:9-11`.
 
 - **Commission**: 1% of every referee bet (`COMMISSION_BPS = 100`), lifetime,
   uncapped. Triggered at pool resolution, independent of win/loss.
@@ -208,7 +208,7 @@ Source: `apps/api/src/services/squads.ts`, `apps/api/prisma/schema.prisma:283`.
 
 ### 2.8 Faucet & test economy
 
-Source: `apps/api/src/routes/faucet.ts:8–13`.
+Source: `apps/api/src/routes/faucet.ts:8-13`.
 
 - **1,000 USDC + 0.05 SOL per claim**, 1-hour cooldown, **no daily cap**
   (24 claims/day = 24K USDC max per wallet).
@@ -325,7 +325,7 @@ a flag so it's excluded from leaderboards / XP.
   — the `deposit` ix already accepts any signer.
 - **Risk**: bounded per pool. Authority loses one side, recovers the other
   minus fee. Worst case (pool empty besides seed) = refund of own seed
-  with fee = ~$0.05 per pool. **At 1000 pools/day → ~$50–100/day, capped.**
+  with fee = ~$0.05 per pool. **At 1000 pools/day → ~$50-100/day, capped.**
 - **Impact**: huge psychological lift. $0.50/$0.50 reads as "game already
   starting" vs the dead $0/$0.
 - **Composability**: stacks with everything. Counts toward "pool depth" UX
@@ -340,8 +340,8 @@ signing the claim ix.
 
 - **Eng**: S (API only, no contract change).
 - **Risk**: bounded — max one wallet per pool gets the discount, max loss
-  per pool = fee on that wallet's payout. Typical pool $10–$100, fee 5% →
-  **$0.50–$5 max loss per pool.** Capped by platform's own fee revenue,
+  per pool = fee on that wallet's payout. Typical pool $10-$100, fee 5% →
+  **$0.50-$5 max loss per pool.** Capped by platform's own fee revenue,
   not authority subsidy.
 - **Impact**: direct economic incentive + clean marketing message: *"Be
   first, pay zero fee."*
@@ -427,7 +427,7 @@ if none of the strategy above ships.
 - **MarketCard odds discrepancy** — falls back to hardcoded `2.0x` / `3.0x`
   when `total = 0`, while BetForm correctly shows `1.0x`. Pick one.
 - **Faucet cooldown is in-memory only** — server restart wipes it. Persist
-  to DB. (`apps/api/src/routes/faucet.ts:11–13`).
+  to DB. (`apps/api/src/routes/faucet.ts:11-13`).
 - **No persistent faucet claim log** — can't audit claims from our DB. Add
   a `FaucetClaim` table.
 - **Streak silently tracked** — no toast when streak increments past
@@ -450,20 +450,20 @@ Five sprints, ordered by effort and the dependency graph.
 - Fix the referral copy bug ("1% of every bet").
 - Surface streak milestones (toast on streak 3, 5, 10).
 
-### Sprint 2 (2–3 weeks) — liquidity foundation
+### Sprint 2 (2-3 weeks) — liquidity foundation
 
 - **B1 house seeding bot** with daily exposure cap ($100).
 - **A2 founder's fee discount** for the first depositor.
 - Persist faucet cooldown to DB + add `FaucetClaim` log table.
 
-### Sprint 3 (3–4 weeks) — close the economic loop
+### Sprint 3 (3-4 weeks) — close the economic loop
 
 - **G3 UP Coins redemption catalog** (cash + free tournament entry +
   cosmetics).
 - **E1 early-bird multiplier** (1.5× XP/coins in the first 25% window).
 - **G1 participation streak** (XP for active days, not just wins).
 
-### Sprint 4 (4–6 weeks) — virality + retention
+### Sprint 4 (4-6 weeks) — virality + retention
 
 - **D3 challenge links** with auto-referral integration.
 - **H2 comeback bonus** (3+ days inactive → 2× XP + 100 UP).
@@ -471,7 +471,7 @@ Five sprints, ordered by effort and the dependency graph.
   shared XP) — confirms whether the squad feature has a real product
   shape or should be deprecated.
 
-### Sprint 5+ (month 2–3) — bigger plays if metrics justify
+### Sprint 5+ (month 2-3) — bigger plays if metrics justify
 
 - **E2 pool extension** if a contract change is justified by the metric
   "pools refunded due to undersubscription".
@@ -550,18 +550,18 @@ These are decisions the strategy doesn't make for you:
 | `programs/parimutuel_pools/src/instructions/deposit.rs` | Confirms B1/B2 need no contract change — authority can already deposit. |
 | `programs/parimutuel_pools/src/instructions/claim.rs` | `fee_bps` is per-claim, so A2 (founder fee discount) is API-only. |
 | `programs/parimutuel_pools/src/instructions/refund.rs` | Confirms the safety net A3 already exists. |
-| `apps/api/src/scheduler/resolve-logic.ts:308–328` | Single-bettor and one-sided refund triggers. |
-| `apps/api/src/utils/payout.ts:32–40` | Payout preview math + fee waiver rule. |
-| `apps/api/src/utils/fees.ts:5–18` | Fee schedule by level. |
+| `apps/api/src/scheduler/resolve-logic.ts:308-328` | Single-bettor and one-sided refund triggers. |
+| `apps/api/src/utils/payout.ts:32-40` | Payout preview math + fee waiver rule. |
+| `apps/api/src/utils/fees.ts:5-18` | Fee schedule by level. |
 | `apps/api/src/utils/coins.ts` | UP Coins formulas, daily cap, diminishing returns. |
 | `apps/api/src/services/rewards.ts` | XP / coin award entry points (A1, E1, G1, H2 hook here). |
 | `apps/api/src/services/notifications.ts` | `createNotification` primitive (D2, H1, squad mate alerts). |
-| `apps/api/src/services/referrals.ts:9–11` | Commission rate + referee bonus constants. |
+| `apps/api/src/services/referrals.ts:9-11` | Commission rate + referee bonus constants. |
 | `apps/api/src/services/squads.ts` | Current squad mechanics (chat + leaderboard, no shared pool). |
 | `apps/api/src/routes/faucet.ts` | Template for authority-signed USDC transfers (B3, C1, G3 cash tier). |
 | `docs/REWARDS-XP-LEVELS.md` | Canonical economy spec — update when any new mechanic ships. |
-| `apps/web/src/components/MarketCard.tsx:116–119` | Hardcoded 2.0x fallback when pool empty (fix for Rank 0). |
-| `apps/web/src/components/BetForm.tsx:91–99` | Payout preview formula (cold-start tooltip lives here). |
+| `apps/web/src/components/MarketCard.tsx:116-119` | Hardcoded 2.0x fallback when pool empty (fix for Rank 0). |
+| `apps/web/src/components/BetForm.tsx:91-99` | Payout preview formula (cold-start tooltip lives here). |
 | `apps/web/src/components/referral/ReferralShareLink.tsx:34` | "20% of platform fees" copy bug. |
 
 ---

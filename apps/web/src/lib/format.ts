@@ -82,7 +82,7 @@ export function formatDate(dateString: string): string {
   });
 }
 
-/** "May 29, 10:35 PM – 10:40 PM CEST" — formatted in the viewer's local
+/** "May 29, 10:35 PM - 10:40 PM CEST" — formatted in the viewer's local
  *  timezone with their locale's TZ abbreviation (so a Berlin user sees
  *  "MESZ", a New Yorker sees "EDT", etc).
  *
@@ -116,8 +116,8 @@ export function formatPredictionWindow(startISO: string, endISO: string): string
     /* very old runtimes — fall through with no abbr */
   }
   return tz
-    ? `${date}, ${startTime} – ${endTime} ${tz}`
-    : `${date}, ${startTime} – ${endTime}`;
+    ? `${date}, ${startTime} - ${endTime} ${tz}`
+    : `${date}, ${startTime} - ${endTime}`;
 }
 
 export function getExplorerTxUrl(signature: string): string {

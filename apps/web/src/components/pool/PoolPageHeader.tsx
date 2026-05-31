@@ -6,9 +6,8 @@ import { Code, Link as LinkIcon, BookmarkBorder, CheckCircle } from '@mui/icons-
 import { AssetIcon } from '@/components/AssetIcon';
 import { formatPredictionWindow } from '@/lib/format';
 import { INTERVAL_LABELS } from '@/lib/constants';
-import { getAssetName, getAssetTint } from '@/lib/assets';
+import { getAssetName } from '@/lib/assets';
 import { useThemeTokens } from '@/app/providers';
-import { withAlpha } from '@/lib/theme';
 
 interface PoolPageHeaderProps {
   asset: string;
@@ -31,7 +30,6 @@ export function PoolPageHeader({ asset, interval, startTime, endTime }: PoolPage
 
   const intervalLabel = INTERVAL_LABELS[interval] || interval;
   const title = `${getAssetName(asset)} Up or Down ${intervalLabel}`;
-  const tint = getAssetTint(asset, t.accent);
 
   const handleCopyLink = () => {
     if (typeof window === 'undefined') return;
@@ -52,20 +50,10 @@ export function PoolPageHeader({ asset, interval, startTime, endTime }: PoolPage
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
-        {/* Colored asset tile (the orange BTC square in the Polymarket shot). */}
-        <Box
-          sx={{
-            width: { xs: 48, md: 56 },
-            height: { xs: 48, md: 56 },
-            borderRadius: 1.5,
-            bgcolor: withAlpha(tint, 0.85),
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <AssetIcon asset={asset} size={36} />
+        {/* Asset icon — Pacifica SVG already comes round with its own brand
+            background, no need to wrap it in another colored circle. */}
+        <Box sx={{ flexShrink: 0 }}>
+          <AssetIcon asset={asset} size={56} />
         </Box>
         <Box sx={{ minWidth: 0 }}>
           <Typography

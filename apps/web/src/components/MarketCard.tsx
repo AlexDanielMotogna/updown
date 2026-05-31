@@ -103,7 +103,7 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
   // ── Title ──
   const intervalLabel = INTERVAL_LABELS[pool.interval] || pool.interval;
   // For crypto we use the Polymarket-style phrasing ("Bitcoin Up or Down") and
-  // surface the actual prediction window ("May 29, 10:35 PM – 10:40 PM ET") as
+  // surface the actual prediction window ("May 29, 10:35 PM - 10:40 PM ET") as
   // a subtitle below — the implicit interval is encoded in the start/end gap.
   const title = isCrypto
     ? `${getAssetName(pool.asset)} Up or Down`

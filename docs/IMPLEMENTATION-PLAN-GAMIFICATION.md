@@ -55,7 +55,7 @@ on bet input, but the **market card and the outcomes row both show
 percentages**, not multiplier. The hero/featured card shows percentages too.
 On an empty pool, `MarketCard` even falls back to a hardcoded `2.0x` /
 `3.0x` that doesn't match the real `1.0x` the bet form computes
-(`apps/web/src/components/MarketCard.tsx:116–119`).
+(`apps/web/src/components/MarketCard.tsx:116-119`).
 
 **Recommendation**: ship dual display everywhere — keep the % bar visualisation
 (it conveys "balance of opinion") and add the multiplier next to it as the
@@ -77,7 +77,7 @@ multiplier = totalPool / sideTotal     // when sideTotal > 0
 text "Be first — auto-refunded if alone" (the safety-net surfacing from
 strategy-doc Rank 0). That's a feature, not an awkward edge case.
 
-**Eng**: S (1–2 days, frontend only).
+**Eng**: S (1-2 days, frontend only).
 **Risk**: $0.
 **Loop**: feeds Core Loop (lower the comprehension barrier).
 
@@ -107,10 +107,10 @@ plateaus before farming becomes attractive. Two options:
 **Option A — table-based (closer to founder's spec, simpler)**:
 | Stake band (USDC) | XP per resolved bet |
 |---|---|
-| $0–$1 | 10 |
-| $1–$10 | 30 |
-| $10–$50 | 80 |
-| $50–$200 | 150 |
+| $0-$1 | 10 |
+| $1-$10 | 30 |
+| $10-$50 | 80 |
+| $50-$200 | 150 |
 | $200+ | 200 (cap) |
 
 **Option B — square-root scaling (smooth, no cliffs)**:
@@ -266,7 +266,7 @@ Evaluator runs nightly + on every level-up event.
 
 **Cold-start of the reputation system itself**: a user with 2 bets at
 100% isn't an expert. Every badge has a **minimum sample size** before it
-can be awarded (typically 10–20 bets). This is the most important detail
+can be awarded (typically 10-20 bets). This is the most important detail
 — it kills inflated reputation from luck.
 
 **Where to ship**:
@@ -279,8 +279,8 @@ can be awarded (typically 10–20 bets). This is the most important detail
 - `apps/web/src/components/LeaderboardTable.tsx` — category filter +
   accuracy sort.
 
-**Eng**: M-L (this is the biggest single feature in the plan). 1–1.5
-weeks for layer 1+2, another 3–5 days for layer 3.
+**Eng**: M-L (this is the biggest single feature in the plan). 1-1.5
+weeks for layer 1+2, another 3-5 days for layer 3.
 **Risk**: $0 (virtual badges).
 **Loop**: drives the entire **Reputation Loop**. Without this layer the
 loop doesn't exist. Highest strategic ROI in the plan.
@@ -447,7 +447,7 @@ pitch becomes:
 Three reinforcing wins versus the current single neutral "1.0x".
 
 **Where to ship**:
-- Prisma: persist `Bet.earlyOrder Int?` (1–10) and `Bet.earlyByTime Bool`.
+- Prisma: persist `Bet.earlyOrder Int?` (1-10) and `Bet.earlyByTime Bool`.
 - `apps/api/src/routes/deposits.ts:confirmDeposit` — set fields atomically.
 - `apps/api/src/services/rewards.ts` — apply 25% multiplier on resolution.
 - `apps/api/src/services/coins.ts` — grant 50 UP at deposit confirm.
@@ -546,7 +546,7 @@ generates user-visible improvement.
 
 **Total ~1 week**. Zero database / contract changes. Pure UX leverage.
 
-### Wave 2 — economy foundation (3–4 weeks)
+### Wave 2 — economy foundation (3-4 weeks)
 *Goal: scale XP with stake, stand up the spend sink, seed liquidity.*
 
 | Feature | Source | Eng |
@@ -559,10 +559,10 @@ generates user-visible improvement.
 | Loser coin trickle (25% of base) + participation day-streak (Problems #6, #8) | Founder | S |
 | Persist faucet cooldown + claim log to DB | Audit | S |
 
-**Total ~3–4 weeks**. The four economic levers (house seed, fee discount,
+**Total ~3-4 weeks**. The four economic levers (house seed, fee discount,
 early bird, milestones) start compounding. Cold-start mostly solved.
 
-### Wave 3 — reputation + status (4–6 weeks)
+### Wave 3 — reputation + status (4-6 weeks)
 *Goal: stand up the Reputation Loop. The biggest single feature in this
 plan.*
 
@@ -577,7 +577,7 @@ plan.*
 | Pool boost milestones ($100/$500/$1K/$5K/$10K → retro XP) (Problem #5) | Founder | S-M |
 | Pool boost in-app notifications by category | Founder Problem #5 | S |
 
-**Total ~4–6 weeks**. After this wave the platform feels like a community
+**Total ~4-6 weeks**. After this wave the platform feels like a community
 with identity, not a casino with skins.
 
 ### Wave 4 — virality + retention (ongoing, parallel to Wave 3)
@@ -618,7 +618,7 @@ on real users, or (c) have unclear ROI today.
 
 ## 12. Open product decisions (we need answers before shipping)
 
-1. **Devnet or mainnet target?** Wave 1–2 work fine on devnet. Wave 3+
+1. **Devnet or mainnet target?** Wave 1-2 work fine on devnet. Wave 3+
    (reputation, status) acquires real meaning only with real-money stakes.
    Decision affects timing of mainnet migration.
 2. **Stake-XP curve — table (Option A) or sqrt (Option B)?** Defaults to
@@ -642,10 +642,10 @@ on real users, or (c) have unclear ROI today.
 | Wave | Calendar weeks | Eng days (rough) | Risk |
 |---|---:|---:|---|
 | 1 — Surface + fix | 1 | ~5 | $0 |
-| 2 — Economy foundation | 3–4 | ~15 | ~$3K/mo (B1 cap) + ~$1.5K/mo (G3 cap) |
-| 3 — Reputation + status | 4–6 | ~25 | $0 (virtual) |
+| 2 — Economy foundation | 3-4 | ~15 | ~$3K/mo (B1 cap) + ~$1.5K/mo (G3 cap) |
+| 3 — Reputation + status | 4-6 | ~25 | $0 (virtual) |
 | 4 — Virality + retention | parallel | ~15 (can be split) | $0 (virtual) |
-| **Total to "feature complete"** | **8–10 weeks** | **~60 days** | **~$5K/mo subsidy cap** |
+| **Total to "feature complete"** | **8-10 weeks** | **~60 days** | **~$5K/mo subsidy cap** |
 
 For a sense of scale: Kalshi spends ~$5M/month on MM rebates alone. This
 plan ships a full gamification + reputation system + cold-start fix for

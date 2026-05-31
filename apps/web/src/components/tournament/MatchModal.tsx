@@ -118,7 +118,7 @@ export function MatchModal({
             </Typography>
             {myScore != null && oppScore != null && (
               <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: t.text.rich }}>
-                Score: {myScore} – {oppScore}
+                Score: {myScore} - {oppScore}
               </Typography>
             )}
           </Box>

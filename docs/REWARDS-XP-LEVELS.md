@@ -29,7 +29,7 @@
 
 | Racha | Bono XP |
 |---|---|
-| 1–2 | 0 |
+| 1-2 | 0 |
 | 3 | +100 |
 | 4 | +200 |
 | 5 | +300 |
@@ -52,7 +52,7 @@ Equivalente: el XP necesario para pasar **del nivel L al L+1** es `floor(500 × 
 
 ---
 
-## 3. Tabla completa de niveles (1–40)
+## 3. Tabla completa de niveles (1-40)
 
 Columnas: XP acumulado para alcanzar el nivel · XP desde el nivel anterior · multiplicador de coins · fee de plataforma · bono de UP Coins al subir a ese nivel.
 
@@ -107,14 +107,14 @@ Columnas: XP acumulado para alcanzar el nivel · XP desde el nivel anterior · m
 
 | Rango de nivel | Fee |
 |---|---|
-| 1–4 | 5.00% |
-| 5–9 | 4.75% |
-| 10–14 | 4.50% |
-| 15–19 | 4.25% |
-| 20–24 | 4.00% |
-| 25–29 | 3.75% |
-| 30–34 | 3.50% |
-| 35–39 | 3.25% |
+| 1-4 | 5.00% |
+| 5-9 | 4.75% |
+| 10-14 | 4.50% |
+| 15-19 | 4.25% |
+| 20-24 | 4.00% |
+| 25-29 | 3.75% |
+| 30-34 | 3.50% |
+| 35-39 | 3.25% |
 | 40 | 3.00% |
 
 > **Nota:** el fee solo se cobra cuando el pool tiene **más de 1 apuesta** (`betCount <= 1 → fee = 0`). Los pools de un solo lado se reembolsan completos sin fee.
@@ -143,8 +143,8 @@ Columnas: XP acumulado para alcanzar el nivel · XP desde el nivel anterior · m
 |---|---|
 | Mínimo de apuesta para coins | **$1 USDC** |
 | Cap diario por wallet | **500 UP** (`50,000` base) |
-| Apuestas 1–20 del día | 100% de tasa |
-| Apuestas 21–40 del día | 50% de tasa |
+| Apuestas 1-20 del día | 100% de tasa |
+| Apuestas 21-40 del día | 50% de tasa |
 | Apuestas 41+ del día | 0% (sin coins) |
 
 ---
