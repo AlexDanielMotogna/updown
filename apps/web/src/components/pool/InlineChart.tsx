@@ -73,11 +73,23 @@ const PADDING = { top: 20, right: 70, bottom: 30, left: 16 };
 // pixels to read as motion. With a 1-hour window each frame shifted ~0.007%
 // of the chart width (eye sees nothing); at 2 minutes it's ~0.2% — smooth.
 const SNAKE_WINDOW_MS = 2 * 60 * 1000;
-// 100ms tick (~10fps) + matching 100ms linear CSS transition on the path,
-// dot and X-axis labels: every frame stretches straight into the next so the
-// motion reads as continuous flow, not as discrete steps.
+// 100ms tick (~10fps) + matching 100ms linear CSS transition on the wrapping
+// group's transform. The translate happens on the GPU compositor so the eye
+// sees smooth motion at native refresh rate even though React re-renders at
+// 10Hz.
 const SNAKE_TICK_MS = 100;
 const SNAKE_TRANS = '0.1s linear';
+
+/** Single line color per crypto asset — direction-coded red/green flipped on
+ *  every tick which the user found distracting. The tint matches the
+ *  colored tile in PoolPageHeader so the chart reads as the same identity. */
+const SNAKE_LINE_TINTS: Record<string, string> = {
+  BTC: '#F7931A',
+  ETH: '#627EEA',
+  SOL: '#9945FF',
+  XRP: '#5A6470',
+  DOGE: '#C2A633',
+};
 
 function useChartLayout(candles: Candle[], chartType: ChartType) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -360,9 +372,11 @@ function LineChart({ candles, duration, livePrice, strikePrice, asset }: ChartPr
     }
   }, [history, storageKey]);
 
-  // Render clock: we need *some* re-render between tick pushes when livePrice
-  // is null (e.g. WS hiccup) so the X axis can still advance and old points
-  // can scroll off. Cheap — derives nothing else.
+  // Render clock — drives the group's translateX so the chart slides between
+  // pushes. Updated in the same 100ms tick as the buffer push, then the CSS
+  // transform-transition (also 100ms linear) interpolates on the GPU between
+  // states. Net effect: native-refresh-rate motion even though React only
+  // re-renders at 10Hz.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const iv = setInterval(() => setNow(Date.now()), SNAKE_TICK_MS);
@@ -371,15 +385,30 @@ function LineChart({ candles, duration, livePrice, strikePrice, asset }: ChartPr
 
   const chartW = dims.width - PADDING.left - PADDING.right;
   const windowMs = Math.min(duration, SNAKE_WINDOW_MS);
-  // Use the most recent point we know about (history head if present, else
-  // wall clock) as the right edge — keeps the tip glued to the boundary.
-  const tMax = history.length > 0 ? Math.max(history[history.length - 1].t, now) : now;
+  const tMax = now;
   const tMin = tMax - windowMs;
 
+  // ── Time → X mapping ──────────────────────────────────────────────────
+  // Coords are anchored to a fixed reference (mount time) so the path's X
+  // values stop changing every render. The visible position is then handled
+  // by a single CSS-animated transform on the wrapping <g>. This is what
+  // unlocks GPU-accelerated motion — the d attribute would force a CPU
+  // repaint each frame, which is what made the old setup feel "atrancado".
+  const refTRef = useRef(Date.now());
+  const refT = refTRef.current;
+  const pxPerMs = chartW / windowMs;
   const tToX = useCallback(
-    (ts: number) => PADDING.left + ((ts - tMin) / windowMs) * chartW,
-    [tMin, windowMs, chartW],
+    (ts: number) => (ts - refT) * pxPerMs,
+    [refT, pxPerMs],
   );
+
+  // Offset the group so the chart's right edge corresponds to `now` (or to
+  // the latest tick if it's ahead of the render clock). Updates each render;
+  // the CSS transition smoothly interpolates in between.
+  const anchorT = history.length > 0
+    ? Math.max(history[history.length - 1].t, now)
+    : now;
+  const groupOffsetX = PADDING.left + chartW - tToX(anchorT);
 
   // ── Y-axis scoped to the visible window ────────────────────────────────
   // Range is computed off the rolling tick buffer (so it tracks intra-minute
@@ -449,10 +478,11 @@ function LineChart({ candles, duration, livePrice, strikePrice, asset }: ChartPr
     return `${linePath} L${points[points.length - 1].x.toFixed(1)},${bottom} L${points[0].x.toFixed(1)},${bottom} Z`;
   }, [linePath, points, chartH]);
 
-  const firstPrice = visibleHistory.length > 0 ? visibleHistory[0].p : null;
-  const lastPrice = visibleHistory.length > 0 ? visibleHistory[visibleHistory.length - 1].p : null;
-  const isUp = firstPrice != null && lastPrice != null ? lastPrice >= firstPrice : true;
-  const lineColor = isUp ? t.up : t.down;
+  // Single fixed line color per asset (not direction-coded). Matches the
+  // colored asset tile in PoolPageHeader so the chart reads as the same
+  // visual identity, and the color stops flipping red <-> green on every
+  // tick, which the user found distracting.
+  const lineColor = SNAKE_LINE_TINTS[asset ?? ''] ?? t.accent;
 
   const lastPoint = points.length > 0 ? points[points.length - 1] : null;
 
@@ -488,18 +518,20 @@ function LineChart({ candles, duration, livePrice, strikePrice, asset }: ChartPr
       const rect = e.currentTarget.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
-      // History is time-sorted, so we could binary-search; linear is fine
-      // for ~1200 entries and avoids any boundary subtleties.
+      // Cursor X is in SVG space; the line lives inside a translated group
+      // so we undo that offset before snapping. Linear scan is fine for
+      // ~1200 entries and sidesteps any boundary subtleties.
+      const dataX = mx - groupOffsetX;
       let best = 0;
       let bestDist = Infinity;
       for (let i = 0; i < visibleHistory.length; i++) {
-        const d = Math.abs(tToX(visibleHistory[i].t) - mx);
+        const d = Math.abs(tToX(visibleHistory[i].t) - dataX);
         if (d < bestDist) { bestDist = d; best = i; }
       }
       setHoverIdx(best);
       if (my >= PADDING.top && my <= PADDING.top + chartH) setHoverY(my);
     },
-    [visibleHistory, tToX, chartH],
+    [visibleHistory, tToX, chartH, groupOffsetX],
   );
   const handleMouseLeave = useCallback(() => {
     setHoverIdx(null);
@@ -535,7 +567,9 @@ function LineChart({ candles, duration, livePrice, strikePrice, asset }: ChartPr
           </radialGradient>
         </defs>
 
-        <ChartAxes dims={dims} yTicks={yTicks} xTicks={xTicks} duration={duration} />
+        {/* Y axis gridlines + price labels — fixed in chart space, never
+            scroll with the snake. */}
+        <ChartAxes dims={dims} yTicks={yTicks} xTicks={[]} duration={duration} />
 
         {strikePrice != null && (() => {
           const sy = toY(strikePrice);
@@ -553,39 +587,81 @@ function LineChart({ candles, duration, livePrice, strikePrice, asset }: ChartPr
           return null;
         })()}
 
-        {areaPath && <path d={areaPath} fill="url(#inline-line-area-grad)" style={{ transition: `d ${SNAKE_TRANS}, opacity 0.3s` }} />}
-        {linePath && <path d={linePath} fill="none" stroke={lineColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ transition: `d ${SNAKE_TRANS}` }} />}
+        {/* ── Snake group ────────────────────────────────────────────────
+            All time-anchored elements (line, area, time labels, live dot,
+            hover marker) live in this single transformed group. Coords are
+            in absolute time-space (tToX = (t − refT) * pxPerMs); the group's
+            translateX shifts the whole layer so "now" sits at the right
+            edge. CSS animates the transform on the GPU compositor — no
+            CPU-bound `d` interpolation — so the eye reads smooth motion
+            at native refresh rate even with 1200 path points.
 
-        {livePrice != null && lastPoint && (() => {
+            A clipPath is applied so points that haven't yet entered the
+            visible window (or have scrolled past it) get clipped, not drawn
+            into the surrounding Y-axis labels. */}
+        <clipPath id="snake-clip">
+          <rect x={PADDING.left} y={PADDING.top} width={chartW} height={chartH} />
+        </clipPath>
+        <g
+          clipPath="url(#snake-clip)"
+          transform={`translate(${groupOffsetX.toFixed(2)}, 0)`}
+          style={{ transition: `transform ${SNAKE_TRANS}`, willChange: 'transform' }}
+        >
+          {areaPath && <path d={areaPath} fill="url(#inline-line-area-grad)" />}
+          {linePath && <path d={linePath} fill="none" stroke={lineColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />}
+
+          {/* Time labels travel with the data — each label keeps its DOM node
+              via the time-keyed React key, so the browser only sees the
+              transform change, not a new element. */}
+          {xTicks.map((tick) => (
+            <text
+              key={`x-${tick.time}`}
+              x={tick.x}
+              y={dims.height - 6}
+              fill={t.text.tertiary}
+              fontSize={10}
+              fontFamily="var(--font-satoshi), Satoshi, sans-serif"
+              fontWeight={700}
+              textAnchor="middle"
+            >
+              {formatTime(tick.time, duration)}
+            </text>
+          ))}
+
+          {/* Hover marker travels with the data (lives inside the group) so
+              the crosshair stays visually pinned to the right tick. */}
+          {hoverData && (
+            <>
+              <line x1={hoverData.x} x2={hoverData.x} y1={PADDING.top} y2={PADDING.top + chartH} stroke={t.text.muted} strokeWidth={1} strokeDasharray="3,3" />
+              <circle cx={hoverData.x} cy={hoverData.y} r={4} fill={lineColor} stroke="#111820" strokeWidth={2} />
+            </>
+          )}
+        </g>
+
+        {/* Live dot + halo are anchored to the right edge of the chart, not
+            to a moving point inside the snake group. If they rode inside
+            the group, the dot's intrinsic cx would jump back each push
+            while the transform was still animating forward — net result was
+            a visible left-then-right hop every 100ms. Keeping them at fixed
+            screen X means they sit silently on the line's end (which the
+            group naturally places at the right edge). */}
+        {livePrice != null && (() => {
           const ly = toY(livePrice);
-          if (ly >= PADDING.top && ly <= PADDING.top + chartH) {
-            return (
-              <>
-                {/* Glow halo behind the tip — kept separate so the dot itself
-                    stays crisp while the radial gradient bleeds around it. */}
-                <circle cx={lastPoint.x} cy={lastPoint.y} r={16} fill="url(#inline-live-glow)" style={{ transition: `cx ${SNAKE_TRANS}, cy ${SNAKE_TRANS}` }} pointerEvents="none" />
-                {/* The live dot rides the right edge — its X is the latest
-                    tick we appended, so the matching linear transition keeps
-                    it visually glued to the head of the snake. */}
-                <circle cx={lastPoint.x} cy={lastPoint.y} r={3.5} fill={lineColor} stroke="#111820" strokeWidth={2} style={{ transition: `cx ${SNAKE_TRANS}, cy ${SNAKE_TRANS}` }}>
-                  <animate attributeName="r" values="3.5;5;3.5" dur="2s" repeatCount="indefinite" />
-                </circle>
-                <rect x={dims.width - PADDING.right + 1} y={ly - 10} width={PADDING.right - 4} height={20} rx={3} fill={lineColor} style={{ transition: 'y 0.4s ease' }} />
-                <text x={dims.width - PADDING.right + 8} y={ly + 4} fill={t.text.contrast} fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700} style={{ transition: 'y 0.4s ease' }}>
-                  {formatChartPrice(livePrice)}
-                </text>
-              </>
-            );
-          }
-          return null;
+          if (ly < PADDING.top || ly > PADDING.top + chartH) return null;
+          const dotX = PADDING.left + chartW;
+          return (
+            <>
+              <circle cx={dotX} cy={ly} r={16} fill="url(#inline-live-glow)" pointerEvents="none" style={{ transition: 'cy 0.1s linear' }} />
+              <circle cx={dotX} cy={ly} r={3.5} fill={lineColor} stroke="#111820" strokeWidth={2} style={{ transition: 'cy 0.1s linear' }}>
+                <animate attributeName="r" values="3.5;5;3.5" dur="2s" repeatCount="indefinite" />
+              </circle>
+              <rect x={dims.width - PADDING.right + 1} y={ly - 10} width={PADDING.right - 4} height={20} rx={3} fill={lineColor} style={{ transition: 'y 0.4s ease' }} />
+              <text x={dims.width - PADDING.right + 8} y={ly + 4} fill={t.text.contrast} fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700} style={{ transition: 'y 0.4s ease' }}>
+                {formatChartPrice(livePrice)}
+              </text>
+            </>
+          );
         })()}
-
-        {hoverData && (
-          <>
-            <line x1={hoverData.x} x2={hoverData.x} y1={PADDING.top} y2={PADDING.top + chartH} stroke={t.text.muted} strokeWidth={1} strokeDasharray="3,3" />
-            <circle cx={hoverData.x} cy={hoverData.y} r={4} fill={lineColor} stroke="#111820" strokeWidth={2} />
-          </>
-        )}
 
         {hoverY !== null && hoverPrice !== null && (
           <>
