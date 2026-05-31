@@ -274,7 +274,6 @@ export function ProfileHeader({
                     : <TrendingDown sx={{ fontSize: 15, color: t.down }} />}
                   color={pnlPositive ? t.gain : t.down}
                   value={`${pnlPositive ? '+' : ''}${formatUSDC(String(netPnl), { min: 2 })}`}
-                  sub={`${formatUSDC(String(won), { min: 0 })} won · ${formatUSDC(String(wagered), { min: 0 })} staked`}
                 />
                 <HeroTile
                   label="Win Rate"
