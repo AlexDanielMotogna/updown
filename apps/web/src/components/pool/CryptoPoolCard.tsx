@@ -19,6 +19,27 @@ const INTERVAL_ICONS: Record<string, React.ReactNode> = {
   '1h': <Schedule sx={{ fontSize: 13 }} />,
 };
 
+/** Render the pool's prediction window as "May 29, 10:35 PM – 10:40 PM ET".
+ *  Always in US Eastern — the prediction-market convention (Polymarket, Kalshi)
+ *  so windows read the same no matter where the user is. */
+function formatPoolWindow(startISO: string, endISO: string): string {
+  const start = new Date(startISO);
+  const end = new Date(endISO);
+  const date = start.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'America/New_York',
+  });
+  const timeOpts: Intl.DateTimeFormatOptions = {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'America/New_York',
+  };
+  const startTime = start.toLocaleTimeString('en-US', timeOpts);
+  const endTime = end.toLocaleTimeString('en-US', timeOpts);
+  return `${date}, ${startTime} – ${endTime} ET`;
+}
+
 interface CryptoPoolCardProps {
   pool: Pool;
   userBet?: { side: 'UP' | 'DOWN' | 'DRAW'; isWinner: boolean | null };
@@ -67,17 +88,24 @@ export function CryptoPoolCard({ pool, userBet, onClick }: CryptoPoolCardProps) 
         '&:hover': { background: t.hover.default },
       }}
     >
-      {/* ── Header: Asset left, Interval right ── */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      {/* ── Header: Asset + window left, Interval right ── */}
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
           <AssetIcon asset={pool.asset} size={28} />
-          <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-            <Typography sx={{ fontWeight: 700, fontSize: '1rem', '&:hover': { color: t.text.bright } }}>
-              {pool.asset}/USD
+          <Box sx={{ minWidth: 0 }}>
+            <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+              <Typography sx={{ fontWeight: 700, fontSize: '1rem', lineHeight: 1.2, '&:hover': { color: t.text.bright } }}>
+                {pool.asset}/USD
+              </Typography>
+            </Link>
+            {/* Pool window — same convention prediction markets use (ET) so the
+                label reads the same regardless of the viewer's timezone. */}
+            <Typography sx={{ fontSize: '0.68rem', fontWeight: 500, color: t.text.tertiary, lineHeight: 1.3, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {formatPoolWindow(pool.startTime, pool.endTime)}
             </Typography>
-          </Link>
+          </Box>
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: t.text.tertiary }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: t.text.tertiary, flexShrink: 0, mt: 0.25 }}>
           {INTERVAL_ICONS[pool.interval] && React.cloneElement(INTERVAL_ICONS[pool.interval] as React.ReactElement, { sx: { fontSize: 12, color: t.text.tertiary } })}
           <Typography sx={{ fontSize: '0.7rem', fontWeight: 600 }}>
             {INTERVAL_LABELS[pool.interval] || pool.interval}

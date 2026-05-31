@@ -26,6 +26,27 @@ function relTime(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+/** "May 29, 10:35 PM – 10:40 PM ET". Always rendered in US Eastern — the
+ *  prediction-market convention (Polymarket, Kalshi) so the window reads
+ *  identically for every viewer. */
+function formatCryptoWindow(startISO: string, endISO: string): string {
+  const start = new Date(startISO);
+  const end = new Date(endISO);
+  const date = start.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'America/New_York',
+  });
+  const timeOpts: Intl.DateTimeFormatOptions = {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'America/New_York',
+  };
+  const startTime = start.toLocaleTimeString('en-US', timeOpts);
+  const endTime = end.toLocaleTimeString('en-US', timeOpts);
+  return `${date}, ${startTime} – ${endTime} ET`;
+}
+
 function fmtMult(m: number): string {
   if (!isFinite(m) || m <= 0) return '—';
   if (m >= 100) return '99+x';
@@ -102,11 +123,15 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
 
   // ── Title ──
   const intervalLabel = INTERVAL_LABELS[pool.interval] || pool.interval;
+  // For crypto we use the Polymarket-style phrasing ("Bitcoin Up or Down") and
+  // surface the actual prediction window ("May 29, 10:35 PM – 10:40 PM ET") as
+  // a subtitle below — the implicit interval is encoded in the start/end gap.
   const title = isCrypto
-    ? `${ASSET_NAMES[pool.asset] || pool.asset} · ${intervalLabel}`
+    ? `${ASSET_NAMES[pool.asset] || pool.asset} Up or Down`
     : isPrediction
       ? (pool.awayTeam ? `${pool.homeTeam} vs ${pool.awayTeam}` : pool.homeTeam || 'Prediction market')
       : `${pool.homeTeam || 'Home'} vs ${pool.awayTeam || 'Away'}`;
+  const cryptoWindow = isCrypto ? formatCryptoWindow(pool.startTime, pool.endTime) : null;
 
   // ── Outcomes ──
   const totalUp = Number(tUp);
@@ -197,9 +222,16 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
         {isPrediction && pool.homeTeamCrest && (
           <Box component="img" src={pool.homeTeamCrest} alt="" sx={{ width: 30, height: 30, borderRadius: 1, objectFit: 'cover', flexShrink: 0 }} />
         )}
-        <Typography sx={{ fontSize: { xs: '0.88rem', md: '0.92rem' }, fontWeight: 700, color: t.text.primary, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-          {title}
-        </Typography>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Typography sx={{ fontSize: { xs: '0.88rem', md: '0.92rem' }, fontWeight: 700, color: t.text.primary, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            {title}
+          </Typography>
+          {cryptoWindow && (
+            <Typography sx={{ fontSize: '0.66rem', fontWeight: 500, color: t.text.tertiary, lineHeight: 1.35, mt: 0.25, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {cryptoWindow}
+            </Typography>
+          )}
+        </Box>
       </Box>
 
       {/* Outcomes */}
