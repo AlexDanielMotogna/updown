@@ -147,7 +147,7 @@ export function ProfileHeader({
               width: '100%',
               height: { xs: 120, sm: 150, md: 180 },
               borderRadius: 2,
-              backgroundImage: 'url(/Banner/banner-web-1500x300.gif)',
+              backgroundImage: 'url(/Banner/bannerr-empty.png)',
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               backgroundRepeat: 'no-repeat',
