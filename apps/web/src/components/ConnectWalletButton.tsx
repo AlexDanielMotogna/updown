@@ -18,6 +18,7 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import { UP_COINS_DIVISOR, getAvatarUrl } from '@/lib/constants';
 import { NAV_ITEMS } from '@/lib/navigation';
 import { UserLevelBadge } from './UserLevelBadge';
+import { XpProgressBar } from './XpProgressBar';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 
@@ -207,34 +208,9 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
                         </Typography>
                       </Box>
                     </Box>
-                    {/* XP Progress bar */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box
-                        sx={{
-                          flex: 1,
-                          height: 6,
-                          borderRadius: 3,
-                          bgcolor: t.border.default,
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            width: `${Math.max(0, Math.min(100, (userProfile.xpProgress || 0) * 100))}%`,
-                            height: '100%',
-                            borderRadius: 3,
-                            bgcolor: t.accent,
-                            transition: 'width 0.3s ease',
-                          }}
-                        />
-                      </Box>
-                      <Typography sx={{ fontSize: '0.6rem', color: t.text.tertiary, flexShrink: 0 }}>
-                        {userProfile.level >= 40 ? 'MAX' : `${userProfile.level + 1} LVL`}
-                      </Typography>
-                    </Box>
-                    <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, mt: 0.5 }}>
-                      XP {(Number(userProfile.totalXp) - Number(userProfile.xpForCurrentLevel)).toLocaleString()} / {(Number(userProfile.xpForNextLevel) - Number(userProfile.xpForCurrentLevel)).toLocaleString()}
-                    </Typography>
+                    {/* XP progress — single source of truth (same component
+                        used by /profile and the user-profile-panel dropdown). */}
+                    <XpProgressBar profile={userProfile} compact />
                   </Box>
                 )}
 
