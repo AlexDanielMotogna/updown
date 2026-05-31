@@ -146,6 +146,9 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim }: Posi
               onClaim={onClaim}
               isClaiming={claimingBetId != null}
               claimingBetId={claimingBetId}
+              // Inside the Active sub-tab every row's chip would say 'Active'
+              // — pure duplication of the surrounding nav state. Suppress it.
+              hideStatusChipWhen={sub === 'active' ? 'Active' : undefined}
             />
           ))}
         </Box>

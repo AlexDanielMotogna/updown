@@ -1,8 +1,9 @@
 'use client';
 
-import { Box, Typography, Chip, Button, CircularProgress, Skeleton, Tooltip } from '@mui/material';
+import { useState } from 'react';
+import { Box, Typography, Chip, Button, CircularProgress, Skeleton, Tooltip, Collapse } from '@mui/material';
 import {
-  CheckCircle, Cancel, Refresh, AccessTime, OpenInNew,
+  CheckCircle, Cancel, Refresh, AccessTime, OpenInNew, ExpandMore,
   Gavel, Public, TheaterComedy, AccountBalance, TrendingUp,
 } from '@mui/icons-material';
 import Link from 'next/link';
@@ -45,6 +46,10 @@ interface PoolPositionRowProps {
   onClaim?: (poolId: string, betId: string) => void;
   isClaiming?: boolean;
   claimingBetId?: string | null;
+  /** When the user is already inside the Active sub-tab, the 'Active' chip
+   *  is redundant — suppress it. Same idea for any other context where the
+   *  chip just repeats what the surrounding UI already says. */
+  hideStatusChipWhen?: string;
 }
 
 interface ResultInfo {
@@ -135,8 +140,9 @@ function sideColor(side: Bet['side'], t: ReturnType<typeof useThemeTokens>): str
   return side === 'UP' ? t.up : side === 'DOWN' ? t.down : t.draw;
 }
 
-export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }: PoolPositionRowProps) {
+export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId, hideStatusChipWhen }: PoolPositionRowProps) {
   const t = useThemeTokens();
+  const [expanded, setExpanded] = useState(false);
   const { bets, pool } = position;
 
   const totalStake = bets.reduce((a, b) => a + BigInt(b.amount), 0n);
@@ -199,15 +205,169 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
   // For the manual fallback button: target the first failed bet.
   const failedBet = bets.find(b => !!b.payoutFailed && !b.claimed);
 
+  const suppressChip = hideStatusChipWhen != null && result.label === hideStatusChipWhen;
+
+  // ---- Shared bits used by both desktop and mobile renders --------------
+  const resultChip = !suppressChip && (
+    <Chip
+      icon={result.icon as React.ReactElement}
+      label={result.label}
+      size="small"
+      sx={{
+        height: 22,
+        fontSize: '0.72rem',
+        fontWeight: 800,
+        bgcolor: result.bg,
+        color: result.color,
+        borderRadius: '4px',
+        '& .MuiChip-icon': { color: 'inherit', ml: 0.5 },
+        '& .MuiChip-label': { px: 0.75 },
+      }}
+    />
+  );
+
+  const marketCell = (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
+      <Box
+        sx={{
+          width: 40, height: 40, flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          bgcolor: isPM && !marketImage ? withAlpha(pmColor, 0.12) : t.hover.medium,
+          color: isPM ? pmColor : 'inherit',
+          borderRadius: '6px', overflow: 'hidden',
+        }}
+      >
+        {boxImageUrl ? (
+          <Box component="img" src={boxImageUrl} alt="" sx={{ width: '90%', height: '90%', objectFit: 'contain' }} />
+        ) : marketImage ? (
+          <Box component="img" src={marketImage} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : isPM ? (
+          pmIcon
+        ) : (
+          <AssetIcon asset={pool.asset} size={24} />
+        )}
+      </Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Link href={poolLink} style={{ textDecoration: 'none', color: 'inherit' }}>
+          <Typography sx={{
+            fontWeight: 700, fontSize: '0.9rem', color: t.text.primary,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            '&:hover': { color: t.text.bright },
+          }}>
+            {title}
+          </Typography>
+        </Link>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.3, flexWrap: 'wrap' }}>
+          {bets.map((b, i) => (
+            <Box key={b.id} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              {i > 0 && <Box sx={{ color: t.text.secondary, fontSize: '0.7rem' }}>·</Box>}
+              <Box sx={{
+                fontSize: '0.72rem', fontWeight: 800, color: sideColor(b.side, t),
+                bgcolor: withAlpha(sideColor(b.side, t), 0.15), px: 0.7, py: 0.1, borderRadius: '3px',
+              }}>
+                {sideName(b)}
+              </Box>
+              <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, color: t.text.secondary }}>
+                {formatUSDC(b.amount, { min: 2 })}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      </Box>
+    </Box>
+  );
+
+  const stakeCell = (
+    <Box sx={{ textAlign: 'right' }}>
+      <Typography sx={{ fontSize: '1rem', fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
+        {formatUSDC(totalStake.toString(), { min: 2 })}
+      </Typography>
+      {bets.length > 1 && (
+        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: t.text.secondary }}>
+          {bets.length} bets
+        </Typography>
+      )}
+    </Box>
+  );
+
+  const payoutCell = (
+    <Box sx={{ textAlign: 'right' }}>
+      {totalPayoutNum > 0 ? (
+        <>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
+            {formatUSDC(totalPayout.toString(), { min: 2 })}
+          </Typography>
+          {showProfitDelta && (
+            <Typography sx={{
+              fontSize: '0.75rem', fontWeight: 700,
+              color: profitNum >= 0 ? t.gain : t.down,
+              fontVariantNumeric: 'tabular-nums',
+            }}>
+              {profitNum >= 0 ? '+' : ''}{formatUSDC(String(Math.round(profitNum)), { min: 2 })} ({profitPct.toFixed(2)}%)
+            </Typography>
+          )}
+        </>
+      ) : isPending ? (
+        <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: t.text.secondary, fontStyle: 'italic' }}>
+          Paying soon…
+        </Typography>
+      ) : isActive && potentialPayoutNum > 0 ? (
+        <>
+          <Typography sx={{
+            fontSize: '1rem', fontWeight: 800, color: t.text.secondary,
+            fontVariantNumeric: 'tabular-nums',
+          }}>
+            ~{formatUSDC(String(Math.round(potentialPayoutNum)), { min: 2 })}
+          </Typography>
+          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: t.text.secondary, lineHeight: 1.2 }}>
+            potential · {potentialDelta >= 0 ? '+' : ''}{potentialPct.toFixed(0)}%
+          </Typography>
+        </>
+      ) : (
+        <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: t.text.secondary }}>—</Typography>
+      )}
+    </Box>
+  );
+
+  const actionCell = (
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
+      {isPayoutFailed && failedBet && onClaim && (
+        <Button
+          size="small"
+          onClick={() => onClaim(pool.id, failedBet.id)}
+          disabled={isClaiming && claimingBetId === failedBet.id}
+          sx={{
+            minWidth: 0, px: 1.5, py: 0.25, fontSize: '0.72rem', fontWeight: 800,
+            bgcolor: t.gain, color: t.text.contrast, borderRadius: '4px', textTransform: 'none',
+            '&:hover': { bgcolor: t.gain, filter: 'brightness(1.15)' },
+          }}
+        >
+          {isClaiming && claimingBetId === failedBet.id ? <CircularProgress size={12} sx={{ color: 'inherit' }} /> : 'Claim'}
+        </Button>
+      )}
+      {txLink && (
+        <Tooltip title={txLink.label} arrow>
+          <Button
+            component="a"
+            href={getExplorerTxUrl(txLink.sig)}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            size="small"
+            sx={{
+              minWidth: 0, p: 0.5, color: t.text.secondary, '&:hover': { color: t.text.primary },
+            }}
+          >
+            <OpenInNew sx={{ fontSize: 14 }} />
+          </Button>
+        </Tooltip>
+      )}
+    </Box>
+  );
+
   return (
     <Box
       sx={{
-        display: 'grid',
-        gridTemplateColumns: { xs: '1fr', md: '110px 1fr 130px 180px 100px' },
-        alignItems: 'center',
-        gap: { xs: 1, md: 2 },
-        px: { xs: 1.5, md: 2 },
-        py: 1.5,
         bgcolor: t.bg.surfaceAlt,
         border: `1px solid ${t.border.subtle}`,
         borderRadius: 1,
@@ -216,160 +376,72 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
         '&:hover': { background: t.hover.default, borderColor: t.border.medium },
       }}
     >
-      {/* Result chip */}
-      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-        <Chip
-          icon={result.icon as React.ReactElement}
-          label={result.label}
-          size="small"
-          sx={{
-            height: 22,
-            fontSize: '0.7rem',
-            fontWeight: 700,
-            bgcolor: result.bg,
-            color: result.color,
-            borderRadius: '4px',
-            '& .MuiChip-icon': { color: 'inherit', ml: 0.5 },
-            '& .MuiChip-label': { px: 0.75 },
-          }}
-        />
+      {/* ─── Desktop: 5-column grid ─── */}
+      <Box sx={{
+        display: { xs: 'none', md: 'grid' },
+        gridTemplateColumns: '110px 1fr 130px 180px 100px',
+        alignItems: 'center', gap: 2, px: 2, py: 1.5,
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>{resultChip || <Box />}</Box>
+        {marketCell}
+        {stakeCell}
+        {payoutCell}
+        {actionCell}
       </Box>
 
-      {/* Market: icon + title + sides breakdown (no stake repetition) */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
+      {/* ─── Mobile: collapsed summary + tap-to-expand details ─── */}
+      <Box sx={{ display: { xs: 'block', md: 'none' } }}>
         <Box
+          onClick={() => setExpanded(e => !e)}
           sx={{
-            width: 36, height: 36, flexShrink: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            // Only tint the bg when falling back to the category icon — image
-            // thumbnails fill the tile and the tint would clip oddly.
-            bgcolor: isPM && !marketImage ? withAlpha(pmColor, 0.12) : t.hover.medium,
-            color: isPM ? pmColor : 'inherit',
-            borderRadius: '6px', overflow: 'hidden',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: 1, px: 1.5, py: 1.5, cursor: 'pointer',
           }}
         >
-          {boxImageUrl ? (
-            <Box component="img" src={boxImageUrl} alt="" sx={{ width: '90%', height: '90%', objectFit: 'contain' }} />
-          ) : marketImage ? (
-            <Box component="img" src={marketImage} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : isPM ? (
-            pmIcon
-          ) : (
-            <AssetIcon asset={pool.asset} size={22} />
-          )}
-        </Box>
-        <Box sx={{ minWidth: 0 }}>
-          <Link href={poolLink} style={{ textDecoration: 'none', color: 'inherit' }}>
-            <Typography sx={{
-              fontWeight: 600, fontSize: '0.85rem', color: t.text.primary,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              '&:hover': { color: t.text.bright },
-            }}>
-              {title}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, minWidth: 0, flex: 1 }}>
+            {resultChip && <Box>{resultChip}</Box>}
+            {marketCell}
+          </Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.25, flexShrink: 0 }}>
+            <Typography sx={{ fontSize: '0.95rem', fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
+              {formatUSDC(totalStake.toString(), { min: 2 })}
             </Typography>
-          </Link>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.3, flexWrap: 'wrap' }}>
-            {bets.map((b, i) => (
-              <Box key={b.id} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                {i > 0 && <Box sx={{ color: t.text.quaternary, fontSize: '0.6rem' }}>·</Box>}
-                <Box sx={{
-                  fontSize: '0.68rem', fontWeight: 700, color: sideColor(b.side, t),
-                  bgcolor: withAlpha(sideColor(b.side, t), 0.12), px: 0.6, py: 0.05, borderRadius: '3px',
-                }}>
-                  {sideName(b)}
-                </Box>
-                <Typography sx={{ fontSize: '0.68rem', color: t.text.tertiary }}>
-                  {formatUSDC(b.amount, { min: 2 })}
-                </Typography>
-              </Box>
-            ))}
+            <ExpandMore
+              sx={{
+                fontSize: 18, color: t.text.secondary,
+                transition: 'transform 0.18s ease',
+                transform: expanded ? 'rotate(180deg)' : 'none',
+              }}
+            />
           </Box>
         </Box>
-      </Box>
 
-      {/* Stake (total across sides) */}
-      <Box sx={{ display: { xs: 'none', md: 'block' }, textAlign: 'right' }}>
-        <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
-          {formatUSDC(totalStake.toString(), { min: 2 })}
-        </Typography>
-        {bets.length > 1 && (
-          <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary }}>
-            {bets.length} bets
-          </Typography>
-        )}
+        <Collapse in={expanded} timeout={180} unmountOnExit>
+          <Box sx={{
+            display: 'flex', flexDirection: 'column', gap: 1.25,
+            px: 1.5, pb: 1.5, pt: 0.5,
+            borderTop: `1px solid ${t.border.subtle}`,
+          }}>
+            <DetailLine label="Stake" t={t}>{stakeCell}</DetailLine>
+            <DetailLine label="Payout" t={t}>{payoutCell}</DetailLine>
+            <DetailLine label="Action" t={t}>{actionCell}</DetailLine>
+          </Box>
+        </Collapse>
       </Box>
+    </Box>
+  );
+}
 
-      {/* Payout — total across sides (settled), or aggregate potential (active) */}
-      <Box sx={{ display: { xs: 'none', md: 'block' }, textAlign: 'right' }}>
-        {totalPayoutNum > 0 ? (
-          <>
-            <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
-              {formatUSDC(totalPayout.toString(), { min: 2 })}
-            </Typography>
-            {showProfitDelta && (
-              <Typography sx={{
-                fontSize: '0.72rem', fontWeight: 600,
-                color: profitNum >= 0 ? t.gain : t.down,
-                fontVariantNumeric: 'tabular-nums',
-              }}>
-                {profitNum >= 0 ? '+' : ''}{formatUSDC(String(Math.round(profitNum)), { min: 2 })} ({profitPct.toFixed(2)}%)
-              </Typography>
-            )}
-          </>
-        ) : isPending ? (
-          <Typography sx={{ fontSize: '0.78rem', color: t.text.tertiary, fontStyle: 'italic' }}>
-            Paying soon…
-          </Typography>
-        ) : isActive && potentialPayoutNum > 0 ? (
-          <>
-            <Typography sx={{
-              fontSize: '0.95rem', fontWeight: 700, color: t.text.secondary,
-              fontVariantNumeric: 'tabular-nums',
-            }}>
-              ~{formatUSDC(String(Math.round(potentialPayoutNum)), { min: 2 })}
-            </Typography>
-            <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, lineHeight: 1.2 }}>
-              potential · {potentialDelta >= 0 ? '+' : ''}{potentialPct.toFixed(0)}%
-            </Typography>
-          </>
-        ) : (
-          <Typography sx={{ fontSize: '0.85rem', color: t.text.quaternary }}>—</Typography>
-        )}
-      </Box>
-
-      {/* Action / Tx */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
-        {isPayoutFailed && failedBet && onClaim && (
-          <Button
-            size="small"
-            onClick={() => onClaim(pool.id, failedBet.id)}
-            disabled={isClaiming && claimingBetId === failedBet.id}
-            sx={{
-              minWidth: 0, px: 1.5, py: 0.25, fontSize: '0.7rem', fontWeight: 700,
-              bgcolor: t.gain, color: t.text.contrast, borderRadius: '4px', textTransform: 'none',
-              '&:hover': { bgcolor: t.gain, filter: 'brightness(1.15)' },
-            }}
-          >
-            {isClaiming && claimingBetId === failedBet.id ? <CircularProgress size={12} sx={{ color: 'inherit' }} /> : 'Claim'}
-          </Button>
-        )}
-        {txLink && (
-          <Tooltip title={txLink.label} arrow>
-            <Button
-              component="a"
-              href={getExplorerTxUrl(txLink.sig)}
-              target="_blank"
-              rel="noopener noreferrer"
-              size="small"
-              sx={{
-                minWidth: 0, p: 0.5, color: t.text.quaternary, '&:hover': { color: t.text.primary },
-              }}
-            >
-              <OpenInNew sx={{ fontSize: 14 }} />
-            </Button>
-          </Tooltip>
-        )}
-      </Box>
+function DetailLine({ label, t, children }: { label: string; t: ReturnType<typeof useThemeTokens>; children: React.ReactNode }) {
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+      <Typography sx={{
+        fontSize: '0.72rem', fontWeight: 700, color: t.text.secondary,
+        textTransform: 'uppercase', letterSpacing: 0.5,
+      }}>
+        {label}
+      </Typography>
+      <Box>{children}</Box>
     </Box>
   );
 }
