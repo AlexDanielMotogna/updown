@@ -235,18 +235,28 @@ function smoothPath(points: { x: number; y: number }[]): string {
   return d;
 }
 
-/** Step-before staircase: horizontal at the previous price until the new X,
- *  then vertical to the new price. Same shape as the FeaturedHero / OddsChart
- *  trend lines, so the snake reads consistently with the rest of the app
- *  instead of looking like a different chart family. */
+/** "Wave step" — Polymarket/Kalshi-style line: holds horizontal at the
+ *  previous price for the first half of each segment, then eases into the
+ *  new price with a cubic Bezier S-curve. No sharp 90° corners, no full
+ *  Bezier swoop through the data; reads as a softly-stepped wave that
+ *  follows the price ticks. */
 function stepPath(points: { x: number; y: number }[]): string {
   if (points.length === 0) return '';
   if (points.length === 1) return `M${points[0].x.toFixed(1)},${points[0].y.toFixed(1)}`;
   let d = `M${points[0].x.toFixed(1)},${points[0].y.toFixed(1)}`;
   for (let i = 1; i < points.length; i++) {
-    const { x, y } = points[i];
-    const prevY = points[i - 1].y;
-    d += ` L${x.toFixed(1)},${prevY.toFixed(1)} L${x.toFixed(1)},${y.toFixed(1)}`;
+    const prev = points[i - 1];
+    const curr = points[i];
+    const dx = curr.x - prev.x;
+    // Hold horizontal for the first ~50% of the segment, then S-curve to the
+    // new price over the remaining ~50%. The control points are pulled in
+    // toward the corners so the curve enters/exits horizontally (no sharp
+    // join with the flat portion) — that's the rounded-step look.
+    const holdEndX = prev.x + dx * 0.5;
+    const cp1x = holdEndX + dx * 0.18;
+    const cp2x = curr.x - dx * 0.18;
+    d += ` L${holdEndX.toFixed(1)},${prev.y.toFixed(1)}`;
+    d += ` C${cp1x.toFixed(1)},${prev.y.toFixed(1)} ${cp2x.toFixed(1)},${curr.y.toFixed(1)} ${curr.x.toFixed(1)},${curr.y.toFixed(1)}`;
   }
   return d;
 }
