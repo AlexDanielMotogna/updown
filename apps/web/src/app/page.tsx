@@ -337,10 +337,10 @@ export default function MarketsPage() {
                     <Box
                       sx={{
                         display: 'grid',
-                        // 2 cols up to xl (1536px) matches Kalshi/Polymarket
-                        // density at typical desktop widths; bumps to 3 only
-                        // on very wide monitors where 2 starts looking sparse.
-                        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', xl: 'repeat(3, 1fr)' },
+                        // Fixed 2 cols on desktop — keeps cards readable at
+                        // every viewport instead of squeezing to 3 on wide
+                        // monitors. Matches Kalshi/Polymarket density.
+                        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
                         gap: { xs: 1.5, md: 2 },
                         mb: 0,
                       }}
@@ -393,10 +393,10 @@ export default function MarketsPage() {
                     <Box
                       sx={{
                         display: 'grid',
-                        // 2 cols up to xl (1536px) matches Kalshi/Polymarket
-                        // density at typical desktop widths; bumps to 3 only
-                        // on very wide monitors where 2 starts looking sparse.
-                        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', xl: 'repeat(3, 1fr)' },
+                        // Fixed 2 cols on desktop — keeps cards readable at
+                        // every viewport instead of squeezing to 3 on wide
+                        // monitors. Matches Kalshi/Polymarket density.
+                        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
                         gap: { xs: 1.5, md: 2 },
                         mb: 0,
                       }}
@@ -432,7 +432,7 @@ export default function MarketsPage() {
                   <Box
                     sx={{
                       display: 'grid',
-                      gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', xl: 'repeat(3, 1fr)' },
+                      gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
                       gap: { xs: 1.5, md: 2 },
                     }}
                   >
