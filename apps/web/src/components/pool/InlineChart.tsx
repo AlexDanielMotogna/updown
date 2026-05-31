@@ -59,7 +59,10 @@ function niceStep(range: number, targetTicks: number): number {
 function formatTime(ts: number, duration: number): string {
   const d = new Date(ts);
   if (duration <= 24 * 60 * 60 * 1000) {
-    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+    // Include seconds so the snake's anchored time ruler reads at the same
+    // resolution as the clock — "5:09:56" / "5:10:00" / "5:10:04" the way
+    // Polymarket / Kalshi label their live charts.
+    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
   }
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
@@ -70,9 +73,11 @@ const PADDING = { top: 20, right: 70, bottom: 30, left: 16 };
 // pixels to read as motion. With a 1-hour window each frame shifted ~0.007%
 // of the chart width (eye sees nothing); at 2 minutes it's ~0.2% — smooth.
 const SNAKE_WINDOW_MS = 2 * 60 * 1000;
-// 250ms tick + 250ms linear CSS transition on the path stitch every frame
-// straight into the next: no visible step between renders.
-const SNAKE_TICK_MS = 250;
+// 100ms tick (~10fps) + matching 100ms linear CSS transition on the path,
+// dot and X-axis labels: every frame stretches straight into the next so the
+// motion reads as continuous flow, not as discrete steps.
+const SNAKE_TICK_MS = 100;
+const SNAKE_TRANS = '0.1s linear';
 
 function useChartLayout(candles: Candle[], chartType: ChartType) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -192,7 +197,7 @@ function ChartAxes({ dims, yTicks, xTicks, duration }: AxesProps) {
       {yTicks.map((tick, i) => (
         <g key={`y-${i}`}>
           <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={tick.y} y2={tick.y} stroke={t.border.default} strokeWidth={1} />
-          <text x={dims.width - PADDING.right + 8} y={tick.y + 4} fill={t.text.tertiary} fontSize={11} fontFamily="var(--font-satoshi), Satoshi, sans-serif">
+          <text x={dims.width - PADDING.right + 8} y={tick.y + 4} fill={t.text.tertiary} fontSize={11} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700}>
             {formatChartPrice(tick.price)}
           </text>
         </g>
@@ -204,9 +209,9 @@ function ChartAxes({ dims, yTicks, xTicks, duration }: AxesProps) {
         <g
           key={`x-${tick.time}`}
           transform={`translate(${tick.x}, 0)`}
-          style={{ transition: 'transform 0.25s linear' }}
+          style={{ transition: `transform ${SNAKE_TRANS}` }}
         >
-          <text x={0} y={dims.height - 6} fill={t.text.tertiary} fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" textAnchor="middle">
+          <text x={0} y={dims.height - 6} fill={t.text.tertiary} fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700} textAnchor="middle">
             {formatTime(tick.time, duration)}
           </text>
         </g>
@@ -462,8 +467,8 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
           return null;
         })()}
 
-        {areaPath && <path d={areaPath} fill="url(#inline-line-area-grad)" style={{ transition: 'd 0.5s linear, opacity 0.3s' }} />}
-        {linePath && <path d={linePath} fill="none" stroke={lineColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'd 0.25s linear' }} />}
+        {areaPath && <path d={areaPath} fill="url(#inline-line-area-grad)" style={{ transition: `d ${SNAKE_TRANS}, opacity 0.3s` }} />}
+        {linePath && <path d={linePath} fill="none" stroke={lineColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ transition: `d ${SNAKE_TRANS}` }} />}
 
         {livePrice != null && lastPoint && (() => {
           const ly = toY(livePrice);
@@ -473,7 +478,7 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
                 {/* The live dot rides the right edge — its X is the phantom
                     'now' point we appended, so the matching linear transition
                     keeps it visually glued to the head of the snake. */}
-                <circle cx={lastPoint.x} cy={lastPoint.y} r={3.5} fill={lineColor} stroke="#111820" strokeWidth={2} style={{ transition: 'cx 0.25s linear, cy 0.25s linear' }}>
+                <circle cx={lastPoint.x} cy={lastPoint.y} r={3.5} fill={lineColor} stroke="#111820" strokeWidth={2} style={{ transition: `cx ${SNAKE_TRANS}, cy ${SNAKE_TRANS}` }}>
                   <animate attributeName="r" values="3.5;5;3.5" dur="2s" repeatCount="indefinite" />
                 </circle>
                 <rect x={dims.width - PADDING.right + 1} y={ly - 10} width={PADDING.right - 4} height={20} rx={3} fill={lineColor} style={{ transition: 'y 0.4s ease' }} />
@@ -497,7 +502,7 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
           <>
             <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={hoverY} y2={hoverY} stroke={t.text.muted} strokeWidth={1} strokeDasharray="3,3" />
             <rect x={dims.width - PADDING.right + 1} y={hoverY - 10} width={PADDING.right - 4} height={20} rx={3} fill="rgba(255,255,255,0.12)" />
-            <text x={dims.width - PADDING.right + 8} y={hoverY + 4} fill={t.text.primary} fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={500}>
+            <text x={dims.width - PADDING.right + 8} y={hoverY + 4} fill={t.text.primary} fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700}>
               {formatChartPrice(hoverPrice)}
             </text>
           </>
@@ -596,7 +601,7 @@ function CandlesChart({ candles, duration, livePrice, strikePrice }: ChartProps)
           <>
             <line x1={PADDING.left} x2={dims.width - PADDING.right} y1={hoverY} y2={hoverY} stroke={t.text.muted} strokeWidth={1} strokeDasharray="3,3" />
             <rect x={dims.width - PADDING.right + 1} y={hoverY - 10} width={PADDING.right - 4} height={20} rx={3} fill="rgba(255,255,255,0.12)" />
-            <text x={dims.width - PADDING.right + 8} y={hoverY + 4} fill={t.text.primary} fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={500}>
+            <text x={dims.width - PADDING.right + 8} y={hoverY + 4} fill={t.text.primary} fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" fontWeight={700}>
               {formatChartPrice(hoverPrice)}
             </text>
           </>
