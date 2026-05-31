@@ -38,6 +38,24 @@ function formatChartPrice(price: number): string {
   return price.toLocaleString('en-US', { maximumFractionDigits: 4 });
 }
 
+/** Round a raw axis step ($17.42) to a Polymarket-ish "nice" value ($20).
+ *  Picks from {1, 2, 2.5, 5, 10} × 10^n so adjacent ticks read as multiples
+ *  of $5 / $10 / $20 / $0.50, never the arbitrary remainder of (range / N). */
+function niceStep(range: number, targetTicks: number): number {
+  if (range <= 0 || !Number.isFinite(range)) return 1;
+  const rough = range / Math.max(1, targetTicks - 1);
+  const exp = Math.floor(Math.log10(rough));
+  const factor = Math.pow(10, exp);
+  const normalized = rough / factor;
+  const nice =
+    normalized < 1.5 ? 1
+    : normalized < 3 ? 2
+    : normalized < 4 ? 2.5
+    : normalized < 7 ? 5
+    : 10;
+  return nice * factor;
+}
+
 function formatTime(ts: number, duration: number): string {
   const d = new Date(ts);
   if (duration <= 24 * 60 * 60 * 1000) {
@@ -220,7 +238,11 @@ function smoothPath(points: { x: number; y: number }[]): string {
 function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
   const t = useThemeTokens();
   const layout = useChartLayout(candles, 'line');
-  const { containerRef, dims, parsed, chartH, toY, yTicks, maxPrice, priceRange } = layout;
+  // Only `parsed` (candle close timestamps + values) and the layout box come
+  // from the shared hook. The Y axis is recomputed below from the snake's
+  // visible window so the chart zooms tight around the current price the way
+  // Polymarket does, instead of spanning the full hour of fetched candles.
+  const { containerRef, dims, parsed, chartH } = layout;
 
   // ── Snake clock ────────────────────────────────────────────────────────
   // The X axis is anchored to "now": the right edge always reads the current
@@ -258,6 +280,52 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
 
   const closes = useMemo(() => visibleCandles.map((p) => p.c), [visibleCandles]);
   const times = useMemo(() => visibleCandles.map((p) => p.t), [visibleCandles]);
+
+  // ── Y-axis scoped to the visible window ────────────────────────────────
+  // Calculating min/max from the snake-cropped candles is what makes the
+  // axis tick around the *current* price (e.g. $73,760 → $73,800 for BTC)
+  // instead of the full hour's $1k swing. A small floor on the span keeps
+  // the line from collapsing to a flat horizontal when prices barely move.
+  const { maxPrice, priceRange, toY } = useMemo(() => {
+    const values: number[] = [];
+    for (const c of visibleCandles) values.push(c.c);
+    if (livePrice != null) values.push(livePrice);
+    if (strikePrice != null) values.push(strikePrice);
+    if (values.length === 0) {
+      return { maxPrice: 0, priceRange: 1, toY: (_p: number) => PADDING.top + chartH / 2 };
+    }
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const center = livePrice ?? values[values.length - 1];
+    // Floor at 0.05% of price (~$36 for BTC at $73k, ~$0.04 for SOL at $82)
+    // so a quiet 2-minute window still renders a readable Y range instead of
+    // a near-zero span that flattens the line.
+    const minSpan = Math.max(center * 0.0005, 0.01);
+    const distFromCenter = Math.max(max - center, center - min, minSpan);
+    const span = distFromCenter * 1.3;
+    const tMax = center + span;
+    const tRange = span * 2;
+    return {
+      maxPrice: tMax,
+      priceRange: tRange,
+      toY: (p: number) => PADDING.top + ((tMax - p) / tRange) * chartH,
+    };
+  }, [visibleCandles, livePrice, strikePrice, chartH]);
+
+  // Y-axis ticks rounded to "nice" multiples (BTC: every $10 / $20, SOL:
+  // every $0.20 / $0.50) so the axis reads as a clean ruler. We anchor from
+  // the lowest visible price upward, dropping any that fall outside the
+  // chart box.
+  const yTicks = useMemo(() => {
+    const minPrice = maxPrice - priceRange;
+    const step = niceStep(priceRange, 5);
+    const first = Math.ceil(minPrice / step) * step;
+    const ticks: { price: number; y: number }[] = [];
+    for (let price = first; price <= maxPrice; price += step) {
+      ticks.push({ price, y: toY(price) });
+    }
+    return ticks;
+  }, [maxPrice, priceRange, toY]);
 
   // The line ends at "now, livePrice" — a phantom point the snake clock
   // pushes rightward each tick so the curve always touches the right edge.
