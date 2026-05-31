@@ -295,7 +295,7 @@ export function ProfileHeader({
                   tip="Share of your predictions that won"
                   color={t.gain}
                   value={`${userProfile?.stats.winRate ?? '0.0'}%`}
-                  sub={`${totalWins}W / ${losses}L${totalRefunded > 0 ? ` · ${totalRefunded}R` : ''}`}
+                  sub={`${totalWins}W / ${losses}L`}
                 />
                 <HeroTile
                   label="Volume Staked"

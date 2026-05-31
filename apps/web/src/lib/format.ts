@@ -55,25 +55,42 @@ export function formatDate(dateString: string): string {
   });
 }
 
-/** "May 29, 10:35 PM – 10:40 PM ET". Always rendered in US Eastern — the
- *  prediction-market convention (Polymarket, Kalshi) so the window reads
- *  identically for every viewer regardless of their device timezone. */
+/** "May 29, 10:35 PM – 10:40 PM CEST" — formatted in the viewer's local
+ *  timezone with their locale's TZ abbreviation (so a Berlin user sees
+ *  "MESZ", a New Yorker sees "EDT", etc).
+ *
+ *  Heads-up: this is render-time TZ-dependent. During Next.js SSR it uses
+ *  the server TZ (UTC) and re-renders to the user TZ on hydration. Consumers
+ *  must set `suppressHydrationWarning` on the element rendering the result
+ *  to avoid a noisy React warning. */
 export function formatPredictionWindow(startISO: string, endISO: string): string {
   const start = new Date(startISO);
   const end = new Date(endISO);
   const date = start.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
-    timeZone: 'America/New_York',
   });
   const timeOpts: Intl.DateTimeFormatOptions = {
     hour: 'numeric',
     minute: '2-digit',
-    timeZone: 'America/New_York',
   };
   const startTime = start.toLocaleTimeString('en-US', timeOpts);
   const endTime = end.toLocaleTimeString('en-US', timeOpts);
-  return `${date}, ${startTime} – ${endTime} ET`;
+  // Use `undefined` locale so the abbreviation comes back in the user's
+  // language ("MESZ" for de-DE, "CEST" / "EDT" for en-*). `timeZoneName:
+  // 'short'` is the well-supported variant; some runtimes return "GMT+2"
+  // instead of an alpha abbr — that's fine, the offset is still useful.
+  let tz = '';
+  try {
+    const parts = new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' })
+      .formatToParts(start);
+    tz = parts.find(p => p.type === 'timeZoneName')?.value ?? '';
+  } catch {
+    /* very old runtimes — fall through with no abbr */
+  }
+  return tz
+    ? `${date}, ${startTime} – ${endTime} ${tz}`
+    : `${date}, ${startTime} – ${endTime}`;
 }
 
 export function getExplorerTxUrl(signature: string): string {

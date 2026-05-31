@@ -265,7 +265,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId, 
           </Typography>
         </Link>
         {cryptoWindow && (
-          <Typography sx={{
+          <Typography suppressHydrationWarning sx={{
             fontSize: '0.68rem', fontWeight: 500, color: t.text.tertiary,
             mt: 0.15, fontVariantNumeric: 'tabular-nums',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',

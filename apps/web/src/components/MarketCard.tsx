@@ -207,7 +207,7 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
             {title}
           </Typography>
           {cryptoWindow && (
-            <Typography sx={{ fontSize: '0.66rem', fontWeight: 500, color: t.text.tertiary, lineHeight: 1.35, mt: 0.25, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <Typography suppressHydrationWarning sx={{ fontSize: '0.66rem', fontWeight: 500, color: t.text.tertiary, lineHeight: 1.35, mt: 0.25, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {cryptoWindow}
             </Typography>
           )}

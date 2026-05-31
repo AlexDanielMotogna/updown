@@ -78,9 +78,10 @@ export function CryptoPoolCard({ pool, userBet, onClick }: CryptoPoolCardProps) 
                 {pool.asset}/USD
               </Typography>
             </Link>
-            {/* Pool window — same convention prediction markets use (ET) so the
-                label reads the same regardless of the viewer's timezone. */}
-            <Typography sx={{ fontSize: '0.68rem', fontWeight: 500, color: t.text.tertiary, lineHeight: 1.3, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {/* Pool window in the viewer's local timezone — the abbreviation
+                comes from their locale (CEST, EDT, MESZ, …) and the time
+                differs across machines, so suppress the SSR/CSR mismatch. */}
+            <Typography suppressHydrationWarning sx={{ fontSize: '0.68rem', fontWeight: 500, color: t.text.tertiary, lineHeight: 1.3, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {formatPredictionWindow(pool.startTime, pool.endTime)}
             </Typography>
           </Box>
