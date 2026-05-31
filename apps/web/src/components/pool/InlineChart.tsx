@@ -537,10 +537,12 @@ export function InlineChart({ asset, livePrice: livePriceStr, strikePrice: strik
   const t = useThemeTokens();
   const livePriceNum = livePriceStr ? Number(livePriceStr) : null;
   const strikePriceNum = strikePriceStr ? Number(strikePriceStr) / USDC_DIVISOR : null;
-  const [intervalIdx, setIntervalIdx] = useState(0); // default 1m
   const [chartType, setChartType] = useState<ChartType>('line');
-
-  const interval = INTERVALS[intervalIdx];
+  // Snake view is hard-locked to 1-minute candles — the user can't tune the
+  // resolution because the visible span (2 min, see SNAKE_WINDOW_MS) wouldn't
+  // accommodate larger candles. Polymarket likewise hides the interval choice
+  // on its real-time line view.
+  const interval = INTERVALS[0];
 
   const { candles, loading, error } = usePacificaCandles({
     symbol: asset,
@@ -548,10 +550,6 @@ export function InlineChart({ asset, livePrice: livePriceStr, strikePrice: strik
     durationMs: interval.duration,
     enabled: true,
   });
-
-  const lastPrice = candles.length > 0 ? parseFloat(candles[candles.length - 1].c) : null;
-  const firstPrice = candles.length > 0 ? parseFloat(candles[0].c) : null;
-  const pctChange = lastPrice && firstPrice ? ((lastPrice - firstPrice) / firstPrice) * 100 : null;
 
   return (
     <Box
@@ -564,36 +562,8 @@ export function InlineChart({ asset, livePrice: livePriceStr, strikePrice: strik
         overflow: 'hidden',
       }}
     >
-      {/* Controls: interval pills + chart type toggle */}
-      <Box sx={{ px: { xs: 1, md: 2 }, pb: 0.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
-        <Box sx={{ overflow: 'auto', flexShrink: 1, minWidth: 0 }}>
-          <ToggleButtonGroup
-            value={intervalIdx}
-            exclusive
-            onChange={(_, val) => { if (val !== null) setIntervalIdx(val); }}
-            size="small"
-            sx={{
-              '& .MuiToggleButton-root': {
-                color: 'text.secondary',
-                border: 'none',
-                borderRadius: '3px !important',
-                textTransform: 'none',
-                fontSize: '0.7rem',
-                px: { xs: 0.75, md: 1.25 },
-                py: 0.15,
-                '&.Mui-selected': {
-                  color: t.text.primary,
-                  bgcolor: t.hover.strong,
-                },
-              },
-            }}
-          >
-            {INTERVALS.map((iv, i) => (
-              <ToggleButton key={iv.label} value={i}>{iv.label}</ToggleButton>
-            ))}
-          </ToggleButtonGroup>
-        </Box>
-
+      {/* Controls: chart-type toggle only (no interval picker — locked to 1m). */}
+      <Box sx={{ px: { xs: 1, md: 2 }, pb: 0.5, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
         <ToggleButtonGroup
           value={chartType}
           exclusive
