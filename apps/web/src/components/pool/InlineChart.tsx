@@ -225,6 +225,10 @@ interface ChartProps {
   duration: number;
   livePrice?: number | null;
   strikePrice?: number | null;
+  /** Used to scope the rolling tick buffer in sessionStorage so a refresh
+   *  on a BTC pool doesn't lose history while flipping to an ETH pool, and
+   *  vice versa. */
+  asset?: string;
 }
 
 function smoothPath(points: { x: number; y: number }[]): string {
@@ -266,7 +270,7 @@ function stepPath(points: { x: number; y: number }[]): string {
   return d;
 }
 
-function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
+function LineChart({ candles, duration, livePrice, strikePrice, asset }: ChartProps) {
   const t = useThemeTokens();
   const layout = useChartLayout(candles, 'line');
   // We only borrow the container ref + measured chart box from the layout
@@ -286,10 +290,30 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
   // Effect: the rightmost point is always the latest tick, so price changes
   // visibly start at the tip and the older body just slides left in time.
   // Hover gets ~1200 snap targets in the 2-min window instead of 2–3 candles.
-  const [history, setHistory] = useState<{ t: number; p: number }[]>([]);
+  //
+  // Hydrated from sessionStorage so a page refresh doesn't blank the chart
+  // and force the user to wait 2 minutes for the buffer to fill again. The
+  // key is scoped to the asset so a BTC pool and an ETH pool keep separate
+  // histories.
+  const storageKey = asset ? `snake-history:${asset}` : null;
+  const [history, setHistory] = useState<{ t: number; p: number }[]>(() => {
+    if (typeof window === 'undefined' || !storageKey) return [];
+    try {
+      const raw = window.sessionStorage.getItem(storageKey);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as { t: number; p: number }[];
+      // Drop anything already outside the visible window so we don't pay a
+      // memory tax on data we won't render.
+      const cutoff = Date.now() - SNAKE_WINDOW_MS;
+      return parsed.filter((e) => e.t >= cutoff);
+    } catch {
+      return [];
+    }
+  });
 
   // Seed once from candle closes when they arrive — bootstraps the chart so
-  // there's an actual line on first paint, not just a single dot at "now".
+  // there's an actual line on first paint when sessionStorage was empty.
+  // Skips if hydration already gave us something fresh.
   useEffect(() => {
     if (parsed.length === 0) return;
     setHistory((prev) => {
@@ -298,8 +322,7 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
     });
   }, [parsed]);
 
-  // Push livePrice every SNAKE_TICK_MS and prune. We don't rely on a
-  // separate `now` state — the head of `history` is "now".
+  // Push livePrice every SNAKE_TICK_MS and prune.
   useEffect(() => {
     const iv = setInterval(() => {
       if (livePrice == null) return;
@@ -312,6 +335,22 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
     }, SNAKE_TICK_MS);
     return () => clearInterval(iv);
   }, [livePrice]);
+
+  // Persist throttled — sessionStorage writes are sync and a 1200-entry JSON
+  // shouldn't be serialized 10× a second. Once per second is enough to
+  // survive a refresh; the worst case is losing ≤1s of ticks.
+  const lastWriteRef = useRef(0);
+  useEffect(() => {
+    if (typeof window === 'undefined' || !storageKey) return;
+    const ts = Date.now();
+    if (ts - lastWriteRef.current < 1000) return;
+    lastWriteRef.current = ts;
+    try {
+      window.sessionStorage.setItem(storageKey, JSON.stringify(history));
+    } catch {
+      // Quota exceeded — silently drop; the in-memory buffer is unaffected.
+    }
+  }, [history, storageKey]);
 
   // Render clock: we need *some* re-render between tick pushes when livePrice
   // is null (e.g. WS hiccup) so the X axis can still advance and old points
@@ -751,7 +790,7 @@ export function InlineChart({ asset, livePrice: livePriceStr, strikePrice: strik
         )}
         {!loading && !error && candles.length > 0 && (
           chartType === 'line'
-            ? <LineChart candles={candles} duration={interval.duration} livePrice={livePriceNum} strikePrice={strikePriceNum} />
+            ? <LineChart candles={candles} duration={interval.duration} livePrice={livePriceNum} strikePrice={strikePriceNum} asset={asset} />
             : <CandlesChart candles={candles} duration={interval.duration} livePrice={livePriceNum} strikePrice={strikePriceNum} />
         )}
         {!loading && !error && candles.length === 0 && (
