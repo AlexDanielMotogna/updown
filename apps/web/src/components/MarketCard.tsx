@@ -164,11 +164,13 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
         '&:hover': { borderColor: t.border.medium, bgcolor: t.hover.subtle },
       }}
     >
-      {/* Header: category + right meta. PM cards hide the category indicator
-          entirely — the question + thumbnail are enough context, and the
-          sidebar filter already tells the user which bucket they're in. */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: isPrediction ? 'flex-end' : 'space-between', gap: 1 }}>
-        {!isPrediction && (
+      {/* Header: category chip + right meta (Popular pill + live/time-to-close).
+          PM cards skip this row entirely so the question sits flush at the top
+          edge of the card — the question + thumbnail are enough context, and
+          the sidebar filter tells the user which bucket they're in. PM's meta
+          is rendered inline next to the title further down. */}
+      {!isPrediction && (
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6, minWidth: 0 }}>
             {isCrypto ? (
               // Per-asset round Pacifica token SVG — same identity the asset
@@ -188,23 +190,25 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
               {catLabel}
             </Typography>
           </Box>
-        )}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
-          {isPopular && (
-            <Chip icon={<Star sx={{ fontSize: 10 }} />} label="Popular" size="small" sx={{ height: 16, fontSize: '0.5rem', fontWeight: 700, bgcolor: withAlpha(t.gain, 0.1), color: t.gain, '& .MuiChip-icon': { color: t.gain, ml: 0.4 } }} />
-          )}
-          {matchLive ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
-              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: t.gain, animation: 'mcPulse 1.5s infinite', '@keyframes mcPulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.35 } } }} />
-              <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, color: t.gain }}>{rightLabel}</Typography>
-            </Box>
-          ) : (
-            <Typography sx={{ fontSize: '0.66rem', fontWeight: 600, color: t.text.tertiary }}>{rightLabel}</Typography>
-          )}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+            {isPopular && (
+              <Chip icon={<Star sx={{ fontSize: 10 }} />} label="Popular" size="small" sx={{ height: 16, fontSize: '0.5rem', fontWeight: 700, bgcolor: withAlpha(t.gain, 0.1), color: t.gain, '& .MuiChip-icon': { color: t.gain, ml: 0.4 } }} />
+            )}
+            {matchLive ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
+                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: t.gain, animation: 'mcPulse 1.5s infinite', '@keyframes mcPulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.35 } } }} />
+                <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, color: t.gain }}>{rightLabel}</Typography>
+              </Box>
+            ) : (
+              <Typography sx={{ fontSize: '0.66rem', fontWeight: 600, color: t.text.tertiary }}>{rightLabel}</Typography>
+            )}
+          </Box>
         </Box>
-      </Box>
+      )}
 
-      {/* Title (PM markets show the market image as a thumbnail) */}
+      {/* Title (PM markets show the market image as a thumbnail; meta floats
+          to the top-right of the title row so the question sits flush at the
+          top of the card). */}
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, minHeight: '2.4em' }}>
         {isPrediction && pool.homeTeamCrest && (
           <Box component="img" src={pool.homeTeamCrest} alt="" sx={{ width: 30, height: 30, borderRadius: 1, objectFit: 'cover', flexShrink: 0 }} />
@@ -219,6 +223,14 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
             </Typography>
           )}
         </Box>
+        {isPrediction && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0, mt: 0.25 }}>
+            {isPopular && (
+              <Chip icon={<Star sx={{ fontSize: 10 }} />} label="Popular" size="small" sx={{ height: 16, fontSize: '0.5rem', fontWeight: 700, bgcolor: withAlpha(t.gain, 0.1), color: t.gain, '& .MuiChip-icon': { color: t.gain, ml: 0.4 } }} />
+            )}
+            <Typography sx={{ fontSize: '0.66rem', fontWeight: 600, color: t.text.tertiary, whiteSpace: 'nowrap' }}>{rightLabel}</Typography>
+          </Box>
+        )}
       </Box>
 
       {/* Outcomes */}
