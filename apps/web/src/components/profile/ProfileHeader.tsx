@@ -22,6 +22,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { ConnectWalletButton } from '@/components';
 import { UserLevelBadge } from '@/components/UserLevelBadge';
+import { XpProgressBar } from '@/components/XpProgressBar';
 import { formatUSDC, USDC_DIVISOR } from '@/lib/format';
 import { UP_COINS_DIVISOR, getAvatarUrl } from '@/lib/constants';
 import { useThemeTokens } from '@/app/providers';
@@ -251,17 +252,7 @@ export function ProfileHeader({
               {/* ─── XP progress ─── */}
               {userProfile && (
                 <Box sx={{ mt: 2 }}>
-                  <Box sx={{ width: '100%', height: 8, borderRadius: 4, bgcolor: t.border.default, overflow: 'hidden' }}>
-                    <Box sx={{ width: `${Math.max(0, Math.min(100, (userProfile.xpProgress || 0) * 100))}%`, height: '100%', borderRadius: 4, background: `linear-gradient(90deg, ${withAlpha(ringColor, 0.7)}, ${ringColor})`, transition: 'width 0.4s ease' }} />
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: t.text.quaternary, fontVariantNumeric: 'tabular-nums' }}>
-                      {xpInLevel.toLocaleString()} / {xpSpan.toLocaleString()} XP
-                    </Typography>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: t.text.muted }}>
-                      {userProfile.nextLevel ? `→ Lv.${userProfile.nextLevel.level} ${userProfile.nextLevel.title}` : 'MAX LEVEL'}
-                    </Typography>
-                  </Box>
+                  <XpProgressBar profile={userProfile} />
                 </Box>
               )}
 

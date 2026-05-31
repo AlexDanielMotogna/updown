@@ -56,12 +56,7 @@ export function UserProfilePanel() {
 
       {/* XP Progress */}
       <Box sx={{ mb: 3 }}>
-        <XpProgressBar
-          level={profile.level}
-          progress={profile.xpProgress}
-          totalXp={profile.totalXp}
-          xpToNextLevel={profile.xpToNextLevel}
-        />
+        <XpProgressBar profile={profile} />
       </Box>
 
       {/* UP Coins */}
