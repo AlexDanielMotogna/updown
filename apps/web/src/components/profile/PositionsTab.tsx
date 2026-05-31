@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { Box, Typography, TextField, InputAdornment } from '@mui/material';
 import { Search } from '@mui/icons-material';
 import { useThemeTokens } from '@/app/providers';
-import { PositionRow, PositionRowSkeleton } from './PositionRow';
+import { PoolPositionRow, PoolPositionRowSkeleton, type PoolPosition } from './PoolPositionRow';
 import type { Bet } from '@/lib/api';
 
 type SubTab = 'active' | 'closed';
@@ -29,24 +29,37 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim }: Posi
   const [sub, setSub] = useState<SubTab>('active');
   const [query, setQuery] = useState('');
 
-  const { activeBets, closedBets } = useMemo(() => {
-    const a: Bet[] = [];
-    const c: Bet[] = [];
+  // Group bets by pool so a hedger doesn't see two rows for the same
+  // market. Preserves insertion order (newest pool first because the bets
+  // list comes back ordered by createdAt desc).
+  const positions = useMemo(() => {
+    const map = new Map<string, PoolPosition>();
     for (const bet of bets) {
-      const open = bet.pool.status === 'JOINING' || bet.pool.status === 'ACTIVE' || bet.pool.status === 'UPCOMING';
-      if (open) a.push(bet); else c.push(bet);
+      const existing = map.get(bet.pool.id);
+      if (existing) existing.bets.push(bet);
+      else map.set(bet.pool.id, { poolId: bet.pool.id, pool: bet.pool, bets: [bet] });
     }
-    return { activeBets: a, closedBets: c };
+    return [...map.values()];
   }, [bets]);
 
-  const shown = sub === 'active' ? activeBets : closedBets;
+  const { active, closed } = useMemo(() => {
+    const a: PoolPosition[] = [];
+    const c: PoolPosition[] = [];
+    for (const p of positions) {
+      const open = p.pool.status === 'JOINING' || p.pool.status === 'ACTIVE' || p.pool.status === 'UPCOMING';
+      if (open) a.push(p); else c.push(p);
+    }
+    return { active: a, closed: c };
+  }, [positions]);
+
+  const shown = sub === 'active' ? active : closed;
   const filtered = useMemo(() => {
     if (!query.trim()) return shown;
     const q = query.toLowerCase();
-    return shown.filter(b => {
-      const asset = b.pool.asset?.toLowerCase() ?? '';
-      const home = b.pool.homeTeam?.toLowerCase() ?? '';
-      const away = b.pool.awayTeam?.toLowerCase() ?? '';
+    return shown.filter(p => {
+      const asset = p.pool.asset?.toLowerCase() ?? '';
+      const home = p.pool.homeTeam?.toLowerCase() ?? '';
+      const away = p.pool.awayTeam?.toLowerCase() ?? '';
       return asset.includes(q) || home.includes(q) || away.includes(q);
     });
   }, [shown, query]);
@@ -112,7 +125,7 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim }: Posi
       {/* Table body */}
       {betsLoading ? (
         <Box>
-          {[1, 2, 3, 4].map(i => <PositionRowSkeleton key={i} />)}
+          {[1, 2, 3, 4].map(i => <PoolPositionRowSkeleton key={i} />)}
         </Box>
       ) : filtered.length === 0 ? (
         <Box sx={{ textAlign: 'center', py: 8, px: 4 }}>
@@ -126,12 +139,13 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim }: Posi
         </Box>
       ) : (
         <Box>
-          {filtered.map(bet => (
-            <PositionRow
-              key={bet.id}
-              bet={bet}
-              onClaim={() => onClaim(bet.pool.id, bet.id)}
-              isClaiming={claimingBetId === bet.id}
+          {filtered.map(pos => (
+            <PoolPositionRow
+              key={pos.poolId}
+              position={pos}
+              onClaim={onClaim}
+              isClaiming={claimingBetId != null}
+              claimingBetId={claimingBetId}
             />
           ))}
         </Box>
