@@ -15,7 +15,7 @@ export function formatChartPrice(price: number): string {
 
 /** "HH:MM:SS" for sub-day spans, falling back to a month-day stamp for
  *  multi-day windows. The seconds are important for the snake's live
- *  ticker — without them the axis reads "5:09 / 5:09 / 5:09" while the
+ *  ticker - without them the axis reads "5:09 / 5:09 / 5:09" while the
  *  chart slides through the actual seconds. */
 export function formatChartTime(ts: number, durationMs: number): string {
   const d = new Date(ts);

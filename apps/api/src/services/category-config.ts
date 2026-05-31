@@ -121,7 +121,7 @@ export async function getFootballConfigs(): Promise<SportsDbConfig[]> {
   return cats
     .filter(c => (c.config as any)?.externalLeagueId) // only leagues with a TheSportsDB ID
     .map(c => ({
-      sport: c.code,         // CL, PL, EL, etc. — used as adapter key
+      sport: c.code,         // CL, PL, EL, etc. - used as adapter key
       sportQuery: 'Soccer',
       numSides: c.numSides,
       sideLabels: c.sideLabels,
@@ -177,7 +177,7 @@ export const OPERATIONAL_PM_TAGS = new Set<string>([
 ]);
 
 /**
- * Operational tags that vary numerically and so can't be listed exhaustively —
+ * Operational tags that vary numerically and so can't be listed exhaustively -
  * reward/automation config buckets like "Rewards 50, 4.5, 20" or
  * "Rewards Automation 100 4.5 50 (1)". Matched by prefix, case-insensitive.
  */
@@ -204,7 +204,7 @@ export async function getCategorySubcategories(code: string): Promise<string[]> 
 /**
  * The category's own top-level Polymarket tags (e.g. "Culture", "Politics").
  * These sit on ~every pool in the category, so they make a useless sidebar
- * facet — excluded when auto-deriving filters from real pool tags.
+ * facet - excluded when auto-deriving filters from real pool tags.
  */
 export async function getCategoryParentTags(code: string): Promise<string[]> {
   await refreshCache();
@@ -230,7 +230,7 @@ export async function pickSubcategory(code: string, eventTags: string[]): Promis
   return null;
 }
 
-/** Tags from disabled/comingSoon PM categories — used to reject miscategorized events. */
+/** Tags from disabled/comingSoon PM categories - used to reject miscategorized events. */
 export async function getDisabledPolymarketTags(): Promise<Set<string>> {
   await refreshCache();
   const disabled = cachedCategories.filter(c => c.type === 'POLYMARKET' && !c.enabled);
@@ -265,7 +265,7 @@ export async function seedCategoriesIfEmpty(): Promise<void> {
     if (n > 0) return;
     const count = await seedCategories(prisma);
     invalidateCache();
-    console.log(`[CategoryConfig] poolCategory was empty — auto-seeded ${count} categories`);
+    console.log(`[CategoryConfig] poolCategory was empty - auto-seeded ${count} categories`);
   } catch (err) {
     console.warn('[CategoryConfig] auto-seed skipped:', err instanceof Error ? err.message : err);
   }

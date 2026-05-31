@@ -15,7 +15,7 @@
  * Intentionally drops the old card's EnergyBar (a duplicate of the
  * percentages already on the buttons), the SideSelector with its odds
  * dance, the multi-row PayoutPreview, the motion glow on the submit button
- * and the gradient fill — Kalshi keeps these surfaces calm so the user can
+ * and the gradient fill - Kalshi keeps these surfaces calm so the user can
  * focus on amount + side + go.
  */
 
@@ -48,7 +48,7 @@ import type { PoolDetail } from '@/lib/api';
 const PRESET_AMOUNTS = [10, 50, 100, 500];
 
 /** Returns true once the wall clock has passed `targetIso`. Single setTimeout
- *  scheduled for the exact crossing — no per-second polling — so the card
+ *  scheduled for the exact crossing - no per-second polling - so the card
  *  swaps to the Determining state the moment the window closes. */
 function useNowAfter(targetIso: string): boolean {
   const target = new Date(targetIso).getTime();
@@ -78,7 +78,7 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
   const { data: userProfile } = useUserProfile();
   const [amount, setAmount] = useState<string>('');
 
-  // Local expiry check — short crypto pools (3m) go JOINING → RESOLVED
+  // Local expiry check - short crypto pools (3m) go JOINING → RESOLVED
   // directly without sitting in ACTIVE, so for a few seconds the status is
   // still JOINING even though the countdown has hit zero. Watching the
   // wall clock against pool.endTime lets us swap the card the instant the
@@ -159,7 +159,7 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
         </Box>
       </Box>
 
-      {/* ── UP / DOWN selector — same vertical-card style sports uses in
+      {/* ── UP / DOWN selector - same vertical-card style sports uses in
           ThreeWaySelector: label, big % and live volume stacked. ── */}
       <Box sx={{ display: 'flex', gap: '3px', mt: 0.5 }}>
         <SideCard label="Up" pct={upPct} total={totalUp} color={t.up} selected={selectedSide === 'UP'} onClick={() => canInteract && onSelectSide('UP')} disabled={!canInteract} />
@@ -256,7 +256,7 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: t.text.quaternary }}>Current odds</Typography>
           <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: t.text.tertiary, fontVariantNumeric: 'tabular-nums' }}>
-            {potentialOdds > 0 ? `${potentialOdds.toFixed(2)}x` : '—'}
+            {potentialOdds > 0 ? `${potentialOdds.toFixed(2)}x` : '-'}
           </Typography>
         </Box>
       </Box>
@@ -343,7 +343,7 @@ function TermsFooter() {
 }
 
 
-/** Vertical card cell — same shape as ThreeWaySelector on the sports page
+/** Vertical card cell - same shape as ThreeWaySelector on the sports page
  *  so the place-bet UI feels consistent across both pool types. */
 function SideCard({ label, pct, total, color, selected, onClick, disabled }: {
   label: string;
@@ -389,7 +389,7 @@ function SideCard({ label, pct, total, color, selected, onClick, disabled }: {
 
 // ─── End-of-pool states ──────────────────────────────────────────────────────
 //
-// EndedCard is the shared shell — same border / padding / Terms of Use footer
+// EndedCard is the shared shell - same border / padding / Terms of Use footer
 // the active card has, so swapping the body in doesn't shift the layout. The
 // active card is a column flex with `gap`, so the two states below render
 // inside that same shell-shape.
@@ -425,7 +425,7 @@ function EndedCard({ pool, children }: { pool: PoolDetail; children: React.React
   );
 }
 
-/** "Hold on, determining winner…" — window has closed but the on-chain final
+/** "Hold on, determining winner…" - window has closed but the on-chain final
  *  price hasn't been committed yet. Auto-resolution will swap this to the
  *  OutcomeCard as soon as the scheduler picks up the result. */
 function DeterminingCard({ pool }: { pool: PoolDetail }) {
@@ -443,7 +443,7 @@ function DeterminingCard({ pool }: { pool: PoolDetail }) {
   );
 }
 
-/** Final outcome state — large check tile + "Outcome: Up / Down". */
+/** Final outcome state - large check tile + "Outcome: Up / Down". */
 function OutcomeCard({ pool, winner }: { pool: PoolDetail; winner: 'UP' | 'DOWN' }) {
   const t = useThemeTokens();
   const color = winner === 'UP' ? t.up : t.down;

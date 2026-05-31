@@ -1,4 +1,4 @@
-# Plan — Rediseño del Profile (profesional)
+# Plan - Rediseño del Profile (profesional)
 
 > Estado: PROPUESTA (no implementado). Objetivo: convertir `/profile` de
 > "mis apuestas con cabecera de stats" en un profile profesional que lidere con
@@ -77,7 +77,7 @@ Estructura hoy:
 - `Member since` (ya viene `createdAt` en `/profile`).
 - Chip de **Rank** ("#42 · Top 8%").
 - Barra XP con el **título del próximo nivel**.
-- Acciones a la derecha: **Share**, **Add funds** (con el balance USDC al lado — el balance vive aquí, no como stat de profile).
+- Acciones a la derecha: **Share**, **Add funds** (con el balance USDC al lado - el balance vive aquí, no como stat de profile).
 
 **B. Métricas hero (4 tiles, north-star)**
 1. **Net P&L** = Total Won − Total Staked (con color y flecha). *(nuevo)*
@@ -100,23 +100,23 @@ Secundarios (Predictions, Current/Best Streak) → chips dentro del Overview, no
 
 ## 4. Plan por fases
 
-### Fase 1 — Reestructurar cabecera + dedupe (mayor impacto, casi todo frontend)
+### Fase 1 - Reestructurar cabecera + dedupe (mayor impacto, casi todo frontend)
 - Nuevo `ProfileHeader`: avatar+anillo de nivel, wallet+copy, member-since, barra XP con título del próximo nivel.
 - 4 tiles hero (incluye **Net P&L**). Eliminar la franja superior duplicada y colapsar las 7 cards.
 - Balance + "Add funds" pasan a acciones del header.
 - History tab = `PoolsBetTable` actual (sin cambios).
 
-### Fase 2 — Overview tab (engagement)
+### Fase 2 - Overview tab (engagement)
 - Card **Rendimiento por categoría** (agrupar bets por `poolType` / `league`, win rate por categoría).
 - Card **Nivel y beneficios** (fee% ahora vs próximo + multiplicador de coins; XP que falta).
 - **Actividad reciente** (de `/users/rewards`, últimas N).
 - **Snapshot de referrals** (de `/referrals/stats`).
 
-### Fase 3 — Tabs Rewards & Referrals
+### Fase 3 - Tabs Rewards & Referrals
 - **Rewards**: feed paginado de `/users/rewards` (icono por `reason`: BET_WON, DAILY_BONUS, WIN_STREAK, LEVEL_UP, REFERRAL_ACCEPTED…).
 - **Referrals**: montar `ReferralDashboard`.
 
-### Fase 4 — Toques pro (opcional)
+### Fase 4 - Toques pro (opcional)
 - Chip de rank en leaderboard.
 - Achievements/badges derivados de datos existentes (streaks, hitos, niveles).
 - Profile público compartible `/u/[wallet]`.
@@ -130,25 +130,25 @@ Secundarios (Predictions, Current/Best Streak) → chips dentro del Overview, no
 | **Net P&L all-time correcto** | Agregar `totalWon` al serializer de `/api/users/profile` (hoy existe `totalWagered`; falta el total ganado). Evita el cálculo parcial sobre bets paginados. | bajo |
 | **Rank** | `rank` en `/profile` (count de users con más XP + 1) o endpoint `/api/users/rank?wallet=`. | bajo |
 | **Beneficios de nivel** | Bloque `nextLevel` en `/profile` (fee% y multiplicador del próximo nivel) usando `utils/levels.ts` y `utils/coins.ts`. | bajo |
-| Rewards / Referrals / categoría | **Sin cambios** — los endpoints ya existen. | — |
+| Rewards / Referrals / categoría | **Sin cambios** - los endpoints ya existen. | - |
 
 ---
 
 ## 6. Reutilización (no reinventar)
 
 Componentes existentes a reusar:
-- `UserLevelBadge` — badge de nivel + título.
-- `XpProgressBar` — barra de XP animada.
-- `ReferralDashboard` (+ `referral/*`) — tab de Referrals completa.
-- `PoolsBetTable` / `BetRow` — History tab.
-- `AnimatedValue` — transiciones de números en los tiles hero.
-- `LeaderboardTable` / `leaderboard/LeaderboardRow` — referencia para el rank.
+- `UserLevelBadge` - badge de nivel + título.
+- `XpProgressBar` - barra de XP animada.
+- `ReferralDashboard` (+ `referral/*`) - tab de Referrals completa.
+- `PoolsBetTable` / `BetRow` - History tab.
+- `AnimatedValue` - transiciones de números en los tiles hero.
+- `LeaderboardTable` / `leaderboard/LeaderboardRow` - referencia para el rank.
 
 Endpoints existentes a reusar:
-- `GET /api/users/profile` — nivel, XP, coins, stats, fee%, referralCode, createdAt.
-- `GET /api/users/rewards` — feed XP/coins (Rewards tab + Actividad reciente).
-- `GET /api/users/leaderboard` — rank.
-- `GET /api/referrals/stats|earnings|payouts` — Referrals.
+- `GET /api/users/profile` - nivel, XP, coins, stats, fee%, referralCode, createdAt.
+- `GET /api/users/rewards` - feed XP/coins (Rewards tab + Actividad reciente).
+- `GET /api/users/leaderboard` - rank.
+- `GET /api/referrals/stats|earnings|payouts` - Referrals.
 
 Design tokens: `useThemeTokens()` / `lib/theme.ts` (incluye `levelTiers`, `categoryColors`, `gain`, `accent`, etc.).
 

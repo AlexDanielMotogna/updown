@@ -127,7 +127,7 @@ export function useNotifications() {
       );
     };
 
-    // Auto-payout settled — fires when the scheduler's autoClaim has confirmed
+    // Auto-payout settled - fires when the scheduler's autoClaim has confirmed
     // the on-chain transfer to the user's wallet. Replaces the POOL_CLAIMABLE
     // toast for users on auto-payout-enabled pools.
     const onBetPaid = (payload: { walletAddress?: string; poolId?: string; betId?: string; amount?: string; txSignature?: string }) => {
@@ -157,7 +157,7 @@ export function useNotifications() {
       // Only handle events for the connected wallet
       if (!walletAddress || data.walletAddress !== walletAddress) return;
 
-      // Floating "+XP / +Coins" popup — the non-invasive channel for routine gains.
+      // Floating "+XP / +Coins" popup - the non-invasive channel for routine gains.
       showRewardPopup({ xp: data.xp, coins: data.coins, levelUp: data.levelUp, level: data.level });
 
       // Coins are only awarded on wins / referrals (never per-bet), so a bell + toast
@@ -170,7 +170,7 @@ export function useNotifications() {
         push(buildNotification('XP_EARNED', { xp: data.xp, totalXp: data.totalXp, reason: data.reason }));
       }
       // Routine per-bet XP (coins === 0, no reason) is surfaced only via the floating
-      // popup above — toasting on every bet placed would be invasive.
+      // popup above - toasting on every bet placed would be invasive.
 
       // Push level-up notification (fires confetti via NotificationToasts)
       if (data.levelUp) {

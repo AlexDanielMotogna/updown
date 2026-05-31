@@ -111,7 +111,7 @@ export function useSnakeHistory({ asset, candles, livePrice }: UseSnakeHistoryAr
     return seedSnakeFromCandles(candles);
   });
 
-  // Safety net for the (rare) case where candles arrive after mount — the
+  // Safety net for the (rare) case where candles arrive after mount - the
   // wrapper only renders the snake when candles.length > 0, so usually a no-op.
   useEffect(() => {
     if (candles.length === 0) return;
@@ -151,7 +151,7 @@ export function useSnakeHistory({ asset, candles, livePrice }: UseSnakeHistoryAr
     try {
       window.sessionStorage.setItem(storageKey, JSON.stringify(history));
     } catch {
-      // Quota exceeded — silently drop; the in-memory buffer is unaffected.
+      // Quota exceeded - silently drop; the in-memory buffer is unaffected.
     }
   }, [history, storageKey]);
 

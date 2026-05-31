@@ -80,7 +80,7 @@ export interface Bet {
   claimTx: string | null;
   payoutAmount: string | null;
   isWinner: boolean | null;
-  // Auto-payout state — populated by the scheduler when AUTO_PAYOUT is on
+  // Auto-payout state - populated by the scheduler when AUTO_PAYOUT is on
   // for this pool's category. Stays at defaults on manual-claim bets.
   payoutFailed?: boolean;
   payoutAttempts?: number;
@@ -103,7 +103,7 @@ export interface Bet {
     awayTeam?: string | null;
     homeTeamCrest?: string | null;
     awayTeamCrest?: string | null;
-    // Pool totals for parimutuel math — used by /profile to render the
+    // Pool totals for parimutuel math - used by /profile to render the
     // potential payout on active bets at the current pool odds.
     totalUp?: string;
     totalDown?: string;
@@ -379,12 +379,12 @@ export interface UserProfile {
   stats: {
     totalBets: number;
     totalWins: number;
-    /** Number of refunded bets — excluded from winRate denominator. */
+    /** Number of refunded bets - excluded from winRate denominator. */
     totalRefunded?: number;
     winRate: string;
     totalWagered: string;
     totalWon: string;
-    /** Lifetime stake minus refunds — what the Volume Staked tile shows. */
+    /** Lifetime stake minus refunds - what the Volume Staked tile shows. */
     volumeStaked?: string;
     /** Realized P&L from settled non-refund bets. Active stakes don't move it. */
     netPnl?: string;

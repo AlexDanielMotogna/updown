@@ -1,5 +1,5 @@
 /**
- * Auto-claim — scheduler-driven payouts for normal two-sided pool winners.
+ * Auto-claim - scheduler-driven payouts for normal two-sided pool winners.
  *
  * Mirrors the autoRefundBets pattern in onchain-tx.ts:
  *  - Authority signs (post-Phase-1 claim.rs accepts authority-only).
@@ -9,7 +9,7 @@
  *  - Permanent failure flips Bet.payoutFailed=true, leaving the manual
  *    claim button visible in the UI as a fallback.
  *
- * Refunds (single bettor, one-sided, no strike) are NOT handled here —
+ * Refunds (single bettor, one-sided, no strike) are NOT handled here -
  * they already flow through autoRefundBets in onchain-tx.ts.
  */
 
@@ -116,7 +116,7 @@ export interface AutoClaimResult {
 
 /**
  * Iterate all unclaimed winning-side bets for a pool and pay each one with
- * an authority-signed claim instruction. Idempotent — safe to invoke
+ * an authority-signed claim instruction. Idempotent - safe to invoke
  * multiple times on the same pool; each bet is locked via updateMany.
  *
  * Hedged users (a wallet with bets on both UP and DOWN of a 3-way pool)
@@ -188,7 +188,7 @@ export async function autoClaimBets(
 
         // Mirror the on-chain payout math server-side and persist it. Without
         // this, backend aggregations like `totalWon` (sum of payoutAmount on
-        // the user profile) miss auto-paid bets entirely — only refunds
+        // the user profile) miss auto-paid bets entirely - only refunds
         // (which autoRefundBets already stores) show up in the Net P&L card,
         // so the header desyncs from the table.
         const { payout: payoutAmount } = poolRow
@@ -203,7 +203,7 @@ export async function autoClaimBets(
             })
           : { payout: bet.amount };
 
-        // Optimistic lock — manual confirm-claim may have already updated
+        // Optimistic lock - manual confirm-claim may have already updated
         // the row; in that case updateMany returns count=0 and we skip
         // the rewards (they were already granted by confirm-claim).
         const updated = await deps.prisma.bet.updateMany({
@@ -218,7 +218,7 @@ export async function autoClaimBets(
         });
 
         if (updated.count === 0) {
-          console.log(`[AutoClaim] Bet ${bet.id} already finalised by another writer — skipping rewards`);
+          console.log(`[AutoClaim] Bet ${bet.id} already finalised by another writer - skipping rewards`);
           skipped++;
           claimedSignature = 'skipped';
           break;
@@ -240,7 +240,7 @@ export async function autoClaimBets(
             payoutAttempts: { increment: 1 },
             lastAttemptedAt: new Date(),
           },
-        }).catch(() => { /* ignore — best-effort attempt counter */ });
+        }).catch(() => { /* ignore - best-effort attempt counter */ });
 
         if (attempt < AUTO_CLAIM_MAX_RETRIES) {
           await new Promise(r => setTimeout(r, 2000 * attempt));
@@ -249,7 +249,7 @@ export async function autoClaimBets(
     }
 
     if (claimedSignature && claimedSignature !== 'skipped') {
-      // Side effects only on a successful first-write — `awardBetWin`
+      // Side effects only on a successful first-write - `awardBetWin`
       // itself is idempotent against the bet via the `betId` we pass.
       await logEvent(deps.prisma, 'BET_AUTO_PAID', 'bet', bet.id, {
         poolId: pool.id,
@@ -280,7 +280,7 @@ export async function autoClaimBets(
     } else if (claimedSignature === 'skipped') {
       // already counted in skipped
     } else {
-      // All retries exhausted — mark as permanently failed so the admin
+      // All retries exhausted - mark as permanently failed so the admin
       // panel can surface it and the manual-claim fallback stays visible
       // to the user.
       await deps.prisma.bet.updateMany({
@@ -302,7 +302,7 @@ export async function autoClaimBets(
 
   const durationMs = Date.now() - startedAt;
   console.log(
-    `[AutoClaim] Pool ${pool.id} done in ${durationMs}ms — ` +
+    `[AutoClaim] Pool ${pool.id} done in ${durationMs}ms - ` +
     `${succeeded} paid · ${failed} failed · ${skipped} skipped`,
   );
 

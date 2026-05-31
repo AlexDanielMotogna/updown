@@ -53,7 +53,7 @@ export function PnLChart({ bets }: PnLChartProps) {
     return () => ro.disconnect();
   }, []);
 
-  // Build cumulative P&L series — ONE point per pool, not per bet.
+  // Build cumulative P&L series - ONE point per pool, not per bet.
   //
   // Per-bet plotting produced false spikes on hedged pools: a wallet that
   // bets on both UP and DOWN of the same pool gets one winning bet (large
@@ -68,10 +68,10 @@ export function PnLChart({ bets }: PnLChartProps) {
     const buckets = new Map<string, Bucket>();
     for (const b of bets) {
       if (b.isWinner === null) continue; // pool not resolved yet
-      if (!b.claimed && b.isWinner !== false) continue; // pending payout — skip
+      if (!b.claimed && b.isWinner !== false) continue; // pending payout - skip
       const stake = Number(b.amount);
       const payout = b.payoutAmount ? Number(b.payoutAmount) : 0;
-      // Refund detection FIRST — for hedged single-bettor pools the scheduler
+      // Refund detection FIRST - for hedged single-bettor pools the scheduler
       // marks the user's other side isWinner=false but still refunds (payout
       // == stake). Treating that as a −stake loss would double-count.
       const isRefund = payout > 0 && payout === stake;
@@ -111,7 +111,7 @@ export function PnLChart({ bets }: PnLChartProps) {
   const pnlPositive = latestPnl >= 0;
   const pnlColor = pnlPositive ? t.gain : t.down;
 
-  // SVG geometry + hover helpers — coords are derived once and consumed by
+  // SVG geometry + hover helpers - coords are derived once and consumed by
   // both the static path render and the hover overlay below.
   const chart = useMemo(() => {
     if (points.length === 0 || width <= 0) return null;
@@ -239,7 +239,7 @@ export function PnLChart({ bets }: PnLChartProps) {
               style={{ filter: `drop-shadow(0 0 3px ${withAlpha(pnlColor, 0.4)})` }}
             />
 
-            {/* Hover overlay — vertical guide + focus dot + tooltip pill */}
+            {/* Hover overlay - vertical guide + focus dot + tooltip pill */}
             {hoverIndex != null && points[hoverIndex] && (() => {
               const cx = chart.xs[hoverIndex];
               const cy = chart.ys[hoverIndex];
@@ -249,7 +249,7 @@ export function PnLChart({ bets }: PnLChartProps) {
               const tipText = `${positive ? '+' : '−'}${formatUSDC(String(Math.round(Math.abs(hp.pnl))), { min: 2 })}`;
               const dateText = formatHoverDate(hp.t);
 
-              // Tooltip width estimated by character count — keeps it inside
+              // Tooltip width estimated by character count - keeps it inside
               // the plot area regardless of which side the cursor is on.
               const tipW = Math.max(96, Math.max(tipText.length, dateText.length) * 6.5 + 16);
               const tipH = 38;

@@ -155,7 +155,7 @@ export class SportsDbAdapter implements SportAdapter {
 
     const home = Number(e.intHomeScore ?? 0);
     const away = Number(e.intAwayScore ?? 0);
-    // Use regulation-time rules — football pools settle on the 90-minute
+    // Use regulation-time rules - football pools settle on the 90-minute
     // result, so AET/PEN scores become DRAW even if one side eventually won.
     const winner = regulationWinner(home, away, e.strStatus);
 

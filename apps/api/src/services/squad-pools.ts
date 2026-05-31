@@ -21,7 +21,7 @@ const MIN_DURATION = 60;    // 1 minute
 const MAX_DURATION = 86400; // 24 hours
 
 /**
- * Create a squad pool — same on-chain flow as scheduler PoolCreator.createPool(),
+ * Create a squad pool - same on-chain flow as scheduler PoolCreator.createPool(),
  * but with custom asset/duration and squad association.
  */
 export async function createSquadPool(params: {
@@ -54,7 +54,7 @@ export async function createSquadPool(params: {
     throw new Error('NOT_MEMBER');
   }
 
-  // Generate UUID — canonical pool identity
+  // Generate UUID - canonical pool identity
   const uuid = crypto.randomUUID();
   const seed = derivePoolSeed(uuid);
 
@@ -156,7 +156,7 @@ export async function createSquadPool(params: {
 
     console.log(`[SquadPool] Pool created: ${pool.id} for squad ${squadId}`);
 
-    // Emit for real-time — goes to squad room only (handled by route)
+    // Emit for real-time - goes to squad room only (handled by route)
     emitNewPool({
       id: pool.id,
       poolId: pool.poolId,
@@ -358,7 +358,7 @@ export async function confirmSquadPool(params: {
 }
 
 /**
- * Cancel a squad pool — creator can cancel if no bets placed.
+ * Cancel a squad pool - creator can cancel if no bets placed.
  * Resolves on-chain, closes pool, reclaims rent to creator.
  */
 export async function cancelSquadPool(params: {
@@ -388,7 +388,7 @@ export async function cancelSquadPool(params: {
   const [poolPda] = getPoolPDA(seed);
   const [vaultPda] = getVaultPDA(seed);
 
-  // Resolve on-chain (synthetic — no real winner)
+  // Resolve on-chain (synthetic - no real winner)
   const resolveIx = buildResolveIx(poolPda, authority.publicKey, BigInt(1000), BigInt(1000));
   const resolveTx = new Transaction().add(resolveIx);
   const { blockhash: rb, lastValidBlockHeight: rvbh } = await connection.getLatestBlockhash();
@@ -398,7 +398,7 @@ export async function cancelSquadPool(params: {
   const resolveSig = await connection.sendRawTransaction(resolveTx.serialize(), { skipPreflight: false, preflightCommitment: 'confirmed' });
   await connection.confirmTransaction({ signature: resolveSig, blockhash: rb, lastValidBlockHeight: rvbh }, 'confirmed');
 
-  // Close pool — rent goes back to original feePayer (the creator)
+  // Close pool - rent goes back to original feePayer (the creator)
   const closeIx = buildClosePoolIx(poolPda, vaultPda, authority.publicKey);
   const closeTx = new Transaction().add(closeIx);
   const { blockhash: cb, lastValidBlockHeight: cvbh } = await connection.getLatestBlockhash();

@@ -1,4 +1,4 @@
-# UpDown - Parimutuel Pools Platform
+qw# UpDown - Parimutuel Pools Platform
 
 ## Tech Stack Documentation
 
@@ -84,13 +84,13 @@ apps/web/src/
 ```
 
 ### Key Hooks
-- `usePools()` — Fetch and filter pools with React Query
-- `useBets(wallet)` — User bet history
-- `usePriceStream(assets)` — Real-time WebSocket price subscriptions
-- `usePacificaCandles(opts)` — Candlestick data for charts
-- `usePacificaPrices(assets)` — REST price data with metadata
-- `useDeposit()` — Deposit flow (prepare → sign → confirm)
-- `useDraggablePosition(key)` — Persistent draggable position for floating UI
+- `usePools()` - Fetch and filter pools with React Query
+- `useBets(wallet)` - User bet history
+- `usePriceStream(assets)` - Real-time WebSocket price subscriptions
+- `usePacificaCandles(opts)` - Candlestick data for charts
+- `usePacificaPrices(assets)` - REST price data with metadata
+- `useDeposit()` - Deposit flow (prepare → sign → confirm)
+- `useDraggablePosition(key)` - Persistent draggable position for floating UI
 
 ---
 
@@ -214,7 +214,7 @@ Authority resolves pool with final price. Determines winner based on strike vs f
 Winners claim their proportional USDC payout (minus platform fee).
 
 #### `refund`
-Refunds deposits when a pool is one-sided (all UP or all DOWN — no opponents).
+Refunds deposits when a pool is one-sided (all UP or all DOWN - no opponents).
 
 #### `close_pool`
 Closes a resolved/empty pool account and reclaims rent to the authority.

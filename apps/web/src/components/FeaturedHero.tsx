@@ -24,7 +24,7 @@ function formatMatchAnalysis(raw: string | null, homeTeam: string | null, awayTe
   if (!raw) return null;
   const trimmed = raw.trim();
   if (!trimmed) return null;
-  // Free-text — keep as-is.
+  // Free-text - keep as-is.
   if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return raw;
   try {
     const data = JSON.parse(trimmed) as {
@@ -67,7 +67,7 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
   const [index, setIndex] = useState(0);
   const [live, setLive] = useState<{ up: string; down: string; draw: string } | null>(null);
   const [flash, setFlash] = useState(false);
-  // Trade ticks — floating "+$X UP" pills that animate over the chart on each
+  // Trade ticks - floating "+$X UP" pills that animate over the chart on each
   // incoming bet (Kalshi/Polymarket-style live trade indicators).
   type Tick = { id: number; side: 'UP' | 'DOWN' | 'DRAW'; amount: bigint; color: string };
   const [ticks, setTicks] = useState<Tick[]>([]);
@@ -79,7 +79,7 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
   const safeIndex = count > 0 ? Math.min(index, count - 1) : 0;
   const currentId = pools[safeIndex]?.id;
 
-  // Live totals via WebSocket — re-subscribes whenever the featured pool changes.
+  // Live totals via WebSocket - re-subscribes whenever the featured pool changes.
   useEffect(() => {
     setLive(null);
     setFlash(false);
@@ -145,7 +145,7 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
     ? <Box component="img" src={`/coins/${pool.asset.toLowerCase()}-coin.png`} alt="" sx={{ width: 18, height: 18, borderRadius: '50%' }} />
     : category?.badgeUrl
       // Dark pad: the Champions League badge is white/silver on transparent
-      // — a white pad made it disappear; dark keeps it readable everywhere.
+      // - a white pad made it disappear; dark keeps it readable everywhere.
       ? <Box component="img" src={category.badgeUrl} alt="" sx={{ width: 18, height: 18, objectFit: 'contain', ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(13,18,25,0.92)', borderRadius: '50%', p: '1px' }) }} />
       : CatIcon ? <CatIcon sx={{ fontSize: 16 }} /> : !isPrediction ? <SportsSoccer sx={{ fontSize: 16 }} /> : null;
 
@@ -288,7 +288,7 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
 
         <Box sx={{ minWidth: 0, position: 'relative' }}>
           <OddsChart key={pool.id} poolId={pool.id} totalUp={pool.totalUp} totalDown={pool.totalDown} totalDraw={pool.totalDraw} lockSource="updown" hideControls seedDefault threeWay={pool.numSides === 3} labels={chartLabels} />
-          {/* Live trade ticks — floating pills on incoming bets. */}
+          {/* Live trade ticks - floating pills on incoming bets. */}
           {ticks.length > 0 && (
             <Box sx={{ position: 'absolute', top: 8, right: 64, pointerEvents: 'none', zIndex: 5, display: 'flex', flexDirection: 'column', gap: 0.25, alignItems: 'flex-end' }}>
               {ticks.map(tk => (

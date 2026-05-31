@@ -162,7 +162,7 @@ export default function SquadDetailPage() {
             mb: 3,
           }}
         >
-          {/* Card 1: Squad identity — name, avatar, invite code */}
+          {/* Card 1: Squad identity - name, avatar, invite code */}
           <Box sx={{ gridColumn: { xs: '1 / -1', md: 'auto' }, display: 'flex', alignItems: 'center', gap: { xs: 1.5, md: 2 }, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 1, px: { xs: 1.5, md: 3 }, py: 1.5 }}>
             <Avatar
               src={getAvatarUrl(squad.id)}
@@ -273,7 +273,7 @@ export default function SquadDetailPage() {
           </Box>
         </Box>
 
-        {/* Tabs — matches profile/leaderboard pattern */}
+        {/* Tabs - matches profile/leaderboard pattern */}
         <Box sx={{ borderBottom: '1px solid rgba(255,255,255,0.06)', mb: 3 }}>
           <Tabs
             value={tab}
@@ -310,7 +310,7 @@ export default function SquadDetailPage() {
             {pools && pools.length === 0 ? (
               <Box sx={{ textAlign: 'center', py: 8, px: 4 }}>
                 <Typography color="text.secondary" sx={{ fontSize: '1rem' }}>
-                  No pools yet — create one to get started!
+                  No pools yet - create one to get started!
                 </Typography>
               </Box>
             ) : (
@@ -364,7 +364,7 @@ export default function SquadDetailPage() {
           <SquadLeaderboard entries={leaderboard} currentWallet={walletAddress} />
         )}
 
-        {/* Floating chat widget — always visible */}
+        {/* Floating chat widget - always visible */}
         <SquadChat
           messages={messages}
           onSend={(content) => sendMessage.mutate(content)}

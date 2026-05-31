@@ -208,7 +208,7 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
                         </Typography>
                       </Box>
                     </Box>
-                    {/* XP progress — single source of truth (same component
+                    {/* XP progress - single source of truth (same component
                         used by /profile and the user-profile-panel dropdown). */}
                     <XpProgressBar profile={userProfile} compact />
                   </Box>

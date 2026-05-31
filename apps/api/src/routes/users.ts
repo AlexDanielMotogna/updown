@@ -84,7 +84,7 @@ usersRouter.get('/profile', async (req, res) => {
 
     // Aggregates the User row can't supply: realized winnings (for Net P&L),
     // the user's rank by XP, and refunded-bet count (used to drop refunds
-    // out of the Win Rate denominator — they didn't lose, they got their
+    // out of the Win Rate denominator - they didn't lose, they got their
     // stake back).
     const [wonAgg, higherXpCount, totalUsers, refundedRows, realizedRows] = await Promise.all([
       prisma.bet.aggregate({
@@ -97,7 +97,7 @@ usersRouter.get('/profile', async (req, res) => {
       // Both autoRefundBets and the single-bettor / one-sided / hedger paths
       // write payout_amount = amount, so a column-to-column comparison is the
       // canonical test. Prisma's findMany can't express that directly, hence
-      // raw. SUM(amount) feeds back the dollars that came back to the user —
+      // raw. SUM(amount) feeds back the dollars that came back to the user -
       // we subtract them from the Volume Staked tile so refunds don't inflate
       // the lifetime-staked number (the money round-tripped, no risk taken).
       prisma.$queryRaw<Array<{ count: bigint; stake: bigint }>>`
@@ -111,8 +111,8 @@ usersRouter.get('/profile', async (req, res) => {
           AND payout_amount = amount
       `,
       // Realized P&L: settled non-refund bets only. We deliberately exclude
-      //  - active bets (pool not yet resolved) — stake is still in play, not lost
-      //  - refunds — stake came back, net 0
+      //  - active bets (pool not yet resolved) - stake is still in play, not lost
+      //  - refunds - stake came back, net 0
       // and include:
       //  - claimed wins (payout_amount > amount) → +(payout - stake)
       //  - determined losses (pool.winner set & != bet.side) → -stake

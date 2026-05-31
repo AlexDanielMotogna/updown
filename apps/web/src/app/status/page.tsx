@@ -134,7 +134,7 @@ function UptimeBars({ service }: { service: ServiceHistory }) {
         ))}
       </Box>
 
-      {/* Labels: 90 days ago — Today */}
+      {/* Labels: 90 days ago - Today */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
         <Typography sx={{ fontSize: '0.65rem', color: t.text.dimmed }}>
           90 days ago
@@ -196,7 +196,7 @@ export default function StatusPage() {
           </Box>
         )}
 
-        {/* Error — API unreachable */}
+        {/* Error - API unreachable */}
         {!loading && error && (
           <Box
             sx={{

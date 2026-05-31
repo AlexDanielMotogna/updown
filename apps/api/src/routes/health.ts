@@ -229,7 +229,7 @@ export async function startUptimeCron(): Promise<void> {
     recordUptimeCheck();
   });
 
-  console.log('[Uptime] Cron started — recording every 5 minutes');
+  console.log('[Uptime] Cron started - recording every 5 minutes');
 }
 
 async function recordUptimeCheck(): Promise<void> {

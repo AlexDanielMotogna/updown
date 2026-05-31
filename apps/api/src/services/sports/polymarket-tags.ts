@@ -1,5 +1,5 @@
 /**
- * Polymarket (Gamma) tag taxonomy helpers — power the admin's "source tags"
+ * Polymarket (Gamma) tag taxonomy helpers - power the admin's "source tags"
  * picker so subcategory filters come from PM's REAL related-tags, not free text.
  *
  *  - resolveTagById/BySlug: id/slug -> { id, label, slug } (cached; labels are stable).
@@ -81,7 +81,7 @@ let activeTagsCache: { at: number; data: Array<TagRec & { count: number }> } | n
 const ACTIVE_TTL_MS = 60 * 60 * 1000;
 
 /**
- * Tags that appear on currently-active, high-volume Polymarket events — i.e. the
+ * Tags that appear on currently-active, high-volume Polymarket events - i.e. the
  * tags that would actually produce pools. Aggregated from the top events by
  * volume (a few pages), deduped by id, ranked by how many events carry the tag.
  * This is the clean, pickable list for the admin (vs the 1200+ noisy /tags).

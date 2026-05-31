@@ -1,6 +1,6 @@
 # Code Audit & Refactoring Plan
 
-> Hackathon judging criteria: **Technical Execution** — Code quality, API integration, and overall development rigor.
+> Hackathon judging criteria: **Technical Execution** - Code quality, API integration, and overall development rigor.
 
 ## Project Stats
 
@@ -17,7 +17,7 @@
 
 ---
 
-## PRIORITY 1 — Duplicated Constants (5 min per file)
+## PRIORITY 1 - Duplicated Constants (5 min per file)
 
 The same constants are copy-pasted across 5+ files. This is the easiest win.
 
@@ -61,11 +61,11 @@ Then replace all local definitions with imports. **~10 files to update.**
 
 ---
 
-## PRIORITY 2 — Oversized Files (split into components)
+## PRIORITY 2 - Oversized Files (split into components)
 
 ### Target: No file over 300 lines.
 
-### 2.1 `profile/page.tsx` — 1,042 lines (CRITICAL)
+### 2.1 `profile/page.tsx` - 1,042 lines (CRITICAL)
 
 Split into:
 
@@ -76,7 +76,7 @@ Split into:
 | `components/ClaimableSection.tsx` | Claimable bets list + claim all | ~150 |
 | `app/profile/page.tsx` | Page shell, tabs, state | ~200 |
 
-### 2.2 `transactions.ts` (API) — 989 lines (CRITICAL)
+### 2.2 `transactions.ts` (API) - 989 lines (CRITICAL)
 
 Split into:
 
@@ -87,7 +87,7 @@ Split into:
 | `services/solana.ts` | getConnection, getUsdcMint, getAuthorityKeypair | ~80 |
 | `utils/payout.ts` | Payout calculation (duplicated 3x currently) | ~30 |
 
-### 2.3 `pool-scheduler.ts` — 955 lines (CRITICAL)
+### 2.3 `pool-scheduler.ts` - 955 lines (CRITICAL)
 
 Split into:
 
@@ -97,7 +97,7 @@ Split into:
 | `services/pool-refunds.ts` | refundBet, cleanupEmptyPools | ~150 |
 | `scheduler/pool-scheduler.ts` | Cron scheduling, ensureJoiningPool | ~300 |
 
-### 2.4 `PoolTable.tsx` — 783 lines
+### 2.4 `PoolTable.tsx` - 783 lines
 
 Split into:
 
@@ -107,7 +107,7 @@ Split into:
 | `components/PriceCell.tsx` | PriceCell with flash animation | ~60 |
 | `components/PoolTable.tsx` | Table shell, header, AnimatePresence | ~100 |
 
-### 2.5 `AiAnalyzerBot.tsx` — 755 lines
+### 2.5 `AiAnalyzerBot.tsx` - 755 lines
 
 Split into:
 
@@ -117,7 +117,7 @@ Split into:
 | `components/ai/ChatMessage.tsx` | Message rendering | ~80 |
 | `components/ai/AiAnalyzerBot.tsx` | Bot logic, state machine | ~300 |
 
-### 2.6 `pool/[id]/page.tsx` — 656 lines
+### 2.6 `pool/[id]/page.tsx` - 656 lines
 
 Split into:
 
@@ -127,7 +127,7 @@ Split into:
 | `components/PoolStatsStrip.tsx` | Stats strip (players, pool, odds) | ~50 |
 | `app/pool/[id]/page.tsx` | Page shell, header, modals | ~200 |
 
-### 2.7 `Header.tsx` — 496 lines
+### 2.7 `Header.tsx` - 496 lines
 
 Split into:
 
@@ -144,13 +144,13 @@ Split into:
 | `BetForm.tsx` | 539 | Extract amount presets, validation hook |
 | `LeaderboardTable.tsx` | 437 | Extract `LeaderboardRow.tsx` |
 | `TransactionModal.tsx` | 372 | OK after recent rewrite |
-| `PoolCard.tsx` | 364 | Borderline — could extract countdown section |
+| `PoolCard.tsx` | 364 | Borderline - could extract countdown section |
 
 ---
 
-## PRIORITY 3 — API Code Duplication
+## PRIORITY 3 - API Code Duplication
 
-### 3.1 Payout calculation — duplicated 3 times
+### 3.1 Payout calculation - duplicated 3 times
 
 ```
 transactions.ts:580, transactions.ts:707, transactions.ts:844, bets.ts:225
@@ -161,7 +161,7 @@ Extract to `utils/payout.ts`:
 export function calculatePayout(bet: Bet, pool: Pool, feeBps: number): { gross: bigint; fee: bigint; net: bigint }
 ```
 
-### 3.2 Serialization functions — scattered across routes
+### 3.2 Serialization functions - scattered across routes
 
 | Function | Current Location | Move To |
 |----------|-----------------|---------|
@@ -169,15 +169,15 @@ export function calculatePayout(bet: Bet, pool: Pool, feeBps: number): { gross: 
 | `serializeBet()` | routes/bets.ts:18 | `utils/serializers.ts` |
 | `serializeUserProfile()` | routes/users.ts:204 | `utils/serializers.ts` |
 
-### 3.3 Solana config — duplicated in 2 files
+### 3.3 Solana config - duplicated in 2 files
 
-`getConnection()`, `getAuthorityKeypair()`, USDC mint — duplicated in `transactions.ts` and `pool-scheduler.ts`.
+`getConnection()`, `getAuthorityKeypair()`, USDC mint - duplicated in `transactions.ts` and `pool-scheduler.ts`.
 
 Extract to `services/solana.ts`.
 
-### 3.4 Pool/Bet validation — duplicated 4+ times
+### 3.4 Pool/Bet validation - duplicated 4+ times
 
-Pool existence check, bet existence check, status validation — repeated in every transaction route.
+Pool existence check, bet existence check, status validation - repeated in every transaction route.
 
 Extract to middleware or helper:
 ```ts
@@ -187,7 +187,7 @@ export async function getBetOrThrow(poolId: string, wallet: string): Promise<Bet
 
 ---
 
-## PRIORITY 4 — Unused Shared Package
+## PRIORITY 4 - Unused Shared Package
 
 `packages/shared` has types, schemas, and utils that are **declared as dependencies but not imported anywhere in app code**. The web app redefines everything locally.
 
@@ -201,7 +201,7 @@ Either:
 
 ---
 
-## PRIORITY 5 — Hardcoded Config Values (API)
+## PRIORITY 5 - Hardcoded Config Values (API)
 
 | Value | Location | Fix |
 |-------|----------|-----|
@@ -214,7 +214,7 @@ Either:
 
 ---
 
-## PRIORITY 6 — Quick Wins
+## PRIORITY 6 - Quick Wins
 
 ### 6.1 Remove dead code
 - `packages/shared/src/utils/format.ts` has formatPrice that conflicts with `apps/web/src/lib/format.ts`
@@ -226,8 +226,8 @@ Either:
 - Replace with structured logger
 
 ### 6.3 TODOs in code
-- `pool-scheduler.ts:364` — "TODO: Implement full Anchor program call"
-- `pool-scheduler.ts:819` — Same TODO duplicated
+- `pool-scheduler.ts:364` - "TODO: Implement full Anchor program call"
+- `pool-scheduler.ts:819` - Same TODO duplicated
 
 ---
 

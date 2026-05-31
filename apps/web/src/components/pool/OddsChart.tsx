@@ -8,9 +8,9 @@ import { useThemeTokens } from '@/app/providers';
 
 interface OddsPoint {
   t: number;
-  p: number;          // up share (legacy single-value — also used by polymarket data)
-  down?: number;      // down share — set on 3-way pools so the "no" line isn't 1 - up
-  draw?: number;      // draw share — only set on 3-way pools
+  p: number;          // up share (legacy single-value - also used by polymarket data)
+  down?: number;      // down share - set on 3-way pools so the "no" line isn't 1 - up
+  draw?: number;      // draw share - only set on 3-way pools
 }
 
 type Source = 'polymarket' | 'updown';
@@ -31,7 +31,7 @@ interface OddsChartProps {
   /** When the pool has no bets yet, seed a gentle baseline curve so the chart
    *  still renders instead of an empty-state placeholder. */
   seedDefault?: boolean;
-  /** 3-way pool (sports home/draw/away) — render a third line for draw. */
+  /** 3-way pool (sports home/draw/away) - render a third line for draw. */
   threeWay?: boolean;
   /** Inline labels next to each outcome (Kalshi-style "Real Madrid 58%"). When
    *  omitted the chart just shows the percentage. */
@@ -39,7 +39,7 @@ interface OddsChartProps {
 }
 
 /**
- * Step path — each point holds its value until the next x, then jumps vertically
+ * Step path - each point holds its value until the next x, then jumps vertically
  * (the typical "stairs" shape Kalshi/Polymarket use for prediction market lines).
  *   M x0,y0  L x1,y0  L x1,y1  L x2,y1  L x2,y2  …
  */
@@ -194,7 +194,7 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
       if (threeWay) { last.down = tgtDown; last.draw = tgtDraw; }
       setUdHistory(points);
     } else if (seedDefault) {
-      // No bets yet — seed a gentle baseline at the default share so the chart
+      // No bets yet - seed a gentle baseline at the default share so the chart
       // still renders (used by the trending hero so every featured market
       // shows a chart).
       const points: OddsPoint[] = [];
@@ -425,35 +425,38 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
         {history.length === 0 ? (
           <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Typography sx={{ fontSize: '0.8rem', color: t.text.muted }}>
-              {source === 'updown' ? 'No predictions yet — be the first!' : 'No market data available'}
+              {source === 'updown' ? 'No predictions yet - be the first!' : 'No market data available'}
             </Typography>
           </Box>
         ) : (
           <svg width={width} height={CHART_H} onMouseMove={handleMouseMove} onMouseLeave={() => setHoverIndex(null)} style={{ cursor: 'crosshair', display: 'block' }}>
-            {/* Grid — subtle horizontals + percentage labels anchored to the
+            {/* Grid - subtle horizontals + percentage labels anchored to the
                 far right edge so outcome badges have the whole padding-area
                 between line-end and tick to themselves (Kalshi layout). */}
             {yTicks.map((yt, i) => (
               <g key={i}>
-                <line x1={PADDING.left} y1={yt.y} x2={PADDING.left + chartW} y2={yt.y} stroke={t.border.subtle} strokeWidth={0.6} opacity={0.55} />
-                <text x={width - 4} y={yt.y + 3} fill={t.text.muted} fontSize={10} fontFamily={FONT} opacity={0.6} textAnchor="end">
+                <line x1={PADDING.left} y1={yt.y} x2={PADDING.left + chartW} y2={yt.y} stroke={t.border.default} strokeWidth={0.6} />
+                {/* Bumped to text.tertiary + weight 700 and no extra opacity.
+                    User feedback: the previous combo (muted * 0.6) was barely
+                    legible in dark and washed out in light. */}
+                <text x={width - 4} y={yt.y + 3} fill={t.text.tertiary} fontSize={10} fontFamily={FONT} fontWeight={700} textAnchor="end">
                   {formatPct(yt.p)}
                 </text>
               </g>
             ))}
             {xTicks.map((xt, i) => (
-              <text key={i} x={xt.x} y={CHART_H - 6} fill={t.text.muted} fontSize={10} textAnchor="middle" fontFamily={FONT} opacity={0.7}>
+              <text key={i} x={xt.x} y={CHART_H - 6} fill={t.text.tertiary} fontSize={10} fontFamily={FONT} fontWeight={700} textAnchor="middle">
                 {xt.label}
               </text>
             ))}
 
-            {/* Lines — flat solid strokes. No glow, no area fill, no gradients.
+            {/* Lines - flat solid strokes. No glow, no area fill, no gradients.
                 Stacking: secondary first (no, draw) then primary (yes) on top. */}
             {showNo && <path d={noPath} fill="none" stroke={t.down} strokeWidth={1.6} strokeLinejoin="round" />}
             {threeWay && drawPath && <path d={drawPath} fill="none" stroke={t.draw} strokeWidth={1.6} strokeLinejoin="round" />}
             {showYes && <path d={yesPath} fill="none" stroke={t.up} strokeWidth={1.8} strokeLinejoin="round" />}
 
-            {/* End-point badges — when not hovering, show "{pct} {label}" next
+            {/* End-point badges - when not hovering, show "{pct} {label}" next
                 to a small dot at each line's last point. Labels are stacked
                 vertically (above the dots) with min spacing so close-share
                 outcomes don't overwrite each other, and each label gets a
@@ -503,7 +506,7 @@ export function OddsChart({ poolId, totalUp, totalDown, totalDraw, lockSource, h
               );
             })()}
 
-            {/* Hover — thin solid vertical guide, top-of-chart date pill, and
+            {/* Hover - thin solid vertical guide, top-of-chart date pill, and
                 inline "{pct} {label}" badges stacked vertically next to each
                 line at the cursor X. Label flips left when too close to the
                 right edge; paint-order halo keeps text readable over lines. */}

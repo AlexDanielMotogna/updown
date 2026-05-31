@@ -126,7 +126,7 @@ export async function getCachedFixtureResults(
     if (result) map.set(row.externalId, result);
   }
 
-  // ── Source 2: live_scores table (fallback — captures FT from livescore polling) ──
+  // ── Source 2: live_scores table (fallback - captures FT from livescore polling) ──
   const missing1 = externalIds.filter(id => !map.has(id));
   if (missing1.length > 0) {
     try {
@@ -184,7 +184,7 @@ export async function getCachedFixtureResults(
         update: { homeScore, awayScore, status },
       }).catch(() => {});
       console.log(`[FixtureCache] Resolved ${evt.strHomeTeam} ${homeScore}-${awayScore} ${evt.strAwayTeam} from API lookup`);
-    } catch { /* rate limit or network error — skip */ }
+    } catch { /* rate limit or network error - skip */ }
   }
 
   return map;

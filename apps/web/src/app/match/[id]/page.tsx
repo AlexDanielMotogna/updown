@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { useParams } from 'next/navigation';
-import { Box, Typography, Chip, Button, TextField, CircularProgress } from '@mui/material';
-import { ArrowBack, TrendingUp } from '@mui/icons-material';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { Box, Typography, Button, TextField, CircularProgress } from '@mui/material';
+import { GridView, Speed, Timer, AvTimer, Schedule, TrendingUp } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { usePool } from '@/hooks/usePools';
@@ -13,13 +13,33 @@ import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { AppShell, TransactionModal } from '@/components';
 import { ThreeWaySelector } from '@/components/sports/ThreeWaySelector';
-import { MatchAnalysis } from '@/components/sports/MatchAnalysis';
 import { OddsChart } from '@/components/pool/OddsChart';
+import { MatchHeader } from '@/components/sports/MatchHeader';
+import { MatchScoreRow } from '@/components/sports/MatchScoreRow';
+import { MatchInsights } from '@/components/sports/MatchInsights';
+import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter';
 import { useThemeTokens } from '@/app/providers';
-import { formatUSDC, USDC_DIVISOR, statusStyles } from '@/lib/format';
+import { formatUSDC, USDC_DIVISOR } from '@/lib/format';
 import { useLiveScore, isMatchActive, isMatchFinished, formatLiveStatus } from '@/hooks/useLiveScores';
 import { useCategoryMap } from '@/hooks/useCategories';
 import { getIcon } from '@/lib/icon-registry';
+
+// Filter dropdown options — same set the home page uses so MarketFilter
+// renders consistently. Changes navigate back to /.
+const ASSET_FILTERS = [
+  { value: 'ALL', label: 'All', icon: <GridView sx={{ fontSize: 16 }} /> },
+  { value: 'BTC', label: 'BTC', img: '/coins/btc-coin.png' },
+  { value: 'ETH', label: 'ETH', img: '/coins/eth-coin.png' },
+  { value: 'SOL', label: 'SOL', img: '/coins/sol-coin.png' },
+];
+
+const INTERVAL_FILTERS = [
+  { value: 'ALL', label: 'All', icon: <GridView sx={{ fontSize: 16 }} /> },
+  { value: '3m', label: '3 min', icon: <Speed sx={{ fontSize: 16 }} /> },
+  { value: '5m', label: '5 min', icon: <Timer sx={{ fontSize: 16 }} /> },
+  { value: '15m', label: '15 min', icon: <AvTimer sx={{ fontSize: 16 }} /> },
+  { value: '1h', label: '1 hour', icon: <Schedule sx={{ fontSize: 16 }} /> },
+];
 
 const PRESETS = [10, 50, 100, 500];
 
@@ -80,6 +100,7 @@ function MarketInfo({ description }: { description: string }) {
 
 export default function MatchDetailPage() {
   const t = useThemeTokens();
+  const router = useRouter();
   const params = useParams();
   const id = params.id as string;
   const { data: poolData, isLoading } = usePool(id);
@@ -207,9 +228,44 @@ export default function MatchDetailPage() {
     resetDeposit();
   };
 
+  // Category navbar — flips back to the home grid on any change, so the
+  // filter strip stays sticky-present the way /pool/[id] does.
+  const goToHome = useCallback((key: string, value: string) => {
+    const params = new URLSearchParams();
+    // Default home view is CRYPTO; only set 'type' for everything else.
+    if (key === 'type' && value !== 'CRYPTO') params.set('type', value);
+    else if (key !== 'type' && value !== 'ALL') params.set(key, value);
+    const qs = params.toString();
+    router.push(qs ? `/?${qs}` : '/');
+  }, [router]);
+
+  // Pre-select the right top-tab so the user lands on /match/[id] with the
+  // matching category highlighted. PM markets use the league code as their
+  // own tab; everything else falls under SPORTS.
+  const initialMarketType: MarketType = poolData?.data?.league?.startsWith('PM_')
+    ? poolData.data.league
+    : 'SPORTS';
+
+  const filterBar = (
+    <MarketFilter
+      marketType={initialMarketType}
+      onMarketTypeChange={(v: MarketType) => goToHome('type', v)}
+      assetFilter="ALL"
+      intervalFilter="ALL"
+      onAssetChange={v => goToHome('asset', v)}
+      onIntervalChange={v => goToHome('interval', v)}
+      assetOptions={ASSET_FILTERS}
+      intervalOptions={INTERVAL_FILTERS}
+      sportFilter="ALL"
+      onSportChange={v => goToHome('sport', v)}
+      leagueFilter="ALL"
+      onLeagueChange={v => goToHome('league', v)}
+    />
+  );
+
   if (isLoading) {
     return (
-      <AppShell>
+      <AppShell topBar={filterBar}>
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 12 }}>
           <CircularProgress size={32} sx={{ color: t.up }} />
         </Box>
@@ -219,7 +275,7 @@ export default function MatchDetailPage() {
 
   if (!pool) {
     return (
-      <AppShell>
+      <AppShell topBar={filterBar}>
         <Box sx={{ textAlign: 'center', py: 12 }}>
           <Typography sx={{ fontSize: '1.1rem', fontWeight: 600, color: t.text.primary, mb: 1 }}>
             Match not found
@@ -259,7 +315,6 @@ export default function MatchDetailPage() {
   const catLabel = category?.label || league;
   const catBadge = category?.badgeUrl;
   const CatIcon = getIcon(category?.iconKey);
-  const statusStyle = statusStyles[pool.status] || statusStyles.UPCOMING;
   const homeShort = isPrediction ? '' : (pool.homeTeam || 'Home').slice(0, 3).toUpperCase();
   const awayShort = isPrediction ? '' : (pool.awayTeam || 'Away').slice(0, 3).toUpperCase();
   const winnerLabel = isResolved ? (pool.winner === 'UP' ? (isPrediction && !pool.awayTeam ? 'Yes' : pool.homeTeam) : pool.winner === 'DOWN' ? (isPrediction && !pool.awayTeam ? 'No' : pool.awayTeam) : pool.winner === 'DRAW' ? 'Draw' : null) : null;
@@ -269,150 +324,124 @@ export default function MatchDetailPage() {
     weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
   });
 
+  // ── Header + score-row derivation ────────────────────────────────────────
+  // Short status word for the breadcrumb pill in MatchHeader.
+  const headerStatus = isResolved ? 'FT'
+    : matchLive ? 'LIVE'
+    : matchFinished || awaitingResolution ? 'FT'
+    : isLocked ? 'LOCKED'
+    : hasStarted ? 'IN PROGRESS'
+    : pool.status === 'JOINING' ? 'OPEN'
+    : 'UPCOMING';
+  const headerStatusColor = headerStatus === 'LIVE' ? t.gain
+    : headerStatus === 'IN PROGRESS' ? t.accent
+    : headerStatus === 'OPEN' ? t.up
+    : t.text.secondary;
+  const headerStatusPulse = headerStatus === 'LIVE';
+
+  // Breadcrumb chain after the status pill. PM categories are flat; football
+  // leagues are nested under Soccer; SportsDB sports are already sport-level.
+  const breadcrumbs: string[] = isPrediction
+    ? [catLabel]
+    : category?.type === 'FOOTBALL_LEAGUE'
+      ? ['Sports', 'Soccer', catLabel]
+      : category?.type === 'SPORTSDB_SPORT'
+        ? ['Sports', catLabel]
+        : ['Sports', catLabel];
+
+  // Pool resolution wins over the upstream live feed: TheSportsDB sometimes
+  // lags behind by minutes and still reports "2H" while our scheduler has
+  // already pulled the final score and resolved the pool. Always defer to
+  // the pool's own state before falling back to feed-driven status.
+  const scoreStatusText = isResolved || matchFinished || awaitingResolution
+    ? 'Full Time'
+    : matchLive && liveScore
+      ? `LIVE · ${formatLiveStatus(liveScore.status, liveScore.progress)}`
+      : isLocked
+        ? 'Locked'
+        : hasStarted
+          ? 'In progress'
+          : `Kickoff ${kickoff}`;
+  const scoreVariant: 'live' | 'ended' | 'scheduled' | 'inplay' =
+    isResolved || matchFinished || awaitingResolution
+      ? 'ended'
+      : matchLive
+        ? 'live'
+        : hasStarted
+          ? 'inplay'
+          : 'scheduled';
+
   return (
-    <AppShell>
-      {/* ── Header bar ── */}
-      <Box sx={{ bgcolor: t.bg.app, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-        <Box sx={{ px: { xs: 1.5, md: 3 }, py: { xs: 1, md: 1.25 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Link href={isPrediction ? '/?type=PREDICTIONS' : '/?type=SPORTS'} style={{ textDecoration: 'none', color: 'inherit', display: 'flex' }}>
-              <ArrowBack sx={{ fontSize: 18, color: t.text.tertiary, '&:hover': { color: t.text.primary }, cursor: 'pointer' }} />
-            </Link>
-            {catBadge ? (
-              <Box component="img" src={catBadge} alt={league} sx={{ width: 22, height: 22, objectFit: 'contain', ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(13,18,25,0.92)', borderRadius: '50%', p: '2px' }) }} />
-            ) : CatIcon ? (
-              <Box sx={{ color: catColor, display: 'flex', alignItems: 'center' }}>
-                <CatIcon sx={{ fontSize: 20 }} />
-              </Box>
-            ) : league ? (
-              <TrendingUp sx={{ fontSize: 20, color: catColor }} />
-            ) : null}
-            <Typography sx={{ fontWeight: 700, fontSize: { xs: '0.9rem', md: '1rem' }, color: isPrediction ? catColor : t.text.primary }}>
-              {catLabel}
-            </Typography>
-            {!isPrediction && (
-              <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 600, color: t.text.tertiary }}>
-                {homeShort} vs {awayShort}
-              </Typography>
-            )}
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {matchLive && !isResolved && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: t.gain, animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1, transform: 'scale(1)' }, '50%': { opacity: 0.4, transform: 'scale(0.8)' } } }} />
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: t.gain }}>
-                  {formatLiveStatus(liveScore!.status, liveScore!.progress)}
-                </Typography>
-              </Box>
-            )}
-            {matchFinished && !isResolved && (
-              <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: t.text.secondary }}>
-                Full Time
-              </Typography>
-            )}
-            {!matchLive && !matchFinished && !awaitingResolution && !isResolved && hasStarted && (
-              <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: t.accent, textTransform: 'uppercase' }}>
-                In Progress
-              </Typography>
-            )}
-            {awaitingResolution && (
-              <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: t.text.secondary }}>
-                Full Time
-              </Typography>
-            )}
-            {isLocked && !hasStarted && !matchLive && !matchFinished && !isResolved && (
-              <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: t.accent, textTransform: 'uppercase' }}>
-                Locked
-              </Typography>
-            )}
-            <Chip
-              label={matchLive && !isResolved ? 'LIVE' : (matchFinished || awaitingResolution) && !isResolved ? 'ENDED' : hasStarted && !isResolved ? 'IN PLAY' : pool.status === 'JOINING' ? 'OPEN' : pool.status === 'ACTIVE' ? 'LIVE' : pool.status}
-              size="small"
-              sx={{
-                ...(matchLive && !isResolved ? { bgcolor: `${t.gain}1F`, color: t.gain } : (matchFinished || awaitingResolution) && !isResolved ? { bgcolor: t.border.default, color: t.text.secondary } : statusStyle),
-                fontWeight: 700,
-                fontSize: { xs: '0.6rem', md: '0.7rem' },
-                letterSpacing: '0.08em',
-                px: 1,
-                borderRadius: '5px',
-                height: { xs: 22, md: 24 },
-              }}
+    <AppShell topBar={filterBar}>
+      {/* Single grid mirroring /pool/[id]: header + score + insights stack
+          in the left column, the bet card pins at the top of the right
+          column so both surfaces start from the same Y. */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 340px' },
+          gap: { xs: 0, md: 2 },
+          alignItems: 'start',
+          maxWidth: 1400,
+          mx: 'auto',
+          pt: { xs: 1.5, md: 2.5 },
+          px: { xs: 0, md: 1 },
+        }}
+      >
+        {/* ── Left column: Header + Score + Insights + Activity ── */}
+        <Box sx={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: { xs: 1.5, md: 2 } }}>
+          <MatchHeader
+            statusLabel={headerStatus}
+            statusColor={headerStatusColor}
+            statusPulse={headerStatusPulse}
+            breadcrumbs={breadcrumbs}
+            title={pool.awayTeam ? `${pool.homeTeam} vs ${pool.awayTeam}` : pool.homeTeam || catLabel}
+            // PM markets carry the question thumbnail in homeTeamCrest, so it
+            // takes priority over the category badge — the user wants the
+            // visual identity to come from the question itself, falling back
+            // to the league badge / filter icon only when no image exists.
+            leagueBadgeUrl={(isPrediction ? pool.homeTeamCrest : null) || catBadge}
+            leagueIcon={(isPrediction ? pool.homeTeamCrest : null) || catBadge ? null : (CatIcon as unknown as React.ComponentType<{ sx?: object }>) || null}
+            padBadge={category?.type === 'FOOTBALL_LEAGUE'}
+            fillBadge={isPrediction && !!pool.homeTeamCrest}
+            tileBg={catColor ? `${catColor}1A` : undefined}
+          />
+          {!isPrediction && (
+            <MatchScoreRow
+              homeTeam={pool.homeTeam || 'Home'}
+              awayTeam={pool.awayTeam || 'Away'}
+              homeCrest={pool.homeTeamCrest}
+              awayCrest={pool.awayTeamCrest}
+              homeScore={liveScore?.homeScore ?? pool.homeScore ?? null}
+              awayScore={liveScore?.awayScore ?? pool.awayScore ?? null}
+              statusText={scoreStatusText}
+              variant={scoreVariant}
             />
-          </Box>
-        </Box>
-      </Box>
-
-      {/* ── Stats strip ── */}
-      <Box sx={{ bgcolor: t.bg.app, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-        <Box sx={{ px: { xs: 1.5, md: 3 }, py: { xs: 1, md: 1.25 }, display: 'flex', alignItems: 'center', justifyContent: 'space-around' }}>
-          {[
-            { icon: '/assets/players-icon-500.png', value: betCount, label: 'PREDICTIONS', color: t.text.primary },
-            { icon: '/assets/pool-icon-500.png', value: formatUSDC(totalPoolStr), label: 'POOL', color: t.gain },
-            { icon: null, value: kickoff, label: isPrediction ? 'RESOLVES' : 'KICKOFF', color: t.text.bright },
-          ].map((s, i) => (
-            <Box key={s.label} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.06)' : 'none', pl: i > 0 ? { xs: 1.5, md: 2.5 } : 0 }}>
-              {s.icon && <Box component="img" src={s.icon} alt="" sx={{ width: { xs: 14, md: 20 }, height: { xs: 14, md: 20 } }} />}
-              <Box>
-                <Typography sx={{ fontSize: { xs: '0.75rem', md: '0.85rem' }, fontWeight: 700, color: s.color, lineHeight: 1.2 }}>
-                  {s.value}
-                </Typography>
-                <Typography sx={{ fontSize: { xs: '0.55rem', md: '0.6rem' }, fontWeight: 600, color: t.text.dimmed, lineHeight: 1 }}>
-                  {s.label}
-                </Typography>
-              </Box>
-            </Box>
-          ))}
-        </Box>
-      </Box>
-
-      {/* ── Winner banner ── */}
-      {isResolved && winnerLabel && (
-        <Box sx={{ px: { xs: 2, md: 3 }, py: 2, textAlign: 'center' }}>
-          <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: t.text.tertiary, textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.5 }}>
-            {isPrediction ? 'Resolved' : 'Full Time'}
-          </Typography>
-          {!isPrediction && pool.homeScore != null && pool.awayScore != null && (
-            <Typography sx={{ fontSize: '1.4rem', fontWeight: 700, color: t.text.primary, mb: 0.5 }}>
-              {pool.homeTeam} {pool.homeScore} - {pool.awayScore} {pool.awayTeam}
-            </Typography>
           )}
-          <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: winnerColor }}>
-            {winnerLabel} wins
-          </Typography>
-        </Box>
-      )}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 5, px: { xs: 2, md: 3 }, pb: { xs: 4, md: 4 } }}>
+          {/* Sports: chart + head-to-head as a toggle */}
+          {!isPrediction && (
+            <MatchInsights
+              poolId={pool.id}
+              homeTeam={pool.homeTeam || 'Home'}
+              awayTeam={pool.awayTeam || 'Away'}
+              totalUp={liveTotals?.totalUp ?? pool.totalUp}
+              totalDown={liveTotals?.totalDown ?? pool.totalDown}
+              totalDraw={liveTotals?.totalDraw ?? (pool.totalDraw ?? '0')}
+              numSides={pool.numSides}
+              matchAnalysis={pool.matchAnalysis}
+              labels={pool.numSides === 2
+                ? { up: pool.homeTeam || 'Home', down: pool.awayTeam || 'Away' }
+                : { up: pool.homeTeam || 'Home', down: pool.awayTeam || 'Away', draw: 'Draw' }}
+            />
+          )}
 
-      {/* ── Two-column grid (desktop) ── */}
-      <Box sx={{
-        display: { xs: 'flex', md: 'grid' },
-        flexDirection: 'column',
-        gridTemplateColumns: { md: '1fr 340px' },
-        gap: { xs: 8, md: 4 },
-        px: { xs: 2, md: 3 },
-        pt: { xs: 3, md: 3 },
-        pb: { xs: 4, md: 4 },
-        alignItems: 'start',
-      }}>
-        {/* ── Left column: Chart + H2H Analysis + Activity ── */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', minHeight: { md: 400 } }}>
-          {/* Odds chart with Polymarket / UpDown toggle */}
+          {/* Prediction markets: keep the standalone OddsChart + rules tabs */}
           {isPrediction && (
             <OddsChart poolId={pool.id} question={pool.homeTeam} currentOdds={pool.marketOdds} totalUp={pool.totalUp} totalDown={pool.totalDown} />
           )}
-
-          {/* Market Rules / Context tabs (Polymarket) */}
           {isPrediction && pool.matchAnalysis && (
             <MarketInfo description={pool.matchAnalysis} />
-          )}
-
-          {/* Head to Head Analysis (football only) */}
-          {!isPrediction && pool.matchAnalysis && (
-            <MatchAnalysis
-              matchAnalysis={pool.matchAnalysis}
-              homeTeam={pool.homeTeam || 'Home'}
-              awayTeam={pool.awayTeam || 'Away'}
-              numSides={pool.numSides}
-            />
           )}
 
           {/* Activity log */}
@@ -471,6 +500,7 @@ export default function MatchDetailPage() {
                 })}
               </AnimatePresence>
             </Box>
+          </Box>
           </Box>
         </Box>
 
@@ -693,7 +723,7 @@ export default function MatchDetailPage() {
           {!isResolved && (isLocked || matchLive || matchFinished || awaitingResolution) && (
             <Box sx={{ textAlign: 'center', py: 2, bgcolor: t.hover.subtle, borderRadius: '5px' }}>
               <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: t.text.muted }}>
-                {matchFinished || awaitingResolution ? 'Match Ended — Resolving' : matchLive ? 'Match In Progress — Predictions Closed' : 'Predictions Closed'}
+                {matchFinished || awaitingResolution ? 'Match Ended - Resolving' : matchLive ? 'Match In Progress - Predictions Closed' : 'Predictions Closed'}
               </Typography>
             </Box>
           )}

@@ -18,7 +18,7 @@ export const squadsRouter: RouterType = Router();
 
 const walletSchema = z.string().min(32).max(44);
 
-// ─── POST /api/squads — Create a squad ──────────────────────────────────────
+// ─── POST /api/squads - Create a squad ──────────────────────────────────────
 
 squadsRouter.post('/', async (req, res) => {
   try {
@@ -52,7 +52,7 @@ squadsRouter.post('/', async (req, res) => {
   }
 });
 
-// ─── GET /api/squads — List user's squads ───────────────────────────────────
+// ─── GET /api/squads - List user's squads ───────────────────────────────────
 
 squadsRouter.get('/', async (req, res) => {
   try {
@@ -106,7 +106,7 @@ squadsRouter.get('/', async (req, res) => {
   }
 });
 
-// ─── GET /api/squads/resolve — Resolve invite code (public) ─────────────────
+// ─── GET /api/squads/resolve - Resolve invite code (public) ─────────────────
 
 squadsRouter.get('/resolve', async (req, res) => {
   try {
@@ -127,7 +127,7 @@ squadsRouter.get('/resolve', async (req, res) => {
   }
 });
 
-// ─── POST /api/squads/join — Join a squad ───────────────────────────────────
+// ─── POST /api/squads/join - Join a squad ───────────────────────────────────
 
 squadsRouter.post('/join', async (req, res) => {
   try {
@@ -172,7 +172,7 @@ squadsRouter.post('/join', async (req, res) => {
   }
 });
 
-// ─── GET /api/squads/:id — Squad detail ─────────────────────────────────────
+// ─── GET /api/squads/:id - Squad detail ─────────────────────────────────────
 
 squadsRouter.get('/:id', async (req, res) => {
   try {
@@ -226,7 +226,7 @@ squadsRouter.get('/:id', async (req, res) => {
   }
 });
 
-// ─── POST /api/squads/:id/leave — Leave squad ──────────────────────────────
+// ─── POST /api/squads/:id/leave - Leave squad ──────────────────────────────
 
 squadsRouter.post('/:id/leave', async (req, res) => {
   try {
@@ -251,7 +251,7 @@ squadsRouter.post('/:id/leave', async (req, res) => {
   }
 });
 
-// ─── DELETE /api/squads/:id/members/:wallet — Kick member ───────────────────
+// ─── DELETE /api/squads/:id/members/:wallet - Kick member ───────────────────
 
 squadsRouter.delete('/:id/members/:wallet', async (req, res) => {
   try {
@@ -276,7 +276,7 @@ squadsRouter.delete('/:id/members/:wallet', async (req, res) => {
   }
 });
 
-// ─── GET /api/squads/:id/pools — Squad pools ───────────────────────────────
+// ─── GET /api/squads/:id/pools - Squad pools ───────────────────────────────
 
 squadsRouter.get('/:id/pools', async (req, res) => {
   try {
@@ -335,7 +335,7 @@ squadsRouter.get('/:id/pools', async (req, res) => {
   }
 });
 
-// ─── POST /api/squads/:id/pools — Create pool in squad ─────────────────────
+// ─── POST /api/squads/:id/pools - Create pool in squad ─────────────────────
 
 squadsRouter.post('/:id/pools', async (req, res) => {
   try {
@@ -394,7 +394,7 @@ squadsRouter.post('/:id/pools', async (req, res) => {
   }
 });
 
-// ─── POST /api/squads/:id/pools/prepare — Prepare pool tx (user pays rent) ──
+// ─── POST /api/squads/:id/pools/prepare - Prepare pool tx (user pays rent) ──
 
 squadsRouter.post('/:id/pools/prepare', async (req, res) => {
   try {
@@ -429,7 +429,7 @@ squadsRouter.post('/:id/pools/prepare', async (req, res) => {
   }
 });
 
-// ─── POST /api/squads/:id/pools/confirm — Confirm pool after user tx ────────
+// ─── POST /api/squads/:id/pools/confirm - Confirm pool after user tx ────────
 
 squadsRouter.post('/:id/pools/confirm', async (req, res) => {
   try {
@@ -481,7 +481,7 @@ squadsRouter.post('/:id/pools/confirm', async (req, res) => {
   }
 });
 
-// ─── POST /api/squads/:id/pools/:poolId/cancel — Creator cancels pool ───────
+// ─── POST /api/squads/:id/pools/:poolId/cancel - Creator cancels pool ───────
 
 squadsRouter.post('/:id/pools/:poolId/cancel', async (req, res) => {
   try {
@@ -505,7 +505,7 @@ squadsRouter.post('/:id/pools/:poolId/cancel', async (req, res) => {
   }
 });
 
-// ─── GET /api/squads/:id/leaderboard — Squad leaderboard ───────────────────
+// ─── GET /api/squads/:id/leaderboard - Squad leaderboard ───────────────────
 
 squadsRouter.get('/:id/leaderboard', async (req, res) => {
   try {
@@ -527,7 +527,7 @@ squadsRouter.get('/:id/leaderboard', async (req, res) => {
   }
 });
 
-// ─── GET /api/squads/:id/messages — Chat messages ──────────────────────────
+// ─── GET /api/squads/:id/messages - Chat messages ──────────────────────────
 
 squadsRouter.get('/:id/messages', async (req, res) => {
   try {
@@ -567,7 +567,7 @@ squadsRouter.get('/:id/messages', async (req, res) => {
   }
 });
 
-// ─── POST /api/squads/:id/messages — Send message ──────────────────────────
+// ─── POST /api/squads/:id/messages - Send message ──────────────────────────
 
 squadsRouter.post('/:id/messages', async (req, res) => {
   try {

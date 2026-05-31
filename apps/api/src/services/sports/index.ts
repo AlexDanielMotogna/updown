@@ -47,7 +47,7 @@ async function refreshDynamic(): Promise<void> {
       dynamicAdapters[c.sport] = new SportsDbAdapter(c);
     }
 
-    // Load football leagues (CL, PL, EL, etc.) — all via TheSportsDB
+    // Load football leagues (CL, PL, EL, etc.) - all via TheSportsDB
     const footballConfigs = await getFootballConfigs();
     for (const c of footballConfigs) {
       dynamicAdapters[c.sport] = new SportsDbAdapter(c);

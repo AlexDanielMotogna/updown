@@ -92,7 +92,7 @@ export async function closePoolOnChain(
   // Verify the pool account is actually closed on-chain
   const poolAccount = await connection.getAccountInfo(poolPda);
   if (poolAccount !== null) {
-    throw new Error(`close_pool tx ${signature} confirmed but pool PDA still exists — tx may have been dropped`);
+    throw new Error(`close_pool tx ${signature} confirmed but pool PDA still exists - tx may have been dropped`);
   }
 
   console.log(`[Scheduler] close_pool tx confirmed & verified: ${signature}`);
@@ -101,7 +101,7 @@ export async function closePoolOnChain(
 
 /**
  * Send on-chain refund instruction for a single bet.
- * Authority signs — no user signature needed.
+ * Authority signs - no user signature needed.
  */
 export async function refundBetOnChain(
   deps: ResolverDeps,
@@ -211,7 +211,7 @@ export async function autoRefundBets(
     }
 
     if (!success) {
-      console.error(`[Scheduler] All ${REFUND_MAX_RETRIES} refund attempts failed for bet ${bet.id} — manual claim required`);
+      console.error(`[Scheduler] All ${REFUND_MAX_RETRIES} refund attempts failed for bet ${bet.id} - manual claim required`);
       allSuccess = false;
     }
   }

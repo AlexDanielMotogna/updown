@@ -3,13 +3,13 @@
  *
  * In football (and most other timed sports) extra time and penalty shootouts
  * are tie-breakers on top of a draw at the end of regulation. A pool predicting
- * "who wins?" should resolve to the regulation-time result — if the match went
+ * "who wins?" should resolve to the regulation-time result - if the match went
  * to extra time, by definition the score at 90 minutes was a draw.
  *
  * Status strings the major APIs emit when a match went beyond regulation:
  *   - TheSportsDB:        'AET', 'After Extra Time', 'PEN', 'After Penalties', 'AP'
  *   - football-data.org:  'EXTRA_TIME', 'PENALTY_SHOOTOUT'
- *   - The Odds API:       (no AET indicator — relies on score, won't trigger)
+ *   - The Odds API:       (no AET indicator - relies on score, won't trigger)
  *
  * Pools are settled by `winner` rather than the raw final score, so calling
  * this helper at every WRITE path that persists a winner is sufficient.
@@ -36,7 +36,7 @@ export function wentBeyondRegulation(rawStatus: string | null | undefined): bool
 
 /**
  * Compute the winner at regulation time. When the match went to extra time
- * or penalties, the score at 90 minutes was tied — return DRAW regardless of
+ * or penalties, the score at 90 minutes was tied - return DRAW regardless of
  * what the post-AET/PEN final score says.
  */
 export function regulationWinner(

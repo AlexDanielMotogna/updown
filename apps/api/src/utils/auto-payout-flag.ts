@@ -1,5 +1,5 @@
 /**
- * Auto-payout feature flag — two layers:
+ * Auto-payout feature flag - two layers:
  *  1. Global env var AUTO_PAYOUT_ENABLED (defaults to false). Set to "true"
  *     to enable the feature platform-wide. Restart required to take effect.
  *  2. Per-category opt-in via pool_category.config.autoPayoutEnabled.
@@ -33,7 +33,7 @@ function isEnvEnabled(): boolean {
  *    (config.autoPayoutEnabled === false).
  *
  * If no category is configured for the pool, falls back to "enabled when
- * env var is on" — keeps crypto pools (which don't have a category row)
+ * env var is on" - keeps crypto pools (which don't have a category row)
  * working under the rollout.
  */
 export async function autoPayoutEnabledFor(pool: PoolForFlag): Promise<boolean> {
@@ -61,7 +61,7 @@ export async function autoPayoutEnabledFor(pool: PoolForFlag): Promise<boolean> 
   }
 }
 
-/** Test-only — clears the cached env flag so test suites can flip it. */
+/** Test-only - clears the cached env flag so test suites can flip it. */
 export function _resetAutoPayoutFlagCache(): void {
   envCache = null;
 }

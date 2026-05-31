@@ -1,6 +1,6 @@
 /**
  * Rate-limited fetch utility for TheSportsDB.com
- * V1 API with paid key — 100 req/min, all sports.
+ * V1 API with paid key - 100 req/min, all sports.
  */
 
 const API_KEY = process.env.THESPORTSDB_KEY || process.env.API_FOOBTALL_ALL_SPORTS || '';

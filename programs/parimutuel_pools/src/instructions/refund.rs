@@ -40,7 +40,7 @@ pub struct Refund<'info> {
     )]
     pub user_token_account: Account<'info, TokenAccount>,
 
-    /// CHECK: User account — not a signer. Used for PDA derivation and ownership checks only.
+    /// CHECK: User account - not a signer. Used for PDA derivation and ownership checks only.
     pub user: AccountInfo<'info>,
 
     #[account(
@@ -59,7 +59,7 @@ pub fn handler(ctx: Context<Refund>, _side: Side) -> Result<()> {
     let winner = pool.winner.ok_or(PoolError::NotResolved)?;
     require!(user_bet.side == winner, PoolError::NotWinner);
 
-    // Calculate payout — same formula as claim, no fee
+    // Calculate payout - same formula as claim, no fee
     let total_pool = pool.total_pool()?;
     let total_winning_side = pool.total_for_side(winner);
 

@@ -26,11 +26,11 @@ export function pricesForSideWin(side: Side): { onChainStrike: bigint; onChainFi
  *
  * Per-side PDA migration means a hedger can have N bet rows on the same pool.
  * The cleanest payout path uses one synthetic resolve + one on-chain refund on
- * the largest-stake side — refund.rs's formula
+ * the largest-stake side - refund.rs's formula
  *     payout = (stake × totalPool) / sideTotal
  * pays the user the ENTIRE vault on that side (since the wallet owns every
  * side). The remaining bet rows are marked claimed=true with their original
- * amount as the refund — UI-accurate and operationally a no-op (their on-chain
+ * amount as the refund - UI-accurate and operationally a no-op (their on-chain
  * UserBet PDAs stay until close_pool reclaims everything).
  */
 export async function handleSingleBettorRefund(
@@ -40,7 +40,7 @@ export async function handleSingleBettorRefund(
   finalPrice: bigint,
   betCount: number,
 ): Promise<void> {
-  // Pull ALL unclaimed bets, largest stake first — the on-chain refund uses
+  // Pull ALL unclaimed bets, largest stake first - the on-chain refund uses
   // the largest-stake bet so the math has the most liquidity on it.
   const bets = await deps.prisma.bet.findMany({
     where: { poolId, claimed: false },
@@ -55,7 +55,7 @@ export async function handleSingleBettorRefund(
     return;
   }
 
-  // Defensive: confirm the "single bettor" promise — every bet must come from
+  // Defensive: confirm the "single bettor" promise - every bet must come from
   // the same wallet. If not, the caller mis-classified and we abort rather
   // than refund money the user didn't deposit.
   const wallet = bets[0].walletAddress;
@@ -68,13 +68,13 @@ export async function handleSingleBettorRefund(
     return;
   }
 
-  // pricesForSideWin only encodes UP/DOWN — for a single bettor on DRAW (3-way
+  // pricesForSideWin only encodes UP/DOWN - for a single bettor on DRAW (3-way
   // pool), there is no synthetic price pair that makes DRAW win, so fall back
   // to UP. The on-chain refund still pays the FULL pool to the user via that
   // UP-side bet (if any), or via DOWN if they hedged that side.
   const refundBet = bets.find(b => b.side === Side.UP)
     ?? bets.find(b => b.side === Side.DOWN)
-    ?? bets[0]; // last resort: DRAW only — will need different handling
+    ?? bets[0]; // last resort: DRAW only - will need different handling
   const refundSide = refundBet.side as Side;
 
   const winnerForSyntheticResolve: Side =
@@ -87,7 +87,7 @@ export async function handleSingleBettorRefund(
     data: { finalPrice, winner: winnerForSyntheticResolve },
   });
 
-  // Refund just the chosen side on-chain — it receives the full pool.
+  // Refund just the chosen side on-chain - it receives the full pool.
   const refundSuccess = await autoRefundBets(deps, poolId, [refundBet]);
 
   if (refundSuccess && bets.length > 1) {
@@ -148,7 +148,7 @@ export async function handleOneSidedRefund(
   // The actual winner has 0 bets. We want the OTHER side (with bets) to win.
   const sideWithBets = winner === Side.UP ? Side.DOWN : Side.UP;
 
-  // If only one wallet ever deposited, delegate to the hedger-aware path —
+  // If only one wallet ever deposited, delegate to the hedger-aware path -
   // refund the whole stake regardless of how many sides they covered. This
   // is identical to handleSingleBettorRefund's contract.
   const distinctWallets = await getDistinctBettorWallets(poolId);
@@ -253,7 +253,7 @@ export async function handleNoStrikePricePool(
     } else if (hasDown && !hasUp) {
       refundWinner = Side.DOWN;
     } else {
-      // Both sides have bets — DOWN wins by default (equal prices)
+      // Both sides have bets - DOWN wins by default (equal prices)
       refundWinner = Side.DOWN;
     }
 
@@ -298,11 +298,11 @@ export async function resolvePool(
     totalDown: bigint;
   },
 ): Promise<void> {
-  // Explicit null check — `!pool.strikePrice` is wrong because 0n is falsy in
+  // Explicit null check - `!pool.strikePrice` is wrong because 0n is falsy in
   // JS yet a legitimate value for some pool types (sports pools have always
   // initialised strikePrice to 0n). Only treat actual nulls as "stuck".
   if (pool.strikePrice == null) {
-    console.warn(`[Scheduler] Pool ${pool.id} has no strike price — cleaning up stuck pool`);
+    console.warn(`[Scheduler] Pool ${pool.id} has no strike price - cleaning up stuck pool`);
     await handleNoStrikePricePool(deps, pool.id);
     return;
   }
@@ -333,15 +333,15 @@ export async function resolvePool(
       `[Scheduler] Pool ${pool.id} resolution: strike=${strikePrice} final=${finalPrice} diff=${finalPrice - strikePrice}`,
     );
 
-    // Empty pool — no winner, but still resolve on-chain so close_pool works
+    // Empty pool - no winner, but still resolve on-chain so close_pool works
     if (betCount === 0) {
       try {
         await resolvePoolOnChain(deps, pool.id, strikePrice, finalPrice);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        // Pool doesn't exist on-chain (never created or already closed) — just clean up DB
+        // Pool doesn't exist on-chain (never created or already closed) - just clean up DB
         if (msg.includes('AccountNotInitialized') || msg.includes('0xbc4')) {
-          console.log(`[Scheduler] Pool ${pool.id} not found on-chain — deleting DB record`);
+          console.log(`[Scheduler] Pool ${pool.id} not found on-chain - deleting DB record`);
           await deps.prisma.pool.deleteMany({ where: { id: pool.id } }).catch(() => {});
           return;
         }
@@ -372,7 +372,7 @@ export async function resolvePool(
       },
     }).catch((err) => console.error(`[Scheduler] Failed to save price snapshot:`, err));
 
-    // Single WALLET — not single bet. After the per-side PDA migration a
+    // Single WALLET - not single bet. After the per-side PDA migration a
     // wallet can have N bet rows in a pool (hedger), so `betCount === 1`
     // misses the hedged single-bettor case and the user loses everything
     // they bet on the non-winning sides. Distinct wallets is the correct
@@ -393,14 +393,14 @@ export async function resolvePool(
       winner = Side.DOWN; // Tie goes to DOWN
     }
 
-    // One-sided pool — resolve on-chain with prices that make the side-with-bets win, then auto-refund
+    // One-sided pool - resolve on-chain with prices that make the side-with-bets win, then auto-refund
     const winningSideTotal = winner === Side.UP ? pool.totalUp : pool.totalDown;
     if (winningSideTotal === BigInt(0)) {
       await handleOneSidedRefund(deps, pool.id, winner, strikePrice, finalPrice, betCount);
       return;
     }
 
-    // Normal resolution — both sides have bets
+    // Normal resolution - both sides have bets
     await resolvePoolOnChain(deps, pool.id, strikePrice, finalPrice);
 
     await deps.prisma.pool.update({
@@ -408,7 +408,7 @@ export async function resolvePool(
       data: { finalPrice, winner },
     });
 
-    // Record referral commissions for ALL bets (win or lose) — fire-and-forget
+    // Record referral commissions for ALL bets (win or lose) - fire-and-forget
     const allBets = await deps.prisma.bet.findMany({
       where: { poolId: pool.id },
       select: { id: true, walletAddress: true, amount: true },
@@ -416,7 +416,7 @@ export async function resolvePool(
     recordReferralCommissions(pool.id, allBets).catch(e => console.warn('[Resolver] referral commissions failed:', e instanceof Error ? e.message : e));
 
     // Award participation XP to every bettor (winner OR loser). Only reached on a
-    // normal two-sided resolution — refunded one-sided/single-bettor pools never
+    // normal two-sided resolution - refunded one-sided/single-bettor pools never
     // get here, so XP cannot be farmed via dust bets that get refunded.
     const xpWallets = [...new Set(allBets.map((b) => b.walletAddress))];
     await Promise.all(xpWallets.map((wallet) => awardBetResolution(wallet)));

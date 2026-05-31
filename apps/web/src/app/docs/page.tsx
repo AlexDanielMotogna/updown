@@ -396,7 +396,7 @@ export default function DocsPage() {
             {/* ── Getting Started ─────────────────────────────────────── */}
             <SectionTitle id="quick-start">Getting Started</SectionTitle>
             <Typography sx={{ fontSize: '0.95rem', color: t.text.rich, mb: 2, lineHeight: 1.6 }}>
-              <strong style={{ color: t.text.primary }}>UpDown</strong> is a parimutuel prediction platform on Solana. Pick a crypto asset (BTC, ETH, SOL), predict whether its price will go <strong style={{ color: t.text.primary }}>UP or DOWN</strong> within a timeframe, and stake USDC. If your side wins, you split the entire pool proportionally. All bets, payouts, and refunds happen on-chain — transparent and verifiable.
+              <strong style={{ color: t.text.primary }}>UpDown</strong> is a parimutuel prediction platform on Solana. Pick a crypto asset (BTC, ETH, SOL), predict whether its price will go <strong style={{ color: t.text.primary }}>UP or DOWN</strong> within a timeframe, and stake USDC. If your side wins, you split the entire pool proportionally. All bets, payouts, and refunds happen on-chain - transparent and verifiable.
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
               <StepCard step={1} title="Connect Wallet" desc="Click Connect Wallet. Choose embedded (no extension) or external (Phantom, Solflare)." />
@@ -528,7 +528,7 @@ export default function DocsPage() {
                 <Typography component="div" sx={{ fontSize: '0.85rem', color: t.text.rich, py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: t.up } }}>Live scores updated every 30 seconds during matches</Typography>
                 <Typography component="div" sx={{ fontSize: '0.85rem', color: t.text.rich, py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: t.up } }}>Results checked every 5 min during match windows</Typography>
                 <Typography component="div" sx={{ fontSize: '0.85rem', color: t.text.rich, py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: t.up } }}>AI-generated analysis for each match</Typography>
-                <Typography component="div" sx={{ fontSize: '0.85rem', color: t.text.rich, py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: t.up } }}>Categories managed from admin panel — new sports added without code</Typography>
+                <Typography component="div" sx={{ fontSize: '0.85rem', color: t.text.rich, py: 0.4, pl: 2, position: 'relative', '&::before': { content: '"•"', position: 'absolute', left: 0, color: t.up } }}>Categories managed from admin panel - new sports added without code</Typography>
               </Box>
             </Box>
 
@@ -641,7 +641,7 @@ export default function DocsPage() {
               <StepCard step={2} title="Bracket" desc="Players are placed in a single-elimination bracket. Each round is a 1v1 match." />
               <StepCard step={3} title="Predict" desc="Before each match, both players have a limited time window to predict the closing price of the asset (e.g. BTC/USD)." />
               <StepCard step={4} title="Match resolves" desc="After predictions close, the match runs for the configured duration while the price moves. When it ends, the player closest to the final price advances." />
-              <StepCard step={5} title="Repeat" desc="Winners advance through the bracket — semifinals, finals — until one player remains." />
+              <StepCard step={5} title="Repeat" desc="Winners advance through the bracket - semifinals, finals - until one player remains." />
               <StepCard step={6} title="Claim prize" desc="The tournament winner can claim the full prize pool (minus 5% platform fee) directly to their wallet." />
             </Box>
 

@@ -5,7 +5,7 @@ import { registerUser, fetchUserProfile } from '@/lib/api';
 
 /**
  * Fetches user profile with auto-registration on first load.
- * Registers first, then fetches profile — ensures new users see data immediately.
+ * Registers first, then fetches profile - ensures new users see data immediately.
  * Refetches every 30s.
  */
 export function useUserProfile() {

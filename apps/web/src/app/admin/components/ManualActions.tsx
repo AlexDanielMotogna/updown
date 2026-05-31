@@ -94,7 +94,7 @@ export function ManualActions() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       <Alert severity="warning" variant="outlined">
-        Danger Zone — These actions are irreversible. A confirmation dialog is shown before each action.
+        Danger Zone - These actions are irreversible. A confirmation dialog is shown before each action.
       </Alert>
 
       {result && (

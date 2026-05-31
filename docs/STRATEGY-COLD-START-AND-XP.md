@@ -1,4 +1,4 @@
-# Strategy — Cold-Start Problem & XP Economy
+# Strategy - Cold-Start Problem & XP Economy
 
 > Analysis of UpDown's incentive system and the parimutuel cold-start problem
 > (why would a user be the first bettor on an empty pool?). Output of a
@@ -14,7 +14,7 @@
 ## TL;DR
 
 **Why would someone be the first bettor on an empty pool today?** Honestly,
-they wouldn't — and the code proves it. A safety net **already exists** (the
+they wouldn't - and the code proves it. A safety net **already exists** (the
 scheduler auto-refunds single-bettor or one-sided pools via synthetic-price
 resolution), but the UI never surfaces it, the protocol still charges a 5%
 fee on the refund, and the user sees "1.0x odds" in the bet form which reads
@@ -55,7 +55,7 @@ early-bird bonuses. UpDown currently does nothing of the kind.
 
 ---
 
-## 2. The current incentive landscape — what exists today
+## 2. The current incentive landscape - what exists today
 
 What follows is the audit of the actual code (file:line citations) for each
 system. Read this as ground truth, not specs.
@@ -65,7 +65,7 @@ system. Read this as ground truth, not specs.
 Source of truth: `docs/REWARDS-XP-LEVELS.md` + `apps/api/src/utils/levels.ts`
 + `apps/api/src/services/rewards.ts`.
 
-**Earning rules** (XP is awarded at pool resolution, never at deposit —
+**Earning rules** (XP is awarded at pool resolution, never at deposit -
 fixed in [bug_xp_farming_placement.md](../MEMORY.md)):
 
 | Action | XP | Condition | Source |
@@ -81,7 +81,7 @@ fixed in [bug_xp_farming_placement.md](../MEMORY.md)):
 
 | Level | Cumulative XP | XP from prev | Fee | Coin Mult |
 |---:|---:|---:|---:|---:|
-| 1 | 0 | — | 5.00% | 1.0× |
+| 1 | 0 | - | 5.00% | 1.0× |
 | 2 | 500 | 500 | 5.00% | 1.0× |
 | 5 | 11,915 | 6,062 | 4.75% | 1.0× |
 | 10 | 97,362 | 26,097 | 4.50% | 1.1× |
@@ -101,7 +101,7 @@ Source: `apps/api/src/utils/coins.ts`.
 | Action | Coins (base units) | Display |
 |---|---:|---:|
 | Bet placed (base) | $USDC × 10 × levelMult × dailyRate | 0.10 UP per $1 |
-| Bet won (bonus) | 50% of base | — |
+| Bet won (bonus) | 50% of base | - |
 | Win streak (3+) | `min(streak × 200, 2000)` | up to 20 UP |
 | Level up | `newLevel × 500` | Lv2 = 10 UP, Lv40 = 200 UP |
 | Referral accepted | 5,000 | 50 UP |
@@ -140,7 +140,7 @@ pool** (`apps/api/src/utils/bets.ts:11-18`). Not per-side.
 | Lone winner | $100 UP, $0 DOWN | $100 | UP wins | $100 (5% fee on refund) | 0.95× |
 | Lone loser | $100 UP, $0 DOWN | $100 | DOWN wins (synthetic) | refund − 5% | 0.95× |
 
-**Key UX problem**: the first scenario (the lone winner) feels like a loss —
+**Key UX problem**: the first scenario (the lone winner) feels like a loss -
 the user "won" but got 0.95× their stake back because of the fee on the
 refund-equivalent. They don't know the refund is happening; they see "winner
 paid out" and a number smaller than what they put in.
@@ -154,7 +154,7 @@ match detail page, `resolve-logic.ts`.
   when `total == 0`. Cosmetic only.
 - **BetForm / Match page** correctly compute `1.0x` for the first bettor.
   Discrepancy with the card.
-- **SideSelector** shows "No predictions yet" — placeholder, not explanation.
+- **SideSelector** shows "No predictions yet" - placeholder, not explanation.
 - **No banner / tooltip / disclaimer** anywhere explaining the cold-start
   situation or the auto-refund safety net.
 - **Resolution scheduler** (`apps/api/src/scheduler/resolve-logic.ts:308-328`):
@@ -212,7 +212,7 @@ Source: `apps/api/src/routes/faucet.ts:8-13`.
 
 - **1,000 USDC + 0.05 SOL per claim**, 1-hour cooldown, **no daily cap**
   (24 claims/day = 24K USDC max per wallet).
-- Cooldown is **in-memory only** — server restart wipes it. No DB log.
+- Cooldown is **in-memory only** - server restart wipes it. No DB log.
 - Devnet USDC mint: `By87mHK9Meinfv4AEqTx9qyYmGDLUcwiywpkkCWwGUVz`.
 - **No login bonus, no welcome flow.**
 - Strategic implication: the USDC is **play money**. Sunk-cost fallacy
@@ -233,17 +233,17 @@ What's missing (huge):
 - **No email** (no SendGrid, Resend, Mailgun).
 - **No onboarding / welcome / first-bet bonus** flow.
 - **No squad mate activity notifications** (the most obvious cold-start
-  lever — a squadmate betting could ping the other 19 instantly).
+  lever - a squadmate betting could ping the other 19 instantly).
 - **No empty-pool warnings** ("3 pools in your category have no DOWN side").
 - **No inactivity reminder** ("you haven't bet in 3 days").
-- **Streak silently tracked** — no celebration toast, no "keep it alive".
+- **Streak silently tracked** - no celebration toast, no "keep it alive".
 
 ---
 
 ## 3. The six critical gaps
 
 The audit reveals a pattern: every system is **locally correct but globally
-disconnected**. Each one falls short for the same structural reason — none
+disconnected**. Each one falls short for the same structural reason - none
 of them feed the others.
 
 1. **The safety net is invisible.** Auto-refund of single-bettor and
@@ -288,21 +288,21 @@ pool.
   reasons; Manifold rejected it; wrong tool for parimutuel anyway).
 - Maker/taker rebates (assumes order book; doesn't apply to parimutuel).
 - PredictIt-style $850 hard caps (solves whale dominance, not bootstrap).
-- Native protocol token for resolution (Augur REP — too much regulatory
+- Native protocol token for resolution (Augur REP - too much regulatory
   and engineering surface for current stage).
 
 ---
 
-## 5. Top 5 proposals — ranked by impact / effort
+## 5. Top 5 proposals - ranked by impact / effort
 
 Each proposal lists: mechanism, engineering cost (S/M/L T-shirt), operator
 risk (max $ exposure), behavioral impact, composability with existing
 systems.
 
-### Rank 0 (do this week regardless) — **Surface the existing safety net**
+### Rank 0 (do this week regardless) - **Surface the existing safety net**
 
 **Mechanism**: copy + tooltip in `BetForm` and `MarketCard` when
-`total === 0`: *"Be first — if no one matches you, your stake is
+`total === 0`: *"Be first - if no one matches you, your stake is
 auto-refunded."* Remove the hardcoded `2.0x` fallback in MarketCard when
 the pool is empty (it lies; the real multiplier for the first bettor is
 1.0x with a refund safety net).
@@ -314,7 +314,7 @@ the pool is empty (it lies; the real multiplier for the first bettor is
   marketing of something we already built.
 - **Composability**: makes every other proposal in this doc more credible.
 
-### Rank 1 — **House seeding bot (B1)**
+### Rank 1 - **House seeding bot (B1)**
 
 **Mechanism**: a scheduled API task uses the authority wallet to deposit
 $0.50 on each side (or $0.34/$0.33/$0.33 for 3-way) the moment a pool is
@@ -322,7 +322,7 @@ created. The pool no longer looks dead. Tag the authority's `Bet` row with
 a flag so it's excluded from leaderboards / XP.
 
 - **Eng**: M (scheduler hook + wallet tag + tests). **No contract change**
-  — the `deposit` ix already accepts any signer.
+  - the `deposit` ix already accepts any signer.
 - **Risk**: bounded per pool. Authority loses one side, recovers the other
   minus fee. Worst case (pool empty besides seed) = refund of own seed
   with fee = ~$0.05 per pool. **At 1000 pools/day → ~$50-100/day, capped.**
@@ -331,7 +331,7 @@ a flag so it's excluded from leaderboards / XP.
 - **Composability**: stacks with everything. Counts toward "pool depth" UX
   signals (e.g. arena bar).
 
-### Rank 2 — **Founder's Fee Discount (A2)**
+### Rank 2 - **Founder's Fee Discount (A2)**
 
 **Mechanism**: the first wallet to deposit on a pool pays `fee_bps = 0`
 at claim. API already chooses `fee_bps` per user via `getFeeBps(level)`;
@@ -339,7 +339,7 @@ just add a check "is this wallet the first bet on this pool?" before
 signing the claim ix.
 
 - **Eng**: S (API only, no contract change).
-- **Risk**: bounded — max one wallet per pool gets the discount, max loss
+- **Risk**: bounded - max one wallet per pool gets the discount, max loss
   per pool = fee on that wallet's payout. Typical pool $10-$100, fee 5% →
   **$0.50-$5 max loss per pool.** Capped by platform's own fee revenue,
   not authority subsidy.
@@ -349,7 +349,7 @@ signing the claim ix.
   (house seed creates a pool that already looks alive when the first user
   arrives).
 
-### Rank 3 — **UP Coins redemption catalog (G3)**
+### Rank 3 - **UP Coins redemption catalog (G3)**
 
 **Mechanism**: visible spend sink for the coins everyone is accruing:
 - 100 UP → $1 USDC (treasury-funded, daily cap).
@@ -366,7 +366,7 @@ signing the claim ix.
   rank-up, every streak, every bonus becomes a real economic loop.
 - **Composability**: amplifies every other reward in this doc.
 
-### Rank 4 — **Challenge link (D3)**
+### Rank 4 - **Challenge link (D3)**
 
 **Mechanism**: when user A bets on UP, they get a "Challenge a friend"
 share link. Friend opens it, lands on the pool with DOWN pre-selected and
@@ -376,22 +376,22 @@ the friend has no referrer yet.
 
 - **Eng**: M (`?challenge=<betId>` query handler + new XP action +
   share-link UI).
-- **Risk**: $0 — virtual rewards only.
+- **Risk**: $0 - virtual rewards only.
 - **Impact**: **simultaneously solves cold-start AND drives acquisition**.
   The best viral unlock in this list without a contract change.
 - **Composability**: best when stacked with referrals (auto-referral when
   friend isn't referred yet) and with squad mate notifications.
 
-### Rank 5 — **Early-bird XP/coin multiplier (E1)**
+### Rank 5 - **Early-bird XP/coin multiplier (E1)**
 
 **Mechanism**: bets in the first 25% of the deposit window earn 1.5× XP
 and 1.5× UP coins on resolution; decays linearly to 1.0× by lock-time.
 Persist `placedFractionOfWindow` on each `Bet` row at deposit-confirm time.
 
 - **Eng**: S (one scalar + persistence).
-- **Risk**: $0 — virtual rewards, daily cap on UP Coins already protects
+- **Risk**: $0 - virtual rewards, daily cap on UP Coins already protects
   against farming.
-- **Impact**: pulls deposit activity forward in the pool lifecycle —
+- **Impact**: pulls deposit activity forward in the pool lifecycle -
   exactly where cold-start matters most.
 - **Composability**: multiplies with the existing level coin multiplier.
 
@@ -421,19 +421,19 @@ Persist `placedFractionOfWindow` on each `Bet` row at deposit-confirm time.
 These are bugs / inconsistencies that the audit surfaced. Worth fixing even
 if none of the strategy above ships.
 
-- **Referral copy bug** — UI tooltip says "20% of platform fees" but the
+- **Referral copy bug** - UI tooltip says "20% of platform fees" but the
   code is "1% of every bet". They happen to coincide at `fee = 5%`. Fix
   the copy or fix the formula, not both. (`ReferralShareLink.tsx:34`).
-- **MarketCard odds discrepancy** — falls back to hardcoded `2.0x` / `3.0x`
+- **MarketCard odds discrepancy** - falls back to hardcoded `2.0x` / `3.0x`
   when `total = 0`, while BetForm correctly shows `1.0x`. Pick one.
-- **Faucet cooldown is in-memory only** — server restart wipes it. Persist
+- **Faucet cooldown is in-memory only** - server restart wipes it. Persist
   to DB. (`apps/api/src/routes/faucet.ts:11-13`).
-- **No persistent faucet claim log** — can't audit claims from our DB. Add
+- **No persistent faucet claim log** - can't audit claims from our DB. Add
   a `FaucetClaim` table.
-- **Streak silently tracked** — no toast when streak increments past
+- **Streak silently tracked** - no toast when streak increments past
   milestones (3, 5, 10). Add a celebration.
-- **Daily-first-bet bonus silent** — surface a banner "200 XP bonus
-  available — place your first bet today!"
+- **Daily-first-bet bonus silent** - surface a banner "200 XP bonus
+  available - place your first bet today!"
 
 ---
 
@@ -441,37 +441,37 @@ if none of the strategy above ships.
 
 Five sprints, ordered by effort and the dependency graph.
 
-### Sprint 1 (1 week) — zero risk, pure UX
+### Sprint 1 (1 week) - zero risk, pure UX
 
 - Rank 0: surface refund safety net + fix the `1.0x vs 2.0x` discrepancy.
 - Squad mate notifications when a squadmate places a bet (uses existing
-  `notifications.ts` + WebSocket — zero risk).
+  `notifications.ts` + WebSocket - zero risk).
 - "Light the Match" banner for imbalanced pools (D2, no XP bonus v1).
 - Fix the referral copy bug ("1% of every bet").
 - Surface streak milestones (toast on streak 3, 5, 10).
 
-### Sprint 2 (2-3 weeks) — liquidity foundation
+### Sprint 2 (2-3 weeks) - liquidity foundation
 
 - **B1 house seeding bot** with daily exposure cap ($100).
 - **A2 founder's fee discount** for the first depositor.
 - Persist faucet cooldown to DB + add `FaucetClaim` log table.
 
-### Sprint 3 (3-4 weeks) — close the economic loop
+### Sprint 3 (3-4 weeks) - close the economic loop
 
 - **G3 UP Coins redemption catalog** (cash + free tournament entry +
   cosmetics).
 - **E1 early-bird multiplier** (1.5× XP/coins in the first 25% window).
 - **G1 participation streak** (XP for active days, not just wins).
 
-### Sprint 4 (4-6 weeks) — virality + retention
+### Sprint 4 (4-6 weeks) - virality + retention
 
 - **D3 challenge links** with auto-referral integration.
 - **H2 comeback bonus** (3+ days inactive → 2× XP + 100 UP).
 - **Real squad shared pools** (members co-deposit, shared payout,
-  shared XP) — confirms whether the squad feature has a real product
+  shared XP) - confirms whether the squad feature has a real product
   shape or should be deprecated.
 
-### Sprint 5+ (month 2-3) — bigger plays if metrics justify
+### Sprint 5+ (month 2-3) - bigger plays if metrics justify
 
 - **E2 pool extension** if a contract change is justified by the metric
   "pools refunded due to undersubscription".
@@ -481,14 +481,14 @@ Five sprints, ordered by effort and the dependency graph.
 
 ---
 
-## 8. Exposure budget — treat subsidies as CAC
+## 8. Exposure budget - treat subsidies as CAC
 
 For each mechanism with real-money exposure, cap upfront. Reassess monthly.
 
 | Mechanism | Daily cap | Monthly cap |
 |---|---:|---:|
 | B1 house seeding | $100 | $3,000 |
-| A2 fee discount (revenue loss, no out-of-pocket) | — | — |
+| A2 fee discount (revenue loss, no out-of-pocket) | - | - |
 | G3 USDC redemption (the $1 tier) | $50 | $1,500 |
 | C2 first-bet-of-day insurance (if shipped) | $200 | $6,000 |
 | B3 liquidity bounty (if shipped) | $50 | $1,500 |
@@ -505,12 +505,12 @@ point in the funnel (the first bettor on each pool).
 If forced to pick **three things to ship this week** and defer everything
 else, these are them:
 
-1. **Surface the refund safety net** (1 day of copy / tooltip — a change
+1. **Surface the refund safety net** (1 day of copy / tooltip - a change
    that costs nothing and reframes the entire first-bettor experience).
-2. **B1 house seeding at $0.50/side** (1 week of scheduler work — changes
+2. **B1 house seeding at $0.50/side** (1 week of scheduler work - changes
    the perception of the product from "dead pools everywhere" to "pools
    already in progress").
-3. **Squad mate bet notifications** (2 days — turns squads into what they
+3. **Squad mate bet notifications** (2 days - turns squads into what they
    should be: a social FOMO loop for filling each other's pools).
 
 These three together change the first-bet flow from
@@ -535,11 +535,11 @@ These are decisions the strategy doesn't make for you:
    product, or refactor them to feed parimutuel pools (e.g., bracket
    matches *are* parimutuel pools tagged into a tournament)?
 3. **Squad pools v2**: do squads pool money together (shared deposit,
-   shared payout) or stay individual? This is a product question — both
+   shared payout) or stay individual? This is a product question - both
    are valid, and the answer changes which proposals make sense.
 4. **Authority wallet split**: should subsidy-paying live on a separate
    wallet from the protocol authority? Easier monitoring + blast radius
-   bound — already flagged in `PLAN-AUTO-PAYOUT.md`.
+   bound - already flagged in `PLAN-AUTO-PAYOUT.md`.
 
 ---
 
@@ -547,7 +547,7 @@ These are decisions the strategy doesn't make for you:
 
 | File | Why |
 |---|---|
-| `programs/parimutuel_pools/src/instructions/deposit.rs` | Confirms B1/B2 need no contract change — authority can already deposit. |
+| `programs/parimutuel_pools/src/instructions/deposit.rs` | Confirms B1/B2 need no contract change - authority can already deposit. |
 | `programs/parimutuel_pools/src/instructions/claim.rs` | `fee_bps` is per-claim, so A2 (founder fee discount) is API-only. |
 | `programs/parimutuel_pools/src/instructions/refund.rs` | Confirms the safety net A3 already exists. |
 | `apps/api/src/scheduler/resolve-logic.ts:308-328` | Single-bettor and one-sided refund triggers. |
@@ -559,14 +559,14 @@ These are decisions the strategy doesn't make for you:
 | `apps/api/src/services/referrals.ts:9-11` | Commission rate + referee bonus constants. |
 | `apps/api/src/services/squads.ts` | Current squad mechanics (chat + leaderboard, no shared pool). |
 | `apps/api/src/routes/faucet.ts` | Template for authority-signed USDC transfers (B3, C1, G3 cash tier). |
-| `docs/REWARDS-XP-LEVELS.md` | Canonical economy spec — update when any new mechanic ships. |
+| `docs/REWARDS-XP-LEVELS.md` | Canonical economy spec - update when any new mechanic ships. |
 | `apps/web/src/components/MarketCard.tsx:116-119` | Hardcoded 2.0x fallback when pool empty (fix for Rank 0). |
 | `apps/web/src/components/BetForm.tsx:91-99` | Payout preview formula (cold-start tooltip lives here). |
 | `apps/web/src/components/referral/ReferralShareLink.tsx:34` | "20% of platform fees" copy bug. |
 
 ---
 
-## Appendix — methodology
+## Appendix - methodology
 
 This document is the synthesis of a 10-agent parallel analysis run on
 2026-05-30. Agents were instructed to audit specific subsystems (XP,
@@ -577,5 +577,5 @@ Betfair), and brainstorm proposals constrained to UpDown's architecture
 (no CLOB migration, authority wallet pays subsidies, prod is testing-only).
 
 Findings, file references, and proposals were synthesized into this doc.
-Numbers and citations are sourced from the codebase as of the date above —
+Numbers and citations are sourced from the codebase as of the date above -
 re-verify before acting on any specific dollar amount or file location.

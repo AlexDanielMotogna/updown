@@ -1,7 +1,7 @@
 /**
  * SVG path builders for the line chart. Two flavours:
  *   - smoothPath: cubic Bezier through every point (true spline).
- *   - stepPath: rounded "wave step" — horizontal hold then S-curve into
+ *   - stepPath: rounded "wave step" - horizontal hold then S-curve into
  *     the next price; the Polymarket / Kalshi look.
  *
  * Both take a list of (x, y) points in absolute coordinates and return a
@@ -28,7 +28,7 @@ export function smoothPath(points: Point[]): string {
 /** Wave-step path: holds horizontal at the previous price for the first
  *  half of each segment, then runs a cubic Bezier S-curve into the new
  *  price. Control points pulled in toward the corners so the curve enters
- *  and exits the flat portions horizontally — no 90° peaks, no free swoop. */
+ *  and exits the flat portions horizontally - no 90° peaks, no free swoop. */
 export function stepPath(points: Point[]): string {
   if (points.length === 0) return '';
   if (points.length === 1) return `M${points[0].x.toFixed(1)},${points[0].y.toFixed(1)}`;

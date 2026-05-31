@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Centralized theme — single source of truth for all colors
+// Centralized theme - single source of truth for all colors
 // ---------------------------------------------------------------------------
 
 // ─── Hex alpha helper ─────────────────────────────────────────────────────────
@@ -286,7 +286,7 @@ export const darkTokens: ThemeTokens = {
 
   // Level tiers (index 0 = level 1-4, index 9 = level 37-40)
   levelTiers: [
-    // Tier 1-4 (Rookie) used to be 'rgba(255,255,255,0.5)' — invalid as a
+    // Tier 1-4 (Rookie) used to be 'rgba(255,255,255,0.5)' - invalid as a
     // gradient stop once withAlpha (which appends hex) ran over it, so the
     // XP bar fill rendered as nothing on the dark background. Cyan keeps the
     // rookie tier visible and matches the brand accent.
@@ -358,33 +358,40 @@ export const lightTokens: ThemeTokens = {
     input: 'rgba(15,23,42,0.03)',
   },
 
+  // User feedback: light mode was reading as washed-out slate grey, especially
+  // for labels and "muted" text — hard to read against the off-white app bg.
+  // Whole text scale pulled darker so contrast against #F5F7FA / #FFFFFF stays
+  // above WCAG AA at every tier.
   text: {
     primary: '#0A0F1A',
-    secondary: '#334155',
-    tertiary: '#475569',
-    quaternary: '#556677',
-    dimmed: '#64748B',
-    muted: '#78859B',
-    disabled: '#94A3B8',
-    rich: '#1E293B',
+    secondary: '#1E293B',   // was #334155
+    tertiary: '#293548',    // was #475569
+    quaternary: '#36465C',  // was #556677
+    dimmed: '#445873',      // was #64748B
+    muted: '#566880',       // was #78859B
+    disabled: '#7F8FA6',    // was #94A3B8 (still legibly muted, but visible)
+    rich: '#172033',        // was #1E293B
     bright: '#0F172A',
     vivid: '#0A0F1A',
-    strong: '#2D3B4E',
-    soft: '#3E4C5F',
+    strong: '#1F2A3D',      // was #2D3B4E
+    soft: '#2E3B50',        // was #3E4C5F
     contrast: '#0A0F1A',
   },
 
-  surfaceBorder: '1px solid rgba(15,23,42,0.18)',
-  surfaceShadow: '0 2px 10px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08)',
+  // Stronger card border + shadow combination so surfaces don't blend into
+  // the app bg. The border was 0.18 — at 0.28 it reads cleanly without
+  // looking like a stroked outline.
+  surfaceBorder: '1px solid rgba(15,23,42,0.28)',
+  surfaceShadow: '0 2px 10px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.10)',
 
   border: {
-    subtle: 'rgba(15,23,42,0.06)',
-    default: 'rgba(15,23,42,0.10)',
-    medium: 'rgba(15,23,42,0.12)',
-    strong: 'rgba(15,23,42,0.15)',
-    emphasis: 'rgba(15,23,42,0.18)',
-    hover: 'rgba(15,23,42,0.22)',
-    active: 'rgba(15,23,42,0.30)',
+    subtle: 'rgba(15,23,42,0.10)',   // was 0.06
+    default: 'rgba(15,23,42,0.16)',  // was 0.10
+    medium: 'rgba(15,23,42,0.20)',   // was 0.12
+    strong: 'rgba(15,23,42,0.24)',   // was 0.15
+    emphasis: 'rgba(15,23,42,0.28)', // was 0.18
+    hover: 'rgba(15,23,42,0.34)',    // was 0.22
+    active: 'rgba(15,23,42,0.42)',   // was 0.30
   },
 
   hover: {
@@ -407,7 +414,7 @@ export const lightTokens: ThemeTokens = {
     track: '#F0F2F5',
   },
 
-  // Semantic — cyan for buttons, darker variants for light bg
+  // Semantic - cyan for buttons, darker variants for light bg
   up: palette.cyan,
   down: palette.red500,
   draw: palette.amber600,
@@ -431,7 +438,7 @@ export const lightTokens: ThemeTokens = {
 
   // Same tier colors work on light bg
   levelTiers: [
-    palette.cyan,               // 1-4: Rookie (was rgba — invalid for withAlpha + gradient stop)
+    palette.cyan,               // 1-4: Rookie (was rgba - invalid for withAlpha + gradient stop)
     palette.green500,
     palette.green600,
     palette.amber600,

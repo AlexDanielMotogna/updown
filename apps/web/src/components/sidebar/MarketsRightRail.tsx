@@ -44,7 +44,7 @@ export function MarketsRightRail({ onClose }: { onClose?: () => void }) {
   const { data: activeRes } = useQuery({
     queryKey: ['rail-active'],
     // Limit 500 (the route's max) so older but high-volume pools aren't cut off
-    // by the createdAt-desc order — the rail ranks by volume client-side.
+    // by the createdAt-desc order - the rail ranks by volume client-side.
     queryFn: () => fetchPools({ status: 'JOINING,ACTIVE', limit: 500 }),
     refetchInterval: 30_000,
     staleTime: 15_000,

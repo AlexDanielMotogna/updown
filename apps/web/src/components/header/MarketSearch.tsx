@@ -24,7 +24,7 @@ function resultCategory(r: PoolSearchResult): string {
 }
 
 /** Navbar typeahead that searches ACTIVE pools (open for betting) and navigates
- *  to the pool/match page on select — like the market search on Polymarket/Kalshi. */
+ *  to the pool/match page on select - like the market search on Polymarket/Kalshi. */
 export function MarketSearch() {
   const t = useThemeTokens();
   const router = useRouter();

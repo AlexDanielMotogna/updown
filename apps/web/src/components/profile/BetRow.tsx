@@ -50,7 +50,7 @@ export function BetRow({
   const isRefund = bet.claimed && bet.payoutAmount != null && bet.payoutAmount === bet.amount;
   const isWinner = bet.isWinner === true && !isRefund;
   const isLoser = bet.isWinner === false;
-  // Auto-payout state — payoutFailed flag forces the manual-claim button back
+  // Auto-payout state - payoutFailed flag forces the manual-claim button back
   // into view as a fallback even when auto-payout was in scope for the pool.
   const isPayoutFailed = !!bet.payoutFailed && !bet.claimed;
   const isPendingPayout = isWinner && !bet.claimed && !isPayoutFailed && bet.pool.status === 'CLAIMABLE';
@@ -75,7 +75,7 @@ export function BetRow({
   const boxImageUrl = isSports ? null : getBoxImage(bet.pool.asset, bet.pool.interval);
   const teamCrest = isSports && !isPM ? bet.pool.homeTeamCrest : null;
 
-  // Result chip — the auto-payout flow surfaces three new states between
+  // Result chip - the auto-payout flow surfaces three new states between
   // "Won" and "Claimed": Paying soon (pending the scheduler), Paid (auto-
   // settled, same as Claimed but framed as automatic), and Payment failed
   // (retries exhausted, user must fall back to the manual claim button).

@@ -6,7 +6,7 @@ import { getRelatedTagsForMany, tagBySlug, getActiveTags } from '../services/spo
 
 export const configRouter: RouterType = Router();
 
-// GET /api/config/categories — public, returns enabled + comingSoon categories
+// GET /api/config/categories - public, returns enabled + comingSoon categories
 configRouter.get('/categories', async (_req, res) => {
   try {
     const categories = await getVisibleCategories();
@@ -36,7 +36,7 @@ configRouter.get('/categories', async (_req, res) => {
   }
 });
 
-// GET /api/config/polymarket-tags?seeds=Culture,Entertainment — tags that co-occur with seed tags
+// GET /api/config/polymarket-tags?seeds=Culture,Entertainment - tags that co-occur with seed tags
 configRouter.get('/polymarket-tags', async (req, res) => {
   try {
     const seeds = (req.query.seeds as string || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -63,12 +63,12 @@ configRouter.get('/polymarket-tags', async (req, res) => {
 
 // GET /api/config/pool-subcategories?league=PM_POLITICS
 // Sidebar filters with live pool counts, in two passes:
-//   1. CURATED — the category's admin-defined subcategory whitelist (keeps out
+//   1. CURATED - the category's admin-defined subcategory whitelist (keeps out
 //      noise like the broad "Politics" tag, promo/automation tags, cross-category
 //      tags), counted by TAG MEMBERSHIP. A pool counts toward EVERY curated tag it
 //      carries (multi-tag) rather than one "winning" bucket, so filters are full
 //      and no pool is lost to precedence. Returned in the admin's priority order.
-//   2. FALLBACK — if the whitelist matches no pool (mislabeled or unconfigured),
+//   2. FALLBACK - if the whitelist matches no pool (mislabeled or unconfigured),
 //      auto-derive filters from the pools' REAL tags so the category still shows
 //      useful, counted filters. Operational/promo junk and the broad parent tag
 //      are excluded; results are ordered by frequency and capped.
@@ -86,7 +86,7 @@ configRouter.get('/pool-subcategories', async (req, res) => {
       select: { tags: true },
     });
 
-    // Pass 1 — curated whitelist facets.
+    // Pass 1 - curated whitelist facets.
     const counts: Record<string, number> = {};
     for (const p of pools) {
       try {
@@ -105,7 +105,7 @@ configRouter.get('/pool-subcategories', async (req, res) => {
       .map(([label, count]) => ({ label, count }))
       .sort((a, b) => order.indexOf(a.label) - order.indexOf(b.label));
 
-    // Pass 2 — fallback to real tags when the whitelist matched nothing.
+    // Pass 2 - fallback to real tags when the whitelist matched nothing.
     if (data.length === 0 && pools.length > 0) {
       const parents = new Set((await getCategoryParentTags(league)).map(t => t.trim().toLowerCase()));
       const raw: Record<string, number> = {};
@@ -186,7 +186,7 @@ configRouter.get('/pool-tags', async (req, res) => {
 });
 
 // GET /api/config/pm-related-tags?tagIds=100265,154
-// Polymarket's official ranked sub-tags for a category's parent tag(s) — the
+// Polymarket's official ranked sub-tags for a category's parent tag(s) - the
 // source for the admin "Sidebar Filters" picker (only real PM tags, no free text).
 configRouter.get('/pm-related-tags', async (req, res) => {
   try {
@@ -199,7 +199,7 @@ configRouter.get('/pm-related-tags', async (req, res) => {
   }
 });
 
-// GET /api/config/pm-tags?q=geo — Polymarket tags that appear on active events
+// GET /api/config/pm-tags?q=geo - Polymarket tags that appear on active events
 // (clean, ranked, operational tags filtered). Source for the admin tag picker.
 configRouter.get('/pm-tags', async (req, res) => {
   try {
@@ -212,7 +212,7 @@ configRouter.get('/pm-tags', async (req, res) => {
   }
 });
 
-// GET /api/config/pm-tag?name=Geopolitics — resolve a typed category tag name to
+// GET /api/config/pm-tag?name=Geopolitics - resolve a typed category tag name to
 // its Gamma tag_id (so the admin never types raw ids). Returns null if PM has none.
 configRouter.get('/pm-tag', async (req, res) => {
   try {
@@ -226,7 +226,7 @@ configRouter.get('/pm-tag', async (req, res) => {
   }
 });
 
-// GET /api/config/sportsdb-sports — list available sports from TheSportsDB
+// GET /api/config/sportsdb-sports - list available sports from TheSportsDB
 configRouter.get('/sportsdb-sports', async (_req, res) => {
   try {
     const data = await sportsDbFetch('all_sports.php');
@@ -237,7 +237,7 @@ configRouter.get('/sportsdb-sports', async (_req, res) => {
   }
 });
 
-// GET /api/config/sportsdb-leagues?sport=Basketball — list leagues for a sport
+// GET /api/config/sportsdb-leagues?sport=Basketball - list leagues for a sport
 configRouter.get('/sportsdb-leagues', async (req, res) => {
   try {
     const sport = req.query.sport as string;

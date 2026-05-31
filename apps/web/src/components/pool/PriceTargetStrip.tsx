@@ -20,7 +20,7 @@ interface PriceTargetStripProps {
 /**
  * Slim 3-cell row that sits between the header and the chart, matching the
  * Polymarket layout: "Price To Beat | Current Price | countdown". Replaces
- * the old PoolInfoCards block — same essential info, far less chrome.
+ * the old PoolInfoCards block - same essential info, far less chrome.
  */
 export function PriceTargetStrip({
   strikePrice,
@@ -38,7 +38,7 @@ export function PriceTargetStrip({
   const finalNum = finalPrice ? Number(finalPrice) / USDC_DIVISOR : null;
   const delta = liveNum != null && strikeNum != null ? liveNum - strikeNum : null;
   const priceUp = delta != null ? delta >= 0 : null;
-  // Delta decimals follow the magnitude of the strike itself — a SOL pool
+  // Delta decimals follow the magnitude of the strike itself - a SOL pool
   // (strike ~82) wants 4 places, a BTC pool (strike ~73k) wants 2.
   const deltaDecimals = strikeNum != null ? priceDecimalsFor(strikeNum) : 2;
 
@@ -53,17 +53,17 @@ export function PriceTargetStrip({
         pb: { xs: 1, md: 1.25 },
       }}
     >
-      {/* Price To Beat — the strike captured when the pool opened. */}
+      {/* Price To Beat - the strike captured when the pool opened. */}
       <Box>
         <Typography sx={{ fontSize: { xs: '0.62rem', md: '0.7rem' }, fontWeight: 600, color: t.text.tertiary, letterSpacing: '0.02em' }}>
           Price To Beat
         </Typography>
         <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: t.text.tertiary, fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>
-          {strikeNum != null ? formatLivePrice(strikeNum) : '—'}
+          {strikeNum != null ? formatLivePrice(strikeNum) : '-'}
         </Typography>
       </Box>
 
-      {/* Current Price — live tick from Pacifica, with a tiny ±delta chip. */}
+      {/* Current Price - live tick from Pacifica, with a tiny ±delta chip. */}
       <Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           <Typography sx={{ fontSize: { xs: '0.62rem', md: '0.7rem' }, fontWeight: 600, color: t.accent, letterSpacing: '0.02em' }}>
@@ -92,11 +92,11 @@ export function PriceTargetStrip({
             ? formatLivePrice(finalNum)
             : liveNum != null
               ? <AnimatedValue value={liveNum} prefix="$" duration={0.4} decimals={priceDecimalsFor(liveNum)} />
-              : '—'}
+              : '-'}
         </Typography>
       </Box>
 
-      {/* Countdown — right-aligned mirror of the Polymarket "04 MINS 33 SECS" pill. */}
+      {/* Countdown - right-aligned mirror of the Polymarket "04 MINS 33 SECS" pill. */}
       {isLive && endTime && (
         <Box sx={{ ml: 'auto', textAlign: 'right' }}>
           <Countdown targetDate={endTime} compact compactFontSize={{ xs: '1rem', md: '1.4rem' }} />

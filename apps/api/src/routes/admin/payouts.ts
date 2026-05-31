@@ -27,7 +27,7 @@ import { ResolverDeps } from '../../scheduler/resolver-types';
 export const adminPayoutsRouter: RouterType = Router();
 export const adminWalletRouter: RouterType = Router();
 
-// Shared deps helper — mirrors scheduler bootstrap so retries can use the
+// Shared deps helper - mirrors scheduler bootstrap so retries can use the
 // same authority wallet + price provider as the cron job.
 function buildResolverDeps(): ResolverDeps {
   return {
@@ -133,7 +133,7 @@ adminPayoutsRouter.get('/failed', async (_req, res) => {
 // POST /admin/payouts/:betId/retry
 // Clears the failed flag on a single bet and immediately re-runs the
 // scheduler's auto-claim path for that bet's pool. The pool-scoped retry
-// is safe — it's idempotent against other already-paid bets in the pool.
+// is safe - it's idempotent against other already-paid bets in the pool.
 // ---------------------------------------------------------------------------
 adminPayoutsRouter.post('/:betId/retry', async (req, res) => {
   try {
@@ -170,7 +170,7 @@ adminPayoutsRouter.post('/:betId/retry', async (req, res) => {
       },
     });
 
-    // Fire-and-forget — admin doesn't need to wait for the on-chain confirm.
+    // Fire-and-forget - admin doesn't need to wait for the on-chain confirm.
     const deps = buildResolverDeps();
     autoClaimBets(deps, bet.pool).catch(err => {
       console.error('[Admin] retry autoClaimBets crashed:', err);
@@ -389,7 +389,7 @@ adminWalletRouter.get('/balance', async (_req, res) => {
       const account = await getAccount(connection, feeWallet);
       usdc = account.amount.toString();
     } catch {
-      // USDC ATA may not exist yet — leave at 0.
+      // USDC ATA may not exist yet - leave at 0.
     }
 
     res.json({

@@ -698,7 +698,7 @@ export function TournamentManagement() {
       {/* Assign Matchday Dialog */}
       <Dialog open={!!assignDialog} onClose={() => setAssignDialog(null)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          Assign Matchday —
+          Assign Matchday -
           <FormControl size="small" sx={{ minWidth: 130 }}>
             <Select value={assignRound} onChange={(e) => { setAssignRound(Number(e.target.value)); setAssignSelectedIds(new Set()); }}>
               {Array.from({ length: assignDialog?.totalRounds || 1 }, (_, i) => i + 1).map(r => (
@@ -795,7 +795,7 @@ export function TournamentManagement() {
                 {conflicts.length === 1
                   ? `"${conflicts[0].label}" is already assigned to Round ${conflicts[0].round}.`
                   : `${conflicts.length} selected matches are already assigned to other rounds.`}
-                {' '}You can still assign them — they will appear in both rounds.
+                {' '}You can still assign them - they will appear in both rounds.
               </Alert>
             );
           })()}
@@ -838,7 +838,7 @@ export function TournamentManagement() {
 
       {/* Resolve Matchday Dialog */}
       <Dialog open={!!resolveDialog} onClose={() => setResolveDialog(null)} maxWidth="sm" fullWidth>
-        <DialogTitle>Resolve Round {resolveDialog?.round} — Enter Scores</DialogTitle>
+        <DialogTitle>Resolve Round {resolveDialog?.round} - Enter Scores</DialogTitle>
         <DialogContent>
           {resolveFixtures.length > 0 ? (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, pt: 1 }}>

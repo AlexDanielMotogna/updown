@@ -36,7 +36,7 @@ export function getRoundLabel(round: number, totalRounds: number): string {
 }
 
 export function formatPrice(price: string | null | undefined): string {
-  if (!price) return '—';
+  if (!price) return '-';
   const n = Number(price) / 1_000_000;
   return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -66,7 +66,7 @@ export function parseMatchdayPrediction(raw: string | null): MatchdayPrediction 
 }
 
 export function formatOutcome(outcome: string | null | undefined, sideLabels?: string[]): string {
-  if (!outcome) return '—';
+  if (!outcome) return '-';
   // Dynamic: map key back to display label
   if (sideLabels) {
     const idx = sideLabels.findIndex(l => l.toUpperCase() === outcome);
@@ -81,7 +81,7 @@ export function formatOutcome(outcome: string | null | undefined, sideLabels?: s
   if (n === 1) return 'Home';
   if (n === 2) return 'Draw';
   if (n === 3) return 'Away';
-  return '—';
+  return '-';
 }
 
 /** Format kickoff time for display */
@@ -103,7 +103,7 @@ export function formatKickoff(kickoff: string | null | undefined): string {
 export const DEFAULT_SIDE_LABELS = ['Home', 'Draw', 'Away'];
 
 export function formatScore(correct: number | null | undefined, total: number): string {
-  if (correct == null) return '—';
+  if (correct == null) return '-';
   return `${correct}/${total}`;
 }
 

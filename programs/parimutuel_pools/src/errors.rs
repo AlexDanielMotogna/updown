@@ -50,7 +50,7 @@ pub enum PoolError {
     #[msg("Fee basis points must be <= 10000")]
     InvalidFeeBps,
 
-    #[msg("Vault still has tokens — all claims/refunds must be processed first")]
+    #[msg("Vault still has tokens - all claims/refunds must be processed first")]
     VaultNotEmpty,
 
     #[msg("Invalid side for this pool (e.g., Draw on a 2-side pool)")]

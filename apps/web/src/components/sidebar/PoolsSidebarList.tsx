@@ -152,7 +152,7 @@ export function PoolsSidebarList({ pools, newIds, liveScores, categoryMap }: Poo
                     )}
                   </Box>
 
-                  {/* Row 2+3: Result / live status — fixed height so cards don't shift */}
+                  {/* Row 2+3: Result / live status - fixed height so cards don't shift */}
                   <Box sx={{ minHeight: 32 }}>
                     {isMatchLive ? (
                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

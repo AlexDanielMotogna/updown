@@ -47,7 +47,7 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
   const league = pool.league || '';
   const winnerLabel = isResolved && pool.winner === 'UP' ? (isPrediction ? 'Yes' : pool.homeTeam) : pool.winner === 'DOWN' ? (isPrediction ? 'No' : pool.awayTeam) : pool.winner === 'DRAW' ? 'Draw' : null;
 
-  // Live match data — never show live if pool is already resolved
+  // Live match data - never show live if pool is already resolved
   const matchLive = !isResolved && liveScore && isMatchActive(liveScore);
   const matchFinished = !isResolved && liveScore && isMatchFinished(liveScore.status);
   const isLocked = !isResolved && pool.lockTime && new Date(pool.lockTime).getTime() < Date.now();

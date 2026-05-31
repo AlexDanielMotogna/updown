@@ -21,7 +21,7 @@ export function PoolDetailSkeleton() {
     >
       {/* Main column */}
       <Box>
-        {/* Header — colored tile + title/window + share icons */}
+        {/* Header - colored tile + title/window + share icons */}
         <Box sx={{ px: { xs: 2, md: 3 }, py: { xs: 1.5, md: 2 }, display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Skeleton variant="rounded" width={56} height={56} sx={{ bgcolor: t.border.default, borderRadius: 1.5 }} />
           <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -32,7 +32,7 @@ export function PoolDetailSkeleton() {
             {[1, 2, 3].map(i => <Skeleton key={i} variant="rounded" width={28} height={28} sx={{ bgcolor: t.border.subtle, borderRadius: 1 }} />)}
           </Box>
         </Box>
-        {/* Price strip — strike / current / countdown */}
+        {/* Price strip - strike / current / countdown */}
         <Box sx={{ px: { xs: 2, md: 3 }, pb: 1.25, display: 'flex', gap: 4, alignItems: 'flex-end' }}>
           {[1, 2].map(i => (
             <Box key={i}>

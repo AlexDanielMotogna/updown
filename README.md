@@ -249,12 +249,12 @@ NEXT_PUBLIC_USDC_MINT=Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr
 
 ### Events
 
-- `PoolCreated` — New pool initialized with strike price
-- `Deposited` — User deposited USDC to pool
-- `PoolResolved` — Pool resolved with winner
-- `PayoutClaimed` — User claimed payout
-- `Refunded` — One-sided pool refunded
-- `PoolClosed` — Empty/resolved pool closed
+- `PoolCreated` - New pool initialized with strike price
+- `Deposited` - User deposited USDC to pool
+- `PoolResolved` - Pool resolved with winner
+- `PayoutClaimed` - User claimed payout
+- `Refunded` - One-sided pool refunded
+- `PoolClosed` - Empty/resolved pool closed
 
 ### PDA Seeds
 

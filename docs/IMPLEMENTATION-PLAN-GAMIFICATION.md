@@ -1,4 +1,4 @@
-# Implementation Plan — Gamification, Status & Cold-Start
+# Implementation Plan - Gamification, Status & Cold-Start
 
 > Tactical follow-up to [STRATEGY-COLD-START-AND-XP.md](./STRATEGY-COLD-START-AND-XP.md).
 > Merges the 10-agent codebase audit with the 8-problem product brief from the
@@ -6,11 +6,11 @@
 > what order, with file-level pointers and concrete eng cost.
 >
 > **Date**: 2026-05-30
-> **Status**: ACTIONABLE PLAN — pending sequencing approval.
+> **Status**: ACTIONABLE PLAN - pending sequencing approval.
 
 ---
 
-## 0. Foundation — the three loops we're building toward
+## 0. Foundation - the three loops we're building toward
 
 Every feature in this plan reinforces one (or more) of these three loops.
 If a feature doesn't feed a loop, we cut it.
@@ -44,7 +44,7 @@ Acquisition cost approaches zero if the loop closes.
 
 ---
 
-## 1. Problem #1 — Users Don't Know Their Payout
+## 1. Problem #1 - Users Don't Know Their Payout
 
 **Founder's idea**: don't display "$523 YES / $347 NO". Display
 "YES 1.66x / NO 2.51x". Users instantly understand "if I'm right, I roughly
@@ -57,7 +57,7 @@ On an empty pool, `MarketCard` even falls back to a hardcoded `2.0x` /
 `3.0x` that doesn't match the real `1.0x` the bet form computes
 (`apps/web/src/components/MarketCard.tsx:116-119`).
 
-**Recommendation**: ship dual display everywhere — keep the % bar visualisation
+**Recommendation**: ship dual display everywhere - keep the % bar visualisation
 (it conveys "balance of opinion") and add the multiplier next to it as the
 primary numeric. Strip the misleading 2.0x fallback.
 
@@ -68,13 +68,13 @@ multiplier = totalPool / sideTotal     // when sideTotal > 0
 ```
 
 **Where to ship**:
-- `apps/web/src/components/MarketCard.tsx` — primary card.
-- `apps/web/src/components/FeaturedHero.tsx` — outcomes panel.
-- `apps/web/src/components/bet/SideSelector.tsx` — selection UI.
-- `apps/web/src/app/match/[id]/page.tsx` — match detail.
+- `apps/web/src/components/MarketCard.tsx` - primary card.
+- `apps/web/src/components/FeaturedHero.tsx` - outcomes panel.
+- `apps/web/src/components/bet/SideSelector.tsx` - selection UI.
+- `apps/web/src/app/match/[id]/page.tsx` - match detail.
 
 **Cold-start handling**: when multiplier is 1.0x, swap the number for the
-text "Be first — auto-refunded if alone" (the safety-net surfacing from
+text "Be first - auto-refunded if alone" (the safety-net surfacing from
 strategy-doc Rank 0). That's a feature, not an awkward edge case.
 
 **Eng**: S (1-2 days, frontend only).
@@ -83,7 +83,7 @@ strategy-doc Rank 0). That's a feature, not an awkward edge case.
 
 ---
 
-## 2. Problem #2 — Scale XP With Stake Size
+## 2. Problem #2 - Scale XP With Stake Size
 
 **Founder's idea**: bigger bets earn more XP. $1 → 1 XP, $10 → 12 XP,
 $100 → 150 XP. Larger bettors level up faster.
@@ -92,7 +92,7 @@ $100 → 150 XP. Larger bettors level up faster.
 (`apps/api/src/services/rewards.ts:awardBetResolution`). Coins ARE
 stake-scaled (0.10 UP per $1) but XP is not. The flat-XP rule was
 introduced after the
-[XP-farming bug](../MEMORY.md#xp-farming-placement) — moving XP from
+[XP-farming bug](../MEMORY.md#xp-farming-placement) - moving XP from
 deposit-time to resolution-time killed the dust-bet farm. Stake-scaling
 opens a new attack surface unless we cap.
 
@@ -104,7 +104,7 @@ XP. Without a guardrail this is a clean farm.
 **Recommendation**: ship stake-scaled XP **with a hard cap** so the curve
 plateaus before farming becomes attractive. Two options:
 
-**Option A — table-based (closer to founder's spec, simpler)**:
+**Option A - table-based (closer to founder's spec, simpler)**:
 | Stake band (USDC) | XP per resolved bet |
 |---|---|
 | $0-$1 | 10 |
@@ -113,13 +113,13 @@ plateaus before farming becomes attractive. Two options:
 | $50-$200 | 150 |
 | $200+ | 200 (cap) |
 
-**Option B — square-root scaling (smooth, no cliffs)**:
+**Option B - square-root scaling (smooth, no cliffs)**:
 ```
 xp = min(200, floor(100 * sqrt(stake / 10)))
 // $1 → 32, $10 → 100, $100 → 200 (cap)
 ```
 
-I'd ship **Option A** — easier to communicate ("the more you stake, the
+I'd ship **Option A** - easier to communicate ("the more you stake, the
 more XP, up to 200"), and a flat tier table is easier to display in the
 profile.
 
@@ -132,10 +132,10 @@ profile.
   guard as today's bug fix).
 
 **Where to ship**:
-- `apps/api/src/services/rewards.ts` — replace flat `100` with table lookup.
-- `apps/api/src/utils/coins.ts` — already does stake-scaled; mirror the
+- `apps/api/src/services/rewards.ts` - replace flat `100` with table lookup.
+- `apps/api/src/utils/coins.ts` - already does stake-scaled; mirror the
   function for XP.
-- `docs/REWARDS-XP-LEVELS.md` — update spec.
+- `docs/REWARDS-XP-LEVELS.md` - update spec.
 
 **Eng**: S (API only).
 **Risk**: $0 (virtual XP). Mitigated farm risk by cap + daily XP cap.
@@ -143,7 +143,7 @@ profile.
 
 ---
 
-## 3. Problem #3 — No Visible Status / Unlockables
+## 3. Problem #3 - No Visible Status / Unlockables
 
 **Founder's idea**: levels unlock visible perks, not just fee discounts:
 
@@ -170,7 +170,7 @@ concept, no VIP leaderboard.
 | 2 | "Welcome" badge | `User.badges JSON` |
 | 5 | Tier 1 profile badge ring (animated SVG) | CSS class on `UserLevelBadge` |
 | 10 | Custom avatar upload (256×256, 200KB cap) | S3/Vercel Blob, `User.avatarUrl` |
-| 15 | Fee discount tier 3 (existing) + flair | — |
+| 15 | Fee discount tier 3 (existing) + flair | - |
 | 20 | Premium pool entry (Lv20+ only) | `Pool.minLevel` field |
 | 25 | Custom display name (vs wallet) | `User.displayName` (validated) |
 | 30 | VIP leaderboard tab | New leaderboard filter |
@@ -192,12 +192,12 @@ become user-tunable.
 **Where to ship**:
 - Schema: add `User.badges JSON`, `User.avatarUrl`, `User.displayName`,
   `Pool.minLevel`.
-- `apps/api/src/services/rewards.ts` — grant level badges on `awardBetWin`
+- `apps/api/src/services/rewards.ts` - grant level badges on `awardBetWin`
   level-up branch.
-- `apps/api/src/routes/users.ts` — endpoints for avatar/display-name set.
-- `apps/web/src/components/UserLevelBadge.tsx` — new tier-styled variants.
-- `apps/web/src/components/profile/*` — badge gallery + avatar upload.
-- `apps/web/src/components/MarketCard.tsx` — show "Lv20+ pool" chip if gated.
+- `apps/api/src/routes/users.ts` - endpoints for avatar/display-name set.
+- `apps/web/src/components/UserLevelBadge.tsx` - new tier-styled variants.
+- `apps/web/src/components/profile/*` - badge gallery + avatar upload.
+- `apps/web/src/components/MarketCard.tsx` - show "Lv20+ pool" chip if gated.
 
 **Eng**: M (avatar upload is the heaviest piece). Badges + display name + 
 pool gating are S each.
@@ -207,7 +207,7 @@ identity).
 
 ---
 
-## 4. Problem #4 — Nobody Cares About Being Right (Reputation)
+## 4. Problem #4 - Nobody Cares About Being Right (Reputation)
 
 **Founder's idea**: per-category reputation. "BTC Expert", "Top 1%
 Predictor", "ETH Master", "30-day Accuracy Champion", visible win rate.
@@ -216,13 +216,13 @@ Predictor", "ETH Master", "30-day Accuracy Champion", visible win rate.
 `User` but **no per-category breakdown**, no expert tags, no historical
 accuracy windowing. Reputation as a concept doesn't exist in code.
 
-This is the **biggest missing piece from my original strategy doc** — the
+This is the **biggest missing piece from my original strategy doc** - the
 audit found social/squads were broken, but didn't propose reputation.
 Founder's framing is sharper.
 
 **Recommendation**: ship a per-category reputation system in three layers.
 
-### Layer 1 — raw stats (foundation)
+### Layer 1 - raw stats (foundation)
 A denormalised `UserCategoryStat` table:
 ```prisma
 model UserCategoryStat {
@@ -241,7 +241,7 @@ model UserCategoryStat {
 ```
 Updated on every bet resolution. Async job recomputes `accuracy30d` daily.
 
-### Layer 2 — badges (issued automatically)
+### Layer 2 - badges (issued automatically)
 A `Badge` table + `UserBadge` join. Auto-issued by an evaluator job:
 
 | Badge | Criterion | Tier |
@@ -257,7 +257,7 @@ A `Badge` table + `UserBadge` join. Auto-issued by an evaluator job:
 
 Evaluator runs nightly + on every level-up event.
 
-### Layer 3 — display
+### Layer 3 - display
 - Profile shows top 3 badges + per-category accuracy table.
 - Market card / hero shows the bettor's badge tier next to recent bet
   events ("Alice the BTC Expert just bet $50 UP").
@@ -267,16 +267,16 @@ Evaluator runs nightly + on every level-up event.
 **Cold-start of the reputation system itself**: a user with 2 bets at
 100% isn't an expert. Every badge has a **minimum sample size** before it
 can be awarded (typically 10-20 bets). This is the most important detail
-— it kills inflated reputation from luck.
+- it kills inflated reputation from luck.
 
 **Where to ship**:
 - Prisma schema: 3 new tables.
-- `apps/api/src/services/reputation.ts` — NEW: stats updater + badge
+- `apps/api/src/services/reputation.ts` - NEW: stats updater + badge
   evaluator.
-- `apps/api/src/scheduler/` — nightly evaluator job.
-- `apps/api/src/routes/users.ts` — expose stats + badges in profile API.
-- `apps/web/src/components/profile/` — badge gallery, accuracy chart.
-- `apps/web/src/components/LeaderboardTable.tsx` — category filter +
+- `apps/api/src/scheduler/` - nightly evaluator job.
+- `apps/api/src/routes/users.ts` - expose stats + badges in profile API.
+- `apps/web/src/components/profile/` - badge gallery, accuracy chart.
+- `apps/web/src/components/LeaderboardTable.tsx` - category filter +
   accuracy sort.
 
 **Eng**: M-L (this is the biggest single feature in the plan). 1-1.5
@@ -287,7 +287,7 @@ loop doesn't exist. Highest strategic ROI in the plan.
 
 ---
 
-## 5. Problem #5 — Small Pools / Community Liquidity
+## 5. Problem #5 - Small Pools / Community Liquidity
 
 **Founder's idea**: pool boosts. When a pool hits a size milestone, all
 participants retroactively earn bonus XP:
@@ -304,11 +304,11 @@ B1 (house seed at pool creation) and E1 (early-bird at bet placement),
 but neither rewards community-wide pool growth.
 
 **Recommendation**: ship pool-boost milestones as a clean addition.
-Compounds with house seeding (B1) and early-bird (E1) — three different
+Compounds with house seeding (B1) and early-bird (E1) - three different
 levers all pulling the same way.
 
 ### Mechanics
-- Track `Pool.boostMilestoneReached` (0, 100, 500, 1000) — biggest
+- Track `Pool.boostMilestoneReached` (0, 100, 500, 1000) - biggest
   threshold the pool ever passed (real volume, **excluding house seed**).
 - On resolution, for every participant of a pool that hit milestone M,
   award the milestone XP bonus.
@@ -325,7 +325,7 @@ levers all pulling the same way.
 | $10,000 | +5,000 XP |
 
 The higher tiers exist for crypto rounds that occasionally explode in
-volume — they make those pools legendary.
+volume - they make those pools legendary.
 
 ### Anti-farm
 - Real-bet total excludes the house seed wallet (B1 tag).
@@ -335,16 +335,16 @@ volume — they make those pools legendary.
 
 ### Cold-start fit
 Milestone hits are surfaced as in-app notifications **per category**:
-"BTC round just crossed $1K — all bettors earn +500 XP". Real users see
+"BTC round just crossed $1K - all bettors earn +500 XP". Real users see
 the celebration and pile into the next round.
 
 **Where to ship**:
 - Prisma: `Pool.boostMilestoneReached BigInt @default(0)`.
-- `apps/api/src/services/pool-resolver.ts` — on resolution, compute final
+- `apps/api/src/services/pool-resolver.ts` - on resolution, compute final
   real-bet total, award per-tier XP to each participant.
-- `apps/api/src/services/notifications.ts` — broadcast milestone events
+- `apps/api/src/services/notifications.ts` - broadcast milestone events
   to category subscribers.
-- `apps/web/src/components/MarketCard.tsx` — milestone progress bar.
+- `apps/web/src/components/MarketCard.tsx` - milestone progress bar.
 
 **Eng**: S-M.
 **Risk**: $0.
@@ -353,14 +353,14 @@ behavior).
 
 ---
 
-## 6. Problem #6 — Daily Streaks
+## 6. Problem #6 - Daily Streaks
 
 **Founder's idea**: login streaks. 3 days → 50 XP, 7 → 200 XP, 30 →
 exclusive badge, 100 → legendary status.
 
 **Audit finding**: today only **win streak** exists. Day streak doesn't.
 The existing `User.currentStreak` field is win-based and resets on a
-single loss — exactly the anti-pattern this proposal fixes.
+single loss - exactly the anti-pattern this proposal fixes.
 
 This aligns with my strategy doc proposal G1 (participation streak).
 
@@ -393,7 +393,7 @@ care about consecutive days. Losing a bet doesn't kill day streak.
 
 **Surface**:
 - Profile shows both streaks with separate visual treatment.
-- Daily login (or any in-app action) shows "🔥 Day 7 — bet today to keep
+- Daily login (or any in-app action) shows "🔥 Day 7 - bet today to keep
   it alive" banner if streak is alive but no bet placed today.
 - Streak break sends a notification + offer "comeback bonus" (strategy
   doc H2).
@@ -401,11 +401,11 @@ care about consecutive days. Losing a bet doesn't kill day streak.
 **Where to ship**:
 - Prisma: `User.activeDayStreak Int @default(0)`,
   `User.lastActiveStreakDate DateTime?`.
-- `apps/api/src/services/rewards.ts:awardBetResolution` — update streak
+- `apps/api/src/services/rewards.ts:awardBetResolution` - update streak
   before XP grant.
-- `apps/api/src/services/notifications.ts` — milestone celebration +
+- `apps/api/src/services/notifications.ts` - milestone celebration +
   streak-at-risk reminder.
-- `apps/web/src/components/profile/` — display.
+- `apps/web/src/components/profile/` - display.
 
 **Eng**: S.
 **Risk**: $0.
@@ -413,7 +413,7 @@ care about consecutive days. Losing a bet doesn't kill day streak.
 
 ---
 
-## 7. Problem #7 — Early Bird Bonuses
+## 7. Problem #7 - Early Bird Bonuses
 
 **Founder's idea**: first 10 participants get +25% XP, +50 coins, "Early
 Predictor" badge.
@@ -422,7 +422,7 @@ Predictor" badge.
 Founder's version is sharper: **first N participants by count**, not by
 time. More meaningful on small pools and easier to communicate.
 
-**Recommendation**: combine both — the OR-trigger is more generous and
+**Recommendation**: combine both - the OR-trigger is more generous and
 covers both fast-growing and slow-growing pools.
 
 ### Trigger
@@ -433,7 +433,7 @@ A bet is "early" if **either**:
 ### Rewards
 - +25% XP on the bet's resolution.
 - +50 UP coins immediately on deposit confirm (capped by daily UP cap).
-- "Early Predictor" badge on the user's profile (one-time, repeating —
+- "Early Predictor" badge on the user's profile (one-time, repeating -
   one badge issued per pool you were early on, tracked as a count).
 
 ### Cold-start framing (the whole point)
@@ -448,10 +448,10 @@ Three reinforcing wins versus the current single neutral "1.0x".
 
 **Where to ship**:
 - Prisma: persist `Bet.earlyOrder Int?` (1-10) and `Bet.earlyByTime Bool`.
-- `apps/api/src/routes/deposits.ts:confirmDeposit` — set fields atomically.
-- `apps/api/src/services/rewards.ts` — apply 25% multiplier on resolution.
-- `apps/api/src/services/coins.ts` — grant 50 UP at deposit confirm.
-- `apps/web/src/components/bet/PayoutPreview.tsx` — "First 10 only — claim
+- `apps/api/src/routes/deposits.ts:confirmDeposit` - set fields atomically.
+- `apps/api/src/services/rewards.ts` - apply 25% multiplier on resolution.
+- `apps/api/src/services/coins.ts` - grant 50 UP at deposit confirm.
+- `apps/web/src/components/bet/PayoutPreview.tsx` - "First 10 only - claim
   your bonus" chip.
 
 **Eng**: S-M.
@@ -460,21 +460,21 @@ Three reinforcing wins versus the current single neutral "1.0x".
 
 ---
 
-## 8. Problem #8 — Losing Feels Terrible
+## 8. Problem #8 - Losing Feels Terrible
 
 **Founder's idea**: losers still get XP, coins, streak progression, and
 reputation updates. Lost-but-rewarded experience.
 
 **Audit finding**: today losers DO get 100 XP for participation, but they
 get **zero UP coins** and the win streak resets on loss. Streak is
-asymmetric — wins bank value, losses erase value-in-progress.
+asymmetric - wins bank value, losses erase value-in-progress.
 
 **Recommendation**: smooth the loss curve with three changes.
 
 ### 1. Losers earn a fraction of base coins
 Today: only winners earn coins. Tomorrow: losers earn 25% of base coins
 (same daily cap applies). Wins still earn full base + win bonus +
-streak bonus — winners remain ahead by a wide margin.
+streak bonus - winners remain ahead by a wide margin.
 
 Why 25%, not 50%: we want winning to feel meaningfully better.
 
@@ -494,18 +494,18 @@ loss-prevention design.
 
 ### 4. Reputation accuracy isn't punished excessively
 Per-category accuracy tracks the last 30 days. A single loss in BTC
-moves your win rate from 70% to ~68% — visible but not destructive.
+moves your win rate from 70% to ~68% - visible but not destructive.
 
 **Where to ship**:
-- `apps/api/src/services/rewards.ts:awardBetResolution` — branch for
+- `apps/api/src/services/rewards.ts:awardBetResolution` - branch for
   loser path that awards 25%-base coins.
-- `apps/api/src/services/notifications.ts` — loss-toast copy + payload.
-- `apps/web/src/components/NotificationToasts.tsx` — loss notification
+- `apps/api/src/services/notifications.ts` - loss-toast copy + payload.
+- `apps/web/src/components/NotificationToasts.tsx` - loss notification
   layout includes XP/coin/streak block.
 
 **Eng**: S.
 **Risk**: $0. Note: gives losers a small coin trickle, which could be
-farmed — protected by the daily UP cap (already enforced).
+farmed - protected by the daily UP cap (already enforced).
 **Loop**: Core Loop (habit retention through emotional smoothing).
 
 ---
@@ -526,12 +526,12 @@ critical. Keeping them in the merged plan.
 
 ---
 
-## 10. The final shippable plan — 4 waves
+## 10. The final shippable plan - 4 waves
 
 Ordered by dependency and risk. Each wave is shippable on its own and
 generates user-visible improvement.
 
-### Wave 1 — surface + fix (1 week, zero risk)
+### Wave 1 - surface + fix (1 week, zero risk)
 *Goal: make the existing safety net + economy visible. Free wins.*
 
 | Feature | Source | Eng |
@@ -546,15 +546,15 @@ generates user-visible improvement.
 
 **Total ~1 week**. Zero database / contract changes. Pure UX leverage.
 
-### Wave 2 — economy foundation (3-4 weeks)
+### Wave 2 - economy foundation (3-4 weeks)
 *Goal: scale XP with stake, stand up the spend sink, seed liquidity.*
 
 | Feature | Source | Eng |
 |---|---|---|
 | Stake-scaled XP table + daily XP soft-cap (Problem #2) | Founder | S |
-| House seeding bot ($0.50/side, capped) — B1 | Strategy | M |
-| Founder's fee discount (first bettor pays 0) — A2 | Strategy | S |
-| UP Coins redemption catalog v1 (USDC + tournament + cosmetic) — G3 | Strategy | M |
+| House seeding bot ($0.50/side, capped) - B1 | Strategy | M |
+| Founder's fee discount (first bettor pays 0) - A2 | Strategy | S |
+| UP Coins redemption catalog v1 (USDC + tournament + cosmetic) - G3 | Strategy | M |
 | Early-bird bonuses (first 10 OR first 25%) (Problem #7) | Merged | S-M |
 | Loser coin trickle (25% of base) + participation day-streak (Problems #6, #8) | Founder | S |
 | Persist faucet cooldown + claim log to DB | Audit | S |
@@ -562,7 +562,7 @@ generates user-visible improvement.
 **Total ~3-4 weeks**. The four economic levers (house seed, fee discount,
 early bird, milestones) start compounding. Cold-start mostly solved.
 
-### Wave 3 — reputation + status (4-6 weeks)
+### Wave 3 - reputation + status (4-6 weeks)
 *Goal: stand up the Reputation Loop. The biggest single feature in this
 plan.*
 
@@ -573,23 +573,23 @@ plan.*
 | Profile badge gallery + per-category accuracy chart | Founder Problem #4 | M |
 | Leaderboard category filter + accuracy sort | Founder Problem #4 | S-M |
 | Level-gated unlocks: badge → avatar → display name → VIP leaderboard (Problem #3) | Founder | M |
-| Premium pool flag (`Pool.minLevel`) — for Lv20+ markets | Founder Problem #3 | S |
+| Premium pool flag (`Pool.minLevel`) - for Lv20+ markets | Founder Problem #3 | S |
 | Pool boost milestones ($100/$500/$1K/$5K/$10K → retro XP) (Problem #5) | Founder | S-M |
 | Pool boost in-app notifications by category | Founder Problem #5 | S |
 
 **Total ~4-6 weeks**. After this wave the platform feels like a community
 with identity, not a casino with skins.
 
-### Wave 4 — virality + retention (ongoing, parallel to Wave 3)
+### Wave 4 - virality + retention (ongoing, parallel to Wave 3)
 *Goal: drive acquisition via existing users and pull dormant users back.*
 
 | Feature | Source | Eng |
 |---|---|---|
-| Challenge link — D3 (viral cold-start fix) | Strategy | M |
-| Comeback bonus after 3+ days inactive — H2 | Strategy | S |
-| Service worker + Web Push for category alerts — H1 | Strategy | M |
-| Weekly quests / side missions — G2 | Strategy | M |
-| Real squad shared pools (members co-deposit, shared payout) — D1 variant | Strategy + Founder | L |
+| Challenge link - D3 (viral cold-start fix) | Strategy | M |
+| Comeback bonus after 3+ days inactive - H2 | Strategy | S |
+| Service worker + Web Push for category alerts - H1 | Strategy | M |
+| Weekly quests / side missions - G2 | Strategy | M |
+| Real squad shared pools (members co-deposit, shared payout) - D1 variant | Strategy + Founder | L |
 
 **Total ~ongoing**. Wave 4 features can ship in parallel with Wave 3 as
 capacity allows.
@@ -601,17 +601,17 @@ capacity allows.
 These are good ideas that either (a) need a contract change, (b) depend
 on real users, or (c) have unclear ROI today.
 
-- **E2 pool extension** (extend `lock_time` if undersubscribed) — needs
+- **E2 pool extension** (extend `lock_time` if undersubscribed) - needs
   Anchor instruction change. Defer until metric "pools refunded due to
   undersubscription" justifies it.
-- **Refund mechanism without fee** — needs Anchor change to `claim_winnings`
+- **Refund mechanism without fee** - needs Anchor change to `claim_winnings`
   to accept a "zero-fee refund" path. Reconsider when we have real users
   for whom 5% on refund is actual money lost.
-- **Token-powered network** (the long-term vision) — regulatory and
+- **Token-powered network** (the long-term vision) - regulatory and
   engineering surface is too large for this phase. Note as North Star.
-- **Premium markets** as a paid feature — Lv20+ access is free initially.
+- **Premium markets** as a paid feature - Lv20+ access is free initially.
   Paid access (e.g., subscription) is a later business decision.
-- **Predictit-style position caps** — solves a different problem (whale
+- **Predictit-style position caps** - solves a different problem (whale
   forecasting bias). Worth revisiting only after volume justifies.
 
 ---
@@ -621,18 +621,18 @@ on real users, or (c) have unclear ROI today.
 1. **Devnet or mainnet target?** Wave 1-2 work fine on devnet. Wave 3+
    (reputation, status) acquires real meaning only with real-money stakes.
    Decision affects timing of mainnet migration.
-2. **Stake-XP curve — table (Option A) or sqrt (Option B)?** Defaults to
+2. **Stake-XP curve - table (Option A) or sqrt (Option B)?** Defaults to
    Option A in this plan. Confirm.
-3. **Pool boost milestone amounts** — values in §5 are reasonable but not
+3. **Pool boost milestone amounts** - values in §5 are reasonable but not
    sacred. Want to tune?
-4. **Avatar storage — S3, Vercel Blob, or IPFS?** Affects ops cost +
+4. **Avatar storage - S3, Vercel Blob, or IPFS?** Affects ops cost +
    migration story.
-5. **Display name validation** — open text vs ENS-resolved vs whitelist?
+5. **Display name validation** - open text vs ENS-resolved vs whitelist?
    Profanity / impersonation risk if open text.
-6. **Founder's Club at Lv40** — what does it actually grant beyond the
+6. **Founder's Club at Lv40** - what does it actually grant beyond the
    badge? Optional invite to private Discord? Direct line to ops? This
    should be a product call.
-7. **Reputation minimum sample size** — proposed 20 bets for category
+7. **Reputation minimum sample size** - proposed 20 bets for category
    "Expert". Too high? Too low?
 
 ---
@@ -641,10 +641,10 @@ on real users, or (c) have unclear ROI today.
 
 | Wave | Calendar weeks | Eng days (rough) | Risk |
 |---|---:|---:|---|
-| 1 — Surface + fix | 1 | ~5 | $0 |
-| 2 — Economy foundation | 3-4 | ~15 | ~$3K/mo (B1 cap) + ~$1.5K/mo (G3 cap) |
-| 3 — Reputation + status | 4-6 | ~25 | $0 (virtual) |
-| 4 — Virality + retention | parallel | ~15 (can be split) | $0 (virtual) |
+| 1 - Surface + fix | 1 | ~5 | $0 |
+| 2 - Economy foundation | 3-4 | ~15 | ~$3K/mo (B1 cap) + ~$1.5K/mo (G3 cap) |
+| 3 - Reputation + status | 4-6 | ~25 | $0 (virtual) |
+| 4 - Virality + retention | parallel | ~15 (can be split) | $0 (virtual) |
 | **Total to "feature complete"** | **8-10 weeks** | **~60 days** | **~$5K/mo subsidy cap** |
 
 For a sense of scale: Kalshi spends ~$5M/month on MM rebates alone. This
@@ -695,46 +695,46 @@ codebase:
     `RedemptionCatalog`, `Redemption`
 
 **Backend**:
-- `apps/api/src/services/rewards.ts` — stake-scaled XP, loser coins,
+- `apps/api/src/services/rewards.ts` - stake-scaled XP, loser coins,
   participation streak, early-bird multiplier.
-- `apps/api/src/services/reputation.ts` (NEW) — stats updater + badge
+- `apps/api/src/services/reputation.ts` (NEW) - stats updater + badge
   evaluator.
-- `apps/api/src/services/pool-resolver.ts` — boost milestones at resolution.
-- `apps/api/src/services/notifications.ts` — squad-mate alerts, streak
+- `apps/api/src/services/pool-resolver.ts` - boost milestones at resolution.
+- `apps/api/src/services/notifications.ts` - squad-mate alerts, streak
   reminders, pool-boost celebrations, comeback notifications.
-- `apps/api/src/scheduler/` — house-seeding job, nightly reputation
+- `apps/api/src/scheduler/` - house-seeding job, nightly reputation
   evaluator, daily faucet log cleanup.
-- `apps/api/src/routes/users.ts` — avatar / display-name endpoints,
+- `apps/api/src/routes/users.ts` - avatar / display-name endpoints,
   stats + badges endpoints.
-- `apps/api/src/routes/deposits.ts:confirmDeposit` — early-bird flag,
+- `apps/api/src/routes/deposits.ts:confirmDeposit` - early-bird flag,
   squad-mate notify, first-bettor flag for fee discount.
-- `apps/api/src/routes/claims.ts` — apply 0-fee for first-bettor.
-- `apps/api/src/routes/faucet.ts` — persist cooldown + log.
-- `apps/api/src/routes/redemption.ts` (NEW) — UP coin catalog & redemption
+- `apps/api/src/routes/claims.ts` - apply 0-fee for first-bettor.
+- `apps/api/src/routes/faucet.ts` - persist cooldown + log.
+- `apps/api/src/routes/redemption.ts` (NEW) - UP coin catalog & redemption
   flow.
 
 **Frontend**:
-- `apps/web/src/components/MarketCard.tsx` — multiplier display, min-level
+- `apps/web/src/components/MarketCard.tsx` - multiplier display, min-level
   chip, boost milestone bar, surface safety net for empty pools.
-- `apps/web/src/components/FeaturedHero.tsx` — multiplier display.
-- `apps/web/src/components/bet/SideSelector.tsx` — multiplier + early-bird
+- `apps/web/src/components/FeaturedHero.tsx` - multiplier display.
+- `apps/web/src/components/bet/SideSelector.tsx` - multiplier + early-bird
   chip.
-- `apps/web/src/components/bet/PayoutPreview.tsx` — early-bird CTA + first-
+- `apps/web/src/components/bet/PayoutPreview.tsx` - early-bird CTA + first-
   bettor zero-fee badge.
-- `apps/web/src/components/NotificationToasts.tsx` — loss-notification
+- `apps/web/src/components/NotificationToasts.tsx` - loss-notification
   rework.
-- `apps/web/src/components/UserLevelBadge.tsx` — tier-styled variants.
-- `apps/web/src/components/profile/*` — badge gallery, avatar upload,
+- `apps/web/src/components/UserLevelBadge.tsx` - tier-styled variants.
+- `apps/web/src/components/profile/*` - badge gallery, avatar upload,
   per-category accuracy chart, redemption shop, streak display.
-- `apps/web/src/components/LeaderboardTable.tsx` — category filter +
+- `apps/web/src/components/LeaderboardTable.tsx` - category filter +
   accuracy sort + VIP tab.
-- `apps/web/src/components/referral/ReferralShareLink.tsx` — copy fix.
+- `apps/web/src/components/referral/ReferralShareLink.tsx` - copy fix.
 
 **Docs**:
-- `docs/REWARDS-XP-LEVELS.md` — update spec after each wave.
-- `docs/STRATEGY-COLD-START-AND-XP.md` — strategic context (do not modify
+- `docs/REWARDS-XP-LEVELS.md` - update spec after each wave.
+- `docs/STRATEGY-COLD-START-AND-XP.md` - strategic context (do not modify
   in this plan; it's the immutable input).
-- this doc — the executable plan.
+- this doc - the executable plan.
 
 ---
 

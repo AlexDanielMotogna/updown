@@ -4,7 +4,7 @@ import { Box, Typography } from '@mui/material';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 
-// Level tier colors — use t.levelTiers from theme
+// Level tier colors - use t.levelTiers from theme
 
 // 10 icons distributed across 40 levels (4 levels per icon)
 function getLevelIcon(level: number): string {

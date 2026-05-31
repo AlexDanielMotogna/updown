@@ -158,7 +158,7 @@ function LivescoreHealth() {
         <Box>
           <Typography variant="caption" color="text.secondary" display="block">Odds API Credits</Typography>
           <Typography variant="h6" sx={{ color: creditsLow ? t.error : creditsRemaining != null ? t.gain : 'text.secondary' }}>
-            {creditsRemaining != null ? creditsRemaining.toLocaleString() : '—'}
+            {creditsRemaining != null ? creditsRemaining.toLocaleString() : '-'}
           </Typography>
           {creditsLow && <Typography variant="caption" color="error.main">Low credits!</Typography>}
         </Box>
@@ -290,7 +290,7 @@ export function SystemHealth() {
       {/* Alerts */}
       {h.stuckPools > 0 && (
         <Alert severity="error" variant="filled">
-          {h.stuckPools} stuck pool(s) — check Pools tab
+          {h.stuckPools} stuck pool(s) - check Pools tab
         </Alert>
       )}
       {failingJobs.length > 0 && (
@@ -377,7 +377,7 @@ export function SystemHealth() {
                           {job.lastError}
                         </Typography>
                       </Tooltip>
-                    ) : '—'}
+                    ) : '-'}
                   </TableCell>
                 </TableRow>
               ))}

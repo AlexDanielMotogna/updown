@@ -122,7 +122,7 @@ export function initWebSocket(httpServer: HttpServer): Server {
 }
 
 /**
- * Price streaming via Pacifica WebSocket — 0 REST requests.
+ * Price streaming via Pacifica WebSocket - 0 REST requests.
  * Pacifica pushes price updates through wss://ws.pacifica.fi/ws.
  */
 const activeAssets = new Set<string>();
@@ -218,7 +218,7 @@ export function emitRefund(walletAddress: string, data: {
 /**
  * Emit an auto-payout notification to a specific wallet address.
  * Fires the moment the scheduler's auto-claim job confirms the on-chain
- * transfer — frontends should treat this as "your winnings just hit your
+ * transfer - frontends should treat this as "your winnings just hit your
  * wallet, no further action needed" (vs `wallet:refund` which fires for
  * single-bettor / one-sided pool unwinds).
  */

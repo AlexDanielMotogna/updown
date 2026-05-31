@@ -40,7 +40,7 @@ function sportKeyToName(key: string): string {
 /**
  * Fetch ALL live scores from The Odds API for a given sport.
  * Runs in parallel with TheSportsDB every 30s.
- * Returns raw games — caller matches to pools.
+ * Returns raw games - caller matches to pools.
  *
  * @param daysFrom - 1 to include yesterday's completed games (costs 2 credits instead of 1)
  */

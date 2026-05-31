@@ -125,7 +125,7 @@ function LevelPerks({ userProfile }: { userProfile: UserProfile | null | undefin
       <Box sx={{ mt: 1.5, pt: 1.25, borderTop: `1px solid ${t.border.subtle}`, display: 'flex', alignItems: 'center', gap: 0.6 }}>
         <Bolt sx={{ fontSize: 15, color: t.accent }} />
         <Typography sx={{ fontSize: '0.75rem', color: t.text.tertiary, fontVariantNumeric: 'tabular-nums' }}>
-          {next ? <><b style={{ color: t.text.primary }}>{xpToGo.toLocaleString()} XP</b> to Lv.{next.level} — lower fees, more coins</> : 'Max level — top perks unlocked'}
+          {next ? <><b style={{ color: t.text.primary }}>{xpToGo.toLocaleString()} XP</b> to Lv.{next.level} - lower fees, more coins</> : 'Max level - top perks unlocked'}
         </Typography>
       </Box>
     </Box>

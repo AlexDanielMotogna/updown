@@ -37,7 +37,7 @@ pub fn handler(ctx: Context<ClosePool>) -> Result<()> {
     let rent_reclaimed = ctx.accounts.vault.to_account_info().lamports()
         + ctx.accounts.pool.to_account_info().lamports();
 
-    // Close vault token account — pool PDA signs as vault authority
+    // Close vault token account - pool PDA signs as vault authority
     let pool_id = pool.pool_id;
     let seeds = &[
         Pool::SEED_PREFIX,

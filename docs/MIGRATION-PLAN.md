@@ -1,4 +1,4 @@
-# EVM Migration Plan — Pacifica L1 Integration
+# EVM Migration Plan - Pacifica L1 Integration
 
 > Last verified: 2026-03-30
 
@@ -15,12 +15,12 @@ Substrate-based L1 with EVM+SVM compatibility in ~1 month. We want to:
 4. **Let users switch between chains via a toggle in the UI**
 
 Architecture decision: Dual-chain ready from day 1. Add chain column to DB, adapter factory
-pattern. Start with Solana only — activate EVM when Pacifica launches.
+pattern. Start with Solana only - activate EVM when Pacifica launches.
 
 **Bridge between chains**: Not feasible to build in-house. Cross-chain bridges require relayers,
 validators, security audits, and are built by specialized protocols (Wormhole, LayerZero, etc.).
 If Pacifica offers a native bridge, users can use that externally. For UpDown, pools exist on
-one chain or the other — users choose where to play, no cross-chain fund movement needed.
+one chain or the other - users choose where to play, no cross-chain fund movement needed.
 
 ---
 
@@ -31,8 +31,8 @@ From their public documentation:
 | Feature | Detail |
 |---|---|
 | Framework | Substrate (Rust) |
-| Consensus | Fast HotStuff BFT — sub-second finality |
-| VM compatibility | EVM + SVM — Solidity, Rust, or C++ |
+| Consensus | Fast HotStuff BFT - sub-second finality |
+| VM compatibility | EVM + SVM - Solidity, Rust, or C++ |
 | Critical logic | Runs in optimized WASM |
 | Current state | Deposits/withdrawals on Solana (Phase 1) |
 | Roadmap | Phase 2: on-chain state verifiability, Phase 3: ZK proofs |
@@ -57,8 +57,8 @@ From their public documentation:
 
 | # | Question | Why we need it |
 |---|---|---|
-| 7 | Gas token — own token or ETH? | Wallet config, user UX |
-| 8 | Gas model — EIP-1559 style, fixed, or custom? | Fee estimation |
+| 7 | Gas token - own token or ETH? | Wallet config, user UX |
+| 8 | Gas model - EIP-1559 style, fixed, or custom? | Fee estimation |
 | 9 | Account abstraction / gas sponsorship (ERC-4337)? | Smoother UX for new users |
 | 10 | Standard JSON-RPC (eth_*)? Or custom? | Backend RPC integration |
 | 11 | WebSocket RPC support? | Real-time price feeds |
@@ -70,7 +70,7 @@ From their public documentation:
 
 ---
 
-## 4. Current Architecture — Solana Touchpoints
+## 4. Current Architecture - Solana Touchpoints
 
 > Line counts verified 2026-03-30 against actual codebase.
 
@@ -180,7 +180,7 @@ Extra effort: ~2 hours (chain column + factory pattern)
 
 ---
 
-## 6. Chain Toggle — User-Facing Blockchain Switch
+## 6. Chain Toggle - User-Facing Blockchain Switch
 
 ### UX Design
 
@@ -192,7 +192,7 @@ A toggle/selector in the app header, next to the wallet button:
 │                                                      │
 │  Dropdown options:                                   │
 │  ● Solana  (devnet)                                  │
-│  ○ Pacifica (coming soon — disabled until launch)    │
+│  ○ Pacifica (coming soon - disabled until launch)    │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -203,7 +203,7 @@ A toggle/selector in the app header, next to the wallet button:
 | 1. User clicks toggle | Show chain options |
 | 2. User selects other chain | Disconnect current wallet |
 | 3. Privy reconnects | Prompt for correct wallet type (Phantom for Solana, MetaMask for EVM) |
-| 4. Pool list refreshes | `GET /pools?chain=EVM` — only shows pools on selected chain |
+| 4. Pool list refreshes | `GET /pools?chain=EVM` - only shows pools on selected chain |
 | 5. Balance updates | Fetches USDC balance on new chain |
 | 6. Deposit/Claim flows | Use correct adapter automatically (pool.chain determines adapter) |
 
@@ -231,7 +231,7 @@ function useChainSelector() {
 }
 ```
 
-#### Modified: `providers.tsx` — Privy config becomes dynamic
+#### Modified: `providers.tsx` - Privy config becomes dynamic
 
 ```typescript
 // Current (hardcoded):
@@ -242,7 +242,7 @@ walletChainType: chain === 'SOLANA' ? 'solana-only' : 'ethereum-only'
 // Note: Privy also supports 'ethereum-and-solana' for showing both
 ```
 
-#### Modified: `useWalletBridge.ts` — chain-aware
+#### Modified: `useWalletBridge.ts` - chain-aware
 
 ```typescript
 // Returns different wallet types depending on selected chain
@@ -250,7 +250,7 @@ walletChainType: chain === 'SOLANA' ? 'solana-only' : 'ethereum-only'
 // EVM: address (0x...), sendTransaction via ethers/viem
 ```
 
-#### Modified: Pool fetching — filter by chain
+#### Modified: Pool fetching - filter by chain
 
 ```typescript
 // Current:
@@ -274,14 +274,14 @@ GET /pools?chain=SOLANA   // or chain=EVM
 
 | Approach | Complexity | Risk | UX |
 |---|---|---|---|
-| **Bridge (cross-chain transfers)** | Extreme — custom relayers, validators, audits | High — bridges are #1 hack target in crypto | Complex — users must bridge, wait, pay fees |
-| **Toggle (chain selector)** | Low — filter pools by chain, switch wallet | Low — each chain is independent | Simple — one click, instant switch |
+| **Bridge (cross-chain transfers)** | Extreme - custom relayers, validators, audits | High - bridges are #1 hack target in crypto | Complex - users must bridge, wait, pay fees |
+| **Toggle (chain selector)** | Low - filter pools by chain, switch wallet | Low - each chain is independent | Simple - one click, instant switch |
 
 A bridge would let users move USDC between Solana and Pacifica. But:
 - Bridges are the **most exploited** component in crypto (~$2.5B stolen from bridges 2022-2024)
 - Building one requires massive security investment
 - Users can use Pacifica's own bridge (or Wormhole/Portal) if they need to move funds
-- For UpDown, pools are **independent per chain** — no need to move funds between them
+- For UpDown, pools are **independent per chain** - no need to move funds between them
 - Users simply deposit USDC on whichever chain they choose to play on
 
 The toggle approach is strictly better: simpler, safer, and the UX is actually smoother.
@@ -290,7 +290,7 @@ The toggle approach is strictly better: simpler, safer, and the UX is actually s
 
 ## 7. Implementation Plan
 
-### Phase 1 — Chain Adapter Abstraction
+### Phase 1 - Chain Adapter Abstraction
 
 #### Step 1.0: Database migration
 
@@ -333,7 +333,7 @@ do NOT carry over between chains. No changes to the User model.
 Rationale: avoids refactoring 30+ files that reference `walletAddress`.
 Unified identity (linking Solana + EVM wallets via Privy ID) deferred to Phase 3.
 
-**Models that do NOT need `chain` — and why:**
+**Models that do NOT need `chain` - and why:**
 
 | Model | Reason |
 |---|---|
@@ -350,7 +350,7 @@ Unified identity (linking Solana + EVM wallets via Privy ID) deferred to Phase 3
 **Tx hash fields (no schema change, code awareness needed):**
 
 Fields like `Bet.depositTx`, `Bet.claimTx`, `ReferralPayout.txSignature`,
-`Tournament.prizeClaimedTx` are all `String?` — they accept both Solana
+`Tournament.prizeClaimedTx` are all `String?` - they accept both Solana
 signatures (base58) and EVM tx hashes (0x hex). No type change needed,
 but the routes that process them must use the correct chain adapter.
 
@@ -436,7 +436,7 @@ Each method maps to existing code:
 
 #### Step 1.3: Create adapter factory
 
-`apps/api/src/chain.ts` — registry with lazy initialization:
+`apps/api/src/chain.ts` - registry with lazy initialization:
 
 ```typescript
 const adapters: Partial<Record<ChainType, IChainAdapter>> = {};
@@ -475,7 +475,7 @@ interface ResolverDeps {
 
 `pool-scheduler.ts`: Create adapter via factory, pass to deps
 
-`sports-scheduler.ts`: Same refactor as pool-creator/pool-resolver — replace
+`sports-scheduler.ts`: Same refactor as pool-creator/pool-resolver - replace
 `getPoolPDA`, `buildInitializePoolIx`, `buildResolveWithWinnerIx`, `getConnection`,
 `getAuthorityKeypair` with adapter methods. Heavy Solana usage (lines 167-325).
 
@@ -526,7 +526,7 @@ with `adapter.getTokenBalance()`. Light (authority ATA balance query).
 #### Step 1.5c: Refactor referrals
 
 `referrals.ts` currently imports `@solana/web3.js`, `@solana/spl-token`, and
-`utils/solana.ts` directly — all for `claimReferralPayout()` (lines 321-402).
+`utils/solana.ts` directly - all for `claimReferralPayout()` (lines 321-402).
 
 **What changes:**
 
@@ -580,13 +580,13 @@ export async function acceptReferral(
 **Why this matters:** Without this check, `recordReferralCommissions` (called at
 pool resolution) would credit earnings to a wallet on a different chain. The
 referrer would then try to claim on their chain, paying out from commissions
-earned on the other chain — resulting in an accounting mismatch.
+earned on the other chain - resulting in an accounting mismatch.
 
 `recordReferralCommissions`: No changes needed. Called from `resolvePool` which
 is already chain-specific. With cross-chain referrals blocked, `user.referredBy`
 always points to a same-chain wallet.
 
-#### Step 1.6: Frontend — chain toggle + chain-aware hooks
+#### Step 1.6: Frontend - chain toggle + chain-aware hooks
 
 **New files:**
 1. `useChainSelector` hook (returns `'SOLANA'` only for now, Pacifica as "coming soon")
@@ -599,14 +599,14 @@ always points to a same-chain wallet.
 | `providers.tsx` | `Connection`, `clusterApiUrl`, `toSolanaWalletConnectors`, Privy `walletChainType: 'solana-only'` | Dynamic chain config: `walletChainType` based on selected chain, add EVM cluster config |
 | `useWalletBridge.ts` | `Transaction`, `PublicKey`, `bs58`, Privy Solana adapters | Return chain-appropriate wallet (Solana PublicKey vs EVM address) |
 | `useTransactions.ts` | `Transaction`, `PublicKey`, `Connection`, `buildDepositIx` | Use chain adapter for tx building, chain-aware confirmation |
-| `useUsdcBalance.ts` | `PublicKey`, `getAssociatedTokenAddress` | Solana: ATA lookup, EVM: `balanceOf()` — abstract behind chain check |
+| `useUsdcBalance.ts` | `PublicKey`, `getAssociatedTokenAddress` | Solana: ATA lookup, EVM: `balanceOf()` - abstract behind chain check |
 | `useTournamentRegister.ts` | `Transaction`, `PublicKey`, `createTransferInstruction`, `buildRegisterParticipantIx` | Use chain adapter for tournament registration tx |
 | `useSquads.ts` | Dynamic `import('@solana/web3.js')` at line 202 | Use chain adapter for squad pool operations |
 | `constants.ts` | `USDC_MINT_ADDRESS`, `EXPLORER_URL = 'https://explorer.solana.com'`, `SOLANA_CLUSTER = 'devnet'` | Make chain-dependent: different USDC address, explorer URL, and cluster per chain |
 | `lib/format.ts` | `getExplorerTxUrl()` uses `SOLANA_CLUSTER` to build explorer links (line 58) | Make chain-aware: accept chain param or read from context. All components using this helper auto-fix |
-| `TournamentPrizes.tsx` | Hardcodes `explorer.solana.com` (lines 139, 190) — bypasses `getExplorerTxUrl()` | Switch to `getExplorerTxUrl()` helper |
-| `TournamentHeader.tsx` | Hardcodes `explorer.solana.com` (line 122) — bypasses helper | Switch to `getExplorerTxUrl()` helper |
-| `FinancialOverview.tsx` | Hardcodes `explorer.solana.com` (line 188) — bypasses helper | Switch to `getExplorerTxUrl()` helper |
+| `TournamentPrizes.tsx` | Hardcodes `explorer.solana.com` (lines 139, 190) - bypasses `getExplorerTxUrl()` | Switch to `getExplorerTxUrl()` helper |
+| `TournamentHeader.tsx` | Hardcodes `explorer.solana.com` (line 122) - bypasses helper | Switch to `getExplorerTxUrl()` helper |
+| `FinancialOverview.tsx` | Hardcodes `explorer.solana.com` (line 188) - bypasses helper | Switch to `getExplorerTxUrl()` helper |
 | `components/profile/BetRow.tsx` | Uses `getExplorerTxUrl()` | Auto-fixed when format.ts updated |
 | `components/referral/PayoutsTab.tsx` | Uses `getExplorerTxUrl()` | Auto-fixed when format.ts updated |
 | `components/TransactionModal.tsx` | Uses `getExplorerTxUrl()` | Auto-fixed when format.ts updated |
@@ -638,17 +638,17 @@ Fully replaced by `chain-adapter/src/solana/rpc.ts`.
 
 | File | Reason |
 |---|---|
-| `routes/faucet.ts` | Devnet-only tool — mints test USDC + SOL |
+| `routes/faucet.ts` | Devnet-only tool - mints test USDC + SOL |
 | `scripts/mint-usdc.mjs` | Devnet utility script |
 | `tests/parimutuel_pools.ts` | Anchor program integration tests (Solana program stays) |
-| `routes/transactions.test.ts` | Mocks `@solana/web3.js` — update mocks when adapter lands |
-| `packages/solana-client/` | Solana-specific SDK — stays as dependency of `SolanaChainAdapter` |
-| `Anchor.toml` | Solana program config — stays |
-| `programs/parimutuel_pools/` | Rust smart contract — stays |
+| `routes/transactions.test.ts` | Mocks `@solana/web3.js` - update mocks when adapter lands |
+| `packages/solana-client/` | Solana-specific SDK - stays as dependency of `SolanaChainAdapter` |
+| `Anchor.toml` | Solana program config - stays |
+| `programs/parimutuel_pools/` | Rust smart contract - stays |
 
 ---
 
-### Phase 2 — Solidity Smart Contract
+### Phase 2 - Solidity Smart Contract
 
 #### Step 2.1: Project setup with Foundry
 
@@ -670,7 +670,7 @@ Translates Anchor instructions to Solidity:
 
 | Anchor instruction | Solidity function | Key difference |
 |---|---|---|
-| `initialize_pool` | `initializePool(bytes32, ...)` | No PDA — poolId is mapping key |
+| `initialize_pool` | `initializePool(bytes32, ...)` | No PDA - poolId is mapping key |
 | `deposit` | `deposit(bytes32, Side, uint256)` | USDC.transferFrom() + approve |
 | `resolve` | `resolve(bytes32, uint256, uint256)` | Same logic |
 | `resolve_with_winner` | `resolveWithWinner(bytes32, Side)` | Same logic |
@@ -685,8 +685,8 @@ Translates Anchor instructions to Solidity:
 | `close_tournament` | `closeTournament(bytes32)` | delete for gas refund |
 
 Key design decisions:
-- Contract IS the vault (holds all USDC) — no separate vault accounts
-- Pools stored in `mapping(bytes32 => Pool)` — no PDAs
+- Contract IS the vault (holds all USDC) - no separate vault accounts
+- Pools stored in `mapping(bytes32 => Pool)` - no PDAs
 - Claim fee enforcement via ECDSA signature: authority signs `(poolId, user, feeBps)`, contract verifies
 - Events match Anchor events for consistent backend parsing
 
@@ -723,7 +723,7 @@ Test deployment on Ethereum Sepolia. Redeploy to Pacifica when they launch testn
 | `contracts/script/Deploy.s.sol` | 30 | Deploy script |
 | `contracts/foundry.toml` | 15 | Foundry config |
 
-### Modified files — Backend (21 files)
+### Modified files - Backend (21 files)
 
 | File | Change | Impact |
 |---|---|---|
@@ -753,7 +753,7 @@ Test deployment on Ethereum Sepolia. Redeploy to Pacifica when they launch testn
 | `apps/api/package.json` | Add chain-adapter dep | 1 line |
 | `apps/api/.env.example` | Add EVM env vars (`EVM_RPC_URL`, `EVM_CHAIN_ID`, `EVM_AUTHORITY_PRIVATE_KEY`, `ACTIVE_CHAINS`) | ~5 lines |
 
-### Modified files — Frontend (14 files)
+### Modified files - Frontend (14 files)
 
 | File | Change | Impact |
 |---|---|---|
@@ -775,7 +775,7 @@ Test deployment on Ethereum Sepolia. Redeploy to Pacifica when they launch testn
 | `apps/web/src/app/faucet/page.tsx` | "Solana devnet", "Solana wallet", "Solana Explorer" (stays devnet-only but text should be chain-aware) | ~10 lines |
 | `apps/web/src/components/header/` | Add ChainSelector to header layout | ~5 lines |
 
-### Modified files — Config (4 files)
+### Modified files - Config (4 files)
 
 | File | Change | Impact |
 |---|---|---|
@@ -794,25 +794,25 @@ Test deployment on Ethereum Sepolia. Redeploy to Pacifica when they launch testn
 
 | File | Reason |
 |---|---|
-| `apps/api/src/routes/faucet.ts` | Devnet-only tool — mints test USDC + SOL |
+| `apps/api/src/routes/faucet.ts` | Devnet-only tool - mints test USDC + SOL |
 | `scripts/mint-usdc.mjs` | Devnet utility script |
 | `apps/api/scripts/create-pool.ts` | Dev script for manual pool creation |
 | `tests/parimutuel_pools.ts` | Anchor program integration tests |
 | `apps/api/src/routes/transactions.test.ts` | Update mocks when adapter lands |
-| `packages/solana-client/` | Stays — used internally by `SolanaChainAdapter` |
+| `packages/solana-client/` | Stays - used internally by `SolanaChainAdapter` |
 | `Anchor.toml` | Solana program deployment config |
-| `programs/parimutuel_pools/` | Rust smart contract — stays |
+| `programs/parimutuel_pools/` | Rust smart contract - stays |
 
 ### Chain-agnostic files (NO changes needed)
 
 | File | Why no change |
 |---|---|
-| `apps/api/src/services/rewards.ts` | Pure DB + WebSocket — XP, coins, levels, streaks. Zero Solana imports |
+| `apps/api/src/services/rewards.ts` | Pure DB + WebSocket - XP, coins, levels, streaks. Zero Solana imports |
 | `apps/api/src/services/notifications.ts` | Pure DB + WebSocket |
 | `apps/api/src/services/squads.ts` | Social features, no on-chain code |
 | `apps/api/src/utils/levels.ts` | XP/level math |
 | `apps/api/src/utils/coins.ts` | Coin emission math |
-| `apps/api/src/scheduler/resolve-logic.ts` | Business logic only — calls `onchain-tx` which calls adapter |
+| `apps/api/src/scheduler/resolve-logic.ts` | Business logic only - calls `onchain-tx` which calls adapter |
 | All Prisma models without `chain` | See Step 1.0 for full analysis |
 
 ---
@@ -821,8 +821,8 @@ Test deployment on Ethereum Sepolia. Redeploy to Pacifica when they launch testn
 
 | # | Task | Depends on | Effort |
 |---|---|---|---|
-| 0 | Prisma migration: add chain column to Pool, Bet, Tournament | — | 15 min |
-| 1 | Create `packages/chain-adapter/` types + interface | — | 30 min |
+| 0 | Prisma migration: add chain column to Pool, Bet, Tournament | - | 15 min |
+| 1 | Create `packages/chain-adapter/` types + interface | - | 30 min |
 | 2 | Implement SolanaChainAdapter (pool + tournament + transfer methods) | 1 | 3-4 hrs |
 | 3 | Create adapter factory (`chain.ts`) | 2 | 15 min |
 | **Scheduler refactor** | | |
@@ -844,7 +844,7 @@ Test deployment on Ethereum Sepolia. Redeploy to Pacifica when they launch testn
 | 17 | Refactor `squad-pools.ts` | 2, 3 | 1 hr |
 | 18 | Refactor `referrals.ts`: adapter + block cross-chain | 2, 3 | 45 min |
 | **Frontend** | | |
-| 19 | `useChainSelector` hook + `ChainSelector` component | — | 1 hr |
+| 19 | `useChainSelector` hook + `ChainSelector` component | - | 1 hr |
 | 20 | Refactor `providers.tsx` (dynamic Privy config) | 19 | 30 min |
 | 21 | Refactor `useWalletBridge.ts` + `useTransactions.ts` | 19 | 1.5 hr |
 | 22 | Refactor `useUsdcBalance.ts` + `useTournamentRegister.ts` + `useSquads.ts` | 19 | 1 hr |
@@ -857,7 +857,7 @@ Test deployment on Ethereum Sepolia. Redeploy to Pacifica when they launch testn
 | 28 | Update `transactions.test.ts` mocks | 2-18 | 15 min |
 | 29 | Build + full verify | 0-28 | 30 min |
 | **Phase 2 (parallel)** | | |
-| 30 | Write `ParimutuelPool.sol` (pools + tournaments) | — | 3-4 hrs |
+| 30 | Write `ParimutuelPool.sol` (pools + tournaments) | - | 3-4 hrs |
 | 31 | Write Forge tests | 30 | 1-2 hrs |
 | 32 | Deploy to Sepolia | 30, 31 | 30 min |
 
@@ -868,7 +868,7 @@ Test deployment on Ethereum Sepolia. Redeploy to Pacifica when they launch testn
 
 ## 10. Verification
 
-### Phase 1 — exhaustive Solana isolation check
+### Phase 1 - exhaustive Solana isolation check
 
 ```bash
 # Backend: ZERO @solana imports outside faucet.ts and solana-client package
@@ -889,10 +889,10 @@ grep -r "solana-client" apps/web/src/     # 0 matches (uses chain adapter)
 # - scripts/ (devnet utilities)
 ```
 
-### Phase 1 — functional tests
+### Phase 1 - functional tests
 
-1. `pnpm build` — all packages compile, no type errors
-2. Start API locally — pools create, resolve, close as before
+1. `pnpm build` - all packages compile, no type errors
+2. Start API locally - pools create, resolve, close as before
 3. Frontend deposit, claim, refund flows unchanged
 4. Tournament creation + registration + prize claim works
 5. Squad pool creation + resolve works
@@ -901,21 +901,21 @@ grep -r "solana-client" apps/web/src/     # 0 matches (uses chain adapter)
 8. Orphan recovery runs successfully
 9. Sports scheduler creates and resolves sports pools
 10. Admin health/finance endpoints return correct data
-11. Scheduler runs 5 min — full pool lifecycle works
+11. Scheduler runs 5 min - full pool lifecycle works
 12. Chain selector visible in header, shows "Solana" active
 13. `GET /pools?chain=SOLANA` returns all existing pools
 14. Explorer links point to correct chain explorer
 
 ### Phase 2
 
-1. `forge build` — contract compiles
-2. `forge test` — all tests pass
-3. Deploy to Sepolia — verify with `cast` commands
+1. `forge build` - contract compiles
+2. `forge test` - all tests pass
+3. Deploy to Sepolia - verify with `cast` commands
 4. Manual test: init pool → deposit → resolve → claim
 
 ---
 
-## 11. Complete Solana Audit — 47 files inventoried
+## 11. Complete Solana Audit - 47 files inventoried
 
 > Exhaustive scan performed 2026-03-30. Every file with Solana-specific code accounted for.
 
@@ -927,10 +927,10 @@ grep -r "solana-client" apps/web/src/     # 0 matches (uses chain adapter)
 | Backend utils | 1 | Deleted (moved to chain-adapter) |
 | Frontend hooks | 5 | All refactored → chain-aware |
 | Frontend components | 10 | Explorer URLs + tooltip text (3 hardcoded, 4 via helper, 3 tooltips) |
-| Frontend lib | 1 | `format.ts` — `getExplorerTxUrl()` chain-aware |
-| Frontend pages | 3 | docs, privacy, faucet — hardcoded "Solana" text |
+| Frontend lib | 1 | `format.ts` - `getExplorerTxUrl()` chain-aware |
+| Frontend pages | 3 | docs, privacy, faucet - hardcoded "Solana" text |
 | Frontend config | 2 | Chain-dependent constants + Privy config |
-| Solana client package | 3+1 | Stays — used by SolanaChainAdapter |
+| Solana client package | 3+1 | Stays - used by SolanaChainAdapter |
 | Tests | 2 | Anchor tests stay, API test mocks updated |
 | Scripts | 2 | Stay (devnet utilities) |
 | Config/env | 6 | Add EVM vars alongside Solana vars |
@@ -940,7 +940,7 @@ grep -r "solana-client" apps/web/src/     # 0 matches (uses chain adapter)
 
 ---
 
-## 12. Future Work (Phase 3 — when Pacifica launches)
+## 12. Future Work (Phase 3 - when Pacifica launches)
 
 1. Implement `EvmChainAdapter` with Pacifica's chain ID, RPC, and contract address
 2. Frontend: enable Pacifica option in `ChainSelector` (remove "coming soon")

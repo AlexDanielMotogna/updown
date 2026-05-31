@@ -13,7 +13,7 @@ import { withAlpha } from '@/lib/theme';
 import { AssetIcon } from '@/components';
 import type { Bet } from '@/lib/api';
 
-// Polymarket category icons + colours — same mapping the legacy BetRow used,
+// Polymarket category icons + colours - same mapping the legacy BetRow used,
 // kept local so PM pools render with their identity icon (a question-shaped
 // PM_POLITICS row falls through to AssetIcon otherwise and shows nothing).
 const PM_ICONS: Record<string, React.ReactNode> = {
@@ -46,10 +46,10 @@ interface PoolPositionRowProps {
   isClaiming?: boolean;
   claimingBetId?: string | null;
   /** When the user is already inside the Active sub-tab, the 'Active' chip
-   *  is redundant — suppress it. Same idea for any other context where the
+   *  is redundant - suppress it. Same idea for any other context where the
    *  chip just repeats what the surrounding UI already says. */
   hideStatusChipWhen?: string;
-  /** Skip the whole Result column (header + row cell) — used when every row
+  /** Skip the whole Result column (header + row cell) - used when every row
    *  would suppress its chip anyway, so the empty column would just waste
    *  horizontal space. */
   hideResultColumn?: boolean;
@@ -158,7 +158,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId, 
 
   const { result, isAllRefunded, isPending, isPayoutFailed, isActive, hasMixedOutcome } = deriveStatus(position, t);
 
-  // Potential payout for active positions — sum across the user's bet sides.
+  // Potential payout for active positions - sum across the user's bet sides.
   const totalUp = Number(pool.totalUp ?? 0);
   const totalDown = Number(pool.totalDown ?? 0);
   const totalDraw = Number(pool.totalDraw ?? 0);
@@ -179,7 +179,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId, 
 
   const isSports = pool.poolType === 'SPORTS';
   const isPM = pool.league?.startsWith('PM_');
-  // Crypto pools render via the shared AssetIcon (pacifica token SVG —
+  // Crypto pools render via the shared AssetIcon (pacifica token SVG -
   // same icon the All Assets sidebar uses). Sports / PM rows get the
   // upstream-provided thumbnail through homeTeamCrest.
   const marketImage = isSports ? pool.homeTeamCrest : null;
@@ -199,7 +199,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId, 
     ? formatPredictionWindow(pool.startTime, pool.endTime)
     : null;
 
-  // Pick the bet whose tx link to surface — prefer the claim of the last
+  // Pick the bet whose tx link to surface - prefer the claim of the last
   // claimed bet, falling back to the deposit of the largest stake.
   const sortedByClaim = [...bets].sort((a, b) =>
     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -340,7 +340,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId, 
           </Typography>
         </>
       ) : (
-        <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: t.text.secondary }}>—</Typography>
+        <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: t.text.secondary }}>-</Typography>
       )}
     </Box>
   );
@@ -392,7 +392,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId, 
         '&:hover': { background: t.hover.default, borderColor: t.border.medium },
       }}
     >
-      {/* ─── Desktop grid — drops the Result column when hideResultColumn is set. ─── */}
+      {/* ─── Desktop grid - drops the Result column when hideResultColumn is set. ─── */}
       <Box sx={{
         display: { xs: 'none', md: 'grid' },
         gridTemplateColumns: hideResultColumn

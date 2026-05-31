@@ -26,7 +26,7 @@ import { PriceTargetStrip } from '@/components/pool/PriceTargetStrip';
 import { ActiveCryptoPoolsSidebar } from '@/components/pool/ActiveCryptoPoolsSidebar';
 import { PoolActivityList } from '@/components/pool/PoolActivityList';
 
-// Filter dropdown options — mirror the home page so MarketFilter renders
+// Filter dropdown options - mirror the home page so MarketFilter renders
 // with the same set of choices when a user wants to switch context from
 // inside a pool view. Changes navigate back to the home grid.
 const ASSET_FILTERS = [
@@ -61,7 +61,7 @@ export default function PoolDetailPage() {
 
   const pool = data?.data;
 
-  // Sports / PM pools live at /match — bounce there if someone deep-links to /pool.
+  // Sports / PM pools live at /match - bounce there if someone deep-links to /pool.
   useEffect(() => {
     if (pool?.poolType === 'SPORTS') {
       router.replace(`/match/${pool.id}`);
@@ -101,7 +101,7 @@ export default function PoolDetailPage() {
     }
   }, [initialSide, pool?.status]);
 
-  // Category navbar — all changes navigate back to the markets grid. We're
+  // Category navbar - all changes navigate back to the markets grid. We're
   // inside a single pool so per-asset / per-interval filtering doesn't apply
   // here; the dropdowns just hand off to / with the right query string.
   const goToHome = useCallback((key: string, value: string) => {
@@ -230,7 +230,7 @@ export default function PoolDetailPage() {
               strikePrice={pool.strikePrice}
             />
           </Box>
-          {/* Recent activity feed sits under the chart in the main column —
+          {/* Recent activity feed sits under the chart in the main column -
               the right rail keeps Place Bet + More Crypto Markets only. */}
           <Box sx={{ px: { xs: 2, md: 3 }, pb: { xs: 3, md: 4 } }}>
             <PoolActivityList poolId={poolId} />

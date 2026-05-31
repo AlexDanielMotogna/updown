@@ -122,7 +122,7 @@ export function buildDepositIx(
 }
 
 /**
- * Build `resolve` TransactionInstruction (crypto pools — resolve by price).
+ * Build `resolve` TransactionInstruction (crypto pools - resolve by price).
  * Accounts: pool, authority
  */
 export function buildResolveIx(
@@ -146,7 +146,7 @@ export function buildResolveIx(
 }
 
 /**
- * Build `resolve_with_winner` TransactionInstruction (sports pools — explicit winner).
+ * Build `resolve_with_winner` TransactionInstruction (sports pools - explicit winner).
  * Accounts: pool, authority
  */
 export function buildResolveWithWinnerIx(
@@ -170,7 +170,7 @@ export function buildResolveWithWinnerIx(
 /**
  * Build `claim` TransactionInstruction (with fee).
  *
- * `user` is NOT marked as signer on the instruction's account meta — the
+ * `user` is NOT marked as signer on the instruction's account meta - the
  * relaxed claim.rs (user: AccountInfo) only requires authority to sign.
  * The manual-claim path still works because the user wallet is the
  * transaction fee payer, which forces a signature at the runtime level
@@ -188,7 +188,7 @@ export function buildClaimIx(
   authority: PublicKey,
   feeWallet: PublicKey,
   feeBps: number,
-  side: 0 | 1 | 2, // winning side — must match the userBet PDA's side seed
+  side: 0 | 1 | 2, // winning side - must match the userBet PDA's side seed
 ): TransactionInstruction {
   const data = Buffer.concat([
     CLAIM_DISC,
@@ -221,7 +221,7 @@ export function buildRefundIx(
   userTokenAccount: PublicKey,
   user: PublicKey,
   authority: PublicKey,
-  side: 0 | 1 | 2, // side being refunded — must match the userBet PDA's side seed
+  side: 0 | 1 | 2, // side being refunded - must match the userBet PDA's side seed
 ): TransactionInstruction {
   const data = Buffer.concat([
     REFUND_DISC,
@@ -265,7 +265,7 @@ const FORCE_CLOSE_POOL_DISC = Buffer.from([113, 203, 148, 102, 142, 248, 118, 24
 
 /**
  * Build `force_close_pool` TransactionInstruction.
- * Closes pool account only (no vault) — for orphan recovery of old pools
+ * Closes pool account only (no vault) - for orphan recovery of old pools
  * where vault bump is corrupted from struct layout changes.
  * Accounts: pool, authority
  */

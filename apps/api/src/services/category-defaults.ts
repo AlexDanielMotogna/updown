@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 
 /**
- * Canonical default category list — the SINGLE source of truth shared by:
+ * Canonical default category list - the SINGLE source of truth shared by:
  *   - the seed script (prisma/seed-categories.ts)
  *   - auto-seed on boot (seedCategoriesIfEmpty in category-config.ts)
  *   - the in-memory FALLBACK in category-config.ts

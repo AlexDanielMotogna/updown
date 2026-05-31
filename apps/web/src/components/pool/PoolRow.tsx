@@ -61,7 +61,7 @@ export function PoolRow({
   const isHot = canBet && pool.betCount >= 5;
 
   const handleCountdownComplete = useCallback(() => {
-    // Pool ended — hide from list (will be resolved server-side)
+    // Pool ended - hide from list (will be resolved server-side)
     setHidden(true);
   }, []);
 

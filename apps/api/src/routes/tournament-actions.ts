@@ -14,7 +14,7 @@ export const tournamentActionRouter: RouterType = Router();
 
 // ─── Public action endpoints ────────────────────────────────────────
 
-// POST /:id/prepare-register — returns accounts for building the USDC transfer tx
+// POST /:id/prepare-register - returns accounts for building the USDC transfer tx
 tournamentActionRouter.post('/:id/prepare-register', async (req, res) => {
   try {
     const { id } = req.params;
@@ -96,7 +96,7 @@ tournamentActionRouter.post('/:id/prepare-register', async (req, res) => {
   }
 });
 
-// POST /:id/register — register for a tournament (after USDC transfer)
+// POST /:id/register - register for a tournament (after USDC transfer)
 const registerSchema = z.object({
   walletAddress: z.string().min(1),
   depositTx: z.string().min(1),
@@ -127,7 +127,7 @@ tournamentActionRouter.post('/:id/register', async (req, res) => {
   }
 });
 
-// POST /:id/matches/:matchId/predict — submit prediction (crypto: price, sports: matchday)
+// POST /:id/matches/:matchId/predict - submit prediction (crypto: price, sports: matchday)
 const predictSchema = z.object({
   walletAddress: z.string().min(1),
   prediction: z.number().positive().optional(),
@@ -172,7 +172,7 @@ tournamentActionRouter.post('/:id/matches/:matchId/predict', async (req, res) =>
   }
 });
 
-// POST /:id/claim-prize — winner claims their USDC prize
+// POST /:id/claim-prize - winner claims their USDC prize
 tournamentActionRouter.post('/:id/claim-prize', async (req, res) => {
   try {
     const { id } = req.params;
@@ -288,7 +288,7 @@ tournamentActionRouter.post('/:id/claim-prize', async (req, res) => {
 
 // ─── Admin endpoints ─────────────────────────────────────────────────
 
-// POST /admin/create — create a tournament
+// POST /admin/create - create a tournament
 const createTournamentSchema = z.object({
   name: z.string().min(1),
   asset: z.string().min(1),
@@ -324,7 +324,7 @@ tournamentActionRouter.post('/admin/create', async (req, res) => {
   }
 });
 
-// POST /admin/:id/start — start a tournament
+// POST /admin/:id/start - start a tournament
 tournamentActionRouter.post('/admin/:id/start', async (req, res) => {
   if (!requireAdmin(req, res)) return;
 
@@ -342,7 +342,7 @@ tournamentActionRouter.post('/admin/:id/start', async (req, res) => {
   }
 });
 
-// POST /admin/:id/cancel — cancel a tournament
+// POST /admin/:id/cancel - cancel a tournament
 tournamentActionRouter.post('/admin/:id/cancel', async (req, res) => {
   if (!requireAdmin(req, res)) return;
 

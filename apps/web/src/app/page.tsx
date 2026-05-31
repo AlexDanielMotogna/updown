@@ -280,7 +280,7 @@ export default function MarketsPage() {
     <AppShell topBar={filterBar}>
       <Container maxWidth={false} sx={{ px: { xs: 2, md: 3 }, pt: { xs: 2, md: 2.5 } }}>
 
-            {/* Trending / Home — pools grouped into Kalshi-style category sections. */}
+            {/* Trending / Home - pools grouped into Kalshi-style category sections. */}
             {isTrending && (
               homeLoading && homePools.length === 0 ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>

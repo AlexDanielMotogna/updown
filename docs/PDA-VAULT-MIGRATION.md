@@ -6,10 +6,10 @@ Currently 3 money flows bypass on-chain vaults and go directly through authority
 2. **Tournament prizes** → Authority ATA → Winner ATA (custodial)
 3. **Referral payouts** → Authority ATA → Referrer ATA (custodial)
 
-This creates custodial risk: if authority wallet is compromised or runs out of USDC, tournaments can't pay. Pools already work correctly with PDA vaults — we replicate that pattern for tournaments.
+This creates custodial risk: if authority wallet is compromised or runs out of USDC, tournaments can't pay. Pools already work correctly with PDA vaults - we replicate that pattern for tournaments.
 
 ## Why we can't reuse pool instructions directly
-Pool claim formula: `(user_bet.amount * total_pool) / total_winning_side` — proportional to bet size. Tournaments need winner-take-all: one person gets the entire prize pool. If all participants bet on the same "side", each would only get back their entry_fee. The payout model is fundamentally different, so we need tournament-specific instructions — but they follow the exact same vault/PDA/CPI patterns.
+Pool claim formula: `(user_bet.amount * total_pool) / total_winning_side` - proportional to bet size. Tournaments need winner-take-all: one person gets the entire prize pool. If all participants bet on the same "side", each would only get back their entry_fee. The payout model is fundamentally different, so we need tournament-specific instructions - but they follow the exact same vault/PDA/CPI patterns.
 
 ## What IS reused (80% of code)
 
@@ -61,7 +61,7 @@ PDA seeds:
 | `initialize_tournament` | Create tournament PDA + vault token account | authority | `initialize_pool` |
 | `register_participant` | User deposits entry_fee → vault. Creates Participant PDA | user | `deposit` |
 | `claim_tournament_prize` | Winner claims from vault (5% fee on-chain) | user + authority | `claim` |
-| `cancel_tournament` | Set status = Cancelled | authority | — |
+| `cancel_tournament` | Set status = Cancelled | authority | - |
 | `refund_participant` | Refund entry_fee from vault → user (cancelled tournaments) | authority | `refund` |
 | `close_tournament` | Close vault + tournament PDA, reclaim rent | authority | `close_pool` |
 
@@ -101,7 +101,7 @@ Discriminators computed via `SHA256("global:<name>")[0..8]`.
 ## Phase 3: Backend API Changes
 
 ### `apps/api/src/utils/solana.ts`
-Add `deriveTournamentSeed(uuid)` — SHA-256 with `tournament:` prefix to avoid seed collision with pools.
+Add `deriveTournamentSeed(uuid)` - SHA-256 with `tournament:` prefix to avoid seed collision with pools.
 
 ### `apps/api/prisma/schema.prisma`
 Add to Tournament model:
@@ -111,7 +111,7 @@ onChainVault  String?  @map("on_chain_vault")
 ```
 Nullable for backward compat with existing tournaments.
 
-### `apps/api/src/services/tournament.ts` — `createTournament`
+### `apps/api/src/services/tournament.ts` - `createTournament`
 After DB insert, call `buildInitializeTournamentIx` to create on-chain PDA + vault. Store PDA in `onChainPda` field.
 
 ### `apps/api/src/routes/tournament-actions.ts`
@@ -132,7 +132,7 @@ After DB insert, call `buildInitializeTournamentIx` to create on-chain PDA + vau
 - User co-signs and sends (same pattern as pool claims)
 - New `POST /:id/confirm-claim` to verify and record
 
-### `apps/api/src/services/tournament.ts` — `cancelTournament`
+### `apps/api/src/services/tournament.ts` - `cancelTournament`
 After DB update, send `cancel_tournament` on-chain. Then auto-refund all participants via `refund_participant` instruction (retry logic from `onchain-tx.ts`).
 
 ---
@@ -194,7 +194,7 @@ Referral commissions are funded from platform fees (pool claim `fee_wallet`). Th
 | `apps/api/src/services/tournament.ts` | On-chain init + cancel |
 | `apps/api/src/routes/tournament-actions.ts` | Rewrite register + claim to use program |
 | `apps/web/src/hooks/useTournamentRegister.ts` | Use program instruction |
-| `apps/web/src/hooks/useTournamentClaim.ts` | **NEW** — co-sign claim pattern |
+| `apps/web/src/hooks/useTournamentClaim.ts` | **NEW** - co-sign claim pattern |
 
 ## Build & Deploy
 1. `anchor build` + `anchor test`

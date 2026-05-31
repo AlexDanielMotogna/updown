@@ -4,13 +4,13 @@ Fixes prioritized by impact for hackathon demo day. Estimated total: ~2-3 hours.
 
 ---
 
-## Phase 1: Violations (must fix) — ~1 hour
+## Phase 1: Violations (must fix) - ~1 hour
 
 ### V1. Empty catch blocks (38 occurrences, 22 files)
 
 **Problem:** `.catch(() => {})` swallows errors silently. In production you never know why something failed.
 
-**Fix:** Replace with minimal logging. Not every catch needs full error handling — some are intentionally best-effort (rewards, referrals). But they should at least log a warning.
+**Fix:** Replace with minimal logging. Not every catch needs full error handling - some are intentionally best-effort (rewards, referrals). But they should at least log a warning.
 
 **Pattern:**
 ```typescript
@@ -33,7 +33,7 @@ awardBetWin(wallet, amount).catch(e => console.warn('[Rewards] awardBetWin faile
 | `services/sports/index.ts` | 3 | Failed adapter init |
 | Other files (11) | 21 | Lower priority |
 
-**Risk:** LOW — adding a console.warn never breaks anything.
+**Risk:** LOW - adding a console.warn never breaks anything.
 
 ### V2. Duplicated PM_CATEGORIES (polymarket-adapter.ts)
 
@@ -42,9 +42,9 @@ awardBetWin(wallet, amount).catch(e => console.warn('[Rewards] awardBetWin faile
 **Fix:** Remove the hardcoded `PM_CATEGORIES` array from polymarket-adapter.ts. The fallback already exists in category-config.ts.
 
 **Files to touch:**
-- `apps/api/src/services/sports/polymarket-adapter.ts` — remove `PM_CATEGORIES` export, use `getPolymarketCategories()`
+- `apps/api/src/services/sports/polymarket-adapter.ts` - remove `PM_CATEGORIES` export, use `getPolymarketCategories()`
 
-**Risk:** LOW — category-config.ts has hardcoded fallback if DB fails.
+**Risk:** LOW - category-config.ts has hardcoded fallback if DB fails.
 
 ### V3. Dead `packages/shared` package
 
@@ -54,14 +54,14 @@ awardBetWin(wallet, amount).catch(e => console.warn('[Rewards] awardBetWin faile
 
 **Files to touch:**
 - Delete `packages/shared/`
-- Edit `pnpm-workspace.yaml` — remove shared entry
+- Edit `pnpm-workspace.yaml` - remove shared entry
 - Edit root `package.json` if referenced
 
-**Risk:** LOW — nothing imports it, removing is safe.
+**Risk:** LOW - nothing imports it, removing is safe.
 
 ---
 
-## Phase 2: Issues (should fix) — ~1 hour
+## Phase 2: Issues (should fix) - ~1 hour
 
 ### I1. Magic numbers without names
 
@@ -88,15 +88,15 @@ export const MAX_PER_CATEGORY = 10;
 ```
 
 **Files to touch:**
-- `apps/api/src/utils/constants.ts` — NEW
-- `apps/api/src/scheduler/sports-scheduler.ts` — use PM_BUFFER_MS, MATCH_DURATION_MS
-- `apps/api/src/utils/payout.ts` — use FEE_BASIS_DIVISOR
-- `apps/api/src/services/referrals.ts` — use FEE_BASIS_DIVISOR
-- `apps/api/src/services/category-config.ts` — use CATEGORY_CACHE_TTL_MS
-- `apps/api/src/services/sports/livescore.ts` — use LIVESCORE_POLL_MS
-- `apps/web/src/app/page.tsx` — use named constants for refetchInterval
+- `apps/api/src/utils/constants.ts` - NEW
+- `apps/api/src/scheduler/sports-scheduler.ts` - use PM_BUFFER_MS, MATCH_DURATION_MS
+- `apps/api/src/utils/payout.ts` - use FEE_BASIS_DIVISOR
+- `apps/api/src/services/referrals.ts` - use FEE_BASIS_DIVISOR
+- `apps/api/src/services/category-config.ts` - use CATEGORY_CACHE_TTL_MS
+- `apps/api/src/services/sports/livescore.ts` - use LIVESCORE_POLL_MS
+- `apps/web/src/app/page.tsx` - use named constants for refetchInterval
 
-**Risk:** LOW — renaming numbers to constants.
+**Risk:** LOW - renaming numbers to constants.
 
 ### I2. Inconsistent logging prefixes
 
@@ -105,7 +105,7 @@ export const MAX_PER_CATEGORY = 10;
 **Fix:** Add prefix to faucet.ts (3 lines). Quick.
 
 **Files to touch:**
-- `apps/api/src/routes/faucet.ts` — add `[Faucet]` prefix to 3 console statements
+- `apps/api/src/routes/faucet.ts` - add `[Faucet]` prefix to 3 console statements
 
 **Risk:** ZERO.
 
@@ -117,13 +117,13 @@ export const MAX_PER_CATEGORY = 10;
 
 **Files to touch:**
 - Delete `apps/api/src/services/sports/basketball-adapter.ts`
-- `apps/api/src/services/sports/index.ts` — remove BasketballAdapter import and registration
+- `apps/api/src/services/sports/index.ts` - remove BasketballAdapter import and registration
 
-**Risk:** LOW — nothing uses it, NBA uses SportsDbAdapter.
+**Risk:** LOW - nothing uses it, NBA uses SportsDbAdapter.
 
 ---
 
-## Phase 3: Quick wins (nice to have) — ~30 min
+## Phase 3: Quick wins (nice to have) - ~30 min
 
 ### Q1. Remove unused imports across codebase
 
@@ -147,10 +147,10 @@ Currently `match/[id]/page.tsx` polls every 5s for bets+totals. Could subscribe 
 | 2 | Delete `basketball-adapter.ts` (I3) | 5 min | LOW |
 | 3 | Remove `PM_CATEGORIES` from polymarket-adapter.ts (V2) | 10 min | LOW |
 | 4 | Create `utils/constants.ts` + replace magic numbers (I1) | 20 min | LOW |
-| 5 | Fix empty catch blocks — top 6 files (V1) | 30 min | LOW |
+| 5 | Fix empty catch blocks - top 6 files (V1) | 30 min | LOW |
 | 6 | Fix faucet logging prefix (I2) | 5 min | ZERO |
 | 7 | Quick wins Q1-Q3 (optional) | 30 min | LOW |
 
 **Total: ~1.5-2 hours**
 
-All changes are LOW risk — no business logic changes, no UI changes, no DB changes. Pure code quality improvements.
+All changes are LOW risk - no business logic changes, no UI changes, no DB changes. Pure code quality improvements.

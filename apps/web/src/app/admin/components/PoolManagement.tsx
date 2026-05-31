@@ -77,7 +77,7 @@ export function PoolManagement() {
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       {stuckLoading ? <CircularProgress size={20} /> : stuckPools.length > 0 ? (
         <Alert severity="error" variant="filled">
-          {stuckPools.length} stuck pool(s) detected — past endTime but still JOINING/ACTIVE
+          {stuckPools.length} stuck pool(s) detected - past endTime but still JOINING/ACTIVE
         </Alert>
       ) : (
         <Alert severity="success" variant="outlined">No stuck pools</Alert>

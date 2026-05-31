@@ -7,11 +7,11 @@ tag taxonomy instead of a hand-written list.
 ## Does this affect pool RESOLUTION? No.
 
 PM pool resolution depends only on:
-- `matchId` — the Polymarket market id (never modified by any phase here).
-- `PolymarketAdapter.fetchMatchResult(matchId)` — queries Gamma `/markets?id=...`,
+- `matchId` - the Polymarket market id (never modified by any phase here).
+- `PolymarketAdapter.fetchMatchResult(matchId)` - queries Gamma `/markets?id=...`,
   checks `closed && umaResolutionStatus === 'resolved'`, decides the winner from
   `outcomePrices`.
-- `getAdapterForLeague(pool.league)` — every PM category code starts with `PM_`,
+- `getAdapterForLeague(pool.league)` - every PM category code starts with `PM_`,
   so it always returns the POLYMARKET adapter.
 
 These phases only change **which events get imported** (caps/tags),
@@ -51,7 +51,7 @@ from live PM data.
    Oil, Ukraine…). Filters DEPEND on the category's tag.
 
 **Sidebar filters UI:** replace the free-text "Add filter" with a picker loaded
-from `/tags/{tagId}/related-tags` — the real ranked list PM offers. Admin only
+from `/tags/{tagId}/related-tags` - the real ranked list PM offers. Admin only
 toggles/orders which to show; cannot add anything PM lacks. If no tag set yet,
 show "pick a Polymarket tag first". Show counts when available so the admin picks
 high-volume sub-tags.
@@ -66,18 +66,18 @@ high-volume sub-tags.
 | `matchPriority` | "Advanced", sane default | only resolves category overlap (Politics last) |
 
 **Where NOT to allow free access (guardrails):**
-- No typing tag names/ids — always pick from PM.
+- No typing tag names/ids - always pick from PM.
 - `code`/`type` immutable after create.
 - Deleting a category with active pools → warn/block (orphans pools in the UI;
   does NOT affect on-chain or resolution).
 - Validate numbers (non-negative, sane caps).
 
 Net: full authority over which topics exist and which filters show, but always
-choosing from what PM offers — control without the ability to break it.
+choosing from what PM offers - control without the ability to break it.
 
 ## Current state (audit)
 
-- Admin **only edits** existing categories — no create/delete in the UI (the
+- Admin **only edits** existing categories - no create/delete in the UI (the
   backend `POST`/`DELETE /api/admin/categories` exist but are unused).
 - The edit dialog exposes only `tags`, `minVolume24h`, `maxDaysAhead`,
   `subcategories`. It does NOT expose `tagIds`, `matchPriority`, or per-category
@@ -91,7 +91,7 @@ choosing from what PM offers — control without the ability to break it.
 
 ---
 
-## Phase 1 — Full CRUD + all config fields in the editor
+## Phase 1 - Full CRUD + all config fields in the editor
 
 Backend:
 - `bulkSync` reads `maxMarkets` and `maxSubmarketsPerEvent` from each category's
@@ -111,7 +111,7 @@ Files: `apps/api/src/scheduler/polymarket-sync.ts`,
 `apps/api/src/services/category-config.ts`,
 `apps/web/src/app/admin/components/CategoryManagement.tsx`.
 
-## Phase 2 — Real source tags from Polymarket
+## Phase 2 - Real source tags from Polymarket
 
 Backend (`routes/config.ts`), in-memory cache ~1h:
 - `GET /api/config/pm-related-tags?tagId=100265` → fetch `/tags/{id}/related-tags`,
@@ -122,13 +122,13 @@ Backend (`routes/config.ts`), in-memory cache ~1h:
 Frontend (`PolymarketConfigFields`):
 - `subcategories` becomes a multi-select of the category's real related-tags
   (ordered), instead of free text + pool-tag suggestions.
-- Counts (e.g. Iran 104) are NOT in `related-tags` (needs 1 query per sub-tag) —
+- Counts (e.g. Iran 104) are NOT in `related-tags` (needs 1 query per sub-tag) -
   optional/lazy; v1 shows label + rank.
 
 Files: `apps/api/src/routes/config.ts`,
 `apps/web/src/app/admin/components/CategoryManagement.tsx`.
 
-## Phase 3 — De-hardcode
+## Phase 3 - De-hardcode
 
 - Auto-seed on boot: if `poolCategory` is empty at startup, run the seed
   automatically (kills the "prod empty → fallback" footgun). Keep `FALLBACK` as a
@@ -140,7 +140,7 @@ Files: `apps/api/src/routes/config.ts`,
 Files: `apps/api/src/index.ts` (or scheduler bootstrap),
 `apps/api/src/services/category-config.ts`, `apps/api/prisma/seed-categories.ts`.
 
-## Phase 4 — Manual PM pool creation
+## Phase 4 - Manual PM pool creation
 
 Backend (`routes/admin/actions.ts`):
 - `GET /api/admin/pm-markets?tagId=&q=` → search Gamma markets →
@@ -149,7 +149,7 @@ Backend (`routes/admin/actions.ts`):
   market, build a `Match`, resolve subcategory, call `createSportsPool` (on-chain,
   dedup by `matchId`). Resolves normally afterwards (real Gamma `marketId`).
 
-Frontend: a "Create PM pool" panel — search → pick → create.
+Frontend: a "Create PM pool" panel - search → pick → create.
 
 Files: `apps/api/src/routes/admin/actions.ts`,
 `apps/api/src/scheduler/sports-scheduler.ts` (reuse `createSportsPool`),

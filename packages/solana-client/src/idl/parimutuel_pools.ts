@@ -46,7 +46,7 @@ export type ParimutuelPools = {
     {
       "name": "claim",
       "docs": [
-        "Claim payout from resolved pool. Authority signs; user does NOT need to sign — the manual-claim path keeps working because the user wallet is the transaction fee payer, while the auto-payout path lets authority be the sole signer.",
+        "Claim payout from resolved pool. Authority signs; user does NOT need to sign - the manual-claim path keeps working because the user wallet is the transaction fee payer, while the auto-payout path lets authority be the sole signer.",
         "`side` selects which per-side UserBet account to claim (the winning side)."
       ],
       "discriminator": [
@@ -78,14 +78,14 @@ export type ParimutuelPools = {
         {
           "name": "user",
           "docs": [
-            "User receives the closed user_bet's rent. NOT required to sign — validated via user_bet.user == user.key()."
+            "User receives the closed user_bet's rent. NOT required to sign - validated via user_bet.user == user.key()."
           ],
           "writable": true
         },
         {
           "name": "authority",
           "docs": [
-            "Authority signs — enforces fee_bps (prevents users from passing fee_bps=0) AND authorises authority-driven auto-payout when the user wallet isn't available to sign."
+            "Authority signs - enforces fee_bps (prevents users from passing fee_bps=0) AND authorises authority-driven auto-payout when the user wallet isn't available to sign."
           ],
           "signer": true
         },
@@ -861,7 +861,7 @@ export type ParimutuelPools = {
     {
       "name": "resolve",
       "docs": [
-        "Resolve pool — for crypto: by price, for sports: by winner index"
+        "Resolve pool - for crypto: by price, for sports: by winner index"
       ],
       "discriminator": [
         246,
@@ -1227,7 +1227,7 @@ export type ParimutuelPools = {
     {
       "code": 6016,
       "name": "vaultNotEmpty",
-      "msg": "Vault still has tokens — all claims/refunds must be processed first"
+      "msg": "Vault still has tokens - all claims/refunds must be processed first"
     },
     {
       "code": 6017,
@@ -1518,7 +1518,7 @@ export type ParimutuelPools = {
           {
             "name": "totalDraw",
             "docs": [
-              "Total USDC deposited on side 2 (DRAW — sports only, always 0 for crypto)"
+              "Total USDC deposited on side 2 (DRAW - sports only, always 0 for crypto)"
             ],
             "type": "u64"
           },

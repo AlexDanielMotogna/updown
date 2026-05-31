@@ -1,6 +1,6 @@
 // Shared helpers used by both tournament route files
 
-// BigInt can't be JSON.stringify'd — convert to string
+// BigInt can't be JSON.stringify'd - convert to string
 export function serializeBigInt(data: unknown) {
   return JSON.parse(JSON.stringify(data, (_key, value) =>
     typeof value === 'bigint' ? value.toString() : value

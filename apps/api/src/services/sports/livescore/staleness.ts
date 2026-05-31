@@ -69,7 +69,7 @@ export function detectStaleEvents(
   const stale: StaleEvent[] = [];
   const seen = new Set<string>();
 
-  // Disappeared events (highest priority — were live, now gone)
+  // Disappeared events (highest priority - were live, now gone)
   for (const eventId of disappearedIds) {
     if (activePoolMatchIds.includes(eventId)) {
       stale.push({ eventId, reason: 'DISAPPEARED' });
@@ -100,7 +100,7 @@ export function detectStaleEvents(
     // Never appeared (kickoff passed, never seen in feed, and not NS/TBD in cache)
     const entry = cacheGet(matchId);
     if (kickoff && Date.now() > kickoff.getTime()) {
-      // If cached as NS/TBD, the game simply hasn't started — not stale
+      // If cached as NS/TBD, the game simply hasn't started - not stale
       if (entry && (entry.status === 'NS' || entry.status === 'TBD')) continue;
       if (!entry) {
         stale.push({ eventId: matchId, reason: 'NEVER_APPEARED' });

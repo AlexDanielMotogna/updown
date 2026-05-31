@@ -27,7 +27,7 @@ export function formatPrice(price: string | null): string {
 
 /** Picks the decimal count we should render for an asset price by magnitude.
  *  BTC at $73k reads fine in 2 decimals; SOL at $82 needs 4 to be meaningful
- *  (strike of $82.6274 must not display as $82.63 — that's a different price
+ *  (strike of $82.6274 must not display as $82.63 - that's a different price
  *  for win/loss purposes). Sub-dollar alts get up to 6 (USDC precision). */
 export function priceDecimalsFor(value: number): number {
   const v = Math.abs(value);
@@ -82,7 +82,7 @@ export function formatDate(dateString: string): string {
   });
 }
 
-/** "May 29, 10:35 PM - 10:40 PM CEST" — formatted in the viewer's local
+/** "May 29, 10:35 PM - 10:40 PM CEST" - formatted in the viewer's local
  *  timezone with their locale's TZ abbreviation (so a Berlin user sees
  *  "MESZ", a New Yorker sees "EDT", etc).
  *
@@ -106,14 +106,14 @@ export function formatPredictionWindow(startISO: string, endISO: string): string
   // Use `undefined` locale so the abbreviation comes back in the user's
   // language ("MESZ" for de-DE, "CEST" / "EDT" for en-*). `timeZoneName:
   // 'short'` is the well-supported variant; some runtimes return "GMT+2"
-  // instead of an alpha abbr — that's fine, the offset is still useful.
+  // instead of an alpha abbr - that's fine, the offset is still useful.
   let tz = '';
   try {
     const parts = new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' })
       .formatToParts(start);
     tz = parts.find(p => p.type === 'timeZoneName')?.value ?? '';
   } catch {
-    /* very old runtimes — fall through with no abbr */
+    /* very old runtimes - fall through with no abbr */
   }
   return tz
     ? `${date}, ${startTime} - ${endTime} ${tz}`

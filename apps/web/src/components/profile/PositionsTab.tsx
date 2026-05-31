@@ -108,7 +108,7 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim }: Posi
         />
       </Box>
 
-      {/* Column headers (desktop only) — Result column drops on Active. */}
+      {/* Column headers (desktop only) - Result column drops on Active. */}
       <Box sx={{
         display: { xs: 'none', md: 'grid' },
         gridTemplateColumns: sub === 'active'
@@ -137,7 +137,7 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim }: Posi
             {query.trim()
               ? 'No matches for your search'
               : sub === 'active'
-              ? 'No active positions — open one from the markets page'
+              ? 'No active positions - open one from the markets page'
               : 'No closed positions yet'}
           </Typography>
         </Box>
@@ -151,7 +151,7 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim }: Posi
               isClaiming={claimingBetId != null}
               claimingBetId={claimingBetId}
               // Inside the Active sub-tab every row's chip would say 'Active'
-              // — pure duplication of the surrounding nav state. Suppress
+              // - pure duplication of the surrounding nav state. Suppress
               // both the chip and the empty Result column it would leave.
               hideStatusChipWhen={sub === 'active' ? 'Active' : undefined}
               hideResultColumn={sub === 'active'}

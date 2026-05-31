@@ -83,7 +83,7 @@ claimsRouter.post('/claim', async (req, res) => {
       });
     }
 
-    // A wallet may hold positions on multiple sides — claim the WINNING-side row.
+    // A wallet may hold positions on multiple sides - claim the WINNING-side row.
     const bet = await prisma.bet.findUnique({
       where: {
         poolId_walletAddress_side: {
@@ -115,7 +115,7 @@ claimsRouter.post('/claim', async (req, res) => {
       });
     }
 
-    // Derive PDAs — UserBet is per (pool, user, side); claim the winning side.
+    // Derive PDAs - UserBet is per (pool, user, side); claim the winning side.
     const seed = derivePoolSeed(pool.id);
     const user = new PublicKey(walletAddress);
     const sideIdx = sideToIndex(bet.side);
@@ -345,7 +345,7 @@ claimsRouter.post('/confirm-claim', async (req, res) => {
       },
     });
 
-    // Award win + claim rewards — skip for refunds (payout == bet amount means refund)
+    // Award win + claim rewards - skip for refunds (payout == bet amount means refund)
     const isRefund = payout === bet.amount;
     if (!isRefund) {
       awardBetWin(bet.walletAddress, bet.amount).catch(e => console.warn('[Claims] awardBetWin failed:', e instanceof Error ? e.message : e));

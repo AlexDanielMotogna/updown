@@ -4,7 +4,7 @@ import { invalidateCache } from '../../services/category-config';
 
 export const adminCategoriesRouter: RouterType = Router();
 
-// GET /api/admin/categories — all categories (including disabled)
+// GET /api/admin/categories - all categories (including disabled)
 adminCategoriesRouter.get('/', async (_req, res) => {
   try {
     const categories = await prisma.poolCategory.findMany({ orderBy: { sortOrder: 'asc' } });
@@ -14,7 +14,7 @@ adminCategoriesRouter.get('/', async (_req, res) => {
   }
 });
 
-// POST /api/admin/categories — create new category
+// POST /api/admin/categories - create new category
 adminCategoriesRouter.post('/', async (req, res) => {
   try {
     const category = await prisma.poolCategory.create({ data: req.body });
@@ -25,7 +25,7 @@ adminCategoriesRouter.post('/', async (req, res) => {
   }
 });
 
-// PUT /api/admin/categories/:id — update category
+// PUT /api/admin/categories/:id - update category
 adminCategoriesRouter.put('/:id', async (req, res) => {
   try {
     const category = await prisma.poolCategory.update({
@@ -39,7 +39,7 @@ adminCategoriesRouter.put('/:id', async (req, res) => {
   }
 });
 
-// PATCH /api/admin/categories/:id/toggle — enable/disable
+// PATCH /api/admin/categories/:id/toggle - enable/disable
 adminCategoriesRouter.patch('/:id/toggle', async (req, res) => {
   try {
     const current = await prisma.poolCategory.findUnique({ where: { id: req.params.id } });
@@ -58,7 +58,7 @@ adminCategoriesRouter.patch('/:id/toggle', async (req, res) => {
   }
 });
 
-// PATCH /api/admin/categories/:id/coming-soon — toggle comingSoon
+// PATCH /api/admin/categories/:id/coming-soon - toggle comingSoon
 adminCategoriesRouter.patch('/:id/coming-soon', async (req, res) => {
   try {
     const current = await prisma.poolCategory.findUnique({ where: { id: req.params.id } });

@@ -78,7 +78,7 @@ export async function syncFinishedToUi(entries: LiveScore[]): Promise<void> {
   if (finished.length === 0) return;
 
   for (const e of finished) {
-    // Regulation-time rules — when the upstream status indicates AET/PEN, the
+    // Regulation-time rules - when the upstream status indicates AET/PEN, the
     // 90-minute result was a draw and the pool resolves to DRAW even though
     // one side eventually won. Falls back to score-based winner for non-AET.
     const winner = regulationWinner(e.homeScore, e.awayScore, e.status);

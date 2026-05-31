@@ -91,7 +91,7 @@ pub fn handler(ctx: Context<Deposit>, side: Side, amount: u64) -> Result<()> {
     // guarantees this account belongs to `side`, so re-deposits just add to it.
     let user_bet = &mut ctx.accounts.user_bet;
     if user_bet.user == Pubkey::default() {
-        // New bet — initialize all fields
+        // New bet - initialize all fields
         user_bet.pool = pool.key();
         user_bet.user = ctx.accounts.user.key();
         user_bet.side = side;
@@ -99,7 +99,7 @@ pub fn handler(ctx: Context<Deposit>, side: Side, amount: u64) -> Result<()> {
         user_bet.claimed = false;
         user_bet.bump = ctx.bumps.user_bet;
     } else {
-        // Same side guaranteed by the per-side seed — accumulate.
+        // Same side guaranteed by the per-side seed - accumulate.
         user_bet.amount = user_bet.amount.checked_add(amount).ok_or(PoolError::Overflow)?;
     }
 

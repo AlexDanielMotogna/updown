@@ -10,7 +10,7 @@ import type { UserProfile } from '@/lib/api';
  * the user sees the same fill colour, the same numbers, and the same
  * progression callout regardless of where they look.
  *
- * Accepts the whole UserProfile shape — keeps the call sites short and
+ * Accepts the whole UserProfile shape - keeps the call sites short and
  * guarantees that any number derivation (xpInLevel, xpSpan, next-level
  * label) stays in one place.
  */
@@ -24,7 +24,7 @@ interface XpProgressBarProps {
   compact?: boolean;
 }
 
-/** Tier colour matches the level badge ring — keeps the visual language tight. */
+/** Tier colour matches the level badge ring - keeps the visual language tight. */
 function tierColor(level: number, tiers: string[]): string {
   const idx = Math.min(Math.floor((level - 1) / 4), tiers.length - 1);
   return tiers[Math.max(0, idx)];

@@ -24,7 +24,7 @@ export function SquadMemberList({ members, currentWallet, isOwner, onKick }: Squ
   const t = useThemeTokens();
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-      {/* Header — desktop only */}
+      {/* Header - desktop only */}
       <Box
         sx={{
           display: { xs: 'none', md: 'grid' },
@@ -113,7 +113,7 @@ export function SquadMemberList({ members, currentWallet, isOwner, onKick }: Squ
               )}
             </Box>
 
-            {/* Joined — desktop */}
+            {/* Joined - desktop */}
             <Box sx={{ display: { xs: 'none', md: 'block' } }}>
               <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
                 {formatDateTime(m.joinedAt)}

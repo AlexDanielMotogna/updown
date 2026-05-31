@@ -143,7 +143,7 @@ export async function checkAndAdvanceRound(tournamentId: string) {
       orderBy: { matchIndex: 'asc' },
     });
 
-    // No matches for this round — nothing to do
+    // No matches for this round - nothing to do
     if (matches.length === 0) {
       return { advanced: false, completed: false };
     }
@@ -180,7 +180,7 @@ export async function checkAndAdvanceRound(tournamentId: string) {
       }
     }
 
-    // Tournament complete — only 1 winner left
+    // Tournament complete - only 1 winner left
     if (winners.length === 1) {
       await tx.tournament.update({
         where: { id: tournamentId },

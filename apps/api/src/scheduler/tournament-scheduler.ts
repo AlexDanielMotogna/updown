@@ -49,7 +49,7 @@ async function processTournaments(): Promise<void> {
         // Not past deadline yet
         if (!match.predictionDeadline || now < match.predictionDeadline) continue;
 
-        // Deadline expired — determine winner based on who predicted
+        // Deadline expired - determine winner based on who predicted
         const p1Predicted = match.player1Prediction != null;
         const p2Predicted = match.player2Prediction != null;
 
@@ -68,7 +68,7 @@ async function processTournaments(): Promise<void> {
           winnerWallet = match.player1Wallet;
           console.log(`[Tournament] Match ${match.id}: neither predicted, player1 wins by default`);
         } else {
-          // Both predicted — prediction window ended, start the match
+          // Both predicted - prediction window ended, start the match
           try {
             const priceTick = await priceProvider.getSpotPrice(tournament.asset);
             await prisma.tournamentMatch.update({
@@ -139,7 +139,7 @@ async function processTournaments(): Promise<void> {
           } else if (d2 < d1) {
             winnerWallet = match.player2Wallet;
           } else {
-            // Exact tie — whoever predicted first wins
+            // Exact tie - whoever predicted first wins
             const t1 = match.player1PredictedAt?.getTime() ?? Infinity;
             const t2 = match.player2PredictedAt?.getTime() ?? Infinity;
             winnerWallet = t1 <= t2 ? match.player1Wallet : match.player2Wallet;
@@ -185,7 +185,7 @@ async function processTournaments(): Promise<void> {
 }
 
 /**
- * Start the tournament scheduler — runs every 5 seconds.
+ * Start the tournament scheduler - runs every 5 seconds.
  */
 export function startTournamentScheduler(): void {
   console.log('[Tournament] Starting tournament scheduler (every 5s)');

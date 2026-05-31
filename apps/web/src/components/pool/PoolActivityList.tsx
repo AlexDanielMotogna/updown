@@ -21,7 +21,7 @@ interface Props {
 
 /**
  * Polls /api/pools/:id/bets every 5s, surfaces a compact "users that entered"
- * feed for the right sidebar — sits between the Place Bet card and the
+ * feed for the right sidebar - sits between the Place Bet card and the
  * More Crypto Markets list.
  */
 export function PoolActivityList({ poolId, limit = 8 }: Props) {
@@ -58,7 +58,7 @@ export function PoolActivityList({ poolId, limit = 8 }: Props) {
           setTimeout(() => setFreshKeys(new Set()), 2000);
         }
       } catch {
-        /* swallow — next tick will retry */
+        /* swallow - next tick will retry */
       }
     };
     tick();

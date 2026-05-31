@@ -23,7 +23,7 @@ export { ResolverDeps } from './resolver-types';
  * Handles pool resolution: final price capture, winner determination,
  * on-chain resolve, and RESOLVED → CLAIMABLE transitions.
  *
- * Thin orchestrator — delegates to standalone functions in:
+ * Thin orchestrator - delegates to standalone functions in:
  *   resolve-logic.ts, onchain-tx.ts, admin-actions.ts, orphan-recovery.ts
  */
 export class PoolResolver {
@@ -43,7 +43,7 @@ export class PoolResolver {
     const cutoff = new Date(Date.now() - bufferMs);
     // Sports pools have their own resolver in sports-scheduler.ts (driven by
     // the actual match result, not endTime). They land in this scheduler only
-    // by accident — and the crypto-style price-based resolution does the
+    // by accident - and the crypto-style price-based resolution does the
     // wrong thing for them (strikePrice on sports is 0n, which is falsy and
     // sends them down handleNoStrikePricePool incorrectly).
     const poolsToResolve = await this.deps.prisma.pool.findMany({
@@ -86,7 +86,7 @@ export class PoolResolver {
       // legacy notification and reclaims manually.
       const autoEnabled = await autoPayoutEnabledFor(pool);
       if (autoEnabled) {
-        // Fire-and-forget — autoClaimBets handles its own retries, logging,
+        // Fire-and-forget - autoClaimBets handles its own retries, logging,
         // and per-bet failure paths. We don't await so the tick doesn't
         // block on RPC for pools with many winners.
         autoClaimBets(this.deps, pool).catch(err => {
@@ -128,18 +128,18 @@ export class PoolResolver {
           const accountInfos = await connection.getMultipleAccountsInfo(pdas);
           for (let j = 0; j < accountInfos.length; j++) {
             if (accountInfos[j] === null) {
-              safeIds.push(chunk[j].id); // Not on-chain — safe to delete
+              safeIds.push(chunk[j].id); // Not on-chain - safe to delete
             }
           }
         } catch {
-          // RPC error — skip this chunk to be safe
+          // RPC error - skip this chunk to be safe
           console.warn(`[Scheduler] RPC error checking on-chain pools, skipping chunk of ${chunk.length}`);
         }
       }
 
       const skippedCount = emptyPools.length - safeIds.length;
       if (skippedCount > 0) {
-        console.warn(`[Scheduler] ${skippedCount} empty pool(s) still on-chain — skipping DB deletion`);
+        console.warn(`[Scheduler] ${skippedCount} empty pool(s) still on-chain - skipping DB deletion`);
       }
 
       if (safeIds.length === 0) return 0;
@@ -154,7 +154,7 @@ export class PoolResolver {
         skippedOnChain: skippedCount.toString(),
       });
 
-      console.log(`[Scheduler] Cleaned up ${safeIds.length} empty pool(s)${skippedCount > 0 ? ` (${skippedCount} skipped — still on-chain)` : ''}`);
+      console.log(`[Scheduler] Cleaned up ${safeIds.length} empty pool(s)${skippedCount > 0 ? ` (${skippedCount} skipped - still on-chain)` : ''}`);
       return safeIds.length;
     } catch (error) {
       console.error('[Scheduler] Failed to cleanup empty pools:', error);
@@ -201,11 +201,11 @@ export class PoolResolver {
             const vaultBalance = await connection.getTokenAccountBalance(closureVaultPda);
             const vaultAmount = Number(vaultBalance.value.amount);
             if (vaultAmount > 0) {
-              console.warn(`[Scheduler] Pool ${pool.id} vault still has ${vaultAmount} tokens — skipping close`);
+              console.warn(`[Scheduler] Pool ${pool.id} vault still has ${vaultAmount} tokens - skipping close`);
               continue;
             }
           } catch {
-            // Vault account might not exist (already closed) — that's fine, proceed
+            // Vault account might not exist (already closed) - that's fine, proceed
           }
 
           const balanceBefore = await connection.getBalance(this.deps.wallet.publicKey);
@@ -230,12 +230,12 @@ export class PoolResolver {
           this.closeFailures.delete(pool.id);
           await this.deps.prisma.priceSnapshot.deleteMany({ where: { poolId: pool.id } });
           if (betCount === 0) {
-            // No participants — safe to delete entirely
+            // No participants - safe to delete entirely
             await this.deps.prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: pool.id } });
             await this.deps.prisma.pool.deleteMany({ where: { id: pool.id } });
             console.log(`[Scheduler] Pool ${pool.id} closed on-chain & deleted (empty, rent: +${(rentReclaimed / 1e9).toFixed(6)} SOL)`);
           } else {
-            // Had participants — keep pool + bets for history, mark RESOLVED so it's not retried
+            // Had participants - keep pool + bets for history, mark RESOLVED so it's not retried
             await this.deps.prisma.pool.update({ where: { id: pool.id }, data: { status: 'RESOLVED' } });
             console.log(`[Scheduler] Pool ${pool.id} closed on-chain (${betCount} bets kept, marked RESOLVED, rent: +${(rentReclaimed / 1e9).toFixed(6)} SOL)`);
           }
@@ -243,8 +243,8 @@ export class PoolResolver {
           const errMsg = error instanceof Error ? error.message : String(error);
 
           if (errMsg.includes('InvalidPoolStatus') || errMsg.includes('0x177a')) {
-            // Pool not resolved on-chain (resolve failed due to 429/timeout) — resolve then retry close
-            console.log(`[Scheduler] Pool ${pool.id} not resolved on-chain — resolving before close`);
+            // Pool not resolved on-chain (resolve failed due to 429/timeout) - resolve then retry close
+            console.log(`[Scheduler] Pool ${pool.id} not resolved on-chain - resolving before close`);
             try {
               const strike = poolData?.strikePrice ?? BigInt(1000);
               const final = poolData?.finalPrice ?? strike;
@@ -269,7 +269,7 @@ export class PoolResolver {
           }
 
           if (errMsg.includes('AccountNotInitialized') || errMsg.includes('Custom":3012')) {
-            console.log(`[Scheduler] Pool ${pool.id} already closed on-chain — cleaning up DB records`);
+            console.log(`[Scheduler] Pool ${pool.id} already closed on-chain - cleaning up DB records`);
             await logEvent(this.deps.prisma, 'POOL_CLOSED', 'closure', pool.id, {
               poolId: pool.id,
               asset: poolData?.asset ?? 'unknown',
@@ -283,11 +283,11 @@ export class PoolResolver {
             if (betCount === 0) {
               await this.deps.prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: pool.id } });
               await this.deps.prisma.pool.deleteMany({ where: { id: pool.id } });
-              console.log(`[Scheduler] Pool ${pool.id} already closed — deleted (empty)`);
+              console.log(`[Scheduler] Pool ${pool.id} already closed - deleted (empty)`);
             } else {
               // Mark as RESOLVED so it won't be picked up for closure again
               await this.deps.prisma.pool.update({ where: { id: pool.id }, data: { status: 'RESOLVED' } });
-              console.log(`[Scheduler] Pool ${pool.id} already closed — kept (${betCount} bets, marked RESOLVED)`);
+              console.log(`[Scheduler] Pool ${pool.id} already closed - kept (${betCount} bets, marked RESOLVED)`);
             }
             continue;
           }

@@ -30,7 +30,7 @@ interface ActivityTabProps {
 }
 
 /**
- * Polymarket-style activity feed — every deposit and every payout/refund
+ * Polymarket-style activity feed - every deposit and every payout/refund
  * surfaces as one row, sorted newest-first. Synthesised from the existing
  * Bet records (createdAt = deposit timestamp; updatedAt + claimTx = payout).
  */
@@ -61,7 +61,7 @@ export function ActivityTab({ bets, betsLoading }: ActivityTabProps) {
           // The Bet model only carries `createdAt` to the API serializer;
           // we use the bet.createdAt + a small bump to ensure the claim
           // sorts after the bet when both happened in the same render.
-          // updatedAt isn't surfaced today — acceptable approximation.
+          // updatedAt isn't surfaced today - acceptable approximation.
           timestamp: bet.createdAt,
           amountRaw: bet.payoutAmount,
           txSignature: bet.claimTx,
@@ -91,7 +91,7 @@ export function ActivityTab({ bets, betsLoading }: ActivityTabProps) {
     return (
       <Box sx={{ textAlign: 'center', py: 8, px: 4 }}>
         <Typography sx={{ color: t.text.tertiary, fontSize: '0.9rem' }}>
-          No activity yet — your bets and payouts will appear here.
+          No activity yet - your bets and payouts will appear here.
         </Typography>
       </Box>
     );

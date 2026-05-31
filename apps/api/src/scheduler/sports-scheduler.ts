@@ -42,7 +42,7 @@ function getAdapterForLeague(league: string | null | undefined) {
 export async function createMatchPools(): Promise<void> {
   if (_creating) {
     _pendingRun = true;
-    console.log('[Sports] createMatchPools already running — queued follow-up run');
+    console.log('[Sports] createMatchPools already running - queued follow-up run');
     return;
   }
   _creating = true;
@@ -150,7 +150,7 @@ async function sweepUnresolvedPools(): Promise<void> {
 
   if (overdue.length === 0) return;
 
-  console.warn(`[Sports] SWEEP: ${overdue.length} overdue pool(s) — force-checking all APIs`);
+  console.warn(`[Sports] SWEEP: ${overdue.length} overdue pool(s) - force-checking all APIs`);
   const matchIds = [...new Set(overdue.map(p => p.matchId!).filter(Boolean))];
   const resultMap = await getCachedFixtureResults(matchIds);
 
@@ -158,7 +158,7 @@ async function sweepUnresolvedPools(): Promise<void> {
     if (!pool.matchId) continue;
     const result = resultMap.get(pool.matchId);
     if (!result) {
-      console.warn(`[Sports] SWEEP: ${pool.matchId} (${pool.homeTeam} vs ${pool.awayTeam}) — still no result after 3h+`);
+      console.warn(`[Sports] SWEEP: ${pool.matchId} (${pool.homeTeam} vs ${pool.awayTeam}) - still no result after 3h+`);
       continue;
     }
 
@@ -185,7 +185,7 @@ async function sweepUnresolvedPools(): Promise<void> {
 
 /**
  * Check finished matches and resolve their pools.
- * Runs every 2 minutes. Does NOT rely on endTime — only checks the real match result from API.
+ * Runs every 2 minutes. Does NOT rely on endTime - only checks the real match result from API.
  */
 export async function resolveMatchPools(): Promise<void> {
   const unresolved = await prisma.pool.findMany({
@@ -208,7 +208,7 @@ export async function resolveMatchPools(): Promise<void> {
 
     try {
       const result = resultMap.get(pool.matchId);
-      if (!result) continue; // Match not finished yet — skip
+      if (!result) continue; // Match not finished yet - skip
 
       const adapter = getAdapterForLeague(pool.league);
       const winnerSide = adapter.resolveWinner(result);
@@ -245,9 +245,9 @@ export async function resolveMatchPools(): Promise<void> {
           await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          // Already resolved or already closed on-chain — safe to proceed
+          // Already resolved or already closed on-chain - safe to proceed
           if (!msg.includes('InvalidPoolStatus') && !msg.includes('0x177a') && !msg.includes('AccountNotInitialized')) {
-            console.warn(`[Sports] Failed to resolve empty pool ${pool.id} on-chain — will retry:`, msg);
+            console.warn(`[Sports] Failed to resolve empty pool ${pool.id} on-chain - will retry:`, msg);
             continue; // Don't mark as RESOLVED, will retry next cycle
           }
         }
@@ -261,7 +261,7 @@ export async function resolveMatchPools(): Promise<void> {
         continue;
       }
 
-      // Pool has bets — resolve on-chain
+      // Pool has bets - resolve on-chain
       const seed = derivePoolSeed(pool.id);
       const [poolPda] = getPoolPDA(seed);
 
@@ -391,7 +391,7 @@ async function createSportsPool(match: Match, leagueCode: string): Promise<void>
 
       await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
     } catch (chainError) {
-      // On-chain failed — roll back DB to prevent stale DB-only pool
+      // On-chain failed - roll back DB to prevent stale DB-only pool
       await prisma.pool.delete({ where: { id: poolId } }).catch(e => console.warn('[Sports] DB rollback failed:', e instanceof Error ? e.message : e));
       console.warn(`[Sports] On-chain creation failed, rolled back DB row ${poolId}`);
       throw chainError;

@@ -86,7 +86,7 @@ model Bet {
   claimed       Boolean  @default(false)
   claimTx       String?  @map("claim_tx")
   payoutAmount  BigInt?  @map("payout_amount")
-  // Auto-payout tracking — set by the scheduler's autoClaimBets job. Stays
+  // Auto-payout tracking - set by the scheduler's autoClaimBets job. Stays
   // null/0 for bets paid via the manual claim flow.
   payoutFailed     Boolean   @default(false) @map("payout_failed")
   payoutAttempts   Int       @default(0) @map("payout_attempts")
@@ -336,15 +336,15 @@ model Tournament {
   asset         String
   entryFee      BigInt    @map("entry_fee")
   size          Int                                // 8, 16, 32
-  matchDuration     Int       @map("match_duration")       // seconds — wait time after predictions
-  predictionWindow  Int       @default(300) @map("prediction_window") // seconds — time to predict
+  matchDuration     Int       @map("match_duration")       // seconds - wait time after predictions
+  predictionWindow  Int       @default(300) @map("prediction_window") // seconds - time to predict
   status        String    @default("REGISTERING")  // REGISTERING, ACTIVE, COMPLETED, CANCELLED
   currentRound  Int       @default(0) @map("current_round")
   totalRounds   Int       @map("total_rounds")     // log2(size)
   prizePool     BigInt    @default(0) @map("prize_pool")
   winnerWallet  String?   @map("winner_wallet")
   prizeClaimedTx String?  @map("prize_claimed_tx")
-  scheduledAt   DateTime? @map("scheduled_at")       // informational — estimated start time
+  scheduledAt   DateTime? @map("scheduled_at")       // informational - estimated start time
   createdAt     DateTime  @default(now()) @map("created_at")
   startedAt     DateTime? @map("started_at")
   completedAt   DateTime? @map("completed_at")

@@ -4,15 +4,15 @@
 > Objetivo: que la **misma wallet** pueda tener posición en >1 lado del mismo pool (UP+DOWN en crypto; cualquier combo de Home/Draw/Away en deportes; Yes+No en PM). Motivo de negocio: más volumen y el usuario que va perdiendo puede cubrirse en el otro lado.
 
 Aplica a los **3 tipos de pool**:
-- **Crypto** — 2 lados (UP/DOWN), `poolType=CRYPTO`, `numSides=2`.
-- **Deportes** — 2 ó 3 lados (Home/Away, o Home/Draw/Away), `poolType=SPORTS`, `numSides=2|3`.
-- **PM (predicciones)** — 2 lados (Yes/No → UP/DOWN), `poolType=SPORTS` con league `PM_*`, `numSides=2`. Comparte TODO el flujo de deportes (deposit/claim/refund + `sports-scheduler`).
+- **Crypto** - 2 lados (UP/DOWN), `poolType=CRYPTO`, `numSides=2`.
+- **Deportes** - 2 ó 3 lados (Home/Away, o Home/Draw/Away), `poolType=SPORTS`, `numSides=2|3`.
+- **PM (predicciones)** - 2 lados (Yes/No → UP/DOWN), `poolType=SPORTS` con league `PM_*`, `numSides=2`. Comparte TODO el flujo de deportes (deposit/claim/refund + `sports-scheduler`).
 
 ---
 
 ## 1. La restricción raíz (on-chain)
 
-`programs/parimutuel_pools/src/instructions/deposit.rs:96-99` — el `UserBet` PDA es `[SEED_PREFIX, pool, user]` (una cuenta por usuario por pool, un solo `side`). Al re-depositar con otro lado el **programa** rechaza:
+`programs/parimutuel_pools/src/instructions/deposit.rs:96-99` - el `UserBet` PDA es `[SEED_PREFIX, pool, user]` (una cuenta por usuario por pool, un solo `side`). Al re-depositar con otro lado el **programa** rechaza:
 
 ```rust
 require!(user_bet.side == side, PoolError::SideMismatch);
@@ -22,9 +22,9 @@ Todo lo demás (API, DB, front) solo refleja esta regla. **Quitar el check de la
 
 ---
 
-## 2. Decisión de diseño (clave) — Opción A vs B
+## 2. Decisión de diseño (clave) - Opción A vs B
 
-| | **A — cuenta por lado** (side en las seeds) | **B — montos por lado** (una cuenta) |
+| | **A - cuenta por lado** (side en las seeds) | **B - montos por lado** (una cuenta) |
 |---|---|---|
 | PDA | `[SEED, pool, user, side]` → 1 cuenta por (pool,user,**side**) | `[SEED, pool, user]` (igual que hoy) |
 | Struct `UserBet` | **sin cambios** (`{side, amount, claimed, bump}`) | cambia → `{amount_up, amount_down, amount_draw, claimed, bump}` |
@@ -52,7 +52,7 @@ El resto del plan asume **Opción A**. (Si se elige B, cambian §4.1, §4.5 y §
 
 ## 4. Cambios por capa (exhaustivo)
 
-### 4.1 Programa Anchor (Rust) — `programs/parimutuel_pools/src/`
+### 4.1 Programa Anchor (Rust) - `programs/parimutuel_pools/src/`
 - `instructions/deposit.rs`:
   - Seeds del `user_bet`: agregar `&[side as u8]`.
   - Quitar el bloque `else { require!(side mismatch); amount += }`. Con seeds por lado, cada lado es su propia cuenta `init_if_needed` y se acumula en ella (re-deposit al mismo lado sigue sumando).
@@ -65,42 +65,42 @@ El resto del plan asume **Opción A**. (Si se elige B, cambian §4.1, §4.5 y §
 
 ### 4.2 `packages/solana-client/src/`
 - `pdas.ts` (o donde esté `getUserBetPDA`): agregar parámetro `side` a la derivación.
-- `instructions/index.ts`: `buildDepositIx` / `buildClaimIx` / `buildRefundIx` — los **args** no cambian (siguen `side, amount` / `fee_bps`); solo se les pasa el `userBet` PDA derivado con side. Verificar que la cuenta `userBet` siga siendo la correcta.
+- `instructions/index.ts`: `buildDepositIx` / `buildClaimIx` / `buildRefundIx` - los **args** no cambian (siguen `side, amount` / `fee_bps`); solo se les pasa el `userBet` PDA derivado con side. Verificar que la cuenta `userBet` siga siendo la correcta.
 - `accounts/index.ts` + `types.ts`: `UserBetAccount` sin cambios (Opción A).
 - Copiar IDL regenerado.
 
-### 4.3 DB / Prisma — `apps/api/prisma/`
+### 4.3 DB / Prisma - `apps/api/prisma/`
 - `schema.prisma`: cambiar el `@@unique` de `Bet` (ver §3).
 - Migración nueva.
 
-### 4.4 API depósitos — `apps/api/src/routes/deposits.ts`
+### 4.4 API depósitos - `apps/api/src/routes/deposits.ts`
 - **Quitar** los 2 checks `SIDE_MISMATCH` (`/deposit` ~131-139 y `/confirm-deposit` ~análogo).
 - `bet.findUnique`/`upsert` por `poolId_walletAddress` → clave compuesta **`poolId_walletAddress_side`** (líneas ~106, ~124, ~266, ~392).
 - `/deposit`: derivar `getUserBetPDA(poolPDA, user, side)`.
-- **maxBettors (squad)**: hoy usa `bet.count({poolId})` y `findUnique(poolId_walletAddress)` — con filas por lado eso **sobre-cuenta** (misma wallet en 2 lados = 2 filas). Cambiar a contar **wallets distintas** (`groupBy walletAddress` o `distinct`).
+- **maxBettors (squad)**: hoy usa `bet.count({poolId})` y `findUnique(poolId_walletAddress)` - con filas por lado eso **sobre-cuenta** (misma wallet en 2 lados = 2 filas). Cambiar a contar **wallets distintas** (`groupBy walletAddress` o `distinct`).
 
-### 4.5 API claims — `apps/api/src/routes/claims.ts`
+### 4.5 API claims - `apps/api/src/routes/claims.ts`
 - `/claim`: hoy busca `findUnique(poolId_walletAddress)` (una fila). Cambiar a buscar la **fila del lado ganador** del usuario: `findUnique(poolId_walletAddress_side: {…, side: pool.winner})`. Si no existe → no ganó.
 - `getUserBetPDA(poolPDA, user)` → pasar `pool.winner` como side.
 - `calculatePayout`: hoy se llama con solo `totalUp/totalDown` y `side as 'UP'|'DOWN'` → **bug en 3-way (DRAW)**. Pasar `totalDraw: pool.totalDraw` y `side: bet.side`. (Las funds on-chain ya son correctas; esto corrige el display/fallback.)
 - `betCount` para fee: hoy `bet.count({poolId})` cuenta filas; con hedge una sola wallet puede dar betCount≥2. Para "fee waived si 1 solo bettor" usar **wallets distintas**, no filas.
 - `confirm-claim`: igual, `calculatePayout` con `totalDraw` + side real.
 
-### 4.6 Resolver / refunds — `apps/api/src/scheduler/`
+### 4.6 Resolver / refunds - `apps/api/src/scheduler/`
 - `resolve-logic.ts`:
   - **Detección de refund por totales, no por `betCount`.** Hoy `betCount === 1` → `handleSingleBettorRefund`. Una wallet hedgeada (2 filas, ambos totales > 0) NO debe reembolsarse: debe resolver normal. Gatear refund por `totalUp==0 || totalDown==0` (y considerar draw en 3-way), no por cantidad de filas/bettors.
-  - El `awardBetResolution` (XP, ya mergeado) itera `allBets` por wallet única — con filas por lado, una wallet con 2 lados aparece 2 veces; ya hago `new Set(walletAddress)` así que da XP 1 vez por wallet. ✓ (revisar que siga así.)
+  - El `awardBetResolution` (XP, ya mergeado) itera `allBets` por wallet única - con filas por lado, una wallet con 2 lados aparece 2 veces; ya hago `new Set(walletAddress)` así que da XP 1 vez por wallet. ✓ (revisar que siga así.)
 - `onchain-tx.ts` `autoRefundBets`: en Opción A funciona casi igual (por fila = por cuenta, derivando `getUserBetPDA` con `bet.side`). **Hay que pasar `side` a `refundBetOnChain`/`getUserBetPDA`.**
 - `sports-scheduler.ts` (`resolveMatchPools`): resuelve por resultado real; cubre deportes **y PM**. Revisar que el claim posterior tome la fila del lado ganador (mismo cambio que §4.5). Caso "todos los bettors en lados perdedores" → nadie reclama (sin refund), igual que hoy.
 
-### 4.7 Notificaciones — `apps/web/src/hooks/useNotifications.ts`
+### 4.7 Notificaciones - `apps/web/src/hooks/useNotifications.ts`
 - `onPoolStatus`: hoy `bets.find(b => b.pool.id === data.id)` devuelve **una** apuesta y decide WON/LOST por su side. Con hedge la wallet tiene posición ganadora **y** perdedora.
 - Cambio: evaluar el **conjunto** (`bets.filter(b => b.pool.id === id)`). Si **alguna** posición está en el lado ganador → **una sola** notif `POOL_WON`/`POOL_CLAIMABLE`. El lado perdedor **no** emite un `LOST` aparte (sería contradictorio). → **una notificación limpia por pool.**
 
-### 4.8 Frontend — formularios y vistas
+### 4.8 Frontend - formularios y vistas
 Confirmado revisando el código actual:
 
-- **Form de apuesta** — el lock por `existingBetSide` (`BetForm.tsx:43,56,63,317`) fuerza el lado y cambia el botón a "Add to UP". En la práctica casi no se pasa esa prop hoy; **el bloqueo real es el servidor** (`SIDE_MISMATCH`). Cambios:
+- **Form de apuesta** - el lock por `existingBetSide` (`BetForm.tsx:43,56,63,317`) fuerza el lado y cambia el botón a "Add to UP". En la práctica casi no se pasa esa prop hoy; **el bloqueo real es el servidor** (`SIDE_MISMATCH`). Cambios:
   - Quitar el lock para que el selector permita elegir cualquier lado siempre.
   - Crypto: `BetForm.tsx`, `bet/SideSelector.tsx`, `pool/ArenaSection.tsx`, `pool/CryptoPoolModal.tsx`, `app/pool/[id]/page.tsx`.
   - Deportes/PM: `sports/MatchBetModal.tsx`, `sports/ThreeWaySelector.tsx`, `app/match/[id]/page.tsx` (permitir cualquier combo de los 2-3 lados).
@@ -114,12 +114,12 @@ Confirmado revisando el código actual:
 |---|---|---|
 | Notificaciones | 1 notif/pool (gana si algún lado ganó) | Evaluar el conjunto |
 | Sidebar pools activos | N/A (pool-céntrico) | **Ninguno** |
-| Pool page — form | permite elegir/sumar cualquier lado | Quitar lock |
-| Pool page — tu posición | **Sí, ambas** | Listar posiciones |
-| Pool page — Activity feed | Sí (ya funciona) | Ninguno |
+| Pool page - form | permite elegir/sumar cualquier lado | Quitar lock |
+| Pool page - tu posición | **Sí, ambas** | Listar posiciones |
+| Pool page - Activity feed | Sí (ya funciona) | Ninguno |
 | Profile (tabla/row) | filas por lado | Listar varias + Claim al lado ganador |
 
-### 4.9 Rewards — `apps/api/src/services/rewards.ts`
+### 4.9 Rewards - `apps/api/src/services/rewards.ts`
 - `trackBetPlacement` corre por confirm-deposit (por fila/lado) → un hedger acumula `dailyBetCount` por cada lado. Aceptable (sigue siendo actividad), pero notar para los tiers de coins.
 - `awardBetResolution` / `awardBetWin`: por wallet en resolución / por fila ganadora en claim. El lado perdedor nunca reclama → no hay doble premio. ✓
 

@@ -134,7 +134,7 @@ export function MarketSidebar() {
   const isTournaments = pathname === '/tournaments';
   const tagFilter = searchParams.get('tag') ?? 'ALL';
 
-  // The admin-configured "Sidebar Filters" whitelist for this category — used as a
+  // The admin-configured "Sidebar Filters" whitelist for this category - used as a
   // labels-only fallback while the counted result loads (or if a category has no
   // pools at all yet).
   const adminSubcats = useMemo(() => {
@@ -143,8 +143,8 @@ export function MarketSidebar() {
   }, [isPM, categories, marketType]);
 
   // Faceted filters WITH live pool counts. The endpoint returns the curated
-  // whitelist filters that actually have pools (ordered), or — when the whitelist
-  // matches nothing — auto-derived filters from the pools' real tags. Always
+  // whitelist filters that actually have pools (ordered), or - when the whitelist
+  // matches nothing - auto-derived filters from the pools' real tags. Always
   // fetched for PM so every category shows counts.
   const API = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002') : '';
   const { data: pmBuckets } = useQuery({
@@ -242,7 +242,7 @@ export function MarketSidebar() {
         </>
       )}
 
-      {/* PM subcategory filters — admin-managed via config.subcategories */}
+      {/* PM subcategory filters - admin-managed via config.subcategories */}
       {isPM && pmSubcategories.length > 0 && (
         <SidebarSection>
           <SidebarItem

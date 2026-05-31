@@ -27,7 +27,7 @@ function relTime(iso: string): string {
 }
 
 function fmtMult(m: number): string {
-  if (!isFinite(m) || m <= 0) return '—';
+  if (!isFinite(m) || m <= 0) return '-';
   if (m >= 100) return '99+x';
   return `${m >= 10 ? m.toFixed(1) : m.toFixed(2)}x`;
 }
@@ -104,7 +104,7 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
   const intervalLabel = INTERVAL_LABELS[pool.interval] || pool.interval;
   // For crypto we use the Polymarket-style phrasing ("Bitcoin Up or Down") and
   // surface the actual prediction window ("May 29, 10:35 PM - 10:40 PM ET") as
-  // a subtitle below — the implicit interval is encoded in the start/end gap.
+  // a subtitle below - the implicit interval is encoded in the start/end gap.
   const title = isCrypto
     ? `${getAssetName(pool.asset)} Up or Down`
     : isPrediction
@@ -127,7 +127,7 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
     outcomes.push({ side: 'UP', name: 'Up', color: t.up, icon: <Box component="img" src="/assets/up-icon-64x64.png" alt="" sx={{ width: 18, height: 18 }} />, ...odds(totalUp, 50) });
     outcomes.push({ side: 'DOWN', name: 'Down', color: t.down, icon: <Box component="img" src="/assets/down-icon-64x64.png" alt="" sx={{ width: 18, height: 18 }} />, ...odds(totalDown, 50) });
   } else if (isPrediction) {
-    // Yes/No (or named) outcomes use a colour dot — the market's image is the
+    // Yes/No (or named) outcomes use a colour dot - the market's image is the
     // card thumbnail (shown next to the title), not a per-outcome icon.
     outcomes.push({ side: 'UP', name: pool.awayTeam ? pool.homeTeam! : 'Yes', color: t.up, ...odds(totalUp, 50) });
     outcomes.push({ side: 'DOWN', name: pool.awayTeam || 'No', color: t.down, ...odds(totalDown, 50) });
@@ -170,7 +170,7 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
             <Box component="img" src={`/coins/${pool.asset.toLowerCase()}-coin.png`} alt="" sx={{ width: 18, height: 18, borderRadius: '50%' }} />
           ) : catBadge ? (
             // Dark pad so the Champions League badge (whitish silver star)
-            // still reads against the card bg — white pad made it invisible.
+            // still reads against the card bg - white pad made it invisible.
             <Box component="img" src={catBadge} alt="" sx={{ width: 18, height: 18, objectFit: 'contain', ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(13,18,25,0.92)', borderRadius: '50%', p: '1px' }) }} />
           ) : CatIcon ? (
             <CatIcon sx={{ fontSize: 16, color: catColor }} />

@@ -85,7 +85,7 @@ export default function PrivacyPage() {
             UpDown is a <strong style={{ color: t.text.primary }}>community prediction game</strong> where participants express opinions on the short-term price direction of cryptocurrency assets. It operates using a parimutuel pool model: participants on the winning side share the pool proportionally.
           </Paragraph>
           <Paragraph>
-            The platform does not act as a counterparty to any prediction. There is no house edge — the platform fee (3-5% based on user level) is the only revenue. All funds flow between participants via smart contracts.
+            The platform does not act as a counterparty to any prediction. There is no house edge - the platform fee (3-5% based on user level) is the only revenue. All funds flow between participants via smart contracts.
           </Paragraph>
           <Paragraph>
             UpDown does not facilitate the purchase, sale, or exchange of any securities, commodities, or financial instruments. USDC used on the platform is a stablecoin held in user wallets and transferred via on-chain smart contracts only when users explicitly sign transactions.
@@ -119,7 +119,7 @@ export default function PrivacyPage() {
           </Box>
 
           <Paragraph>
-            All on-chain data (transactions, pool states, token balances) is inherently public on the Solana blockchain and viewable by anyone via block explorers. Off-chain data (XP, chat messages, referral stats) is stored in our database and associated only with your wallet address — not with any personal identity.
+            All on-chain data (transactions, pool states, token balances) is inherently public on the Solana blockchain and viewable by anyone via block explorers. Off-chain data (XP, chat messages, referral stats) is stored in our database and associated only with your wallet address - not with any personal identity.
           </Paragraph>
         </Box>
 

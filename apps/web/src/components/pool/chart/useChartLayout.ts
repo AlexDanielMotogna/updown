@@ -7,7 +7,7 @@
  *   - Derived chartW / chartH (container minus padding).
  *
  * Each subview (SnakeLineChart, CandlesChart) wires its own price-range,
- * X/Y mappings and hover logic — those are intentionally NOT centralized
+ * X/Y mappings and hover logic - those are intentionally NOT centralized
  * here because the two views need different shapes (snake = time-anchored,
  * candles = index-based) and bundling them produces tangled state.
  */

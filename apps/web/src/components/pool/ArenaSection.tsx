@@ -156,7 +156,7 @@ function WinnerBanner({ pool }: { pool: PoolDetail }) {
       )}
       {isRefund && (
         <Typography variant="body2" sx={{ mt: 1, color: t.accent, fontWeight: 600, fontSize: '0.8rem' }}>
-          No opponents — all bets refunded
+          No opponents - all bets refunded
         </Typography>
       )}
     </Box>

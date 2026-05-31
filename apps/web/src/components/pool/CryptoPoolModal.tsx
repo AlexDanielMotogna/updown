@@ -196,7 +196,7 @@ export function CryptoPoolModal({ pool, onClose }: Props) {
             </Box>
           </Box>
 
-          {/* Mini chart — controls hidden */}
+          {/* Mini chart - controls hidden */}
           <Box sx={{
             height: { xs: 180, sm: 300 }, overflow: 'hidden',
             '& > div': {

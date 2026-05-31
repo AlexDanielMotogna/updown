@@ -1,4 +1,4 @@
--- Auto-payout tracking fields on Bet — populated by the scheduler's
+-- Auto-payout tracking fields on Bet - populated by the scheduler's
 -- autoClaimBets job. Manual-claim bets leave these at default (false / 0 / null).
 
 ALTER TABLE "bets"

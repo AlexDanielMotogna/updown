@@ -173,14 +173,14 @@ export function FinancialOverview() {
                           onClick={() => navigator.clipboard.writeText(c.poolId)}
                           title="Click to copy"
                         >{c.poolId}</TableCell>
-                        <TableCell>{c.payload.asset ?? '—'}</TableCell>
-                        <TableCell>{c.payload.interval ?? '—'}</TableCell>
+                        <TableCell>{c.payload.asset ?? '-'}</TableCell>
+                        <TableCell>{c.payload.interval ?? '-'}</TableCell>
                         <TableCell>{c.payload.totalPool ? formatUsdc(c.payload.totalPool) : '0'}</TableCell>
                         <TableCell>{c.payload.betCount ?? '0'}</TableCell>
                         <TableCell>
                           {c.payload.winner && c.payload.winner !== 'none' ? (
                             <Chip label={c.payload.winner} size="small" sx={{ fontSize: 11, bgcolor: c.payload.winner === 'UP' ? `${t.gain}22` : `${t.error}22`, color: c.payload.winner === 'UP' ? t.gain : t.error }} />
-                          ) : '—'}
+                          ) : '-'}
                         </TableCell>
                         <TableCell sx={{ color: t.gain, fontWeight: 500 }}>{c.payload.rentReclaimedSol ?? '0'} SOL</TableCell>
                         <TableCell sx={{ fontSize: 10 }}>
@@ -193,7 +193,7 @@ export function FinancialOverview() {
                             >
                               {c.payload.txSignature.slice(0, 8)}...
                             </a>
-                          ) : '—'}
+                          ) : '-'}
                         </TableCell>
                         <TableCell>
                           <Chip label={c.payload.source === 'admin' ? 'Admin' : 'Auto'} size="small" variant="outlined" sx={{ fontSize: 10 }} />

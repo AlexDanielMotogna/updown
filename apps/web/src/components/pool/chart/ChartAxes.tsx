@@ -4,7 +4,7 @@
  * Shared axes layer: horizontal gridlines + Y-axis price labels, plus the
  * time-keyed X tick group used by the snake view.
  *
- * Y ticks are anchored at fixed Y positions — they never move with the
+ * Y ticks are anchored at fixed Y positions - they never move with the
  * snake. X ticks (when passed) are keyed by their timestamp so each tick's
  * DOM node persists across renders, letting the CSS transform-transition
  * inside the snake group slide the labels smoothly leftward.

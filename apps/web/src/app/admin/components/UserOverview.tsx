@@ -225,7 +225,7 @@ export function UserOverview() {
                             <Chip label={b.pool.status} size="small" sx={{ fontSize: 11 }} variant="outlined" />
                           )}
                         </TableCell>
-                        <TableCell>{b.payoutAmount ? formatUsdc(b.payoutAmount) : '—'}</TableCell>
+                        <TableCell>{b.payoutAmount ? formatUsdc(b.payoutAmount) : '-'}</TableCell>
                         <TableCell>{b.claimed ? 'Yes' : 'No'}</TableCell>
                       </TableRow>
                     ))}

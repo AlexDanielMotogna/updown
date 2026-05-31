@@ -10,7 +10,7 @@ const LIST_KEYS: ReadonlyArray<readonly string[]> = [['markets-home'], ['trendin
  * Keeps the Markets home / trending / rail query caches live via WebSocket:
  * removes pools the moment they end (pool:status → RESOLVED/CLAIMABLE) and pulls
  * in freshly-created pools (pools:new). Per-card total/odds updates are handled
- * inside MarketCard itself. Frontend-only — consumes existing server events.
+ * inside MarketCard itself. Frontend-only - consumes existing server events.
  */
 export function useMarketsLiveSync() {
   const queryClient = useQueryClient();

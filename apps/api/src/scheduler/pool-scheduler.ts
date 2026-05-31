@@ -128,7 +128,7 @@ export class PoolScheduler {
 
   /**
    * Create successor pools when current pool's lockTime passes.
-   * No more ACTIVE transition — pools go JOINING → RESOLVED directly.
+   * No more ACTIVE transition - pools go JOINING → RESOLVED directly.
    */
   async processStatusTransitions(): Promise<void> {
     const now = new Date();

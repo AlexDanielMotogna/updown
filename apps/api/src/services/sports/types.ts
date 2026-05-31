@@ -11,7 +11,7 @@ export interface Match {
   status: MatchStatus;
   /** Raw status from the upstream API ('AET', 'PEN', 'After Extra Time', etc).
    *  Preserved so resolution can distinguish a regulation-time draw from an
-   *  extra-time / penalty winner — pool resolution uses 90-minute rules. */
+   *  extra-time / penalty winner - pool resolution uses 90-minute rules. */
   rawStatus?: string | null;
   homeScore?: number;
   awayScore?: number;
@@ -41,6 +41,6 @@ export interface SportAdapter {
 
   /** Fetch fixtures in a date range. Used by fixture sync job. */
   fetchMatchesByDateRange(league: string, dateFrom: string, dateTo: string): Promise<Match[]>;
-  /** Batch fetch multiple match results (optional — API-Football supports it). */
+  /** Batch fetch multiple match results (optional - API-Football supports it). */
   fetchMatchResultsBatch?(matchIds: string[]): Promise<MatchResult[]>;
 }

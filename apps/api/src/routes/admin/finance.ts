@@ -112,7 +112,7 @@ adminFinanceRouter.get('/overview', async (_req, res) => {
   }
 });
 
-// GET /finance/closures — Paginated list of closed pools with rent reclaimed
+// GET /finance/closures - Paginated list of closed pools with rent reclaimed
 const closuresSchema = z.object({
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(100).default(30),

@@ -32,7 +32,7 @@ pub mod parimutuel_pools {
         instructions::deposit::handler(ctx, side, amount)
     }
 
-    /// Resolve pool — for crypto: by price, for sports: by winner index
+    /// Resolve pool - for crypto: by price, for sports: by winner index
     pub fn resolve(
         ctx: Context<Resolve>,
         strike_price: u64,

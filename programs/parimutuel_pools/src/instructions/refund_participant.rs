@@ -35,7 +35,7 @@ pub struct RefundParticipant<'info> {
     )]
     pub user_token_account: Account<'info, TokenAccount>,
 
-    /// CHECK: User account — authority drives refunds, no user signature needed
+    /// CHECK: User account - authority drives refunds, no user signature needed
     pub user: AccountInfo<'info>,
 
     #[account(

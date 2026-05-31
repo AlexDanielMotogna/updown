@@ -1,7 +1,7 @@
-# Plan — Time-weighted payouts (crypto pools)
+# Plan - Time-weighted payouts (crypto pools)
 
 Status: **draft / not implemented**
-Scope: crypto pools only (sports & Polymarket out of scope — discrete events, no
+Scope: crypto pools only (sports & Polymarket out of scope - discrete events, no
 comparable info-leak during the betting window)
 Author target: 1 dev, ~2 weeks end-to-end including on-chain redeploy.
 
@@ -21,8 +21,8 @@ share_i = stake_i / Σ(stake_winners) × (totalPool − fee)
 deposited at `startTime` carried the full uncertainty. Both receive the same
 $/$. Two consequences:
 
-1. **Unfair** — same reward for radically different risk.
-2. **Sniping vector** — rational late entrants pile onto whichever side is
+1. **Unfair** - same reward for radically different risk.
+2. **Sniping vector** - rational late entrants pile onto whichever side is
    already winning, dilute the early winners' payout, and free-ride on revealed
    information.
 
@@ -34,7 +34,7 @@ inhibits this today.
 Reward time-at-risk while keeping the parimutuel invariants (winners share the
 losing pool minus fee; the house never adds liquidity).
 
-## 3. Proposed mechanism — weighted parimutuel
+## 3. Proposed mechanism - weighted parimutuel
 
 Each deposit is assigned a **weight** based on how much of the betting window
 remains at the moment of the on-chain instruction:
@@ -59,13 +59,13 @@ share_i = weight_i / Σ(weight_winners) × (totalPool − fee)
 
 ### 3.1 Variants considered
 
-- **A. Linear** ⭐ — the formula above. Intuitive, monotonic, easy to display.
-- **B. Convex** — `weight = stake × ((lockTime − now)/(lockTime − startTime))^α`,
+- **A. Linear** ⭐ - the formula above. Intuitive, monotonic, easy to display.
+- **B. Convex** - `weight = stake × ((lockTime − now)/(lockTime − startTime))^α`,
   `α = 2`. Harsher decay; more opaque to users.
 - **C. Discrete tiers** (1.00× / 0.85× / 0.65× / 0.50× by quartile). Easier to
-  market but introduces **cliff effects** — users rush in just before each tier
+  market but introduces **cliff effects** - users rush in just before each tier
   boundary, which is itself a UX failure mode.
-- **D. Linear with floor** — `max(0.30, (lockTime − now)/(lockTime − startTime))`.
+- **D. Linear with floor** - `max(0.30, (lockTime − now)/(lockTime − startTime))`.
   Conserves late liquidity by guaranteeing ≥30% credit. Recommended **fallback**
   if shadow-mode data (§7) shows option A kills late entries.
 
@@ -74,7 +74,7 @@ volume collapsing > X%.** Threshold to be defined during phase 1 of rollout.
 
 ## 4. Implementation
 
-### 4.1 On-chain (Anchor) — the heavy piece
+### 4.1 On-chain (Anchor) - the heavy piece
 
 Files: `programs/updown/src/state.rs`, `programs/updown/src/instructions/deposit_bet.rs`,
 `programs/updown/src/instructions/claim.rs`.
@@ -83,7 +83,7 @@ Files: `programs/updown/src/state.rs`, `programs/updown/src/instructions/deposit
 - **`BetEscrow`**: add `total_weighted_up: u64`, `total_weighted_down: u64`,
   `total_weighted_draw: u64`.
 - **`deposit_bet`**: read the Solana `Clock` sysvar (not a client-supplied
-  timestamp — the client cannot be trusted) and compute:
+  timestamp - the client cannot be trusted) and compute:
   ```rust
   let now = Clock::get()?.unix_timestamp as u64;
   let total = pool.lock_time.saturating_sub(pool.start_time);
@@ -110,8 +110,8 @@ Migration: backfill `weightedAmount = amount` and `totalWeighted* = total*`
 for existing rows (retroactive weight = 1.0). Equivalent to "old pools run on
 the old formula", which they do.
 
-Keep the raw `totalUp/Down/Draw` columns — used by every existing display and
-by serializers — and just add the weighted columns alongside.
+Keep the raw `totalUp/Down/Draw` columns - used by every existing display and
+by serializers - and just add the weighted columns alongside.
 
 ### 4.3 Backend (`apps/api`)
 
@@ -127,13 +127,13 @@ by serializers — and just add the weighted columns alongside.
 - `scheduler` resolution (`apps/api/src/scheduler/*`): pool finalisation reads
   `total_weighted_*` and writes `winner`. The autoclaim worker (PR #62, see
   [[project-auto-payout-branch]]) consumes weighted totals via `calculatePayout`
-  — no separate code path.
+  - no separate code path.
 
 ### 4.4 Frontend (`apps/web`)
 
 - `CryptoPoolCard` and `app/pool/[id]/page.tsx`: live **"current entry weight:
   0.74×"** indicator + a decay bar that re-renders each second on the client.
-  Pure visual — the source of truth still lives on-chain.
+  Pure visual - the source of truth still lives on-chain.
 - Bet form: tooltip + a tiny simulator: *"At 0.74× your $5 deposit counts as
   $3.70 in the payout calculation. Earlier bettors get a bigger slice."*
 - `Predictions` right sidebar and `Profile`: show each bet's stored
@@ -144,7 +144,7 @@ by serializers — and just add the weighted columns alongside.
 
 ### 4.5 Tests
 
-- `apps/api/__tests__/payout.test.ts`: golden case — two winners, $5 each, one
+- `apps/api/__tests__/payout.test.ts`: golden case - two winners, $5 each, one
   at `t=0` and one at `t = 0.95 × duration`. Verify the early bettor receives
   ~20× the per-dollar share of the late one. Verify total payout still equals
   `netPool` (no dust escapes silently).
@@ -155,7 +155,7 @@ by serializers — and just add the weighted columns alongside.
 
 ## 5. Anti-gaming
 
-The big one — *cancel-and-rebet to lock in early weight without risk* —
+The big one - *cancel-and-rebet to lock in early weight without risk* -
 **is not a vector**: the app does not expose any cancel/exit-pool flow, and
 neither does the Anchor program. Confirmed in the code (`deposit_bet` is the
 only deposit-side instruction; there is no `cancel_bet` / `withdraw`).
@@ -164,8 +164,8 @@ Remaining surface, mitigated:
 
 | Vector | Mitigation |
 |---|---|
-| **Dust early-stake** — tiny stake very early to claim max weight | Existing min-stake floor; weight is *proportional* to stake so a 1¢ stake gets a proportionally tiny weight |
-| **Last-second sniping** | Eliminates itself — weight ≈ 0 |
+| **Dust early-stake** - tiny stake very early to claim max weight | Existing min-stake floor; weight is *proportional* to stake so a 1¢ stake gets a proportionally tiny weight |
+| **Last-second sniping** | Eliminates itself - weight ≈ 0 |
 | **Client-supplied timestamp manipulation** | Anchor reads `Clock` sysvar; client cannot lie |
 | **Server / chain time drift** | Use `Clock` on-chain everywhere it matters; server `Date.now()` is preview-only and explicitly labelled "estimated" in serializer output |
 

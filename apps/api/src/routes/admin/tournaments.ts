@@ -13,7 +13,7 @@ import { buildActualOutcomes, computeTotalGoals, determineMatchdayWinner, parseM
 
 export const adminTournamentsRouter: RouterType = Router();
 
-// GET /api/admin/tournaments — list all tournaments
+// GET /api/admin/tournaments - list all tournaments
 adminTournamentsRouter.get('/', async (_req, res) => {
   try {
     const tournaments = await prisma.tournament.findMany({
@@ -48,12 +48,12 @@ adminTournamentsRouter.get('/', async (_req, res) => {
   }
 });
 
-// GET /api/admin/tournaments/sports — list available sport adapters
+// GET /api/admin/tournaments/sports - list available sport adapters
 adminTournamentsRouter.get('/sports', (_req, res) => {
   res.json({ success: true, data: listSports() });
 });
 
-// GET /api/admin/tournaments/upcoming-matches?league=CL&sport=FOOTBALL — fetch upcoming matches
+// GET /api/admin/tournaments/upcoming-matches?league=CL&sport=FOOTBALL - fetch upcoming matches
 adminTournamentsRouter.get('/upcoming-matches', async (req, res) => {
   try {
     const league = (req.query.league as string) || 'CL';
@@ -78,7 +78,7 @@ adminTournamentsRouter.get('/upcoming-matches', async (req, res) => {
   }
 });
 
-// POST /api/admin/tournaments/create — create tournament
+// POST /api/admin/tournaments/create - create tournament
 adminTournamentsRouter.post('/create', async (req, res) => {
   try {
     const { name, asset, entryFee, size, matchDuration, predictionWindow, scheduledAt, tournamentType, sport, league } = req.body;
@@ -114,7 +114,7 @@ adminTournamentsRouter.post('/create', async (req, res) => {
   }
 });
 
-// POST /api/admin/tournaments/:id/start — start tournament
+// POST /api/admin/tournaments/:id/start - start tournament
 adminTournamentsRouter.post('/:id/start', async (req, res) => {
   try {
     const matches = await startTournament(req.params.id);
@@ -129,7 +129,7 @@ adminTournamentsRouter.post('/:id/start', async (req, res) => {
   }
 });
 
-// POST /api/admin/tournaments/:id/cancel — cancel tournament
+// POST /api/admin/tournaments/:id/cancel - cancel tournament
 adminTournamentsRouter.post('/:id/cancel', async (req, res) => {
   try {
     const result = await cancelTournament(req.params.id);
@@ -141,7 +141,7 @@ adminTournamentsRouter.post('/:id/cancel', async (req, res) => {
   }
 });
 
-// POST /api/admin/tournaments/:id/delete — permanently delete a tournament and all related data
+// POST /api/admin/tournaments/:id/delete - permanently delete a tournament and all related data
 adminTournamentsRouter.post('/:id/delete', async (req, res) => {
   try {
     const id = req.params.id;
@@ -162,7 +162,7 @@ adminTournamentsRouter.post('/:id/delete', async (req, res) => {
   }
 });
 
-// POST /api/admin/tournaments/:id/reset-round — delete current round matches and recreate them
+// POST /api/admin/tournaments/:id/reset-round - delete current round matches and recreate them
 adminTournamentsRouter.post('/:id/reset-round', async (req, res) => {
   try {
     const tournament = await prisma.tournament.findUniqueOrThrow({
@@ -220,7 +220,7 @@ adminTournamentsRouter.post('/:id/reset-round', async (req, res) => {
   }
 });
 
-// POST /api/admin/tournaments/:id/update-schedule — update scheduled start time
+// POST /api/admin/tournaments/:id/update-schedule - update scheduled start time
 adminTournamentsRouter.post('/:id/update-schedule', async (req, res) => {
   try {
     const { scheduledAt } = req.body;
@@ -239,7 +239,7 @@ adminTournamentsRouter.post('/:id/update-schedule', async (req, res) => {
   }
 });
 
-// POST /api/admin/tournaments/:id/update — update tournament fields (only while REGISTERING)
+// POST /api/admin/tournaments/:id/update - update tournament fields (only while REGISTERING)
 adminTournamentsRouter.post('/:id/update', async (req, res) => {
   try {
     const existing = await prisma.tournament.findUniqueOrThrow({ where: { id: req.params.id } });
@@ -272,7 +272,7 @@ adminTournamentsRouter.post('/:id/update', async (req, res) => {
   }
 });
 
-// POST /api/admin/tournaments/:id/assign-matchday — assign fixtures to a round
+// POST /api/admin/tournaments/:id/assign-matchday - assign fixtures to a round
 adminTournamentsRouter.post('/:id/assign-matchday', async (req, res) => {
   try {
     const { round, fixtures } = req.body;
@@ -295,7 +295,7 @@ adminTournamentsRouter.post('/:id/assign-matchday', async (req, res) => {
   }
 });
 
-// Keep old endpoint as alias — redirect to assign-matchday
+// Keep old endpoint as alias - redirect to assign-matchday
 adminTournamentsRouter.post('/:id/assign-match', async (req, res) => {
   const { homeTeam, awayTeam, homeTeamCrest, awayTeamCrest, footballMatchId, round } = req.body;
   if (!homeTeam || !awayTeam) return res.status(400).json({ success: false, error: { code: 'MISSING_FIELDS', message: 'homeTeam and awayTeam required' } });
@@ -306,7 +306,7 @@ adminTournamentsRouter.post('/:id/assign-match', async (req, res) => {
   res.json({ success: true, data: { fixturesAssigned: count, round: targetRound } });
 });
 
-// POST /api/admin/tournaments/:id/resolve-matchday — manually set fixture results and resolve
+// POST /api/admin/tournaments/:id/resolve-matchday - manually set fixture results and resolve
 adminTournamentsRouter.post('/:id/resolve-matchday', async (req, res) => {
   try {
     const { results } = req.body; // Array of { fixtureIndex, resultHome, resultAway }

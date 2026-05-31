@@ -37,7 +37,7 @@ async function main() {
   const p = await prisma.pool.deleteMany({});
 
   console.log(`Deleted: priceSnapshots=${ps.count} referralEarnings=${re.count} bets=${b.count} pools=${p.count}`);
-  console.log('Localhost pools emptied. (On-chain devnet accounts remain — orphaned after redeploy, fine on test.)');
+  console.log('Localhost pools emptied. (On-chain devnet accounts remain - orphaned after redeploy, fine on test.)');
 }
 
 main()

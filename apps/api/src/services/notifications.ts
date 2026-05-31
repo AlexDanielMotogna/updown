@@ -50,7 +50,7 @@ export async function notifyPoolResolved(pool: {
       ? ` (${pool.homeScore}-${pool.awayScore})`
       : '';
 
-    // When auto-payout is on for this pool, skip the POOL_WON notification —
+    // When auto-payout is on for this pool, skip the POOL_WON notification -
     // it says "Collect your winnings" which is misleading because the
     // scheduler is about to pay automatically. The follow-up BET_PAID toast
     // from autoClaimBets is the right surface ("Payout sent to your wallet").
@@ -69,8 +69,8 @@ export async function notifyPoolResolved(pool: {
           type: won ? 'POOL_WON' : 'POOL_LOST',
           title: won ? 'You Won!' : 'Better Luck Next Time',
           message: won
-            ? `${matchLabel}${scoreLabel} — Collect your winnings`
-            : `${matchLabel}${scoreLabel} — Prediction was incorrect`,
+            ? `${matchLabel}${scoreLabel} - Collect your winnings`
+            : `${matchLabel}${scoreLabel} - Prediction was incorrect`,
           severity: won ? 'success' as const : 'warning' as const,
           poolId: pool.id,
           poolType: pool.poolType,
@@ -115,7 +115,7 @@ export async function notifyPoolClaimable(pool: {
       walletAddress: bet.walletAddress,
       type: 'POOL_CLAIMABLE',
       title: 'Claim Available',
-      message: `${matchLabel} — Your payout is ready to claim`,
+      message: `${matchLabel} - Your payout is ready to claim`,
       severity: 'success' as const,
       poolId: pool.id,
       poolType: pool.poolType,
@@ -159,7 +159,7 @@ export async function notifyBetPaid(
     walletAddress,
     type: 'BET_PAID',
     title: `You won $${dollarStr}`,
-    message: `${matchLabel} — Payout sent to your wallet`,
+    message: `${matchLabel} - Payout sent to your wallet`,
     severity: 'success',
     poolId: pool.id,
     poolType: pool.poolType,

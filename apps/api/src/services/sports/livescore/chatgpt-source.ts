@@ -83,7 +83,7 @@ export async function fetchScoreFromChatGPT(
         messages: [
           {
             role: 'system',
-            content: 'You are a sports score lookup assistant. Return ONLY a JSON object with the score of the requested match. If you don\'t know the current score or the match hasn\'t started yet, set "confident" to false. Never guess — only report scores you are certain about.',
+            content: 'You are a sports score lookup assistant. Return ONLY a JSON object with the score of the requested match. If you don\'t know the current score or the match hasn\'t started yet, set "confident" to false. Never guess - only report scores you are certain about.',
           },
           {
             role: 'user',
@@ -196,7 +196,7 @@ function recordFailure(): void {
   consecutiveFailures++;
   if (consecutiveFailures >= CHATGPT_CIRCUIT_BREAKER_THRESHOLD) {
     circuitBreakerUntil = Date.now() + CHATGPT_CIRCUIT_BREAKER_COOLDOWN_MS;
-    console.warn(`[LiveScore:ChatGPT] Circuit breaker OPEN — disabled for 5 minutes after ${consecutiveFailures} consecutive failures`);
+    console.warn(`[LiveScore:ChatGPT] Circuit breaker OPEN - disabled for 5 minutes after ${consecutiveFailures} consecutive failures`);
     consecutiveFailures = 0;
   }
 }

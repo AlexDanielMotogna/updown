@@ -19,11 +19,11 @@ import {
 
 interface Props {
   currentPoolId: string;
-  /** Cap on rows shown — Polymarket renders 4. */
+  /** Cap on rows shown - Polymarket renders 4. */
   limit?: number;
 }
 
-/** Interval pills — every row in the sidebar is scoped to exactly one
+/** Interval pills - every row in the sidebar is scoped to exactly one
  *  duration so the user can compare apples to apples. Ordered shortest-first
  *  to match the chart controls elsewhere in the app. */
 const INTERVAL_FILTERS = [
@@ -51,7 +51,7 @@ export function ActiveCryptoPoolsSidebar({ currentPoolId, limit = 4 }: Props) {
   const t = useThemeTokens();
   const [interval, setInterval] = useState<IntervalFilter>('5m');
 
-  // Pull live crypto pools — API filters by `type=CRYPTO` and we narrow to
+  // Pull live crypto pools - API filters by `type=CRYPTO` and we narrow to
   // currently-bettable statuses. We over-fetch (limit 30) so the interval
   // filter has enough pools to pick from after slicing.
   const { data, isLoading } = usePools({
@@ -221,7 +221,7 @@ function PoolRow({ pool }: { pool: { id: string; asset: string; interval: string
             lineHeight: 1.3,
           }}
         >
-          {getAssetName(pool.asset)} Up or Down — {intervalLabel}
+          {getAssetName(pool.asset)} Up or Down - {intervalLabel}
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
           <Circle sx={{ fontSize: 8, color: leadingColor }} />

@@ -2,7 +2,7 @@
 
 /**
  * Classic OHLC candlestick view. Index-mapped X axis (one candle per slot,
- * spread evenly across the chart width). Static — no rolling buffer, no
+ * spread evenly across the chart width). Static - no rolling buffer, no
  * snake animation. Used as the secondary view when the user wants OHLC
  * detail instead of the real-time line.
  */

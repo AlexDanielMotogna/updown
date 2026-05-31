@@ -90,7 +90,7 @@ async function getActiveSports(): Promise<string[]> {
 // ─── Missing pool fallback ───────────────────────────────────────────────────
 
 /**
- * /livescore/all is unreliable — some live games don't appear.
+ * /livescore/all is unreliable - some live games don't appear.
  * For pools whose startTime passed but weren't in the livescore feed,
  * do individual /lookup/event calls to get their scores.
  */
@@ -132,12 +132,12 @@ async function pollMissingPools(foundIds: Set<string>, toPersist: LiveScore[]): 
   } catch { /* best-effort */ }
 }
 
-// ─── The Odds API — Parallel source ──────────────────────────────────────────
+// ─── The Odds API - Parallel source ──────────────────────────────────────────
 
 /**
  * Poll The Odds API in parallel with TheSportsDB every cycle.
  * Fetches ALL games for each sport that has active pools.
- * Merges into toPersist — newer data wins.
+ * Merges into toPersist - newer data wins.
  */
 async function pollOddsApiParallel(
   freshSportsDbIds: Set<string>,
@@ -164,7 +164,7 @@ async function pollOddsApiParallel(
     const sportKeys = getOddsApiSportKeys(leagues);
     if (sportKeys.length === 0) return;
 
-    // daysFrom=1 costs 2 credits instead of 1 — only use every 5 min for old pools
+    // daysFrom=1 costs 2 credits instead of 1 - only use every 5 min for old pools
     const twoHoursAgo = Date.now() - 2 * 3600_000;
     const hasOldPools = activePools.some(p => p.startTime.getTime() < twoHoursAgo);
     const useDaysFrom = hasOldPools && Date.now() - lastDaysFromCall > DAYS_FROM_INTERVAL_MS;
@@ -250,7 +250,7 @@ async function pollChatGPTFallbacks(
     const alreadyResolved = toPersist.some(e => e.eventId === stale.eventId);
     if (alreadyResolved) continue;
 
-    // Skip if lookup found the event but it hasn't started (NS/TBD) — unless stuck
+    // Skip if lookup found the event but it hasn't started (NS/TBD) - unless stuck
     const cached = cacheGet(stale.eventId);
     if (cached && (cached.status === 'NS' || cached.status === 'TBD') && stale.reason !== 'STUCK_NS') continue;
 
@@ -313,7 +313,7 @@ async function pollLiveScores(): Promise<void> {
       recordMidnightBoundary();
       const sports = await getActiveSports();
       if (sports.length > 0) {
-        console.log(`[LiveScore] Midnight boundary — polling ${sports.length} sport-specific feed(s)`);
+        console.log(`[LiveScore] Midnight boundary - polling ${sports.length} sport-specific feed(s)`);
         const seenIds = new Set(freshEntries.map(e => e.eventId));
 
         for (const sport of sports) {
@@ -326,7 +326,7 @@ async function pollLiveScores(): Promise<void> {
                 seenIds.add(entry.eventId);
               }
             }
-          } catch { /* skip — best effort */ }
+          } catch { /* skip - best effort */ }
         }
       }
     }
@@ -348,7 +348,7 @@ async function pollLiveScores(): Promise<void> {
     // 3. Detect disappeared events (were in previous poll, not in current)
     const disappeared = updatePreviousPollIds(freshIds);
     if (disappeared.length > 0) {
-      console.log(`[LiveScore] ${disappeared.length} event(s) disappeared from feed — queuing for individual lookup`);
+      console.log(`[LiveScore] ${disappeared.length} event(s) disappeared from feed - queuing for individual lookup`);
       for (const eid of disappeared) {
         const entry = cacheGet(eid);
         if (entry) recordEventDisappeared(eid, entry.homeTeam, entry.awayTeam, entry.sport);
@@ -359,13 +359,13 @@ async function pollLiveScores(): Promise<void> {
     for (const id of freshIds) clearMissingEvent(id);
 
     // 4. Individual lookups for active pools not in feed
-    // MUST await before persisting — pollMissingPools mutates toPersist
+    // MUST await before persisting - pollMissingPools mutates toPersist
     await pollMissingPools(freshIds, toPersist);
 
-    // 5. The Odds API — PARALLEL source (runs every cycle, not just on stale)
+    // 5. The Odds API - PARALLEL source (runs every cycle, not just on stale)
     await pollOddsApiParallel(freshIds, toPersist);
 
-    // 6. ChatGPT — last resort for anything still unresolved
+    // 6. ChatGPT - last resort for anything still unresolved
     const { matchIds, kickoffs } = await getActivePoolInfo();
     const staleEvents = detectStaleEvents(matchIds, freshIds, disappeared, kickoffs);
     if (staleEvents.length > 0) {

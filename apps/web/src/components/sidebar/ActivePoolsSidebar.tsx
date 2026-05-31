@@ -15,7 +15,7 @@ import type { Bet } from '@/lib/api';
 interface Row { pool: Bet['pool']; amount: bigint; side: string; claimable: boolean }
 
 /**
- * Right sidebar: the user's ACTIVE pools — pools they bet in that are still live
+ * Right sidebar: the user's ACTIVE pools - pools they bet in that are still live
  * (JOINING/ACTIVE) or claimable (won, pending claim). One row per pool with the
  * pool image/icon, name, the user's side + staked amount, and a status badge.
  * Clicking a row opens the pool's detail page.
@@ -53,7 +53,7 @@ export function ActivePoolsSidebar({ onClose }: { onClose: () => void }) {
 
   const emptyMsg = !connected
     ? 'Connect your wallet to see your active pools.'
-    : 'No active pools yet — place a prediction to see it here.';
+    : 'No active pools yet - place a prediction to see it here.';
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', borderLeft: `1px solid ${t.border.subtle}`, bgcolor: t.bg.app }}>

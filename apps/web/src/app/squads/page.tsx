@@ -257,7 +257,7 @@ export default function SquadsPage() {
           isLoading={createSquad.isPending}
         />
 
-        {/* Join — step 1: enter code */}
+        {/* Join - step 1: enter code */}
         <Dialog
           open={showCodeInput}
           onClose={() => setShowCodeInput(false)}
@@ -323,7 +323,7 @@ export default function SquadsPage() {
           </DialogActions>
         </Dialog>
 
-        {/* Join — step 2: confirmation */}
+        {/* Join - step 2: confirmation */}
         <Dialog
           open={showJoin}
           onClose={() => { setShowJoin(false); setInviteInfo(null); }}

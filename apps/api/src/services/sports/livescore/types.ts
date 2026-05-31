@@ -59,17 +59,17 @@ export function isFinishedStatus(raw: string): boolean {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-export const CACHE_TTL_MS = 1_200_000;          // 20 min — survives NHL/NBA intermissions
-export const DB_FALLBACK_TTL_MS = 4 * 3_600_000; // 4h — max age for DB fallback results
-export const DB_CLEANUP_AGE_MS = 24 * 3_600_000; // 24h — delete old DB entries
-export const CACHE_CLEANUP_MS = 1_500_000;        // 25 min — stale cache eviction
-export const POLL_INTERVAL_MS = 30_000;           // 30s — livescore polling interval
+export const CACHE_TTL_MS = 1_200_000;          // 20 min - survives NHL/NBA intermissions
+export const DB_FALLBACK_TTL_MS = 4 * 3_600_000; // 4h - max age for DB fallback results
+export const DB_CLEANUP_AGE_MS = 24 * 3_600_000; // 24h - delete old DB entries
+export const CACHE_CLEANUP_MS = 1_500_000;        // 25 min - stale cache eviction
+export const POLL_INTERVAL_MS = 30_000;           // 30s - livescore polling interval
 export const API_LOOKUP_LIMIT = 15;               // Max API lookups per resolver cycle
 
 // Staleness & fallback
-export const STALE_THRESHOLD_MS = 120_000;        // 2 min — re-fetch if data older than this
-export const SCORE_FREEZE_THRESHOLD_MS = 300_000; // 5 min — flag score as frozen
-export const NS_STUCK_THRESHOLD_MS = 1_800_000;   // 30 min — flag NS as stuck after kickoff
+export const STALE_THRESHOLD_MS = 120_000;        // 2 min - re-fetch if data older than this
+export const SCORE_FREEZE_THRESHOLD_MS = 300_000; // 5 min - flag score as frozen
+export const NS_STUCK_THRESHOLD_MS = 1_800_000;   // 30 min - flag NS as stuck after kickoff
 export const MIDNIGHT_BUFFER_HOURS = 2;           // Extra polling window around midnight UTC
 
 // ChatGPT fallback
@@ -78,7 +78,7 @@ export const CHATGPT_MAX_PER_CYCLE = 3;           // Max ChatGPT calls per 30s c
 export const CHATGPT_CIRCUIT_BREAKER_THRESHOLD = 3;
 export const CHATGPT_CIRCUIT_BREAKER_COOLDOWN_MS = 300_000; // 5 min
 
-// The Odds API — parallel source alongside TheSportsDB
+// The Odds API - parallel source alongside TheSportsDB
 export const ODDS_API_CREDIT_FLOOR = 50;           // Disable if fewer credits remaining
 
 /** Maps our league codes to The Odds API sport keys */

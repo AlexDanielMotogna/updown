@@ -34,7 +34,7 @@ export function SquadChat({ messages, onSend, isSending, currentWallet }: SquadC
   const bottomRef = useRef<HTMLDivElement>(null);
   const prevCountRef = useRef(0);
 
-  // Messages come from API in desc order — reverse for display
+  // Messages come from API in desc order - reverse for display
   const sorted = [...(messages || [])].reverse();
 
   // Track unread when closed

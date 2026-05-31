@@ -1,5 +1,5 @@
 /**
- * Canonical metadata for the crypto assets the app supports — colors, display
+ * Canonical metadata for the crypto assets the app supports - colors, display
  * names, and small helpers. Anything that needs the human-readable name of a
  * ticker, the brand tint to paint a tile/chart with, or a fallback display
  * label should pull from here instead of redefining its own ad-hoc tables.

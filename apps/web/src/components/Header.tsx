@@ -31,7 +31,7 @@ export function Header() {
         backgroundColor: t.bg.app,
       }}
     >
-      {/* Main bar — capped to the same 1400px frame as the body so the navbar
+      {/* Main bar - capped to the same 1400px frame as the body so the navbar
           edges line up with the sidebars. */}
       <Box
         sx={{
@@ -79,7 +79,7 @@ export function Header() {
                   overflow: 'hidden',
                 }}
               >
-                {/* Level icon — desktop only */}
+                {/* Level icon - desktop only */}
                 {userProfile && (
                   <Box
                     sx={{
@@ -94,7 +94,7 @@ export function Header() {
                   </Box>
                 )}
 
-                {/* UP Coins — desktop only */}
+                {/* UP Coins - desktop only */}
                 {userProfile && (
                   <Box
                     sx={{

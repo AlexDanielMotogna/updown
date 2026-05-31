@@ -120,7 +120,7 @@ export function MarketFilter({
   const [showFilters, setShowFilters] = useState(false);
   const { data: categories } = useCategories();
 
-  // Horizontal tabs overflow on narrow widths. No visible arrows — instead
+  // Horizontal tabs overflow on narrow widths. No visible arrows - instead
   // make the row drag-to-scroll (mouse + touch) and translate the vertical
   // mouse wheel into horizontal scroll. Tab clicks still work because we only
   // start "dragging" once the pointer moves past a small threshold.

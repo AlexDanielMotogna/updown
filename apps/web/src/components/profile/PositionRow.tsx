@@ -98,12 +98,12 @@ export function PositionRow({ bet, onClaim, isClaiming }: PositionRowProps) {
   const profitNum = payoutNum - stakeNum;
   const profitPct = stakeNum > 0 ? (profitNum / stakeNum) * 100 : 0;
   const isRefundRow = bet.claimed && bet.payoutAmount != null && bet.payoutAmount === bet.amount;
-  // Don't show "+\$0.00 (0%)" on refunds — the chip already says Refunded
+  // Don't show "+\$0.00 (0%)" on refunds - the chip already says Refunded
   // and the delta is mathematically meaningless (you got your stake back).
   const showProfit = bet.claimed && payoutNum > 0 && !isRefundRow && bet.isWinner === true;
 
   // For active pools (no winner yet) show the "potential payout at current
-  // odds" — straight parimutuel math, minus an approximate 5% protocol fee.
+  // odds" - straight parimutuel math, minus an approximate 5% protocol fee.
   // Re-renders whenever the bet/pool query refreshes, so the number breathes
   // with the pool's live totals.
   const totalUp = Number(bet.pool.totalUp ?? 0);
@@ -198,14 +198,14 @@ export function PositionRow({ bet, onClaim, isClaiming }: PositionRowProps) {
         </Box>
       </Box>
 
-      {/* Stake / Total negociado — header above carries the label */}
+      {/* Stake / Total negociado - header above carries the label */}
       <Box sx={{ display: { xs: 'none', md: 'block' }, textAlign: 'right' }}>
         <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
           {formatUSDC(bet.amount, { min: 2 })}
         </Typography>
       </Box>
 
-      {/* Payout — header above carries the label.
+      {/* Payout - header above carries the label.
           Settled = on-chain amount + profit delta.
           Unsettled = potential payout at current pool odds (parimutuel math).
           Pending auto-payout = "Paying soon…" italic. */}
@@ -242,7 +242,7 @@ export function PositionRow({ bet, onClaim, isClaiming }: PositionRowProps) {
             </Typography>
           </>
         ) : (
-          <Typography sx={{ fontSize: '0.85rem', color: t.text.quaternary }}>—</Typography>
+          <Typography sx={{ fontSize: '0.85rem', color: t.text.quaternary }}>-</Typography>
         )}
       </Box>
 

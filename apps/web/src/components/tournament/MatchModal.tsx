@@ -136,7 +136,7 @@ export function MatchModal({
         <PlayerRow wallet={match.player2Wallet} prediction={match.player2Prediction} distance={p2Distance} isWinner={p2Won} isLoser={isResolved && !p2Won && !!match.player2Wallet} isPending={isPending || isActive} isSports={isSports} score={match.player2Score} fixtureCount={fixtureCount} isMe={isP2} />
       </Box>
 
-      {/* Fixtures breakdown — card per match */}
+      {/* Fixtures breakdown - card per match */}
       {isSports && fixtures && fixtures.length > 0 && (match.player1Prediction || match.player2Prediction) && (
         <Box sx={{ borderTop: `1px solid ${BORDER}`, px: 2, py: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
           <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: t.text.secondary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -158,7 +158,7 @@ export function MatchModal({
 
             // Convert HOME/DRAW/AWAY to team name
             const pickToName = (pick: string | undefined | null) => {
-              if (!pick) return '—';
+              if (!pick) return '-';
               if (pick === 'HOME') return f.homeTeam;
               if (pick === 'AWAY') return f.awayTeam;
               return 'Draw';
@@ -244,10 +244,10 @@ export function MatchModal({
                 </Box>
                 <Box sx={{ display: 'flex', gap: 2 }}>
                   <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: isP1 ? t.accent : t.text.bright }}>
-                    {isP1 ? 'You' : 'Opponent'}: {match.player1TotalGoals ?? '—'}
+                    {isP1 ? 'You' : 'Opponent'}: {match.player1TotalGoals ?? '-'}
                   </Typography>
                   <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: isP2 ? t.accent : t.text.bright }}>
-                    {isP2 ? 'You' : 'Opponent'}: {match.player2TotalGoals ?? '—'}
+                    {isP2 ? 'You' : 'Opponent'}: {match.player2TotalGoals ?? '-'}
                   </Typography>
                 </Box>
               </Box>
@@ -286,7 +286,7 @@ export function MatchModal({
         </Box>
       )}
 
-      {/* Locked — waiting for opponent */}
+      {/* Locked - waiting for opponent */}
       {isPending && isMyMatch && myPrediction && (
         <Box sx={{ borderTop: `1px solid ${BORDER}`, px: 2, py: 1.5 }}>
           <Typography sx={{ fontSize: '0.75rem', color: t.text.dimmed, textAlign: 'center' }}>

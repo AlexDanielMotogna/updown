@@ -6,7 +6,7 @@
 export const PACIFICA_API_URL = 'https://api.pacifica.fi';
 export const PACIFICA_WS_URL = 'wss://ws.pacifica.fi/ws';
 
-// Colors — re-exported from theme.ts for backward compat
+// Colors - re-exported from theme.ts for backward compat
 export { UP_COLOR, DOWN_COLOR, DRAW_COLOR, GAIN_COLOR, ACCENT_COLOR } from '@/lib/theme';
 
 // UP Coins: stored as base units, divide by this to get display value
@@ -50,7 +50,7 @@ export const INTERVAL_TAG_IMAGES: Record<string, string> = {
 };
 
 // ---------------------------------------------------------------------------
-// Box art — asset-interval specific boxes take priority, then asset fallback
+// Box art - asset-interval specific boxes take priority, then asset fallback
 // ---------------------------------------------------------------------------
 export const ASSET_INTERVAL_BOX_IMAGE: Record<string, string> = {
   'BTC-3m': '/boxes/Btc-3min.png',

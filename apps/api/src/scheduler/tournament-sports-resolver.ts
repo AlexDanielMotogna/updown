@@ -80,7 +80,7 @@ export async function processSportsTournament(tournament: {
     orderBy: { fixtureIndex: 'asc' },
   });
   if (fixtures.length === 0) {
-    console.warn(`[Sports Tournament] No fixtures for round ${tournament.currentRound} — cannot resolve. Admin must assign fixtures or resolve manually.`);
+    console.warn(`[Sports Tournament] No fixtures for round ${tournament.currentRound} - cannot resolve. Admin must assign fixtures or resolve manually.`);
     return;
   }
 
@@ -95,7 +95,7 @@ export async function processSportsTournament(tournament: {
     // Skip fixtures with manual IDs (admin-created, no real API match)
     const pollable = unfinished.filter(f => !f.footballMatchId.startsWith('manual-'));
     if (pollable.length === 0) {
-      console.log(`[Sports Tournament] All unfinished fixtures are manual — waiting for admin to resolve`);
+      console.log(`[Sports Tournament] All unfinished fixtures are manual - waiting for admin to resolve`);
       return;
     }
 
@@ -118,7 +118,7 @@ export async function processSportsTournament(tournament: {
         continue;
       }
 
-      // Regulation-time rules — extra time / penalties don't count for
+      // Regulation-time rules - extra time / penalties don't count for
       // tournament outcome (same as pool resolution). result.winner is
       // already the regulation winner when populated by the upstream cache.
       const outcome = result.winner ?? regulationWinner(result.homeScore, result.awayScore, result.rawStatus);
@@ -147,7 +147,7 @@ export async function processSportsTournament(tournament: {
   // Validate: every fixture must have valid scores
   for (const f of freshFixtures) {
     if (f.resultHome == null || f.resultAway == null || f.resultOutcome == null) {
-      console.error(`[Sports Tournament] Fixture ${f.id} is FINISHED but missing result data — skipping resolution`);
+      console.error(`[Sports Tournament] Fixture ${f.id} is FINISHED but missing result data - skipping resolution`);
       return;
     }
   }
@@ -164,7 +164,7 @@ export async function processSportsTournament(tournament: {
 
     // Validate predictions exist and have correct length
     if (!p1 || !p2) {
-      console.error(`[Sports Tournament] Match ${match.id}: corrupt prediction data — p1=${!!p1} p2=${!!p2}. Skipping.`);
+      console.error(`[Sports Tournament] Match ${match.id}: corrupt prediction data - p1=${!!p1} p2=${!!p2}. Skipping.`);
       continue;
     }
     if (p1.outcomes.length !== freshFixtures.length || p2.outcomes.length !== freshFixtures.length) {

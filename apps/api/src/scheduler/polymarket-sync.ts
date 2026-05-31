@@ -33,7 +33,7 @@ export async function bulkSync(): Promise<void> {
   const pmCats = await getPolymarketCategories();
   const tagIds = [...new Set(pmCats.flatMap(c => c.tagIds))];
   if (tagIds.length === 0) {
-    console.warn('[PolymarketSync] No tagIds configured on any category — skipping bulk sync');
+    console.warn('[PolymarketSync] No tagIds configured on any category - skipping bulk sync');
     return;
   }
   const maxPagesPerTag = Number(process.env.POLYMARKET_MAX_PAGES_PER_TAG) || 4;
@@ -46,7 +46,7 @@ export async function bulkSync(): Promise<void> {
         try {
           page = await polymarketFetch(`/events?closed=false&tag_id=${tagId}&limit=100&offset=${offset}`);
         } catch (error) {
-          if (attempt === 0) { await sleep(2_000); continue; } // transient 5xx — retry once
+          if (attempt === 0) { await sleep(2_000); continue; } // transient 5xx - retry once
           console.warn(`[PolymarketSync] fetch failed (tag ${tagId} offset ${offset}):`, error instanceof Error ? error.message : error);
         }
       }
@@ -126,7 +126,7 @@ export async function bulkSync(): Promise<void> {
       const marketOdds = outcomePrices?.length ? parseFloat(outcomePrices[0]) : null;
       const groupItemTitle: string | null = description || market.groupItemTitle || null; // Store description in groupItemTitle for cache
       const clobTokenIds: string | null = market.clobTokenIds || null;
-      // Polymarket image for the pool badge — prefer the specific market image,
+      // Polymarket image for the pool badge - prefer the specific market image,
       // fall back to the event image. Stored as homeTeamCrest (the pool badge field).
       const crest: string | null = market.image || market.icon || event.image || event.icon || null;
       const tagLabels: string[] = Array.isArray(event.tags)
@@ -384,7 +384,7 @@ export function startPolymarketSyncScheduler(): void {
   bulkSync()
     .then(() => {
       _syncReady = true;
-      console.log('[PolymarketSync] Initial sync complete, cache ready — triggering pool creation');
+      console.log('[PolymarketSync] Initial sync complete, cache ready - triggering pool creation');
       return createMatchPools();
     })
     .then(() => {

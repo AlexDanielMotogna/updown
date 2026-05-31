@@ -168,7 +168,7 @@ export function EarningsTab({ earnings }: EarningsTabProps) {
                     Payout <OpenInNew sx={{ fontSize: 12 }} />
                   </Button>
                 ) : (
-                  <Typography sx={{ fontSize: '0.8rem', color: t.border.emphasis }}>—</Typography>
+                  <Typography sx={{ fontSize: '0.8rem', color: t.border.emphasis }}>-</Typography>
                 )}
               </Box>
             </Box>

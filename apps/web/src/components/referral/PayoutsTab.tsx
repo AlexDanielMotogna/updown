@@ -115,7 +115,7 @@ export function PayoutsTab({ payouts }: PayoutsTabProps) {
                     Payout <OpenInNew sx={{ fontSize: 12 }} />
                   </Button>
                 ) : (
-                  <Typography sx={{ fontSize: '0.8rem', color: t.border.emphasis }}>—</Typography>
+                  <Typography sx={{ fontSize: '0.8rem', color: t.border.emphasis }}>-</Typography>
                 )}
               </Box>
               <Typography sx={{ fontSize: '0.85rem', fontWeight: 500, color: 'text.secondary', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', textAlign: 'right' }}>

@@ -196,7 +196,7 @@ adminActionsRouter.post('/stop-recovery', async (_req, res) => {
   }
 });
 
-// POST /actions/sync-pools — re-sync sources with the latest category config and
+// POST /actions/sync-pools - re-sync sources with the latest category config and
 // create pools immediately, instead of waiting for the next scheduled cycle.
 // Runs in the background (sync + on-chain pool creation can take a minute or two).
 const syncPoolsSchema = z.object({
@@ -233,7 +233,7 @@ adminActionsRouter.post('/sync-pools', async (req, res) => {
   })();
 
   await logAdminEvent('ADMIN_SYNC_POOLS', 'system', { scope });
-  res.json({ success: true, message: 'Sync started — new pools will be created within a minute or two. Refresh to see them.' });
+  res.json({ success: true, message: 'Sync started - new pools will be created within a minute or two. Refresh to see them.' });
 });
 
 // POST /actions/create-pool (moved from /api/pools/test)

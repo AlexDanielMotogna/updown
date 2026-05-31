@@ -72,7 +72,7 @@ export function serializeBet(bet: {
   claimed: boolean;
   claimTx: string | null;
   payoutAmount: bigint | null;
-  // Auto-payout tracking — present on Bet but optional here so non-auto callers
+  // Auto-payout tracking - present on Bet but optional here so non-auto callers
   // (existing test fixtures, force-resolve flows) can still serialize cleanly.
   payoutFailed?: boolean;
   payoutAttempts?: number;
@@ -145,7 +145,7 @@ export function serializeBet(bet: {
       awayTeam: (bet.pool as any).awayTeam ?? null,
       homeTeamCrest: (bet.pool as any).homeTeamCrest ?? null,
       awayTeamCrest: (bet.pool as any).awayTeamCrest ?? null,
-      // Pool totals — exposed so the profile UI can compute a "potential
+      // Pool totals - exposed so the profile UI can compute a "potential
       // payout at current odds" hint for bets on active pools.
       totalUp: bet.pool.totalUp.toString(),
       totalDown: bet.pool.totalDown.toString(),
@@ -161,7 +161,7 @@ export function serializeBet(bet: {
  * Optional aggregates the /profile route computes from related tables (the User
  * row alone can't supply them). All optional so /register can serialize a fresh
  * user without extra queries.
- *  - totalWon: sum of realized (claimed) winning payouts — matches the squad
+ *  - totalWon: sum of realized (claimed) winning payouts - matches the squad
  *    leaderboard's netPnl convention (payout - wagered).
  *  - rank / totalUsers: leaderboard position by XP, for the rank chip.
  */
@@ -169,13 +169,13 @@ export interface UserProfileExtras {
   totalWon?: bigint;
   rank?: number;
   totalUsers?: number;
-  /** Number of refunded bets — pulled out of the Win Rate denominator since
+  /** Number of refunded bets - pulled out of the Win Rate denominator since
    *  a refund isn't a loss (stake came back to the user). */
   totalRefunded?: number;
   /** Sum of stakes that were refunded. Subtracted from `volumeStaked` so the
    *  Volume Staked tile shows real money put at risk (refunds round-tripped). */
   refundedStake?: bigint;
-  /** Stake from settled, non-refund bets only — used as the denominator of
+  /** Stake from settled, non-refund bets only - used as the denominator of
    *  realized P&L. Excludes active stakes (still in play, not lost). */
   realizedStaked?: bigint;
   /** Payout from settled, non-refund bets only (NULL payouts collapse to 0).
@@ -201,7 +201,7 @@ export function serializeUserProfile(user: {
   // Derive level from totalXp (the source of truth) instead of trusting the
   // stored `level` column. A concurrent XP write can leave `level` lagging behind
   // `totalXp`; deriving here guarantees the XP bar is always internally consistent
-  // and self-heals any already-desynced rows on read — no migration required.
+  // and self-heals any already-desynced rows on read - no migration required.
   const level = getLevelForXp(user.totalXp);
   const isMaxLevel = level >= 40;
   return {
@@ -223,7 +223,7 @@ export function serializeUserProfile(user: {
     feeBps: getFeeBps(level),
     feePercent: (getFeeBps(level) / 100).toFixed(2),
     coinMultiplier: getLevelMultiplier(level),
-    // Perks unlocked at the next level — surfaced so the profile can show the
+    // Perks unlocked at the next level - surfaced so the profile can show the
     // user what progressing actually buys them (lower fee, higher coin rate).
     nextLevel: isMaxLevel ? null : {
       level: level + 1,
@@ -250,7 +250,7 @@ export function serializeUserProfile(user: {
           ? user.totalWagered - refundedStake
           : 0n;
       // Net P&L = realized winnings − realized stake. By construction this
-      // excludes both active (in-play) stakes and refunds — only finalized
+      // excludes both active (in-play) stakes and refunds - only finalized
       // outcomes move the number.
       const netPnl = realizedWon - realizedStaked;
       return {

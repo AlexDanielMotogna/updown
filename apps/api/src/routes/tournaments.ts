@@ -19,7 +19,7 @@ export { serializeBigInt, requireAdmin } from './tournament-helpers';
 
 // ─── Public GET endpoints ───────────────────────────────────────────
 
-// GET / — list tournaments with optional status filter
+// GET / - list tournaments with optional status filter
 const listFilterSchema = z.object({
   status: z.string().optional(),
   type: z.enum(['CRYPTO', 'SPORTS']).optional(),
@@ -73,7 +73,7 @@ tournamentRouter.get('/', async (req, res) => {
   }
 });
 
-// GET /active-banner — first REGISTERING tournament for home page banner
+// GET /active-banner - first REGISTERING tournament for home page banner
 tournamentRouter.get('/active-banner', async (_req, res) => {
   try {
     const banner = await getActiveBanner();
@@ -90,7 +90,7 @@ tournamentRouter.get('/active-banner', async (_req, res) => {
   }
 });
 
-// GET /my-prizes — get tournaments won by a wallet (claimed and unclaimed)
+// GET /my-prizes - get tournaments won by a wallet (claimed and unclaimed)
 tournamentRouter.get('/my-prizes', async (req, res) => {
   try {
     const wallet = req.query.wallet as string;
@@ -120,7 +120,7 @@ tournamentRouter.get('/my-prizes', async (req, res) => {
   }
 });
 
-// GET /:id — tournament detail with participant count and current matches
+// GET /:id - tournament detail with participant count and current matches
 tournamentRouter.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -161,7 +161,7 @@ tournamentRouter.get('/:id', async (req, res) => {
   }
 });
 
-// GET /:id/bracket — full bracket data for bracket visualization
+// GET /:id/bracket - full bracket data for bracket visualization
 tournamentRouter.get('/:id/bracket', async (req, res) => {
   try {
     const { id } = req.params;
@@ -192,7 +192,7 @@ tournamentRouter.get('/:id/bracket', async (req, res) => {
           (match as any).player1Prediction = null;
           (match as any).player1PredictedAt = null;
         } else {
-          // Spectator — hide both
+          // Spectator - hide both
           (match as any).player1Prediction = null;
           (match as any).player2Prediction = null;
           (match as any).player1PredictedAt = null;

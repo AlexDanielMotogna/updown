@@ -91,7 +91,7 @@ export function TournamentHeader({
         </IconButton>
       </Box>
 
-      {/* Stats grid — collapsible */}
+      {/* Stats grid - collapsible */}
       {statsOpen && (
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(4, 1fr)', md: 'repeat(8, 1fr)' }, gap: 0.5, px: { xs: 0.5, md: 2 }, py: { xs: 0.5, md: 1.25 } }}>
             {cards.map(({ label, value, color, icon, leagueCode }) => (

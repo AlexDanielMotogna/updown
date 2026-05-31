@@ -170,7 +170,7 @@ export class PacificaProvider implements IMarketDataProvider {
    * Connect to WebSocket and subscribe to prices channel
    */
   private connectWebSocket(): void {
-    // Avoid duplicate connections — also skip if already CONNECTING
+    // Avoid duplicate connections - also skip if already CONNECTING
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
       return;
     }

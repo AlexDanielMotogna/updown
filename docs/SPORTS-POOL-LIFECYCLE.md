@@ -1,4 +1,4 @@
-# Sports Pool Lifecycle — Technical Flow
+# Sports Pool Lifecycle - Technical Flow
 
 ## Overview
 
@@ -40,7 +40,7 @@ TheSportsDB ──► Fixture Cache ──► Pool Creation ──► Live Score
 ## PHASE 2: Pool Creation
 
 ```
-createMatchPools() — every 2 hours
+createMatchPools() - every 2 hours
          │
          ▼
   ┌─────────────────────────────┐
@@ -122,7 +122,7 @@ createMatchPools() — every 2 hours
 ## PHASE 4: Live Score Tracking
 
 ```
-    pollLiveScores() — every 30 seconds
+    pollLiveScores() - every 30 seconds
          │
          ▼
 ┌────────────────────────────────────────────────────────────────────┐
@@ -224,7 +224,7 @@ createMatchPools() — every 2 hours
 ## PHASE 5: Match Resolution
 
 ```
-resolveMatchPools() — every 5 minutes
+resolveMatchPools() - every 5 minutes
          │
          ▼
 ┌────────────────────────────────────────────┐

@@ -1,12 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Box, Typography, Drawer } from '@mui/material';
-import ViewSidebarRounded from '@mui/icons-material/ViewSidebarRounded';
+import { Box, Typography } from '@mui/material';
 import { Header } from './Header';
 import { MarketSidebar } from './sidebar/MarketSidebar';
-import { ActivePoolsSidebar } from './sidebar/ActivePoolsSidebar';
 import { MarketsRightRail } from './sidebar/MarketsRightRail';
 import { RewardPopup } from './RewardPopup';
 import { useThemeTokens } from '@/app/providers';
@@ -96,23 +93,15 @@ export function AppShell({ children, centered = false, topBar }: { children: Rea
   // bet card sidebar). Reserving the 200px MarketSidebar gutter on top of
   // that squeezes the chart and wastes the 1400px frame.
   const isDetailPage = pathname.startsWith('/pool/') || pathname.startsWith('/match/');
-  // Trending and detail pages skip the left filter sidebar — both are
+  // Trending and detail pages skip the left filter sidebar - both are
   // cross-category / single-market views, no filter rail needed.
   const hideMarketSidebar =
     (isMarkets && searchParams.get('type') === 'TRENDING') || isDetailPage;
-  const [rightOpen, setRightOpen] = useState(true);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  useEffect(() => {
-    const v = localStorage.getItem('activePoolsOpen');
-    if (v !== null) setRightOpen(v === 'true');
-  }, []);
-  const setRight = (v: boolean) => { setRightOpen(v); try { localStorage.setItem('activePoolsOpen', String(v)); } catch { /* ignore */ } };
-
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: { xs: 'calc(72px + env(safe-area-inset-bottom, 0px))', lg: 0 } }}>
       <Header />
       <RewardPopup />
-      {/* Top filter bar (e.g. Markets tabs) — sticky just under the header, full
+      {/* Top filter bar (e.g. Markets tabs) - sticky just under the header, full
           width above the sidebar+content row so the sidebars start below it. */}
       {topBar && (
         <Box sx={{
@@ -124,7 +113,7 @@ export function AppShell({ children, centered = false, topBar }: { children: Rea
         </Box>
       )}
       <Box sx={{ display: 'flex', bgcolor: t.bg.app, maxWidth: 1400, mx: 'auto' }}>
-        {/* Desktop market sidebar — hidden in `centered` mode (e.g. profile)
+        {/* Desktop market sidebar - hidden in `centered` mode (e.g. profile)
             and on the Trending cross-category view (no filters there). */}
         <Box
           sx={{
@@ -170,70 +159,9 @@ export function AppShell({ children, centered = false, topBar }: { children: Rea
         </Box>
       </Box>
 
-      {/* Predictions sidebar — overlays the layout (doesn't push the content
-          column). Only used on non-Markets pages. */}
-      {!isMarkets && rightOpen && (
-        <Box sx={{
-          display: { xs: 'none', lg: 'block' },
-          position: 'fixed',
-          top: HEADER_LG,
-          right: 'max(0px, calc(50vw - 700px))',
-          width: 240,
-          height: `calc(100vh - ${HEADER_LG}px)`,
-          zIndex: 40,
-          bgcolor: t.bg.app,
-          borderLeft: `1px solid ${t.border.subtle}`,
-          boxShadow: '-4px 0 14px rgba(0,0,0,0.25)',
-        }}>
-          <ActivePoolsSidebar onClose={() => setRight(false)} />
-        </Box>
-      )}
-
-      {/* Reopen tab when the (closeable) predictions sidebar is closed — never on Markets */}
-      {!rightOpen && !isMarkets && (
-        <Box
-          onClick={() => setRight(true)}
-          sx={{
-            display: { xs: 'none', lg: 'flex' },
-            // Pin to the right edge of the 1400px frame (not the viewport) so it
-            // matches the body cap on wide screens.
-            position: 'fixed', right: 'max(0px, calc(50vw - 700px))', top: '50%', transform: 'translateY(-50%)',
-            alignItems: 'center', gap: 0.5, cursor: 'pointer', zIndex: 1100,
-            bgcolor: t.bg.surfaceAlt, border: `1px solid ${t.border.subtle}`, borderRight: 'none',
-            borderRadius: '6px 0 0 6px', px: 0.75, py: 1.25,
-            color: t.text.dimmed, '&:hover': { color: t.text.primary },
-          }}
-        >
-          <ViewSidebarRounded sx={{ fontSize: 18, transform: 'scaleX(-1)' }} />
-          <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, writingMode: 'vertical-rl', transform: 'rotate(180deg)', letterSpacing: '0.05em' }}>PREDICTIONS</Typography>
-        </Box>
-      )}
-
-      {/* Mobile: floating button opens the predictions panel as a right drawer */}
-      <Box
-        onClick={() => setMobileOpen(true)}
-        sx={{
-          display: { xs: 'flex', lg: 'none' },
-          position: 'fixed', right: 16, bottom: 'calc(72px + env(safe-area-inset-bottom, 0px))',
-          width: 46, height: 46, borderRadius: '50%', zIndex: 1100, cursor: 'pointer',
-          alignItems: 'center', justifyContent: 'center',
-          bgcolor: t.accent, color: '#fff', boxShadow: '0 4px 14px rgba(0,0,0,0.45)',
-        }}
-      >
-        <ViewSidebarRounded sx={{ fontSize: 22, transform: 'scaleX(-1)' }} />
-      </Box>
-      <Drawer
-        anchor="right"
-        open={mobileOpen}
-        onClose={() => setMobileOpen(false)}
-        sx={{
-          display: { xs: 'block', lg: 'none' },
-          '& .MuiDrawer-paper': { width: 280, maxWidth: '85vw', bgcolor: t.bg.app, backgroundImage: 'none' },
-          '& .MuiBackdrop-root': { bgcolor: t.shadow.default },
-        }}
-      >
-        <ActivePoolsSidebar onClose={() => setMobileOpen(false)} />
-      </Drawer>
+      {/* Predictions sidebar removed - the user found the rail intrusive.
+          ActivePoolsSidebar still exists for re-use elsewhere (e.g. inside
+          the profile drawer) but no longer overlays the app. */}
     </Box>
   );
 }

@@ -223,7 +223,7 @@ export default function TournamentBracketPage() {
                 );
               })}
 
-              {/* Champion card — same style as match cards */}
+              {/* Champion card - same style as match cards */}
               <Box sx={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
                 <Box sx={{ height: getHeaderHeight(tourney.tournamentType === 'SPORTS' ? (bracket?.fixtures?.[allRounds[allRounds.length - 1]]?.length || 0) : 0) - 18 }} />
                 <Box sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
@@ -243,7 +243,7 @@ export default function TournamentBracketPage() {
                       flexShrink: 0,
                     }}
                   >
-                    {/* Header — same as match cards */}
+                    {/* Header - same as match cards */}
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 1.5, py: 0.75, borderBottom: `1px solid ${BORDER}` }}>
                       <Typography variant="caption" sx={{ fontWeight: 600, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                         Champion

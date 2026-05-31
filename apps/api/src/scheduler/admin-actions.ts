@@ -37,7 +37,7 @@ export async function forceRefundPool(
   });
 
   if (bets.length === 0) {
-    // No unclaimed bets — just move to CLAIMABLE
+    // No unclaimed bets - just move to CLAIMABLE
     await deps.prisma.pool.update({
       where: { id: poolId },
       data: { status: PoolStatus.CLAIMABLE },

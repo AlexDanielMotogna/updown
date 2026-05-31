@@ -133,7 +133,7 @@ function buildMuiTheme(t: ThemeTokens) {
     components: {
       MuiCssBaseline: {
         styleOverrides: {
-          // Invisible scrollbars across the whole app — scrolling still works,
+          // Invisible scrollbars across the whole app - scrolling still works,
           // the bar just isn't painted (Firefox/legacy-Edge via scrollbarWidth,
           // WebKit via the ::-webkit-scrollbar pseudo-element).
           '*': { scrollbarWidth: 'none', msOverflowStyle: 'none' },

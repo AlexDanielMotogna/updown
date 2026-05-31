@@ -1,7 +1,7 @@
 # Theme Centralization & Light Mode Plan
 
 > Auditoría: 156 archivos leídos, ~120 con colores hardcodeados.
-> No hay Tailwind — todo es MUI sx/style + hex/rgba inline.
+> No hay Tailwind - todo es MUI sx/style + hex/rgba inline.
 
 ---
 
@@ -25,7 +25,7 @@
 
 ## 2. Plan de Implementación
 
-### Fase 1: `lib/theme.ts` — Single Source of Truth
+### Fase 1: `lib/theme.ts` - Single Source of Truth
 - Crear archivo con: palette primitivos, dark tokens, light tokens, `withAlpha()` helper
 - Re-exportar UP_COLOR etc. para backward compat temporal
 
@@ -60,7 +60,7 @@
 
 ---
 
-## 3. Light Theme — Valores Propuestos
+## 3. Light Theme - Valores Propuestos
 
 | Token | Dark | Light |
 |-------|------|-------|

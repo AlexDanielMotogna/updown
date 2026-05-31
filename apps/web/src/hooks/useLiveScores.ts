@@ -16,14 +16,14 @@ export interface LiveScore {
 }
 
 /**
- * TheSportsDB Event Status Codes — complete reference
+ * TheSportsDB Event Status Codes - complete reference
  *
  * FINISHED (game over, show final score):
- *   FT   — Full Time
- *   AET  — After Extra Time
- *   PEN  — After Penalties (soccer)
- *   AOT  — After Overtime
- *   AP   — After Penalties (hockey/handball)
+ *   FT   - Full Time
+ *   AET  - After Extra Time
+ *   PEN  - After Penalties (soccer)
+ *   AOT  - After Overtime
+ *   AP   - After Penalties (hockey/handball)
  *
  * IN-PLAY (game active):
  *   Soccer:     1H, HT, 2H, ET, P, BT
@@ -35,7 +35,7 @@ export interface LiveScore {
  *   Handball:   1H, 2H, HT, ET, BT, PT
  *   Rugby:      1H, 2H, HT, ET, BT, PT
  *
- * INACTIVE (cancelled/postponed — no score):
+ * INACTIVE (cancelled/postponed - no score):
  *   NS, TBD, PST, POST, CANC, ABD, AWD, AW, WO, SUSP, INT, INTR
  */
 

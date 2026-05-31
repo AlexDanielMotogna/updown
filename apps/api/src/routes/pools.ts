@@ -38,7 +38,7 @@ poolsRouter.get('/', async (req, res) => {
     const { asset, interval, status, type, league, tag, page, limit } = parsed.data;
     const skip = (page - 1) * limit;
 
-    // Build where clause — exclude squad pools from public markets
+    // Build where clause - exclude squad pools from public markets
     const where: Prisma.PoolWhereInput = { squadId: null };
     if (type) {
       where.poolType = type;
@@ -50,7 +50,7 @@ poolsRouter.get('/', async (req, res) => {
       // Faceted filter: match any pool whose raw Polymarket tag list includes this
       // tag. `tags` is a JSON array string (e.g. ["Trump","US Election"]); quoting
       // the needle (`"Trump"`) prevents prefix false-positives like "Trumpism".
-      // Multi-tag by design — a pool legitimately appears under each of its tags,
+      // Multi-tag by design - a pool legitimately appears under each of its tags,
       // and every imported pool is covered (no orphaned/uncategorised pools).
       where.tags = { contains: JSON.stringify(tag) };
     }
@@ -143,13 +143,13 @@ poolsRouter.get('/', async (req, res) => {
   }
 });
 
-// GET /api/pools/livescores — all current live scores (must be before /:id)
+// GET /api/pools/livescores - all current live scores (must be before /:id)
 poolsRouter.get('/livescores', async (_req, res) => {
   const data = await getAllLiveScoresWithFallback();
   res.json({ success: true, data });
 });
 
-// GET /api/pools/search?q=bitcoin — typeahead search over ACTIVE pools (open for
+// GET /api/pools/search?q=bitcoin - typeahead search over ACTIVE pools (open for
 // betting). Matches the market question/team (homeTeam, awayTeam) and crypto asset.
 // Returns a lightweight shape for the navbar search dropdown. Must be before /:id.
 poolsRouter.get('/search', async (req, res) => {
@@ -197,9 +197,9 @@ poolsRouter.get('/search', async (req, res) => {
   }
 });
 
-// GET /api/pools/trending — most active pools right now, across ALL types
+// GET /api/pools/trending - most active pools right now, across ALL types
 // (crypto + sports + PM). Ranked by 24h staked volume, then recent bet count,
-// then total pool size — the same "recent activity" signal Polymarket/Kalshi use.
+// then total pool size - the same "recent activity" signal Polymarket/Kalshi use.
 // Returns the same item shape as GET /api/pools so the grid can reuse the cards.
 poolsRouter.get('/trending', async (_req, res) => {
   try {
@@ -459,7 +459,7 @@ poolsRouter.get('/:id/odds-history', async (req, res) => {
   }
 });
 
-// GET /api/pools/:id/livescore — live score for a specific pool's match
+// GET /api/pools/:id/livescore - live score for a specific pool's match
 poolsRouter.get('/:id/livescore', async (req, res) => {
   try {
     const pool = await prisma.pool.findUnique({

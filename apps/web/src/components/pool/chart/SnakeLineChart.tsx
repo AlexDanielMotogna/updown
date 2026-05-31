@@ -15,7 +15,7 @@
  *   - The clip-path that bounds the chart sits on the OUTER untransformed
  *     group so it acts on the rendered result, not on the path's raw local
  *     coords (which are mostly negative).
- *   - The live dot / halo are pinned to the chart's right edge — pinning
+ *   - The live dot / halo are pinned to the chart's right edge - pinning
  *     them avoids a visible left/right hop each push that would happen if
  *     they rode inside the moving group.
  */
@@ -45,7 +45,7 @@ import { useSnakeHistory } from './useSnakeHistory';
 interface Props {
   candles: Candle[];
   asset?: string;
-  /** Visible window — capped at SNAKE_WINDOW_MS so the snake stays readable
+  /** Visible window - capped at SNAKE_WINDOW_MS so the snake stays readable
    *  at the configured tick rate. */
   duration: number;
   livePrice?: number | null;
@@ -202,7 +202,7 @@ export function SnakeLineChart({ candles, asset, duration, livePrice, strikePric
             <stop offset="0%" stopColor={lineColor} stopOpacity={0.2} />
             <stop offset="100%" stopColor={lineColor} stopOpacity={0} />
           </linearGradient>
-          {/* Soft halo behind the live tip — radial gradient bleeds into the
+          {/* Soft halo behind the live tip - radial gradient bleeds into the
               chart so the dot glows like Polymarket's last point. */}
           <radialGradient id="snake-live-glow" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stopColor={lineColor} stopOpacity={0.55} />
@@ -217,7 +217,7 @@ export function SnakeLineChart({ candles, asset, duration, livePrice, strikePric
         {/* Y axis stays fixed; X axis lives inside the moving group below. */}
         <ChartAxes dims={dims} yTicks={yTicks} xTicks={[]} durationMs={duration} />
 
-        {/* Strike line — fixed full-width horizontal with the price tag at left. */}
+        {/* Strike line - fixed full-width horizontal with the price tag at left. */}
         {strikePrice != null && (() => {
           const sy = toY(strikePrice);
           if (sy < CHART_PADDING.top || sy > CHART_PADDING.top + chartH) return null;
@@ -294,7 +294,7 @@ export function SnakeLineChart({ candles, asset, duration, livePrice, strikePric
           </g>
         </g>
 
-        {/* Live dot + halo pinned to the right edge — see SnakeLineChart header. */}
+        {/* Live dot + halo pinned to the right edge - see SnakeLineChart header. */}
         {livePrice != null && (() => {
           const ly = toY(livePrice);
           if (ly < CHART_PADDING.top || ly > CHART_PADDING.top + chartH) return null;
@@ -346,7 +346,7 @@ export function SnakeLineChart({ candles, asset, duration, livePrice, strikePric
               width={CHART_PADDING.right - 4}
               height={20}
               rx={3}
-              fill="rgba(255,255,255,0.12)"
+              fill={t.hover.emphasis}
             />
             <text
               x={dims.width - CHART_PADDING.right + 8}

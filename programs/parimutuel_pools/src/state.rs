@@ -29,7 +29,7 @@ pub struct Pool {
     pub total_up: u64,
     /// Total USDC deposited on side 1 (DOWN / AWAY)
     pub total_down: u64,
-    /// Total USDC deposited on side 2 (DRAW — sports only, always 0 for crypto)
+    /// Total USDC deposited on side 2 (DRAW - sports only, always 0 for crypto)
     pub total_draw: u64,
     /// Number of sides: 2 for crypto, 3 for sports
     pub num_sides: u8,

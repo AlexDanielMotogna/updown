@@ -138,7 +138,7 @@ export function Countdown({ targetDate, label, onComplete, compact = false, comp
             transition: 'all 0.3s ease',
           }}
         >
-          {/* Once the timer hits zero we hold at 00:00:00 — the "resolving"
+          {/* Once the timer hits zero we hold at 00:00:00 - the "resolving"
               state is communicated by the PlaceBetCard's full-card swap, not
               by the clock. Clock stays a clock. */}
           {timeUnits.map((unit, i) => (
@@ -188,7 +188,7 @@ export function Countdown({ targetDate, label, onComplete, compact = false, comp
         </Typography>
       )}
 
-      {/* Same idea as the compact branch — clock holds at zeros once the
+      {/* Same idea as the compact branch - clock holds at zeros once the
           window closes; "resolving" is the card body's job, not the timer. */}
       <Box sx={{ display: 'flex', gap: { xs: 1, sm: 1.5 }, justifyContent: 'center' }}>
           {timeUnits.map((unit) => (

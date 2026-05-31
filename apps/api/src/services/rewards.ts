@@ -69,11 +69,11 @@ async function ensureDailyReset(walletAddress: string) {
 
 /**
  * Track bet-placement STATS when a bet is placed (after confirm-deposit).
- * Intentionally awards NO XP and NO coins here — both are granted only when the
+ * Intentionally awards NO XP and NO coins here - both are granted only when the
  * pool resolves normally (awardBetResolution / awardBetWin).
  *
  * Why: awarding XP at deposit time was farmable. XP had no minimum bet and no
- * daily cap, and one-sided / single-bettor pools get fully auto-refunded — so a
+ * daily cap, and one-sided / single-bettor pools get fully auto-refunded - so a
  * user could place dust bets in pools that will be refunded, recover the full
  * stake, and keep the XP for free. Deferring XP to normal resolution means you
  * only earn it after a real two-sided contest. Fire-and-forget.
@@ -103,7 +103,7 @@ export async function trackBetPlacement(
 }
 
 /**
- * Award participation XP when a pool resolves NORMALLY — both sides had bets and
+ * Award participation XP when a pool resolves NORMALLY - both sides had bets and
  * a real winner was decided. Called once per bettor (winner OR loser) from the
  * resolver. It is deliberately NOT called for refunded one-sided / single-bettor /
  * empty pools, which is exactly what makes XP unfarmable.

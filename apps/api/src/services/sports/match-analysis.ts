@@ -178,7 +178,7 @@ export async function generateMatchAnalysis(
       score: m.score,
     }));
 
-    // 4. Generate analysis text (non-critical — real data is the priority)
+    // 4. Generate analysis text (non-critical - real data is the priority)
     let analysis = '';
     try {
       analysis = await generateAnalysisText(homeTeam, awayTeam, h2h, recentMatches, league);

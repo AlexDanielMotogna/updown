@@ -27,7 +27,7 @@ function parseEvent(e: any): LiveScore | null {
   };
 }
 
-// ─── Data fetchers (pure — no side effects) ──────────────────────────────────
+// ─── Data fetchers (pure - no side effects) ──────────────────────────────────
 
 /**
  * Fetch all live scores across all sports.

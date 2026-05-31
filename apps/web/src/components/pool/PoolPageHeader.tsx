@@ -20,7 +20,7 @@ interface PoolPageHeaderProps {
  * Polymarket-style pool header: colored asset tile + "Bitcoin Up or Down 5m"
  * title + window subtitle + share/embed/bookmark actions on the right.
  *
- * Bookmark is local-only for now (sessionStorage) — wiring it to a real
+ * Bookmark is local-only for now (sessionStorage) - wiring it to a real
  * server-side favourite is a separate concern.
  */
 export function PoolPageHeader({ asset, interval, startTime, endTime }: PoolPageHeaderProps) {
@@ -50,7 +50,7 @@ export function PoolPageHeader({ asset, interval, startTime, endTime }: PoolPage
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
-        {/* Asset icon — Pacifica SVG already comes round with its own brand
+        {/* Asset icon - Pacifica SVG already comes round with its own brand
             background, no need to wrap it in another colored circle. */}
         <Box sx={{ flexShrink: 0 }}>
           <AssetIcon asset={asset} size={56} />
@@ -87,7 +87,7 @@ export function PoolPageHeader({ asset, interval, startTime, endTime }: PoolPage
         </Box>
       </Box>
 
-      {/* Share / embed / bookmark — mirror the icons in the Polymarket header. */}
+      {/* Share / embed / bookmark - mirror the icons in the Polymarket header. */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, flexShrink: 0, mt: { xs: 0.5, md: 1 } }}>
         <Tooltip title="Embed widget (coming soon)" arrow placement="bottom">
           <Box

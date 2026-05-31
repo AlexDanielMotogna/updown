@@ -9,7 +9,7 @@ function sleep(ms: number): Promise<void> {
 
 /**
  * Fetch from Polymarket Gamma API with rate limiting.
- * No auth required — Gamma is public for reads.
+ * No auth required - Gamma is public for reads.
  */
 export async function polymarketFetch(path: string): Promise<any> {
   // Rate limit: wait if needed

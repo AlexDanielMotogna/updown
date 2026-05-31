@@ -149,7 +149,7 @@ export function PayoutManagement() {
     }
   };
 
-  // Wallet health colouring — same thresholds as the strategy doc.
+  // Wallet health colouring - same thresholds as the strategy doc.
   const sol = balanceData ? parseFloat(balanceData.data.solBalance) : 0;
   const walletColor = sol < 0.1 ? t.error : sol < 0.5 ? t.warning : t.gain;
   const balance = balanceData?.data;
@@ -199,7 +199,7 @@ export function PayoutManagement() {
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
           <StatCard label="Paid (last 24h)" value={stats.last24h.paid} color={t.gain} />
           <StatCard label="Failed (last 24h)" value={stats.last24h.failed} color={stats.last24h.failed > 0 ? t.error : t.text.primary} />
-          <StatCard label="Success rate (24h)" value={stats.last24h.successRate ?? '—'} unit={stats.last24h.successRate !== null ? '%' : undefined} />
+          <StatCard label="Success rate (24h)" value={stats.last24h.successRate ?? '-'} unit={stats.last24h.successRate !== null ? '%' : undefined} />
           <StatCard label="Pending (now)" value={stats.pending} />
           <StatCard label="Failed outstanding" value={stats.failedOutstanding} color={stats.failedOutstanding > 0 ? t.error : t.text.primary} />
         </Box>
@@ -213,7 +213,7 @@ export function PayoutManagement() {
           </Typography>
         </Box>
         {failedLoading ? <CircularProgress size={20} /> : failed.length === 0 ? (
-          <Typography variant="body2" sx={{ color: t.text.tertiary, py: 1 }}>No failed payouts — all winners paid cleanly.</Typography>
+          <Typography variant="body2" sx={{ color: t.text.tertiary, py: 1 }}>No failed payouts - all winners paid cleanly.</Typography>
         ) : (
           <TableContainer>
             <Table size="small">
@@ -238,7 +238,7 @@ export function PayoutManagement() {
                     <TableCell>{bet.side}</TableCell>
                     <TableCell align="right">${fmtUsdc(bet.amount)}</TableCell>
                     <TableCell align="right">{bet.attempts}</TableCell>
-                    <TableCell>{bet.lastAttemptedAt ? new Date(bet.lastAttemptedAt).toLocaleString() : '—'}</TableCell>
+                    <TableCell>{bet.lastAttemptedAt ? new Date(bet.lastAttemptedAt).toLocaleString() : '-'}</TableCell>
                     <TableCell align="right">
                       <Button
                         size="small"
@@ -263,7 +263,7 @@ export function PayoutManagement() {
           Pending queue {queue.length > 0 && <Chip label={`${queue.length} pool(s)`} size="small" sx={{ ml: 1, bgcolor: t.warning, color: 'white' }} />}
         </Typography>
         {queueLoading ? <CircularProgress size={20} /> : queue.length === 0 ? (
-          <Typography variant="body2" sx={{ color: t.text.tertiary, py: 1 }}>Queue empty — no pools waiting on auto-payout.</Typography>
+          <Typography variant="body2" sx={{ color: t.text.tertiary, py: 1 }}>Queue empty - no pools waiting on auto-payout.</Typography>
         ) : (
           <TableContainer>
             <Table size="small">
@@ -279,7 +279,7 @@ export function PayoutManagement() {
                 {queue.map(pool => (
                   <TableRow key={pool.id}>
                     <TableCell>{matchLabel(pool)}</TableCell>
-                    <TableCell><Chip label={pool.winner ?? '—'} size="small" /></TableCell>
+                    <TableCell><Chip label={pool.winner ?? '-'} size="small" /></TableCell>
                     <TableCell align="right">{pool.pendingCount}</TableCell>
                     <TableCell>{new Date(pool.updatedAt).toLocaleString()}</TableCell>
                   </TableRow>
@@ -295,7 +295,7 @@ export function PayoutManagement() {
         <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>Historical migration</Typography>
         <Typography variant="body2" sx={{ color: t.text.tertiary, mb: 2 }}>
           One-shot job that scans CLAIMABLE pools with a winner from the last N days and pays any
-          remaining winning-side bets. Idempotent — safe to re-run.
+          remaining winning-side bets. Idempotent - safe to re-run.
         </Typography>
         <Button variant="outlined" onClick={() => { setMigrationOpen(true); previewMut.mutate(migrationDays); }}>
           Open migration runner
@@ -324,7 +324,7 @@ export function PayoutManagement() {
             {previewMut.data && (
               <Alert severity="info">
                 Would pay <strong>{previewMut.data.data.totalBets}</strong> bet(s)
-                across <strong>{previewMut.data.data.totalPools}</strong> pool(s) —
+                across <strong>{previewMut.data.data.totalPools}</strong> pool(s) -
                 total <strong>${fmtUsdc(previewMut.data.data.totalAmountUsdcRaw)}</strong>.
               </Alert>
             )}

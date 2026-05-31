@@ -37,7 +37,7 @@ export async function createSquad(wallet: string, name: string) {
 }
 
 /**
- * Resolve an invite code — returns squad name + member count (public, no auth needed).
+ * Resolve an invite code - returns squad name + member count (public, no auth needed).
  */
 export async function resolveInviteCode(code: string) {
   const squad = await prisma.squad.findUnique({
@@ -168,7 +168,7 @@ export async function isSquadMember(wallet: string, squadId: string): Promise<bo
 }
 
 /**
- * Get squad leaderboard — stats of members within the squad's pools.
+ * Get squad leaderboard - stats of members within the squad's pools.
  */
 export async function getSquadLeaderboard(squadId: string) {
   // Get all squad pool IDs

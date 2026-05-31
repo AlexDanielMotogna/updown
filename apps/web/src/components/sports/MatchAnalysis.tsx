@@ -37,10 +37,6 @@ export function MatchAnalysis({ matchAnalysis, homeTeam, awayTeam, numSides = 3 
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-      <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-        Head to Head
-      </Typography>
-
       {/* H2H bar */}
       <Box sx={{ display: 'flex', gap: '2px', height: 24, borderRadius: '5px', overflow: 'hidden' }}>
         <Box sx={{ flex: homePct || 1, bgcolor: withAlpha(t.up, 0.15), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -79,7 +75,7 @@ export function MatchAnalysis({ matchAnalysis, homeTeam, awayTeam, numSides = 3 
 
       {/* AI Analysis */}
       <Box sx={{ bgcolor: t.hover.light, borderRadius: '5px', p: 1.5 }}>
-        <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: 'rgba(255,255,255,0.75)', lineHeight: 1.6 }}>
+        <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: t.text.rich, lineHeight: 1.6 }}>
           {analysis.replace(/^#\s*.+\n?/, '')}
         </Typography>
       </Box>

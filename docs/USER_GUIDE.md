@@ -1,16 +1,16 @@
-# UpDown — User Guide
+# UpDown - User Guide
 
-UpDown is a parimutuel prediction platform on Solana. Predict crypto prices, football matches, and real-world events — all on-chain with USDC.
+UpDown is a parimutuel prediction platform on Solana. Predict crypto prices, football matches, and real-world events - all on-chain with USDC.
 
 ---
 
 ## Quick Start
 
-1. **Connect Wallet** — Click "Connect Wallet". Choose embedded (no extension) or external (Phantom, Solflare).
-2. **Pick a Market** — Browse Crypto, Sports, or Prediction markets.
-3. **Make a Prediction** — Select your side (UP/DOWN, Home/Away, Yes/No), enter USDC amount, confirm.
-4. **Wait for Resolution** — The pool resolves automatically when the event ends.
-5. **Claim Winnings** — Go to Profile and claim your payout.
+1. **Connect Wallet** - Click "Connect Wallet". Choose embedded (no extension) or external (Phantom, Solflare).
+2. **Pick a Market** - Browse Crypto, Sports, or Prediction markets.
+3. **Make a Prediction** - Select your side (UP/DOWN, Home/Away, Yes/No), enter USDC amount, confirm.
+4. **Wait for Resolution** - The pool resolves automatically when the event ends.
+5. **Claim Winnings** - Go to Profile and claim your payout.
 
 ---
 
@@ -48,7 +48,7 @@ NBA, NHL, NFL, UFC
 - Live scores on cards and match pages (green pulsing indicator, updated every 30s)
 - "Locked" indicator when prediction deadline has passed
 - Resolved pools visible for 48h, then hidden from home feed
-- Categories managed from admin panel — enable/disable leagues and sports without code changes
+- Categories managed from admin panel - enable/disable leagues and sports without code changes
 
 ### Prediction Markets (Polymarket)
 Predict real-world events: **Yes** or **No** (2-way). Powered by Polymarket data.
@@ -84,13 +84,13 @@ Every pool follows the same lifecycle regardless of type:
 | **RESOLVED** | Winner determined. Claims enabled. |
 | **CLAIMABLE** | Winners can claim payouts via blockchain transaction. |
 
-All pools use **PDA vaults** on Solana — USDC goes into an on-chain escrow account controlled by the program, not the authority wallet. This is trustless: funds can only move according to program rules.
+All pools use **PDA vaults** on Solana - USDC goes into an on-chain escrow account controlled by the program, not the authority wallet. This is trustless: funds can only move according to program rules.
 
 ---
 
 ## Odds & Payouts
 
-UpDown uses **parimutuel** odds — payouts depend on how much is staked on each side.
+UpDown uses **parimutuel** odds - payouts depend on how much is staked on each side.
 
 **Formula:**
 ```
@@ -120,14 +120,14 @@ Your Payout = (Your Stake / Total on Winning Side) × Total Pool − Fee
 Bracket-style elimination tournaments where players compete round by round.
 
 ### How It Works
-1. **Register** — Pay USDC entry fee to join (goes to tournament vault PDA)
-2. **Predict** — Each round, predict outcomes for the matchday fixtures
-3. **Advance** — Most correct predictions wins the bracket match
-4. **Win** — Last player standing wins the prize pool (minus 5% platform fee)
+1. **Register** - Pay USDC entry fee to join (goes to tournament vault PDA)
+2. **Predict** - Each round, predict outcomes for the matchday fixtures
+3. **Advance** - Most correct predictions wins the bracket match
+4. **Win** - Last player standing wins the prize pool (minus 5% platform fee)
 
 ### Tournament Types
-- **Crypto** — Predict closing prices each round
-- **Sports (Predict the Matchday)** — Predict Home/Draw/Away for real football fixtures + total goals tiebreaker
+- **Crypto** - Predict closing prices each round
+- **Sports (Predict the Matchday)** - Predict Home/Draw/Away for real football fixtures + total goals tiebreaker
 
 ### Scoring (Sports)
 1. Most correct predictions wins
@@ -137,7 +137,7 @@ Bracket-style elimination tournaments where players compete round by round.
 ### Prize Distribution
 - Prize pool = sum of all entry fees
 - Winner receives 95% (5% platform fee enforced on-chain)
-- Tournament vaults use PDA escrow — trustless, funds never touch authority wallet
+- Tournament vaults use PDA escrow - trustless, funds never touch authority wallet
 
 ---
 
@@ -146,11 +146,11 @@ Bracket-style elimination tournaments where players compete round by round.
 Private groups where members create custom pools and compete against each other.
 
 ### Features
-- **Create a squad** — Generate invite code, set max members
-- **Create pools** — Members can create custom pools with any asset and duration (1min-24h)
-- **Leaderboard** — Track squad member performance
-- **Chat** — Real-time messaging within the squad
-- **Kick members** — Squad owner can remove members
+- **Create a squad** - Generate invite code, set max members
+- **Create pools** - Members can create custom pools with any asset and duration (1min-24h)
+- **Leaderboard** - Track squad member performance
+- **Chat** - Real-time messaging within the squad
+- **Kick members** - Squad owner can remove members
 
 ### Pool Creation
 - Members choose asset (BTC/ETH/SOL) and duration
@@ -183,18 +183,18 @@ Active sports matches show real-time data:
 - Locked indicator shown when prediction deadline has passed
 
 ### Profile Page
-- **Stats bar** — Total predictions, wins, win rate, streaks
+- **Stats bar** - Total predictions, wins, win rate, streaks
 - **Level badge** with XP progress
-- **Pools tab** — Filterable by category (same tabs as Markets)
-- **Tournaments tab** — Tournament history and prizes
+- **Pools tab** - Filterable by category (same tabs as Markets)
+- **Tournaments tab** - Tournament history and prizes
 - Filter toggle icon in same row as Pools/Tournaments tabs
 
 ### Pool Detail (Match Page)
 For sports and prediction markets:
-- **Odds chart** — Toggle between Polymarket (global) and UpDown (platform) data
-- **Market Rules** / **Context** tabs — Resolution criteria from Polymarket
-- **Activity log** — Individual predictions shown separately (not accumulated)
-- **Side selector** — Home/Draw/Away for sports, Yes/No for predictions
+- **Odds chart** - Toggle between Polymarket (global) and UpDown (platform) data
+- **Market Rules** / **Context** tabs - Resolution criteria from Polymarket
+- **Activity log** - Individual predictions shown separately (not accumulated)
+- **Side selector** - Home/Draw/Away for sports, Yes/No for predictions
 
 ---
 
@@ -238,12 +238,12 @@ Invite friends with your referral code. Earn **1% commission** on every predicti
 ## Data Sources & Sync
 
 ### Fixture Cache (Sports)
-- Daily sync at 04:00 UTC — fetches 14 days of fixtures per league
+- Daily sync at 04:00 UTC - fetches 14 days of fixtures per league
 - Football: football-data.org API (~7 calls, one per league)
 - NBA/NHL/NFL/MMA: TheSportsDB API (~4 calls, one per sport)
-- Match window polling every 5 min — only checks fixtures currently in play
+- Match window polling every 5 min - only checks fixtures currently in play
 - Uses sport-specific adapter for each fixture (football-data.org or TheSportsDB)
-- Pre-match refresh every 30 min — re-checks fixtures kicking off within 1 hour
+- Pre-match refresh every 30 min - re-checks fixtures kicking off within 1 hour
 - All consumers (pools, tournaments, admin) read from cache, never from API directly
 - Reduces API calls from 500+/day to ~30/day
 
@@ -255,9 +255,9 @@ Invite friends with your referral code. Earn **1% commission** on every predicti
 - API usage: 2 req/min (7% of free tier limit)
 
 ### Polymarket Sync
-- Bulk sync every 6 hours — top 200 events by volume
-- Resolution poll every 10 min — checks for UMA resolution
-- Cleanup daily at 05:00 UTC — removes expired/resolved markets
+- Bulk sync every 6 hours - top 200 events by volume
+- Resolution poll every 10 min - checks for UMA resolution
+- Cleanup daily at 05:00 UTC - removes expired/resolved markets
 - Price history from CLOB API (up to 28 days, hourly granularity)
 
 ### Price Data (Crypto)
@@ -279,10 +279,10 @@ All funds are held in PDA vaults controlled by the on-chain program. Instruction
 **Cancel flow:** `cancel_tournament` → `refund_participant` (authority-signed, returns entry fees)
 
 ### Security
-- PDA vaults — funds never touch authority wallet
-- Co-signed claims — user + authority must both sign (prevents fee manipulation)
+- PDA vaults - funds never touch authority wallet
+- Co-signed claims - user + authority must both sign (prevents fee manipulation)
 - Fees enforced on-chain (5% for tournaments, level-based for pools)
-- DB-first pool creation — prevents on-chain orphans from crashes
+- DB-first pool creation - prevents on-chain orphans from crashes
 
 ---
 
@@ -291,14 +291,14 @@ All funds are held in PDA vaults controlled by the on-chain program. Instruction
 Standalone admin panel at `/admin` (no wallet auth, uses API key via `x-admin-key` header).
 
 ### Tabs
-- **Health** — System status, scheduler uptime
-- **Pools** — Pool management, orphan recovery
-- **Finance** — Revenue, fees, refunds
-- **Users** — User list, levels, bets
-- **Events** — Event log (resolution, refunds, errors)
-- **Actions** — Manual pool resolution, fixture sync, cleanup
-- **Tournaments** — Tournament CRUD, bracket management
-- **Categories** — Enable/disable market categories
+- **Health** - System status, scheduler uptime
+- **Pools** - Pool management, orphan recovery
+- **Finance** - Revenue, fees, refunds
+- **Users** - User list, levels, bets
+- **Events** - Event log (resolution, refunds, errors)
+- **Actions** - Manual pool resolution, fixture sync, cleanup
+- **Tournaments** - Tournament CRUD, bracket management
+- **Categories** - Enable/disable market categories
 
 ### Category Management
 All pool categories (leagues, sports, prediction topics) are stored in the `pool_categories` DB table and managed via the Categories tab.
@@ -312,7 +312,7 @@ All pool categories (leagues, sports, prediction topics) are stored in the `pool
 
 **33 categories seeded:** 15 active + 18 coming soon across Football, Sports, and Predictions.
 
-**Adding a new category requires zero code changes** — just create it in the admin panel with the right tags, badge URL, and adapter config. The scheduler picks it up within 60 seconds.
+**Adding a new category requires zero code changes** - just create it in the admin panel with the right tags, badge URL, and adapter config. The scheduler picks it up within 60 seconds.
 
 **What still requires code:**
 - New API source (new adapter class)
@@ -323,17 +323,17 @@ All pool categories (leagues, sports, prediction topics) are stored in the `pool
 ## Notifications
 
 Bell icon shows:
-- Wins & Losses — Instant feedback on resolution
-- Claims — Confirmation of payout
-- Rewards — XP, coins, level ups
-- Refunds — When one-sided pools return your stake
+- Wins & Losses - Instant feedback on resolution
+- Claims - Confirmation of payout
+- Rewards - XP, coins, level ups
+- Refunds - When one-sided pools return your stake
 
 ---
 
 ## Tips
 
-- **Start small** — Try $10-$50 to learn how odds shift
-- **Watch the odds** — They change in real-time. Early minority bets get better odds
-- **Level up** — Lower fees (5% → 3%) and more UP Coins
-- **Diversify** — Mix crypto, sports, and prediction markets
-- **Claim promptly** — Don't forget winning predictions in your Profile
+- **Start small** - Try $10-$50 to learn how odds shift
+- **Watch the odds** - They change in real-time. Early minority bets get better odds
+- **Level up** - Lower fees (5% → 3%) and more UP Coins
+- **Diversify** - Mix crypto, sports, and prediction markets
+- **Claim promptly** - Don't forget winning predictions in your Profile

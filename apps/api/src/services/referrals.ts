@@ -383,7 +383,7 @@ export async function claimReferralPayout(
     return { success: false, error: 'Transfer failed on-chain' };
   }
 
-  // Transfer succeeded — update DB
+  // Transfer succeeded - update DB
   const result = await prisma.$transaction(async (tx) => {
     const payout = await tx.referralPayout.create({
       data: {

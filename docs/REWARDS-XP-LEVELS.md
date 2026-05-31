@@ -1,11 +1,11 @@
-# UpDown — XP, Niveles y UP Coins
+# UpDown - XP, Niveles y UP Coins
 
-> Documento de referencia de la economía de recompensas. **Fuente de verdad: el código** (no la página `/docs`, que tiene alguna imprecisión — ver §8). Generado verificando los siguientes archivos:
-> - `apps/api/src/utils/levels.ts` — curva de niveles, XP por acción, multiplicador de coins
-> - `apps/api/src/utils/coins.ts` — cálculo de UP Coins
-> - `apps/api/src/utils/fees.ts` — fee por nivel
-> - `apps/api/src/services/rewards.ts` — dónde/cuándo se otorgan XP y coins
-> - `apps/api/src/services/referrals.ts` — recompensas de referidos
+> Documento de referencia de la economía de recompensas. **Fuente de verdad: el código** (no la página `/docs`, que tiene alguna imprecisión - ver §8). Generado verificando los siguientes archivos:
+> - `apps/api/src/utils/levels.ts` - curva de niveles, XP por acción, multiplicador de coins
+> - `apps/api/src/utils/coins.ts` - cálculo de UP Coins
+> - `apps/api/src/utils/fees.ts` - fee por nivel
+> - `apps/api/src/services/rewards.ts` - dónde/cuándo se otorgan XP y coins
+> - `apps/api/src/services/referrals.ts` - recompensas de referidos
 
 ---
 
@@ -13,13 +13,13 @@
 
 | Acción | XP | Constante | Dónde se otorga | Archivo |
 |---|---|---|---|---|
-| Participación (apuesta) | **+100** | `BET_PLACED` | Al **resolver** el pool normal (no refunds), por cada apostador — gane o pierda | `awardBetResolution` |
+| Participación (apuesta) | **+100** | `BET_PLACED` | Al **resolver** el pool normal (no refunds), por cada apostador - gane o pierda | `awardBetResolution` |
 | Primer pool resuelto del día | **+200** | `DAILY_FIRST_BET` | Primer pool que te resuelve en el día (UTC) | `awardBetResolution` |
 | Apuesta ganada | **+150** | `BET_WON` | Al **reclamar** un bet ganador (no en refunds) | `awardBetWin` |
 | Claim completado | **+50** | `CLAIM_COMPLETED` | Al completar el claim | `awardClaimCompleted` |
 | Referido aceptado | **+500** | `REFERRAL_XP_REWARD` | Cuando alguien acepta tu referido | `acceptReferral` |
 
-> **XP en resolución, no en colocación** (cambiado 2026-05-26 para evitar farmeo — ver §8). Al colocar la apuesta solo se registran stats (`trackBetPlacement`: totalBets, totalWagered, dailyBetCount). El XP de participación se otorga cuando el pool resuelve **normal** (dos lados, ganador real); los pools de un solo lado / un solo apostador / vacíos se reembolsan y **no dan XP**. Cubre crypto/squad (`resolve-logic.ts`) y sports/predicciones (`sports-scheduler.ts`).
+> **XP en resolución, no en colocación** (cambiado 2026-05-26 para evitar farmeo - ver §8). Al colocar la apuesta solo se registran stats (`trackBetPlacement`: totalBets, totalWagered, dailyBetCount). El XP de participación se otorga cuando el pool resuelve **normal** (dos lados, ganador real); los pools de un solo lado / un solo apostador / vacíos se reembolsan y **no dan XP**. Cubre crypto/squad (`resolve-logic.ts`) y sports/predicciones (`sports-scheduler.ts`).
 
 **Reset diario:** los contadores `dailyBetCount` y `dailyCoins` se resetean en la primera acción de un nuevo día UTC (`ensureDailyReset`).
 
@@ -58,7 +58,7 @@ Columnas: XP acumulado para alcanzar el nivel · XP desde el nivel anterior · m
 
 | Lvl | Título | XP acumulado | XP desde anterior | Coin mult | Fee | Bono level-up (UP) |
 |----:|--------|-------------:|------------------:|:---------:|:---:|-------------------:|
-| 1 | Newcomer | 0 | — | 1.0x | 5.00% | — |
+| 1 | Newcomer | 0 | - | 1.0x | 5.00% | - |
 | 2 | Newcomer | 500 | 500 | 1.0x | 5.00% | 10 |
 | 3 | Observer | 2,241 | 1,741 | 1.0x | 5.00% | 15 |
 | 4 | Observer | 5,853 | 3,612 | 1.0x | 5.00% | 20 |
@@ -103,7 +103,7 @@ Columnas: XP acumulado para alcanzar el nivel · XP desde el nivel anterior · m
 
 ## 4. Fee de plataforma por nivel
 
-`getFeeBps(level)` — en basis points (500 = 5.00%). Default para wallets no registradas: **500 (5%)**.
+`getFeeBps(level)` - en basis points (500 = 5.00%). Default para wallets no registradas: **500 (5%)**.
 
 | Rango de nivel | Fee |
 |---|---|
@@ -121,7 +121,7 @@ Columnas: XP acumulado para alcanzar el nivel · XP desde el nivel anterior · m
 
 ---
 
-## 5. UP Coins — cómo se ganan
+## 5. UP Coins - cómo se ganan
 
 **Unidades:** se almacenan en *base units*. Display = `base / 100` (`UP_COINS_DIVISOR = 100`). Tasa base: **0.10 UP por cada $1 USDC** apostado (10 base units por $1).
 
@@ -166,7 +166,7 @@ Al **subir** al nivel `N` recibes `N × 5 UP` (`N × 500` base units). Esto es i
 | UP Coins al aceptar | +50 UP (`5000` base) | `REFERRAL_COINS_REWARD` |
 | Comisión por apuestas del referido | **1% del monto** | `COMMISSION_BPS = 100` |
 | Cuándo se gana la comisión | Cuando el pool resuelve normal (no refund), gane o pierda el referido | `recordReferralCommissions` |
-| Pago mínimo | $1 USDC | — |
+| Pago mínimo | $1 USDC | - |
 | Pago | Transferencia USDC on-chain (authority firma) | `claimReferralPayout` |
 | Auto-referido | Bloqueado | `acceptReferral` |
 
@@ -174,8 +174,8 @@ Al **subir** al nivel `N` recibes `N × 5 UP` (`N × 500` base units). Esto es i
 
 ## 8. Notas e historial
 
-1. **Farmeo de XP — RESUELTO (2026-05-26).** Antes, el XP de placement (100 + 200) se daba en cada depósito **sin mínimo de apuesta ni cap diario**, y como los pools one-sided/single-bettor **se auto-reembolsan**, se podía apostar polvo, recuperar el stake y quedarse con el XP gratis. **Fix:** el XP de participación se movió a la **resolución normal** del pool (`awardBetResolution`), que nunca se ejecuta para pools reembolsados. Al colocar solo se registran stats (`trackBetPlacement`). Cubre crypto/squad y sports/predicciones. Sports/predicciones no eran farmeables igual (resultado real, pools no creables on-demand) pero se unificó por consistencia.
+1. **Farmeo de XP - RESUELTO (2026-05-26).** Antes, el XP de placement (100 + 200) se daba en cada depósito **sin mínimo de apuesta ni cap diario**, y como los pools one-sided/single-bettor **se auto-reembolsan**, se podía apostar polvo, recuperar el stake y quedarse con el XP gratis. **Fix:** el XP de participación se movió a la **resolución normal** del pool (`awardBetResolution`), que nunca se ejecuta para pools reembolsados. Al colocar solo se registran stats (`trackBetPlacement`). Cubre crypto/squad y sports/predicciones. Sports/predicciones no eran farmeables igual (resultado real, pools no creables on-demand) pero se unificó por consistencia.
 
 2. **Página `/docs` (user-facing).** El copy dice "UP Coins and XP are awarded on claim" (Quick Start paso 6). Es una simplificación aceptable para usuarios, aunque técnicamente el XP de participación ahora es en **resolución** (justo antes del claim). Si se quiere precisión, ajustar a "cuando tu pool resuelve / al reclamar".
 
-3. **Edge case menor:** el bono diario (+200) se determina con una consulta a `rewardLog` (`DAILY_BONUS` de hoy). Si a un mismo wallet le resuelven varios pools en el **mismo tick** del scheduler, podría otorgarse 2 veces por una carrera — no es un vector de farmeo (no se puede provocar barato) y el impacto es +200 puntual.
+3. **Edge case menor:** el bono diario (+200) se determina con una consulta a `rewardLog` (`DAILY_BONUS` de hoy). Si a un mismo wallet le resuelven varios pools en el **mismo tick** del scheduler, podría otorgarse 2 veces por una carrera - no es un vector de farmeo (no se puede provocar barato) y el impacto es +200 puntual.

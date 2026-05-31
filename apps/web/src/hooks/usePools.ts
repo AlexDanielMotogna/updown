@@ -44,7 +44,7 @@ export function usePools(filters?: PoolFilters) {
   return useQuery({
     queryKey: ['pools', filters],
     queryFn: () => fetchPools(filters),
-    // No polling — WebSocket listeners above invalidate on pools:new / pool:status.
+    // No polling - WebSocket listeners above invalidate on pools:new / pool:status.
     refetchInterval: false,
     staleTime: 30_000,
   });
@@ -72,7 +72,7 @@ export function useInfinitePools(filters?: Omit<PoolFilters, 'page'>, opts?: { r
 
     const onNewPool = (payload: { pool: Pool }) => {
       const { queryKey: qk } = stableRef.current;
-      // Insert new pool into page 1 directly — avoids full refetch flicker
+      // Insert new pool into page 1 directly - avoids full refetch flicker
       queryClient.setQueryData<InfinitePoolsData>(qk, (old) => {
         if (!old || !old.pages[0]) return old;
         const pool = payload.pool;
@@ -134,7 +134,7 @@ export function useInfinitePools(filters?: Omit<PoolFilters, 'page'>, opts?: { r
     },
     placeholderData: keepPreviousData,
     staleTime: 10_000,
-    // Don't use refetchInterval on infinite queries — it refetches ALL loaded
+    // Don't use refetchInterval on infinite queries - it refetches ALL loaded
     // pages at once, causing visual flicker. Instead, we refresh page 1 only.
     refetchInterval: false,
   });

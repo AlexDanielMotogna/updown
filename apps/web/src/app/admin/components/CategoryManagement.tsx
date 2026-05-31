@@ -135,7 +135,7 @@ function CategoryCard({ cat, poolCount, onToggle, onToggleComingSoon, onEdit, on
 }
 
 interface PmConfig {
-  tags: string[];        // labels — kept in sync with tagIds (one PM tag = one pair)
+  tags: string[];        // labels - kept in sync with tagIds (one PM tag = one pair)
   tagIds: string[];      // Gamma tag ids (for per-tag fetch)
   minVolume24h: string;
   maxDaysAhead: string;
@@ -190,7 +190,7 @@ function PolymarketConfigFields({ pm, onChange, code }: { pm: PmConfig; onChange
   const set = (patch: Partial<PmConfig>) => onChange({ ...pm, ...patch });
   const tagIdsKey = pm.tagIds.join(',');
 
-  // Load Polymarket's active tags (clean, ranked) for the picker — no blind typing.
+  // Load Polymarket's active tags (clean, ranked) for the picker - no blind typing.
   useEffect(() => {
     fetch(`${API}/api/config/pm-tags`)
       .then(r => r.json())
@@ -198,7 +198,7 @@ function PolymarketConfigFields({ pm, onChange, code }: { pm: PmConfig; onChange
       .catch(() => setTagOptions([]));
   }, []);
 
-  // Load Polymarket's REAL sub-tags for this category's tag(s) — the only source
+  // Load Polymarket's REAL sub-tags for this category's tag(s) - the only source
   // for sidebar filters (no free text => no dead filters).
   useEffect(() => {
     if (pm.tagIds.length === 0) { setRelated([]); return; }
@@ -213,7 +213,7 @@ function PolymarketConfigFields({ pm, onChange, code }: { pm: PmConfig; onChange
   const addPickedTag = (id: string, label: string) => {
     if (!pm.tagIds.includes(id)) set({ tags: [...pm.tags, label], tagIds: [...pm.tagIds, id] });
   };
-  // Fallback for a typed name not in the active list — resolve it against PM.
+  // Fallback for a typed name not in the active list - resolve it against PM.
   const addTypedTag = async (name: string) => {
     const n = name.trim();
     if (!n) return;
@@ -231,18 +231,18 @@ function PolymarketConfigFields({ pm, onChange, code }: { pm: PmConfig; onChange
 
   return (
     <>
-      {/* Plain-language mental model up top — the two concepts people confuse. */}
+      {/* Plain-language mental model up top - the two concepts people confuse. */}
       <Box sx={{ p: 1.25, mb: 1.5, borderRadius: 1, bgcolor: withAlpha(dt.accent, 0.08), border: `1px solid ${withAlpha(dt.accent, 0.2)}` }}>
         <Typography sx={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.8)', lineHeight: 1.6 }}>
           <b>How this works:</b>{' '}
-          <Box component="span" sx={{ color: dt.gain, fontWeight: 700 }}>Polymarket Tags</Box> decide <b>what gets imported</b> — every Polymarket market with one of these tags becomes a pool.{' '}
-          <Box component="span" sx={{ color: dt.accent, fontWeight: 700 }}>Sidebar Filters</Box> only <b>group</b> the pools you already imported into sub-views — they never create pools.
+          <Box component="span" sx={{ color: dt.gain, fontWeight: 700 }}>Polymarket Tags</Box> decide <b>what gets imported</b> - every Polymarket market with one of these tags becomes a pool.{' '}
+          <Box component="span" sx={{ color: dt.accent, fontWeight: 700 }}>Sidebar Filters</Box> only <b>group</b> the pools you already imported into sub-views - they never create pools.
         </Typography>
       </Box>
 
-      <SectionLabel>Polymarket Tags — these create the pools</SectionLabel>
+      <SectionLabel>Polymarket Tags - these create the pools</SectionLabel>
       <FieldExplain>
-        Every Polymarket market tagged with one of these is imported as a pool (up to <b>Max Pools</b>). Pick from Polymarket&apos;s real tags below — e.g. <Eg>Politics</Eg>, <Eg>Elections</Eg>. <b>No tags here = nothing is imported.</b>
+        Every Polymarket market tagged with one of these is imported as a pool (up to <b>Max Pools</b>). Pick from Polymarket&apos;s real tags below - e.g. <Eg>Politics</Eg>, <Eg>Elections</Eg>. <b>No tags here = nothing is imported.</b>
       </FieldExplain>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 0.5 }}>
         {pm.tags.map((tag, i) => (
@@ -277,7 +277,7 @@ function PolymarketConfigFields({ pm, onChange, code }: { pm: PmConfig; onChange
 
       {pm.tags.length === 0 && (
         <Typography sx={{ fontSize: '0.7rem', color: dt.down, fontWeight: 600 }}>
-          ⚠ Add at least one Polymarket tag — a category with no tag imports nothing.
+          ⚠ Add at least one Polymarket tag - a category with no tag imports nothing.
         </Typography>
       )}
 
@@ -293,21 +293,21 @@ function PolymarketConfigFields({ pm, onChange, code }: { pm: PmConfig; onChange
 
         <TextField fullWidth label="Pools per event (sub-markets)" size="small" type="number" value={pm.maxSubmarketsPerEvent} onChange={e => set({ maxSubmarketsPerEvent: e.target.value })} />
         <FieldExplain>
-          On Polymarket, one <b>event</b> (a topic) bundles several yes/no <b>questions</b>. Each question = one pool here. Example — the event <i>&quot;How high will Bitcoin go?&quot;</i> contains <Eg>Above $100k?</Eg>, <Eg>Above $110k?</Eg>, <Eg>Above $120k?</Eg>…
+          On Polymarket, one <b>event</b> (a topic) bundles several yes/no <b>questions</b>. Each question = one pool here. Example - the event <i>&quot;How high will Bitcoin go?&quot;</i> contains <Eg>Above $100k?</Eg>, <Eg>Above $110k?</Eg>, <Eg>Above $120k?</Eg>…
           <br />This sets how many of those questions to turn into pools, per event. <Eg>1</Eg> = one pool per topic (recommended) so the category isn&apos;t flooded with ~10 almost-identical pools. <Eg>5</Eg> = up to 5 pools from the same event.
         </FieldExplain>
 
         <TextField fullWidth label="Match Priority (advanced)" size="small" type="number" value={pm.matchPriority} onChange={e => set({ matchPriority: e.target.value })} />
-        <FieldExplain>Only matters when a market fits more than one category — the <b>lowest number wins</b>. e.g. give Geopolitics <Eg>1</Eg> so it beats Politics <Eg>99</Eg>. Leave blank if your categories don&apos;t overlap.</FieldExplain>
+        <FieldExplain>Only matters when a market fits more than one category - the <b>lowest number wins</b>. e.g. give Geopolitics <Eg>1</Eg> so it beats Politics <Eg>99</Eg>. Leave blank if your categories don&apos;t overlap.</FieldExplain>
       </Box>
 
-      {/* Sidebar Filters — only from Polymarket's real related-tags for this category */}
-      <SectionLabel>Sidebar Filters — these only group, they don&apos;t import</SectionLabel>
+      {/* Sidebar Filters - only from Polymarket's real related-tags for this category */}
+      <SectionLabel>Sidebar Filters - these only group, they don&apos;t import</SectionLabel>
       <FieldExplain>
-        These do <b>not</b> create pools — they group the pools you already imported into sub-views. The number on each chip = <b>how many imported pools match it right now</b>. <Box component="span" sx={{ color: 'rgba(255,255,255,0.4)' }}>Gray = 0</Box> means no imported pool carries that exact Polymarket tag (the label may not match Polymarket&apos;s, or there are no active markets) — it won&apos;t show on the site.
+        These do <b>not</b> create pools - they group the pools you already imported into sub-views. The number on each chip = <b>how many imported pools match it right now</b>. <Box component="span" sx={{ color: 'rgba(255,255,255,0.4)' }}>Gray = 0</Box> means no imported pool carries that exact Polymarket tag (the label may not match Polymarket&apos;s, or there are no active markets) - it won&apos;t show on the site.
       </FieldExplain>
       {pm.tagIds.length === 0 ? (
-        <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>Add a Polymarket tag above first — sub-tags come from it.</Typography>
+        <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>Add a Polymarket tag above first - sub-tags come from it.</Typography>
       ) : (
         <>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 0.5 }}>
@@ -316,7 +316,7 @@ function PolymarketConfigFields({ pm, onChange, code }: { pm: PmConfig; onChange
               const empty = n === 0;
               return (
                 <Chip key={sub} label={`${sub} · ${n}`} size="small" onDelete={() => set({ subcategories: pm.subcategories.filter(s => s !== sub) })}
-                  title={empty ? "0 pools — no imported pool carries this exact Polymarket tag right now" : `${n} pool(s) match this filter`}
+                  title={empty ? "0 pools - no imported pool carries this exact Polymarket tag right now" : `${n} pool(s) match this filter`}
                   sx={{ fontSize: '0.7rem', fontWeight: 600,
                     bgcolor: empty ? 'rgba(255,255,255,0.05)' : withAlpha(dt.accent, 0.15),
                     color: empty ? 'rgba(255,255,255,0.35)' : dt.accent,
@@ -324,7 +324,7 @@ function PolymarketConfigFields({ pm, onChange, code }: { pm: PmConfig; onChange
                 />
               );
             })}
-            {pm.subcategories.length === 0 && <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>No filters yet — pick from Polymarket&apos;s sub-tags below.</Typography>}
+            {pm.subcategories.length === 0 && <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>No filters yet - pick from Polymarket&apos;s sub-tags below.</Typography>}
           </Box>
           {loadingRelated ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><CircularProgress size={14} /><Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>Loading Polymarket sub-tags…</Typography></Box>
@@ -468,7 +468,7 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
     onSave({ ...form, config: Object.keys(config).length > 0 ? config : undefined });
   };
 
-  // A PM category with no tag imports nothing — block saving it (dead category).
+  // A PM category with no tag imports nothing - block saving it (dead category).
   const pmNeedsTag = type === 'POLYMARKET' && pm.tagIds.length === 0;
   const canSave = !pmNeedsTag && (isNew ? !!(form.code && form.type && form.label) : true);
 
@@ -480,7 +480,7 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
           <Box sx={{ display: 'flex', gap: 2 }}>
             <TextField label="Code" size="small" value={form.code || ''} onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase().replace(/\s+/g, '_') }))}
               placeholder="PM_SCIENCE" sx={{ flex: 1 }} helperText="Unique & permanent"
-              InputProps={tipAdornment('Internal unique id, e.g. PM_TECH. Permanent — pools store this code, so it can’t be changed later. PM categories start with PM_.')} />
+              InputProps={tipAdornment('Internal unique id, e.g. PM_TECH. Permanent - pools store this code, so it can’t be changed later. PM categories start with PM_.')} />
             <FormControl size="small" sx={{ flex: 1 }}>
               <InputLabel>Type</InputLabel>
               <Select value={form.type || 'POLYMARKET'} label="Type"
@@ -514,7 +514,7 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
             ))}
           </Select>
         </FormControl>
-        <TextField label="Sort Order" size="small" type="number" value={form.sortOrder ?? 0} onChange={e => setForm(f => ({ ...f, sortOrder: Number(e.target.value) }))} helperText="Position in the tab bar — lower shows first"
+        <TextField label="Sort Order" size="small" type="number" value={form.sortOrder ?? 0} onChange={e => setForm(f => ({ ...f, sortOrder: Number(e.target.value) }))} helperText="Position in the tab bar - lower shows first"
           InputProps={tipAdornment('Position of this category in the tab bar. Lower numbers show further left.')} />
         <FormControl size="small">
           <InputLabel>Sides</InputLabel>

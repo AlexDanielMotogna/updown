@@ -41,13 +41,13 @@ pub struct Claim<'info> {
 
     /// CHECK: User receives the closed user_bet account's rent. Validated via
     ///        `user_bet.user == user.key()` above. NOT required to be a signer
-    ///        — the manual-claim path naturally signs because the user wallet
+    ///        - the manual-claim path naturally signs because the user wallet
     ///        pays tx fees, but the auto-payout path lets `authority` be the
     ///        sole transaction signer (no user interaction required).
     #[account(mut)]
     pub user: AccountInfo<'info>,
 
-    /// Authority signs — enforces fee_bps (prevents users from passing fee_bps=0)
+    /// Authority signs - enforces fee_bps (prevents users from passing fee_bps=0)
     /// AND authorises authority-driven auto-payout when the user wallet isn't
     /// available to sign.
     #[account(

@@ -165,7 +165,7 @@ function TournamentCard({ t: tourneyData, onRegistered }: { t: TournamentSummary
         </Typography>
       )}
 
-      {/* Buttons — always same structure */}
+      {/* Buttons - always same structure */}
       <Box sx={{ display: 'flex', gap: 1, mt: 'auto' }}>
         {/* Register / Registered button */}
         {isRegistering && connected ? (

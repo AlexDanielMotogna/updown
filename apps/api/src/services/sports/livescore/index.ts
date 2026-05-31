@@ -1,5 +1,5 @@
 /**
- * Livescore service — public API.
+ * Livescore service - public API.
  *
  * This module is a drop-in replacement for the old monolithic livescore.ts.
  * All imports from '../livescore' resolve here automatically.
@@ -15,7 +15,7 @@ export { startLiveScorePolling, stopLiveScorePolling } from './poller';
 // Re-export metrics for admin
 export { getMetrics as getLivescoreMetrics } from './metrics';
 
-// ─── Public getters (async — cache + DB fallback) ────────────────────────────
+// ─── Public getters (async - cache + DB fallback) ────────────────────────────
 
 import { cacheGet, cacheGetByTeam, cacheGetAll } from './cache';
 import { getFromDb, getFromDbByTeam, getAllFromDb } from './db-persistence';

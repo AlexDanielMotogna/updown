@@ -116,7 +116,7 @@ export function ProfileHeader({
     ? Number(userProfile.stats.netPnl)
     : Number(userProfile?.stats.totalWon ?? '0') - Number(userProfile?.stats.totalWagered ?? '0');
   // Volume Staked: lifetime placed minus refunds (real money put at risk).
-  // Active stakes still count — money is currently committed.
+  // Active stakes still count - money is currently committed.
   const wagered = userProfile?.stats.volumeStaked != null
     ? Number(userProfile.stats.volumeStaked)
     : Number(userProfile?.stats.totalWagered ?? '0');
@@ -127,7 +127,7 @@ export function ProfileHeader({
   // "X predictions" matches the Win Rate denominator: refunds are no-ops, not
   // real predictions against a counterparty.
   const settledPredictions = Math.max(0, totalBets - totalRefunded);
-  // Refunds aren't losses (stake came back) — drop them out of the L counter
+  // Refunds aren't losses (stake came back) - drop them out of the L counter
   // so 2W / 1L matches Win Rate's own (wins / settled) denominator.
   const losses = Math.max(0, totalBets - totalWins - totalRefunded);
 
@@ -155,7 +155,7 @@ export function ProfileHeader({
     <>
       <Box sx={{ bgcolor: t.bg.app, borderBottom: `1px solid ${t.border.subtle}` }}>
         <Container maxWidth={false} sx={{ maxWidth: 1400, px: { xs: 2, md: 3 } }}>
-          {/* ─── Banner — lives inside the same container so its edges line up
+          {/* ─── Banner - lives inside the same container so its edges line up
               exactly with the content below (no overhang) ─── */}
           <Box
             sx={{

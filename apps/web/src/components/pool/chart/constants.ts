@@ -18,7 +18,7 @@ export const SNAKE_WINDOW_MS = 3 * 60 * 1000;
 
 /** Cadence of the rolling-buffer push + the matching CSS transition on
  *  the group transform. 100ms tick with 100ms-linear transform means each
- *  frame stitches into the next on the GPU compositor — no visible step. */
+ *  frame stitches into the next on the GPU compositor - no visible step. */
 export const SNAKE_TICK_MS = 100;
 
 /** CSS transition string built from SNAKE_TICK_MS so the two stay in sync

@@ -242,7 +242,7 @@ export function startFixtureSyncScheduler(): void {
   dailySync()
     .then(() => {
       markFixtureCacheReady();
-      console.log('[FixtureSync] Cache ready — triggering football pool creation');
+      console.log('[FixtureSync] Cache ready - triggering football pool creation');
       return createMatchPools();
     })
     .then(() => console.log('[FixtureSync] Initial football pool creation complete'))

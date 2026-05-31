@@ -88,11 +88,11 @@ export class PoolCreator {
             const [poolPda] = getPoolPDA(seed);
             const accountInfo = await getConnection().getAccountInfo(poolPda);
             if (accountInfo) {
-              console.log(`[Scheduler] Skipping duplicate ${pool.id} — still on-chain, will expire naturally`);
+              console.log(`[Scheduler] Skipping duplicate ${pool.id} - still on-chain, will expire naturally`);
               continue;
             }
           } catch {
-            // RPC error — skip deletion to be safe
+            // RPC error - skip deletion to be safe
             continue;
           }
           await this.deps.prisma.priceSnapshot.deleteMany({ where: { poolId: pool.id } });
@@ -118,13 +118,13 @@ export class PoolCreator {
       },
     });
     if (duplicate) {
-      console.log(`[Scheduler] Skipping ${template.asset}/${template.intervalKey} — JOINING pool already exists`);
+      console.log(`[Scheduler] Skipping ${template.asset}/${template.intervalKey} - JOINING pool already exists`);
       return null;
     }
 
     const now = Math.floor(Date.now() / 1000);
 
-    // Generate UUID first — this is the canonical pool identity
+    // Generate UUID first - this is the canonical pool identity
     const uuid = crypto.randomUUID();
     const seed = derivePoolSeed(uuid);
 
@@ -178,7 +178,7 @@ export class PoolCreator {
           usdcMint, poolPda, vaultPda,
         );
       } catch (chainError) {
-        // On-chain failed — roll back DB to prevent stale DB-only pool
+        // On-chain failed - roll back DB to prevent stale DB-only pool
         await this.deps.prisma.priceSnapshot.deleteMany({ where: { poolId: pool.id } }).catch(e => console.warn('[Scheduler] rollback priceSnapshot failed:', e instanceof Error ? e.message : e));
         await this.deps.prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: pool.id } }).catch(e => console.warn('[Scheduler] rollback eventLog failed:', e instanceof Error ? e.message : e));
         await this.deps.prisma.pool.delete({ where: { id: pool.id } }).catch(e => console.warn('[Scheduler] rollback pool failed:', e instanceof Error ? e.message : e));

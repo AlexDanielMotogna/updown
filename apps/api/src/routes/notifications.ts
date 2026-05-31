@@ -5,7 +5,7 @@ export const notificationsRouter: RouterType = Router();
 
 const MAX_NOTIFICATIONS = 50;
 
-// GET /api/notifications?wallet=X — fetch unread + recent notifications
+// GET /api/notifications?wallet=X - fetch unread + recent notifications
 notificationsRouter.get('/', async (req, res) => {
   try {
     const wallet = req.query.wallet as string;
@@ -23,7 +23,7 @@ notificationsRouter.get('/', async (req, res) => {
   }
 });
 
-// PATCH /api/notifications/:id/read — mark single notification as read
+// PATCH /api/notifications/:id/read - mark single notification as read
 notificationsRouter.patch('/:id/read', async (req, res) => {
   try {
     await prisma.notification.update({
@@ -36,7 +36,7 @@ notificationsRouter.patch('/:id/read', async (req, res) => {
   }
 });
 
-// POST /api/notifications/read-all — mark all as read for a wallet
+// POST /api/notifications/read-all - mark all as read for a wallet
 notificationsRouter.post('/read-all', async (req, res) => {
   try {
     const wallet = req.body.wallet as string;

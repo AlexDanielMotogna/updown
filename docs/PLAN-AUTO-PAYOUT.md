@@ -1,9 +1,9 @@
-# Plan — Auto-Payout (eliminar el flow de Claim)
+# Plan - Auto-Payout (eliminar el flow de Claim)
 
 > **Estado**: PROPUESTA REFINADA (v2). Objetivo: cuando un pool resuelve, el
 > servidor paga automáticamente a cada ganador con una transferencia
 > authority-signed, sin que el usuario tenga que firmar un `claim`. Mismo
-> trato para refunds (one-sided) — **ya existe**, sólo falta el camino para
+> trato para refunds (one-sided) - **ya existe**, sólo falta el camino para
 > winners.
 >
 > **Versión**: v2 (2026-05-30). Cambios mayores vs v1 en §1.
@@ -30,9 +30,9 @@ El audit reveló que **mucho del trabajo ya está hecho**. Resumen ejecutivo:
 | `autoRefundBets()` | "hay que crear" | **ya existe** con 3 retries + backoff en `apps/api/src/scheduler/onchain-tx.ts` | ✅ Template listo para `autoClaimBets()` |
 | Per-side bet PDA | no existía cuando v1 se escribió | **fully shipped** (`buildClaimIx` y `buildRefundIx` aceptan `side: 0\|1\|2`) | ➕ Hay que pensar hedging |
 | 3 handlers auto-refund | "endpoint admin one-shot" | **ya operativos** en `resolve-logic.ts`: `handleSingleBettorRefund`, `handleOneSidedRefund`, `handleNoStrikePricePool` | ✅ Solo falta el camino "winners" |
-| `claim.rs` authority-signed | "modificar" | **sigue sin estarlo** — único cambio on-chain real | 🔴 1 condición que agregar |
+| `claim.rs` authority-signed | "modificar" | **sigue sin estarlo** - único cambio on-chain real | 🔴 1 condición que agregar |
 | DB fields | "Bet.payoutFailed nuevo" | confirmado: faltan `payoutFailed`, `payoutAttempts`, `lastAttemptedAt` | 🔴 Migration nueva |
-| Admin panel | "endpoint suelto" | **no hay tab Payouts** — admin tiene Health/Pools/Finance/Users/Events/Actions/Tournaments/Categories | 🔴 Nueva tab + 6 endpoints |
+| Admin panel | "endpoint suelto" | **no hay tab Payouts** - admin tiene Health/Pools/Finance/Users/Events/Actions/Tournaments/Categories | 🔴 Nueva tab + 6 endpoints |
 
 **Net**: scope on-chain bajó (`refund` ya está), scope backend bajó (template
 existe), pero subió scope admin (tab nueva) y subió scope de safety
@@ -43,21 +43,21 @@ existe), pero subió scope admin (tab nueva) y subió scope de safety
 ## 2. Por qué `claim.rs` debe cambiar
 
 El `claim` actual:
-- **User firma** (`claim.rs:43`: `pub user: Signer<'info>`) — obligatorio.
-- **Authority co-firma** (`claim.rs:46-49`) — para validar que `fee_bps`
+- **User firma** (`claim.rs:43`: `pub user: Signer<'info>`) - obligatorio.
+- **Authority co-firma** (`claim.rs:46-49`) - para validar que `fee_bps`
   pasado on-chain coincida con el del nivel del user (anti-manipulation).
 - **Authority no puede bypass user**: no hay condición tipo
   `signer == user || signer == authority`.
 
 Para auto-payout, authority **tiene que poder firmar sola**. Dos caminos:
 
-**Opción A — Modificar `claim.rs`** (recomendado):
+**Opción A - Modificar `claim.rs`** (recomendado):
 - Cambiar el constraint a "`user OR authority` deben firmar".
 - Mantener fee validation (authority sigue garantizando fee correcto).
 - Claim manual sigue funcionando (user puede firmar como antes).
 - Una sola instrucción, menos surface.
 
-**Opción B — Nueva instrucción `auto_claim_ix`**:
+**Opción B - Nueva instrucción `auto_claim_ix`**:
 - Authority-only.
 - `claim` queda intocado.
 - Más código, dos paths a mantener.
@@ -103,7 +103,7 @@ ir en paralelo con rollout de auto-payout en SPORTS/PM).
 
 ## 4. Fases del trabajo
 
-### Fase 0 — Discovery + alineación (0.5d)
+### Fase 0 - Discovery + alineación (0.5d)
 
 **Decisiones a confirmar antes de tocar código** (ver §13).
 
@@ -114,11 +114,11 @@ ir en paralelo con rollout de auto-payout en SPORTS/PM).
   pools quedan **fuera del scope v1** (manual). Razón: tournament prize
   tiene su propia instrucción (`claim_tournament_prize`); squad pools usan
   el mismo `claim.rs` así que técnicamente entran gratis cuando hagamos
-  Opción A — confirmar.
+  Opción A - confirmar.
 - Confirmar wallet separada para payouts (no usar program authority como
   payout signer). **Recomendación**: sí, blast-radius más chico.
 
-### Fase 1 — On-chain (2-3h, reducido vs v1)
+### Fase 1 - On-chain (2-3h, reducido vs v1)
 
 **Cambios:**
 - `programs/parimutuel_pools/src/instructions/claim.rs`:
@@ -132,7 +132,7 @@ ir en paralelo con rollout de auto-payout en SPORTS/PM).
   - Resto del payout math sin cambios.
 - `programs/parimutuel_pools/src/lib.rs`: re-export sin cambios (no nueva
   instrucción).
-- **`refund.rs` NO se toca** — ya es authority-only (`refund.rs:49`,
+- **`refund.rs` NO se toca** - ya es authority-only (`refund.rs:49`,
   user marcado como `AccountInfo`, no `Signer`).
 
 **Operación:**
@@ -147,7 +147,7 @@ ir en paralelo con rollout de auto-payout en SPORTS/PM).
 - Claim con authority signer (nuevo). Mismo payout esperado.
 - Claim con ambos (degenerate: user firma + authority co-firma, sigue OK).
 
-### Fase 2 — Backend `autoClaimBets()` (1d)
+### Fase 2 - Backend `autoClaimBets()` (1d)
 
 **Nuevo módulo `apps/api/src/scheduler/auto-claim.ts`** (espejo de
 `autoRefundBets()`):
@@ -167,7 +167,7 @@ Estructura:
      toma la fila ganadora.
 2. Para cada bet:
    - Pre-check: `if (bet.claimed) skip` (idempotencia post-fetch race).
-   - `getOrCreateAssociatedTokenAccount(connection, authorityKeypair, usdcMint, userPubkey)` — crea ATA si falta. Authority paga ~0.002 SOL.
+   - `getOrCreateAssociatedTokenAccount(connection, authorityKeypair, usdcMint, userPubkey)` - crea ATA si falta. Authority paga ~0.002 SOL.
    - Derive UserBet PDA con `(pool, user, side)`.
    - `buildClaimIx(...)` con `side` correcto, fee_bps según
      `getFeeBps(user.level)`.
@@ -181,7 +181,7 @@ Estructura:
      });
      ```
    - `eventLog.create({ eventType: 'BET_AUTO_PAID', payload: { betId, tx, amount } })`.
-   - Award rewards: `awardBetWin(walletAddress)` — XP + coins + streak.
+   - Award rewards: `awardBetWin(walletAddress)` - XP + coins + streak.
    - Emit WS: `wallet:payout` con `{ amount, tx, xp, coins, level, streak }`.
    - Create notification: `BET_PAID` con tx link + XP/coins inline.
 3. Si una bet falla:
@@ -207,7 +207,7 @@ for (const pool of staleResolved) {
 
 En `awardBetWin` (`apps/api/src/services/rewards.ts`):
 - Hoy se llama desde `confirm-claim`. Ahora también desde `autoClaimBets`.
-- **Critical**: idempotency check — si `bet.claimed=true` ya y reward
+- **Critical**: idempotency check - si `bet.claimed=true` ya y reward
   log existe para esta bet, skip. Sin esto, doble-award si user reclama
   manual y auto-pago dispara concurrentemente.
 
@@ -217,12 +217,12 @@ En `awardBetWin` (`apps/api/src/services/rewards.ts`):
 - Helper: `autoPayoutEnabledFor(pool)` consulta ambos (env AND category).
 - Default OFF para v1 release.
 
-**Endpoints existentes — mantener como fallback:**
+**Endpoints existentes - mantener como fallback:**
 - `POST /api/transactions/claim` (prepare/confirm): sin cambios. User
   puede seguir reclamando manual. Si bet ya tiene `claimed=true`, devuelve
   400 con mensaje "Already paid".
 
-### Fase 3 — Frontend cleanup (3-6h)
+### Fase 3 - Frontend cleanup (3-6h)
 
 **Quitar UI activa de claim (cuando feature flag está ON):**
 
@@ -237,7 +237,7 @@ En `awardBetWin` (`apps/api/src/services/rewards.ts`):
   flag ON.
 - `apps/web/src/components/MarketCard.tsx`: chip "Claim" → "Won"/"Paid"/"Refunded".
 - `apps/web/src/hooks/useClaim.ts`, `useClaimableBets.ts`: deprecar (no
-  borrar — fallback). Wrap en `if (!autoPayoutEnabled || bet.payoutFailed)`.
+  borrar - fallback). Wrap en `if (!autoPayoutEnabled || bet.payoutFailed)`.
 
 **Notificaciones:**
 
@@ -260,7 +260,7 @@ Toast más prominente, confetti, 10s display.
   por categoría. Cache en React Query 1min.
 - UI condicional: si flag OFF, mostrar botón Claim viejo.
 
-### Fase 4 — Admin Panel (1d) — NUEVO en v2
+### Fase 4 - Admin Panel (1d) - NUEVO en v2
 
 **Nueva tab "Payouts"** en `apps/web/src/app/admin/page.tsx`, posición
 #3 (después de "Pools", antes de "Finance").
@@ -274,10 +274,10 @@ Toast más prominente, confetti, 10s display.
   - 🟡 Amarillo si SOL < 0.5 o USDC < expected next 24h.
   - 🔴 Rojo si SOL < 0.1 (no puede pagar gas).
 - Botón "Fund wallet" (link a docs internos de cómo recargar).
-- Reusa: SystemHealth ya muestra authority SOL — extender.
+- Reusa: SystemHealth ya muestra authority SOL - extender.
 
 #### 4b. Failed payouts list
-- Query `GET /admin/payouts/failed` — bets con `payoutFailed=true`.
+- Query `GET /admin/payouts/failed` - bets con `payoutFailed=true`.
 - Tabla con: pool ID, wallet, side, amount, payoutAttempts, lastAttemptedAt, last error.
 - Acción por fila: "Retry" → `POST /admin/payouts/:betId/retry`.
 - Acción bulk: "Retry all" (botón con confirmación).
@@ -285,7 +285,7 @@ Toast más prominente, confetti, 10s display.
 - Reusa patrón de PoolManagement (stuck pools).
 
 #### 4c. Pending payouts queue
-- Query `GET /admin/payouts/queue` — bets con `isWinner=true && claimed=false && !payoutFailed`.
+- Query `GET /admin/payouts/queue` - bets con `isWinner=true && claimed=false && !payoutFailed`.
 - Útil para diagnosticar atascos.
 - Filtros: por pool, por wallet, por antigüedad.
 
@@ -300,7 +300,7 @@ Toast más prominente, confetti, 10s display.
 
 #### 4e. Feature flag controls
 - Toggle global: `AUTO_PAYOUT_ENABLED` (env var, requiere restart si
-  cambia — surface advertencia).
+  cambia - surface advertencia).
 - Toggle por categoría: switches que llaman a
   `PATCH /admin/categories/:id/feature-flags`.
 - Status: pools currently in scope vs out-of-scope.
@@ -308,30 +308,30 @@ Toast más prominente, confetti, 10s display.
 **Nuevos endpoints admin** (`apps/api/src/routes/admin/payouts.ts`):
 
 ```
-GET    /admin/payouts/queue          — Lista pending payouts
-GET    /admin/payouts/failed         — Lista failed payouts
-POST   /admin/payouts/:betId/retry   — Manual retry
-GET    /admin/payouts/migration/preview — Dry-run del migration job
-POST   /admin/payouts/migration      — Ejecutar migration (SSE)
-GET    /admin/payouts/stats          — Success rate, avg latency, etc.
-PATCH  /admin/categories/:id/feature-flags — Toggle autoPayoutEnabled
-GET    /admin/wallet/balance         — Authority wallet SOL + USDC
+GET    /admin/payouts/queue          - Lista pending payouts
+GET    /admin/payouts/failed         - Lista failed payouts
+POST   /admin/payouts/:betId/retry   - Manual retry
+GET    /admin/payouts/migration/preview - Dry-run del migration job
+POST   /admin/payouts/migration      - Ejecutar migration (SSE)
+GET    /admin/payouts/stats          - Success rate, avg latency, etc.
+PATCH  /admin/categories/:id/feature-flags - Toggle autoPayoutEnabled
+GET    /admin/wallet/balance         - Authority wallet SOL + USDC
 ```
 
-**Event log additions** — todos los admin actions de payout loguean a
+**Event log additions** - todos los admin actions de payout loguean a
 `EventLog`:
 - `ADMIN_PAYOUT_RETRY` (single bet)
 - `ADMIN_PAYOUT_MIGRATION_DRY_RUN`
 - `ADMIN_PAYOUT_MIGRATION_EXECUTED`
 - `ADMIN_FEATURE_FLAG_TOGGLED` (con categoría + valor)
 
-### Fase 5 — Testing (1d)
+### Fase 5 - Testing (1d)
 
 **Smoke tests en devnet:**
 - Pool con 1 ganador → paga al toque.
 - Pool con 10 → paralelo (max 4), ninguna falla.
 - Pool con 100+ → estrés del RPC, verificar rate-limit + retry.
-- Refund full pool (one-sided) — ya funciona, sólo verificar no
+- Refund full pool (one-sided) - ya funciona, sólo verificar no
   regression.
 - ATA missing en un user → se crea, se cobra rent al authority, sigue.
 - RPC down a propósito → backoff funciona, sigue cuando vuelve.
@@ -355,7 +355,7 @@ GET    /admin/wallet/balance         — Authority wallet SOL + USDC
   una vez.
 - `awardBetWin()` doble-call protection: no incrementa streak 2x.
 
-### Fase 6 — Rollout (0.5d)
+### Fase 6 - Rollout (0.5d)
 
 **Orden:**
 1. Deploy backend con `AUTO_PAYOUT_ENABLED=false` + admin tab live → nada
@@ -373,7 +373,7 @@ GET    /admin/wallet/balance         — Authority wallet SOL + USDC
 
 ---
 
-## 5. Esquema DB — cambios
+## 5. Esquema DB - cambios
 
 **Bet model** (`apps/api/prisma/schema.prisma:79-98`):
 
@@ -387,7 +387,7 @@ lastAttemptedAt  DateTime? @map("last_attempted_at")
 
 **PoolCategory model** (`schema.prisma:506-528`):
 
-`config` JSON ya existe — agregar key `autoPayoutEnabled: boolean` en
+`config` JSON ya existe - agregar key `autoPayoutEnabled: boolean` en
 el JSON shape. No migración nueva.
 
 **Migration** nueva: `apps/api/prisma/migrations/2026XXXXXXXXX_bet_payout_tracking/`.
@@ -441,12 +441,12 @@ DB.
 
 ### 6.4 RPC failover
 
-Usar `RpcConnectionManager` existente — rotación automática, no requiere
+Usar `RpcConnectionManager` existente - rotación automática, no requiere
 trabajo nuevo.
 
 ---
 
-## 7. Per-side bet PDA — hedging
+## 7. Per-side bet PDA - hedging
 
 Con el refactor both-sides reciente, un user puede tener 2 bets en un
 pool 3-way (ej. UP + DOWN).
@@ -462,9 +462,9 @@ gana (= UP).
 **¿Es esto OK?**
 - ✅ On-chain: refund.rs solo aplica para "no winner side". DOWN bet de
   Alice no es "no winner" (HOME ganó, no DOWN, pero Alice tiene UP que sí
-  ganó). DOWN bet simplemente pierde — eso es el riesgo de hedging.
+  ganó). DOWN bet simplemente pierde - eso es el riesgo de hedging.
 - ✅ DB: el filtro `claimed=false` no afecta nada (loser bets siempre
-  quedan claimed=false en parimutuel — solo se reclama si ganaste).
+  quedan claimed=false en parimutuel - solo se reclama si ganaste).
 - ⚠️ UI: la bet DOWN de Alice aparece como "Lost". Hoy aparece igual,
   cero cambio.
 
@@ -482,14 +482,14 @@ gana (= UP).
   + autoTournamentPrize().
 - Squad pools usan el mismo `claim.rs` así que **técnicamente** entran
   gratis cuando hagamos opción A. Pero la lógica de XP/coins/notifs es
-  distinta (shared squad coins, equipment XP boost, etc — gamification
+  distinta (shared squad coins, equipment XP boost, etc - gamification
   scope). Mejor incluirlos cuando squad shared pools v2 se shippee.
 
 **v1.1 (post)**: extender a tournament prizes después de testing v1.
 
 ---
 
-## 9. Authority wallet — operations
+## 9. Authority wallet - operations
 
 **Recomendación**: wallet separada para payouts (no usar program
 authority).
@@ -663,10 +663,10 @@ Docs
 | # | Decisión | Default propuesto | Necesita confirmación |
 |---|---|---|---|
 | 1 | Migrar pools resueltos sin claim históricos | Sí, via admin one-shot con dry-run + cap "últimos 30 días" para v1 | ✅ |
-| 2 | Tournament prizes — mismo flujo o manual | **Fuera de scope v1**, manual; v1.1 después | ✅ |
-| 3 | Squad pools — mismo flujo | Entran gratis con Opción A; verificar XP/notif lógica está OK | ✅ |
+| 2 | Tournament prizes - mismo flujo o manual | **Fuera de scope v1**, manual; v1.1 después | ✅ |
+| 3 | Squad pools - mismo flujo | Entran gratis con Opción A; verificar XP/notif lógica está OK | ✅ |
 | 4 | Authority wallet separada para payouts | **v1: usar program authority**; v2: agregar `pool.payout_authority` | ✅ |
-| 5 | ATA missing — auto-crear vs skip | Auto-crear (UX matters) | ✅ |
+| 5 | ATA missing - auto-crear vs skip | Auto-crear (UX matters) | ✅ |
 | 6 | Hedged user (UP+DOWN en 3-way) | **Pagar winning side, loser queda lost (intencional)** | ✅ |
 | 7 | Multi-sig payout wallet | **No v1**, reconsiderar si volumen crece | ✅ |
 | 8 | Notif `BET_PAID` incluye XP/coins inline | **Sí**, unifica 3 toasts en 1 | ✅ |
@@ -701,17 +701,17 @@ Docs
 
 ## 15. Documentos relacionados
 
-- [STRATEGY-COLD-START-AND-XP.md](./STRATEGY-COLD-START-AND-XP.md) —
+- [STRATEGY-COLD-START-AND-XP.md](./STRATEGY-COLD-START-AND-XP.md) -
   contexto estratégico del cold-start problem.
 - [IMPLEMENTATION-PLAN-GAMIFICATION.md](./IMPLEMENTATION-PLAN-GAMIFICATION.md)
-  — plan de gamificación. **Depende de este** (auto-payout es
+  - plan de gamificación. **Depende de este** (auto-payout es
   pre-requisito de Wave 2).
-- [PLAN-BOTH-SIDES-BETTING.md](./PLAN-BOTH-SIDES-BETTING.md) — refactor
+- [PLAN-BOTH-SIDES-BETTING.md](./PLAN-BOTH-SIDES-BETTING.md) - refactor
   per-side PDA, ya shipped. Contexto del hedging.
 
 ---
 
-## Appendix — auditorías que armaron este v2
+## Appendix - auditorías que armaron este v2
 
 - Audit de `claim.rs`, `refund.rs`, `state.rs`, scheduler de resolución,
   y solana-client builders (2026-05-30).

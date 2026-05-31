@@ -71,7 +71,7 @@ export async function recoverOrphanedPools(
     offset += 4;
     const asset = data.slice(offset, offset + assetLen).toString('utf8');
     offset += assetLen;
-    // authority (32 bytes) — only recover pools owned by our wallet
+    // authority (32 bytes) - only recover pools owned by our wallet
     const authority = new PublicKey(data.slice(offset, offset + 32));
     offset += 32;
     if (!authority.equals(deps.wallet.publicKey)) {
@@ -79,7 +79,7 @@ export async function recoverOrphanedPools(
     }
     // usdcMint (32 bytes)
     offset += 32;
-    // vault pubkey (32 bytes) — read directly instead of deriving
+    // vault pubkey (32 bytes) - read directly instead of deriving
     const vaultPubkey = new PublicKey(data.slice(offset, offset + 32));
     offset += 32;
     // skip times(8*3) + prices(8*2) + totals(8*3) + num_sides(1)
@@ -95,7 +95,7 @@ export async function recoverOrphanedPools(
 
     emit('pool_start', `[${i + 1}/${orphaned.length}] ${asset} pool ${poolPdaStr.slice(0, 12)}... (${status})`, { index: i + 1, total: orphaned.length, poolPda: poolPdaStr, asset, status });
 
-    // Use vault read from pool data (not derived — old pools may have different derivation)
+    // Use vault read from pool data (not derived - old pools may have different derivation)
     const vaultPda = vaultPubkey;
 
     // Check vault balance
@@ -107,14 +107,14 @@ export async function recoverOrphanedPools(
 
     if (vaultBalance > 0) {
       const usdcAmount = (vaultBalance / 1e6).toFixed(2);
-      emit('warn', `  SKIPPED — vault has ${usdcAmount} USDC (needs manual refund)`, { poolPda: poolPdaStr, vaultBalance });
+      emit('warn', `  SKIPPED - vault has ${usdcAmount} USDC (needs manual refund)`, { poolPda: poolPdaStr, vaultBalance });
       skipped++;
       await delay(RPC_DELAY);
       continue;
     }
 
     try {
-      // Resolve if needed — try multiple strategies since deployed program
+      // Resolve if needed - try multiple strategies since deployed program
       // may not accept all statuses with all resolve variants
       if (statusByte !== 3) {
         emit('info', `  Resolving on-chain (status: ${status})...`);
@@ -142,13 +142,13 @@ export async function recoverOrphanedPools(
         } catch (resolveErr) {
           const msg = resolveErr instanceof Error ? resolveErr.message : String(resolveErr);
           if (msg.includes('AccountNotInitialized') || msg.includes('0xbc4')) {
-            // Pool was already closed between scan and resolve attempt — count as success
+            // Pool was already closed between scan and resolve attempt - count as success
             emit('success', `  Already closed (gone between scan and resolve)`, { poolPda: poolPdaStr });
             closed++;
             await delay(RPC_DELAY);
             continue;
           } else if (msg.includes('InvalidPoolStatus') || msg.includes('0x177a')) {
-            // Status not accepted by resolve — try resolve_with_winner
+            // Status not accepted by resolve - try resolve_with_winner
             emit('info', `  resolve rejected status ${status}, trying resolve_with_winner...`);
             await delay(RPC_DELAY);
 
@@ -171,7 +171,7 @@ export async function recoverOrphanedPools(
             } catch (resolveErr2) {
               const msg2 = resolveErr2 instanceof Error ? resolveErr2.message : String(resolveErr2);
               if (msg2.includes('InvalidPoolStatus') || msg2.includes('0x177a') || msg2.includes('PoolNotEnded')) {
-                emit('warn', `  SKIPPED — deployed program rejects ${status} pools. Deploy updated program to fix.`, { poolPda: poolPdaStr, status });
+                emit('warn', `  SKIPPED - deployed program rejects ${status} pools. Deploy updated program to fix.`, { poolPda: poolPdaStr, status });
                 skipped++;
                 await delay(RPC_DELAY);
                 continue;
@@ -179,7 +179,7 @@ export async function recoverOrphanedPools(
               throw resolveErr2; // Unknown error, bubble up
             }
           } else if (msg.includes('PoolNotEnded')) {
-            emit('warn', `  SKIPPED — pool end_time not reached yet`, { poolPda: poolPdaStr });
+            emit('warn', `  SKIPPED - pool end_time not reached yet`, { poolPda: poolPdaStr });
             skipped++;
             await delay(RPC_DELAY);
             continue;
@@ -195,7 +195,7 @@ export async function recoverOrphanedPools(
         }
       }
 
-      // Close pool — attempt to reclaim rent
+      // Close pool - attempt to reclaim rent
       emit('info', `  Closing pool to reclaim rent...`);
       await delay(RPC_DELAY);
 
@@ -226,12 +226,12 @@ export async function recoverOrphanedPools(
           txSignature: closeSig,
         });
 
-        emit('success', `  CLOSED — reclaimed ${(rentReclaimed / 1e9).toFixed(6)} SOL (tx: ${closeSig.slice(0, 20)}...)`, {
+        emit('success', `  CLOSED - reclaimed ${(rentReclaimed / 1e9).toFixed(6)} SOL (tx: ${closeSig.slice(0, 20)}...)`, {
           poolPda: poolPdaStr, rentReclaimed: (rentReclaimed / 1e9).toFixed(6), txSignature: closeSig,
         });
         closed++;
       } catch (closeErr) {
-        // Normal close failed — try force_close (bypasses vault seeds check)
+        // Normal close failed - try force_close (bypasses vault seeds check)
         try {
           emit('info', `  Normal close failed, trying force_close...`);
           await delay(RPC_DELAY);
@@ -254,14 +254,14 @@ export async function recoverOrphanedPools(
           emit('success', `  FORCE CLOSED (tx: ${forceSig.slice(0, 20)}...)`, { poolPda: poolPdaStr, txSignature: forceSig });
           closed++;
         } catch (forceErr) {
-          // Both close methods failed — pool is still resolved (safe)
-          emit('warn', `  RESOLVED but close failed. Pool is safe — no deposits possible.`, { poolPda: poolPdaStr });
+          // Both close methods failed - pool is still resolved (safe)
+          emit('warn', `  RESOLVED but close failed. Pool is safe - no deposits possible.`, { poolPda: poolPdaStr });
           closed++;
         }
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      emit('error', `  FAILED — ${msg}`, { poolPda: poolPdaStr, error: msg });
+      emit('error', `  FAILED - ${msg}`, { poolPda: poolPdaStr, error: msg });
       failed++;
     }
 

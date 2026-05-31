@@ -30,7 +30,7 @@ export function ReferralBanner({ referrerWallet }: ReferralBannerProps) {
         <Box component="span" sx={{ color: t.text.primary, fontWeight: 600 }}>
           {referrerWallet}
         </Box>
-        {' '}— connect wallet to accept
+        {' '}- connect wallet to accept
       </Typography>
     </Box>
   );

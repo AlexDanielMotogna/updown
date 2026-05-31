@@ -10,12 +10,12 @@ const MAX_PER_CATEGORY = Number(process.env.POLYMARKET_MAX_MARKETS_PER_CATEGORY)
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
- * Match an event's tags to one of our ENABLED categories — lowest matchPriority
+ * Match an event's tags to one of our ENABLED categories - lowest matchPriority
  * wins (getPolymarketCategories returns them in that order).
  *
  * An enabled category that claims one of the event's tags ALWAYS wins, even if the
  * event also carries a tag owned by a disabled/coming-soon category. (Previously
- * any disabled-category tag rejected the whole event up front — which silently
+ * any disabled-category tag rejected the whole event up front - which silently
  * killed events for newly-created categories, e.g. a Tech event carrying an "AI"
  * tag owned by the disabled PM_SCIENCE.) Events that match no enabled category are
  * left uncategorized (null) and simply not imported.

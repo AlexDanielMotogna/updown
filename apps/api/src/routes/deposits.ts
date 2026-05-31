@@ -100,7 +100,7 @@ depositsRouter.post('/deposit', async (req, res) => {
       }
 
       if (pool.maxBettors) {
-        // A wallet may hold rows on multiple sides (hedge) — count DISTINCT wallets.
+        // A wallet may hold rows on multiple sides (hedge) - count DISTINCT wallets.
         const bettorWallets = await getDistinctBettorWallets(pool.id);
         const existingBetForUser = bettorWallets.includes(walletAddress);
         // Only check limit if this wallet doesn't already participate
@@ -225,7 +225,7 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
       }
     }
 
-    // Check for idempotency — same tx signature means already processed
+    // Check for idempotency - same tx signature means already processed
     const existingBetByTx = await prisma.bet.findFirst({
       where: { poolId: pool.id, walletAddress, depositTx: txSignature },
     });
@@ -347,7 +347,7 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
 
     console.log(`[Deposit] Verified on-chain: pool=${poolId}, wallet=${walletAddress}, side=${side}, amount=${betAmount}`);
 
-    // Atomic transaction — bet.upsert + pool.update together (supports multiple deposits)
+    // Atomic transaction - bet.upsert + pool.update together (supports multiple deposits)
     const [bet, updatedPool] = await prisma.$transaction(async (tx) => {
       const newBet = await tx.bet.upsert({
         where: {
@@ -412,7 +412,7 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
     });
 
     // Track placement stats only (fire-and-forget). XP is awarded at pool
-    // resolution (awardBetResolution), not here — see trackBetPlacement docs.
+    // resolution (awardBetResolution), not here - see trackBetPlacement docs.
     trackBetPlacement(walletAddress, betAmount).catch(e => console.warn('[Deposits] trackBetPlacement failed:', e instanceof Error ? e.message : e));
 
     res.json({

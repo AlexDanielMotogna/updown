@@ -7,7 +7,7 @@ set -e
 
 echo "[migrate-safe] Checking migration history..."
 
-# Try migrate deploy first — if it works, we're done
+# Try migrate deploy first - if it works, we're done
 if npx prisma migrate deploy 2>&1; then
   echo "[migrate-safe] All migrations applied successfully."
   exit 0

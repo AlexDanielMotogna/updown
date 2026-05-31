@@ -20,11 +20,11 @@ import { PositionsTab } from '@/components/profile/PositionsTab';
 import { PnLChart } from '@/components/profile/PnLChart';
 
 /**
- * /profile — intentionally minimal. Identity header + P&L chart + the single
+ * /profile - intentionally minimal. Identity header + P&L chart + the single
  * Positions surface with Active / Closed sub-tabs. Other sections of the
  * product (Rewards is surfaced in the header via level / XP / coins;
  * Referrals lives at /referrals; Tournaments at /tournaments) keep their own
- * routes — surfacing them all here as tabs duplicated information without
+ * routes - surfacing them all here as tabs duplicated information without
  * adding value.
  */
 export default function MyBetsPage() {
@@ -129,7 +129,7 @@ export default function MyBetsPage() {
                 }}
               >
                 <Box sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.gain }}>
-                  {claimable!.summary.count} TO CLAIM — {formatUSDC(claimable!.summary.totalClaimable, { min: 2 })}
+                  {claimable!.summary.count} TO CLAIM - {formatUSDC(claimable!.summary.totalClaimable, { min: 2 })}
                 </Box>
                 <Button
                   variant="contained"
