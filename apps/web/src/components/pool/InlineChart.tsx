@@ -149,7 +149,7 @@ function useChartLayout(candles: Candle[], chartType: ChartType) {
     setHoverY(null);
   }, []);
 
-  return { containerRef, dims, parsed, chartW, chartH, toX, toY, yTicks, xTicks, hoverIndex, hoverY, hoverPrice, setHoverIndex, handleMouseMove, handleMouseLeave };
+  return { containerRef, dims, parsed, chartW, chartH, toX, toY, yTicks, xTicks, hoverIndex, hoverY, hoverPrice, setHoverIndex, handleMouseMove, handleMouseLeave, maxPrice, priceRange };
 }
 
 interface AxesProps {
@@ -171,10 +171,19 @@ function ChartAxes({ dims, yTicks, xTicks, duration }: AxesProps) {
           </text>
         </g>
       ))}
-      {xTicks.map((tick, i) => (
-        <text key={`x-${i}`} x={tick.x} y={dims.height - 6} fill={t.text.tertiary} fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" textAnchor="middle">
-          {formatTime(tick.time, duration)}
-        </text>
+      {/* X labels are keyed by their *time* (not array index) so the snake
+          can shift smoothly: each tick keeps its DOM node across renders and
+          the CSS transition on `transform` interpolates its X position. */}
+      {xTicks.map((tick) => (
+        <g
+          key={`x-${tick.time}`}
+          transform={`translate(${tick.x}, 0)`}
+          style={{ transition: 'transform 0.5s linear' }}
+        >
+          <text x={0} y={dims.height - 6} fill={t.text.tertiary} fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" textAnchor="middle">
+            {formatTime(tick.time, duration)}
+          </text>
+        </g>
       ))}
     </>
   );
@@ -203,12 +212,54 @@ function smoothPath(points: { x: number; y: number }[]): string {
 function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
   const t = useThemeTokens();
   const layout = useChartLayout(candles, 'line');
-  const { containerRef, dims, parsed, chartH, toX, toY, yTicks, xTicks, hoverIndex, hoverY, hoverPrice, handleMouseMove, handleMouseLeave } = layout;
+  const { containerRef, dims, parsed, chartH, toY, yTicks, maxPrice, priceRange } = layout;
 
-  const closes = useMemo(() => parsed.map((p) => p.c), [parsed]);
-  const times = useMemo(() => parsed.map((p) => p.t), [parsed]);
+  // ── Snake clock ────────────────────────────────────────────────────────
+  // The X axis is anchored to "now": the right edge of the chart always reads
+  // the current wall-clock time, and the line slides leftwards by ~1s every
+  // second. Combined with the CSS transition on the path 'd' attribute below,
+  // this is what gives the Polymarket-style forward motion between candle
+  // updates — the line doesn't just snap when a new candle lands, it advances
+  // continuously.
+  // Tick 500ms with a matching 500ms-linear CSS transition on the path —
+  // each frame "stretches" exactly into the next, so the eye sees continuous
+  // motion instead of two visible steps per second.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(iv);
+  }, []);
 
-  const points = useMemo(() => closes.map((p, i) => ({ x: toX(i), y: toY(p) })), [closes, toX, toY]);
+  const chartW = dims.width - PADDING.left - PADDING.right;
+  const tMin = now - duration;
+  const tMax = now;
+
+  const tToX = useCallback(
+    (ts: number) => PADDING.left + ((ts - tMin) / duration) * chartW,
+    [tMin, duration, chartW],
+  );
+
+  // Candles visible in the current window. We keep one extra point off the
+  // left edge so the line draws cleanly to the boundary instead of clipping
+  // at the first visible candle.
+  const visibleCandles = useMemo(() => {
+    const firstInside = parsed.findIndex((p) => p.t >= tMin);
+    const start = firstInside <= 0 ? 0 : firstInside - 1;
+    return parsed.slice(start);
+  }, [parsed, tMin]);
+
+  const closes = useMemo(() => visibleCandles.map((p) => p.c), [visibleCandles]);
+  const times = useMemo(() => visibleCandles.map((p) => p.t), [visibleCandles]);
+
+  // The line ends at "now, livePrice" — a phantom point the snake clock
+  // pushes rightward each tick so the curve always touches the right edge.
+  const points = useMemo(() => {
+    const pts = visibleCandles.map((p) => ({ x: tToX(p.t), y: toY(p.c) }));
+    if (livePrice != null && pts.length > 0) {
+      pts.push({ x: tToX(now), y: toY(livePrice) });
+    }
+    return pts;
+  }, [visibleCandles, tToX, toY, livePrice, now]);
 
   const linePath = useMemo(() => smoothPath(points), [points]);
 
@@ -223,8 +274,57 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
 
   const lastPoint = points.length > 0 ? points[points.length - 1] : null;
 
-  const hoverData = hoverIndex !== null && hoverIndex < closes.length
-    ? { price: closes[hoverIndex], time: times[hoverIndex], x: toX(hoverIndex), y: toY(closes[hoverIndex]) }
+  // Time ticks anchored to round wall-clock instants (5:10:00, 5:10:30, …).
+  // Each tick keeps its label and rides the snake leftwards every frame, so
+  // the strip reads as a stable ruler the chart slides under — exactly the
+  // behaviour Polymarket / TradingView use for live ticks.
+  const xTicks = useMemo(() => {
+    const tickInterval =
+      duration > 6 * 3600_000 ? 60 * 60_000          // > 6h → hourly
+      : duration > 3600_000   ? 15 * 60_000          // 1–6h → every 15m
+      : duration > 30 * 60_000 ? 5 * 60_000          // 30m–1h → every 5m
+      : duration > 5 * 60_000  ? 60_000              // 5–30m → every 1m
+                               : 30_000;             // < 5m → every 30s
+    const ticks: { time: number; x: number }[] = [];
+    const start = Math.floor(tMin / tickInterval) * tickInterval;
+    for (let ts = start; ts <= tMax + tickInterval; ts += tickInterval) {
+      if (ts >= tMin && ts <= tMax) ticks.push({ time: ts, x: tToX(ts) });
+    }
+    return ticks;
+  }, [tMin, tMax, duration, tToX]);
+
+  // Time-based hover: snap to the candle nearest the cursor's X, track the
+  // cursor's Y for the horizontal price crosshair. Index-based hover from
+  // layout doesn't fit a time-anchored axis, so we wire our own here.
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const [hoverY, setHoverY] = useState<number | null>(null);
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<SVGSVGElement>) => {
+      if (visibleCandles.length === 0) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      let best = 0;
+      let bestDist = Infinity;
+      for (let i = 0; i < visibleCandles.length; i++) {
+        const d = Math.abs(tToX(visibleCandles[i].t) - mx);
+        if (d < bestDist) { bestDist = d; best = i; }
+      }
+      setHoverIdx(best);
+      if (my >= PADDING.top && my <= PADDING.top + chartH) setHoverY(my);
+    },
+    [visibleCandles, tToX, chartH],
+  );
+  const handleMouseLeave = useCallback(() => {
+    setHoverIdx(null);
+    setHoverY(null);
+  }, []);
+
+  const hoverData = hoverIdx !== null && hoverIdx < visibleCandles.length
+    ? { price: closes[hoverIdx], time: times[hoverIdx], x: tToX(visibleCandles[hoverIdx].t), y: toY(closes[hoverIdx]) }
+    : null;
+  const hoverPrice = hoverY !== null
+    ? maxPrice - ((hoverY - PADDING.top) / chartH) * priceRange
     : null;
 
   return (
@@ -255,16 +355,18 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
           return null;
         })()}
 
-        {areaPath && <path d={areaPath} fill="url(#inline-line-area-grad)" style={{ transition: 'd 0.5s ease, opacity 0.3s' }} />}
-        {linePath && <path d={linePath} fill="none" stroke={lineColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'd 0.5s ease' }} />}
+        {areaPath && <path d={areaPath} fill="url(#inline-line-area-grad)" style={{ transition: 'd 0.5s linear, opacity 0.3s' }} />}
+        {linePath && <path d={linePath} fill="none" stroke={lineColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'd 0.5s linear' }} />}
 
         {livePrice != null && lastPoint && (() => {
           const ly = toY(livePrice);
           if (ly >= PADDING.top && ly <= PADDING.top + chartH) {
             return (
               <>
-                <line x1={lastPoint.x} x2={dims.width - PADDING.right} y1={ly} y2={ly} stroke={lineColor} strokeWidth={1} strokeDasharray="3,3" strokeOpacity={0.6} style={{ transition: 'y1 0.4s ease, y2 0.4s ease' }} />
-                <circle cx={lastPoint.x} cy={lastPoint.y} r={3.5} fill={lineColor} stroke="#111820" strokeWidth={2} style={{ transition: 'cx 0.5s ease, cy 0.5s ease' }}>
+                {/* The live dot rides the right edge — its X is the phantom
+                    'now' point we appended, so the matching linear transition
+                    keeps it visually glued to the head of the snake. */}
+                <circle cx={lastPoint.x} cy={lastPoint.y} r={3.5} fill={lineColor} stroke="#111820" strokeWidth={2} style={{ transition: 'cx 0.5s linear, cy 0.5s linear' }}>
                   <animate attributeName="r" values="3.5;5;3.5" dur="2s" repeatCount="indefinite" />
                 </circle>
                 <rect x={dims.width - PADDING.right + 1} y={ly - 10} width={PADDING.right - 4} height={20} rx={3} fill={lineColor} style={{ transition: 'y 0.4s ease' }} />
