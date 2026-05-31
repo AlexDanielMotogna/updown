@@ -41,6 +41,7 @@ export function PnLChart({ bets }: PnLChartProps) {
   const [range, setRange] = useState<Range>('ALL');
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(0);
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -96,7 +97,8 @@ export function PnLChart({ bets }: PnLChartProps) {
   const pnlPositive = latestPnl >= 0;
   const pnlColor = pnlPositive ? t.gain : t.down;
 
-  // SVG path.
+  // SVG geometry + hover helpers — coords are derived once and consumed by
+  // both the static path render and the hover overlay below.
   const chart = useMemo(() => {
     if (points.length === 0 || width <= 0) return null;
     const chartW = Math.max(width - PADDING.left - PADDING.right, 50);
@@ -108,21 +110,46 @@ export function PnLChart({ bets }: PnLChartProps) {
     const minV = Math.min(0, ...values);
     const maxV = Math.max(0, ...values);
     const vSpan = Math.max(maxV - minV, 1);
-    const toX = (t: number) => PADDING.left + ((t - tMin) / tSpan) * chartW;
+    const toX = (ts: number) => PADDING.left + ((ts - tMin) / tSpan) * chartW;
     const toY = (v: number) => PADDING.top + ((maxV - v) / vSpan) * chartH;
     const zeroY = toY(0);
 
-    let d = `M${toX(points[0].t).toFixed(1)},${toY(points[0].pnl).toFixed(1)}`;
+    const xs = points.map(p => toX(p.t));
+    const ys = points.map(p => toY(p.pnl));
+
+    let d = `M${xs[0].toFixed(1)},${ys[0].toFixed(1)}`;
     for (let i = 1; i < points.length; i++) {
-      d += ` L${toX(points[i].t).toFixed(1)},${toY(points[i].pnl).toFixed(1)}`;
+      d += ` L${xs[i].toFixed(1)},${ys[i].toFixed(1)}`;
     }
     // Area fill under the line, down to the zero baseline.
-    const lastX = toX(points[points.length - 1].t).toFixed(1);
-    const firstX = toX(points[0].t).toFixed(1);
+    const lastX = xs[xs.length - 1].toFixed(1);
+    const firstX = xs[0].toFixed(1);
     const areaD = `${d} L${lastX},${zeroY.toFixed(1)} L${firstX},${zeroY.toFixed(1)} Z`;
 
-    return { d, areaD, zeroY };
+    return { d, areaD, zeroY, xs, ys, chartW, chartH };
   }, [points, width]);
+
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!chart || points.length === 0) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    // Snap to the closest data point by X.
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < chart.xs.length; i++) {
+      const d = Math.abs(chart.xs[i] - mouseX);
+      if (d < bestDist) { bestDist = d; bestIdx = i; }
+    }
+    setHoverIndex(bestIdx);
+  };
+
+  function formatHoverDate(ts: number): string {
+    const d = new Date(ts);
+    return d.toLocaleString('en-US', {
+      month: 'short', day: 'numeric',
+      hour: 'numeric', minute: '2-digit', hour12: true,
+    });
+  }
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -168,7 +195,13 @@ export function PnLChart({ bets }: PnLChartProps) {
             </Typography>
           </Box>
         ) : chart ? (
-          <svg width={width} height={HEIGHT} style={{ display: 'block' }}>
+          <svg
+            width={width}
+            height={HEIGHT}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={() => setHoverIndex(null)}
+            style={{ display: 'block', cursor: 'crosshair' }}
+          >
             <defs>
               <linearGradient id="pnl-area" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={pnlColor} stopOpacity={0.22} />
@@ -195,6 +228,64 @@ export function PnLChart({ bets }: PnLChartProps) {
               strokeLinecap="round"
               style={{ filter: `drop-shadow(0 0 3px ${withAlpha(pnlColor, 0.4)})` }}
             />
+
+            {/* Hover overlay — vertical guide + focus dot + tooltip pill */}
+            {hoverIndex != null && points[hoverIndex] && (() => {
+              const cx = chart.xs[hoverIndex];
+              const cy = chart.ys[hoverIndex];
+              const hp = points[hoverIndex];
+              const positive = hp.pnl >= 0;
+              const tipColor = positive ? t.gain : t.down;
+              const tipText = `${positive ? '+' : '−'}${formatUSDC(String(Math.round(Math.abs(hp.pnl))), { min: 2 })}`;
+              const dateText = formatHoverDate(hp.t);
+
+              // Tooltip width estimated by character count — keeps it inside
+              // the plot area regardless of which side the cursor is on.
+              const tipW = Math.max(96, Math.max(tipText.length, dateText.length) * 6.5 + 16);
+              const tipH = 38;
+              const tipPad = 10;
+              const sideRight = cx + tipW + tipPad < width - PADDING.right;
+              const tipX = sideRight ? cx + tipPad : cx - tipW - tipPad;
+              const tipY = Math.max(PADDING.top, Math.min(cy - tipH - 8, HEIGHT - PADDING.bottom - tipH));
+
+              return (
+                <>
+                  <line
+                    x1={cx} y1={PADDING.top}
+                    x2={cx} y2={HEIGHT - PADDING.bottom}
+                    stroke={t.border.medium}
+                    strokeWidth={1}
+                  />
+                  <circle cx={cx} cy={cy} r={4} fill={pnlColor} stroke={t.bg.app} strokeWidth={2} />
+                  <g transform={`translate(${tipX}, ${tipY})`} pointerEvents="none">
+                    <rect
+                      x={0} y={0} width={tipW} height={tipH}
+                      rx={4} ry={4}
+                      fill={t.bg.surfaceAlt}
+                      stroke={t.border.medium}
+                      strokeWidth={1}
+                    />
+                    <text
+                      x={8} y={15}
+                      fill={t.text.tertiary}
+                      fontSize={10}
+                      fontFamily="var(--font-satoshi), Satoshi, sans-serif"
+                    >
+                      {dateText}
+                    </text>
+                    <text
+                      x={8} y={30}
+                      fill={tipColor}
+                      fontSize={12}
+                      fontWeight={700}
+                      fontFamily="var(--font-satoshi), Satoshi, sans-serif"
+                    >
+                      {tipText}
+                    </text>
+                  </g>
+                </>
+              );
+            })()}
           </svg>
         ) : null}
       </Box>
