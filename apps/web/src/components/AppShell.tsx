@@ -19,10 +19,13 @@ function Footer() {
         borderTop: `1px solid ${t.border.subtle}`,
         bgcolor: t.bg.app,
         py: 1.25,
-        px: 4,
+        // Full-bleed background (the outer border + bg span the viewport),
+        // inner content centered to the 1400 frame so it lines up with the
+        // header and sidebars+content row above.
+        width: '100%',
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 1400, mx: 'auto', px: { xs: 2, md: 4 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
           <Box
             component="a"
@@ -98,7 +101,15 @@ export function AppShell({ children, centered = false, topBar }: { children: Rea
   const hideMarketSidebar =
     (isMarkets && searchParams.get('type') === 'TRENDING') || isDetailPage;
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: { xs: 'calc(72px + env(safe-area-inset-bottom, 0px))', lg: 0 } }}>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        bgcolor: 'background.default',
+        display: 'flex',
+        flexDirection: 'column',
+        pb: { xs: 'calc(72px + env(safe-area-inset-bottom, 0px))', lg: 0 },
+      }}
+    >
       <Header />
       <RewardPopup />
       {/* Top filter bar (e.g. Markets tabs) - sticky just under the header, full
@@ -107,12 +118,15 @@ export function AppShell({ children, centered = false, topBar }: { children: Rea
         <Box sx={{
           position: 'sticky', top: { xs: 44, sm: 52, lg: HEADER_LG },
           zIndex: 30, bgcolor: t.bg.app, maxWidth: 1400, mx: 'auto',
-          px: { xs: 2, md: 3 },
+          px: { xs: 2, md: 3 }, width: '100%',
         }}>
           {topBar}
         </Box>
       )}
-      <Box sx={{ display: 'flex', bgcolor: t.bg.app, maxWidth: 1400, mx: 'auto' }}>
+      {/* Sidebars + content row. `flex: 1` so it grows to push the footer
+          (which lives OUTSIDE this row) to the bottom of the viewport
+          even when content is short. */}
+      <Box sx={{ display: 'flex', bgcolor: t.bg.app, maxWidth: 1400, mx: 'auto', width: '100%', flex: 1, minWidth: 0 }}>
         {/* Desktop market sidebar - hidden in `centered` mode (e.g. profile)
             and on the Trending cross-category view (no filters there). */}
         <Box
@@ -127,19 +141,8 @@ export function AppShell({ children, centered = false, topBar }: { children: Rea
         >
           <MarketSidebar />
         </Box>
-        <Box
-          sx={{
-            flex: 1,
-            minWidth: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            minHeight: 'calc(100vh - 64px)',
-          }}
-        >
-          <Box sx={{ flex: 1 }}>
-            {children}
-          </Box>
-          <Footer />
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          {children}
         </Box>
         {/* Right sidebar. On Markets it's the always-on market rail; elsewhere
             it's the user's active pools (closeable). */}
@@ -158,6 +161,11 @@ export function AppShell({ children, centered = false, topBar }: { children: Rea
           {isMarkets && <MarketsRightRail />}
         </Box>
       </Box>
+
+      {/* Page-level footer: spans the full viewport width, sits below the
+          sidebar+content row. Inner content stays aligned with the 1400
+          frame the rest of the app uses. */}
+      <Footer />
 
       {/* Predictions sidebar removed - the user found the rail intrusive.
           ActivePoolsSidebar still exists for re-use elsewhere (e.g. inside
