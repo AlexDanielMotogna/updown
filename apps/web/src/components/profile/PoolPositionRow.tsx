@@ -8,7 +8,6 @@ import {
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { formatUSDC, getExplorerTxUrl } from '@/lib/format';
-import { getBoxImage } from '@/lib/constants';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import { AssetIcon } from '@/components';
@@ -180,9 +179,9 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId, 
 
   const isSports = pool.poolType === 'SPORTS';
   const isPM = pool.league?.startsWith('PM_');
-  const boxImageUrl = !isSports ? getBoxImage(pool.asset, pool.interval) : null;
-  // homeTeamCrest is also where PM stores the market thumbnail, so favour
-  // the real image and only fall back to the category icon if it's missing.
+  // Crypto pools render via the shared AssetIcon (pacifica token SVG —
+  // same icon the All Assets sidebar uses). Sports / PM rows get the
+  // upstream-provided thumbnail through homeTeamCrest.
   const marketImage = isSports ? pool.homeTeamCrest : null;
   const pmColorKey = isPM ? PM_COLOR_KEYS[pool.league || ''] : undefined;
   const pmColor = pmColorKey ? t.categoryColors[pmColorKey] : t.prediction;
@@ -241,9 +240,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId, 
           borderRadius: '6px', overflow: 'hidden',
         }}
       >
-        {boxImageUrl ? (
-          <Box component="img" src={boxImageUrl} alt="" sx={{ width: '90%', height: '90%', objectFit: 'contain' }} />
-        ) : marketImage ? (
+        {marketImage ? (
           <Box component="img" src={marketImage} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : isPM ? (
           pmIcon
