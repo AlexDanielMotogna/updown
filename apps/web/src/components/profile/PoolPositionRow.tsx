@@ -410,18 +410,13 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId, 
             {resultChip && <Box>{resultChip}</Box>}
             {marketCell}
           </Box>
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.25, flexShrink: 0 }}>
-            <Typography sx={{ fontSize: '0.95rem', fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
-              {formatUSDC(totalStake.toString(), { min: 2 })}
-            </Typography>
-            <ExpandMore
-              sx={{
-                fontSize: 18, color: t.text.secondary,
-                transition: 'transform 0.18s ease',
-                transform: expanded ? 'rotate(180deg)' : 'none',
-              }}
-            />
-          </Box>
+          <ExpandMore
+            sx={{
+              fontSize: 22, color: t.text.secondary, flexShrink: 0,
+              transition: 'transform 0.18s ease',
+              transform: expanded ? 'rotate(180deg)' : 'none',
+            }}
+          />
         </Box>
 
         <Collapse in={expanded} timeout={180} unmountOnExit>
