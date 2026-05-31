@@ -171,7 +171,9 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
   const isSports = pool.poolType === 'SPORTS';
   const isPM = pool.league?.startsWith('PM_');
   const boxImageUrl = !isSports ? getBoxImage(pool.asset, pool.interval) : null;
-  const teamCrest = isSports && !isPM ? pool.homeTeamCrest : null;
+  // homeTeamCrest is also where PM stores the market thumbnail, so favour
+  // the real image and only fall back to the category icon if it's missing.
+  const marketImage = isSports ? pool.homeTeamCrest : null;
   const pmColorKey = isPM ? PM_COLOR_KEYS[pool.league || ''] : undefined;
   const pmColor = pmColorKey ? t.categoryColors[pmColorKey] : t.prediction;
   const pmIcon = isPM ? (PM_ICONS[pool.league || ''] ?? <TrendingUp sx={{ fontSize: 20 }} />) : null;
@@ -239,15 +241,17 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
           sx={{
             width: 36, height: 36, flexShrink: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            bgcolor: isPM ? withAlpha(pmColor, 0.12) : t.hover.medium,
+            // Only tint the bg when falling back to the category icon — image
+            // thumbnails fill the tile and the tint would clip oddly.
+            bgcolor: isPM && !marketImage ? withAlpha(pmColor, 0.12) : t.hover.medium,
             color: isPM ? pmColor : 'inherit',
             borderRadius: '6px', overflow: 'hidden',
           }}
         >
           {boxImageUrl ? (
             <Box component="img" src={boxImageUrl} alt="" sx={{ width: '90%', height: '90%', objectFit: 'contain' }} />
-          ) : teamCrest ? (
-            <Box component="img" src={teamCrest} alt="" sx={{ width: '88%', height: '88%', objectFit: 'contain' }} />
+          ) : marketImage ? (
+            <Box component="img" src={marketImage} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : isPM ? (
             pmIcon
           ) : (
