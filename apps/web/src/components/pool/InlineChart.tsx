@@ -324,13 +324,41 @@ function LineChart({ candles, duration, livePrice, strikePrice, asset }: ChartPr
   });
 
   // Seed once from candle closes when they arrive — bootstraps the chart so
-  // there's an actual line on first paint when sessionStorage was empty.
-  // Skips if hydration already gave us something fresh.
+  // first paint shows a full 2-min line instead of waiting two minutes for
+  // live ticks to fill the window. We linearly interpolate between adjacent
+  // 1-minute candle closes at 1s resolution (~120 points in the window),
+  // then hold the last candle's close as a flat tail up to "now". Live
+  // ticks naturally extend from there at the buffer's native 10Hz cadence.
+  // Skipped if sessionStorage already hydrated something fresh.
   useEffect(() => {
     if (parsed.length === 0) return;
     setHistory((prev) => {
       if (prev.length > 0) return prev;
-      return parsed.map((p) => ({ t: p.t, p: p.c }));
+      const STEP = 1000;
+      const ts = Date.now();
+      const cutoff = ts - SNAKE_WINDOW_MS;
+      const synthetic: { t: number; p: number }[] = [];
+      // Interpolate every candle pair, clipped to the visible window.
+      for (let i = 1; i < parsed.length; i++) {
+        const a = parsed[i - 1];
+        const b = parsed[i];
+        if (b.t < cutoff) continue;
+        const start = Math.max(a.t, cutoff);
+        for (let t = start; t < b.t; t += STEP) {
+          const ratio = (t - a.t) / (b.t - a.t);
+          synthetic.push({ t, p: a.c + (b.c - a.c) * ratio });
+        }
+      }
+      // Extend the last candle's close as a flat tail up to now so the
+      // chart isn't truncated at the last candle boundary (which could be
+      // up to 60s in the past on a fresh open).
+      const last = parsed[parsed.length - 1];
+      if (last.t >= cutoff) synthetic.push({ t: last.t, p: last.c });
+      const tailStart = last.t + STEP;
+      for (let t = tailStart; t <= ts; t += STEP) {
+        synthetic.push({ t, p: last.c });
+      }
+      return synthetic;
     });
   }, [parsed]);
 
