@@ -322,19 +322,27 @@ function LineChart({ candles, duration, livePrice, strikePrice, asset }: ChartPr
     });
   }, [parsed]);
 
-  // Push livePrice every SNAKE_TICK_MS and prune.
+  // Push the latest livePrice into the buffer every SNAKE_TICK_MS. The
+  // interval is mounted ONCE — earlier the deps were `[livePrice]`, which
+  // tore the interval down and rebuilt it on every WS tick (≈5–30 Hz). The
+  // 100ms timer almost never completed before being cleared, so the buffer
+  // grew far slower than 10/s and the line never reached the left edge.
+  // A ref decouples the closure's read from the effect's re-runs.
+  const livePriceRef = useRef(livePrice);
+  useEffect(() => { livePriceRef.current = livePrice; }, [livePrice]);
   useEffect(() => {
     const iv = setInterval(() => {
-      if (livePrice == null) return;
+      const lp = livePriceRef.current;
+      if (lp == null) return;
       const ts = Date.now();
       setHistory((h) => {
         const cutoff = ts - SNAKE_WINDOW_MS;
-        const next = [...h.filter((e) => e.t >= cutoff), { t: ts, p: livePrice }];
+        const next = [...h.filter((e) => e.t >= cutoff), { t: ts, p: lp }];
         return next;
       });
     }, SNAKE_TICK_MS);
     return () => clearInterval(iv);
-  }, [livePrice]);
+  }, []);
 
   // Persist throttled — sessionStorage writes are sync and a 1200-entry JSON
   // shouldn't be serialized 10× a second. Once per second is enough to
