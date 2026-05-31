@@ -167,16 +167,12 @@ export function PnLChart({ bets }: PnLChartProps) {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-      {/* Header: P&L value + range selector */}
-      <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
-        <Box>
-          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: t.text.tertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            P&amp;L · {range}
-          </Typography>
-          <Typography sx={{ fontSize: '1.4rem', fontWeight: 800, color: pnlColor, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>
-            {pnlPositive ? '+' : '−'}{formatUSDC(String(Math.round(Math.abs(latestPnl))), { min: 2 })}
-          </Typography>
-        </Box>
+      {/* Header: just the title + range selector. The numeric value lives in
+          the Net P&L tile above; repeating it here was visual duplication. */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
+        <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: t.text.primary }}>
+          Profit/Loss
+        </Typography>
         <Box sx={{ display: 'flex', gap: 0.25, p: 0.25, bgcolor: t.bg.surface, borderRadius: '6px', border: `1px solid ${t.border.subtle}` }}>
           {RANGES.map(r => {
             const active = r === range;
