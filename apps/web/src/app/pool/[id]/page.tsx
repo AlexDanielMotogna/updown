@@ -1,30 +1,53 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { Box, Typography, Alert, Chip } from '@mui/material';
-import { Circle, ArrowBack } from '@mui/icons-material';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useParams, useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { Box, Typography } from '@mui/material';
+import { GridView, Speed, Timer, AvTimer, Schedule } from '@mui/icons-material';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
-import { usePool, useDeposit, usePriceStream, usePacificaPrices } from '@/hooks';
+import {
+  usePool,
+  useDeposit,
+  usePriceStream,
+  usePacificaPrices,
+} from '@/hooks';
 import {
   TransactionModal,
   AppShell,
   PoolDetailSkeleton,
   AiAnalyzerBot,
-  AssetIcon,
 } from '@/components';
-import { statusStyles, USDC_DIVISOR } from '@/lib/format';
-import { INTERVAL_TAG_IMAGES, INTERVAL_LABELS } from '@/lib/constants';
+import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter';
 import { useThemeTokens } from '@/app/providers';
-import { PoolStatsStrip } from '@/components/pool/PoolStatsStrip';
-import { PoolInfoCards } from '@/components/pool/PoolInfoCards';
 import { ArenaSection } from '@/components/pool/ArenaSection';
 import { InlineChart } from '@/components/pool/InlineChart';
+import { PoolPageHeader } from '@/components/pool/PoolPageHeader';
+import { PriceTargetStrip } from '@/components/pool/PriceTargetStrip';
+import { ActiveCryptoPoolsSidebar } from '@/components/pool/ActiveCryptoPoolsSidebar';
+import { PoolActivityList } from '@/components/pool/PoolActivityList';
+
+// Filter dropdown options — mirror the home page so MarketFilter renders
+// with the same set of choices when a user wants to switch context from
+// inside a pool view. Changes navigate back to the home grid.
+const ASSET_FILTERS = [
+  { value: 'ALL', label: 'All', icon: <GridView sx={{ fontSize: 16 }} /> },
+  { value: 'BTC', label: 'BTC', img: '/coins/btc-coin.png' },
+  { value: 'ETH', label: 'ETH', img: '/coins/eth-coin.png' },
+  { value: 'SOL', label: 'SOL', img: '/coins/sol-coin.png' },
+];
+
+const INTERVAL_FILTERS = [
+  { value: 'ALL', label: 'All', icon: <GridView sx={{ fontSize: 16 }} /> },
+  { value: '3m', label: '3 min', icon: <Speed sx={{ fontSize: 16 }} /> },
+  { value: '5m', label: '5 min', icon: <Timer sx={{ fontSize: 16 }} /> },
+  { value: '15m', label: '15 min', icon: <AvTimer sx={{ fontSize: 16 }} /> },
+  { value: '1h', label: '1 hour', icon: <Schedule sx={{ fontSize: 16 }} /> },
+];
 
 export default function PoolDetailPage() {
   const t = useThemeTokens();
   const router = useRouter();
+  const pathname = usePathname();
   const params = useParams();
   const searchParams = useSearchParams();
   const poolId = params.id as string;
@@ -38,28 +61,28 @@ export default function PoolDetailPage() {
 
   const pool = data?.data;
 
-  // Redirect sports/PM pools to the match detail page
+  // Sports / PM pools live at /match — bounce there if someone deep-links to /pool.
   useEffect(() => {
     if (pool?.poolType === 'SPORTS') {
       router.replace(`/match/${pool.id}`);
     }
   }, [pool, router]);
 
-  const { getPrice, isConnected } = usePriceStream(
+  const { getPrice } = usePriceStream(
     pool?.asset ? [pool.asset] : [],
     { enabled: !!pool?.asset }
   );
   const livePrice = pool?.asset ? getPrice(pool.asset) : null;
 
+  // Quick green/red flash on the price tile when the WS tick lands.
   const prevPrice = useRef(livePrice);
   const [priceFlash, setPriceFlash] = useState<'up' | 'down' | null>(null);
-
   useEffect(() => {
     if (livePrice && prevPrice.current && livePrice !== prevPrice.current) {
       setPriceFlash(Number(livePrice) > Number(prevPrice.current) ? 'up' : 'down');
-      const t = setTimeout(() => setPriceFlash(null), 300);
+      const id = setTimeout(() => setPriceFlash(null), 300);
       prevPrice.current = livePrice;
-      return () => clearTimeout(t);
+      return () => clearTimeout(id);
     }
     prevPrice.current = livePrice;
   }, [livePrice]);
@@ -70,41 +93,6 @@ export default function PoolDetailPage() {
   );
   const priceData = pool?.asset ? getPriceData(pool.asset) : null;
 
-  // Activity log: fetch bets with polling every 5s
-  const [bets, setBets] = useState<Array<{ wallet: string; side: string; amount: string; createdAt: string }>>([]);
-  const knownBetsRef = useRef<Set<string>>(new Set());
-  const [newBetKeys, setNewBetKeys] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (!poolId) { setBets([]); knownBetsRef.current.clear(); return; }
-    let active = true;
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
-    const url = `${apiBase}/api/pools/${poolId}/bets`;
-    const fetchBets = async () => {
-      try {
-        const r = await fetch(url);
-        const d = await r.json();
-        if (!active || !d.success) return;
-        const freshKeys = new Set<string>();
-        for (const b of d.data) {
-          const key = `${b.wallet}-${b.createdAt}`;
-          if (!knownBetsRef.current.has(key)) {
-            freshKeys.add(key);
-            knownBetsRef.current.add(key);
-          }
-        }
-        setBets(d.data);
-        if (freshKeys.size > 0 && freshKeys.size <= 5) {
-          setNewBetKeys(freshKeys);
-          setTimeout(() => setNewBetKeys(new Set()), 2000);
-        }
-      } catch { /* ignore */ }
-    };
-    fetchBets();
-    const iv = setInterval(fetchBets, 5000);
-    return () => { active = false; clearInterval(iv); };
-  }, [poolId]);
-
   useEffect(() => {
     if (initialSide && betFormRef.current && pool?.status === 'JOINING') {
       setTimeout(() => {
@@ -113,12 +101,42 @@ export default function PoolDetailPage() {
     }
   }, [initialSide, pool?.status]);
 
+  // Category navbar — all changes navigate back to the markets grid. We're
+  // inside a single pool so per-asset / per-interval filtering doesn't apply
+  // here; the dropdowns just hand off to / with the right query string.
+  const goToHome = useCallback((key: string, value: string) => {
+    const params = new URLSearchParams();
+    // Default home view is CRYPTO; only set 'type' when the user picks
+    // something else, mirroring the home page's URL convention.
+    if (key === 'type' && value !== 'CRYPTO') params.set('type', value);
+    else if (key !== 'type' && value !== 'ALL') params.set(key, value);
+    const qs = params.toString();
+    router.push(qs ? `/?${qs}` : '/');
+  }, [router]);
+
+  const filterBar = (
+    <MarketFilter
+      marketType="CRYPTO"
+      onMarketTypeChange={(v: MarketType) => goToHome('type', v)}
+      assetFilter="ALL"
+      intervalFilter="ALL"
+      onAssetChange={v => goToHome('asset', v)}
+      onIntervalChange={v => goToHome('interval', v)}
+      assetOptions={ASSET_FILTERS}
+      intervalOptions={INTERVAL_FILTERS}
+      sportFilter="ALL"
+      onSportChange={v => goToHome('sport', v)}
+      leagueFilter="ALL"
+      onLeagueChange={v => goToHome('league', v)}
+    />
+  );
+
   const handleBet = async (side: 'UP' | 'DOWN', amount: number) => {
     setShowModal(true);
     try {
       await deposit(poolId, side, amount);
     } catch {
-      // Error handled in state
+      // Surfaced through txState.error.
     }
   };
 
@@ -129,7 +147,7 @@ export default function PoolDetailPage() {
 
   if (isLoading) {
     return (
-      <AppShell>
+      <AppShell topBar={filterBar}>
         <Box sx={{ px: { xs: 2, md: 4 }, py: { xs: 3, md: 6 } }}>
           <PoolDetailSkeleton />
         </Box>
@@ -139,7 +157,7 @@ export default function PoolDetailPage() {
 
   if (error || !pool) {
     return (
-      <AppShell>
+      <AppShell topBar={filterBar}>
         <Box sx={{ textAlign: 'center', py: { xs: 8, md: 12 }, px: 3 }}>
           <Typography sx={{ fontSize: '1.1rem', fontWeight: 600, color: t.text.primary, mb: 1 }}>
             This pool has ended
@@ -151,16 +169,10 @@ export default function PoolDetailPage() {
             <Box
               component="span"
               sx={{
-                display: 'inline-block',
-                px: 4,
-                py: 1,
-                bgcolor: t.border.default,
-                color: t.text.primary,
-                fontWeight: 600,
-                fontSize: '0.85rem',
-                borderRadius: '2px',
-                cursor: 'pointer',
-                transition: 'background 0.15s',
+                display: 'inline-block', px: 4, py: 1,
+                bgcolor: t.border.default, color: t.text.primary,
+                fontWeight: 600, fontSize: '0.85rem', borderRadius: '2px',
+                cursor: 'pointer', transition: 'background 0.15s',
                 '&:hover': { bgcolor: t.hover.emphasis },
               }}
             >
@@ -172,106 +184,74 @@ export default function PoolDetailPage() {
     );
   }
 
-  const statusStyle = statusStyles[pool.status] || statusStyles.UPCOMING;
+  const isLive = pool.status === 'JOINING' || pool.status === 'ACTIVE';
 
   return (
-    <AppShell>
-      {/* Back nav + Asset identity */}
-      <Box sx={{ bgcolor: t.bg.app, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-        <Box sx={{ px: { xs: 1.5, md: 3 }, py: { xs: 1, md: 1.25 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Link href="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex' }}>
-              <ArrowBack sx={{ fontSize: 18, color: t.text.tertiary, '&:hover': { color: t.text.primary }, cursor: 'pointer' }} />
-            </Link>
-            <Circle sx={{ fontSize: 8, color: isConnected ? t.gain : t.down, animation: isConnected ? 'pulse 2s infinite' : 'none', '@keyframes pulse': { '0%': { opacity: 1 }, '50%': { opacity: 0.4 }, '100%': { opacity: 1 } } }} />
-            <AssetIcon asset={pool.asset} size={22} />
-            <Typography sx={{ fontWeight: 700, fontSize: { xs: '0.9rem', md: '1rem' } }}>{pool.asset}/USD</Typography>
-            {pool.interval && <Box component="img" src={INTERVAL_TAG_IMAGES[pool.interval] || '/assets/hourly-tag.png'} alt={INTERVAL_LABELS[pool.interval] || pool.interval} sx={{ height: { xs: 36, md: 42 }, imageRendering: '-webkit-optimize-contrast' }} />}
+    <AppShell topBar={filterBar}>
+      {/* ── Two-column Polymarket-style layout ─────────────────────────────
+          Left  → header, price strip, chart, AI analyzer
+          Right → place bet card, recent activity, more crypto markets
+         ─────────────────────────────────────────────────────────────────── */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 340px' },
+          gap: { xs: 0, md: 2 },
+          alignItems: 'start',
+          maxWidth: 1400,
+          mx: 'auto',
+          px: { xs: 0, md: 1 },
+        }}
+      >
+        {/* ── Main column ── */}
+        <Box sx={{ minWidth: 0 }}>
+          <PoolPageHeader
+            asset={pool.asset}
+            interval={pool.interval}
+            startTime={pool.startTime}
+            endTime={pool.endTime}
+          />
+          <PriceTargetStrip
+            strikePrice={pool.strikePrice}
+            livePrice={livePrice}
+            priceFlash={priceFlash}
+            endTime={pool.endTime}
+            status={pool.status}
+            finalPrice={pool.finalPrice}
+            isLive={isLive}
+          />
+          <Box sx={{ px: { xs: 0, md: 1 } }}>
+            <InlineChart
+              asset={pool.asset}
+              livePrice={livePrice}
+              strikePrice={pool.strikePrice}
+            />
           </Box>
-          <Chip label={pool.status === 'JOINING' ? 'LIVE' : pool.status} size="small" sx={{ ...statusStyle, fontWeight: 700, fontSize: { xs: '0.6rem', md: '0.7rem' }, letterSpacing: '0.08em', px: 1, borderRadius: '2px', height: { xs: 22, md: 24 } }} />
+        </Box>
+
+        {/* ── Right sidebar ── */}
+        <Box sx={{ minWidth: 0, px: { xs: 1.5, md: 0 }, pb: { xs: 3, md: 4 } }}>
+          <ArenaSection
+            pool={pool}
+            selectedSide={selectedSide}
+            onSelectSide={setSelectedSide}
+            onBet={handleBet}
+            txState={txState}
+            betFormRef={betFormRef}
+          />
+          <PoolActivityList poolId={poolId} />
+          <ActiveCryptoPoolsSidebar currentPoolId={poolId} />
         </Box>
       </Box>
 
-      <PoolStatsStrip betCount={pool.betCount} totalPool={pool.totalPool} upOdds={pool.odds.up} downOdds={pool.odds.down} />
-
-      <PoolInfoCards
-        livePrice={livePrice}
-        priceFlash={priceFlash}
-        strikePrice={pool.strikePrice}
-        finalPrice={pool.finalPrice}
-        status={pool.status}
-        totalUp={pool.totalUp}
-        totalDown={pool.totalDown}
+      <AiAnalyzerBot
+        asset={pool.asset}
+        poolStatus={pool.status}
+        startTime={pool.startTime}
         endTime={pool.endTime}
+        winner={pool.winner}
+        priceData={priceData}
       />
-
-      <Box sx={{
-        display: { xs: 'block', md: 'grid' },
-        gridTemplateColumns: { md: '1fr 340px' },
-        gap: { md: 1.5 },
-        px: { md: 2 },
-        py: { md: 1.5 },
-        alignItems: 'start',
-      }}>
-        <InlineChart asset={pool.asset} livePrice={livePrice} strikePrice={pool.strikePrice} />
-        <ArenaSection
-          pool={pool}
-          selectedSide={selectedSide}
-          onSelectSide={setSelectedSide}
-          onBet={handleBet}
-          txState={txState}
-          betFormRef={betFormRef}
-        />
-      </Box>
-
-      {/* Activity log */}
-      {bets.length > 0 && (
-        <Box sx={{
-          px: { xs: 2, md: 3 },
-          py: 1.5,
-          maxHeight: 300,
-          overflowY: 'auto',
-          '&::-webkit-scrollbar': { display: 'none' },
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none',
-        }}>
-          <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: '0.06em', mb: 1 }}>
-            Activity
-          </Typography>
-          <AnimatePresence>
-            {bets.map((b) => {
-              const key = `${b.wallet}-${b.createdAt}`;
-              const isNew = newBetKeys.has(key);
-              const sideColor = b.side === 'UP' ? t.up : t.down;
-              const sideLabel = b.side === 'UP' ? 'UP' : 'DOWN';
-              const amt = (Number(b.amount) / USDC_DIVISOR).toFixed(2);
-              const ago = Math.floor((Date.now() - new Date(b.createdAt).getTime()) / 60000);
-              const timeStr = ago < 1 ? 'now' : ago < 60 ? `${ago}m` : `${Math.floor(ago / 60)}h`;
-              return (
-                <motion.div
-                  key={key}
-                  initial={isNew ? { opacity: 0, scale: 0.96, y: -10 } : false}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                  layout
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 0.75, fontSize: '0.75rem', fontWeight: 600 }}>
-                    <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.soft, width: 75, flexShrink: 0 }}>{b.wallet}</Typography>
-                    <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: sideColor, width: 55, flexShrink: 0 }}>{sideLabel}</Typography>
-                    <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.primary, flex: 1, textAlign: 'right' }}>${amt}</Typography>
-                    <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.muted, width: 25, textAlign: 'right', flexShrink: 0 }}>{timeStr}</Typography>
-                  </Box>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
-        </Box>
-      )}
-
-      {pool && (
-        <AiAnalyzerBot asset={pool.asset} poolStatus={pool.status} startTime={pool.startTime} endTime={pool.endTime} winner={pool.winner} priceData={priceData} />
-      )}
 
       <TransactionModal
         open={showModal}
