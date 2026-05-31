@@ -105,6 +105,14 @@ export function useNotifications() {
       if (data.status === 'CLAIMABLE' && won) {
         push(buildNotification('POOL_CLAIMABLE', ctx));
       }
+
+      // Refresh the bets cache so /profile flips the position from Active to
+      // Closed without a page reload. Without this, bet.pool.status stays
+      // JOINING/ACTIVE in cache forever and the row never moves tabs.
+      if (data.status === 'RESOLVED' || data.status === 'CLAIMABLE') {
+        queryClient.invalidateQueries({ queryKey: ['bets'] });
+        queryClient.invalidateQueries({ queryKey: ['claimableBets'] });
+      }
     };
 
     const onRefund = (payload: { walletAddress?: string; poolId?: string; amount?: string; message?: string }) => {
