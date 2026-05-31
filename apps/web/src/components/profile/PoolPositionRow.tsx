@@ -50,6 +50,10 @@ interface PoolPositionRowProps {
    *  is redundant — suppress it. Same idea for any other context where the
    *  chip just repeats what the surrounding UI already says. */
   hideStatusChipWhen?: string;
+  /** Skip the whole Result column (header + row cell) — used when every row
+   *  would suppress its chip anyway, so the empty column would just waste
+   *  horizontal space. */
+  hideResultColumn?: boolean;
 }
 
 interface ResultInfo {
@@ -140,7 +144,7 @@ function sideColor(side: Bet['side'], t: ReturnType<typeof useThemeTokens>): str
   return side === 'UP' ? t.up : side === 'DOWN' ? t.down : t.draw;
 }
 
-export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId, hideStatusChipWhen }: PoolPositionRowProps) {
+export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId, hideStatusChipWhen, hideResultColumn }: PoolPositionRowProps) {
   const t = useThemeTokens();
   const [expanded, setExpanded] = useState(false);
   const { bets, pool } = position;
@@ -376,13 +380,17 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId, 
         '&:hover': { background: t.hover.default, borderColor: t.border.medium },
       }}
     >
-      {/* ─── Desktop: 5-column grid ─── */}
+      {/* ─── Desktop grid — drops the Result column when hideResultColumn is set. ─── */}
       <Box sx={{
         display: { xs: 'none', md: 'grid' },
-        gridTemplateColumns: '110px 1fr 130px 180px 100px',
+        gridTemplateColumns: hideResultColumn
+          ? '1fr 130px 180px 100px'
+          : '110px 1fr 130px 180px 100px',
         alignItems: 'center', gap: 2, px: 2, py: 1.5,
       }}>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>{resultChip || <Box />}</Box>
+        {!hideResultColumn && (
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>{resultChip || <Box />}</Box>
+        )}
         {marketCell}
         {stakeCell}
         {payoutCell}
