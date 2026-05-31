@@ -1,7 +1,10 @@
 'use client';
 
 import { Box, Typography, Chip, Button, CircularProgress, Skeleton, Tooltip } from '@mui/material';
-import { CheckCircle, Cancel, Refresh, AccessTime, OpenInNew } from '@mui/icons-material';
+import {
+  CheckCircle, Cancel, Refresh, AccessTime, OpenInNew,
+  Gavel, Public, TheaterComedy, AccountBalance, TrendingUp,
+} from '@mui/icons-material';
 import Link from 'next/link';
 import { formatUSDC, getExplorerTxUrl } from '@/lib/format';
 import { getBoxImage } from '@/lib/constants';
@@ -9,6 +12,19 @@ import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import { AssetIcon } from '@/components';
 import type { Bet } from '@/lib/api';
+
+// Polymarket category icons + colours — same mapping the legacy BetRow used,
+// kept local so PM pools render with their identity icon (a question-shaped
+// PM_POLITICS row falls through to AssetIcon otherwise and shows nothing).
+const PM_ICONS: Record<string, React.ReactNode> = {
+  PM_POLITICS: <Gavel sx={{ fontSize: 20 }} />,
+  PM_GEO: <Public sx={{ fontSize: 20 }} />,
+  PM_CULTURE: <TheaterComedy sx={{ fontSize: 20 }} />,
+  PM_FINANCE: <AccountBalance sx={{ fontSize: 20 }} />,
+};
+const PM_COLOR_KEYS: Record<string, 'politics' | 'geopolitics' | 'culture' | 'finance'> = {
+  PM_POLITICS: 'politics', PM_GEO: 'geopolitics', PM_CULTURE: 'culture', PM_FINANCE: 'finance',
+};
 
 /**
  * One row per pool, not per bet. When a wallet holds multiple bets on the
@@ -156,6 +172,9 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
   const isPM = pool.league?.startsWith('PM_');
   const boxImageUrl = !isSports ? getBoxImage(pool.asset, pool.interval) : null;
   const teamCrest = isSports && !isPM ? pool.homeTeamCrest : null;
+  const pmColorKey = isPM ? PM_COLOR_KEYS[pool.league || ''] : undefined;
+  const pmColor = pmColorKey ? t.categoryColors[pmColorKey] : t.prediction;
+  const pmIcon = isPM ? (PM_ICONS[pool.league || ''] ?? <TrendingUp sx={{ fontSize: 20 }} />) : null;
   const title = isPM
     ? (pool.homeTeam || pool.asset).slice(0, 80)
     : isSports
@@ -220,13 +239,17 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
           sx={{
             width: 36, height: 36, flexShrink: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            bgcolor: t.hover.medium, borderRadius: '6px', overflow: 'hidden',
+            bgcolor: isPM ? withAlpha(pmColor, 0.12) : t.hover.medium,
+            color: isPM ? pmColor : 'inherit',
+            borderRadius: '6px', overflow: 'hidden',
           }}
         >
           {boxImageUrl ? (
             <Box component="img" src={boxImageUrl} alt="" sx={{ width: '90%', height: '90%', objectFit: 'contain' }} />
           ) : teamCrest ? (
             <Box component="img" src={teamCrest} alt="" sx={{ width: '88%', height: '88%', objectFit: 'contain' }} />
+          ) : isPM ? (
+            pmIcon
           ) : (
             <AssetIcon asset={pool.asset} size={22} />
           )}
