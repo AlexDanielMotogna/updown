@@ -24,16 +24,14 @@ import {
   Alert,
   Box,
   Button,
-  CircularProgress,
   InputAdornment,
   TextField,
-  Tooltip,
   Typography,
 } from '@mui/material';
-import { CheckCircle } from '@mui/icons-material';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { AssetIcon } from '@/components/AssetIcon';
+import { DeterminingCard as SharedDetermining, OutcomeCard as SharedOutcome, TermsFooter } from './ResolutionCards';
 import { USDC_DIVISOR, formatPredictionWindow } from '@/lib/format';
 import {
   DEFAULT_FEE_PERCENT,
@@ -313,36 +311,6 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
  *  so it floats under the bordered surface like the disclosure copy on
  *  Polymarket / Kalshi, not inside the action area. Hover surfaces the full
  *  jurisdictional disclaimer via tooltip. */
-function TermsFooter() {
-  const t = useThemeTokens();
-  return (
-    <Tooltip
-      title="By trading, you agree to the Terms of Use, including that you are not (i) a U.S. person and (ii) located in the United States, France or other restricted territory."
-      arrow placement="top"
-      slotProps={{
-        tooltip: { sx: { bgcolor: t.bg.tooltip, border: `1px solid ${t.border.strong}`, fontSize: '0.72rem', maxWidth: 280, lineHeight: 1.4, p: 1.2 } },
-        arrow: { sx: { color: t.bg.tooltip } },
-      }}
-    >
-      <Typography
-        sx={{
-          fontSize: '0.78rem',
-          color: t.text.secondary,
-          fontWeight: 600,
-          textAlign: 'center',
-          mt: 1.5,
-          cursor: 'help',
-          '&:hover': { color: t.text.primary },
-          transition: 'color 0.15s',
-        }}
-      >
-        By trading, you agree to the <Box component="span" sx={{ textDecoration: 'underline' }}>Terms of Use</Box>.
-      </Typography>
-    </Tooltip>
-  );
-}
-
-
 /** Vertical card cell - same shape as ThreeWaySelector on the sports page
  *  so the place-bet UI feels consistent across both pool types. */
 function SideCard({ label, pct, total, color, selected, onClick, disabled }: {
@@ -387,81 +355,32 @@ function SideCard({ label, pct, total, color, selected, onClick, disabled }: {
   );
 }
 
-// ─── End-of-pool states ──────────────────────────────────────────────────────
+// ─── Crypto-specific adapters around the shared resolution cards ────────────
 //
-// EndedCard is the shared shell - same border / padding / Terms of Use footer
-// the active card has, so swapping the body in doesn't shift the layout. The
-// active card is a column flex with `gap`, so the two states below render
-// inside that same shell-shape.
+// The shared module (./ResolutionCards.tsx) is generic over subtitle / meta /
+// outcome label so both this file and the /match/[id] sports surface use the
+// exact same shell. These wrappers translate the crypto pool's asset +
+// interval + prediction window into the strings the shared API expects.
 
-function EndedCard({ pool, children }: { pool: PoolDetail; children: React.ReactNode }) {
+function DeterminingCard({ pool }: { pool: PoolDetail }) {
+  const intervalLabel = INTERVAL_LABELS[pool.interval] || pool.interval;
+  return (
+    <SharedDetermining
+      subtitle={`${getAssetName(pool.asset)} Up or Down · ${intervalLabel}`}
+      meta={formatPredictionWindow(pool.startTime, pool.endTime)}
+    />
+  );
+}
+
+function OutcomeCard({ pool, winner }: { pool: PoolDetail; winner: 'UP' | 'DOWN' }) {
   const t = useThemeTokens();
   const intervalLabel = INTERVAL_LABELS[pool.interval] || pool.interval;
   return (
-    <Box>
-      <Box
-        sx={{
-          bgcolor: t.bg.surfaceAlt,
-          border: `1px solid ${t.border.subtle}`,
-          borderRadius: 2,
-          p: { xs: 2, md: 2.5 },
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 1.25,
-          alignItems: 'center',
-          textAlign: 'center',
-        }}
-      >
-        {children}
-        <Typography suppressHydrationWarning sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.tertiary, lineHeight: 1.45 }}>
-          {getAssetName(pool.asset)} Up or Down · {intervalLabel}
-          <Box component="span" sx={{ display: 'block', fontWeight: 500, color: t.text.quaternary, fontVariantNumeric: 'tabular-nums', mt: 0.25 }}>
-            {formatPredictionWindow(pool.startTime, pool.endTime)}
-          </Box>
-        </Typography>
-      </Box>
-      <TermsFooter />
-    </Box>
-  );
-}
-
-/** "Hold on, determining winner…" - window has closed but the on-chain final
- *  price hasn't been committed yet. Auto-resolution will swap this to the
- *  OutcomeCard as soon as the scheduler picks up the result. */
-function DeterminingCard({ pool }: { pool: PoolDetail }) {
-  const t = useThemeTokens();
-  return (
-    <EndedCard pool={pool}>
-      <CircularProgress size={28} sx={{ color: t.text.secondary, mt: 0.5 }} />
-      <Typography sx={{ fontSize: '1rem', fontWeight: 800, color: t.text.primary, lineHeight: 1.3 }}>
-        Hold on, determining winner…
-      </Typography>
-      <Typography sx={{ fontSize: '0.78rem', fontWeight: 500, color: t.text.tertiary, lineHeight: 1.45, maxWidth: 280 }}>
-        This market has ended. Final resolution will appear automatically as soon as it is available on-chain.
-      </Typography>
-    </EndedCard>
-  );
-}
-
-/** Final outcome state - large check tile + "Outcome: Up / Down". */
-function OutcomeCard({ pool, winner }: { pool: PoolDetail; winner: 'UP' | 'DOWN' }) {
-  const t = useThemeTokens();
-  const color = winner === 'UP' ? t.up : t.down;
-  return (
-    <EndedCard pool={pool}>
-      <Box
-        sx={{
-          width: 52, height: 52, borderRadius: '50%',
-          bgcolor: color,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          mt: 0.5,
-        }}
-      >
-        <CheckCircle sx={{ fontSize: 36, color: t.text.contrast }} />
-      </Box>
-      <Typography sx={{ fontSize: '1.05rem', fontWeight: 800, color, lineHeight: 1.3 }}>
-        Outcome: {winner === 'UP' ? 'Up' : 'Down'}
-      </Typography>
-    </EndedCard>
+    <SharedOutcome
+      subtitle={`${getAssetName(pool.asset)} Up or Down · ${intervalLabel}`}
+      meta={formatPredictionWindow(pool.startTime, pool.endTime)}
+      outcomeLabel={winner === 'UP' ? 'Up' : 'Down'}
+      outcomeColor={winner === 'UP' ? t.up : t.down}
+    />
   );
 }

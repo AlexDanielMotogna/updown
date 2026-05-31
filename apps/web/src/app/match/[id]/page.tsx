@@ -17,6 +17,7 @@ import { OddsChart } from '@/components/pool/OddsChart';
 import { MatchHeader } from '@/components/sports/MatchHeader';
 import { MatchScoreRow } from '@/components/sports/MatchScoreRow';
 import { MatchInsights } from '@/components/sports/MatchInsights';
+import { DeterminingCard, OutcomeCard } from '@/components/pool/ResolutionCards';
 import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter';
 import { useThemeTokens } from '@/app/providers';
 import { formatUSDC, USDC_DIVISOR } from '@/lib/format';
@@ -504,17 +505,49 @@ export default function MatchDetailPage() {
           </Box>
         </Box>
 
-        {/* ── Right column: Selector + Bet form ── */}
+        {/* ── Right column: Selector + Bet form (or end-of-pool card) ── */}
         <Box sx={{
           display: 'flex',
           flexDirection: 'column',
           gap: 1.5,
           width: '100%',
-          bgcolor: { md: t.hover.subtle },
-          borderRadius: '5px',
-          p: { md: 2 },
           mt: { xs: 2, md: 0 },
         }}>
+          {(() => {
+            // Same Polymarket / Kalshi pattern crypto uses: as soon as the
+            // match is over we drop the bet form and show one of the shared
+            // resolution cards instead.
+            const subtitleSports = pool.awayTeam
+              ? `${pool.homeTeam} vs ${pool.awayTeam} · ${catLabel}`
+              : pool.homeTeam || catLabel;
+            const subtitlePM = pool.homeTeam || catLabel;
+            const subtitle = isPrediction ? subtitlePM : subtitleSports;
+            const meta = pool.startTime ? `Kickoff ${kickoff}` : undefined;
+            if (isResolved && winnerLabel) {
+              return (
+                <OutcomeCard
+                  subtitle={subtitle}
+                  meta={meta}
+                  outcomeLabel={winnerLabel}
+                  outcomeColor={winnerColor}
+                />
+              );
+            }
+            if (matchFinished || awaitingResolution) {
+              return <DeterminingCard subtitle={subtitle} meta={meta} />;
+            }
+            return null;
+          })()}
+          {!(isResolved && winnerLabel) && !(matchFinished || awaitingResolution) && (
+          <Box sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1.5,
+            width: '100%',
+            bgcolor: { md: t.hover.subtle },
+            borderRadius: '5px',
+            p: { md: 2 },
+          }}>
           {/* Teams / Question */}
           {isPrediction ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 2, px: 1 }}>
@@ -726,6 +759,8 @@ export default function MatchDetailPage() {
                 {matchFinished || awaitingResolution ? 'Match Ended - Resolving' : matchLive ? 'Match In Progress - Predictions Closed' : 'Predictions Closed'}
               </Typography>
             </Box>
+          )}
+          </Box>
           )}
         </Box>
       </Box>

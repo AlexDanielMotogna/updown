@@ -115,5 +115,10 @@ export function normalizeTeam(name: string): string {
     .normalize('NFD')               // decompose accents: ã → a + combining mark
     .replace(/[\u0300-\u036f]/g, '') // strip combining marks
     .toLowerCase()
+    // Brazilian state suffixes ("-SP", "-RJ", "-MG", etc.) are the most
+    // common diff between The Odds API ("Bragantino-SP") and our DB team
+    // names ("Bragantino"). Strip the two-letter trailer BEFORE the
+    // alphanumeric squash so both names collapse to the same key.
+    .replace(/-[a-z]{2}$/, '')
     .replace(/[^a-z0-9]/g, '');
 }

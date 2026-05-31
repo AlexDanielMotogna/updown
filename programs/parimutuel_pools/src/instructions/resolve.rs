@@ -23,14 +23,15 @@ pub fn handler(
     strike_price: u64,
     final_price: u64,
 ) -> Result<()> {
-    let clock = Clock::get()?;
     let pool = &mut ctx.accounts.pool;
 
-    // Check that pool has ended
-    require!(
-        clock.unix_timestamp >= pool.end_time,
-        PoolError::PoolNotEnded
-    );
+    // NOTE: The previous `require!(clock >= pool.end_time)` check was removed.
+    // Authority signature + status != Resolved (enforced on the account
+    // constraints above) are the actual safety net — the scheduler is the
+    // sole writer of `strike_price` / `final_price` and only resolves when
+    // it has a confirmed result. The old check forced us to wait hours past
+    // the real match end before the chain accepted resolution, even though
+    // the scheduler already had the verified score.
 
     // Store prices
     pool.strike_price = strike_price;
@@ -64,14 +65,13 @@ pub fn handler_with_winner(
     ctx: Context<Resolve>,
     winner: Side,
 ) -> Result<()> {
-    let clock = Clock::get()?;
     let pool = &mut ctx.accounts.pool;
 
-    // Check that pool has ended
-    require!(
-        clock.unix_timestamp >= pool.end_time,
-        PoolError::PoolNotEnded
-    );
+    // NOTE: see handler() above for why the `clock >= pool.end_time` check
+    // was removed. For sports, livescore feeds (The Odds API primary,
+    // TheSportsDB fallback) confirm FT well before the pool's 4-hour
+    // end_time, and the scheduler now fires resolution as soon as a
+    // confirmed score lands instead of waiting on the chain timestamp.
 
     // Validate winner side is valid for this pool
     if winner == Side::Draw {

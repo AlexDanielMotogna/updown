@@ -132,16 +132,18 @@ async function pollMissingPools(foundIds: Set<string>, toPersist: LiveScore[]): 
   } catch { /* best-effort */ }
 }
 
-// ─── The Odds API - Parallel source ──────────────────────────────────────────
+// ─── The Odds API - PRIMARY source ───────────────────────────────────────────
 
 /**
- * Poll The Odds API in parallel with TheSportsDB every cycle.
- * Fetches ALL games for each sport that has active pools.
- * Merges into toPersist - newer data wins.
+ * Poll The Odds API as the PRIMARY source of truth for every sport with an
+ * active pool. Runs before TheSportsDB so its results win every merge — sdb
+ * only fills gaps for events Odds API doesn't have. User flipped this from
+ * "parallel + sdb-wins" because TheSportsDB lags by several minutes after
+ * full time on most football leagues, leaving pools stuck in "LIVE 2H".
  */
-async function pollOddsApiParallel(
-  freshSportsDbIds: Set<string>,
+async function pollOddsApiPrimary(
   toPersist: LiveScore[],
+  oddsApiIds: Set<string>,
 ): Promise<void> {
   if (isOddsApiDisabled()) return;
 
@@ -193,25 +195,18 @@ async function pollOddsApiParallel(
       const results = matchGamesToPools(games, relevantPools);
 
       for (const entry of results) {
+        // Odds API is PRIMARY now: it always wins. Any earlier toPersist /
+        // cache entry from a previous tick is overwritten; sdb later in
+        // this cycle will see this ID in oddsApiIds and skip it entirely.
         const existing = toPersist.find(e => e.eventId === entry.eventId);
-
         if (existing) {
-          const sdbIsStale = existing.status === 'NS' || existing.status === 'TBD' || existing.status === '';
-          // Odds API "LIVE" is less detailed than TheSportsDB (2H, P1, Q3, etc.)
-          // Only overwrite if: TheSportsDB is stale (NS/TBD) OR Odds API says FT (completed)
-          if (entry.status === 'LIVE' && !sdbIsStale) continue; // Keep TheSportsDB's detailed status
           const idx = toPersist.indexOf(existing);
           toPersist[idx] = entry;
         } else {
           toPersist.push(entry);
         }
-
-        // Only cache if Odds API has more info (FT) or cache has nothing/stale
-        const cached = cacheGet(entry.eventId);
-        const cacheIsStale = !cached || cached.status === 'NS' || cached.status === 'TBD' || cached.status === '';
-        if (entry.status !== 'LIVE' || cacheIsStale) {
-          cacheSet(entry);
-        }
+        cacheSet(entry);
+        oddsApiIds.add(entry.eventId);
         clearMissingEvent(entry.eventId);
         matched++;
 
@@ -305,10 +300,20 @@ async function pollChatGPTFallbacks(
 async function pollLiveScores(): Promise<void> {
   const pollStart = Date.now();
   try {
-    // 1. Fetch all live scores from TheSportsDB
+    const sportCounts: Record<string, number> = {};
+    const toPersist: LiveScore[] = [];
+    // Track which IDs Odds API already covered so TheSportsDB knows to skip
+    // them on its fill-gap pass below.
+    const oddsApiIds = new Set<string>();
+
+    // 1. PRIMARY — The Odds API. Fetches all sports with active pools.
+    await pollOddsApiPrimary(toPersist, oddsApiIds);
+
+    // 2. FALLBACK — TheSportsDB /livescore/all. Used to fill gaps for events
+    //    Odds API didn't return (smaller leagues, regional competitions).
     let freshEntries = await fetchLivescoreAll();
 
-    // 1b. Midnight UTC boundary fix: also poll sport-specific feeds
+    // 2b. Midnight UTC boundary fix: also poll sport-specific feeds.
     if (isMidnightBoundary()) {
       recordMidnightBoundary();
       const sports = await getActiveSports();
@@ -319,7 +324,6 @@ async function pollLiveScores(): Promise<void> {
         for (const sport of sports) {
           try {
             const sportEntries = await fetchLivescoreBySport(sport);
-            // Merge: only add events not already in /livescore/all
             for (const entry of sportEntries) {
               if (!seenIds.has(entry.eventId)) {
                 freshEntries.push(entry);
@@ -331,21 +335,20 @@ async function pollLiveScores(): Promise<void> {
       }
     }
 
-    const sportCounts: Record<string, number> = {};
-    const toPersist: LiveScore[] = [];
     const freshIds = new Set<string>();
 
-    // 2. Update cache with fresh data
+    // 3. Merge TheSportsDB results into the persist list, BUT only for events
+    //    Odds API didn't already own. Odds API wins every collision.
     for (const entry of freshEntries) {
       freshIds.add(entry.eventId);
+      if (oddsApiIds.has(entry.eventId)) continue;
       cacheSet(entry);
       toPersist.push(entry);
-
       const sport = entry.sport || 'Unknown';
       sportCounts[sport] = (sportCounts[sport] || 0) + 1;
     }
 
-    // 3. Detect disappeared events (were in previous poll, not in current)
+    // 4. Detect disappeared events (were in previous poll, not in current).
     const disappeared = updatePreviousPollIds(freshIds);
     if (disappeared.length > 0) {
       console.log(`[LiveScore] ${disappeared.length} event(s) disappeared from feed - queuing for individual lookup`);
@@ -355,41 +358,36 @@ async function pollLiveScores(): Promise<void> {
       }
     }
 
-    // Clear missing events that reappeared
     for (const id of freshIds) clearMissingEvent(id);
 
-    // 4. Individual lookups for active pools not in feed
-    // MUST await before persisting - pollMissingPools mutates toPersist
-    await pollMissingPools(freshIds, toPersist);
+    // 5. Individual TheSportsDB lookups for active pools still missing.
+    await pollMissingPools(new Set([...oddsApiIds, ...freshIds]), toPersist);
 
-    // 5. The Odds API - PARALLEL source (runs every cycle, not just on stale)
-    await pollOddsApiParallel(freshIds, toPersist);
-
-    // 6. ChatGPT - last resort for anything still unresolved
+    // 6. ChatGPT — last resort for events neither Odds API nor TheSportsDB
+    //    resolved. The "seen this cycle" set is the union of both sources.
     const { matchIds, kickoffs } = await getActivePoolInfo();
-    const staleEvents = detectStaleEvents(matchIds, freshIds, disappeared, kickoffs);
+    const seenThisCycle = new Set([...oddsApiIds, ...freshIds]);
+    const staleEvents = detectStaleEvents(matchIds, seenThisCycle, disappeared, kickoffs);
     if (staleEvents.length > 0) {
-      // Only ChatGPT for events not resolved by TheSportsDB or Odds API
       const stillUnresolved = staleEvents.filter(e => !toPersist.some(p => p.eventId === e.eventId));
       if (stillUnresolved.length > 0) {
-        console.log(`[LiveScore] Still unresolved after Odds API: ${stillUnresolved.map(e => `${e.eventId}(${e.reason})`).join(', ')}`);
+        console.log(`[LiveScore] Still unresolved after Odds API + TheSportsDB: ${stillUnresolved.map(e => `${e.eventId}(${e.reason})`).join(', ')}`);
         await pollChatGPTFallbacks(stillUnresolved, kickoffs, toPersist);
       }
     }
 
-    // 7. Persist to DB + sync finished to UI (non-blocking)
+    // 7. Persist to DB + sync finished to UI (non-blocking).
     persistToDb(toPersist).catch(() => {});
     syncFinishedToUi(toPersist).catch(() => {});
 
-    // 8. Cleanup stale entries
+    // 8. Cleanup stale entries.
     cacheCleanup();
 
-    // Record poll success metrics
-    recordPollSuccess(freshEntries.length, Date.now() - pollStart);
+    recordPollSuccess(toPersist.length, Date.now() - pollStart);
 
     const summary = Object.entries(sportCounts).map(([s, n]) => `${s}:${n}`).join(', ');
-    if (summary) {
-      console.log(`[LiveScore] ${summary} (${toPersist.length} persisted to DB)`);
+    if (summary || oddsApiIds.size > 0) {
+      console.log(`[LiveScore] OddsAPI:${oddsApiIds.size} SDB:${freshEntries.length} (${toPersist.length} persisted)`);
     }
   } catch (error) {
     recordPollFailure((error as Error).message || 'Unknown poll error');
