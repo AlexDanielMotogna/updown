@@ -48,6 +48,14 @@ function formatTime(ts: number, duration: number): string {
 
 const PADDING = { top: 20, right: 70, bottom: 30, left: 16 };
 
+// Snake view caps the visible span to 2 minutes so each tick moves enough
+// pixels to read as motion. With a 1-hour window each frame shifted ~0.007%
+// of the chart width (eye sees nothing); at 2 minutes it's ~0.2% — smooth.
+const SNAKE_WINDOW_MS = 2 * 60 * 1000;
+// 250ms tick + 250ms linear CSS transition on the path stitch every frame
+// straight into the next: no visible step between renders.
+const SNAKE_TICK_MS = 250;
+
 function useChartLayout(candles: Candle[], chartType: ChartType) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ width: 600, height: 340 });
@@ -178,7 +186,7 @@ function ChartAxes({ dims, yTicks, xTicks, duration }: AxesProps) {
         <g
           key={`x-${tick.time}`}
           transform={`translate(${tick.x}, 0)`}
-          style={{ transition: 'transform 0.5s linear' }}
+          style={{ transition: 'transform 0.25s linear' }}
         >
           <text x={0} y={dims.height - 6} fill={t.text.tertiary} fontSize={10} fontFamily="var(--font-satoshi), Satoshi, sans-serif" textAnchor="middle">
             {formatTime(tick.time, duration)}
@@ -215,28 +223,28 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
   const { containerRef, dims, parsed, chartH, toY, yTicks, maxPrice, priceRange } = layout;
 
   // ── Snake clock ────────────────────────────────────────────────────────
-  // The X axis is anchored to "now": the right edge of the chart always reads
-  // the current wall-clock time, and the line slides leftwards by ~1s every
-  // second. Combined with the CSS transition on the path 'd' attribute below,
-  // this is what gives the Polymarket-style forward motion between candle
-  // updates — the line doesn't just snap when a new candle lands, it advances
-  // continuously.
-  // Tick 500ms with a matching 500ms-linear CSS transition on the path —
-  // each frame "stretches" exactly into the next, so the eye sees continuous
-  // motion instead of two visible steps per second.
+  // The X axis is anchored to "now": the right edge always reads the current
+  // wall-clock time and the line slides leftwards every frame. Combined with
+  // the CSS path-transition below, this is what gives the Polymarket-style
+  // continuous forward motion between candle updates.
+  //
+  // The visible span is hard-capped at SNAKE_WINDOW_MS — at a 1h window each
+  // 250ms tick moves the line by ~0.007% of the chart width (invisible). At
+  // 2 minutes the same tick is ~0.2%, which the eye reads as smooth motion.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const iv = setInterval(() => setNow(Date.now()), 500);
+    const iv = setInterval(() => setNow(Date.now()), SNAKE_TICK_MS);
     return () => clearInterval(iv);
   }, []);
 
   const chartW = dims.width - PADDING.left - PADDING.right;
-  const tMin = now - duration;
+  const windowMs = Math.min(duration, SNAKE_WINDOW_MS);
+  const tMin = now - windowMs;
   const tMax = now;
 
   const tToX = useCallback(
-    (ts: number) => PADDING.left + ((ts - tMin) / duration) * chartW,
-    [tMin, duration, chartW],
+    (ts: number) => PADDING.left + ((ts - tMin) / windowMs) * chartW,
+    [tMin, windowMs, chartW],
   );
 
   // Candles visible in the current window. We keep one extra point off the
@@ -279,19 +287,21 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
   // the strip reads as a stable ruler the chart slides under — exactly the
   // behaviour Polymarket / TradingView use for live ticks.
   const xTicks = useMemo(() => {
+    // Pick a label cadence the window can comfortably fit (~4–6 labels).
     const tickInterval =
-      duration > 6 * 3600_000 ? 60 * 60_000          // > 6h → hourly
-      : duration > 3600_000   ? 15 * 60_000          // 1–6h → every 15m
-      : duration > 30 * 60_000 ? 5 * 60_000          // 30m–1h → every 5m
-      : duration > 5 * 60_000  ? 60_000              // 5–30m → every 1m
-                               : 30_000;             // < 5m → every 30s
+      windowMs > 6 * 3600_000 ? 60 * 60_000          // > 6h → hourly
+      : windowMs > 3600_000   ? 15 * 60_000          // 1–6h → every 15m
+      : windowMs > 30 * 60_000 ? 5 * 60_000          // 30m–1h → every 5m
+      : windowMs > 5 * 60_000  ? 60_000              // 5–30m → every 1m
+      : windowMs > 60_000      ? 30_000              // 1–5m → every 30s
+                               : 15_000;             // ≤ 1m → every 15s
     const ticks: { time: number; x: number }[] = [];
     const start = Math.floor(tMin / tickInterval) * tickInterval;
     for (let ts = start; ts <= tMax + tickInterval; ts += tickInterval) {
       if (ts >= tMin && ts <= tMax) ticks.push({ time: ts, x: tToX(ts) });
     }
     return ticks;
-  }, [tMin, tMax, duration, tToX]);
+  }, [tMin, tMax, windowMs, tToX]);
 
   // Time-based hover: snap to the candle nearest the cursor's X, track the
   // cursor's Y for the horizontal price crosshair. Index-based hover from
@@ -356,7 +366,7 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
         })()}
 
         {areaPath && <path d={areaPath} fill="url(#inline-line-area-grad)" style={{ transition: 'd 0.5s linear, opacity 0.3s' }} />}
-        {linePath && <path d={linePath} fill="none" stroke={lineColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'd 0.5s linear' }} />}
+        {linePath && <path d={linePath} fill="none" stroke={lineColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'd 0.25s linear' }} />}
 
         {livePrice != null && lastPoint && (() => {
           const ly = toY(livePrice);
@@ -366,7 +376,7 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
                 {/* The live dot rides the right edge — its X is the phantom
                     'now' point we appended, so the matching linear transition
                     keeps it visually glued to the head of the snake. */}
-                <circle cx={lastPoint.x} cy={lastPoint.y} r={3.5} fill={lineColor} stroke="#111820" strokeWidth={2} style={{ transition: 'cx 0.5s linear, cy 0.5s linear' }}>
+                <circle cx={lastPoint.x} cy={lastPoint.y} r={3.5} fill={lineColor} stroke="#111820" strokeWidth={2} style={{ transition: 'cx 0.25s linear, cy 0.25s linear' }}>
                   <animate attributeName="r" values="3.5;5;3.5" dur="2s" repeatCount="indefinite" />
                 </circle>
                 <rect x={dims.width - PADDING.right + 1} y={ly - 10} width={PADDING.right - 4} height={20} rx={3} fill={lineColor} style={{ transition: 'y 0.4s ease' }} />
