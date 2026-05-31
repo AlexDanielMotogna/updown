@@ -5,7 +5,7 @@ import { Box, Typography, Chip, Button } from '@mui/material';
 import { Bolt, Speed, Timer, Schedule } from '@mui/icons-material';
 import Link from 'next/link';
 import type { Pool } from '@/lib/api';
-import { formatUSDC, USDC_DIVISOR } from '@/lib/format';
+import { formatUSDC, USDC_DIVISOR, formatPredictionWindow } from '@/lib/format';
 import { INTERVAL_LABELS } from '@/lib/constants';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
@@ -19,26 +19,6 @@ const INTERVAL_ICONS: Record<string, React.ReactNode> = {
   '1h': <Schedule sx={{ fontSize: 13 }} />,
 };
 
-/** Render the pool's prediction window as "May 29, 10:35 PM – 10:40 PM ET".
- *  Always in US Eastern — the prediction-market convention (Polymarket, Kalshi)
- *  so windows read the same no matter where the user is. */
-function formatPoolWindow(startISO: string, endISO: string): string {
-  const start = new Date(startISO);
-  const end = new Date(endISO);
-  const date = start.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'America/New_York',
-  });
-  const timeOpts: Intl.DateTimeFormatOptions = {
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: 'America/New_York',
-  };
-  const startTime = start.toLocaleTimeString('en-US', timeOpts);
-  const endTime = end.toLocaleTimeString('en-US', timeOpts);
-  return `${date}, ${startTime} – ${endTime} ET`;
-}
 
 interface CryptoPoolCardProps {
   pool: Pool;
@@ -101,7 +81,7 @@ export function CryptoPoolCard({ pool, userBet, onClick }: CryptoPoolCardProps) 
             {/* Pool window — same convention prediction markets use (ET) so the
                 label reads the same regardless of the viewer's timezone. */}
             <Typography sx={{ fontSize: '0.68rem', fontWeight: 500, color: t.text.tertiary, lineHeight: 1.3, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {formatPoolWindow(pool.startTime, pool.endTime)}
+              {formatPredictionWindow(pool.startTime, pool.endTime)}
             </Typography>
           </Box>
         </Box>

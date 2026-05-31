@@ -7,7 +7,7 @@ import {
   Gavel, Public, TheaterComedy, AccountBalance, TrendingUp,
 } from '@mui/icons-material';
 import Link from 'next/link';
-import { formatUSDC, getExplorerTxUrl } from '@/lib/format';
+import { formatUSDC, getExplorerTxUrl, formatPredictionWindow } from '@/lib/format';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import { AssetIcon } from '@/components';
@@ -192,6 +192,12 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId, 
     ? `${pool.homeTeam || ''} vs ${pool.awayTeam || ''}`.trim()
     : `${pool.asset}/USD`;
   const poolLink = isSports ? `/match/${pool.id}` : `/pool/${pool.id}`;
+  // Mirror the markets-grid treatment: under a crypto pool's title we show
+  // the prediction window in ET (Polymarket convention). Sports rows already
+  // carry kickoff context via the team-vs-team title + match page link.
+  const cryptoWindow = !isSports && !isPM
+    ? formatPredictionWindow(pool.startTime, pool.endTime)
+    : null;
 
   // Pick the bet whose tx link to surface — prefer the claim of the last
   // claimed bet, falling back to the deposit of the largest stake.
@@ -258,6 +264,15 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId, 
             {title}
           </Typography>
         </Link>
+        {cryptoWindow && (
+          <Typography sx={{
+            fontSize: '0.68rem', fontWeight: 500, color: t.text.tertiary,
+            mt: 0.15, fontVariantNumeric: 'tabular-nums',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {cryptoWindow}
+          </Typography>
+        )}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.3, flexWrap: 'wrap' }}>
           {bets.map((b, i) => (
             <Box key={b.id} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>

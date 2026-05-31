@@ -8,6 +8,7 @@ import { AnimatedValue } from '@/components/AnimatedValue';
 import { getSocket, connectSocket, subscribePool, unsubscribePool } from '@/lib/socket';
 import { getIcon } from '@/lib/icon-registry';
 import { INTERVAL_LABELS } from '@/lib/constants';
+import { formatPredictionWindow } from '@/lib/format';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import type { Pool } from '@/lib/api';
@@ -24,27 +25,6 @@ function relTime(iso: string): string {
   const h = Math.floor(m / 60);
   if (h < 24) return `${h}h`;
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-/** "May 29, 10:35 PM – 10:40 PM ET". Always rendered in US Eastern — the
- *  prediction-market convention (Polymarket, Kalshi) so the window reads
- *  identically for every viewer. */
-function formatCryptoWindow(startISO: string, endISO: string): string {
-  const start = new Date(startISO);
-  const end = new Date(endISO);
-  const date = start.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'America/New_York',
-  });
-  const timeOpts: Intl.DateTimeFormatOptions = {
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: 'America/New_York',
-  };
-  const startTime = start.toLocaleTimeString('en-US', timeOpts);
-  const endTime = end.toLocaleTimeString('en-US', timeOpts);
-  return `${date}, ${startTime} – ${endTime} ET`;
 }
 
 function fmtMult(m: number): string {
@@ -131,7 +111,7 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
     : isPrediction
       ? (pool.awayTeam ? `${pool.homeTeam} vs ${pool.awayTeam}` : pool.homeTeam || 'Prediction market')
       : `${pool.homeTeam || 'Home'} vs ${pool.awayTeam || 'Away'}`;
-  const cryptoWindow = isCrypto ? formatCryptoWindow(pool.startTime, pool.endTime) : null;
+  const cryptoWindow = isCrypto ? formatPredictionWindow(pool.startTime, pool.endTime) : null;
 
   // ── Outcomes ──
   const totalUp = Number(tUp);

@@ -55,6 +55,27 @@ export function formatDate(dateString: string): string {
   });
 }
 
+/** "May 29, 10:35 PM – 10:40 PM ET". Always rendered in US Eastern — the
+ *  prediction-market convention (Polymarket, Kalshi) so the window reads
+ *  identically for every viewer regardless of their device timezone. */
+export function formatPredictionWindow(startISO: string, endISO: string): string {
+  const start = new Date(startISO);
+  const end = new Date(endISO);
+  const date = start.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'America/New_York',
+  });
+  const timeOpts: Intl.DateTimeFormatOptions = {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'America/New_York',
+  };
+  const startTime = start.toLocaleTimeString('en-US', timeOpts);
+  const endTime = end.toLocaleTimeString('en-US', timeOpts);
+  return `${date}, ${startTime} – ${endTime} ET`;
+}
+
 export function getExplorerTxUrl(signature: string): string {
   return `${EXPLORER_URL}/tx/${signature}?cluster=${SOLANA_CLUSTER}`;
 }
