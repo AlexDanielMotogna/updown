@@ -352,16 +352,34 @@ function LineChart({ candles, duration, livePrice, strikePrice, asset }: ChartPr
   // Hover gets ~1200 snap targets in the 2-min window instead of 2–3 candles.
   //
   // Buffer is seeded synchronously in useState's lazy initializer so the
-  // very first paint already has the full 3-min line — there's no
-  // intermediate empty frame while a useEffect catches up. Priority:
+  // very first paint already has the full window — no intermediate empty
+  // frame while a useEffect catches up.
+  //
+  // Resolution order:
   //   1) sessionStorage (refresh path, asset-scoped key)
   //   2) interpolated candle history (first-visit path)
-  // The persistence effect below keeps storage in sync at ≤1Hz so the
-  // refresh path stays warm.
+  // If the stored buffer doesn't cover the full window (e.g. SNAKE_WINDOW_MS
+  // was widened in a deploy, or the user came back to the tab after several
+  // minutes), we splice candle interpolation onto the left side to fill the
+  // gap — so a refresh never paints a half-empty chart.
   const storageKey = asset ? `snake-history:${asset}` : null;
-  const [history, setHistory] = useState<{ t: number; p: number }[]>(
-    () => loadSnakeFromStorage(storageKey) ?? seedSnakeFromCandles(candles),
-  );
+  const [history, setHistory] = useState<{ t: number; p: number }[]>(() => {
+    const stored = loadSnakeFromStorage(storageKey);
+    if (stored && stored.length > 0) {
+      // If the stored buffer doesn't reach the left edge of the current
+      // window (e.g. SNAKE_WINDOW_MS got widened in a deploy, or the user
+      // came back after a few minutes) splice candle interpolation onto
+      // the left so the line paints across the whole chart on first frame.
+      const windowStart = Date.now() - SNAKE_WINDOW_MS;
+      const gap = stored[0].t - windowStart;
+      if (gap > 20_000) {
+        const leftTail = seedSnakeFromCandles(candles).filter((e) => e.t < stored[0].t);
+        return [...leftTail, ...stored];
+      }
+      return stored;
+    }
+    return seedSnakeFromCandles(candles);
+  });
 
   // If the buffer is empty after first paint AND candles arrive later (rare
   // — the parent only mounts LineChart once candles.length > 0), seed then.
@@ -639,8 +657,13 @@ function LineChart({ candles, duration, livePrice, strikePrice, asset }: ChartPr
         <clipPath id="snake-clip">
           <rect x={PADDING.left} y={PADDING.top} width={chartW} height={chartH} />
         </clipPath>
+        {/* Clip lives on the OUTER untransformed group so it acts on the
+            *result* of the inner transform, not on the path's raw local
+            coords (which are in absolute time-space and almost entirely
+            negative — clipping them in local space hid the line on the
+            left of the chart). Inner group does only the slide animation. */}
+        <g clipPath="url(#snake-clip)">
         <g
-          clipPath="url(#snake-clip)"
           transform={`translate(${groupOffsetX.toFixed(2)}, 0)`}
           style={{ transition: `transform ${SNAKE_TRANS}`, willChange: 'transform' }}
         >
@@ -673,6 +696,7 @@ function LineChart({ candles, duration, livePrice, strikePrice, asset }: ChartPr
               <circle cx={hoverData.x} cy={hoverData.y} r={4} fill={lineColor} stroke="#111820" strokeWidth={2} />
             </>
           )}
+        </g>
         </g>
 
         {/* Live dot + halo are anchored to the right edge of the chart, not
