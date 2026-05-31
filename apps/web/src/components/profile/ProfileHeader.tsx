@@ -207,25 +207,26 @@ export function ProfileHeader({
                     </Box>
                   </Box>
 
-                  {/* Meta line: level · member since · rank */}
+                  {/* Meta line: level + rank chip (same baseline) */}
                   <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: { xs: 0.75, md: 1.25 }, mt: 0.5 }}>
-                    <Typography sx={{ fontSize: { xs: '0.8rem', md: '0.9rem' }, fontWeight: 700, color: ringColor }}>
+                    <Typography sx={{ fontSize: { xs: '0.8rem', md: '0.9rem' }, fontWeight: 700, color: ringColor, lineHeight: 1.2 }}>
                       Lv.{level} {userProfile?.title ?? ''}
                     </Typography>
-                    {memberSince && (
-                      <Typography sx={{ fontSize: { xs: '0.72rem', md: '0.8rem' }, fontWeight: 500, color: t.text.quaternary }}>
-                        · Member since {memberSince}
-                      </Typography>
-                    )}
                     {userProfile?.rank && (
                       <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.4, px: 0.9, py: 0.2, borderRadius: 1, bgcolor: withAlpha(t.gold, 0.12) }}>
                         <EmojiEvents sx={{ fontSize: 13, color: t.gold }} />
-                        <Typography sx={{ fontSize: { xs: '0.72rem', md: '0.78rem' }, fontWeight: 700, color: t.gold }}>
+                        <Typography sx={{ fontSize: { xs: '0.72rem', md: '0.78rem' }, fontWeight: 700, color: t.gold, lineHeight: 1.2 }}>
                           #{userProfile.rank}{percentile ? ` · Top ${percentile}%` : ''}
                         </Typography>
                       </Box>
                     )}
                   </Box>
+                  {/* Secondary meta: member since (below, lower visual weight) */}
+                  {memberSince && (
+                    <Typography sx={{ fontSize: { xs: '0.7rem', md: '0.75rem' }, fontWeight: 500, color: t.text.quaternary, mt: 0.3 }}>
+                      Member since {memberSince}
+                    </Typography>
+                  )}
                 </Box>
 
                 {/* Actions: balance pill + share */}
