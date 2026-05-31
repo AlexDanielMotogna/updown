@@ -14,6 +14,7 @@ enum PoolStatus {
   ACTIVE
   RESOLVED
   CLAIMABLE
+  CANCELLED // Pool can never resolve (e.g. PM market delisted from Gamma, UMA stuck > grace window). winner stays NULL; bets refunded or 0-bet → on-chain account closed.
 }
 
 enum Side {

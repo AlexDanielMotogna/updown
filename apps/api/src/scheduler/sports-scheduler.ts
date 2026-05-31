@@ -11,6 +11,7 @@ import { emitPoolStatus } from '../websocket';
 import { generateMatchAnalysis } from '../services/sports/match-analysis';
 import { awardBetResolution } from '../services/rewards';
 import { getFootballLeagueCodes, getSportsDbConfigs, getPolymarketCategories, getMatchDurationHours } from '../services/category-config';
+import { sweepStuckPmPools } from './pm-cancel';
 const POOL_OPEN_HOURS_BEFORE = 720; // Open pool 30 days before kickoff
 const TX_DELAY_MS = 2_000; // 2s between on-chain transactions to avoid RPC 429s
 
@@ -444,6 +445,14 @@ export function startSportsScheduler(): void {
       await sweepUnresolvedPools();
     } catch (error) {
       console.error('[Sports] Sweep error:', error);
+    }
+    try {
+      // PM pools have a separate fate (UMA can stall for days, markets can be
+      // delisted from Gamma). sweepStuckPmPools auto-cancels 0-bet pools past
+      // the grace window; pools with bets are left for admin to cancel.
+      await sweepStuckPmPools();
+    } catch (error) {
+      console.error('[Sports] PM sweep error:', error);
     }
   }, 15 * 60 * 1000);
 

@@ -7,6 +7,7 @@ import { serializePool } from '../../utils/serializers';
 import { bulkSync as polymarketBulkSync, recategorizePmPools } from '../../scheduler/polymarket-sync';
 import { dailySync as fixtureDailySync } from '../../scheduler/fixture-sync';
 import { createMatchPools } from '../../scheduler/sports-scheduler';
+import { cancelPmPool, isMarketDelistedFromGamma, sweepStuckPmPools } from '../../scheduler/pm-cancel';
 
 export const adminActionsRouter: RouterType = Router();
 
@@ -243,6 +244,83 @@ const createPoolSchema = z.object({
   intervalSeconds: z.number().min(60).default(300),
   joinWindowSeconds: z.number().min(30).default(120),
   lockBufferSeconds: z.number().min(5).default(15),
+});
+
+// POST /actions/cancel-pm-pool - cancel a stuck Polymarket pool (delisted from
+// Gamma or stuck past the UMA grace window). 0-bet pools get closed on-chain
+// to reclaim rent; pools with bets get refunded first via the standard refund
+// path. The DB row is kept (status=CANCELLED, winner=null) for audit.
+const cancelPmPoolSchema = z.object({
+  poolId: z.string().uuid(),
+  reason: z.string().min(1).max(200).optional(),
+});
+
+adminActionsRouter.post('/cancel-pm-pool', async (req, res) => {
+  try {
+    const parsed = cancelPmPoolSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid body', details: parsed.error.flatten() } });
+    }
+    const { poolId, reason } = parsed.data;
+    const pool = await prisma.pool.findUnique({ where: { id: poolId } });
+    if (!pool) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Pool not found' } });
+    if (!pool.league?.startsWith('PM_')) {
+      return res.status(400).json({ success: false, error: { code: 'NOT_PM_POOL', message: 'Pool is not a Polymarket pool' } });
+    }
+
+    const result = await cancelPmPool(poolId, reason || 'admin-action');
+    await logAdminEvent('ADMIN_CANCEL_PM_POOL', poolId, { action: 'cancel-pm-pool', result: result.status });
+    res.json({ success: true, data: { poolId, ...result }, message: `Pool ${result.status}` });
+  } catch (error) {
+    console.error('Admin cancel-pm-pool error:', error);
+    res.status(500).json({ success: false, error: { code: 'ACTION_ERROR', message: error instanceof Error ? error.message : 'Failed to cancel pool' } });
+  }
+});
+
+// GET /actions/stuck-pm-pools - list PM pools that are past kickoff but still
+// JOINING/ACTIVE, flagging those whose Gamma market has been delisted so admin
+// can prioritise them. Filters: minHoursOverdue (default 0 = all overdue).
+adminActionsRouter.get('/stuck-pm-pools', async (req, res) => {
+  try {
+    const minHours = Math.max(0, Number(req.query.minHoursOverdue) || 0);
+    const cutoff = new Date(Date.now() - minHours * 60 * 60 * 1000);
+    const stuck = await prisma.pool.findMany({
+      where: {
+        poolType: 'SPORTS',
+        status: { in: [PoolStatus.JOINING, PoolStatus.ACTIVE] },
+        league: { startsWith: 'PM_' },
+        startTime: { lte: cutoff },
+      },
+      orderBy: { startTime: 'asc' },
+      select: { id: true, matchId: true, homeTeam: true, league: true, subcategory: true, startTime: true, status: true },
+    });
+    // Annotate each with bet count + Gamma availability (lookup is rate-limited
+    // to 3s/call by polymarketFetch — keep the result set small).
+    const enriched = await Promise.all(stuck.slice(0, 20).map(async (p) => {
+      const betCount = await prisma.bet.count({ where: { poolId: p.id } });
+      const delisted = p.matchId ? await isMarketDelistedFromGamma(p.matchId) : null;
+      const hoursOverdue = Math.round((Date.now() - p.startTime.getTime()) / (60 * 60 * 1000));
+      return { ...p, betCount, gammaDelisted: delisted, hoursOverdue };
+    }));
+    res.json({ success: true, data: { pools: enriched, totalCount: stuck.length, truncated: stuck.length > 20 } });
+  } catch (error) {
+    console.error('Admin stuck-pm-pools error:', error);
+    res.status(500).json({ success: false, error: { code: 'ACTION_ERROR', message: error instanceof Error ? error.message : 'Failed to list stuck pools' } });
+  }
+});
+
+// POST /actions/sweep-pm-pools - manually trigger the PM sweep (otherwise runs
+// every 15 minutes). Auto-cancels 0-bet stuck pools; pools with bets are left
+// for individual admin review.
+adminActionsRouter.post('/sweep-pm-pools', async (_req, res) => {
+  try {
+    await sweepStuckPmPools();
+    await logAdminEvent('ADMIN_SWEEP_PM_POOLS', 'system', { action: 'sweep-pm-pools' });
+    res.json({ success: true, message: 'PM sweep complete - see logs for details' });
+  } catch (error) {
+    console.error('Admin sweep-pm-pools error:', error);
+    res.status(500).json({ success: false, error: { code: 'ACTION_ERROR', message: error instanceof Error ? error.message : 'Sweep failed' } });
+  }
 });
 
 adminActionsRouter.post('/create-pool', async (req, res) => {
