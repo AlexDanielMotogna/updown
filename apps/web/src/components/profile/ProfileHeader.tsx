@@ -108,13 +108,25 @@ export function ProfileHeader({
   };
 
   // ── Derived metrics (all-time, from the profile aggregate) ──
-  const wagered = Number(userProfile?.stats.totalWagered ?? '0');
-  const won = Number(userProfile?.stats.totalWon ?? '0');
-  const netPnl = won - wagered;
+  // Net P&L is now computed server-side over settled non-refund bets only,
+  // so opening a new active bet no longer drags the number down (the stake is
+  // still in play, not lost). Falls back to the old won-minus-wagered formula
+  // for older API responses that don't yet send `netPnl`.
+  const netPnl = userProfile?.stats.netPnl != null
+    ? Number(userProfile.stats.netPnl)
+    : Number(userProfile?.stats.totalWon ?? '0') - Number(userProfile?.stats.totalWagered ?? '0');
+  // Volume Staked: lifetime placed minus refunds (real money put at risk).
+  // Active stakes still count — money is currently committed.
+  const wagered = userProfile?.stats.volumeStaked != null
+    ? Number(userProfile.stats.volumeStaked)
+    : Number(userProfile?.stats.totalWagered ?? '0');
   const pnlPositive = netPnl >= 0;
   const totalBets = userProfile?.stats.totalBets ?? 0;
   const totalWins = userProfile?.stats.totalWins ?? 0;
   const totalRefunded = userProfile?.stats.totalRefunded ?? 0;
+  // "X predictions" matches the Win Rate denominator: refunds are no-ops, not
+  // real predictions against a counterparty.
+  const settledPredictions = Math.max(0, totalBets - totalRefunded);
   // Refunds aren't losses (stake came back) — drop them out of the L counter
   // so 2W / 1L matches Win Rate's own (wins / settled) denominator.
   const losses = Math.max(0, totalBets - totalWins - totalRefunded);
@@ -271,7 +283,7 @@ export function ProfileHeader({
               >
                 <HeroTile
                   label="Net P&L"
-                  tip="All-time profit/loss: realized winnings minus total staked"
+                  tip="Realized profit/loss from settled predictions. Active bets and refunds don't move it."
                   icon={pnlPositive
                     ? <TrendingUp sx={{ fontSize: 15, color: t.gain }} />
                     : <TrendingDown sx={{ fontSize: 15, color: t.down }} />}
@@ -287,10 +299,10 @@ export function ProfileHeader({
                 />
                 <HeroTile
                   label="Volume Staked"
-                  tip="Total USDC you have staked across all pools"
+                  tip="USDC put at risk across all pools. Refunded stakes don't count (they came back)."
                   color={t.text.primary}
                   value={formatUSDC(String(wagered), { min: 0 })}
-                  sub={`${totalBets} prediction${totalBets === 1 ? '' : 's'}`}
+                  sub={`${settledPredictions} prediction${settledPredictions === 1 ? '' : 's'}`}
                 />
                 <HeroTile
                   label="UP Coins"

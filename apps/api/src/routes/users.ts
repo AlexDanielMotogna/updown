@@ -86,7 +86,7 @@ usersRouter.get('/profile', async (req, res) => {
     // the user's rank by XP, and refunded-bet count (used to drop refunds
     // out of the Win Rate denominator — they didn't lose, they got their
     // stake back).
-    const [wonAgg, higherXpCount, totalUsers, refundedRows] = await Promise.all([
+    const [wonAgg, higherXpCount, totalUsers, refundedRows, realizedRows] = await Promise.all([
       prisma.bet.aggregate({
         _sum: { payoutAmount: true },
         where: { walletAddress: user.walletAddress, payoutAmount: { not: null } },
@@ -97,17 +97,46 @@ usersRouter.get('/profile', async (req, res) => {
       // Both autoRefundBets and the single-bettor / one-sided / hedger paths
       // write payout_amount = amount, so a column-to-column comparison is the
       // canonical test. Prisma's findMany can't express that directly, hence
-      // raw.
-      prisma.$queryRaw<Array<{ count: bigint }>>`
-        SELECT COUNT(*)::bigint AS count
+      // raw. SUM(amount) feeds back the dollars that came back to the user —
+      // we subtract them from the Volume Staked tile so refunds don't inflate
+      // the lifetime-staked number (the money round-tripped, no risk taken).
+      prisma.$queryRaw<Array<{ count: bigint; stake: bigint }>>`
+        SELECT
+          COUNT(*)::bigint AS count,
+          COALESCE(SUM(amount), 0)::bigint AS stake
         FROM bets
         WHERE wallet_address = ${user.walletAddress}
           AND claimed = TRUE
           AND payout_amount IS NOT NULL
           AND payout_amount = amount
       `,
+      // Realized P&L: settled non-refund bets only. We deliberately exclude
+      //  - active bets (pool not yet resolved) — stake is still in play, not lost
+      //  - refunds — stake came back, net 0
+      // and include:
+      //  - claimed wins (payout_amount > amount) → +(payout - stake)
+      //  - determined losses (pool.winner set & != bet.side) → -stake
+      //  - pending wins where payout was already written by auto-claim
+      // Net = SUM(payout_amount) − SUM(amount). NULL payouts (losses, pending)
+      // collapse to 0 in the COALESCE, so they correctly contribute -stake.
+      prisma.$queryRaw<Array<{ staked: bigint; won: bigint }>>`
+        SELECT
+          COALESCE(SUM(b.amount), 0)::bigint AS staked,
+          COALESCE(SUM(COALESCE(b.payout_amount, 0)), 0)::bigint AS won
+        FROM bets b
+        JOIN pools p ON p.id = b.pool_id
+        WHERE b.wallet_address = ${user.walletAddress}
+          AND NOT (b.payout_amount IS NOT NULL AND b.payout_amount = b.amount)
+          AND (
+            b.claimed = TRUE
+            OR (p.winner IS NOT NULL AND p.winner <> b.side)
+          )
+      `,
     ]);
     const totalRefunded = Number(refundedRows[0]?.count ?? 0n);
+    const refundedStake = refundedRows[0]?.stake ?? 0n;
+    const realizedStaked = realizedRows[0]?.staked ?? 0n;
+    const realizedWon = realizedRows[0]?.won ?? 0n;
 
     res.json({
       success: true,
@@ -116,6 +145,9 @@ usersRouter.get('/profile', async (req, res) => {
         rank: higherXpCount + 1,
         totalUsers,
         totalRefunded,
+        refundedStake,
+        realizedStaked,
+        realizedWon,
       }),
     });
   } catch (error) {

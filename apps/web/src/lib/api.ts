@@ -384,6 +384,10 @@ export interface UserProfile {
     winRate: string;
     totalWagered: string;
     totalWon: string;
+    /** Lifetime stake minus refunds — what the Volume Staked tile shows. */
+    volumeStaked?: string;
+    /** Realized P&L from settled non-refund bets. Active stakes don't move it. */
+    netPnl?: string;
     currentStreak: number;
     bestStreak: number;
   };

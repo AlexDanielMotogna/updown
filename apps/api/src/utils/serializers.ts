@@ -172,6 +172,15 @@ export interface UserProfileExtras {
   /** Number of refunded bets — pulled out of the Win Rate denominator since
    *  a refund isn't a loss (stake came back to the user). */
   totalRefunded?: number;
+  /** Sum of stakes that were refunded. Subtracted from `volumeStaked` so the
+   *  Volume Staked tile shows real money put at risk (refunds round-tripped). */
+  refundedStake?: bigint;
+  /** Stake from settled, non-refund bets only — used as the denominator of
+   *  realized P&L. Excludes active stakes (still in play, not lost). */
+  realizedStaked?: bigint;
+  /** Payout from settled, non-refund bets only (NULL payouts collapse to 0).
+   *  Net P&L = realizedWon − realizedStaked. */
+  realizedWon?: bigint;
 }
 
 export function serializeUserProfile(user: {
@@ -230,6 +239,20 @@ export function serializeUserProfile(user: {
       // denominator gives a Win Rate of what the user actually bets against
       // a real counterparty.
       const settled = Math.max(0, user.totalBets - refunded);
+      const refundedStake = extras.refundedStake ?? 0n;
+      const realizedStaked = extras.realizedStaked ?? 0n;
+      const realizedWon = extras.realizedWon ?? 0n;
+      // Volume Staked = lifetime placed minus the round-tripped refund stakes.
+      // Active stakes still count (money is currently at risk) but refunds
+      // don't (the user got their stake back, no risk taken).
+      const volumeStaked =
+        user.totalWagered > refundedStake
+          ? user.totalWagered - refundedStake
+          : 0n;
+      // Net P&L = realized winnings − realized stake. By construction this
+      // excludes both active (in-play) stakes and refunds — only finalized
+      // outcomes move the number.
+      const netPnl = realizedWon - realizedStaked;
       return {
         totalBets: user.totalBets,
         totalWins: user.totalWins,
@@ -237,8 +260,12 @@ export function serializeUserProfile(user: {
         winRate: settled > 0
           ? ((user.totalWins / settled) * 100).toFixed(1)
           : '0.0',
+        // totalWagered stays as the raw User column (consumed by leaderboards
+        // and other places that want gross lifetime placement).
         totalWagered: user.totalWagered.toString(),
         totalWon: (extras.totalWon ?? 0n).toString(),
+        volumeStaked: volumeStaked.toString(),
+        netPnl: netPnl.toString(),
         currentStreak: user.currentStreak,
         bestStreak: user.bestStreak,
       };
