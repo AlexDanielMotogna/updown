@@ -269,21 +269,53 @@ function stepPath(points: { x: number; y: number }[]): string {
 function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
   const t = useThemeTokens();
   const layout = useChartLayout(candles, 'line');
-  // Only `parsed` (candle close timestamps + values) and the layout box come
-  // from the shared hook. The Y axis is recomputed below from the snake's
-  // visible window so the chart zooms tight around the current price the way
-  // Polymarket does, instead of spanning the full hour of fetched candles.
+  // We only borrow the container ref + measured chart box from the layout
+  // hook. The data model below is a rolling tick buffer, not the layout's
+  // index-mapped candle list.
   const { containerRef, dims, parsed, chartH } = layout;
 
-  // ── Snake clock ────────────────────────────────────────────────────────
-  // The X axis is anchored to "now": the right edge always reads the current
-  // wall-clock time and the line slides leftwards every frame. Combined with
-  // the CSS path-transition below, this is what gives the Polymarket-style
-  // continuous forward motion between candle updates.
+  // ── Rolling tick buffer ────────────────────────────────────────────────
+  // Instead of plotting from candles + a phantom (now, livePrice) point — the
+  // old setup where the whole line interpolated together when livePrice moved
+  // and hover only had 2–3 snap targets — we maintain a per-tick history:
+  //   - Seeded from the fetched candle closes (so we don't start with a blank
+  //     chart while the buffer fills).
+  //   - Appended every SNAKE_TICK_MS with the current livePrice (≈10/sec).
+  //   - Pruned to the last SNAKE_WINDOW_MS.
   //
-  // The visible span is hard-capped at SNAKE_WINDOW_MS — at a 1h window each
-  // 250ms tick moves the line by ~0.007% of the chart width (invisible). At
-  // 2 minutes the same tick is ~0.2%, which the eye reads as smooth motion.
+  // Effect: the rightmost point is always the latest tick, so price changes
+  // visibly start at the tip and the older body just slides left in time.
+  // Hover gets ~1200 snap targets in the 2-min window instead of 2–3 candles.
+  const [history, setHistory] = useState<{ t: number; p: number }[]>([]);
+
+  // Seed once from candle closes when they arrive — bootstraps the chart so
+  // there's an actual line on first paint, not just a single dot at "now".
+  useEffect(() => {
+    if (parsed.length === 0) return;
+    setHistory((prev) => {
+      if (prev.length > 0) return prev;
+      return parsed.map((p) => ({ t: p.t, p: p.c }));
+    });
+  }, [parsed]);
+
+  // Push livePrice every SNAKE_TICK_MS and prune. We don't rely on a
+  // separate `now` state — the head of `history` is "now".
+  useEffect(() => {
+    const iv = setInterval(() => {
+      if (livePrice == null) return;
+      const ts = Date.now();
+      setHistory((h) => {
+        const cutoff = ts - SNAKE_WINDOW_MS;
+        const next = [...h.filter((e) => e.t >= cutoff), { t: ts, p: livePrice }];
+        return next;
+      });
+    }, SNAKE_TICK_MS);
+    return () => clearInterval(iv);
+  }, [livePrice]);
+
+  // Render clock: we need *some* re-render between tick pushes when livePrice
+  // is null (e.g. WS hiccup) so the X axis can still advance and old points
+  // can scroll off. Cheap — derives nothing else.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const iv = setInterval(() => setNow(Date.now()), SNAKE_TICK_MS);
@@ -292,34 +324,23 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
 
   const chartW = dims.width - PADDING.left - PADDING.right;
   const windowMs = Math.min(duration, SNAKE_WINDOW_MS);
-  const tMin = now - windowMs;
-  const tMax = now;
+  // Use the most recent point we know about (history head if present, else
+  // wall clock) as the right edge — keeps the tip glued to the boundary.
+  const tMax = history.length > 0 ? Math.max(history[history.length - 1].t, now) : now;
+  const tMin = tMax - windowMs;
 
   const tToX = useCallback(
     (ts: number) => PADDING.left + ((ts - tMin) / windowMs) * chartW,
     [tMin, windowMs, chartW],
   );
 
-  // Candles visible in the current window. We keep one extra point off the
-  // left edge so the line draws cleanly to the boundary instead of clipping
-  // at the first visible candle.
-  const visibleCandles = useMemo(() => {
-    const firstInside = parsed.findIndex((p) => p.t >= tMin);
-    const start = firstInside <= 0 ? 0 : firstInside - 1;
-    return parsed.slice(start);
-  }, [parsed, tMin]);
-
-  const closes = useMemo(() => visibleCandles.map((p) => p.c), [visibleCandles]);
-  const times = useMemo(() => visibleCandles.map((p) => p.t), [visibleCandles]);
-
   // ── Y-axis scoped to the visible window ────────────────────────────────
-  // Calculating min/max from the snake-cropped candles is what makes the
-  // axis tick around the *current* price (e.g. $73,760 → $73,800 for BTC)
-  // instead of the full hour's $1k swing. A small floor on the span keeps
-  // the line from collapsing to a flat horizontal when prices barely move.
+  // Range is computed off the rolling tick buffer (so it tracks intra-minute
+  // fluctuations the candle close would miss) plus strike, with a small span
+  // floor so a flat 2-min window doesn't collapse the line to a horizontal.
   const { maxPrice, priceRange, toY } = useMemo(() => {
     const values: number[] = [];
-    for (const c of visibleCandles) values.push(c.c);
+    for (const h of history) values.push(h.p);
     if (livePrice != null) values.push(livePrice);
     if (strikePrice != null) values.push(strikePrice);
     if (values.length === 0) {
@@ -328,20 +349,18 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
     const min = Math.min(...values);
     const max = Math.max(...values);
     const center = livePrice ?? values[values.length - 1];
-    // Floor at 0.05% of price (~$36 for BTC at $73k, ~$0.04 for SOL at $82)
-    // so a quiet 2-minute window still renders a readable Y range instead of
-    // a near-zero span that flattens the line.
+    // Floor at 0.05% of price (~$36 for BTC at $73k, ~$0.04 for SOL at $82).
     const minSpan = Math.max(center * 0.0005, 0.01);
     const distFromCenter = Math.max(max - center, center - min, minSpan);
     const span = distFromCenter * 1.3;
-    const tMax = center + span;
+    const tMaxP = center + span;
     const tRange = span * 2;
     return {
-      maxPrice: tMax,
+      maxPrice: tMaxP,
       priceRange: tRange,
-      toY: (p: number) => PADDING.top + ((tMax - p) / tRange) * chartH,
+      toY: (p: number) => PADDING.top + ((tMaxP - p) / tRange) * chartH,
     };
-  }, [visibleCandles, livePrice, strikePrice, chartH]);
+  }, [history, livePrice, strikePrice, chartH]);
 
   // Y-axis ticks rounded to "nice" multiples (BTC: every $10 / $20, SOL:
   // every $0.20 / $0.50) so the axis reads as a clean ruler. We anchor from
@@ -358,19 +377,23 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
     return ticks;
   }, [maxPrice, priceRange, toY]);
 
-  // The line ends at "now, livePrice" — a phantom point the snake clock
-  // pushes rightward each tick so the curve always touches the right edge.
-  const points = useMemo(() => {
-    const pts = visibleCandles.map((p) => ({ x: tToX(p.t), y: toY(p.c) }));
-    if (livePrice != null && pts.length > 0) {
-      pts.push({ x: tToX(now), y: toY(livePrice) });
-    }
-    return pts;
-  }, [visibleCandles, tToX, toY, livePrice, now]);
+  // Points come straight from the rolling history. We drop the leading
+  // entries that are outside the visible window but keep one neighbor so the
+  // line draws cleanly through the left boundary.
+  const visibleHistory = useMemo(() => {
+    if (history.length === 0) return [];
+    const firstInside = history.findIndex((h) => h.t >= tMin);
+    const start = firstInside <= 0 ? 0 : firstInside - 1;
+    return history.slice(start);
+  }, [history, tMin]);
 
-  // Staircase line — matches the FeaturedHero / OddsChart trend look the user
-  // already knows from the home page; Polymarket also draws its real-time
-  // line as steps rather than splines.
+  const points = useMemo(
+    () => visibleHistory.map((h) => ({ x: tToX(h.t), y: toY(h.p) })),
+    [visibleHistory, tToX, toY],
+  );
+
+  // Wave-step line — matches the rounded-step look Polymarket / Kalshi use:
+  // horizontal hold, then a smooth S-curve into the next price, no peaks.
   const linePath = useMemo(() => stepPath(points), [points]);
 
   const areaPath = useMemo(() => {
@@ -379,7 +402,9 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
     return `${linePath} L${points[points.length - 1].x.toFixed(1)},${bottom} L${points[0].x.toFixed(1)},${bottom} Z`;
   }, [linePath, points, chartH]);
 
-  const isUp = closes.length > 1 ? closes[closes.length - 1] >= closes[0] : true;
+  const firstPrice = visibleHistory.length > 0 ? visibleHistory[0].p : null;
+  const lastPrice = visibleHistory.length > 0 ? visibleHistory[visibleHistory.length - 1].p : null;
+  const isUp = firstPrice != null && lastPrice != null ? lastPrice >= firstPrice : true;
   const lineColor = isUp ? t.up : t.down;
 
   const lastPoint = points.length > 0 ? points[points.length - 1] : null;
@@ -405,35 +430,42 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
     return ticks;
   }, [tMin, tMax, windowMs, tToX]);
 
-  // Time-based hover: snap to the candle nearest the cursor's X, track the
-  // cursor's Y for the horizontal price crosshair. Index-based hover from
-  // layout doesn't fit a time-anchored axis, so we wire our own here.
+  // Hover snaps to the nearest tick in the rolling history — at ~10
+  // ticks/second the buffer holds ~1200 points in a 2-min window, so the
+  // crosshair can resolve a price for essentially any cursor X.
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const [hoverY, setHoverY] = useState<number | null>(null);
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
-      if (visibleCandles.length === 0) return;
+      if (visibleHistory.length === 0) return;
       const rect = e.currentTarget.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
+      // History is time-sorted, so we could binary-search; linear is fine
+      // for ~1200 entries and avoids any boundary subtleties.
       let best = 0;
       let bestDist = Infinity;
-      for (let i = 0; i < visibleCandles.length; i++) {
-        const d = Math.abs(tToX(visibleCandles[i].t) - mx);
+      for (let i = 0; i < visibleHistory.length; i++) {
+        const d = Math.abs(tToX(visibleHistory[i].t) - mx);
         if (d < bestDist) { bestDist = d; best = i; }
       }
       setHoverIdx(best);
       if (my >= PADDING.top && my <= PADDING.top + chartH) setHoverY(my);
     },
-    [visibleCandles, tToX, chartH],
+    [visibleHistory, tToX, chartH],
   );
   const handleMouseLeave = useCallback(() => {
     setHoverIdx(null);
     setHoverY(null);
   }, []);
 
-  const hoverData = hoverIdx !== null && hoverIdx < visibleCandles.length
-    ? { price: closes[hoverIdx], time: times[hoverIdx], x: tToX(visibleCandles[hoverIdx].t), y: toY(closes[hoverIdx]) }
+  const hoverData = hoverIdx !== null && hoverIdx < visibleHistory.length
+    ? {
+        price: visibleHistory[hoverIdx].p,
+        time: visibleHistory[hoverIdx].t,
+        x: tToX(visibleHistory[hoverIdx].t),
+        y: toY(visibleHistory[hoverIdx].p),
+      }
     : null;
   const hoverPrice = hoverY !== null
     ? maxPrice - ((hoverY - PADDING.top) / chartH) * priceRange
@@ -447,6 +479,13 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
             <stop offset="0%" stopColor={lineColor} stopOpacity={0.2} />
             <stop offset="100%" stopColor={lineColor} stopOpacity={0} />
           </linearGradient>
+          {/* Soft halo behind the live dot — the radial gradient bleeds into
+              the chart so the tip glows the way Polymarket's last point does. */}
+          <radialGradient id="inline-live-glow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor={lineColor} stopOpacity={0.55} />
+            <stop offset="60%" stopColor={lineColor} stopOpacity={0.15} />
+            <stop offset="100%" stopColor={lineColor} stopOpacity={0} />
+          </radialGradient>
         </defs>
 
         <ChartAxes dims={dims} yTicks={yTicks} xTicks={xTicks} duration={duration} />
@@ -475,9 +514,12 @@ function LineChart({ candles, duration, livePrice, strikePrice }: ChartProps) {
           if (ly >= PADDING.top && ly <= PADDING.top + chartH) {
             return (
               <>
-                {/* The live dot rides the right edge — its X is the phantom
-                    'now' point we appended, so the matching linear transition
-                    keeps it visually glued to the head of the snake. */}
+                {/* Glow halo behind the tip — kept separate so the dot itself
+                    stays crisp while the radial gradient bleeds around it. */}
+                <circle cx={lastPoint.x} cy={lastPoint.y} r={16} fill="url(#inline-live-glow)" style={{ transition: `cx ${SNAKE_TRANS}, cy ${SNAKE_TRANS}` }} pointerEvents="none" />
+                {/* The live dot rides the right edge — its X is the latest
+                    tick we appended, so the matching linear transition keeps
+                    it visually glued to the head of the snake. */}
                 <circle cx={lastPoint.x} cy={lastPoint.y} r={3.5} fill={lineColor} stroke="#111820" strokeWidth={2} style={{ transition: `cx ${SNAKE_TRANS}, cy ${SNAKE_TRANS}` }}>
                   <animate attributeName="r" values="3.5;5;3.5" dur="2s" repeatCount="indefinite" />
                 </circle>
