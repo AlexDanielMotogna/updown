@@ -286,7 +286,11 @@ export const darkTokens: ThemeTokens = {
 
   // Level tiers (index 0 = level 1-4, index 9 = level 37-40)
   levelTiers: [
-    'rgba(255,255,255,0.5)',   // 1-4: Rookie
+    // Tier 1-4 (Rookie) used to be 'rgba(255,255,255,0.5)' — invalid as a
+    // gradient stop once withAlpha (which appends hex) ran over it, so the
+    // XP bar fill rendered as nothing on the dark background. Cyan keeps the
+    // rookie tier visible and matches the brand accent.
+    palette.cyan,               // 1-4: Rookie
     palette.green400,           // 5-8: Rising
     palette.green500,           // 9-12: Skilled
     palette.amber500,           // 13-16: Pro
@@ -427,7 +431,7 @@ export const lightTokens: ThemeTokens = {
 
   // Same tier colors work on light bg
   levelTiers: [
-    'rgba(15,23,42,0.4)',
+    palette.cyan,               // 1-4: Rookie (was rgba — invalid for withAlpha + gradient stop)
     palette.green500,
     palette.green600,
     palette.amber600,
