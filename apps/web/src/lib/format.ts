@@ -25,6 +25,33 @@ export function formatPrice(price: string | null): string {
   }).format(value);
 }
 
+/** Picks the decimal count we should render for an asset price by magnitude.
+ *  BTC at $73k reads fine in 2 decimals; SOL at $82 needs 4 to be meaningful
+ *  (strike of $82.6274 must not display as $82.63 — that's a different price
+ *  for win/loss purposes). Sub-dollar alts get up to 6 (USDC precision). */
+export function priceDecimalsFor(value: number): number {
+  const v = Math.abs(value);
+  if (v >= 1000) return 2;
+  if (v >= 100) return 3;
+  if (v >= 10) return 4;
+  if (v >= 1) return 5;
+  return 6;
+}
+
+/** Format an already-scaled (USD, not USDC bigint) price using magnitude-aware
+ *  decimals. Use this for live ticks and strikes where rounding to 2 places
+ *  would distort the on-chain win/loss number. */
+export function formatLivePrice(value: number): string {
+  if (!Number.isFinite(value)) return '-';
+  const d = priceDecimalsFor(value);
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: d,
+    maximumFractionDigits: d,
+  }).format(value);
+}
+
 export function formatDateTime(isoString: string): string {
   return new Date(isoString).toLocaleString('en-US', {
     month: 'short',

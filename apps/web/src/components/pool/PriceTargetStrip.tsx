@@ -4,7 +4,7 @@ import { Box, Typography } from '@mui/material';
 import { Favorite } from '@mui/icons-material';
 import { AnimatedValue } from '@/components/AnimatedValue';
 import { Countdown } from '@/components/Countdown';
-import { formatPrice, USDC_DIVISOR } from '@/lib/format';
+import { formatLivePrice, priceDecimalsFor, USDC_DIVISOR } from '@/lib/format';
 import { useThemeTokens } from '@/app/providers';
 
 interface PriceTargetStripProps {
@@ -33,10 +33,14 @@ export function PriceTargetStrip({
 }: PriceTargetStripProps) {
   const t = useThemeTokens();
   const isResolved = status === 'RESOLVED' || status === 'CLAIMABLE';
-  const delta = livePrice && strikePrice
-    ? Number(livePrice) - Number(strikePrice) / USDC_DIVISOR
-    : null;
+  const strikeNum = strikePrice ? Number(strikePrice) / USDC_DIVISOR : null;
+  const liveNum = livePrice ? Number(livePrice) : null;
+  const finalNum = finalPrice ? Number(finalPrice) / USDC_DIVISOR : null;
+  const delta = liveNum != null && strikeNum != null ? liveNum - strikeNum : null;
   const priceUp = delta != null ? delta >= 0 : null;
+  // Delta decimals follow the magnitude of the strike itself — a SOL pool
+  // (strike ~82) wants 4 places, a BTC pool (strike ~73k) wants 2.
+  const deltaDecimals = strikeNum != null ? priceDecimalsFor(strikeNum) : 2;
 
   return (
     <Box
@@ -55,7 +59,7 @@ export function PriceTargetStrip({
           Price To Beat
         </Typography>
         <Typography sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 700, color: t.text.tertiary, fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>
-          {strikePrice ? formatPrice(strikePrice) : '—'}
+          {strikeNum != null ? formatLivePrice(strikeNum) : '—'}
         </Typography>
       </Box>
 
@@ -69,7 +73,7 @@ export function PriceTargetStrip({
             <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.2 }}>
               <Favorite sx={{ fontSize: 11, color: priceUp ? t.up : t.down }} />
               <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: priceUp ? t.up : t.down, fontVariantNumeric: 'tabular-nums' }}>
-                {priceUp ? '+' : '−'}${Math.abs(delta).toFixed(2)}
+                {priceUp ? '+' : '−'}${Math.abs(delta).toFixed(deltaDecimals)}
               </Typography>
             </Box>
           )}
@@ -84,10 +88,10 @@ export function PriceTargetStrip({
             lineHeight: 1.2,
           }}
         >
-          {isResolved && finalPrice
-            ? formatPrice(finalPrice)
-            : livePrice
-              ? <AnimatedValue value={Number(livePrice)} prefix="$" duration={0.4} />
+          {isResolved && finalNum != null
+            ? formatLivePrice(finalNum)
+            : liveNum != null
+              ? <AnimatedValue value={liveNum} prefix="$" duration={0.4} decimals={priceDecimalsFor(liveNum)} />
               : '—'}
         </Typography>
       </Box>
