@@ -69,10 +69,12 @@ function formatTime(ts: number, duration: number): string {
 
 const PADDING = { top: 20, right: 70, bottom: 30, left: 16 };
 
-// Snake view caps the visible span to 2 minutes so each tick moves enough
-// pixels to read as motion. With a 1-hour window each frame shifted ~0.007%
-// of the chart width (eye sees nothing); at 2 minutes it's ~0.2% — smooth.
-const SNAKE_WINDOW_MS = 2 * 60 * 1000;
+// Snake view shows the most recent 3 minutes of price activity. Bigger than
+// that and per-tick motion stops reading as motion (at 1h each 100ms frame
+// shifted ~0.007% of the chart width). At 3 min it's ~0.06% per frame which
+// the eye still resolves as smooth flow while giving the user a meaningful
+// chunk of history to read.
+const SNAKE_WINDOW_MS = 3 * 60 * 1000;
 // 100ms tick (~10fps) + matching 100ms linear CSS transition on the wrapping
 // group's transform. The translate happens on the GPU compositor so the eye
 // sees smooth motion at native refresh rate even though React re-renders at
@@ -90,6 +92,52 @@ const SNAKE_LINE_TINTS: Record<string, string> = {
   XRP: '#5A6470',
   DOGE: '#C2A633',
 };
+
+/** Rehydrate the snake buffer from sessionStorage, dropping anything older
+ *  than the visible window. Returns null when the slot is empty or stale,
+ *  so the caller can fall through to candle seeding. */
+function loadSnakeFromStorage(key: string | null): { t: number; p: number }[] | null {
+  if (typeof window === 'undefined' || !key) return null;
+  try {
+    const raw = window.sessionStorage.getItem(key);
+    if (!raw) return null;
+    const stored = JSON.parse(raw) as { t: number; p: number }[];
+    const cutoff = Date.now() - SNAKE_WINDOW_MS;
+    const fresh = stored.filter((e) => e.t >= cutoff);
+    return fresh.length > 0 ? fresh : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Synthesize a full-window history from 1-minute candle closes: linearly
+ *  interpolate adjacent pairs at 1s resolution, then hold the last close as
+ *  a flat tail up to "now". Lets the chart paint fully populated on the very
+ *  first render instead of starting empty and filling over 3 minutes. */
+function seedSnakeFromCandles(candles: Candle[]): { t: number; p: number }[] {
+  if (candles.length === 0) return [];
+  const parsed = candles.map((c) => ({ t: c.t, c: parseFloat(c.c) }));
+  const STEP = 1000;
+  const ts = Date.now();
+  const cutoff = ts - SNAKE_WINDOW_MS;
+  const synthetic: { t: number; p: number }[] = [];
+  for (let i = 1; i < parsed.length; i++) {
+    const a = parsed[i - 1];
+    const b = parsed[i];
+    if (b.t < cutoff) continue;
+    const start = Math.max(a.t, cutoff);
+    for (let t = start; t < b.t; t += STEP) {
+      const ratio = (t - a.t) / (b.t - a.t);
+      synthetic.push({ t, p: a.c + (b.c - a.c) * ratio });
+    }
+  }
+  const last = parsed[parsed.length - 1];
+  if (last.t >= cutoff) synthetic.push({ t: last.t, p: last.c });
+  for (let t = last.t + STEP; t <= ts; t += STEP) {
+    synthetic.push({ t, p: last.c });
+  }
+  return synthetic;
+}
 
 function useChartLayout(candles: Candle[], chartType: ChartType) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -288,7 +336,7 @@ function LineChart({ candles, duration, livePrice, strikePrice, asset }: ChartPr
   // We only borrow the container ref + measured chart box from the layout
   // hook. The data model below is a rolling tick buffer, not the layout's
   // index-mapped candle list.
-  const { containerRef, dims, parsed, chartH } = layout;
+  const { containerRef, dims, chartH } = layout;
 
   // ── Rolling tick buffer ────────────────────────────────────────────────
   // Instead of plotting from candles + a phantom (now, livePrice) point — the
@@ -303,64 +351,25 @@ function LineChart({ candles, duration, livePrice, strikePrice, asset }: ChartPr
   // visibly start at the tip and the older body just slides left in time.
   // Hover gets ~1200 snap targets in the 2-min window instead of 2–3 candles.
   //
-  // Hydrated from sessionStorage so a page refresh doesn't blank the chart
-  // and force the user to wait 2 minutes for the buffer to fill again. The
-  // key is scoped to the asset so a BTC pool and an ETH pool keep separate
-  // histories.
+  // Buffer is seeded synchronously in useState's lazy initializer so the
+  // very first paint already has the full 3-min line — there's no
+  // intermediate empty frame while a useEffect catches up. Priority:
+  //   1) sessionStorage (refresh path, asset-scoped key)
+  //   2) interpolated candle history (first-visit path)
+  // The persistence effect below keeps storage in sync at ≤1Hz so the
+  // refresh path stays warm.
   const storageKey = asset ? `snake-history:${asset}` : null;
-  const [history, setHistory] = useState<{ t: number; p: number }[]>(() => {
-    if (typeof window === 'undefined' || !storageKey) return [];
-    try {
-      const raw = window.sessionStorage.getItem(storageKey);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw) as { t: number; p: number }[];
-      // Drop anything already outside the visible window so we don't pay a
-      // memory tax on data we won't render.
-      const cutoff = Date.now() - SNAKE_WINDOW_MS;
-      return parsed.filter((e) => e.t >= cutoff);
-    } catch {
-      return [];
-    }
-  });
+  const [history, setHistory] = useState<{ t: number; p: number }[]>(
+    () => loadSnakeFromStorage(storageKey) ?? seedSnakeFromCandles(candles),
+  );
 
-  // Seed once from candle closes when they arrive — bootstraps the chart so
-  // first paint shows a full 2-min line instead of waiting two minutes for
-  // live ticks to fill the window. We linearly interpolate between adjacent
-  // 1-minute candle closes at 1s resolution (~120 points in the window),
-  // then hold the last candle's close as a flat tail up to "now". Live
-  // ticks naturally extend from there at the buffer's native 10Hz cadence.
-  // Skipped if sessionStorage already hydrated something fresh.
+  // If the buffer is empty after first paint AND candles arrive later (rare
+  // — the parent only mounts LineChart once candles.length > 0), seed then.
+  // Acts as a safety net for the late-candles case; usually a no-op.
   useEffect(() => {
-    if (parsed.length === 0) return;
-    setHistory((prev) => {
-      if (prev.length > 0) return prev;
-      const STEP = 1000;
-      const ts = Date.now();
-      const cutoff = ts - SNAKE_WINDOW_MS;
-      const synthetic: { t: number; p: number }[] = [];
-      // Interpolate every candle pair, clipped to the visible window.
-      for (let i = 1; i < parsed.length; i++) {
-        const a = parsed[i - 1];
-        const b = parsed[i];
-        if (b.t < cutoff) continue;
-        const start = Math.max(a.t, cutoff);
-        for (let t = start; t < b.t; t += STEP) {
-          const ratio = (t - a.t) / (b.t - a.t);
-          synthetic.push({ t, p: a.c + (b.c - a.c) * ratio });
-        }
-      }
-      // Extend the last candle's close as a flat tail up to now so the
-      // chart isn't truncated at the last candle boundary (which could be
-      // up to 60s in the past on a fresh open).
-      const last = parsed[parsed.length - 1];
-      if (last.t >= cutoff) synthetic.push({ t: last.t, p: last.c });
-      const tailStart = last.t + STEP;
-      for (let t = tailStart; t <= ts; t += STEP) {
-        synthetic.push({ t, p: last.c });
-      }
-      return synthetic;
-    });
-  }, [parsed]);
+    if (candles.length === 0) return;
+    setHistory((prev) => (prev.length > 0 ? prev : seedSnakeFromCandles(candles)));
+  }, [candles]);
 
   // Push the latest livePrice into the buffer every SNAKE_TICK_MS. The
   // interval is mounted ONCE — earlier the deps were `[livePrice]`, which
