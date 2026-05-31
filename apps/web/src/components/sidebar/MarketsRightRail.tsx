@@ -9,11 +9,10 @@ import { fetchTrendingPools, fetchPools, type Pool } from '@/lib/api';
 import { INTERVAL_LABELS } from '@/lib/constants';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
-
-const ASSET_NAMES: Record<string, string> = { BTC: 'Bitcoin', ETH: 'Ethereum', SOL: 'Solana' };
+import { getAssetName } from '@/lib/assets';
 
 function poolTitle(p: Pool): string {
-  if (p.poolType !== 'SPORTS') return `${ASSET_NAMES[p.asset] || p.asset} ${INTERVAL_LABELS[p.interval] || p.interval}`;
+  if (p.poolType !== 'SPORTS') return `${getAssetName(p.asset)} ${INTERVAL_LABELS[p.interval] || p.interval}`;
   if (p.awayTeam) return `${p.homeTeam} vs ${p.awayTeam}`;
   return p.homeTeam || 'Market';
 }

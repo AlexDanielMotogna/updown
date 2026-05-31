@@ -12,8 +12,7 @@ import { getSocket, connectSocket, subscribePool, unsubscribePool } from '@/lib/
 import { OddsChart } from '@/components/pool/OddsChart';
 import type { Pool } from '@/lib/api';
 import type { CategoryConfig } from '@/hooks/useCategories';
-
-const ASSET_NAMES: Record<string, string> = { BTC: 'Bitcoin', ETH: 'Ethereum', SOL: 'Solana' };
+import { getAssetName } from '@/lib/assets';
 
 /**
  * Pool.matchAnalysis is sometimes a free-text blurb and sometimes a JSON blob
@@ -151,7 +150,7 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
       : CatIcon ? <CatIcon sx={{ fontSize: 16 }} /> : !isPrediction ? <SportsSoccer sx={{ fontSize: 16 }} /> : null;
 
   const title = isCrypto
-    ? `${ASSET_NAMES[pool.asset] || pool.asset} · ${INTERVAL_LABELS[pool.interval] || pool.interval}`
+    ? `${getAssetName(pool.asset)} · ${INTERVAL_LABELS[pool.interval] || pool.interval}`
     : isPrediction
       ? (pool.awayTeam ? `${pool.homeTeam} vs ${pool.awayTeam}` : pool.homeTeam || 'Prediction market')
       : `${pool.homeTeam || 'Home'} vs ${pool.awayTeam || 'Away'}`;
@@ -195,7 +194,7 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
 
   // ── News blurb: real matchAnalysis for sports/PM, generated for crypto. ──
   const cryptoBlurb = isCrypto
-    ? `Predict whether ${ASSET_NAMES[pool.asset] || pool.asset} closes higher or lower at the end of the next ${INTERVAL_LABELS[pool.interval] || pool.interval} round.`
+    ? `Predict whether ${getAssetName(pool.asset)} closes higher or lower at the end of the next ${INTERVAL_LABELS[pool.interval] || pool.interval} round.`
     : null;
   const newsText = formatMatchAnalysis(pool.matchAnalysis ?? null, pool.homeTeam ?? null, pool.awayTeam ?? null) || cryptoBlurb;
 

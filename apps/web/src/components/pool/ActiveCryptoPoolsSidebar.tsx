@@ -7,16 +7,9 @@ import Link from 'next/link';
 import { usePools } from '@/hooks';
 import { AssetIcon } from '@/components/AssetIcon';
 import { INTERVAL_LABELS } from '@/lib/constants';
+import { getAssetName, getAssetTint } from '@/lib/assets';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
-
-const ASSET_NAMES: Record<string, string> = {
-  BTC: 'Bitcoin', ETH: 'Ethereum', SOL: 'Solana', XRP: 'XRP', DOGE: 'Dogecoin',
-};
-
-const ASSET_TINTS: Record<string, string> = {
-  BTC: '#F7931A', ETH: '#627EEA', SOL: '#9945FF', XRP: '#23292F', DOGE: '#C2A633',
-};
 
 interface Props {
   currentPoolId: string;
@@ -78,7 +71,7 @@ export function ActiveCryptoPoolsSidebar({ currentPoolId, limit = 4 }: Props) {
       </Typography>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
         {pools.map(p => {
-          const tint = ASSET_TINTS[p.asset] || t.accent;
+          const tint = getAssetTint(p.asset, t.accent);
           const totalUp = Number(p.totalUp);
           const totalDown = Number(p.totalDown);
           const total = totalUp + totalDown;
@@ -134,7 +127,7 @@ export function ActiveCryptoPoolsSidebar({ currentPoolId, limit = 4 }: Props) {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {ASSET_NAMES[p.asset] || p.asset} Up or Down — {intervalLabel}
+                  {getAssetName(p.asset)} Up or Down — {intervalLabel}
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, flexShrink: 0 }}>
                   <Circle sx={{ fontSize: 7, color: leadingColor }} />

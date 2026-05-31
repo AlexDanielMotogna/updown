@@ -6,16 +6,9 @@ import { Code, Link as LinkIcon, BookmarkBorder, CheckCircle } from '@mui/icons-
 import { AssetIcon } from '@/components/AssetIcon';
 import { formatPredictionWindow } from '@/lib/format';
 import { INTERVAL_LABELS } from '@/lib/constants';
+import { getAssetName, getAssetTint } from '@/lib/assets';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
-
-const ASSET_NAMES: Record<string, string> = {
-  BTC: 'Bitcoin', ETH: 'Ethereum', SOL: 'Solana', XRP: 'XRP', DOGE: 'Dogecoin',
-};
-
-const ASSET_TINTS: Record<string, string> = {
-  BTC: '#F7931A', ETH: '#627EEA', SOL: '#9945FF', XRP: '#23292F', DOGE: '#C2A633',
-};
 
 interface PoolPageHeaderProps {
   asset: string;
@@ -37,8 +30,8 @@ export function PoolPageHeader({ asset, interval, startTime, endTime }: PoolPage
   const [bookmarked, setBookmarked] = useState(false);
 
   const intervalLabel = INTERVAL_LABELS[interval] || interval;
-  const title = `${ASSET_NAMES[asset] || asset} Up or Down ${intervalLabel}`;
-  const tint = ASSET_TINTS[asset] || t.accent;
+  const title = `${getAssetName(asset)} Up or Down ${intervalLabel}`;
+  const tint = getAssetTint(asset, t.accent);
 
   const handleCopyLink = () => {
     if (typeof window === 'undefined') return;

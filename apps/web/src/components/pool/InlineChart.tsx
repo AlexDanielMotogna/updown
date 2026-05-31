@@ -11,6 +11,7 @@ import {
 import { ShowChart, CandlestickChart } from '@mui/icons-material';
 import { usePacificaCandles, type Candle } from '@/hooks';
 import { USDC_DIVISOR } from '@/lib/format';
+import { getAssetTint } from '@/lib/assets';
 import { useThemeTokens } from '@/app/providers';
 
 type ChartType = 'line' | 'candles';
@@ -82,16 +83,6 @@ const SNAKE_WINDOW_MS = 3 * 60 * 1000;
 const SNAKE_TICK_MS = 100;
 const SNAKE_TRANS = '0.1s linear';
 
-/** Single line color per crypto asset — direction-coded red/green flipped on
- *  every tick which the user found distracting. The tint matches the
- *  colored tile in PoolPageHeader so the chart reads as the same identity. */
-const SNAKE_LINE_TINTS: Record<string, string> = {
-  BTC: '#F7931A',
-  ETH: '#627EEA',
-  SOL: '#9945FF',
-  XRP: '#5A6470',
-  DOGE: '#C2A633',
-};
 
 /** Rehydrate the snake buffer from sessionStorage, dropping anything older
  *  than the visible window. Returns null when the slot is empty or stale,
@@ -537,7 +528,7 @@ function LineChart({ candles, duration, livePrice, strikePrice, asset }: ChartPr
   // colored asset tile in PoolPageHeader so the chart reads as the same
   // visual identity, and the color stops flipping red <-> green on every
   // tick, which the user found distracting.
-  const lineColor = SNAKE_LINE_TINTS[asset ?? ''] ?? t.accent;
+  const lineColor = getAssetTint(asset, t.accent);
 
   const lastPoint = points.length > 0 ? points[points.length - 1] : null;
 

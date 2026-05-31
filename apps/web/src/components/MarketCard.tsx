@@ -9,13 +9,12 @@ import { getSocket, connectSocket, subscribePool, unsubscribePool } from '@/lib/
 import { getIcon } from '@/lib/icon-registry';
 import { INTERVAL_LABELS } from '@/lib/constants';
 import { formatPredictionWindow } from '@/lib/format';
+import { getAssetName } from '@/lib/assets';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import type { Pool } from '@/lib/api';
 import { isMatchActive, isMatchFinished, formatLiveStatus, type LiveScore } from '@/hooks/useLiveScores';
 import type { CategoryConfig } from '@/hooks/useCategories';
-
-const ASSET_NAMES: Record<string, string> = { BTC: 'Bitcoin', ETH: 'Ethereum', SOL: 'Solana' };
 
 function relTime(iso: string): string {
   const diff = new Date(iso).getTime() - Date.now();
@@ -107,7 +106,7 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
   // surface the actual prediction window ("May 29, 10:35 PM – 10:40 PM ET") as
   // a subtitle below — the implicit interval is encoded in the start/end gap.
   const title = isCrypto
-    ? `${ASSET_NAMES[pool.asset] || pool.asset} Up or Down`
+    ? `${getAssetName(pool.asset)} Up or Down`
     : isPrediction
       ? (pool.awayTeam ? `${pool.homeTeam} vs ${pool.awayTeam}` : pool.homeTeam || 'Prediction market')
       : `${pool.homeTeam || 'Home'} vs ${pool.awayTeam || 'Away'}`;
