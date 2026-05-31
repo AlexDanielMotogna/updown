@@ -1,6 +1,6 @@
 import { prisma } from '../../../db';
 import type { LiveScore } from './types';
-import { STALE_THRESHOLD_MS, API_LOOKUP_LIMIT, POLL_INTERVAL_MS, DB_CLEANUP_AGE_MS } from './types';
+import { STALE_THRESHOLD_MS, API_LOOKUP_LIMIT, POLL_INTERVAL_MS, DB_CLEANUP_AGE_MS, isFinishedStatus } from './types';
 import { cacheSet, cacheGet, cacheCleanup, cachePreload, updatePreviousPollIds } from './cache';
 import { fetchLivescoreAll, fetchLivescoreBySport, fetchEventLookup } from './sportsdb-source';
 import { persistToDb, syncFinishedToUi, loadFromDb, cleanupOldDbEntries } from './db-persistence';
@@ -8,6 +8,7 @@ import { isMidnightBoundary, detectStaleEvents } from './staleness';
 import { fetchScoreFromChatGPT } from './chatgpt-source';
 import { fetchOddsApiScores, matchGamesToPools, getOddsApiSportKeys, isOddsApiDisabled } from './odds-api-source';
 import { CHATGPT_MAX_PER_CYCLE, LEAGUE_TO_ODDS_API } from './types';
+import { resolveMatchPools } from '../../../scheduler/sports-scheduler';
 
 import {
   recordPollSuccess, recordPollFailure, recordLookupCall,
@@ -379,6 +380,19 @@ async function pollLiveScores(): Promise<void> {
     // 7. Persist to DB + sync finished to UI (non-blocking).
     persistToDb(toPersist).catch(() => {});
     syncFinishedToUi(toPersist).catch(() => {});
+
+    // 7b. INSTANT RESOLVE TRIGGER — when this poll surfaced any FT events,
+    // fire the sports resolver right now instead of waiting up to 2 min for
+    // its own cron tick. resolveMatchPools is idempotent (skips pools that
+    // are already RESOLVED) and bails immediately when there's nothing to
+    // do, so the cost is bounded — but the win on the happy path is huge:
+    // ~30s end-to-end (livescore poll cadence) from real FT to on-chain
+    // RESOLVED, instead of "next cron + retry".
+    if (toPersist.some(e => isFinishedStatus(e.status))) {
+      resolveMatchPools().catch((err) => {
+        console.warn('[LiveScore] Instant resolve trigger failed:', (err as Error).message);
+      });
+    }
 
     // 8. Cleanup stale entries.
     cacheCleanup();
