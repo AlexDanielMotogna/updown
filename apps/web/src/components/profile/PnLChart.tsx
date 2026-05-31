@@ -53,27 +53,41 @@ export function PnLChart({ bets }: PnLChartProps) {
     return () => ro.disconnect();
   }, []);
 
-  // Build cumulative P&L series.
-  // - Lost: bet.payoutAmount is null AND bet.isWinner === false → −stake.
-  // - Won: payoutAmount > stake → +(payout − stake).
-  // - Refund: payoutAmount === stake → 0 contribution.
+  // Build cumulative P&L series — ONE point per pool, not per bet.
+  //
+  // Per-bet plotting produced false spikes on hedged pools: a wallet that
+  // bets on both UP and DOWN of the same pool gets one winning bet (large
+  // positive delta) and one losing bet (negative delta), both with the same
+  // createdAt; cumulative goes (e.g.) 0 → +\$187 → +\$87 in zero time, which
+  // reads as a peak that never happened. We collapse per-pool by summing
+  // each bet's signed contribution and plotting the net at the pool's
+  // endTime (when P&L was actually realised), so each pool is one step on
+  // the curve.
   const allPoints = useMemo(() => {
-    const settled = bets
-      .filter(b => b.isWinner !== null && (b.claimed || b.isWinner === false))
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-    let cum = 0;
-    return settled.map(b => {
+    type Bucket = { t: number; delta: number };
+    const buckets = new Map<string, Bucket>();
+    for (const b of bets) {
+      if (b.isWinner === null) continue; // pool not resolved yet
+      if (!b.claimed && b.isWinner !== false) continue; // pending payout — skip
       const stake = Number(b.amount);
       const payout = b.payoutAmount ? Number(b.payoutAmount) : 0;
-      // Refund detection MUST come before the isWinner check: for hedged
-      // single-bettor pools the scheduler picks one side as the synthetic
-      // winner, so the user's other (refunded) side ends up with
-      // isWinner=false even though they got their money back. Treating
-      // that as a -stake loss would double-count and skew the curve.
+      // Refund detection FIRST — for hedged single-bettor pools the scheduler
+      // marks the user's other side isWinner=false but still refunds (payout
+      // == stake). Treating that as a −stake loss would double-count.
       const isRefund = payout > 0 && payout === stake;
       const delta = isRefund ? 0 : b.isWinner === false ? -stake : payout - stake;
+      // Plot at pool.endTime so both bets on the same pool collapse to the
+      // same x and accumulate into one net step on the curve.
+      const t = new Date(b.pool.endTime).getTime();
+      const existing = buckets.get(b.pool.id);
+      if (existing) existing.delta += delta;
+      else buckets.set(b.pool.id, { t, delta });
+    }
+    const sorted = [...buckets.values()].sort((a, b) => a.t - b.t);
+    let cum = 0;
+    return sorted.map(({ t, delta }) => {
       cum += delta;
-      return { t: new Date(b.createdAt).getTime(), pnl: cum };
+      return { t, pnl: cum };
     });
   }, [bets]);
 
