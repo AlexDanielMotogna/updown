@@ -164,27 +164,31 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
         '&:hover': { borderColor: t.border.medium, bgcolor: t.hover.subtle },
       }}
     >
-      {/* Header: category + right meta */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6, minWidth: 0 }}>
-          {isCrypto ? (
-            // Per-asset round Pacifica token SVG — same identity the asset
-            // tile uses on /pool/[id] and in the sidebar market list, so the
-            // visual reads consistently across every crypto surface.
-            <AssetIcon asset={pool.asset} size={18} />
-          ) : catBadge ? (
-            // Dark pad so the Champions League badge (whitish silver star)
-            // still reads against the card bg - white pad made it invisible.
-            <Box component="img" src={catBadge} alt="" sx={{ width: 18, height: 18, objectFit: 'contain', ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(13,18,25,0.92)', borderRadius: '50%', p: '1px' }) }} />
-          ) : CatIcon ? (
-            <CatIcon sx={{ fontSize: 16, color: catColor }} />
-          ) : (
-            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: catColor }} />
-          )}
-          <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, color: catColor, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {catLabel}
-          </Typography>
-        </Box>
+      {/* Header: category + right meta. PM cards hide the category indicator
+          entirely — the question + thumbnail are enough context, and the
+          sidebar filter already tells the user which bucket they're in. */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: isPrediction ? 'flex-end' : 'space-between', gap: 1 }}>
+        {!isPrediction && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6, minWidth: 0 }}>
+            {isCrypto ? (
+              // Per-asset round Pacifica token SVG — same identity the asset
+              // tile uses on /pool/[id] and in the sidebar market list, so the
+              // visual reads consistently across every crypto surface.
+              <AssetIcon asset={pool.asset} size={18} />
+            ) : catBadge ? (
+              // Dark pad so the Champions League badge (whitish silver star)
+              // still reads against the card bg - white pad made it invisible.
+              <Box component="img" src={catBadge} alt="" sx={{ width: 18, height: 18, objectFit: 'contain', ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(13,18,25,0.92)', borderRadius: '50%', p: '1px' }) }} />
+            ) : CatIcon ? (
+              <CatIcon sx={{ fontSize: 16, color: catColor }} />
+            ) : (
+              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: catColor }} />
+            )}
+            <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, color: catColor, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {catLabel}
+            </Typography>
+          </Box>
+        )}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
           {isPopular && (
             <Chip icon={<Star sx={{ fontSize: 10 }} />} label="Popular" size="small" sx={{ height: 16, fontSize: '0.5rem', fontWeight: 700, bgcolor: withAlpha(t.gain, 0.1), color: t.gain, '& .MuiChip-icon': { color: t.gain, ml: 0.4 } }} />
