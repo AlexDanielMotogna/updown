@@ -3,7 +3,15 @@ import { z } from 'zod';
 import { prisma } from '../../db';
 import { getAdapter } from '../../services/sports';
 import { createSportsPool } from '../../scheduler/sports-scheduler';
+import { sportsDbFetch } from '../../services/sports/api-sports-fetch';
 import type { Match } from '../../services/sports/types';
+
+// In-memory cache for the full SDB leagues catalog (1,475 rows). The list
+// changes monthly at most; 10 min TTL means at most 6 SDB calls per hour
+// across however many admins open the browser. Lazy init so cold-starts
+// don't pay the cost.
+let sdbLeaguesCache: { ts: number; data: Array<{ id: string; name: string; sport: string; alternate: string }> } | null = null;
+const SDB_LEAGUES_TTL_MS = 10 * 60_000;
 
 /**
  * Admin sports explorer — surfaces the data the regular scheduler hides:
@@ -277,6 +285,66 @@ adminSportsRouter.post('/create-pool', async (req, res) => {
     res.json({ success: true, data: { poolId, matchId, league } });
   } catch (error) {
     console.error('[AdminSports] create-pool error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: error instanceof Error ? error.message : 'unknown' } });
+  }
+});
+
+// ── GET /admin/sports/sdb-leagues ────────────────────────────────────────────
+// Full TheSportsDB leagues catalog (~1,475 rows) so the admin can browse what
+// exists and add a new category without guessing IDs. Cached 10 min — the
+// list changes monthly at most. Annotates each row with `inUse: true` when
+// the SDB league id is already wired to one of our categories, so the UI
+// can hide the Add button.
+adminSportsRouter.get('/sdb-leagues', async (_req, res) => {
+  try {
+    const now = Date.now();
+    if (!sdbLeaguesCache || now - sdbLeaguesCache.ts > SDB_LEAGUES_TTL_MS) {
+      const data = await sportsDbFetch('all_leagues.php');
+      const rows: Array<{ id: string; name: string; sport: string; alternate: string }> = [];
+      for (const l of (data?.leagues || []) as Array<{ idLeague: string; strLeague: string; strSport: string; strLeagueAlternate?: string }>) {
+        if (!l.idLeague || !l.strLeague) continue;
+        rows.push({
+          id: String(l.idLeague),
+          name: l.strLeague,
+          sport: l.strSport || '',
+          alternate: l.strLeagueAlternate || '',
+        });
+      }
+      sdbLeaguesCache = { ts: now, data: rows };
+    }
+
+    // Build the in-use set from the live category config so refreshing
+    // categories doesn't bust the 10-min SDB cache.
+    const cats = await prisma.poolCategory.findMany({
+      where: { type: { in: ['FOOTBALL_LEAGUE', 'SPORTSDB_SPORT'] } },
+      select: { code: true, config: true },
+    });
+    const inUseIds = new Set<string>();
+    const inUseByExtId = new Map<string, string>(); // SDB id → our category code
+    for (const c of cats) {
+      const cfg = (c.config || {}) as Record<string, unknown>;
+      const eid = (typeof cfg.externalLeagueId === 'string' ? cfg.externalLeagueId
+        : typeof cfg.theSportsDbLeagueId === 'string' ? cfg.theSportsDbLeagueId
+        : null);
+      if (eid) { inUseIds.add(eid); inUseByExtId.set(eid, c.code); }
+    }
+
+    const enriched = sdbLeaguesCache.data.map(r => ({
+      ...r,
+      inUse: inUseIds.has(r.id),
+      categoryCode: inUseByExtId.get(r.id) ?? null,
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        leagues: enriched,
+        cachedAt: sdbLeaguesCache.ts,
+        sportsCount: new Set(enriched.map(r => r.sport)).size,
+      },
+    });
+  } catch (error) {
+    console.error('[AdminSports] sdb-leagues error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL', message: error instanceof Error ? error.message : 'unknown' } });
   }
 });
