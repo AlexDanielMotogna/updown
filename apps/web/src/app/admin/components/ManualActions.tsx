@@ -1,25 +1,19 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Box, Card, Typography, Button, TextField, Alert, Dialog,
-  DialogTitle, DialogContent, DialogActions, Select, MenuItem, FormControl, InputLabel,
+  Box, TextField, Select, MenuItem, FormControl, InputLabel,
 } from '@mui/material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminPost, adminPostSSE } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
+import {
+  SectionCard, ConfirmDialog, ActionButton,
+  ErrorAlert, useMutationFeedback, useToast,
+  Body, Meta, H2,
+} from '../ui';
 import { StuckPmPools } from './StuckPmPools';
 import { StuckKnockoutPools } from './StuckKnockoutPools';
-
-function ActionCard({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
-  return (
-    <Card sx={{ p: 2, border: '1px solid rgba(248,113,113,0.2)' }}>
-      <Typography variant="subtitle2">{title}</Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>{description}</Typography>
-      {children}
-    </Card>
-  );
-}
 
 interface LogLine {
   type: string;
@@ -37,15 +31,30 @@ const LOG_COLORS: Record<string, string> = {
   done: t.logColors.complete,
 };
 
+// Per PLAN-ADMIN-REFACTOR.md §3.8: the previous layout coloured every
+// "danger zone" card with a red border whether the action was destructive
+// or routine. Group by intent instead — destructive cards use the
+// destructive ActionButton variant + ConfirmDialog severity, neutral
+// cards (Restart scheduler, Create pool) get no accent.
+type ActionDef = {
+  key: string;
+  title: string;
+  description: string;
+  severity: 'warning' | 'destructive';
+  accent?: string;
+};
+
 export function ManualActions() {
   const qc = useQueryClient();
-  const [confirmAction, setConfirmAction] = useState<{ label: string; fn: () => Promise<unknown> } | null>(null);
-  const [result, setResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const toast = useToast();
+  const feedback = useMutationFeedback();
+  const [confirmAction, setConfirmAction] = useState<{ label: string; severity: 'warning' | 'destructive'; fn: () => Promise<unknown> } | null>(null);
 
   // Pool ID inputs
   const [resolveId, setResolveId] = useState('');
   const [refundId, setRefundId] = useState('');
   const [closeId, setCloseId] = useState('');
+  const [forceClose, setForceClose] = useState(false); // Plan §3.8: surface the `force` flag of close-pool
 
   // Create pool inputs
   const [asset, setAsset] = useState('BTC');
@@ -54,6 +63,7 @@ export function ManualActions() {
   // Recovery state
   const [recoveryRunning, setRecoveryRunning] = useState(false);
   const [recoveryLogs, setRecoveryLogs] = useState<LogLine[]>([]);
+  const [recoveryError, setRecoveryError] = useState<unknown | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -63,14 +73,17 @@ export function ManualActions() {
   const startRecovery = async () => {
     setRecoveryRunning(true);
     setRecoveryLogs([]);
+    setRecoveryError(null);
     setConfirmAction(null);
 
     try {
       await adminPostSSE('/actions/recover-orphaned-pools', undefined, (event) => {
         setRecoveryLogs(prev => [...prev, event as LogLine]);
       });
+      toast.show({ kind: 'success', message: 'Recovery scan finished' });
     } catch (err) {
       setRecoveryLogs(prev => [...prev, { type: 'error', message: `Connection error: ${err instanceof Error ? err.message : String(err)}` }]);
+      setRecoveryError(err);
     }
 
     setRecoveryRunning(false);
@@ -80,89 +93,100 @@ export function ManualActions() {
 
   const execMutation = useMutation({
     mutationFn: (fn: () => Promise<unknown>) => fn(),
-    onSuccess: (data) => {
-      setResult({ type: 'success', message: JSON.stringify(data, null, 2) });
+    onSuccess: () => {
       setConfirmAction(null);
       qc.invalidateQueries({ queryKey: ['admin-pools'] });
       qc.invalidateQueries({ queryKey: ['admin-stuck-pools'] });
       qc.invalidateQueries({ queryKey: ['admin-health'] });
     },
-    onError: (err: Error) => {
-      setResult({ type: 'error', message: err.message });
-      setConfirmAction(null);
-    },
+    onError: () => setConfirmAction(null),
   });
 
+  const runConfirmed = () => {
+    if (!confirmAction) return;
+    if (confirmAction.label.toLowerCase().includes('orphan')) {
+      // SSE — keep its own loop; the toast fires from startRecovery.
+      void confirmAction.fn();
+      return;
+    }
+    void feedback.run(execMutation, confirmAction.fn, { success: `${confirmAction.label} succeeded` });
+  };
+
+  // Action card definitions for the bottom grid. Defining them as data
+  // lets the rendering loop stay tiny and consistent.
+  const poolActions: ActionDef[] = useMemo(() => [
+    { key: 'resolve', title: 'Force resolve pool', description: 'Resolve a stuck JOINING/ACTIVE pool using the current market price.', severity: 'warning' },
+    { key: 'refund', title: 'Force refund pool', description: 'Resolve with synthetic prices and refund every bet on-chain.', severity: 'destructive', accent: t.error },
+    { key: 'close', title: 'Force close pool', description: 'Close a CLAIMABLE pool and reclaim rent. Toggle "force" to close even with unclaimed bets.', severity: 'destructive', accent: t.error },
+  ], []);
+
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <Alert severity="warning" variant="outlined">
-        Danger Zone - These actions are irreversible. A confirmation dialog is shown before each action.
-      </Alert>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      {/* ─── Header notice ─────────────────────────────────────────── */}
+      <SectionCard
+        dense
+        accentColor={t.warning}
+        title="Danger zone"
+        subtitle="These actions are irreversible and may trigger on-chain transactions. Every action goes through a confirmation dialog."
+      >{null}</SectionCard>
 
-      {result && (
-        <Alert severity={result.type} onClose={() => setResult(null)} sx={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>
-          {result.message}
-        </Alert>
-      )}
-
-      {/* Stuck PM pools — surfaces UMA-stuck / Gamma-delisted markets */}
+      {/* ─── Stuck markets (PM + knockouts) ────────────────────────── */}
+      <H2>Stuck markets</H2>
       <StuckPmPools />
-
-      {/* Stuck knockout pools — CL/EL ties waiting on SDB AET/PEN */}
       <StuckKnockoutPools />
 
-      {/* Recovery section */}
-      <Card sx={{ p: 2, border: '1px solid rgba(245,158,11,0.3)' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-          <Box>
-            <Typography variant="subtitle2">Recover Orphaned Pools</Typography>
-            <Typography variant="body2" color="text.secondary">
-              Scan on-chain for pools deleted from DB. Resolves and closes them to reclaim rent. (1s delay between ops)
-            </Typography>
+      {/* ─── Recovery + restart ────────────────────────────────────── */}
+      <H2>Recovery &amp; sync</H2>
+      <SectionCard
+        accentColor={t.warning}
+        title="Recover orphaned pools"
+        subtitle="Scan on-chain for pools deleted from the DB. Resolves and closes them to reclaim rent. 1s pause between operations."
+        actions={
+          recoveryRunning ? (
+            <ActionButton
+              kind="destructive"
+              label="Stop"
+              onClick={() => { adminPost('/actions/stop-recovery').catch(() => {}); }}
+            />
+          ) : (
+            <ActionButton
+              kind="primary"
+              label="Scan &amp; recover"
+              onClick={() => setConfirmAction({
+                label: 'Scan & recover orphaned pools',
+                severity: 'warning',
+                fn: startRecovery,
+              })}
+            />
+          )
+        }
+      >
+        {recoveryError ? (
+          <Box sx={{ mb: 1 }}>
+            <ErrorAlert title="Recovery connection failed" message={recoveryError instanceof Error ? recoveryError.message : String(recoveryError)} details={recoveryError} />
           </Box>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            {recoveryRunning ? (
-              <Button
-                variant="contained"
-                color="error"
-                onClick={() => { adminPost('/actions/stop-recovery').catch(() => {}); }}
-              >
-                Stop
-              </Button>
-            ) : (
-              <Button
-                variant="contained"
-                color="warning"
-                onClick={() => setConfirmAction({ label: 'Scan & recover orphaned pools', fn: startRecovery })}
-              >
-                Scan & Recover
-              </Button>
-            )}
-          </Box>
-        </Box>
-
+        ) : null}
         {recoveryLogs.length > 0 && (
           <Box
             sx={{
-              mt: 1,
               bgcolor: t.bg.surfaceAlt,
-              border: `1px solid ${t.border.strong}`,
-              boxShadow: t.surfaceShadow,
-              borderRadius: 1,
+              border: `1px solid ${t.border.subtle}`,
+              borderRadius: 1.5,
               p: 1.5,
               maxHeight: 400,
               overflow: 'auto',
-              fontSize: 12,
+              fontSize: '0.75rem',
               lineHeight: 1.6,
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
               '&::-webkit-scrollbar': { width: 6 },
-              '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.2)', borderRadius: 3 },
+              '&::-webkit-scrollbar-thumb': { bgcolor: t.scrollbar.thumb, borderRadius: 3 },
             }}
           >
             {recoveryLogs.map((log, i) => (
-              <Box key={i} sx={{ color: LOG_COLORS[log.type] || '#E5E7EB', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+              <Box key={i} sx={{ color: LOG_COLORS[log.type] || t.text.primary, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
                 {log.type === 'done' ? (
-                  <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                    <strong>{log.message}</strong>
+                  <Box sx={{ mt: 1, pt: 1, borderTop: `1px solid ${t.border.subtle}`, fontWeight: 700 }}>
+                    {log.message}
                   </Box>
                 ) : (
                   log.message
@@ -172,48 +196,101 @@ export function ManualActions() {
             <div ref={logEndRef} />
           </Box>
         )}
-      </Card>
+      </SectionCard>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
-        <ActionCard title="Force Resolve Pool" description="Resolve a stuck JOINING/ACTIVE pool using current market price">
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <TextField size="small" placeholder="Pool UUID" value={resolveId} onChange={e => setResolveId(e.target.value)} fullWidth />
-            <Button variant="contained" color="warning" disabled={!resolveId}
-              onClick={() => setConfirmAction({ label: `Resolve pool ${resolveId.slice(0, 8)}...`, fn: () => adminPost('/actions/resolve-pool', { poolId: resolveId }) })}>
-              Resolve
-            </Button>
-          </Box>
-        </ActionCard>
+      <SectionCard
+        dense
+        title="Restart scheduler"
+        subtitle="Stop and restart all scheduler cron jobs. Live pools keep their state."
+        actions={
+          <ActionButton
+            kind="secondary"
+            label="Restart"
+            onClick={() => setConfirmAction({
+              label: 'Restart scheduler',
+              severity: 'warning',
+              fn: () => adminPost('/actions/restart-scheduler'),
+            })}
+          />
+        }
+      >{null}</SectionCard>
 
-        <ActionCard title="Force Refund Pool" description="Resolve with synthetic prices and auto-refund all bets">
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <TextField size="small" placeholder="Pool UUID" value={refundId} onChange={e => setRefundId(e.target.value)} fullWidth />
-            <Button variant="contained" color="error" disabled={!refundId}
-              onClick={() => setConfirmAction({ label: `Refund pool ${refundId.slice(0, 8)}...`, fn: () => adminPost('/actions/refund-pool', { poolId: refundId }) })}>
-              Refund
-            </Button>
-          </Box>
-        </ActionCard>
+      {/* ─── Crypto pool emergency ─────────────────────────────────── */}
+      <H2>Crypto pool emergency</H2>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2 }}>
+        {poolActions.map(a => (
+          <SectionCard
+            key={a.key}
+            dense
+            accentColor={a.accent}
+            title={a.title}
+            subtitle={a.description}
+          >
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+              {a.key === 'resolve' && (
+                <>
+                  <TextField size="small" placeholder="Pool UUID" value={resolveId} onChange={e => setResolveId(e.target.value)} sx={{ flex: 1, minWidth: 180 }} />
+                  <ActionButton
+                    kind="secondary"
+                    label="Resolve"
+                    disabled={!resolveId}
+                    onClick={() => setConfirmAction({
+                      label: `Resolve pool ${resolveId.slice(0, 8)}…`,
+                      severity: a.severity,
+                      fn: () => adminPost('/actions/resolve-pool', { poolId: resolveId }),
+                    })}
+                  />
+                </>
+              )}
+              {a.key === 'refund' && (
+                <>
+                  <TextField size="small" placeholder="Pool UUID" value={refundId} onChange={e => setRefundId(e.target.value)} sx={{ flex: 1, minWidth: 180 }} />
+                  <ActionButton
+                    kind="destructive"
+                    label="Refund"
+                    disabled={!refundId}
+                    onClick={() => setConfirmAction({
+                      label: `Refund pool ${refundId.slice(0, 8)}…`,
+                      severity: a.severity,
+                      fn: () => adminPost('/actions/refund-pool', { poolId: refundId }),
+                    })}
+                  />
+                </>
+              )}
+              {a.key === 'close' && (
+                <>
+                  <TextField size="small" placeholder="Pool UUID" value={closeId} onChange={e => setCloseId(e.target.value)} sx={{ flex: 1, minWidth: 180 }} />
+                  <Box component="label" htmlFor="forceClose" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      id="forceClose"
+                      checked={forceClose}
+                      onChange={(e) => setForceClose(e.target.checked)}
+                    />
+                    <Meta component="span">force</Meta>
+                  </Box>
+                  <ActionButton
+                    kind="destructive"
+                    label="Close"
+                    disabled={!closeId}
+                    onClick={() => setConfirmAction({
+                      label: `${forceClose ? 'Force-close' : 'Close'} pool ${closeId.slice(0, 8)}…`,
+                      severity: a.severity,
+                      fn: () => adminPost('/actions/close-pool', { poolId: closeId, force: forceClose }),
+                    })}
+                  />
+                </>
+              )}
+            </Box>
+          </SectionCard>
+        ))}
 
-        <ActionCard title="Force Close Pool" description="Close a CLAIMABLE pool and reclaim rent (all bets must be claimed)">
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <TextField size="small" placeholder="Pool UUID" value={closeId} onChange={e => setCloseId(e.target.value)} fullWidth />
-            <Button variant="contained" color="error" disabled={!closeId}
-              onClick={() => setConfirmAction({ label: `Close pool ${closeId.slice(0, 8)}...`, fn: () => adminPost('/actions/close-pool', { poolId: closeId }) })}>
-              Close
-            </Button>
-          </Box>
-        </ActionCard>
-
-        <ActionCard title="Restart Scheduler" description="Stop and restart all scheduler cron jobs">
-          <Button variant="contained" color="warning"
-            onClick={() => setConfirmAction({ label: 'Restart scheduler', fn: () => adminPost('/actions/restart-scheduler') })}>
-            Restart Scheduler
-          </Button>
-        </ActionCard>
-
-        <ActionCard title="Create Pool" description="Manually create a new pool (admin-only, replaces /api/pools/test)">
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+        <SectionCard
+          dense
+          title="Create pool"
+          subtitle="Manually create a pool. Admin-only, replaces /api/pools/test."
+        >
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
             <FormControl size="small" sx={{ minWidth: 100 }}>
               <InputLabel>Asset</InputLabel>
               <Select value={asset} onChange={e => setAsset(e.target.value)} label="Asset">
@@ -231,35 +308,29 @@ export function ManualActions() {
                 <MenuItem value="1h">1h</MenuItem>
               </Select>
             </FormControl>
-            <Button variant="contained"
-              onClick={() => setConfirmAction({ label: `Create ${asset} ${intervalKey} pool`, fn: () => adminPost('/actions/create-pool', { asset, intervalKey }) })}>
-              Create
-            </Button>
+            <ActionButton
+              kind="primary"
+              label="Create"
+              onClick={() => setConfirmAction({
+                label: `Create ${asset} ${intervalKey} pool`,
+                severity: 'warning',
+                fn: () => adminPost('/actions/create-pool', { asset, intervalKey }),
+              })}
+            />
           </Box>
-        </ActionCard>
+        </SectionCard>
       </Box>
 
-      <Dialog open={!!confirmAction} onClose={() => !recoveryRunning && setConfirmAction(null)}>
-        <DialogTitle>Confirm Action</DialogTitle>
-        <DialogContent>
-          <Typography>Are you sure you want to: <strong>{confirmAction?.label}</strong>?</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmAction(null)} disabled={recoveryRunning}>Cancel</Button>
-          <Button variant="contained" color="error" disabled={execMutation.isPending || recoveryRunning}
-            onClick={() => {
-              if (!confirmAction) return;
-              // Recovery uses its own flow (SSE streaming)
-              if (confirmAction.label.includes('orphaned')) {
-                confirmAction.fn();
-              } else {
-                execMutation.mutate(confirmAction.fn);
-              }
-            }}>
-            {execMutation.isPending || recoveryRunning ? 'Executing...' : 'Confirm'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDialog
+        open={!!confirmAction}
+        onClose={() => !recoveryRunning && setConfirmAction(null)}
+        onConfirm={runConfirmed}
+        loading={execMutation.isPending || recoveryRunning}
+        title="Confirm action"
+        consequences={confirmAction ? <>This will execute: <Body component="strong" sx={{ display: 'inline', fontWeight: 700 }}>{confirmAction.label}</Body>. Many actions trigger on-chain transactions and cannot be undone.</> : ''}
+        actionLabel="Confirm"
+        severity={confirmAction?.severity ?? 'warning'}
+      />
     </Box>
   );
 }
