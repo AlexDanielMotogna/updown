@@ -3,6 +3,21 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { invalidateCache } from '../../services/category-config';
+import { refreshAllAdapters } from '../../services/sports';
+
+/**
+ * Drop the in-memory SportsDbAdapter cache so the next sync rebuilds with
+ * the latest category configs from the DB. Called after any mutation that
+ * could change adapter behaviour (POST/PUT/DELETE/toggle/coming-soon on
+ * FOOTBALL_LEAGUE or SPORTSDB_SPORT categories). Fire-and-forget — a stale
+ * adapter for one tick is better than failing the mutation if the refresh
+ * stumbles.
+ */
+function rebuildAdapters(): void {
+  refreshAllAdapters().catch(err => {
+    console.warn('[admin-categories] adapter refresh failed:', err instanceof Error ? err.message : err);
+  });
+}
 
 export const adminCategoriesRouter: RouterType = Router();
 
@@ -76,6 +91,7 @@ adminCategoriesRouter.post('/', async (req, res) => {
     }
     const category = await prisma.poolCategory.create({ data: normalizeConfig(parsed.data) });
     invalidateCache();
+    rebuildAdapters();
     res.json({ success: true, data: category });
   } catch (err) {
     const { status, body } = safeErrorResponse('create', err);
@@ -95,6 +111,7 @@ adminCategoriesRouter.put('/:id', async (req, res) => {
       data: normalizeConfig(parsed.data),
     });
     invalidateCache();
+    rebuildAdapters();
     res.json({ success: true, data: category });
   } catch (err) {
     const { status, body } = safeErrorResponse('update', err);
@@ -115,6 +132,7 @@ adminCategoriesRouter.patch('/:id/toggle', async (req, res) => {
       data: { enabled: !current.enabled },
     });
     invalidateCache();
+    rebuildAdapters();
     res.json({ success: true, data: category });
   } catch (err) {
     const { status, body } = safeErrorResponse('toggle', err);
@@ -135,6 +153,7 @@ adminCategoriesRouter.patch('/:id/coming-soon', async (req, res) => {
       data: { comingSoon: !current.comingSoon },
     });
     invalidateCache();
+    rebuildAdapters();
     res.json({ success: true, data: category });
   } catch (err) {
     const { status, body } = safeErrorResponse('toggle', err);
@@ -170,6 +189,7 @@ adminCategoriesRouter.delete('/:id', async (req, res) => {
     }
     await prisma.poolCategory.delete({ where: { id: req.params.id } });
     invalidateCache();
+    rebuildAdapters();
     res.json({ success: true });
   } catch (err) {
     const { status, body } = safeErrorResponse('delete', err);

@@ -65,6 +65,28 @@ async function refreshDynamic(): Promise<void> {
   }
 }
 
+/**
+ * Drop one adapter from the dynamic cache. Call after a category's config
+ * changes (sportQuery / leagueFilter / externalLeagueId) so the next
+ * getAdapter(code) rebuilds with the fresh row from the DB. Without this,
+ * a category edited after process start keeps serving from the boot-time
+ * adapter forever — the BOXIN incident (898 soccer rows under league=BOXIN
+ * because the adapter never picked up the corrected Fighting/Boxing/4445
+ * config) traces back to this.
+ */
+export function invalidateAdapter(code: string): void {
+  if (dynamicAdapters[code]) {
+    delete dynamicAdapters[code];
+  }
+}
+
+/** Wipe all dynamic adapters and re-pull from the DB on next refresh. */
+export async function refreshAllAdapters(): Promise<void> {
+  for (const k of Object.keys(dynamicAdapters)) delete dynamicAdapters[k];
+  dynamicInitialized = false;
+  await refreshDynamic();
+}
+
 export function getAdapter(sport: string): SportAdapter {
   // Check static adapters first
   if (staticAdapters[sport]) return staticAdapters[sport];
