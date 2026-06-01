@@ -15,7 +15,7 @@ import {
   Dialog, DialogContent, DialogActions, Box, IconButton,
   type DialogProps,
 } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import { darkTokens as t } from '@/lib/theme';
 import { H3 } from './typography';
 import type { ReactNode } from 'react';
@@ -57,6 +57,11 @@ export function AdminDialog({
           border: `1px solid ${t.border.medium}`,
           borderRadius: 2,
           backgroundImage: 'none',
+          // Match TransactionModal: subtle elevation (single shadow token,
+          // no glow). overflow:hidden so the footer's tinted background
+          // doesn't peek past the rounded corner.
+          boxShadow: t.surfaceShadow !== 'none' ? t.surfaceShadow : undefined,
+          overflow: 'hidden',
         },
         ...rest.PaperProps,
       }}
@@ -73,11 +78,12 @@ export function AdminDialog({
         {showClose ? (
           <IconButton
             size="small"
+            aria-label="Close"
             onClick={onClose}
             disabled={blocked}
-            sx={{ color: t.text.tertiary, '&:hover': { color: t.text.primary } }}
+            sx={{ color: t.text.tertiary, '&:hover': { color: t.text.primary, bgcolor: t.hover.default } }}
           >
-            <CloseIcon sx={{ fontSize: 18 }} />
+            <CloseRoundedIcon fontSize="small" />
           </IconButton>
         ) : null}
       </Box>
@@ -88,10 +94,11 @@ export function AdminDialog({
 
       {footer ? (
         <DialogActions sx={{
-          px: 2.5, py: 1.5,
+          px: 2.5, py: 2,
           borderTop: `1px solid ${t.border.subtle}`,
           bgcolor: t.bg.surfaceAlt,
           gap: 1,
+          justifyContent: 'flex-end',
         }}>
           {footer}
         </DialogActions>

@@ -38,17 +38,24 @@ export function ActionButton({ kind, label, icon, loading, disabled, sx, ...rest
     : kind === 'tertiary' ? 'text'
     : 'outlined';
 
+  // Visual rules per PLAN-ADMIN-REFACTOR.md Phase 2b §7. `t.success` (not
+  // `t.gain`) for the primary CTA so the semantic and the swatch line up
+  // with the public app's TransactionModal "Done" button. `t.successDark`
+  // on hover instead of a brightness filter — single source of truth in
+  // the theme. Secondary mirrors the public app's footer-cancel pattern.
   const baseSx =
     kind === 'primary' ? {
-      bgcolor: t.gain,
-      color: t.text.contrast,
+      bgcolor: t.success,
+      color: '#fff',
       boxShadow: 'none',
-      '&:hover': { bgcolor: t.gain, boxShadow: 'none', filter: 'brightness(1.08)' },
+      border: 'none',
+      '&:hover': { bgcolor: t.successDark, boxShadow: 'none' },
+      '&.Mui-disabled': { bgcolor: t.hover.default, color: t.text.dimmed },
     } : kind === 'secondary' ? {
-      bgcolor: 'transparent',
+      bgcolor: t.hover.medium,
       borderColor: t.border.medium,
       color: t.text.primary,
-      '&:hover': { bgcolor: t.hover.medium, borderColor: t.border.strong },
+      '&:hover': { bgcolor: t.hover.strong, borderColor: t.border.emphasis },
     } : kind === 'destructive' ? {
       bgcolor: 'transparent',
       borderColor: withAlpha(t.error, 0.5),
@@ -67,12 +74,16 @@ export function ActionButton({ kind, label, icon, loading, disabled, sx, ...rest
       {...rest}
       sx={{
         textTransform: 'none',
-        fontWeight: 500,
-        fontSize: '0.8rem',
+        // Sized to match TransactionModal's footer buttons: 0.85rem / 600,
+        // px 2-2.5, radius 1 (8px). Same scale across every action surface.
+        fontWeight: 600,
+        fontSize: '0.85rem',
         borderRadius: 1,
-        px: 1.5,
-        py: 0.5,
+        px: kind === 'tertiary' ? 1.25 : 2,
+        py: 0.625,
         minWidth: 0,
+        // No drop-shadow, no gradient — Phase 2b §1.
+        boxShadow: 'none',
         ...baseSx,
         ...sx,
       }}

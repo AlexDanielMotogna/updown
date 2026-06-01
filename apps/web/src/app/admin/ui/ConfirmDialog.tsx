@@ -15,7 +15,7 @@
  */
 import { Box } from '@mui/material';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
 import { darkTokens as t } from '@/lib/theme';
 import { AdminDialog } from './AdminDialog';
 import { ActionButton } from './ActionButton';
@@ -41,7 +41,7 @@ export function ConfirmDialog({
   actionLabel, cancelLabel = 'Cancel',
   severity = 'warning', loading, error,
 }: ConfirmDialogProps) {
-  const Icon = severity === 'destructive' ? DeleteOutlineIcon : WarningAmberRoundedIcon;
+  const Icon = severity === 'destructive' ? DeleteOutlineRoundedIcon : WarningAmberRoundedIcon;
   const iconColor = severity === 'destructive' ? t.error : t.warning;
 
   // Both severities render the contained "primary" shape; destructive

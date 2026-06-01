@@ -14,10 +14,13 @@
  * stays readable. Replaces six different error patterns in the wild.
  * See PLAN-ADMIN-REFACTOR.md Phase 2b §9.
  */
-import { Alert, Box, Collapse, Link } from '@mui/material';
+import { Box, Collapse, Link } from '@mui/material';
+import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded';
+import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import { useState, type ReactNode } from 'react';
-import { darkTokens as t } from '@/lib/theme';
+import { darkTokens as t, withAlpha } from '@/lib/theme';
 import { ActionButton } from './ActionButton';
+import { Body } from './typography';
 
 export interface ErrorAlertProps {
   title?: ReactNode;
@@ -29,40 +32,81 @@ export interface ErrorAlertProps {
 export function ErrorAlert({ title, message, details, onClose }: ErrorAlertProps) {
   const [open, setOpen] = useState(false);
   const hasDetails = details != null;
+  // We render our own surface (rather than MUI's default red-filled Alert)
+  // so colors come from the design tokens, not MUI's palette. Matches the
+  // TransactionModal error pattern: tinted background + 1px tinted border,
+  // rounded ErrorOutline icon, "Show details" expander for the raw text.
   return (
-    <Alert
-      severity="error"
-      onClose={onClose}
-      sx={{ borderRadius: 1.5, alignItems: 'flex-start', '& .MuiAlert-message': { width: '100%' } }}
+    <Box
+      role="alert"
+      sx={{
+        position: 'relative',
+        display: 'flex', gap: 1.25,
+        p: 1.25,
+        borderRadius: 1.5,
+        bgcolor: withAlpha(t.error, 0.08),
+        border: `1px solid ${withAlpha(t.error, 0.32)}`,
+        color: t.text.primary,
+      }}
     >
-      {title ? <Box sx={{ fontWeight: 600, mb: 0.25 }}>{title}</Box> : null}
-      <Box sx={{ fontSize: '0.85rem' }}>{message}</Box>
-      {hasDetails ? (
-        <>
-          <Link
-            component="button"
-            type="button"
-            onClick={() => setOpen(v => !v)}
-            sx={{ mt: 0.5, fontSize: '0.7rem', color: t.text.tertiary }}
-          >
-            {open ? 'Hide details' : 'Show details'}
-          </Link>
-          <Collapse in={open}>
-            <Box
-              component="pre"
+      <ErrorOutlineRoundedIcon sx={{ fontSize: 20, color: t.error, flexShrink: 0, mt: '1px' }} />
+      <Box sx={{ minWidth: 0, flex: 1 }}>
+        {title ? <Box sx={{ fontWeight: 600, fontSize: '0.85rem', mb: 0.25, color: t.text.primary }}>{title}</Box> : null}
+        <Body sx={{ fontSize: '0.8rem', color: t.text.secondary }}>{message}</Body>
+        {hasDetails ? (
+          <>
+            <Link
+              component="button"
+              type="button"
+              onClick={() => setOpen(v => !v)}
+              underline="none"
               sx={{
-                mt: 0.5, p: 1, fontSize: '0.7rem',
-                bgcolor: t.bg.surfaceAlt, borderRadius: 1,
-                whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                color: t.text.tertiary, maxHeight: 220, overflow: 'auto',
+                mt: 0.75, display: 'inline-flex', alignItems: 'center', gap: 0.25,
+                fontSize: '0.7rem', fontWeight: 500,
+                color: t.text.tertiary,
+                '&:hover': { color: t.text.primary },
               }}
             >
-              {typeof details === 'string' ? details : JSON.stringify(details, null, 2)}
-            </Box>
-          </Collapse>
-        </>
+              {open ? 'Hide details' : 'Show details'}
+              <ExpandMoreRoundedIcon sx={{
+                fontSize: 14,
+                transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.2s',
+              }} />
+            </Link>
+            <Collapse in={open}>
+              <Box
+                component="pre"
+                sx={{
+                  mt: 0.5, p: 1, fontSize: '0.7rem',
+                  bgcolor: t.bg.surfaceAlt, borderRadius: 1,
+                  whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                  color: t.text.tertiary, maxHeight: 220, overflow: 'auto',
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                }}
+              >
+                {typeof details === 'string' ? details : JSON.stringify(details, null, 2)}
+              </Box>
+            </Collapse>
+          </>
+        ) : null}
+      </Box>
+      {onClose ? (
+        <Link
+          component="button"
+          type="button"
+          onClick={onClose}
+          underline="none"
+          aria-label="Dismiss"
+          sx={{
+            alignSelf: 'flex-start', color: t.text.tertiary, fontSize: '0.7rem',
+            '&:hover': { color: t.text.primary },
+          }}
+        >
+          Close
+        </Link>
       ) : null}
-    </Alert>
+    </Box>
   );
 }
 

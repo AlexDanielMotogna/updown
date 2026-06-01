@@ -20,6 +20,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Snackbar, Box } from '@mui/material';
 import { ErrorAlert } from './ErrorState';
 import { darkTokens as t } from '@/lib/theme';
+import { mapAdminError } from '../lib/adminErrors';
 
 export type ToastKind = 'success' | 'error' | 'info' | 'warning';
 
@@ -178,8 +179,16 @@ export function useMutationFeedback() {
       }
       return data;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Operation failed';
-      toast.show({ kind: 'error', title: opts.errorTitle ?? 'Action failed', message, details: err });
+      // Run every mutation error through the friendly mapper. Raw
+      // err.message goes into details (collapsed by default in ErrorAlert)
+      // so support can still get the original text.
+      const friendly = mapAdminError(err);
+      toast.show({
+        kind: 'error',
+        title: opts.errorTitle ?? friendly.headline,
+        message: friendly.hint ?? friendly.detail,
+        details: friendly.detail,
+      });
       return undefined;
     }
   }, [toast]);

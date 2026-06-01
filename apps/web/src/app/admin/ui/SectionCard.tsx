@@ -31,9 +31,14 @@ export function SectionCard({ title, subtitle, actions, accentColor, dense, chil
       {...rest}
       sx={{
         bgcolor: t.bg.surface,
-        border: `1px solid ${t.border.medium}`,
+        // surfaceBorder = rgba(15,23,42,0.28) in light, 'none' in dark.
+        // Falls back to a 1px border-medium so the dark theme still has a
+        // visible edge. No drop-shadow, no gradient — Phase 2b §2.
+        border: t.surfaceBorder !== 'none' ? t.surfaceBorder : `1px solid ${t.border.medium}`,
         borderRadius: LAYOUT_TOKENS.radiusCard,
         borderLeft: accentColor ? `3px solid ${accentColor}` : undefined,
+        boxShadow: 'none',
+        backgroundImage: 'none',
         p: padding,
         ...sx,
       }}
