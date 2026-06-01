@@ -68,6 +68,9 @@ interface LivescoreMetricsData {
     oddsApiSuccessTotal: number;
     oddsApiCreditsRemaining: number | null;
     oddsApiDisabled: boolean;
+    displaySource: { sdb: number; oddsApi: number };
+    ftSource: { sdb: number; oddsApiFallback: number; chatgpt: number };
+    ftStuckKnockoutCount: number;
     missingEvents: MissingEvent[];
     incidents: LivescoreIncident[];
   };
@@ -94,6 +97,82 @@ function timeAgo(iso: string | null): string {
   if (seconds < 60) return `${seconds}s ago`;
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
   return `${Math.floor(seconds / 3600)}h ago`;
+}
+
+/**
+ * Visualises who's actually doing the work in the SDB-primary / Odds API-
+ * fallback split (Phase B of PLAN-LIVESCORE-SOURCE-SPLIT). Drives the
+ * decision-3 review at the 2-week mark: if Odds API contributes < 5% of
+ * FT signals, we can downgrade the $60/mo plan.
+ */
+function SourceSplitPanel({
+  displaySource, ftSource, ftStuckKnockoutCount,
+}: {
+  displaySource: { sdb: number; oddsApi: number };
+  ftSource: { sdb: number; oddsApiFallback: number; chatgpt: number };
+  ftStuckKnockoutCount: number;
+}) {
+  const displayTotal = displaySource.sdb + displaySource.oddsApi;
+  const ftTotal = ftSource.sdb + ftSource.oddsApiFallback + ftSource.chatgpt;
+  const pct = (n: number, total: number) => total > 0 ? Math.round((n / total) * 100) : 0;
+
+  return (
+    <Box sx={{ mb: 2, p: 1.5, bgcolor: 'rgba(0,0,0,0.15)', borderRadius: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+        <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: t.text.secondary }}>
+          Source Split
+        </Typography>
+        <Tooltip title="Per-row counters since the API started. SDB primary means it should dominate both columns; Odds API fallback should be a small share. If the Odds API column stays under ~5% for 2 weeks, the $60/mo plan can be downgraded.">
+          <Chip label="?" size="small" sx={{ height: 16, fontSize: 10, cursor: 'help' }} />
+        </Tooltip>
+        {ftStuckKnockoutCount > 0 && (
+          <Chip
+            label={`${ftStuckKnockoutCount} knockout(s) waiting on SDB`}
+            size="small"
+            sx={{ ml: 'auto', height: 18, fontSize: 10, bgcolor: withAlpha(t.warning, 0.15), color: t.warning }}
+          />
+        )}
+      </Box>
+
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+        {/* Display source */}
+        <Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 0.5 }}>
+            <Typography variant="caption" sx={{ fontWeight: 600 }}>Display rows (per cycle)</Typography>
+            <Typography variant="caption" sx={{ color: t.text.tertiary, fontVariantNumeric: 'tabular-nums' }}>{displayTotal.toLocaleString()} total</Typography>
+          </Box>
+          <Box sx={{ display: 'flex', height: 16, borderRadius: 1, overflow: 'hidden', bgcolor: 'rgba(255,255,255,0.05)' }}>
+            <Box sx={{ width: `${pct(displaySource.sdb, displayTotal)}%`, bgcolor: t.gain, transition: 'width 0.4s' }} />
+            <Box sx={{ width: `${pct(displaySource.oddsApi, displayTotal)}%`, bgcolor: t.predict, transition: 'width 0.4s' }} />
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1.5, mt: 0.5, fontSize: 11, color: t.text.secondary, fontVariantNumeric: 'tabular-nums' }}>
+            <span><Box component="span" sx={{ display: 'inline-block', width: 8, height: 8, bgcolor: t.gain, borderRadius: '50%', mr: 0.5 }} />SDB {pct(displaySource.sdb, displayTotal)}% ({displaySource.sdb.toLocaleString()})</span>
+            <span><Box component="span" sx={{ display: 'inline-block', width: 8, height: 8, bgcolor: t.predict, borderRadius: '50%', mr: 0.5 }} />Odds API gap-fill {pct(displaySource.oddsApi, displayTotal)}% ({displaySource.oddsApi.toLocaleString()})</span>
+          </Box>
+        </Box>
+
+        {/* FT source */}
+        <Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 0.5 }}>
+            <Typography variant="caption" sx={{ fontWeight: 600 }}>FT signals (per match)</Typography>
+            <Typography variant="caption" sx={{ color: t.text.tertiary, fontVariantNumeric: 'tabular-nums' }}>{ftTotal.toLocaleString()} total</Typography>
+          </Box>
+          <Box sx={{ display: 'flex', height: 16, borderRadius: 1, overflow: 'hidden', bgcolor: 'rgba(255,255,255,0.05)' }}>
+            <Box sx={{ width: `${pct(ftSource.sdb, ftTotal)}%`, bgcolor: t.gain, transition: 'width 0.4s' }} />
+            <Box sx={{ width: `${pct(ftSource.oddsApiFallback, ftTotal)}%`, bgcolor: t.predict, transition: 'width 0.4s' }} />
+            <Box sx={{ width: `${pct(ftSource.chatgpt, ftTotal)}%`, bgcolor: t.warning, transition: 'width 0.4s' }} />
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1.5, mt: 0.5, fontSize: 11, color: t.text.secondary, fontVariantNumeric: 'tabular-nums', flexWrap: 'wrap' }}>
+            <span><Box component="span" sx={{ display: 'inline-block', width: 8, height: 8, bgcolor: t.gain, borderRadius: '50%', mr: 0.5 }} />SDB {pct(ftSource.sdb, ftTotal)}% ({ftSource.sdb})</span>
+            <span><Box component="span" sx={{ display: 'inline-block', width: 8, height: 8, bgcolor: t.predict, borderRadius: '50%', mr: 0.5 }} />Odds API fallback {pct(ftSource.oddsApiFallback, ftTotal)}% ({ftSource.oddsApiFallback})</span>
+            {ftSource.chatgpt > 0 && (
+              <span><Box component="span" sx={{ display: 'inline-block', width: 8, height: 8, bgcolor: t.warning, borderRadius: '50%', mr: 0.5 }} />ChatGPT {pct(ftSource.chatgpt, ftTotal)}% ({ftSource.chatgpt})</span>
+            )}
+          </Box>
+        </Box>
+      </Box>
+    </Box>
+  );
 }
 
 function LivescoreHealth() {
@@ -195,6 +274,13 @@ function LivescoreHealth() {
           </Typography>
         )}
       </Box>
+
+      {/* Source split (Phase C) — who's actually doing the work */}
+      <SourceSplitPanel
+        displaySource={m.displaySource}
+        ftSource={m.ftSource}
+        ftStuckKnockoutCount={m.ftStuckKnockoutCount}
+      />
 
       {/* Missing events */}
       {m.missingEvents.length > 0 && (

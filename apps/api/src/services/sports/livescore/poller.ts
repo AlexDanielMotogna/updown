@@ -19,6 +19,7 @@ import {
   recordEventDisappeared, recordMidnightBoundary, recordChatGPTTriggered,
   recordChatGPTSuccess, recordChatGPTRejected, clearMissingEvent,
   recordOddsApiSuccess,
+  recordDisplaySource, recordFtSource, recordFtStuckKnockoutCount,
 } from './metrics';
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -433,6 +434,22 @@ async function pollLiveScores(): Promise<void> {
       }
     }
 
+    // 7. Phase C metrics — categorize each persisted row by source and
+    //    every FT signal by who flagged it first. recordFtSource is
+    //    idempotent per eventId so re-counting across cycles is safe.
+    for (const entry of toPersist) {
+      if (sdbIds.has(entry.eventId)) recordDisplaySource('sdb');
+      else if (oddsApiIds.has(entry.eventId)) recordDisplaySource('oddsApi');
+      if (isFinishedStatus(entry.status)) {
+        recordFtSource(
+          entry.eventId,
+          ftFallbackIds.has(entry.eventId) ? 'oddsApiFallback'
+            : sdbIds.has(entry.eventId) ? 'sdb'
+            : 'chatgpt',
+        );
+      }
+    }
+
     // 7. Persist to DB + sync finished to UI (non-blocking).
     persistToDb(toPersist).catch(() => {});
     syncFinishedToUi(toPersist).catch(() => {});
@@ -460,6 +477,22 @@ async function pollLiveScores(): Promise<void> {
       const ftSuffix = ftFallbackIds.size > 0 ? ` FT-overrides:${ftFallbackIds.size}` : '';
       console.log(`[LiveScore] SDB:${sdbIds.size} OddsAPI-fallback:${oddsApiIds.size}${ftSuffix} (${toPersist.length} persisted)`);
     }
+
+    // Phase C — count active CL/EL pools past expected end whose feed row
+    // is not yet finished (Phase B Decision 2: knockouts wait on SDB AET/PEN
+    // indefinitely, never overridden by Odds API). This is a current gauge.
+    try {
+      const knockoutLeagues = [...KNOCKOUT_DISABLE_ODDS_FALLBACK];
+      const stuckKnockouts = await prisma.pool.count({
+        where: {
+          poolType: 'SPORTS',
+          status: { in: ['JOINING', 'ACTIVE'] },
+          league: { in: knockoutLeagues },
+          startTime: { lt: new Date(Date.now() - (155 + 5) * 60_000) }, // beyond knockout duration + grace
+        },
+      });
+      recordFtStuckKnockoutCount(stuckKnockouts);
+    } catch { /* best-effort */ }
   } catch (error) {
     recordPollFailure((error as Error).message || 'Unknown poll error');
   }

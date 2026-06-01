@@ -59,6 +59,27 @@ export interface LivescoreMetrics {
   oddsApiCreditsRemaining: number | null;
   oddsApiDisabled: boolean;
 
+  // ── Phase C source split (PLAN-LIVESCORE-SOURCE-SPLIT.md) ──
+  // Cumulative per-row counters since the API started. Every persisted row
+  // increments exactly one of these; reading their ratio tells the operator
+  // how much work each feed is actually doing.
+  displaySource: {
+    sdb: number;        // SDB owned the row outright (Phase A)
+    oddsApi: number;    // Odds API filled a gap SDB didn't cover
+  };
+  // Every FT signal counted exactly once: who flagged the match as finished
+  // first. Tracked per resolved event so we can decide whether to keep the
+  // \$60/mo Odds API plan after the 2-week soak (PLAN decision 3).
+  ftSource: {
+    sdb: number;             // SDB returned a finished strStatus
+    oddsApiFallback: number; // Odds API completed:true overrode a lagging SDB row (Phase B grace path)
+    chatgpt: number;         // ChatGPT last-resort fallback resolved
+  };
+  // Knockouts (CL/EL) that are past expected end but still waiting on SDB
+  // AET/PEN — deliberately NOT overridden by Odds API per regulation rules.
+  // Tracked as a current gauge (not cumulative); spikes mean SDB is behind.
+  ftStuckKnockoutCount: number;
+
   // Active issues
   missingEvents: MissingEvent[];
 
@@ -82,6 +103,18 @@ let sportsDbTotalLatencyMs = 0;
 let sportsDb429Count = 0;
 
 let lookupCallsTotal = 0;
+
+// Phase C source split counters
+let displaySourceSdb = 0;
+let displaySourceOddsApi = 0;
+let ftSourceSdb = 0;
+let ftSourceOddsApiFallback = 0;
+let ftSourceChatGpt = 0;
+let ftStuckKnockoutCount = 0;
+// Track which event IDs we've already counted as "FT resolved" so the poller
+// can call recordFtSource on every cycle without inflating the totals when
+// the same row stays in toPersist for multiple cycles before resolve fires.
+const ftCountedEvents = new Set<string>();
 
 const missingEvents = new Map<string, MissingEvent>();
 const incidents: Incident[] = [];
@@ -194,6 +227,46 @@ export function clearMissingEvent(eventId: string): void {
   missingEvents.delete(eventId);
 }
 
+// ─── Phase C source-split recorders ──────────────────────────────────────────
+
+/**
+ * Tally each row persisted in a poll cycle. Called once per event id with
+ * `'sdb'` when SDB owned the row, `'oddsApi'` when only Odds API had it.
+ */
+export function recordDisplaySource(source: 'sdb' | 'oddsApi'): void {
+  if (source === 'sdb') displaySourceSdb++;
+  else displaySourceOddsApi++;
+}
+
+/**
+ * Tally the FIRST FT signal for an event. Idempotent: subsequent calls with
+ * the same eventId are no-ops, so the poller can fire this every cycle.
+ */
+export function recordFtSource(eventId: string, source: 'sdb' | 'oddsApiFallback' | 'chatgpt'): void {
+  if (ftCountedEvents.has(eventId)) return;
+  ftCountedEvents.add(eventId);
+  if (source === 'sdb') ftSourceSdb++;
+  else if (source === 'oddsApiFallback') ftSourceOddsApiFallback++;
+  else ftSourceChatGpt++;
+  // Trim the dedupe set so it doesn't grow unboundedly. 5k events covers
+  // weeks of activity; rotating to the most recent half preserves recency.
+  if (ftCountedEvents.size > 5000) {
+    const arr = [...ftCountedEvents].slice(-2500);
+    ftCountedEvents.clear();
+    for (const id of arr) ftCountedEvents.add(id);
+  }
+}
+
+/**
+ * Current snapshot of CL/EL pools waiting on SDB AET/PEN (Phase B Decision 2:
+ * knockouts never accept the Odds API FT fallback because Odds API can't tell
+ * us if ET happened, and regulation-time bets resolve to DRAW for AET/PEN).
+ * Called from the poller with the count for this cycle.
+ */
+export function recordFtStuckKnockoutCount(count: number): void {
+  ftStuckKnockoutCount = count;
+}
+
 // ─── Get metrics snapshot ────────────────────────────────────────────────────
 
 export function getMetrics(): LivescoreMetrics {
@@ -242,6 +315,17 @@ export function getMetrics(): LivescoreMetrics {
     oddsApiSuccessTotal: oddsApiSuccess,
     oddsApiCreditsRemaining: oddsApiRemaining,
     oddsApiDisabled: oddsApiOff,
+
+    displaySource: {
+      sdb: displaySourceSdb,
+      oddsApi: displaySourceOddsApi,
+    },
+    ftSource: {
+      sdb: ftSourceSdb,
+      oddsApiFallback: ftSourceOddsApiFallback,
+      chatgpt: ftSourceChatGpt,
+    },
+    ftStuckKnockoutCount,
 
     missingEvents: [...missingEvents.values()],
     incidents: [...incidents],
