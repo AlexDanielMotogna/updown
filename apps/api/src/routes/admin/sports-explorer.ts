@@ -1,9 +1,14 @@
 import { Router, type Router as RouterType } from 'express';
 import { z } from 'zod';
+import { Transaction } from '@solana/web3.js';
 import { prisma } from '../../db';
 import { getAdapter } from '../../services/sports';
 import { createSportsPool } from '../../scheduler/sports-scheduler';
 import { sportsDbFetch } from '../../services/sports/api-sports-fetch';
+import { getPoolPDA, buildResolveWithWinnerIx } from 'solana-client';
+import { derivePoolSeed, getConnection, getAuthorityKeypair } from '../../utils/solana';
+import { emitPoolStatus } from '../../websocket';
+import { KNOCKOUT_DISABLE_ODDS_FALLBACK, EXPECTED_MATCH_DURATION_MS, DEFAULT_EXPECTED_DURATION_MS, ODDS_API_FT_FALLBACK_GRACE_MS } from '../../services/sports/livescore/types';
 import type { Match } from '../../services/sports/types';
 
 // In-memory cache for the full SDB leagues catalog (1,475 rows). The list
@@ -345,6 +350,211 @@ adminSportsRouter.get('/sdb-leagues', async (_req, res) => {
     });
   } catch (error) {
     console.error('[AdminSports] sdb-leagues error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: error instanceof Error ? error.message : 'unknown' } });
+  }
+});
+
+// ── GET /admin/sports/stuck-knockouts ────────────────────────────────────────
+// Lists CL/EL pools the Phase B grace-window logic intentionally leaves
+// stuck: knockouts past expected end where SDB hasn't yet reported FT/AET/PEN,
+// and Odds API's `completed: true` can't be trusted because it doesn't
+// expose extra-time/penalty markers. Phase C surfaces a count gauge in the
+// SourceSplitPanel; this endpoint feeds the actionable list under it.
+//
+// `minHoursOverdue` lets the admin focus on pools that have been waiting a
+// while (defaults to 0 so everything past expected end shows up).
+const stuckKnockoutsQuery = z.object({
+  minHoursOverdue: z.coerce.number().min(0).max(72).default(0),
+});
+
+adminSportsRouter.get('/stuck-knockouts', async (req, res) => {
+  try {
+    const parsed = stuckKnockoutsQuery.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid query' } });
+    }
+    const { minHoursOverdue } = parsed.data;
+
+    const knockoutLeagues = [...KNOCKOUT_DISABLE_ODDS_FALLBACK];
+    const cutoff = new Date(Date.now() - minHoursOverdue * 3_600_000);
+
+    const stuck = await prisma.pool.findMany({
+      where: {
+        poolType: 'SPORTS',
+        status: { in: ['JOINING', 'ACTIVE'] },
+        league: { in: knockoutLeagues },
+        startTime: { lte: cutoff },
+      },
+      orderBy: { startTime: 'asc' },
+      select: {
+        id: true, matchId: true, league: true, homeTeam: true, awayTeam: true,
+        homeTeamCrest: true, awayTeamCrest: true,
+        startTime: true, status: true, homeScore: true, awayScore: true,
+      },
+    });
+
+    // Bet counts per pool in one round-trip.
+    const betCounts = await prisma.bet.groupBy({
+      by: ['poolId'],
+      where: { poolId: { in: stuck.map(p => p.id) } },
+      _count: { _all: true },
+    });
+    const betCountByPool = new Map(betCounts.map(r => [r.poolId, r._count._all]));
+
+    // Annotate each pool with the wall-clock minutes past expected end +
+    // whether the grace window has elapsed (informational; admin still
+    // decides the winner manually).
+    const data = stuck.map(p => {
+      const expectedEnd = p.startTime.getTime() + (EXPECTED_MATCH_DURATION_MS[p.league || ''] ?? DEFAULT_EXPECTED_DURATION_MS);
+      const pastEndMs = Date.now() - expectedEnd;
+      return {
+        ...p,
+        startTime: p.startTime.toISOString(),
+        betCount: betCountByPool.get(p.id) ?? 0,
+        minutesPastExpectedEnd: Math.max(0, Math.round(pastEndMs / 60_000)),
+        graceWindowExpired: pastEndMs > ODDS_API_FT_FALLBACK_GRACE_MS,
+      };
+    });
+
+    res.json({ success: true, data: { knockouts: data, count: data.length } });
+  } catch (error) {
+    console.error('[AdminSports] stuck-knockouts error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: error instanceof Error ? error.message : 'unknown' } });
+  }
+});
+
+// ── POST /admin/sports/resolve-knockout ──────────────────────────────────────
+// Admin-supplied resolution for a stuck CL/EL pool. The admin tells us who
+// won at regulation time (90'), and we run the same on-chain
+// resolve_with_winner path the auto-resolver uses + flip the DB row.
+//
+// regulationScore is optional but recommended — the public match page
+// surfaces it so users see the score that resolved the pool, not a blank.
+const resolveKnockoutBody = z.object({
+  poolId: z.string().uuid(),
+  winner: z.enum(['HOME', 'DRAW', 'AWAY']),
+  regulationHomeScore: z.coerce.number().int().min(0).max(99).optional(),
+  regulationAwayScore: z.coerce.number().int().min(0).max(99).optional(),
+  reason: z.string().min(1).max(200).optional(),
+});
+
+const WINNER_TO_INDEX: Record<'HOME' | 'DRAW' | 'AWAY', 0 | 1 | 2> = {
+  HOME: 0,
+  AWAY: 1,
+  DRAW: 2,
+};
+
+const WINNER_TO_LABEL: Record<'HOME' | 'DRAW' | 'AWAY', 'UP' | 'DOWN' | 'DRAW'> = {
+  HOME: 'UP',
+  AWAY: 'DOWN',
+  DRAW: 'DRAW',
+};
+
+adminSportsRouter.post('/resolve-knockout', async (req, res) => {
+  try {
+    const parsed = resolveKnockoutBody.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid body', details: parsed.error.flatten() } });
+    }
+    const { poolId, winner, regulationHomeScore, regulationAwayScore, reason } = parsed.data;
+
+    const pool = await prisma.pool.findUnique({ where: { id: poolId } });
+    if (!pool) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Pool not found' } });
+    if (pool.poolType !== 'SPORTS' || !pool.league || !KNOCKOUT_DISABLE_ODDS_FALLBACK.has(pool.league)) {
+      return res.status(400).json({ success: false, error: { code: 'NOT_KNOCKOUT', message: 'This endpoint is only for CL/EL knockout pools' } });
+    }
+    if (pool.status === 'RESOLVED' || pool.status === 'CLAIMABLE') {
+      return res.status(409).json({ success: false, error: { code: 'ALREADY_RESOLVED', message: `Pool is already ${pool.status}` } });
+    }
+    if (pool.numSides !== 3 && winner === 'DRAW') {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_SIDE', message: 'DRAW only valid for 3-way pools' } });
+    }
+
+    const connection = getConnection();
+    const wallet = getAuthorityKeypair();
+    const seed = derivePoolSeed(pool.id);
+    const [poolPda] = getPoolPDA(seed);
+
+    // resolve_with_winner on-chain. Same idempotent-error handling as the
+    // PM cancel + sports scheduler use elsewhere.
+    let onChainResolved = false;
+    try {
+      const ix = buildResolveWithWinnerIx(poolPda, wallet.publicKey, WINNER_TO_INDEX[winner]);
+      const tx = new Transaction().add(ix);
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = wallet.publicKey;
+      tx.sign(wallet);
+      const sig = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: false, preflightCommitment: 'confirmed' });
+      await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
+      onChainResolved = true;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('InvalidPoolStatus') || msg.includes('0x177a') || msg.includes('AccountNotInitialized')) {
+        // Already resolved on-chain in a previous attempt — proceed to DB sync.
+        onChainResolved = true;
+      } else if (msg.includes('AccountDidNotSerialize') || msg.includes('0xbbc')) {
+        // Stale Pool layout (see bug_program_regression_per_side memory).
+        // Mark DB anyway — pool with bets gets CLAIMABLE, no-bet pool will
+        // be cleaned up by orphan recovery. No funds at risk: the only way
+        // for users to claim is via the DB flag flipping.
+        console.warn(`[AdminSports] Knockout ${poolId} has stale on-chain layout — resolving in DB only`);
+      } else {
+        console.error(`[AdminSports] On-chain resolve failed for ${poolId}:`, msg);
+        return res.status(500).json({ success: false, error: { code: 'ONCHAIN_FAILED', message: msg } });
+      }
+    }
+
+    const winnerLabel = WINNER_TO_LABEL[winner];
+    await prisma.pool.update({
+      where: { id: pool.id },
+      data: {
+        status: 'CLAIMABLE',
+        winner: winnerLabel,
+        finalPrice: BigInt(0),
+        ...(regulationHomeScore != null ? { homeScore: regulationHomeScore } : {}),
+        ...(regulationAwayScore != null ? { awayScore: regulationAwayScore } : {}),
+      },
+    });
+
+    // Mirror to the fixture cache so the read-paths the rest of the app uses
+    // (live_scores fallback chain, /match/[id] page) line up.
+    await prisma.sportsFixtureCache.updateMany({
+      where: { externalId: pool.matchId ?? '' },
+      data: {
+        status: 'FINISHED',
+        winner: winner,
+        ...(regulationHomeScore != null ? { homeScore: regulationHomeScore } : {}),
+        ...(regulationAwayScore != null ? { awayScore: regulationAwayScore } : {}),
+        lastSyncedAt: new Date(),
+      },
+    }).catch(() => {});
+
+    emitPoolStatus(pool.id, { id: pool.id, status: 'CLAIMABLE', winner: winnerLabel });
+
+    await prisma.eventLog.create({
+      data: {
+        eventType: 'ADMIN_RESOLVE_KNOCKOUT',
+        entityType: 'pool',
+        entityId: pool.id,
+        payload: {
+          league: pool.league,
+          winner,
+          regulationScore: regulationHomeScore != null && regulationAwayScore != null
+            ? `${regulationHomeScore}-${regulationAwayScore}`
+            : null,
+          reason: reason ?? 'manual-knockout-resolve',
+          onChainResolved,
+          note: 'CL/EL knockout manually resolved by admin per regulation-time rules (Phase B Decision 2: knockouts never auto-resolve via Odds API).',
+        },
+      },
+    }).catch(() => {});
+
+    console.log(`[AdminSports] Resolved knockout ${pool.homeTeam} vs ${pool.awayTeam} (${pool.league}) → ${winner}${onChainResolved ? '' : ' (DB only, on-chain layout stale)'}`);
+
+    res.json({ success: true, data: { poolId, winner: winnerLabel, onChainResolved } });
+  } catch (error) {
+    console.error('[AdminSports] resolve-knockout error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL', message: error instanceof Error ? error.message : 'unknown' } });
   }
 });

@@ -9,6 +9,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminPost, adminPostSSE } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
 import { StuckPmPools } from './StuckPmPools';
+import { StuckKnockoutPools } from './StuckKnockoutPools';
 
 function ActionCard({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return (
@@ -106,6 +107,9 @@ export function ManualActions() {
 
       {/* Stuck PM pools — surfaces UMA-stuck / Gamma-delisted markets */}
       <StuckPmPools />
+
+      {/* Stuck knockout pools — CL/EL ties waiting on SDB AET/PEN */}
+      <StuckKnockoutPools />
 
       {/* Recovery section */}
       <Card sx={{ p: 2, border: '1px solid rgba(245,158,11,0.3)' }}>
