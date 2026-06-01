@@ -29,6 +29,7 @@ type League = {
   sportQuery: string | null;
   leagueFilter: string | null;
   poolOpenDaysBefore: number | null;
+  badgeUrl: string | null;
   poolCount: number;
   cachedMatchCount: number;
 };
@@ -136,6 +137,58 @@ export function MatchExplorer() {
     onError: (err: Error) => setFeedback({ type: 'error', message: err.message }),
   });
 
+  // Backfill badge for an existing league row that has externalLeagueId
+  // but no badgeUrl. Pulls the rich record from SDB then PUTs the category
+  // with the badge. Two-step on purpose: the lookup endpoint also caches
+  // for 6h, so an admin clicking 'fetch' on a row whose neighbor already
+  // pulled the same id pays nothing.
+  const [backfillingCode, setBackfillingCode] = useState<string | null>(null);
+  const backfillBadgeMutation = useMutation({
+    mutationFn: async ({ code, sdbId, categoryId }: { code: string; sdbId: string; categoryId: string }) => {
+      const lookup = await adminFetch<{ data: { badge: string | null } }>(`/sports/sdb-league/${encodeURIComponent(sdbId)}`);
+      const badge = lookup.data.badge;
+      if (!badge) throw new Error(`SDB has no badge for league id=${sdbId}`);
+      await adminFetch(`/categories/${categoryId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ badgeUrl: badge }),
+      });
+      return { code, badge };
+    },
+    onSuccess: (r) => {
+      setFeedback({ type: 'success', message: `Badge wired for ${r.code}` });
+      qc.invalidateQueries({ queryKey: ['admin-sports-leagues'] });
+      qc.invalidateQueries({ queryKey: ['admin-categories'] });
+    },
+    onError: (err: Error) => setFeedback({ type: 'error', message: err.message }),
+    onSettled: () => setBackfillingCode(null),
+  });
+
+  // The backfill mutation calls PUT /categories/:id which needs the
+  // category's UUID — we don't get it from /sports/leagues today. Fetch it
+  // lazily from /categories on demand. (Going through PUT is preferable to
+  // adding a new dedicated endpoint just for this single column write.)
+  const categoriesIdsQ = useQuery({
+    queryKey: ['admin-categories-ids'],
+    queryFn: () => adminFetch<{ data: Array<{ id: string; code: string }> }>('/categories').then(r => {
+      const m = new Map<string, string>();
+      for (const c of r.data) m.set(c.code, c.id);
+      return m;
+    }),
+  });
+  const categoryIdByCode = categoriesIdsQ.data;
+
+  const triggerBackfill = (l: League) => {
+    if (!l.externalLeagueId || !categoryIdByCode) return;
+    const categoryId = categoryIdByCode.get(l.code);
+    if (!categoryId) {
+      setFeedback({ type: 'error', message: 'Category id not loaded yet — try again in a sec.' });
+      return;
+    }
+    setBackfillingCode(l.code);
+    backfillBadgeMutation.mutate({ code: l.code, sdbId: l.externalLeagueId, categoryId });
+  };
+
   const leagues = leaguesQ.data ?? [];
   const filteredLeagues = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -201,6 +254,37 @@ export function MatchExplorer() {
                 }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.25 }}>
+                  {/* 18px badge preview. Fallback when the column is null
+                      is a muted disc holding the sport's accent dot, so
+                      every row has the same visual rhythm. */}
+                  {l.badgeUrl ? (
+                    <Box
+                      component="img"
+                      src={l.badgeUrl}
+                      alt=""
+                      sx={{
+                        width: 18, height: 18, borderRadius: '50%',
+                        objectFit: 'contain',
+                        bgcolor: t.bg.surfaceAlt,
+                        p: '1px',
+                        flexShrink: 0,
+                      }}
+                    />
+                  ) : (
+                    <Box
+                      sx={{
+                        width: 18, height: 18, borderRadius: '50%',
+                        bgcolor: withAlpha(SPORT_COLORS[l.sport] || t.up, 0.2),
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Box sx={{
+                        width: 6, height: 6, borderRadius: '50%',
+                        bgcolor: SPORT_COLORS[l.sport] || t.up,
+                      }} />
+                    </Box>
+                  )}
                   <Chip
                     label={l.code}
                     size="small"
@@ -210,12 +294,32 @@ export function MatchExplorer() {
                   {!l.enabled && <Chip label="off" size="small" sx={{ height: 16, fontSize: '0.55rem', bgcolor: t.hover.medium, color: t.text.dimmed }} />}
                 </Box>
                 <Typography sx={{ fontSize: '0.78rem', fontWeight: 500, color: t.text.primary, lineHeight: 1.3 }}>{l.label}</Typography>
-                <Box sx={{ display: 'flex', gap: 1, mt: 0.5, fontSize: '0.65rem', color: t.text.tertiary, fontVariantNumeric: 'tabular-nums' }}>
+                <Box sx={{ display: 'flex', gap: 1, mt: 0.5, fontSize: '0.65rem', color: t.text.tertiary, fontVariantNumeric: 'tabular-nums', alignItems: 'center', flexWrap: 'wrap' }}>
                   <span>id={l.externalLeagueId ?? '—'}</span>
                   <span>·</span>
                   <span>{l.poolCount} pools</span>
                   <span>·</span>
                   <span>{l.cachedMatchCount} cached</span>
+                  {/* Backfill trigger. Shown only when the league HAS an
+                      SDB id but the column is null. Clicking calls
+                      lookupleague.php → PUT /categories/:id. */}
+                  {!l.badgeUrl && l.externalLeagueId && (
+                    <>
+                      <span>·</span>
+                      <Box
+                        component="a"
+                        onClick={(e) => { e.stopPropagation(); triggerBackfill(l); }}
+                        sx={{
+                          color: backfillingCode === l.code ? t.text.tertiary : t.predict,
+                          cursor: backfillingCode === l.code ? 'wait' : 'pointer',
+                          fontWeight: 600,
+                          '&:hover': { textDecoration: 'underline' },
+                        }}
+                      >
+                        {backfillingCode === l.code ? 'fetching…' : 'fetch badge'}
+                      </Box>
+                    </>
+                  )}
                 </Box>
               </Box>
             ))
@@ -541,6 +645,18 @@ function AddCategoryDialog({ league, existingCodes, onClose, onSuccess }: {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Pre-fetch the rich SDB record so the create payload includes badgeUrl
+  // and the operator gets a visual confirmation BEFORE submitting. Falls
+  // through to a null badge if SDB doesn't ship one for this league —
+  // category still creates, just without a badge column.
+  const detailQ = useQuery({
+    queryKey: ['admin-sdb-league-detail', league.id],
+    queryFn: () => adminFetch<{ data: { badge: string | null; logo: string | null; country: string | null } }>(`/sports/sdb-league/${encodeURIComponent(league.id)}`).then(r => r.data),
+    staleTime: 60 * 60_000, // 1h client cache; backend caches 6h
+  });
+  const badge = detailQ.data?.badge ?? null;
+  const country = detailQ.data?.country ?? null;
+
   const codeUpper = code.toUpperCase().replace(/[^A-Z0-9_]/g, '');
   const codeValid = codeUpper.length >= 2 && !existingCodes.has(codeUpper);
 
@@ -557,7 +673,7 @@ function AddCategoryDialog({ league, existingCodes, onClose, onSuccess }: {
         config.sportQuery = league.sport;
         config.leagueFilter = league.name;
       }
-      const body = {
+      const body: Record<string, unknown> = {
         code: codeUpper,
         type,
         label,
@@ -571,6 +687,9 @@ function AddCategoryDialog({ league, existingCodes, onClose, onSuccess }: {
         adapterKey: isSoccer ? 'FOOTBALL' : codeUpper,
         config,
       };
+      // Include badgeUrl when SDB gave us one — categories created from
+      // the Browse SDB flow now ship with the league logo already wired.
+      if (badge) body.badgeUrl = badge;
       const res = await adminPost<{ success: true; data: { code: string } }>('/categories', body);
       onSuccess(res.data.code);
     } catch (err) {
@@ -584,13 +703,36 @@ function AddCategoryDialog({ league, existingCodes, onClose, onSuccess }: {
     <Dialog open onClose={busy ? undefined : onClose} maxWidth="xs" fullWidth PaperProps={{ sx: { bgcolor: t.bg.surface, border: `1px solid ${t.border.medium}` } }}>
       <DialogTitle sx={{ fontSize: '0.95rem' }}>Add as category</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '12px !important' }}>
-        <Box sx={{ p: 1.5, bgcolor: t.bg.surfaceAlt, border: `1px solid ${t.border.subtle}`, borderRadius: 1, fontSize: '0.75rem' }}>
-          <Box sx={{ display: 'flex', gap: 1.5 }}>
-            <Box>SDB id <strong>{league.id}</strong></Box>
-            <Box>sport <strong>{league.sport || '—'}</strong></Box>
+        <Box sx={{ p: 1.5, bgcolor: t.bg.surfaceAlt, border: `1px solid ${t.border.subtle}`, borderRadius: 1, fontSize: '0.75rem', display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+          {/* Badge preview from lookupleague.php. Cached 6h server-side
+              + 1h client-side, so reopening the dialog for the same league
+              is free. The slot reserves space even while loading so the
+              dialog doesn't jump. */}
+          <Box sx={{
+            width: 44, height: 44, flexShrink: 0,
+            borderRadius: 1,
+            bgcolor: t.bg.surface,
+            border: `1px solid ${t.border.subtle}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            overflow: 'hidden',
+          }}>
+            {detailQ.isLoading ? (
+              <CircularProgress size={14} sx={{ color: t.text.tertiary }} />
+            ) : badge ? (
+              <Box component="img" src={badge} alt="" sx={{ width: 38, height: 38, objectFit: 'contain' }} />
+            ) : (
+              <Box sx={{ fontSize: '0.55rem', color: t.text.tertiary, textAlign: 'center', lineHeight: 1.1 }}>no<br/>badge</Box>
+            )}
           </Box>
-          <Typography sx={{ fontSize: '0.78rem', mt: 0.5, color: t.text.primary }}>{league.name}</Typography>
-          {league.alternate && <Typography sx={{ fontSize: '0.65rem', color: t.text.tertiary }}>{league.alternate}</Typography>}
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+              <Box>SDB id <strong>{league.id}</strong></Box>
+              <Box>sport <strong>{league.sport || '—'}</strong></Box>
+              {country && <Box>country <strong>{country}</strong></Box>}
+            </Box>
+            <Typography sx={{ fontSize: '0.78rem', mt: 0.5, color: t.text.primary }}>{league.name}</Typography>
+            {league.alternate && <Typography sx={{ fontSize: '0.65rem', color: t.text.tertiary }}>{league.alternate}</Typography>}
+          </Box>
         </Box>
 
         <TextField
