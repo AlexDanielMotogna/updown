@@ -9,10 +9,22 @@ import { PoolStatus } from '@prisma/client';
 import { forceRefundPool } from './admin-actions';
 
 // PM pools whose kickoff (= market endDate) passed more than this many hours ago
-// AND have 0 bets get auto-cancelled by the sweep. Long enough to let UMA resolve
-// markets that just need a few hours, short enough that delisted/orphaned markets
-// don't stay stuck for days.
-const PM_SWEEP_GRACE_HOURS = Number(process.env.PM_SWEEP_GRACE_HOURS) || 48;
+// AND have 0 bets get auto-cancelled by the sweep. Two separate windows because
+// the two failure modes look very different:
+//
+//   • Gamma-delisted: Polymarket pulled the market entirely. Decisive — once
+//     the lookup returns empty there's no recovery path. Short window so dead
+//     listings don't sit around (default 24h).
+//
+//   • UMA-stuck: the market is still on Gamma but UMA hasn't closed it. The
+//     /match/[id] copy promises users "a few hours to 1-3 days for contested
+//     questions", so we MUST wait longer than that before pulling the plug.
+//     Default 120h (5d) = quoted upper bound (3d) + 2d safety buffer for
+//     genuinely contested resolutions.
+//
+// Both still gated by betCount === 0 — pools with money stay for admin review.
+const PM_SWEEP_GAMMA_DELISTED_GRACE_HOURS = Number(process.env.PM_SWEEP_GAMMA_DELISTED_GRACE_HOURS) || 24;
+const PM_SWEEP_UMA_STUCK_GRACE_HOURS = Number(process.env.PM_SWEEP_UMA_STUCK_GRACE_HOURS) || 120;
 
 /**
  * Check whether a Polymarket market is still queryable on Gamma. Returns true
@@ -175,8 +187,17 @@ export async function cancelPmPool(
 }
 
 /**
- * Sweep stuck Polymarket pools: kickoff (=market endDate) is more than
- * PM_SWEEP_GRACE_HOURS in the past AND the pool is still JOINING/ACTIVE.
+ * Sweep stuck Polymarket pools: kickoff (=market endDate) is more than the
+ * shorter of the two grace windows in the past AND the pool is still
+ * JOINING/ACTIVE.
+ *
+ * For each candidate we then ping Gamma to classify the failure:
+ *   • Gamma returns no row → delisted. Cancel as soon as grace
+ *     (PM_SWEEP_GAMMA_DELISTED_GRACE_HOURS, default 24h) has elapsed.
+ *   • Gamma still has the row but UMA hasn't resolved it → uma-stuck. Only
+ *     cancel after the LONGER grace (PM_SWEEP_UMA_STUCK_GRACE_HOURS,
+ *     default 120h = 5d) so we don't pre-empt a contested resolution that
+ *     the user-facing copy promised could take 1-3 days.
  *
  * 0-bet pools get auto-cancelled (cleans up dead listings without admin
  * intervention). Pools with bets are LEFT for the admin to handle — refunds
@@ -185,20 +206,25 @@ export async function cancelPmPool(
  * Runs from sweepUnresolvedPools (every 15 min).
  */
 export async function sweepStuckPmPools(): Promise<void> {
-  const cutoff = new Date(Date.now() - PM_SWEEP_GRACE_HOURS * 60 * 60 * 1000);
+  // Use the SHORTER grace as the first filter. Anything that hasn't crossed
+  // 24h since market close can't possibly be ready to cancel; skip the DB +
+  // Gamma round trips for it.
+  const earliestCutoff = new Date(Date.now() - PM_SWEEP_GAMMA_DELISTED_GRACE_HOURS * 60 * 60 * 1000);
+  const umaCutoff = new Date(Date.now() - PM_SWEEP_UMA_STUCK_GRACE_HOURS * 60 * 60 * 1000);
   const stuck = await prisma.pool.findMany({
     where: {
       poolType: 'SPORTS',
       status: { in: [PoolStatus.JOINING, PoolStatus.ACTIVE] },
       league: { startsWith: 'PM_' },
-      startTime: { lte: cutoff },
+      startTime: { lte: earliestCutoff },
     },
-    select: { id: true, matchId: true, homeTeam: true, league: true },
+    select: { id: true, matchId: true, homeTeam: true, league: true, startTime: true },
   });
   if (stuck.length === 0) return;
 
   let cancelled = 0;
   let leftForAdmin = 0;
+  let waitingForUma = 0;
   for (const pool of stuck) {
     const betCount = await prisma.bet.count({ where: { poolId: pool.id } });
     if (betCount > 0) {
@@ -207,9 +233,15 @@ export async function sweepStuckPmPools(): Promise<void> {
     }
     try {
       const delisted = pool.matchId ? await isMarketDelistedFromGamma(pool.matchId) : false;
+      // Apply the right grace per bucket. Delisted pools already passed the
+      // 24h filter above; uma-stuck ones need the bigger window.
+      if (!delisted && pool.startTime > umaCutoff) {
+        waitingForUma++;
+        continue;
+      }
       const reason = delisted
         ? `gamma-delisted (matchId=${pool.matchId})`
-        : `uma-stuck-${PM_SWEEP_GRACE_HOURS}h`;
+        : `uma-stuck-${PM_SWEEP_UMA_STUCK_GRACE_HOURS}h`;
       const result = await cancelPmPool(pool.id, reason);
       if (result.status === 'cancelled' || result.status === 'already-cancelled') {
         cancelled++;
@@ -218,7 +250,7 @@ export async function sweepStuckPmPools(): Promise<void> {
       console.warn(`[PM-Cancel] Sweep failed for ${pool.id}:`, err instanceof Error ? err.message : err);
     }
   }
-  if (cancelled > 0 || leftForAdmin > 0) {
-    console.log(`[PM-Cancel] Sweep: cancelled ${cancelled}, left ${leftForAdmin} for admin (had bets) out of ${stuck.length} stuck PM pool(s)`);
+  if (cancelled > 0 || leftForAdmin > 0 || waitingForUma > 0) {
+    console.log(`[PM-Cancel] Sweep: cancelled=${cancelled} (gamma-delisted or past ${PM_SWEEP_UMA_STUCK_GRACE_HOURS}h UMA grace), waiting-for-uma=${waitingForUma}, left-for-admin=${leftForAdmin} (had bets) out of ${stuck.length} candidate(s)`);
   }
 }
