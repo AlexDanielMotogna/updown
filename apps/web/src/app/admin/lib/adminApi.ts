@@ -1,8 +1,29 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
 
+/**
+ * Custom event fired by adminFetch / adminPostSSE when the backend returns
+ * 401 (key rotated, key revoked, key not configured). Listened to by the
+ * admin shell (page.tsx) to drop back to the login screen and clear the
+ * stale key from sessionStorage. See PLAN-ADMIN-REFACTOR.md Phase 1 #15.
+ */
+export const ADMIN_AUTH_EXPIRED_EVENT = 'admin-auth-expired';
+
 function getKey(): string {
   if (typeof window === 'undefined') return '';
   return sessionStorage.getItem('admin-key') || '';
+}
+
+function fireAuthExpired(): void {
+  if (typeof window === 'undefined') return;
+  try { sessionStorage.removeItem('admin-key'); } catch { /* best effort */ }
+  window.dispatchEvent(new CustomEvent(ADMIN_AUTH_EXPIRED_EVENT));
+}
+
+export class AdminAuthExpiredError extends Error {
+  constructor() {
+    super('Admin session expired. Please log in again.');
+    this.name = 'AdminAuthExpiredError';
+  }
 }
 
 export async function adminFetch<T = unknown>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -15,9 +36,23 @@ export async function adminFetch<T = unknown>(endpoint: string, options: Request
     },
   });
 
-  const json = await res.json();
-  if (!res.ok || !json.success) {
-    throw new Error(json.error?.message || `Request failed: ${res.status}`);
+  if (res.status === 401) {
+    fireAuthExpired();
+    throw new AdminAuthExpiredError();
+  }
+
+  // Try to parse JSON even on non-200 so we can surface the server's message
+  // (categories.ts now returns sanitized human messages on errors).
+  let json: { success?: boolean; error?: { message?: string; code?: string } } | T;
+  try {
+    json = await res.json() as typeof json;
+  } catch {
+    throw new Error(`Request failed: ${res.status}`);
+  }
+
+  const envelope = json as { success?: boolean; error?: { message?: string } };
+  if (!res.ok || envelope.success === false) {
+    throw new Error(envelope.error?.message || `Request failed: ${res.status}`);
   }
   return json as T;
 }
@@ -43,8 +78,20 @@ export async function adminPostSSE(
     body: body ? JSON.stringify(body) : undefined,
   });
 
+  if (res.status === 401) {
+    fireAuthExpired();
+    throw new AdminAuthExpiredError();
+  }
+
   if (!res.ok || !res.body) {
-    throw new Error(`Request failed: ${res.status}`);
+    // Try to extract a server message; fall back to the generic if the body
+    // isn't JSON (SSE error path might not be).
+    let message = `Request failed: ${res.status}`;
+    try {
+      const j = await res.json() as { error?: { message?: string } };
+      if (j.error?.message) message = j.error.message;
+    } catch { /* ignore */ }
+    throw new Error(message);
   }
 
   const reader = res.body.getReader();
