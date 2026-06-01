@@ -238,12 +238,29 @@ adminActionsRouter.post('/sync-pools', async (req, res) => {
 });
 
 // POST /actions/create-pool (moved from /api/pools/test)
+//
+// Per PLAN-ADMIN-REFACTOR.md Phase 1 #4, the UI sends only `{asset,
+// intervalKey}` and the old schema's `intervalSeconds: default(300)`
+// meant every Create Pool dropdown selection (3m / 5m / 15m / 1h) was
+// silently coerced to a 5-minute pool. Now we derive the timing knobs
+// from intervalKey when they aren't explicitly provided, so the
+// dropdown label matches the on-chain interval.
+const INTERVAL_PRESETS: Record<'3m' | '5m' | '15m' | '1h', { intervalSeconds: number; joinWindowSeconds: number; lockBufferSeconds: number }> = {
+  '3m': { intervalSeconds: 180,  joinWindowSeconds: 60,  lockBufferSeconds: 15 },
+  '5m': { intervalSeconds: 300,  joinWindowSeconds: 120, lockBufferSeconds: 15 },
+  '15m':{ intervalSeconds: 900,  joinWindowSeconds: 300, lockBufferSeconds: 30 },
+  '1h': { intervalSeconds: 3600, joinWindowSeconds: 900, lockBufferSeconds: 60 },
+};
+
 const createPoolSchema = z.object({
   asset: z.enum(['BTC', 'ETH', 'SOL']).default('BTC'),
   intervalKey: z.enum(['3m', '5m', '15m', '1h']).default('5m'),
-  intervalSeconds: z.number().min(60).default(300),
-  joinWindowSeconds: z.number().min(30).default(120),
-  lockBufferSeconds: z.number().min(5).default(15),
+  // intervalSeconds / joinWindowSeconds / lockBufferSeconds are optional —
+  // when absent we derive them from intervalKey via INTERVAL_PRESETS at the
+  // handler. Explicit values override the preset (kept for scripted callers).
+  intervalSeconds: z.number().min(60).optional(),
+  joinWindowSeconds: z.number().min(30).optional(),
+  lockBufferSeconds: z.number().min(5).optional(),
 });
 
 // POST /actions/cancel-pm-pool - cancel a stuck Polymarket pool (delisted from
@@ -330,7 +347,14 @@ adminActionsRouter.post('/create-pool', async (req, res) => {
       return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid body', details: parsed.error.flatten() } });
     }
 
-    const { asset, intervalKey, intervalSeconds, joinWindowSeconds, lockBufferSeconds } = parsed.data;
+    const { asset, intervalKey } = parsed.data;
+    // Apply the preset from intervalKey when the explicit timing knobs
+    // aren't sent. Explicit values still override (for scripted callers).
+    const preset = INTERVAL_PRESETS[intervalKey];
+    const intervalSeconds = parsed.data.intervalSeconds ?? preset.intervalSeconds;
+    const joinWindowSeconds = parsed.data.joinWindowSeconds ?? preset.joinWindowSeconds;
+    const lockBufferSeconds = parsed.data.lockBufferSeconds ?? preset.lockBufferSeconds;
+
     const scheduler = getScheduler();
     const poolId = await scheduler.createPoolManual(asset, intervalSeconds, joinWindowSeconds, intervalKey, lockBufferSeconds);
 
@@ -338,7 +362,7 @@ adminActionsRouter.post('/create-pool', async (req, res) => {
       return res.status(500).json({ success: false, error: { code: 'POOL_CREATION_FAILED', message: 'Failed to create pool' } });
     }
 
-    await logAdminEvent('ADMIN_CREATE_POOL', poolId, { action: 'create-pool', asset, intervalKey });
+    await logAdminEvent('ADMIN_CREATE_POOL', poolId, { action: 'create-pool', asset, intervalKey, intervalSeconds: String(intervalSeconds) });
 
     const pool = await prisma.pool.findUnique({ where: { id: poolId } });
     res.status(201).json({ success: true, data: pool ? serializePool(pool) : { id: poolId }, message: 'Pool created' });

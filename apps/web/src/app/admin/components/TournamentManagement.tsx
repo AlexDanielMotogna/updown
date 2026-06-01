@@ -170,7 +170,14 @@ export function TournamentManagement() {
         asset: editType === 'CRYPTO' ? editAsset : editSport,
         sport: editType === 'SPORTS' ? editSport : null,
         league: editType === 'SPORTS' ? effectiveLeague : null,
-        tournamentType: editType === 'SPORTS' ? 'PREDICT_MATCHDAY' : 'CRYPTO',
+        // Must be 'SPORTS' (not 'PREDICT_MATCHDAY') — the latter has no
+        // consumer in the codebase. Sending 'PREDICT_MATCHDAY' silently
+        // disables every `=== 'SPORTS'` branch downstream: scheduler
+        // skip (tournament-scheduler.ts), sideLabels strip on /tournaments
+        // (routes/tournaments.ts), admin chips stop rendering. The create
+        // payload at line ~134 correctly uses 'SPORTS'; the update payload
+        // must match.
+        tournamentType: editType === 'SPORTS' ? 'SPORTS' : 'CRYPTO',
         entryFee: Math.round(parseFloat(editEntryFee) * USDC_DIVISOR),
         size: editSize,
         matchDuration: editMatchDuration,

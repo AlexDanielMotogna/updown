@@ -445,7 +445,14 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
     });
     setConfigSportQuery(typeof cfg.sportQuery === 'string' ? cfg.sportQuery : '');
     setConfigLeagueFilter(typeof cfg.leagueFilter === 'string' ? cfg.leagueFilter : '');
-    setConfigLeagueId(typeof cfg.theSportsDbLeagueId === 'string' ? cfg.theSportsDbLeagueId : '');
+    // Read both keys for backward compat with rows persisted under the
+    // legacy name. The save path (handleSave) writes the canonical
+    // `externalLeagueId` only — see PLAN-ADMIN-REFACTOR.md Phase 1 #1.
+    setConfigLeagueId(
+      typeof cfg.externalLeagueId === 'string' ? cfg.externalLeagueId
+        : typeof cfg.theSportsDbLeagueId === 'string' ? cfg.theSportsDbLeagueId
+        : '',
+    );
     const rawDays = (cfg as { poolOpenDaysBefore?: unknown }).poolOpenDaysBefore;
     setConfigPoolOpenDays(typeof rawDays === 'number' ? String(rawDays) : typeof rawDays === 'string' ? rawDays : '');
   };
@@ -453,8 +460,17 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
   const type = form.type;
 
   const handleSave = () => {
-    // Build the FULL config so nothing is dropped (tagIds, matchPriority, caps...).
-    const config: Record<string, unknown> = {};
+    // Preserve the original config so any keys the dialog doesn't render
+    // (e.g. `matchDurationHours`, future fields, hand-edited rows) survive
+    // the save. The previous implementation rebuilt config from scratch
+    // and silently dropped those keys on every edit — see
+    // PLAN-ADMIN-REFACTOR.md Phase 1 #2. The typed fields below overlay
+    // the original via spread; the legacy `theSportsDbLeagueId` key is
+    // also stripped here so the canonical `externalLeagueId` is the
+    // single source of truth going forward.
+    const existing = (cat?.config ?? {}) as Record<string, unknown>;
+    const config: Record<string, unknown> = { ...existing };
+    delete config.theSportsDbLeagueId;
     if (type === 'POLYMARKET') {
       if (pm.tags.length) config.tags = pm.tags;
       if (pm.tagIds.length) config.tagIds = pm.tagIds;
@@ -468,7 +484,11 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
       if (configSportQuery) config.sportQuery = configSportQuery;
       if (configLeagueFilter) config.leagueFilter = configLeagueFilter;
     } else if (type === 'FOOTBALL_LEAGUE') {
-      if (configLeagueId) config.theSportsDbLeagueId = configLeagueId;
+      // Canonical key — `theSportsDbLeagueId` was the legacy alias the
+      // admin used to read/write; the rest of the codebase (fixture
+      // sync, sports-explorer, getFootballConfigs) only knows
+      // `externalLeagueId`. See Phase 1 #1.
+      if (configLeagueId) config.externalLeagueId = configLeagueId;
     }
     // Per-league pool-open window override (sports only). Empty / out-of-range
     // values intentionally aren't written so the backend falls through to its
