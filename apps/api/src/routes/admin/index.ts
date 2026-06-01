@@ -9,6 +9,7 @@ import { adminActionsRouter } from './actions';
 import { adminTournamentsRouter } from './tournaments';
 import { adminCategoriesRouter } from './categories';
 import { adminPayoutsRouter, adminWalletRouter } from './payouts';
+import { adminSportsRouter } from './sports-explorer';
 
 export const adminRouter: RouterType = Router();
 
@@ -30,3 +31,4 @@ adminRouter.use('/tournaments', adminTournamentsRouter);
 adminRouter.use('/categories', adminCategoriesRouter);
 adminRouter.use('/payouts', adminPayoutsRouter);
 adminRouter.use('/wallet', adminWalletRouter);
+adminRouter.use('/sports', adminSportsRouter);

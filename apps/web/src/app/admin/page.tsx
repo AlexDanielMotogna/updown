@@ -14,8 +14,9 @@ import { ManualActions } from './components/ManualActions';
 import { TournamentManagement } from './components/TournamentManagement';
 import { CategoryManagement } from './components/CategoryManagement';
 import { PayoutManagement } from './components/PayoutManagement';
+import { MatchExplorer } from './components/MatchExplorer';
 
-const TABS = ['Health', 'Pools', 'Payouts', 'Finance', 'Users', 'Events', 'Actions', 'Tournaments', 'Categories'] as const;
+const TABS = ['Health', 'Pools', 'Payouts', 'Finance', 'Users', 'Events', 'Actions', 'Tournaments', 'Categories', 'Matches'] as const;
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
@@ -59,6 +60,7 @@ export default function AdminPage() {
         {tab === 6 && <ManualActions />}
         {tab === 7 && <TournamentManagement />}
         {tab === 8 && <CategoryManagement />}
+        {tab === 9 && <MatchExplorer />}
       </Box>
     </Box>
   );

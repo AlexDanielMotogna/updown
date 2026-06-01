@@ -356,7 +356,14 @@ export async function resolveMatchPools(): Promise<void> {
   }
 }
 
-async function createSportsPool(match: Match, leagueCode: string): Promise<void> {
+/**
+ * Create a sports/PM pool for one match. Returns the pool UUID on success,
+ * `null` if the on-chain tx failed and the DB row was rolled back. Doesn't
+ * check the `hoursUntilKickoff` window — the scheduler wraps this call with
+ * its own guard, the admin one-click path intentionally bypasses it so
+ * operators can spin up out-of-window pools manually.
+ */
+export async function createSportsPool(match: Match, leagueCode: string): Promise<string | null> {
   const poolId = crypto.randomUUID();
   const asset = `${leagueCode}:${match.homeTeam}-${match.awayTeam}`.slice(0, 32);
   const adapter = getAdapterForLeague(leagueCode);
@@ -467,8 +474,11 @@ async function createSportsPool(match: Match, leagueCode: string): Promise<void>
         })
         .catch(e => console.warn('[Sports] Analysis generation failed:', e instanceof Error ? e.message : e));
     }
+
+    return poolId;
   } catch (error) {
     console.error(`[Sports] Failed to create pool for ${match.homeTeam} vs ${match.awayTeam}:`, error);
+    return null;
   }
 }
 
