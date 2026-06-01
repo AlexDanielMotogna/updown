@@ -335,10 +335,14 @@ export default function MatchDetailPage() {
   });
 
   // ── Header + score-row derivation ────────────────────────────────────────
-  // Short status word for the breadcrumb pill in MatchHeader.
-  const headerStatus = isResolved ? 'FT'
+  // Short status word for the breadcrumb pill in MatchHeader. PM markets
+  // don't have halves / full-time / kickoffs — they have a market endDate,
+  // so we use "ENDED" / "CLOSING" instead of sports terminology. Sports
+  // and crypto keep the FT / LIVE pill they always had.
+  const endedLabel = isPrediction ? 'ENDED' : 'FT';
+  const headerStatus = isResolved ? endedLabel
     : matchLive ? 'LIVE'
-    : matchFinished || awaitingResolution ? 'FT'
+    : matchFinished || awaitingResolution ? endedLabel
     : isLocked ? 'LOCKED'
     : hasStarted ? 'IN PROGRESS'
     : pool.status === 'JOINING' ? 'OPEN'
@@ -363,15 +367,19 @@ export default function MatchDetailPage() {
   // lags behind by minutes and still reports "2H" while our scheduler has
   // already pulled the final score and resolved the pool. Always defer to
   // the pool's own state before falling back to feed-driven status.
+  // PM markets close at a fixed endDate — use "Market closed" instead of
+  // sports-y "Full Time", and "Closes" instead of "Kickoff" pre-close.
+  const endedStatusText = isPrediction ? 'Market closed' : 'Full Time';
+  const preStartText = isPrediction ? `Closes ${kickoff}` : `Kickoff ${kickoff}`;
   const scoreStatusText = isResolved || matchFinished || awaitingResolution
-    ? 'Full Time'
+    ? endedStatusText
     : matchLive && liveScore
       ? `LIVE · ${formatLiveStatus(liveScore.status, liveScore.progress)}`
       : isLocked
         ? 'Locked'
         : hasStarted
           ? 'In progress'
-          : `Kickoff ${kickoff}`;
+          : preStartText;
   const scoreVariant: 'live' | 'ended' | 'scheduled' | 'inplay' =
     isResolved || matchFinished || awaitingResolution
       ? 'ended'
@@ -531,7 +539,21 @@ export default function MatchDetailPage() {
               : pool.homeTeam || catLabel;
             const subtitlePM = pool.homeTeam || catLabel;
             const subtitle = isPrediction ? subtitlePM : subtitleSports;
-            const meta = pool.startTime ? `Kickoff ${kickoff}` : undefined;
+            // PM markets close at a fixed endDate; sports have a kickoff.
+            // Past-tense "Closed" reads correctly because the resolution
+            // cards only render once startTime is in the past.
+            const metaPrefix = isPrediction ? 'Closed' : 'Kickoff';
+            const meta = pool.startTime ? `${metaPrefix} ${kickoff}` : undefined;
+            // The DeterminingCard's generic body line is too vague for PM —
+            // operators have asked us to surface BOTH the source we're
+            // waiting on AND a realistic timing window. Sports get a much
+            // tighter copy because TheSportsDB / Odds API confirm within
+            // minutes of full-time.
+            const determiningBody = isPrediction
+              ? "Waiting for Polymarket's UMA oracle to confirm the outcome. Resolution usually lands within a few hours but can take 1-3 days for contested questions."
+              : pool.poolType === 'SPORTS'
+                ? "Waiting for the final whistle to be confirmed by the data feed. Usually within minutes of full time."
+                : undefined; // crypto keeps the generic on-chain copy
             if (isResolved && winnerLabel) {
               return (
                 <OutcomeCard
@@ -543,7 +565,7 @@ export default function MatchDetailPage() {
               );
             }
             if (matchFinished || awaitingResolution) {
-              return <DeterminingCard subtitle={subtitle} meta={meta} />;
+              return <DeterminingCard subtitle={subtitle} meta={meta} bodyText={determiningBody} />;
             }
             return null;
           })()}
