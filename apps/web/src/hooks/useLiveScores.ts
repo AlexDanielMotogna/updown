@@ -92,6 +92,54 @@ export function formatLiveStatus(status: string, progress?: string): string {
   return label;
 }
 
+// ─── Phase B (PLAN-LIVESCORE-SOURCE-SPLIT) ─────────────────────────────────
+// Wall-clock duration after which a match is "expected to be over". Mirrors
+// the backend's EXPECTED_MATCH_DURATION_MS in `livescore/types.ts`. Used by
+// the "Awaiting result" UI state — when the pool is past this window but the
+// livescore feed still hasn't marked it FT/AET/PEN, we show a placeholder
+// instead of pretending the match is still live. For knockout leagues
+// (CL, EL) we leave the window long enough to cover extra time + penalties.
+const EXPECTED_MATCH_DURATION_MS: Record<string, number> = {
+  // Soccer regular season — 90 reg + 15 break + 10 stoppage buffer
+  BSA: 115 * 60_000, PL: 115 * 60_000, PD: 115 * 60_000, SA: 115 * 60_000,
+  BL1: 115 * 60_000, FL1: 115 * 60_000, ELC: 115 * 60_000,
+  DED: 115 * 60_000, PPL: 115 * 60_000,
+  // Soccer knockouts — allow ET + pens
+  CL: 155 * 60_000, EL: 155 * 60_000,
+  // US sports — timeouts/commercials inflate wall time
+  NBA: 150 * 60_000, NHL: 150 * 60_000, NFL: 210 * 60_000,
+  MMA: 180 * 60_000, MLB: 210 * 60_000,
+};
+const DEFAULT_EXPECTED_DURATION_MS = 120 * 60_000;
+
+function expectedMatchEndMs(kickoff: string | Date, league: string | null | undefined): number {
+  const ms = typeof kickoff === 'string' ? Date.parse(kickoff) : kickoff.getTime();
+  const dur = (league ? EXPECTED_MATCH_DURATION_MS[league] : undefined) ?? DEFAULT_EXPECTED_DURATION_MS;
+  return ms + dur;
+}
+
+/**
+ * True when the pool's match should be over by wall-clock time but the
+ * livescore feed hasn't yet flagged FT/AET/PEN and the pool hasn't resolved.
+ *
+ * Drives the "Awaiting result" placeholder on the match page and the badge
+ * on MarketCard. Backend's `pollOddsApiFallback` uses the same window
+ * (kickoff + expectedDuration + 5min grace) before falling back to The Odds
+ * API's `completed:true` signal for non-knockout leagues.
+ */
+export function isAwaitingFinalResult(
+  pool: { startTime: string | Date; status: string; league?: string | null } | null | undefined,
+  liveScoreStatus?: string,
+): boolean {
+  if (!pool) return false;
+  // Already done one way or the other.
+  if (pool.status === 'RESOLVED' || pool.status === 'CLAIMABLE' || pool.status === 'CANCELLED') return false;
+  // Feed already says finished — handled by the existing `matchFinished` path.
+  if (liveScoreStatus && FINISHED_STATUSES.has(liveScoreStatus)) return false;
+  // Past expected end → awaiting.
+  return Date.now() > expectedMatchEndMs(pool.startTime, pool.league);
+}
+
 const API = typeof window !== 'undefined'
   ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002')
   : '';

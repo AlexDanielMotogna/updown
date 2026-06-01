@@ -7,7 +7,11 @@ import { persistToDb, syncFinishedToUi, loadFromDb, cleanupOldDbEntries } from '
 import { isMidnightBoundary, detectStaleEvents } from './staleness';
 import { fetchScoreFromChatGPT } from './chatgpt-source';
 import { fetchOddsApiScores, matchGamesToPools, getOddsApiSportKeys, isOddsApiDisabled } from './odds-api-source';
-import { CHATGPT_MAX_PER_CYCLE, LEAGUE_TO_ODDS_API } from './types';
+import {
+  CHATGPT_MAX_PER_CYCLE, LEAGUE_TO_ODDS_API,
+  KNOCKOUT_DISABLE_ODDS_FALLBACK, isPastFtGraceWindow, expectedMatchEnd,
+  ODDS_API_FT_FALLBACK_GRACE_MS,
+} from './types';
 import { resolveMatchPools } from '../../../scheduler/sports-scheduler';
 
 import {
@@ -136,24 +140,38 @@ async function pollMissingPools(foundIds: Set<string>, toPersist: LiveScore[]): 
 // ─── The Odds API - FALLBACK source ──────────────────────────────────────────
 
 /**
- * Fallback: poll The Odds API for any event TheSportsDB didn't already cover
- * this cycle. SDB is now the primary source — it owns display (only feed with
- * `strProgress` minute data) AND the primary FT signal. Odds API fills two
- * gaps:
- *  1. Events in leagues SDB doesn't return on `/livescore/all`.
- *  2. (Phase B, not yet implemented) Events past expected FT where SDB hasn't
- *     reported finished status after a grace window — for non-knockout leagues.
+ * Fallback: poll The Odds API for events TheSportsDB either didn't cover at
+ * all this cycle, or covered with a stale (non-finished) status when the
+ * Odds API already sees the match as completed.
  *
- * Phase A (this commit) just stops Odds API from overwriting SDB rows. The
- * grace-window logic for late FT detection is Phase B.
+ * Two distinct paths (both gated by `isOddsApiDisabled()`):
  *
- * Previously called `pollOddsApiPrimary` — see `docs/PLAN-LIVESCORE-SOURCE-SPLIT.md`
- * for the architecture flip rationale.
+ *  1. **Gap fill (Phase A)** — `!sdbIds.has(eventId)`: SDB had no row for
+ *     this event; we add the Odds API row to `toPersist` so the resolver
+ *     still has a signal. Common for leagues outside SDB's `/livescore/all`
+ *     coverage.
+ *
+ *  2. **FT fallback (Phase B)** — `sdbIds.has(eventId)` AND `entry.status
+ *     === 'FT'` AND SDB's existing row is NOT finished: SDB has the event
+ *     but is lagging behind real FT. Override SDB's row with the Odds API
+ *     FT signal so `syncFinishedToUi` + the instant-resolve trigger fire.
+ *     Two safety gates:
+ *       a. **Knockout skip**: `KNOCKOUT_DISABLE_ODDS_FALLBACK.has(pool.league)`
+ *          → never override. CL/EL ties may go to ET; Odds API can't tell
+ *          us if it did, so we wait on SDB for `strStatus=AET/PEN`.
+ *       b. **Grace window**: now must be past
+ *          `kickoff + EXPECTED_MATCH_DURATION_MS[league] + ODDS_API_FT_FALLBACK_GRACE_MS`.
+ *          Until then we keep showing SDB's in-play state (or "Awaiting
+ *          result" if the UI has crossed expected end).
+ *
+ * Previously called `pollOddsApiPrimary`; the architecture flip is documented
+ * in `docs/PLAN-LIVESCORE-SOURCE-SPLIT.md`.
  */
 async function pollOddsApiFallback(
   toPersist: LiveScore[],
   oddsApiIds: Set<string>,
   sdbIds: Set<string>,
+  ftFallbackIds: Set<string>,
 ): Promise<void> {
   if (isOddsApiDisabled()) return;
 
@@ -190,13 +208,21 @@ async function pollOddsApiFallback(
       }),
     );
 
+    // Pool lookup by matchId — used by the FT-fallback path to read the
+    // league + kickoff for the grace-window check.
+    const poolByMatchId = new Map<string, typeof activePools[number]>();
+    for (const p of activePools) {
+      if (p.matchId) poolByMatchId.set(p.matchId, p);
+    }
+
     // Build pool list for matching
     const poolsForMatching = activePools
       .filter(p => p.matchId && p.homeTeam && p.awayTeam && p.league)
       .map(p => ({ matchId: p.matchId!, homeTeam: p.homeTeam!, awayTeam: p.awayTeam!, league: p.league! }));
 
     // Match and merge
-    let matched = 0;
+    let gapFilled = 0;
+    let ftOverrides = 0;
     for (const { key, games } of allGames) {
       if (games.length === 0) continue;
 
@@ -205,27 +231,50 @@ async function pollOddsApiFallback(
       const results = matchGamesToPools(games, relevantPools);
 
       for (const entry of results) {
-        // SDB-wins-collisions: if TheSportsDB already reported this event
-        // this cycle, keep SDB's row (it has `strProgress` + AET/PEN codes
-        // we can't derive from Odds API's `completed: bool`). Odds API only
-        // contributes when SDB had no row for this event.
-        if (sdbIds.has(entry.eventId)) continue;
-
-        toPersist.push(entry);
-        cacheSet(entry);
-        oddsApiIds.add(entry.eventId);
-        clearMissingEvent(entry.eventId);
-        matched++;
-
-        if (entry.status === 'FT') {
-          recordOddsApiSuccess(entry.eventId, `${entry.homeScore}-${entry.awayScore} (FT)`);
+        if (!sdbIds.has(entry.eventId)) {
+          // 1) Gap fill — SDB had no row for this event. Always add.
+          toPersist.push(entry);
+          cacheSet(entry);
+          oddsApiIds.add(entry.eventId);
+          clearMissingEvent(entry.eventId);
+          gapFilled++;
+          if (entry.status === 'FT') {
+            recordOddsApiSuccess(entry.eventId, `${entry.homeScore}-${entry.awayScore} (FT, gap-fill)`);
+          }
+          continue;
         }
+
+        // 2) Collision — SDB already has a row. Only override if Odds API
+        //    says FT, SDB's row isn't finished yet, league isn't a knockout,
+        //    and we're past the grace window.
+        if (entry.status !== 'FT') continue;
+
+        const sdbRow = toPersist.find(e => e.eventId === entry.eventId);
+        if (!sdbRow || isFinishedStatus(sdbRow.status)) continue;
+
+        const pool = poolByMatchId.get(entry.eventId);
+        if (!pool || !pool.league) continue;
+
+        if (KNOCKOUT_DISABLE_ODDS_FALLBACK.has(pool.league)) continue;
+        if (!isPastFtGraceWindow(pool.startTime.getTime(), pool.league)) continue;
+
+        // Override SDB's lagging row with Odds API's FT signal. Keep SDB's
+        // team names / sport / badges — only the score+status change.
+        const idx = toPersist.indexOf(sdbRow);
+        toPersist[idx] = { ...sdbRow, status: 'FT', homeScore: entry.homeScore, awayScore: entry.awayScore, updatedAt: Date.now() };
+        cacheSet(toPersist[idx]);
+        ftFallbackIds.add(entry.eventId);
+        ftOverrides++;
+        const lagMin = Math.round((Date.now() - expectedMatchEnd(pool.startTime.getTime(), pool.league)) / 60_000);
+        recordOddsApiSuccess(entry.eventId, `${entry.homeScore}-${entry.awayScore} (FT fallback, SDB lagged ~${lagMin}min past expected)`);
+        console.log(`[LiveScore] FT fallback via Odds API: ${pool.homeTeam} vs ${pool.awayTeam} (${pool.league}) — SDB still says "${sdbRow.status}" ${sdbRow.progress || ''} ~${lagMin}min past expected end (grace ${ODDS_API_FT_FALLBACK_GRACE_MS / 60_000}min)`);
       }
     }
 
+    const matched = gapFilled + ftOverrides;
     if (matched > 0) {
       const totalGames = allGames.reduce((s, r) => s + r.games.length, 0);
-      console.log(`[OddsAPI] ${sportKeys.length} sports, ${totalGames} games, ${matched} matched to pools`);
+      console.log(`[OddsAPI] ${sportKeys.length} sports, ${totalGames} games — ${gapFilled} gap-filled, ${ftOverrides} FT-overrides`);
     }
   } catch (error) {
     console.warn('[OddsAPI] Parallel poll error:', (error as Error).message);
@@ -347,10 +396,14 @@ async function pollLiveScores(): Promise<void> {
       sportCounts[sport] = (sportCounts[sport] || 0) + 1;
     }
 
-    // 3. FALLBACK — The Odds API. Only contributes for events SDB didn't
-    //    return (leagues outside `/livescore/all`'s coverage, etc.).
+    // 3. FALLBACK — The Odds API.
+    //    - Gap fill: events SDB didn't return at all (leagues outside SDB's
+    //      `/livescore/all` coverage).
+    //    - FT override (Phase B): non-knockout leagues where SDB has the
+    //      event but is lagging behind real FT past the grace window.
     const oddsApiIds = new Set<string>();
-    await pollOddsApiFallback(toPersist, oddsApiIds, sdbIds);
+    const ftFallbackIds = new Set<string>();
+    await pollOddsApiFallback(toPersist, oddsApiIds, sdbIds, ftFallbackIds);
 
     // 4. Detect disappeared events (in previous SDB poll, not in current).
     const disappeared = updatePreviousPollIds(sdbIds);
@@ -403,8 +456,9 @@ async function pollLiveScores(): Promise<void> {
     recordPollSuccess(toPersist.length, Date.now() - pollStart);
 
     const summary = Object.entries(sportCounts).map(([s, n]) => `${s}:${n}`).join(', ');
-    if (summary || oddsApiIds.size > 0) {
-      console.log(`[LiveScore] SDB:${sdbIds.size} OddsAPI-fallback:${oddsApiIds.size} (${toPersist.length} persisted)`);
+    if (summary || oddsApiIds.size > 0 || ftFallbackIds.size > 0) {
+      const ftSuffix = ftFallbackIds.size > 0 ? ` FT-overrides:${ftFallbackIds.size}` : '';
+      console.log(`[LiveScore] SDB:${sdbIds.size} OddsAPI-fallback:${oddsApiIds.size}${ftSuffix} (${toPersist.length} persisted)`);
     }
   } catch (error) {
     recordPollFailure((error as Error).message || 'Unknown poll error');

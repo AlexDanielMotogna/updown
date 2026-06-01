@@ -14,7 +14,7 @@ import { getAssetName } from '@/lib/assets';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import type { Pool } from '@/lib/api';
-import { isMatchActive, isMatchFinished, formatLiveStatus, type LiveScore } from '@/hooks/useLiveScores';
+import { isMatchActive, isMatchFinished, formatLiveStatus, isAwaitingFinalResult, type LiveScore } from '@/hooks/useLiveScores';
 import type { CategoryConfig } from '@/hooks/useCategories';
 
 function relTime(iso: string): string {
@@ -67,8 +67,15 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
   const isResolved = pool.status === 'CLAIMABLE' || pool.status === 'RESOLVED';
   const isLocked = !isResolved && !!pool.lockTime && new Date(pool.lockTime).getTime() < Date.now();
 
-  const matchLive = !isResolved && liveScore != null && isMatchActive(liveScore);
   const matchFinished = !isResolved && liveScore != null && isMatchFinished(liveScore.status);
+  // Phase B: past expected match end but feed hasn't reported FT yet — we
+  // stop showing the live timer and surface an "Awaiting result" badge.
+  // Only relevant on sports pools (PM markets don't have a notion of FT).
+  // Computed before `matchLive` so a stuck "2H 95'" feed state doesn't keep
+  // the LIVE indicator pulsing past the grace window.
+  const awaitingFinalFeed = pool.poolType === 'SPORTS' && !isPrediction
+    && isAwaitingFinalResult({ startTime: pool.startTime, status: pool.status, league: pool.league }, liveScore?.status);
+  const matchLive = !isResolved && liveScore != null && isMatchActive(liveScore) && !awaitingFinalFeed;
 
   // ── Live totals via WebSocket: subscribe to this pool's room and update the
   // odds/volume in real time as bets land (with a brief flash). ──
@@ -140,11 +147,13 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
 
   const rightLabel = isResolved
     ? 'Ended'
-    : matchLive && liveScore
-      ? formatLiveStatus(liveScore.status, liveScore.progress)
-      : matchFinished
-        ? 'Full time'
-        : relTime(pool.status === 'UPCOMING' ? pool.startTime : pool.endTime);
+    : awaitingFinalFeed
+      ? 'Awaiting result'
+      : matchLive && liveScore
+        ? formatLiveStatus(liveScore.status, liveScore.progress)
+        : matchFinished
+          ? 'Full time'
+          : relTime(pool.status === 'UPCOMING' ? pool.startTime : pool.endTime);
 
   const canClaim = isResolved && userBet?.isWinner && !userBet.claimed && userBet.betId && onClaim;
 

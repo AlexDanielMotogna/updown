@@ -78,8 +78,62 @@ export const CHATGPT_MAX_PER_CYCLE = 3;           // Max ChatGPT calls per 30s c
 export const CHATGPT_CIRCUIT_BREAKER_THRESHOLD = 3;
 export const CHATGPT_CIRCUIT_BREAKER_COOLDOWN_MS = 300_000; // 5 min
 
-// The Odds API - parallel source alongside TheSportsDB
+// The Odds API - fallback source alongside TheSportsDB
 export const ODDS_API_CREDIT_FLOOR = 50;           // Disable if fewer credits remaining
+
+// ─── Phase B (PLAN-LIVESCORE-SOURCE-SPLIT) ─────────────────────────────
+// Odds API only overrides SDB with an FT signal after the match is clearly
+// past expected end (kickoff + EXPECTED_MATCH_DURATION_MS[league] + grace).
+// Until then the UI shows "Awaiting result" and we keep waiting on SDB so
+// regulation-time semantics (AET/PEN collapse to DRAW via regulationWinner)
+// stay intact.
+
+/** Grace past expected match end before we accept Odds API's `completed:true`. */
+export const ODDS_API_FT_FALLBACK_GRACE_MS = 5 * 60_000;
+
+/**
+ * Leagues where we NEVER use the Odds API FT fallback. Knockout cup ties
+ * may go to extra time / penalties; Odds API's `completed:true` only sees
+ * the post-ET score and would resolve to the ET winner instead of letting
+ * `regulationWinner()` collapse to DRAW for the 90' bet. SDB is the only
+ * feed that exposes `strStatus=AET/PEN`, so for these leagues we wait on
+ * SDB indefinitely.
+ */
+export const KNOCKOUT_DISABLE_ODDS_FALLBACK = new Set(['CL', 'EL']);
+
+/**
+ * Per-league wall-clock duration after which a match is "expected to be
+ * over" — used by the FT fallback gate AND by the frontend's "Awaiting
+ * result" badge. Soccer regular season ~115 min (90 reg + 15 break + 10
+ * stoppage); soccer knockouts longer because of ET; US sports include
+ * timeouts/commercials.
+ */
+export const EXPECTED_MATCH_DURATION_MS: Record<string, number> = {
+  // Soccer regular season
+  BSA: 115 * 60_000, PL: 115 * 60_000, PD: 115 * 60_000, SA: 115 * 60_000,
+  BL1: 115 * 60_000, FL1: 115 * 60_000, ELC: 115 * 60_000,
+  DED: 115 * 60_000, PPL: 115 * 60_000,
+  // Soccer knockouts (ET + pens) — also gated by KNOCKOUT_DISABLE_ODDS_FALLBACK
+  CL: 155 * 60_000, EL: 155 * 60_000,
+  // US sports
+  NBA: 150 * 60_000,
+  NHL: 150 * 60_000,
+  NFL: 210 * 60_000,
+  MMA: 180 * 60_000,
+  MLB: 210 * 60_000,
+};
+export const DEFAULT_EXPECTED_DURATION_MS = 120 * 60_000;
+
+/** Wall-clock instant at which we consider a match "should be over". */
+export function expectedMatchEnd(kickoffMs: number, league: string | null | undefined): number {
+  const dur = (league ? EXPECTED_MATCH_DURATION_MS[league] : undefined) ?? DEFAULT_EXPECTED_DURATION_MS;
+  return kickoffMs + dur;
+}
+
+/** True when now > expectedMatchEnd + ODDS_API_FT_FALLBACK_GRACE_MS. */
+export function isPastFtGraceWindow(kickoffMs: number, league: string | null | undefined): boolean {
+  return Date.now() > expectedMatchEnd(kickoffMs, league) + ODDS_API_FT_FALLBACK_GRACE_MS;
+}
 
 /** Maps our league codes to The Odds API sport keys */
 export const LEAGUE_TO_ODDS_API: Record<string, string> = {

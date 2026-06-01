@@ -21,7 +21,7 @@ import { DeterminingCard, OutcomeCard } from '@/components/pool/ResolutionCards'
 import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter';
 import { useThemeTokens } from '@/app/providers';
 import { formatUSDC, USDC_DIVISOR } from '@/lib/format';
-import { useLiveScore, isMatchActive, isMatchFinished, formatLiveStatus } from '@/hooks/useLiveScores';
+import { useLiveScore, isMatchActive, isMatchFinished, formatLiveStatus, isAwaitingFinalResult } from '@/hooks/useLiveScores';
 import { useCategoryMap } from '@/hooks/useCategories';
 import { getIcon } from '@/lib/icon-registry';
 
@@ -133,12 +133,21 @@ export default function MatchDetailPage() {
   const liveScore = useLiveScore(pool?.id ?? null);
   const categoryMap = useCategoryMap();
   const isResolved = pool ? (pool.status === 'CLAIMABLE' || pool.status === 'RESOLVED') : false;
-  const matchLive = liveScore && isMatchActive(liveScore);
   const matchFinished = liveScore && isMatchFinished(liveScore.status);
   const isLocked = pool && !isResolved && pool.lockTime && new Date(pool.lockTime).getTime() < Date.now();
   const hasStarted = pool && new Date(pool.startTime).getTime() < Date.now();
   const hasScore = pool && pool.homeScore != null && pool.awayScore != null;
-  const awaitingResolution = pool && !isResolved && hasScore && !matchLive;
+  // Phase B: surface the "awaiting final result" placeholder when the match
+  // is past expected end but the feed hasn't reported FT yet. Backend
+  // triggers the Odds API FT fallback after the grace window for non-knockout
+  // leagues; until then the UI stops pretending it's still live. Computed
+  // BEFORE matchLive so we can exclude "stuck 2H 95'" feed states from the
+  // live indicator.
+  const awaitingFinalFeed = pool ? isAwaitingFinalResult(pool, liveScore?.status) : false;
+  const matchLive = liveScore && isMatchActive(liveScore) && !awaitingFinalFeed;
+  const awaitingResolution = pool && !isResolved && (
+    (hasScore && !matchLive) || awaitingFinalFeed
+  );
 
   // Poll bets + pool totals every 5s
   const poolId = pool?.id;
