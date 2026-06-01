@@ -29,7 +29,37 @@ function addDays(d: Date, days: number): Date {
   return result;
 }
 
+// Sport→leagues whitelist for cross-check. When a row tries to upsert with
+// (sport, league) outside this map we treat it as pollution (one historical
+// instance left ~890 soccer matches stamped sport=FOOTBALL/league=MLB in the
+// devnet DB before this guard existed). Extend the map when adding leagues.
+const SPORT_LEAGUE_WHITELIST: Record<string, Set<string>> = {
+  FOOTBALL: new Set(['PL','PD','CL','EL','SA','BL1','FL1','BSA','ELC','DED','PPL','CLI','WC','MLS']),
+  NBA: new Set(['NBA']),
+  NHL: new Set(['NHL']),
+  NFL: new Set(['NFL']),
+  MMA: new Set(['MMA']),
+  MLB: new Set(['MLB']),
+  F1: new Set(['F1']),
+  TENNIS: new Set(['TENNIS']),
+  RUGBY: new Set(['RUGBY']),
+  CRICKET: new Set(['CRICKET']),
+  ESPORTS: new Set(['ESPORTS']),
+  BOXING: new Set(['BOXING']),
+  GOLF: new Set(['GOLF']),
+  POLYMARKET: new Set(['PM_POLITICS','PM_GEO','PM_CULTURE','PM_FINANCE','PM_SCIENCE','PM_SPORTS','PM_CLIMATE','PM_CRYPTO']),
+};
+
 async function upsertMatch(match: Match, source: string): Promise<void> {
+  // Pollution guard: refuse to upsert rows where the (sport, league) pair
+  // is not in the whitelist. Logs loudly so misconfiguration shows up in
+  // the API output instead of silently filling the cache with stale rows.
+  const allowed = SPORT_LEAGUE_WHITELIST[match.sport];
+  if (allowed && !allowed.has(match.league)) {
+    console.warn(`[FixtureSync] REFUSED upsert: sport=${match.sport} but league=${match.league} (allowed: ${[...allowed].join(',')}). matchId=${match.id}`);
+    return;
+  }
+
   const winner = match.status === 'FINISHED' && match.homeScore != null && match.awayScore != null
     ? regulationWinner(match.homeScore, match.awayScore, match.rawStatus)
     : null;

@@ -23,8 +23,51 @@ function mapStatus(status: string | null): MatchStatus {
   return 'LIVE';
 }
 
+/**
+ * Combat-sport headliner extractor. UFC events on TheSportsDB don't populate
+ * `strHomeTeam` / `strAwayTeam`; the fighters live in `strEvent`, formatted
+ * like "UFC Fight Night 278 Muhammad vs Bonfim" or "UFC 329 McGregor vs
+ * Holloway 2". We pull whatever appears around the last " vs " and treat
+ * the right-hand-side surname (including a trailing rematch number) as the
+ * away fighter.
+ *
+ * Returns null when the event title doesn't include a "vs" pair we can
+ * parse — the caller drops these events instead of polluting the cache
+ * with unusable rows.
+ */
+function parseHeadlinerFromTitle(strEvent: string | null | undefined): { home: string; away: string } | null {
+  if (!strEvent) return null;
+  // Use the LAST occurrence of " vs " so prefixes like "UFC X" or "Bellator Y"
+  // never bleed into the home name even if they contain "v" letters.
+  const idx = strEvent.search(/\svs\.?\s+/i);
+  if (idx < 0) return null;
+  const left = strEvent.slice(0, idx).trim();
+  const right = strEvent.slice(idx).replace(/^\s*vs\.?\s+/i, '').trim();
+  if (!left || !right) return null;
+  // Trim off the event prefix from the left side: drop everything before
+  // (and including) the last numeric token, then keep what's left.
+  // "UFC Fight Night 278 Muhammad" → "Muhammad"
+  // "UFC 329 McGregor"             → "McGregor"
+  const lastNumMatch = left.match(/^(.*\d+)\s+(.+)$/);
+  const home = lastNumMatch ? lastNumMatch[2].trim() : left;
+  if (!home || !right) return null;
+  return { home, away: right };
+}
+
 function mapEvent(e: any, sport: string, leagueOverride?: string): Match | null {
-  if (!e.idEvent || !e.strHomeTeam || !e.strAwayTeam) return null;
+  if (!e.idEvent) return null;
+
+  // Combat sports: SDB leaves strHomeTeam/strAwayTeam null and stores the
+  // fighters inside strEvent. Parse it; everything else (kickoff, badges
+  // etc.) still uses the standard fields.
+  let homeTeam: string | null = e.strHomeTeam || null;
+  let awayTeam: string | null = e.strAwayTeam || null;
+  if (!homeTeam || !awayTeam) {
+    const headliner = parseHeadlinerFromTitle(e.strEvent);
+    if (!headliner) return null;
+    homeTeam = headliner.home;
+    awayTeam = headliner.away;
+  }
 
   const kickoff = e.dateEvent && e.strTime
     ? new Date(`${e.dateEvent}T${e.strTime}+00:00`)
@@ -36,8 +79,8 @@ function mapEvent(e: any, sport: string, leagueOverride?: string): Match | null 
     sport,
     league: leagueOverride || sport,
     leagueName: e.strLeague || sport,
-    homeTeam: e.strHomeTeam,
-    awayTeam: e.strAwayTeam,
+    homeTeam,
+    awayTeam,
     homeTeamCrest: e.strHomeTeamBadge || undefined,
     awayTeamCrest: e.strAwayTeamBadge || undefined,
     kickoff,

@@ -103,6 +103,33 @@ export async function getFootballLeagueCodes(): Promise<string[]> {
   return cats.map(c => c.code);
 }
 
+/**
+ * Default lead time (in hours) we open a pool before kickoff when a category
+ * has no `poolOpenDaysBefore` override in its config. Mirrors the constant
+ * previously hardcoded in sports-scheduler.ts.
+ */
+export const DEFAULT_POOL_OPEN_HOURS = 720; // 30 days
+
+/**
+ * Per-league/per-sport override of how many hours before kickoff we create
+ * the pool. The admin edits this as days in the category-config UI; we
+ * convert here. Returns DEFAULT_POOL_OPEN_HOURS when the category isn't
+ * present or doesn't have a value set, so behaviour stays backward-compatible.
+ *
+ * Validates: must be a finite positive integer between 1 and 365 days. Out-of-
+ * range values fall back to the default so a typo in the admin doesn't melt
+ * the cache.
+ */
+export async function getPoolOpenHoursForLeague(code: string): Promise<number> {
+  await refreshCache();
+  const cat = cachedCategories.find(c => c.code === code);
+  const cfg = cat?.config as { poolOpenDaysBefore?: unknown } | null | undefined;
+  const raw = cfg?.poolOpenDaysBefore;
+  const days = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : NaN;
+  if (!Number.isFinite(days) || days < 1 || days > 365) return DEFAULT_POOL_OPEN_HOURS;
+  return Math.floor(days) * 24;
+}
+
 export async function getSportsDbConfigs(): Promise<SportsDbConfig[]> {
   const cats = await getEnabledCategories('SPORTSDB_SPORT');
   return cats.map(c => ({

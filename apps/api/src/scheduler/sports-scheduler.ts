@@ -10,9 +10,11 @@ import crypto from 'crypto';
 import { emitPoolStatus } from '../websocket';
 import { generateMatchAnalysis } from '../services/sports/match-analysis';
 import { awardBetResolution } from '../services/rewards';
-import { getFootballLeagueCodes, getSportsDbConfigs, getPolymarketCategories, getMatchDurationHours } from '../services/category-config';
+import {
+  getFootballLeagueCodes, getSportsDbConfigs, getPolymarketCategories,
+  getMatchDurationHours, getPoolOpenHoursForLeague,
+} from '../services/category-config';
 import { sweepStuckPmPools } from './pm-cancel';
-const POOL_OPEN_HOURS_BEFORE = 720; // Open pool 30 days before kickoff
 const TX_DELAY_MS = 2_000; // 2s between on-chain transactions to avoid RPC 429s
 
 function sleep(ms: number): Promise<void> {
@@ -66,18 +68,28 @@ async function _createMatchPoolsInner(): Promise<void> {
   for (const leagueCode of leagues) {
     try {
       const matches = await getCachedUpcomingFixtures('FOOTBALL', leagueCode);
+      // Per-league window: defaults to 30 days, overridable from admin via
+      // category.config.poolOpenDaysBefore. Read once per league so we don't
+      // hit the cache for every match.
+      const openHours = await getPoolOpenHoursForLeague(leagueCode);
+      let created = 0, exists = 0, tooFar = 0, alreadyStarted = 0;
 
       for (const match of matches) {
         const existing = await prisma.pool.findFirst({
           where: { matchId: match.id, poolType: 'SPORTS' },
         });
-        if (existing) continue;
+        if (existing) { exists++; continue; }
 
         const hoursUntilKickoff = (match.kickoff.getTime() - Date.now()) / (1000 * 60 * 60);
-        if (hoursUntilKickoff > POOL_OPEN_HOURS_BEFORE || hoursUntilKickoff < 0) continue;
+        if (hoursUntilKickoff < 0) { alreadyStarted++; continue; }
+        if (hoursUntilKickoff > openHours) { tooFar++; continue; }
 
         await createSportsPool(match, leagueCode);
+        created++;
         await sleep(TX_DELAY_MS);
+      }
+      if (matches.length > 0) {
+        console.log(`[Sports] ${leagueCode}: ${matches.length} cached → created=${created} exists=${exists} too-far(>${openHours / 24}d)=${tooFar} kickoff-passed=${alreadyStarted}`);
       }
     } catch (error) {
       console.error(`[Sports] Failed to fetch matches for ${leagueCode}:`, error);
@@ -114,18 +126,26 @@ async function _createMatchPoolsInner(): Promise<void> {
   for (const config of sportsConfigs) {
     try {
       const matches = await getCachedUpcomingFixtures(config.sport, config.sport);
+      // Per-sport window: same admin-tunable knob as football leagues.
+      const openHours = await getPoolOpenHoursForLeague(config.sport);
+      let created = 0, exists = 0, tooFar = 0, alreadyStarted = 0;
 
       for (const match of matches) {
         const existing = await prisma.pool.findFirst({
           where: { matchId: match.id, poolType: 'SPORTS' },
         });
-        if (existing) continue;
+        if (existing) { exists++; continue; }
 
         const hoursUntilKickoff = (match.kickoff.getTime() - Date.now()) / (1000 * 60 * 60);
-        if (hoursUntilKickoff > POOL_OPEN_HOURS_BEFORE || hoursUntilKickoff < 0) continue;
+        if (hoursUntilKickoff < 0) { alreadyStarted++; continue; }
+        if (hoursUntilKickoff > openHours) { tooFar++; continue; }
 
         await createSportsPool(match, config.sport);
+        created++;
         await sleep(TX_DELAY_MS);
+      }
+      if (matches.length > 0) {
+        console.log(`[Sports] ${config.sport}: ${matches.length} cached → created=${created} exists=${exists} too-far(>${openHours / 24}d)=${tooFar} kickoff-passed=${alreadyStarted}`);
       }
     } catch (error) {
       console.error(`[Sports] Failed to create ${config.sport} pools:`, error);

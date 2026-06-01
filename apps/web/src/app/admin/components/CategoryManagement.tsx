@@ -416,11 +416,14 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
   const [configSportQuery, setConfigSportQuery] = useState('');
   const [configLeagueFilter, setConfigLeagueFilter] = useState('');
   const [configLeagueId, setConfigLeagueId] = useState('');
+  // Per-league pool-open window. Empty string → keep backend default (30 days).
+  // Stored to `config.poolOpenDaysBefore` and read by getPoolOpenHoursForLeague.
+  const [configPoolOpenDays, setConfigPoolOpenDays] = useState('');
 
   const str = (v: unknown) => (v != null ? String(v) : '');
 
   const handleOpen = () => {
-    setConfigSportQuery(''); setConfigLeagueFilter(''); setConfigLeagueId(''); setPm(EMPTY_PM);
+    setConfigSportQuery(''); setConfigLeagueFilter(''); setConfigLeagueId(''); setConfigPoolOpenDays(''); setPm(EMPTY_PM);
     if (isNew) {
       setForm({ code: '', type: 'POLYMARKET', label: '', shortLabel: '', color: '#A78BFA', badgeUrl: '', iconKey: 'Public', sortOrder: 50, numSides: 2, enabled: true, comingSoon: false, apiSource: 'predictions', adapterKey: 'POLYMARKET', sideLabels: ['Yes', 'No'] });
       // Sensible PM defaults so the admin isn't guessing blank numbers.
@@ -443,6 +446,8 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
     setConfigSportQuery(typeof cfg.sportQuery === 'string' ? cfg.sportQuery : '');
     setConfigLeagueFilter(typeof cfg.leagueFilter === 'string' ? cfg.leagueFilter : '');
     setConfigLeagueId(typeof cfg.theSportsDbLeagueId === 'string' ? cfg.theSportsDbLeagueId : '');
+    const rawDays = (cfg as { poolOpenDaysBefore?: unknown }).poolOpenDaysBefore;
+    setConfigPoolOpenDays(typeof rawDays === 'number' ? String(rawDays) : typeof rawDays === 'string' ? rawDays : '');
   };
 
   const type = form.type;
@@ -464,6 +469,15 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
       if (configLeagueFilter) config.leagueFilter = configLeagueFilter;
     } else if (type === 'FOOTBALL_LEAGUE') {
       if (configLeagueId) config.theSportsDbLeagueId = configLeagueId;
+    }
+    // Per-league pool-open window override (sports only). Empty / out-of-range
+    // values intentionally aren't written so the backend falls through to its
+    // 30-day default via getPoolOpenHoursForLeague.
+    if (type === 'SPORTSDB_SPORT' || type === 'FOOTBALL_LEAGUE') {
+      const n = Number(configPoolOpenDays);
+      if (Number.isFinite(n) && n >= 1 && n <= 365) {
+        config.poolOpenDaysBefore = Math.floor(n);
+      }
     }
     onSave({ ...form, config: Object.keys(config).length > 0 ? config : undefined });
   };
@@ -538,6 +552,20 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
         {type === 'FOOTBALL_LEAGUE' && (
           <TextField label="TheSportsDB League ID" size="small" value={configLeagueId} onChange={e => setConfigLeagueId(e.target.value)}
             placeholder="e.g. 4480 (Champions League)" helperText="Numeric ID from TheSportsDB. Required for fixture sync." />
+        )}
+
+        {(type === 'FOOTBALL_LEAGUE' || type === 'SPORTSDB_SPORT') && (
+          <TextField
+            label="Open pool how many days before kickoff"
+            size="small"
+            type="number"
+            value={configPoolOpenDays}
+            onChange={e => setConfigPoolOpenDays(e.target.value)}
+            placeholder="30 (default)"
+            inputProps={{ min: 1, max: 365 }}
+            helperText="Empty → 30 days (default). Pools auto-create this many days before the match. Lower = fewer pools, less DB. Higher = more lead time."
+            InputProps={tipAdornment('How early to spin up a pool relative to kickoff. Default is 30 days. BSA matchdays land in waves so 60 may help; tight schedules like NBA playoffs do fine at the default.')}
+          />
         )}
       </DialogContent>
       <DialogActions>
