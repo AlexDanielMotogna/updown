@@ -81,7 +81,7 @@ adminPayoutsRouter.get('/queue', async (_req, res) => {
     });
   } catch (error) {
     console.error('[Admin] payouts/queue error:', error);
-    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load queue' } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: 'Failed to load queue' } });
   }
 });
 
@@ -125,7 +125,7 @@ adminPayoutsRouter.get('/failed', async (_req, res) => {
     });
   } catch (error) {
     console.error('[Admin] payouts/failed error:', error);
-    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load failed list' } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: 'Failed to load failed list' } });
   }
 });
 
@@ -179,7 +179,7 @@ adminPayoutsRouter.post('/:betId/retry', async (req, res) => {
     res.json({ success: true, message: 'Retry triggered' });
   } catch (error) {
     console.error('[Admin] payouts/retry error:', error);
-    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to trigger retry' } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: 'Failed to trigger retry' } });
   }
 });
 
@@ -239,7 +239,7 @@ adminPayoutsRouter.get('/migration/preview', async (req, res) => {
     });
   } catch (error) {
     console.error('[Admin] payouts/migration/preview error:', error);
-    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Preview failed' } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: 'Preview failed' } });
   }
 });
 
@@ -369,7 +369,7 @@ adminPayoutsRouter.get('/stats', async (_req, res) => {
     });
   } catch (error) {
     console.error('[Admin] payouts/stats error:', error);
-    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Stats failed' } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: 'Stats failed' } });
   }
 });
 
@@ -405,6 +405,6 @@ adminWalletRouter.get('/balance', async (_req, res) => {
     const msg = error instanceof Error ? error.message : String(error);
     if (msg.includes('429') || msg.includes('Too Many Requests')) rotateConnection();
     console.error('[Admin] wallet/balance error:', error);
-    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Balance query failed' } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: 'Balance query failed' } });
   }
 });

@@ -117,7 +117,7 @@ adminUsersRouter.get('/search', async (req, res) => {
     });
   } catch (error) {
     console.error('Admin user search error:', error);
-    res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: 'Failed to search user' } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: 'Failed to search user' } });
   }
 });
 
@@ -139,7 +139,7 @@ adminUsersRouter.get('/overview', async (_req, res) => {
     });
   } catch (error) {
     console.error('Admin users overview error:', error);
-    res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: 'Failed to fetch user overview' } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: 'Failed to fetch user overview' } });
   }
 });
 
@@ -174,6 +174,6 @@ adminUsersRouter.get('/top', async (_req, res) => {
     });
   } catch (error) {
     console.error('Admin top users error:', error);
-    res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: 'Failed to fetch top users' } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: 'Failed to fetch top users' } });
   }
 });

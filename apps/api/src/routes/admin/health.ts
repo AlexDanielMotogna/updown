@@ -2,7 +2,7 @@ import { Router, type Router as RouterType } from 'express';
 import { PublicKey } from '@solana/web3.js';
 import { prisma } from '../../db';
 import { getScheduler } from '../../scheduler/pool-scheduler';
-import { getConnection, getRpcStats } from '../../utils/solana';
+import { getConnection } from '../../utils/solana';
 import { PacificaProvider } from 'market-data';
 import { getLivescoreMetrics } from '../../services/sports/livescore';
 
@@ -114,7 +114,9 @@ adminHealthRouter.get('/overview', async (_req, res) => {
         },
         jobs: jobHealth,
         rpc: rpcLatency,
-        rpcEndpoints: getRpcStats(),
+        // PR 18 / Phase 5 — `rpcEndpoints` was never read by the SystemHealth
+        // UI. Drop it from the response; bring it back with a real renderer
+        // when the multi-RPC fallback ships (see MEMORY.md TODO).
         priceProvider: { healthy: priceHealthy },
         authorityBalance,
         stuckPools: stuckCount,

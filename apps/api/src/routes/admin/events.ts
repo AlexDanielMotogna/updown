@@ -46,6 +46,6 @@ adminEventsRouter.get('/', async (req, res) => {
     });
   } catch (error) {
     console.error('Admin events error:', error);
-    res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: 'Failed to fetch events' } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: 'Failed to fetch events' } });
   }
 });

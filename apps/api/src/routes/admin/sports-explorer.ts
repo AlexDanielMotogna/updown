@@ -348,7 +348,9 @@ adminSportsRouter.get('/sdb-leagues', async (_req, res) => {
       success: true,
       data: {
         leagues: enriched,
-        cachedAt: sdbLeaguesCache.ts,
+        // PR 18 / Phase 5 — `cachedAt` was never consumed by the admin UI.
+        // The 10-min cache is a backend implementation detail; clients
+        // don't need to know the cache epoch.
         sportsCount: new Set(enriched.map(r => r.sport)).size,
       },
     });

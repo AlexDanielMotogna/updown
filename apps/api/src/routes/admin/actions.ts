@@ -122,10 +122,13 @@ adminActionsRouter.post('/close-pool', async (req, res) => {
 
     await logAdminEvent('ADMIN_FORCE_CLOSE', poolId, { action: 'close-pool', force: String(!!force) });
 
-    res.json({ success: true, message: 'Pool closed and cleaned up' });
+    // PR 18 / Phase 5 — uniform response envelope. Action endpoints that
+    // mutate a pool now return `data: { poolId, status }` so the client
+    // doesn't have to refetch to confirm what happened.
+    res.json({ success: true, data: { poolId, status: 'CLOSED' }, message: 'Pool closed and cleaned up' });
   } catch (error) {
     console.error('Admin close-pool error:', error);
-    res.status(500).json({ success: false, error: { code: 'ACTION_ERROR', message: error instanceof Error ? error.message : 'Failed to close pool' } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: error instanceof Error ? error.message : 'Failed to close pool' } });
   }
 });
 
@@ -141,7 +144,7 @@ adminActionsRouter.post('/restart-scheduler', async (_req, res) => {
     res.json({ success: true, data: scheduler.getStatus(), message: 'Scheduler restarted' });
   } catch (error) {
     console.error('Admin restart-scheduler error:', error);
-    res.status(500).json({ success: false, error: { code: 'ACTION_ERROR', message: error instanceof Error ? error.message : 'Failed to restart scheduler' } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: error instanceof Error ? error.message : 'Failed to restart scheduler' } });
   }
 });
 
@@ -189,11 +192,13 @@ adminActionsRouter.post('/recover-orphaned-pools', async (_req, res) => {
 
 // POST /actions/stop-recovery
 adminActionsRouter.post('/stop-recovery', async (_req, res) => {
+  // PR 18 / Phase 5 — uniform envelope: `data` carries the flag so the
+  // client knows whether anything was actually stopped.
   if (recoveryAbort) {
     recoveryAbort();
-    res.json({ success: true, message: 'Stop signal sent' });
+    res.json({ success: true, data: { stopped: true }, message: 'Stop signal sent' });
   } else {
-    res.json({ success: true, message: 'No recovery running' });
+    res.json({ success: true, data: { stopped: false }, message: 'No recovery running' });
   }
 });
 
@@ -234,7 +239,10 @@ adminActionsRouter.post('/sync-pools', async (req, res) => {
   })();
 
   await logAdminEvent('ADMIN_SYNC_POOLS', 'system', { scope });
-  res.json({ success: true, message: 'Sync started - new pools will be created within a minute or two. Refresh to see them.' });
+  // PR 18 / Phase 5 — uniform envelope. `data` echoes the scope so the
+  // client can rebind queries by category type after the fire-and-forget
+  // run finishes.
+  res.json({ success: true, data: { scope, started: true }, message: 'Sync started - new pools will be created within a minute or two. Refresh to see them.' });
 });
 
 // POST /actions/create-pool (moved from /api/pools/test)

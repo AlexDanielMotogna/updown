@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { prisma } from '../../db';
 import { getConnection, getAuthorityKeypair, getUsdcMint } from '../../utils/solana';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
-import { calculatePayout } from '../../utils/payout';
-import { getFeeBps } from '../../utils/fees';
+// PR 18 / Phase 5 — calculatePayout and getFeeBps were imported but never
+// used by /overview or /closures. Dropped.
 
 export const adminFinanceRouter: RouterType = Router();
 
@@ -108,7 +108,7 @@ adminFinanceRouter.get('/overview', async (_req, res) => {
     });
   } catch (error) {
     console.error('Admin finance error:', error);
-    res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: 'Failed to fetch finance data' } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: 'Failed to fetch finance data' } });
   }
 });
 
@@ -149,6 +149,6 @@ adminFinanceRouter.get('/closures', async (req, res) => {
     });
   } catch (error) {
     console.error('Admin closures error:', error);
-    res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: 'Failed to fetch closures' } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: 'Failed to fetch closures' } });
   }
 });
