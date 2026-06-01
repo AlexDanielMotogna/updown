@@ -54,6 +54,11 @@ export function isMatchFinished(status: string): boolean {
 
 /** Human-readable label for TheSportsDB status codes */
 const STATUS_LABELS: Record<string, string> = {
+  // Phase D belt-and-suspenders: when only Odds API has the event (rare —
+  // a league SDB doesn't cover), the poller writes status='LIVE' with no
+  // progress. Without this entry the match page would render the stutter
+  // "LIVE · LIVE". 'In Play' reads cleanly alongside the existing prefix.
+  'LIVE': 'In Play',
   // Soccer
   'TBD': 'TBD', 'NS': 'Not Started',
   '1H': '1st Half', 'HT': 'HT Break', '2H': '2nd Half',
@@ -82,6 +87,8 @@ const STATUS_LABELS: Record<string, string> = {
 const NO_PROGRESS_STATUSES = new Set([
   ...FINISHED_STATUSES, 'HT', 'BT', 'NS', 'TBD',
   'PST', 'POST', 'CANC', 'ABD', 'AWD', 'AW', 'WO', 'SUSP', 'INT', 'INTR',
+  // Generic 'LIVE' has no meaningful minute (Phase D — see STATUS_LABELS).
+  'LIVE',
 ]);
 
 export function formatLiveStatus(status: string, progress?: string): string {

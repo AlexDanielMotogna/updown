@@ -1,6 +1,18 @@
 # Plan — TheSportsDB primary, The Odds API fallback (livescore + resolution)
 
-**Status:** drafted 2026-06-01, **not implemented**. Reverses the architecture introduced by commits `ee93073` ("Odds API primary livescore") and `f120702` ("instant resolve trigger") earlier this session.
+**Status:** ✅ **Phases A, B, C, D shipped** 2026-06-01. Phase E (housekeeping) is this commit. Reversed the architecture introduced by commits `ee93073` ("Odds API primary livescore") and `f120702` ("instant resolve trigger") earlier the same day.
+
+Phase-by-phase ship log:
+
+| Phase | Commit  | What |
+|-------|---------|------|
+| A     | `a39ed8e` | Flipped poller merge: SDB rows win for events both sources have. Restored `strProgress` on every live pool. |
+| B     | `9760614` | Grace-window FT fallback (5 min past expected end) + `KNOCKOUT_DISABLE_ODDS_FALLBACK={CL,EL}` + UI `awaitingFinalResult` flag, `DeterminingCard`, "Awaiting result" pill. |
+| C     | `9d3bc57` | `displaySource` + `ftSource` per-bucket counters in `metrics.ts`, `ftStuckKnockoutCount` gauge, `SourceSplitPanel` in admin SystemHealth tab. |
+| D     | (this commit) | `'LIVE' → 'In Play'` STATUS_LABELS entry as a belt-and-suspenders for events only Odds API has (leagues outside SDB coverage). Avoids the `LIVE · LIVE` stutter. |
+| E     | (this commit) | This status block + memory updates + stale comment cleanup. |
+
+**What's still open**: Decision 3 of this plan ("downgrade the $60/mo Odds API plan after 2-week soak"). The Phase C `SourceSplitPanel` is the dashboard for that decision; revisit around 2026-06-15.
 
 ## TL;DR
 
