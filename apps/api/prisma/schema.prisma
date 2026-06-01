@@ -104,6 +104,11 @@ model Bet {
   @@index([poolId, claimed, payoutFailed])
   // Speeds up the admin "failed payouts" tab.
   @@index([payoutFailed, lastAttemptedAt])
+  // Admin user search + profile bet history. Without these, /api/admin/users/search
+  // (per-wallet aggregates + recentBets) does a sequential scan of all bets — at
+  // 1M+ bets that's >1s per admin lookup. See PLAN-ADMIN-REFACTOR.md Phase 1 #7.
+  @@index([walletAddress])
+  @@index([walletAddress, createdAt])
   @@map("bets")
 }
 

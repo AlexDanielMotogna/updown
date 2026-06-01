@@ -1,5 +1,6 @@
 import { Router, type Router as RouterType } from 'express';
 import { Prisma } from '@prisma/client';
+import { z } from 'zod';
 import { prisma } from '../../db';
 import { invalidateCache } from '../../services/category-config';
 
@@ -21,6 +22,30 @@ function safeErrorResponse(action: string, err: unknown): { status: number; body
   return { status: 400, body: { success: false, error: { code: action.toUpperCase().replace(/-/g, '_') + '_ERROR', message: 'Operation failed' } } };
 }
 
+// Zod allowlist of category fields the admin can write. Anything else in
+// req.body (including id/createdAt/updatedAt) is stripped. Strict mode would
+// 400 on unknown keys; we use passthrough-strip via .strip() to be forgiving
+// with the existing UI which sends a wide payload. See Phase 1 #10.
+const categoryBaseSchema = z.object({
+  code: z.string().min(2).max(32).regex(/^[A-Z][A-Z0-9_]+$/, 'Code must be uppercase A-Z, digits, or underscore'),
+  type: z.enum(['FOOTBALL_LEAGUE', 'SPORTSDB_SPORT', 'POLYMARKET']),
+  enabled: z.boolean(),
+  comingSoon: z.boolean(),
+  label: z.string().min(1).max(80),
+  shortLabel: z.string().max(40).nullable().optional(),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Color must be #RRGGBB hex').nullable().optional(),
+  badgeUrl: z.string().url().nullable().optional(),
+  iconKey: z.string().max(40).nullable().optional(),
+  apiSource: z.string().max(40).nullable().optional(),
+  adapterKey: z.string().max(40).nullable().optional(),
+  numSides: z.number().int().min(2).max(3),
+  sideLabels: z.array(z.string()).min(2).max(3),
+  config: z.record(z.unknown()).nullable().optional(),
+  sortOrder: z.number().int().min(0).max(9999),
+});
+const createCategorySchema = categoryBaseSchema;
+const updateCategorySchema = categoryBaseSchema.partial();
+
 // GET /api/admin/categories - all categories (including disabled)
 adminCategoriesRouter.get('/', async (_req, res) => {
   try {
@@ -32,10 +57,24 @@ adminCategoriesRouter.get('/', async (_req, res) => {
   }
 });
 
+// Prisma's JSON columns can't accept a raw `null` — explicit nulls have to
+// be passed as `Prisma.JsonNull`. We let the zod schema allow `null` on
+// `config` for ergonomics and translate here.
+function normalizeConfig<T extends { config?: Record<string, unknown> | null }>(data: T): Omit<T, 'config'> & { config?: Prisma.InputJsonValue | typeof Prisma.JsonNull } {
+  const { config, ...rest } = data;
+  if (config === undefined) return rest as Omit<T, 'config'>;
+  if (config === null) return { ...rest, config: Prisma.JsonNull } as Omit<T, 'config'> & { config: typeof Prisma.JsonNull };
+  return { ...rest, config: config as Prisma.InputJsonValue };
+}
+
 // POST /api/admin/categories - create new category
 adminCategoriesRouter.post('/', async (req, res) => {
   try {
-    const category = await prisma.poolCategory.create({ data: req.body });
+    const parsed = createCategorySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.errors[0]?.message ?? 'Invalid category fields', details: parsed.error.flatten() } });
+    }
+    const category = await prisma.poolCategory.create({ data: normalizeConfig(parsed.data) });
     invalidateCache();
     res.json({ success: true, data: category });
   } catch (err) {
@@ -47,9 +86,13 @@ adminCategoriesRouter.post('/', async (req, res) => {
 // PUT /api/admin/categories/:id - update category
 adminCategoriesRouter.put('/:id', async (req, res) => {
   try {
+    const parsed = updateCategorySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.errors[0]?.message ?? 'Invalid category fields', details: parsed.error.flatten() } });
+    }
     const category = await prisma.poolCategory.update({
       where: { id: req.params.id },
-      data: req.body,
+      data: normalizeConfig(parsed.data),
     });
     invalidateCache();
     res.json({ success: true, data: category });
@@ -100,8 +143,31 @@ adminCategoriesRouter.patch('/:id/coming-soon', async (req, res) => {
 });
 
 // DELETE /api/admin/categories/:id
+// Refuses to delete a category that still has live pools — Pool.league is a
+// free-form string column, so a delete would orphan the rows visually
+// (pools lose their category in the UI) without any FK cascade to clean
+// them up. Admin must drain or migrate the pools first. See Phase 1 #10.
 adminCategoriesRouter.delete('/:id', async (req, res) => {
   try {
+    const category = await prisma.poolCategory.findUnique({ where: { id: req.params.id } });
+    if (!category) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Category not found' } });
+    }
+    const livePoolCount = await prisma.pool.count({
+      where: {
+        league: category.code,
+        status: { in: ['JOINING', 'ACTIVE', 'RESOLVED', 'CLAIMABLE'] },
+      },
+    });
+    if (livePoolCount > 0) {
+      return res.status(409).json({
+        success: false,
+        error: {
+          code: 'CATEGORY_HAS_POOLS',
+          message: `Cannot delete: ${livePoolCount} active pool(s) still reference this category. Disable it instead, or wait for the pools to fully close.`,
+        },
+      });
+    }
     await prisma.poolCategory.delete({ where: { id: req.params.id } });
     invalidateCache();
     res.json({ success: true });

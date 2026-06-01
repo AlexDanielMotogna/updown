@@ -255,10 +255,14 @@ adminSportsRouter.post('/create-pool', async (req, res) => {
       return res.status(404).json({ success: false, error: { code: 'MATCH_NOT_CACHED', message: 'Match not found in fixture cache. Try Refresh from SDB first.' } });
     }
 
-    // Build the Match shape createSportsPool expects.
+    // Build the Match shape createSportsPool expects. Football pools use
+    // sport='FOOTBALL' across the cache/livescore stack (sports-scheduler
+    // and fixture-cache filter on this); SPORTSDB_SPORT pools (NBA/NFL/etc)
+    // use their own code as the sport identifier. The previous ternary
+    // returned cat.code in both branches — dead code per Phase 1 #5.
     const match: Match = {
       id: cacheRow.externalId,
-      sport: cat.type === 'FOOTBALL_LEAGUE' ? cat.code : cat.code,
+      sport: cat.type === 'FOOTBALL_LEAGUE' ? 'FOOTBALL' : cat.code,
       league: cat.code,
       leagueName: cacheRow.leagueName ?? cat.label,
       homeTeam: cacheRow.homeTeam,
