@@ -2,14 +2,18 @@
 
 import { useState } from 'react';
 import {
-  Box, Card, Typography, Button, Chip, Alert, Table, TableBody, TableCell,
-  TableHead, TableRow, CircularProgress, Tooltip,
+  Box, Chip, Table, TableBody, TableCell, TableHead, TableRow, Tooltip,
 } from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import CleaningServicesIcon from '@mui/icons-material/CleaningServices';
+import CleaningServicesRoundedIcon from '@mui/icons-material/CleaningServicesRounded';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminFetch, adminPost } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
+import {
+  SectionCard, StatusChip, ActionButton, RefreshButton,
+  LoadingState, EmptyState, ErrorAlert,
+  Body, Meta, Label,
+  useMutationFeedback,
+} from '../ui';
 
 type StuckPool = {
   id: string;
@@ -31,11 +35,11 @@ type StuckResponse = {
 
 export function StuckPmPools() {
   const qc = useQueryClient();
+  const feedback = useMutationFeedback();
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
-  // Default minHoursOverdue=0 to show everything that's past kickoff.
-  // Admin can use the sweep button (cron also runs every 15m) to auto-cancel
-  // 0-bet pools past PM_SWEEP_GRACE_HOURS (default 48h).
+  // Default minHoursOverdue=0 to show everything past kickoff. The 15m
+  // cron also runs the sweep; this button is the manual escape hatch.
   const { data, isLoading, refetch, isFetching } = useQuery<StuckResponse>({
     queryKey: ['admin-stuck-pm-pools'],
     queryFn: () => adminFetch<StuckResponse>('/actions/stuck-pm-pools?minHoursOverdue=0'),
@@ -62,58 +66,49 @@ export function StuckPmPools() {
   const truncated = data?.data.truncated ?? false;
 
   return (
-    <Card sx={{ p: 2, border: `1px solid ${t.border.medium}` }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-        <Box>
-          <Typography variant="subtitle2">Stuck Polymarket Pools</Typography>
-          <Typography variant="body2" color="text.secondary">
-            PM pools past kickoff still in JOINING/ACTIVE. UMA can stall 24–72h after market end; markets can also be delisted from Gamma. The sweep auto-cancels 0-bet pools past the grace window — pools with bets need a manual call here.
-          </Typography>
+    <SectionCard
+      dense
+      title="Stuck Polymarket pools"
+      subtitle="PM pools past kickoff still in JOINING / ACTIVE. UMA can stall 24–72h after market end and Gamma can delist a market. The sweep auto-cancels 0-bet pools past the grace window; pools with bets need a manual call here."
+      actions={
+        <Box sx={{ display: 'inline-flex', gap: 0.75, alignItems: 'center' }}>
+          <RefreshButton onRefresh={() => refetch()} isFetching={isFetching} />
+          <ActionButton
+            kind="secondary"
+            label="Run sweep"
+            icon={<CleaningServicesRoundedIcon sx={{ fontSize: 16 }} />}
+            loading={sweepMutation.isPending}
+            onClick={() => feedback.run(sweepMutation, undefined, { success: 'Sweep complete' })}
+          />
         </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            size="small"
-            startIcon={<RefreshIcon />}
-            onClick={() => refetch()}
-            disabled={isFetching}
-          >
-            Refresh
-          </Button>
-          <Button
-            size="small"
-            variant="outlined"
-            color="warning"
-            startIcon={<CleaningServicesIcon />}
-            onClick={() => sweepMutation.mutate()}
-            disabled={sweepMutation.isPending}
-          >
-            {sweepMutation.isPending ? 'Sweeping…' : 'Run sweep now'}
-          </Button>
-        </Box>
-      </Box>
-
+      }
+    >
       {sweepMutation.isError && (
-        <Alert severity="error" sx={{ mb: 1 }}>{(sweepMutation.error as Error).message}</Alert>
+        <Box sx={{ mb: 1 }}>
+          <ErrorAlert title="Sweep failed" message={(sweepMutation.error as Error).message} details={sweepMutation.error} />
+        </Box>
       )}
       {cancelMutation.isError && (
-        <Alert severity="error" sx={{ mb: 1 }}>{(cancelMutation.error as Error).message}</Alert>
+        <Box sx={{ mb: 1 }}>
+          <ErrorAlert title="Cancel failed" message={(cancelMutation.error as Error).message} details={cancelMutation.error} />
+        </Box>
       )}
 
       {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress size={20} /></Box>
+        <LoadingState variant="block" />
       ) : pools.length === 0 ? (
-        <Alert severity="success" variant="outlined">No stuck PM pools — all caught up.</Alert>
+        <EmptyState variant="success" title="All caught up" hint="No Polymarket pools past their kickoff right now." />
       ) : (
         <>
           <Table size="small" sx={{ '& td, & th': { borderColor: t.border.subtle } }}>
             <TableHead>
               <TableRow>
-                <TableCell>Question</TableCell>
-                <TableCell>League</TableCell>
-                <TableCell align="right">Bets</TableCell>
-                <TableCell align="right">Hours overdue</TableCell>
-                <TableCell>Gamma</TableCell>
-                <TableCell align="right">Action</TableCell>
+                <TableCell><Label>Question</Label></TableCell>
+                <TableCell><Label>League</Label></TableCell>
+                <TableCell align="right"><Label>Bets</Label></TableCell>
+                <TableCell align="right"><Label>Overdue</Label></TableCell>
+                <TableCell><Label>Gamma</Label></TableCell>
+                <TableCell align="right"><Label>Action</Label></TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -121,56 +116,55 @@ export function StuckPmPools() {
                 <TableRow key={p.id} hover>
                   <TableCell sx={{ maxWidth: 380 }}>
                     <Tooltip title={`${p.id} · matchId=${p.matchId ?? '—'}`}>
-                      <Typography variant="body2" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <Body sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: t.text.primary }}>
                         {p.homeTeam || '(no question)'}
-                      </Typography>
+                      </Body>
                     </Tooltip>
                   </TableCell>
                   <TableCell>
-                    <Chip size="small" label={p.league || '—'} />
+                    <Chip size="small" label={p.league || '—'} sx={{ height: 22, fontSize: '0.7rem', borderRadius: 1, bgcolor: t.hover.medium, color: t.text.primary }} />
                     {p.subcategory && (
-                      <Chip size="small" label={p.subcategory} variant="outlined" sx={{ ml: 0.5 }} />
+                      <Chip size="small" label={p.subcategory} variant="outlined" sx={{ ml: 0.5, height: 22, fontSize: '0.7rem', borderRadius: 1 }} />
                     )}
                   </TableCell>
                   <TableCell align="right">
                     {p.betCount === 0
-                      ? <Typography variant="body2" color="text.secondary">0</Typography>
-                      : <Chip size="small" color="warning" label={`${p.betCount} bets`} />}
+                      ? <Meta>0</Meta>
+                      : <StatusChip status="warning" label={`${p.betCount} bets`} />}
                   </TableCell>
-                  <TableCell align="right">{p.hoursOverdue}h</TableCell>
+                  <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{p.hoursOverdue}h</TableCell>
                   <TableCell>
                     {p.gammaDelisted === true
-                      ? <Chip size="small" color="error" label="DELISTED" />
+                      ? <StatusChip status="error" label="DELISTED" />
                       : p.gammaDelisted === false
-                        ? <Chip size="small" color="default" label="exists" variant="outlined" />
-                        : <Chip size="small" label="—" variant="outlined" />}
+                        ? <StatusChip status="ok" label="exists" />
+                        : <StatusChip status="neutral" label="—" />}
                   </TableCell>
                   <TableCell align="right">
-                    <Button
-                      size="small"
-                      variant="contained"
-                      color={p.betCount > 0 ? 'error' : 'warning'}
-                      disabled={cancellingId === p.id}
+                    <ActionButton
+                      kind={p.betCount > 0 ? 'destructive' : 'secondary'}
+                      label={p.betCount > 0 ? 'Cancel + refund' : 'Cancel'}
+                      loading={cancellingId === p.id && cancelMutation.isPending}
                       onClick={() => {
                         const reason = p.gammaDelisted ? 'gamma-delisted' : `admin-${p.hoursOverdue}h-overdue`;
                         setCancellingId(p.id);
-                        cancelMutation.mutate({ poolId: p.id, reason });
+                        void feedback.run(cancelMutation, { poolId: p.id, reason }, {
+                          success: p.betCount > 0 ? 'Cancelled, refunds queued' : 'Pool cancelled',
+                        });
                       }}
-                    >
-                      {cancellingId === p.id ? 'Cancelling…' : (p.betCount > 0 ? 'Cancel + refund' : 'Cancel')}
-                    </Button>
+                    />
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
           {truncated && (
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-              Showing 20 of {totalCount} — run sweep to bulk-cancel 0-bet pools, then refresh.
-            </Typography>
+            <Meta sx={{ mt: 1, display: 'block' }}>
+              Showing 20 of {totalCount} — run the sweep to bulk-cancel 0-bet pools, then refresh.
+            </Meta>
           )}
         </>
       )}
-    </Card>
+    </SectionCard>
   );
 }

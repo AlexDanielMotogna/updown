@@ -2,15 +2,20 @@
 
 import { useState } from 'react';
 import {
-  Box, Card, Typography, Chip, Alert, CircularProgress, Button,
+  Box, TextField, Stack,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Dialog, DialogTitle, DialogContent, DialogActions, TextField, Stack,
 } from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
 import ReplayIcon from '@mui/icons-material/Replay';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminFetch, adminPost, adminPostSSE } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
+import {
+  SectionCard, StatCard, StatusChip, AdminDialog, ActionButton, RefreshButton,
+  LoadingState, EmptyState, ErrorAlert,
+  WalletCell, TimeCell, Body, Meta, Label,
+  useMutationFeedback, useToast,
+  POLL_MEDIUM_MS, POLL_SLOW_MS,
+} from '../ui';
 
 interface WalletBalance {
   solLamports: string;
@@ -72,49 +77,42 @@ const fmtUsdc = (raw: string | bigint) => (Number(raw) / 1_000_000).toFixed(2);
 const matchLabel = (pool: { homeTeam?: string | null; awayTeam?: string | null; asset: string }) =>
   pool.homeTeam ? `${pool.homeTeam} vs ${pool.awayTeam}` : pool.asset;
 
-function StatCard({ label, value, color, unit }: { label: string; value: string | number; color?: string; unit?: string }) {
-  return (
-    <Card sx={{ p: 2, flex: 1, minWidth: 160, bgcolor: t.bg.surface }}>
-      <Typography variant="caption" sx={{ color: t.text.tertiary, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.65rem' }}>
-        {label}
-      </Typography>
-      <Typography variant="h4" sx={{ color: color ?? t.text.primary, fontWeight: 700, mt: 0.5 }}>
-        {value}
-        {unit && <Typography component="span" variant="body2" sx={{ color: t.text.tertiary, ml: 0.5, fontWeight: 400 }}>{unit}</Typography>}
-      </Typography>
-    </Card>
-  );
-}
-
 export function PayoutManagement() {
   const qc = useQueryClient();
+  const toast = useToast();
+  const feedback = useMutationFeedback();
+
   const [migrationOpen, setMigrationOpen] = useState(false);
   const [migrationDays, setMigrationDays] = useState<number>(30);
   const [migrationLogs, setMigrationLogs] = useState<MigrationEvent[]>([]);
   const [migrationRunning, setMigrationRunning] = useState(false);
+  // Track which row is currently being retried so we can show a per-row
+  // spinner instead of disabling the entire table on the global
+  // `retryMut.isPending` (Plan §3.4).
+  const [retryingBetId, setRetryingBetId] = useState<string | null>(null);
 
-  const { data: balanceData, isLoading: balanceLoading, refetch: refetchBalance } = useQuery({
+  const { data: balanceData, isLoading: balanceLoading, refetch: refetchBalance, isFetching: balanceFetching } = useQuery({
     queryKey: ['admin-wallet-balance'],
     queryFn: () => adminFetch<{ data: WalletBalance }>('/wallet/balance'),
-    refetchInterval: 60_000,
+    refetchInterval: POLL_SLOW_MS,
   });
 
   const { data: statsData } = useQuery({
     queryKey: ['admin-payout-stats'],
     queryFn: () => adminFetch<{ data: PayoutStats }>('/payouts/stats'),
-    refetchInterval: 30_000,
+    refetchInterval: POLL_MEDIUM_MS,
   });
 
   const { data: queueData, isLoading: queueLoading } = useQuery({
     queryKey: ['admin-payout-queue'],
     queryFn: () => adminFetch<{ data: QueueRow[] }>('/payouts/queue'),
-    refetchInterval: 30_000,
+    refetchInterval: POLL_MEDIUM_MS,
   });
 
   const { data: failedData, isLoading: failedLoading } = useQuery({
     queryKey: ['admin-payout-failed'],
     queryFn: () => adminFetch<{ data: FailedRow[] }>('/payouts/failed'),
-    refetchInterval: 30_000,
+    refetchInterval: POLL_MEDIUM_MS,
   });
 
   const retryMut = useMutation({
@@ -123,6 +121,7 @@ export function PayoutManagement() {
       qc.invalidateQueries({ queryKey: ['admin-payout-failed'] });
       qc.invalidateQueries({ queryKey: ['admin-payout-stats'] });
     },
+    onSettled: () => setRetryingBetId(null),
   });
 
   const previewMut = useMutation({
@@ -139,8 +138,10 @@ export function PayoutManagement() {
         { withinDays: migrationDays, confirm: 'CONFIRM_MIGRATION' },
         (event) => setMigrationLogs(prev => [...prev, event as unknown as MigrationEvent]),
       );
+      toast.show({ kind: 'success', message: 'Migration finished' });
     } catch (e) {
       setMigrationLogs(prev => [...prev, { type: 'error', error: (e as Error).message }]);
+      toast.show({ kind: 'error', message: (e as Error).message, details: e });
     } finally {
       setMigrationRunning(false);
       qc.invalidateQueries({ queryKey: ['admin-payout-queue'] });
@@ -149,9 +150,9 @@ export function PayoutManagement() {
     }
   };
 
-  // Wallet health colouring - same thresholds as the strategy doc.
+  // Wallet health colouring — same thresholds as the strategy doc.
   const sol = balanceData ? parseFloat(balanceData.data.solBalance) : 0;
-  const walletColor = sol < 0.1 ? t.error : sol < 0.5 ? t.warning : t.gain;
+  const walletAccent = sol < 0.1 ? t.error : sol < 0.5 ? t.warning : t.gain;
   const balance = balanceData?.data;
 
   const stats = statsData?.data;
@@ -160,197 +161,227 @@ export function PayoutManagement() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      {/* 1. Authority wallet monitor */}
-      <Card sx={{ p: 2.5, bgcolor: t.bg.surface, borderLeft: `4px solid ${walletColor}` }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-          <Typography variant="subtitle1" fontWeight={600}>Payout Authority Wallet</Typography>
-          <Button size="small" startIcon={<RefreshIcon />} onClick={() => refetchBalance()} sx={{ color: t.text.tertiary }}>
-            Refresh
-          </Button>
-        </Box>
-        {balanceLoading ? <CircularProgress size={20} /> : balance ? (
-          <Stack direction="row" spacing={4}>
+      {/* ─── 1. Authority wallet monitor ───────────────────────────── */}
+      <SectionCard
+        accentColor={walletAccent}
+        title="Payout authority wallet"
+        actions={<RefreshButton onRefresh={() => refetchBalance()} isFetching={balanceFetching} />}
+      >
+        {balanceLoading ? <LoadingState variant="inline" /> : balance ? (
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={3}>
             <Box>
-              <Typography variant="caption" sx={{ color: t.text.tertiary }}>SOL (gas + ATA rent)</Typography>
-              <Typography variant="h5" fontWeight={700} sx={{ color: walletColor }}>
+              <Label>SOL (gas + ATA rent)</Label>
+              <Box sx={{ fontSize: '1.4rem', fontWeight: 700, color: walletAccent, mt: 0.25 }}>
                 {balance.solBalance}
-                <Typography component="span" variant="body2" sx={{ color: t.text.tertiary, ml: 1 }}>SOL</Typography>
-              </Typography>
+                <Box component="span" sx={{ ml: 1, color: t.text.tertiary, fontSize: '0.75rem', fontWeight: 400 }}>SOL</Box>
+              </Box>
             </Box>
             <Box>
-              <Typography variant="caption" sx={{ color: t.text.tertiary }}>USDC (fee wallet)</Typography>
-              <Typography variant="h5" fontWeight={700}>
+              <Label>USDC (fee wallet)</Label>
+              <Box sx={{ fontSize: '1.4rem', fontWeight: 700, color: t.text.primary, mt: 0.25 }}>
                 ${balance.usdcBalance}
-              </Typography>
+              </Box>
             </Box>
             {sol < 0.5 && (
-              <Alert severity={sol < 0.1 ? 'error' : 'warning'} sx={{ flex: 1 }}>
-                {sol < 0.1
-                  ? 'Critical: payout authority cannot afford gas. Auto-payout will fail until refunded.'
-                  : 'Warning: payout authority running low. Top up to avoid disruption.'}
-              </Alert>
+              <Box sx={{ flex: 1 }}>
+                <ErrorAlert
+                  title={sol < 0.1 ? 'Authority almost empty' : 'Authority running low'}
+                  message={sol < 0.1
+                    ? 'Cannot afford gas. Auto-payout will fail until the wallet is topped up.'
+                    : 'Top up to avoid disruption before the next batch.'}
+                />
+              </Box>
             )}
           </Stack>
         ) : null}
-      </Card>
+      </SectionCard>
 
-      {/* 2. Stats row */}
+      {/* ─── 2. Stats row ──────────────────────────────────────────── */}
       {stats && (
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-          <StatCard label="Paid (last 24h)" value={stats.last24h.paid} color={t.gain} />
-          <StatCard label="Failed (last 24h)" value={stats.last24h.failed} color={stats.last24h.failed > 0 ? t.error : t.text.primary} />
-          <StatCard label="Success rate (24h)" value={stats.last24h.successRate ?? '-'} unit={stats.last24h.successRate !== null ? '%' : undefined} />
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)', md: 'repeat(5, 1fr)' }, gap: 2 }}>
+          <StatCard label="Paid (24h)" value={stats.last24h.paid} color={t.gain} />
+          <StatCard label="Failed (24h)" value={stats.last24h.failed} color={stats.last24h.failed > 0 ? t.error : t.text.primary} />
+          <StatCard label="Success rate (24h)" value={stats.last24h.successRate ?? '—'} unit={stats.last24h.successRate !== null ? '%' : undefined} />
           <StatCard label="Pending (now)" value={stats.pending} />
           <StatCard label="Failed outstanding" value={stats.failedOutstanding} color={stats.failedOutstanding > 0 ? t.error : t.text.primary} />
         </Box>
       )}
 
-      {/* 3. Failed payouts */}
-      <Card sx={{ p: 2.5, bgcolor: t.bg.surface }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-          <Typography variant="subtitle1" fontWeight={600}>
-            Failed payouts {failed.length > 0 && <Chip label={failed.length} size="small" sx={{ ml: 1, bgcolor: t.error, color: 'white' }} />}
-          </Typography>
-        </Box>
-        {failedLoading ? <CircularProgress size={20} /> : failed.length === 0 ? (
-          <Typography variant="body2" sx={{ color: t.text.tertiary, py: 1 }}>No failed payouts - all winners paid cleanly.</Typography>
+      {/* ─── 3. Failed payouts ─────────────────────────────────────── */}
+      <SectionCard
+        title={
+          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+            Failed payouts
+            {failed.length > 0 && <StatusChip status="error" label={String(failed.length)} />}
+          </Box>
+        }
+      >
+        {failedLoading ? (
+          <LoadingState variant="block" />
+        ) : failed.length === 0 ? (
+          <EmptyState variant="success" title="All winners paid cleanly" hint="No failed payouts in the queue. Retries fire automatically on each scheduler tick." />
         ) : (
           <TableContainer>
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Market</TableCell>
-                  <TableCell>Wallet</TableCell>
-                  <TableCell>Side</TableCell>
-                  <TableCell align="right">Amount</TableCell>
-                  <TableCell align="right">Attempts</TableCell>
-                  <TableCell>Last try</TableCell>
-                  <TableCell align="right">Action</TableCell>
+                  <TableCell><Label>Market</Label></TableCell>
+                  <TableCell><Label>Wallet</Label></TableCell>
+                  <TableCell><Label>Side</Label></TableCell>
+                  <TableCell align="right"><Label>Amount</Label></TableCell>
+                  <TableCell align="right"><Label>Attempts</Label></TableCell>
+                  <TableCell><Label>Last try</Label></TableCell>
+                  <TableCell align="right"><Label>Action</Label></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {failed.map(bet => (
-                  <TableRow key={bet.id}>
-                    <TableCell>{matchLabel(bet.pool)}</TableCell>
-                    <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                      {bet.walletAddress.slice(0, 4)}…{bet.walletAddress.slice(-4)}
-                    </TableCell>
-                    <TableCell>{bet.side}</TableCell>
-                    <TableCell align="right">${fmtUsdc(bet.amount)}</TableCell>
-                    <TableCell align="right">{bet.attempts}</TableCell>
-                    <TableCell>{bet.lastAttemptedAt ? new Date(bet.lastAttemptedAt).toLocaleString() : '-'}</TableCell>
-                    <TableCell align="right">
-                      <Button
-                        size="small"
-                        startIcon={<ReplayIcon />}
-                        disabled={retryMut.isPending}
-                        onClick={() => retryMut.mutate(bet.id)}
-                      >
-                        Retry
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {failed.map(bet => {
+                  const rowBusy = retryingBetId === bet.id && retryMut.isPending;
+                  return (
+                    <TableRow key={bet.id} hover>
+                      <TableCell>{matchLabel(bet.pool)}</TableCell>
+                      <TableCell><WalletCell address={bet.walletAddress} /></TableCell>
+                      <TableCell>
+                        <StatusChip status={bet.side === 'UP' ? 'ok' : bet.side === 'DOWN' ? 'error' : 'warning'} label={bet.side} />
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>${fmtUsdc(bet.amount)}</TableCell>
+                      <TableCell align="right">{bet.attempts}</TableCell>
+                      <TableCell><TimeCell value={bet.lastAttemptedAt} mode="relative" /></TableCell>
+                      <TableCell align="right">
+                        <ActionButton
+                          kind="secondary"
+                          label="Retry"
+                          icon={<ReplayIcon sx={{ fontSize: 14 }} />}
+                          loading={rowBusy}
+                          onClick={() => {
+                            setRetryingBetId(bet.id);
+                            void feedback.run(retryMut, bet.id, { success: `Retry queued for ${bet.walletAddress.slice(0, 4)}…${bet.walletAddress.slice(-4)}` });
+                          }}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>
         )}
-      </Card>
+      </SectionCard>
 
-      {/* 4. Pending queue */}
-      <Card sx={{ p: 2.5, bgcolor: t.bg.surface }}>
-        <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1.5 }}>
-          Pending queue {queue.length > 0 && <Chip label={`${queue.length} pool(s)`} size="small" sx={{ ml: 1, bgcolor: t.warning, color: 'white' }} />}
-        </Typography>
-        {queueLoading ? <CircularProgress size={20} /> : queue.length === 0 ? (
-          <Typography variant="body2" sx={{ color: t.text.tertiary, py: 1 }}>Queue empty - no pools waiting on auto-payout.</Typography>
+      {/* ─── 4. Pending queue ──────────────────────────────────────── */}
+      <SectionCard
+        title={
+          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+            Pending queue
+            {queue.length > 0 && <StatusChip status="warning" label={`${queue.length} pool${queue.length === 1 ? '' : 's'}`} />}
+          </Box>
+        }
+      >
+        {queueLoading ? (
+          <LoadingState variant="block" />
+        ) : queue.length === 0 ? (
+          <EmptyState variant="success" title="Queue empty" hint="No pools waiting on auto-payout." />
         ) : (
           <TableContainer>
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Market</TableCell>
-                  <TableCell>Winner</TableCell>
-                  <TableCell align="right">Pending bets</TableCell>
-                  <TableCell>Resolved</TableCell>
+                  <TableCell><Label>Market</Label></TableCell>
+                  <TableCell><Label>Winner</Label></TableCell>
+                  <TableCell align="right"><Label>Pending bets</Label></TableCell>
+                  <TableCell><Label>Resolved</Label></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {queue.map(pool => (
-                  <TableRow key={pool.id}>
+                  <TableRow key={pool.id} hover>
                     <TableCell>{matchLabel(pool)}</TableCell>
-                    <TableCell><Chip label={pool.winner ?? '-'} size="small" /></TableCell>
+                    <TableCell>
+                      <StatusChip
+                        status={pool.winner === 'UP' ? 'ok' : pool.winner === 'DOWN' ? 'error' : 'neutral'}
+                        label={pool.winner ?? '—'}
+                      />
+                    </TableCell>
                     <TableCell align="right">{pool.pendingCount}</TableCell>
-                    <TableCell>{new Date(pool.updatedAt).toLocaleString()}</TableCell>
+                    <TableCell><TimeCell value={pool.updatedAt} mode="datetime" /></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </TableContainer>
         )}
-      </Card>
+      </SectionCard>
 
-      {/* 5. Migration runner */}
-      <Card sx={{ p: 2.5, bgcolor: t.bg.surface, borderLeft: `4px solid ${t.warning}` }}>
-        <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>Historical migration</Typography>
-        <Typography variant="body2" sx={{ color: t.text.tertiary, mb: 2 }}>
-          One-shot job that scans CLAIMABLE pools with a winner from the last N days and pays any
-          remaining winning-side bets. Idempotent - safe to re-run.
-        </Typography>
-        <Button variant="outlined" onClick={() => { setMigrationOpen(true); previewMut.mutate(migrationDays); }}>
-          Open migration runner
-        </Button>
-      </Card>
+      {/* ─── 5. Migration runner ───────────────────────────────────── */}
+      <SectionCard
+        accentColor={t.warning}
+        title="Historical migration"
+        subtitle="One-shot job that scans CLAIMABLE pools with a winner from the last N days and pays any remaining winning-side bets. Idempotent — safe to re-run."
+        actions={
+          <ActionButton
+            kind="secondary"
+            label="Open migration runner"
+            onClick={() => { setMigrationOpen(true); previewMut.mutate(migrationDays); }}
+          />
+        }
+      >{null}</SectionCard>
 
-      <Dialog open={migrationOpen} onClose={() => !migrationRunning && setMigrationOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Run payout migration</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField
-              label="Within last N days"
-              type="number"
-              size="small"
-              value={migrationDays}
-              onChange={(e) => setMigrationDays(Math.max(1, Math.min(365, parseInt(e.target.value, 10) || 30)))}
-              disabled={migrationRunning}
+      <AdminDialog
+        open={migrationOpen}
+        onClose={() => setMigrationOpen(false)}
+        title="Run payout migration"
+        maxWidth="md"
+        loading={migrationRunning}
+        footer={
+          <>
+            <ActionButton kind="tertiary" label="Close" onClick={() => setMigrationOpen(false)} disabled={migrationRunning} />
+            <ActionButton
+              kind="primary"
+              label={migrationRunning ? 'Running' : 'Execute migration'}
+              loading={migrationRunning}
+              disabled={!previewMut.data || previewMut.data.data.totalBets === 0}
+              onClick={runMigration}
             />
-            <Button
-              variant="outlined"
-              onClick={() => previewMut.mutate(migrationDays)}
-              disabled={previewMut.isPending || migrationRunning}
-            >
-              Refresh dry-run
-            </Button>
-            {previewMut.data && (
-              <Alert severity="info">
-                Would pay <strong>{previewMut.data.data.totalBets}</strong> bet(s)
-                across <strong>{previewMut.data.data.totalPools}</strong> pool(s) -
-                total <strong>${fmtUsdc(previewMut.data.data.totalAmountUsdcRaw)}</strong>.
-              </Alert>
-            )}
-            {migrationLogs.length > 0 && (
-              <Box sx={{ maxHeight: 260, overflow: 'auto', bgcolor: t.bg.app, p: 1.5, borderRadius: 1, fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                {migrationLogs.map((ev, i) => (
-                  <Box key={i} sx={{ color: ev.type === 'error' || ev.type === 'pool_error' ? t.error : ev.type === 'done' ? t.gain : t.text.secondary }}>
-                    [{ev.type}] {JSON.stringify(ev)}
-                  </Box>
-                ))}
-              </Box>
-            )}
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setMigrationOpen(false)} disabled={migrationRunning}>Close</Button>
-          <Button
-            variant="contained"
-            color="warning"
-            onClick={runMigration}
-            disabled={migrationRunning || !previewMut.data || previewMut.data.data.totalBets === 0}
-          >
-            {migrationRunning ? 'Running…' : 'Execute migration'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+          </>
+        }
+      >
+        <Stack spacing={2}>
+          <TextField
+            label="Within last N days"
+            type="number"
+            size="small"
+            value={migrationDays}
+            onChange={(e) => setMigrationDays(Math.max(1, Math.min(365, parseInt(e.target.value, 10) || 30)))}
+            disabled={migrationRunning}
+          />
+          <ActionButton
+            kind="secondary"
+            label="Refresh dry-run"
+            onClick={() => previewMut.mutate(migrationDays)}
+            loading={previewMut.isPending}
+            disabled={migrationRunning}
+          />
+          {previewMut.data && (
+            <Box sx={{ p: 1.25, borderRadius: 1.5, bgcolor: t.bg.surfaceAlt, border: `1px solid ${t.border.subtle}` }}>
+              <Body>
+                Would pay <Box component="strong" sx={{ fontWeight: 700, color: t.text.primary }}>{previewMut.data.data.totalBets}</Box> bet(s)
+                across <Box component="strong" sx={{ fontWeight: 700, color: t.text.primary }}>{previewMut.data.data.totalPools}</Box> pool(s) —
+                total <Box component="strong" sx={{ fontWeight: 700, color: t.text.primary }}>${fmtUsdc(previewMut.data.data.totalAmountUsdcRaw)}</Box>.
+              </Body>
+            </Box>
+          )}
+          {migrationLogs.length > 0 && (
+            <Box sx={{ maxHeight: 260, overflow: 'auto', bgcolor: t.bg.surfaceAlt, p: 1.5, borderRadius: 1.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.72rem' }}>
+              {migrationLogs.map((ev, i) => (
+                <Box key={i} sx={{ color: ev.type === 'error' || ev.type === 'pool_error' ? t.error : ev.type === 'done' ? t.gain : t.text.secondary }}>
+                  [{ev.type}] {JSON.stringify(ev)}
+                </Box>
+              ))}
+            </Box>
+          )}
+          <Meta>The job is idempotent — if it stops mid-run, just retry from the same N.</Meta>
+        </Stack>
+      </AdminDialog>
     </Box>
   );
 }
