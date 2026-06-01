@@ -118,12 +118,43 @@ export async function adminPostSSE(
 }
 
 export async function verifyKey(key: string): Promise<boolean> {
+  const r = await verifyKeyDetailed(key);
+  return r.kind === 'ok';
+}
+
+/**
+ * Verify the admin key against /admin/verify with a richer result so the
+ * login form can distinguish 'server unreachable' from '401 invalid' and
+ * 'rate limited'. Phase 6 polish — Plan §Phase 6.
+ */
+export type VerifyResult =
+  | { kind: 'ok' }
+  | { kind: 'invalid'; message: string }
+  | { kind: 'rate-limited'; message: string }
+  | { kind: 'unreachable'; message: string };
+
+export async function verifyKeyDetailed(key: string): Promise<VerifyResult> {
   try {
     const res = await fetch(`${API_BASE}/api/admin/verify`, {
       headers: { 'x-admin-key': key },
     });
-    return res.ok;
-  } catch {
-    return false;
+    if (res.ok) return { kind: 'ok' };
+    if (res.status === 429) {
+      return { kind: 'rate-limited', message: 'Too many attempts — wait a minute and try again.' };
+    }
+    if (res.status === 401) {
+      return { kind: 'invalid', message: 'Invalid API key.' };
+    }
+    return { kind: 'invalid', message: `Server returned ${res.status}.` };
+  } catch (err) {
+    // Network failure (DNS, CORS, server down). Distinct from 401 so the
+    // operator can react: 'API is down' is a deploy/ops issue, 'invalid key'
+    // is a key issue.
+    return {
+      kind: 'unreachable',
+      message: err instanceof Error
+        ? `Cannot reach the API at ${API_BASE}: ${err.message}`
+        : `Cannot reach the API at ${API_BASE}.`,
+    };
   }
 }

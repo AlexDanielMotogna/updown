@@ -13,6 +13,7 @@
  */
 import {
   Dialog, DialogContent, DialogActions, Box, IconButton,
+  useMediaQuery, useTheme,
   type DialogProps,
 } from '@mui/material';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
@@ -37,6 +38,12 @@ export function AdminDialog({
   footer, children, ...rest
 }: AdminDialogProps) {
   const blocked = !!loading;
+  // Phase 6 polish: take the full viewport on xs so cramped dialogs (Edit
+  // tournament, Assign matchday, Resolve knockout) stay usable on the
+  // <600px breakpoint. Desktop layout is unchanged.
+  const theme = useTheme();
+  const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
+
   return (
     <Dialog
       open={open}
@@ -50,17 +57,18 @@ export function AdminDialog({
       }}
       maxWidth={maxWidth}
       fullWidth
+      fullScreen={fullScreen}
       {...rest}
       PaperProps={{
         sx: {
           bgcolor: t.bg.surface,
-          border: `1px solid ${t.border.medium}`,
-          borderRadius: 2,
+          border: fullScreen ? 'none' : `1px solid ${t.border.medium}`,
+          borderRadius: fullScreen ? 0 : 2,
           backgroundImage: 'none',
           // Match TransactionModal: subtle elevation (single shadow token,
           // no glow). overflow:hidden so the footer's tinted background
           // doesn't peek past the rounded corner.
-          boxShadow: t.surfaceShadow !== 'none' ? t.surfaceShadow : undefined,
+          boxShadow: fullScreen ? 'none' : (t.surfaceShadow !== 'none' ? t.surfaceShadow : undefined),
           overflow: 'hidden',
         },
         ...rest.PaperProps,
