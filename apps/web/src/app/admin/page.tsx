@@ -17,8 +17,9 @@ import { TournamentManagement } from './components/TournamentManagement';
 import { CategoryManagement } from './components/CategoryManagement';
 import { PayoutManagement } from './components/PayoutManagement';
 import { MatchExplorer } from './components/MatchExplorer';
+import { PmExplorer } from './components/PmExplorer';
 
-const TABS = ['Health', 'Pools', 'Payouts', 'Finance', 'Users', 'Events', 'Actions', 'Tournaments', 'Categories', 'Matches'] as const;
+const TABS = ['Health', 'Pools', 'Payouts', 'Finance', 'Users', 'Events', 'Actions', 'Tournaments', 'Matches', 'Predictions', 'Categories'] as const;
 
 export default function AdminPage() {
   // `null` = haven't checked yet (initial mount), `true`/`false` = verified.
@@ -101,8 +102,9 @@ export default function AdminPage() {
           {tab === 5 && <EventLog />}
           {tab === 6 && <ManualActions />}
           {tab === 7 && <TournamentManagement />}
-          {tab === 8 && <CategoryManagement />}
-          {tab === 9 && <MatchExplorer />}
+          {tab === 8 && <MatchExplorer />}
+          {tab === 9 && <PmExplorer />}
+          {tab === 10 && <CategoryManagement />}
         </Box>
       </Box>
     </ToastProvider>
