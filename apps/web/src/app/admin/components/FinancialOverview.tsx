@@ -1,14 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { formatDate } from '@/lib/format';
+import { getExplorerTxUrl } from '@/lib/format';
 import {
-  Box, Card, Typography, CircularProgress, Button,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip,
+  Box,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { adminFetch } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
+import {
+  SectionCard, StatCard, StatusChip, ActionButton,
+  LoadingState, EmptyState, ErrorState,
+  IdCell, TimeCell, Label,
+  POLL_MEDIUM_MS,
+} from '../ui';
 
 interface FinanceData {
   data: {
@@ -16,12 +22,13 @@ interface FinanceData {
     totalPayouts: string;
     totalFeesCollected: string;
     totalBets: number;
-    authorityUsdcBalance: string | null;
+    // Plan §3.5 — flagged as 'never read by the UI'. Backend still ships
+    // them; we just stop pretending we use them. authorityUsdcDisplay is
+    // the human-formatted string the StatCard binds against.
     authorityUsdcDisplay: string | null;
     poolStatusCounts: Record<string, number>;
     closures: {
       totalPoolsClosed: number;
-      totalRentReclaimedLamports: number;
       totalRentReclaimedSol: string;
     };
   };
@@ -59,10 +66,10 @@ export function FinancialOverview() {
   const [closuresPage, setClosuresPage] = useState(1);
   const [showClosures, setShowClosures] = useState(false);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['admin-finance'],
     queryFn: () => adminFetch<FinanceData>('/finance/overview'),
-    refetchInterval: 30000,
+    refetchInterval: POLL_MEDIUM_MS,
   });
 
   const { data: closuresData, isLoading: closuresLoading } = useQuery({
@@ -71,132 +78,164 @@ export function FinancialOverview() {
     enabled: showClosures,
   });
 
-  if (isLoading) return <CircularProgress />;
-  if (error) return <Typography color="error">{(error as Error).message}</Typography>;
+  if (isLoading) return <LoadingState variant="block" />;
+  if (error) {
+    return (
+      <ErrorState
+        title="Couldn’t load financial overview"
+        message={(error as Error).message}
+        details={error}
+        onRetry={() => refetch()}
+      />
+    );
+  }
 
   const f = data!.data;
+  const netRevenue = String(BigInt(f.totalVolume) - BigInt(f.totalPayouts));
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      {/* Stats cards */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 2 }}>
-        <Card sx={{ p: 2.5 }}>
-          <Typography variant="caption" color="text.secondary">TOTAL VOLUME (USDC)</Typography>
-          <Typography variant="h5" fontWeight={600}>{formatUsdc(f.totalVolume)}</Typography>
-        </Card>
-        <Card sx={{ p: 2.5 }}>
-          <Typography variant="caption" color="text.secondary">TOTAL PAYOUTS (USDC)</Typography>
-          <Typography variant="h5" fontWeight={600}>{formatUsdc(f.totalPayouts)}</Typography>
-        </Card>
-        <Card sx={{ p: 2.5, border: '1px solid rgba(34,197,94,0.3)' }}>
-          <Typography variant="caption" color="success.main">FEES COLLECTED (USDC)</Typography>
-          <Typography variant="h5" fontWeight={600} color="success.main">{formatUsdc(f.totalFeesCollected)}</Typography>
-          <Typography variant="caption" color="text.secondary">Calculated from claimed bets</Typography>
-        </Card>
-        <Card sx={{ p: 2.5 }}>
-          <Typography variant="caption" color="text.secondary">TOTAL BETS</Typography>
-          <Typography variant="h5" fontWeight={600}>{f.totalBets.toLocaleString()}</Typography>
-        </Card>
-        <Card sx={{ p: 2.5, border: '1px solid rgba(245,158,11,0.3)' }}>
-          <Typography variant="caption" color="warning.main">AUTHORITY USDC (ON-CHAIN)</Typography>
-          <Typography variant="h5" fontWeight={600} color="warning.main">{f.authorityUsdcDisplay ?? 'N/A'}</Typography>
-          <Typography variant="caption" color="text.secondary">Fee wallet balance</Typography>
-        </Card>
-        <Card sx={{ p: 2.5 }}>
-          <Typography variant="caption" color="text.secondary">NET REVENUE</Typography>
-          <Typography variant="h5" fontWeight={600}>
-            {formatUsdc(String(BigInt(f.totalVolume) - BigInt(f.totalPayouts)))}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">Volume - Payouts (includes unclaimed)</Typography>
-        </Card>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      {/* ─── Headline stats ─────────────────────────────────────────── */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(3, 1fr)' }, gap: 2 }}>
+        <StatCard label="Total volume" value={formatUsdc(f.totalVolume)} unit="USDC" />
+        <StatCard label="Total payouts" value={formatUsdc(f.totalPayouts)} unit="USDC" />
+        <StatCard
+          label="Fees collected"
+          value={formatUsdc(f.totalFeesCollected)}
+          unit="USDC"
+          color={t.success}
+          hint="Calculated from claimed bets"
+        />
+        <StatCard label="Total bets" value={f.totalBets.toLocaleString()} />
+        <StatCard
+          label="Authority USDC (on-chain)"
+          value={f.authorityUsdcDisplay ?? '—'}
+          color={t.warning}
+          hint="Fee wallet balance on the active cluster"
+        />
+        <StatCard
+          label="Net revenue"
+          value={formatUsdc(netRevenue)}
+          unit="USDC"
+          hint="Volume − payouts (includes unclaimed)"
+        />
       </Box>
 
-      {/* Pool closures summary + status breakdown */}
+      {/* ─── Closures + status breakdown ────────────────────────────── */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
-        <Card sx={{ p: 2.5 }}>
-          <Typography variant="caption" color="text.secondary" gutterBottom display="block">POOL CLOSURES</Typography>
-          <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', mb: 1 }}>
-            <Box>
-              <Typography variant="body2" color="text.secondary">Pools Closed</Typography>
-              <Typography variant="h6">{f.closures.totalPoolsClosed}</Typography>
-            </Box>
-            <Box>
-              <Typography variant="body2" color="text.secondary">Rent Reclaimed</Typography>
-              <Typography variant="h6">{f.closures.totalRentReclaimedSol} SOL</Typography>
-            </Box>
-          </Box>
-          <Button size="small" variant="outlined" onClick={() => setShowClosures(!showClosures)}>
-            {showClosures ? 'Hide Details' : 'View Closed Pools'}
-          </Button>
-        </Card>
-        <Card sx={{ p: 2.5 }}>
-          <Typography variant="caption" color="text.secondary" gutterBottom display="block">POOL STATUS BREAKDOWN</Typography>
+        <SectionCard
+          dense
+          title="Pool closures"
+          actions={
+            <ActionButton
+              kind="secondary"
+              label={showClosures ? 'Hide details' : 'View closed pools'}
+              onClick={() => setShowClosures(v => !v)}
+            />
+          }
+        >
           <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-            {Object.entries(f.poolStatusCounts).map(([status, count]) => (
-              <Box key={status}>
-                <Typography variant="body2" color="text.secondary">{status}</Typography>
-                <Typography variant="h6">{count}</Typography>
+            <Box>
+              <Label>Pools closed</Label>
+              <Box sx={{ fontSize: '1.2rem', fontWeight: 700, color: t.text.primary, mt: 0.25 }}>
+                {f.closures.totalPoolsClosed.toLocaleString()}
               </Box>
-            ))}
+            </Box>
+            <Box>
+              <Label>Rent reclaimed</Label>
+              <Box sx={{ fontSize: '1.2rem', fontWeight: 700, color: t.text.primary, mt: 0.25 }}>
+                {f.closures.totalRentReclaimedSol} SOL
+              </Box>
+            </Box>
           </Box>
-        </Card>
+        </SectionCard>
+        <SectionCard dense title="Pool status breakdown">
+          {Object.keys(f.poolStatusCounts).length === 0 ? (
+            <EmptyState title="No pool data yet" />
+          ) : (
+            <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+              {Object.entries(f.poolStatusCounts).map(([status, count]) => (
+                <Box key={status}>
+                  <Label>{status}</Label>
+                  <Box sx={{ fontSize: '1.2rem', fontWeight: 700, color: t.text.primary, mt: 0.25 }}>
+                    {count.toLocaleString()}
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          )}
+        </SectionCard>
       </Box>
 
-      {/* Closures table */}
+      {/* ─── Closures detail table ──────────────────────────────────── */}
       {showClosures && (
-        <Card sx={{ p: 2 }}>
-          <Typography variant="subtitle2" gutterBottom>Closed Pools History</Typography>
-          {closuresLoading ? <CircularProgress size={24} /> : (
+        <SectionCard
+          title="Closed pools history"
+          subtitle={closuresData?.meta ? `Page ${closuresData.meta.page} of ${closuresData.meta.totalPages} · ${closuresData.meta.total.toLocaleString()} closures` : undefined}
+        >
+          {closuresLoading ? (
+            <LoadingState variant="block" />
+          ) : (closuresData?.data ?? []).length === 0 ? (
+            <EmptyState title="No closures yet" hint="Pools show up here once the scheduler closes them on-chain." />
+          ) : (
             <>
               <TableContainer>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell>Closed At</TableCell>
-                      <TableCell>Pool ID</TableCell>
-                      <TableCell>Asset</TableCell>
-                      <TableCell>Interval</TableCell>
-                      <TableCell>Total Pool</TableCell>
-                      <TableCell>Bets</TableCell>
-                      <TableCell>Winner</TableCell>
-                      <TableCell>Rent Reclaimed</TableCell>
-                      <TableCell>TX</TableCell>
-                      <TableCell>Source</TableCell>
+                      <TableCell><Label>Closed at</Label></TableCell>
+                      <TableCell><Label>Pool ID</Label></TableCell>
+                      <TableCell><Label>Asset</Label></TableCell>
+                      <TableCell><Label>Interval</Label></TableCell>
+                      <TableCell><Label>Total pool</Label></TableCell>
+                      <TableCell><Label>Bets</Label></TableCell>
+                      <TableCell><Label>Winner</Label></TableCell>
+                      <TableCell><Label>Rent reclaimed</Label></TableCell>
+                      <TableCell><Label>TX</Label></TableCell>
+                      <TableCell><Label>Source</Label></TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {(closuresData?.data ?? []).map(c => (
-                      <TableRow key={c.id}>
-                        <TableCell sx={{ fontSize: 11, whiteSpace: 'nowrap' }}>{formatDate(c.closedAt)}</TableCell>
-                        <TableCell
-                          sx={{ fontSize: 11, cursor: 'pointer', '&:hover': { color: t.warning } }}
-                          onClick={() => navigator.clipboard.writeText(c.poolId)}
-                          title="Click to copy"
-                        >{c.poolId}</TableCell>
-                        <TableCell>{c.payload.asset ?? '-'}</TableCell>
-                        <TableCell>{c.payload.interval ?? '-'}</TableCell>
-                        <TableCell>{c.payload.totalPool ? formatUsdc(c.payload.totalPool) : '0'}</TableCell>
+                      <TableRow key={c.id} hover>
+                        <TableCell sx={{ whiteSpace: 'nowrap' }}><TimeCell value={c.closedAt} mode="datetime" /></TableCell>
+                        <TableCell><IdCell value={c.poolId} truncate={10} /></TableCell>
+                        <TableCell>{c.payload.asset ?? '—'}</TableCell>
+                        <TableCell>{c.payload.interval ?? '—'}</TableCell>
+                        <TableCell sx={{ fontVariantNumeric: 'tabular-nums' }}>{c.payload.totalPool ? formatUsdc(c.payload.totalPool) : '0'}</TableCell>
                         <TableCell>{c.payload.betCount ?? '0'}</TableCell>
                         <TableCell>
                           {c.payload.winner && c.payload.winner !== 'none' ? (
-                            <Chip label={c.payload.winner} size="small" sx={{ fontSize: 11, bgcolor: c.payload.winner === 'UP' ? `${t.gain}22` : `${t.error}22`, color: c.payload.winner === 'UP' ? t.gain : t.error }} />
-                          ) : '-'}
+                            <StatusChip
+                              status={c.payload.winner === 'UP' ? 'ok' : c.payload.winner === 'DOWN' ? 'error' : 'warning'}
+                              label={c.payload.winner}
+                            />
+                          ) : '—'}
                         </TableCell>
-                        <TableCell sx={{ color: t.gain, fontWeight: 500 }}>{c.payload.rentReclaimedSol ?? '0'} SOL</TableCell>
-                        <TableCell sx={{ fontSize: 10 }}>
-                          {c.payload.txSignature ? (
-                            <a
-                              href={`https://explorer.solana.com/tx/${c.payload.txSignature}?cluster=devnet`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ color: t.link, textDecoration: 'none' }}
-                            >
-                              {c.payload.txSignature.slice(0, 8)}...
-                            </a>
-                          ) : '-'}
+                        <TableCell sx={{ color: t.success, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+                          {c.payload.rentReclaimedSol ?? '0'} SOL
                         </TableCell>
                         <TableCell>
-                          <Chip label={c.payload.source === 'admin' ? 'Admin' : 'Auto'} size="small" variant="outlined" sx={{ fontSize: 10 }} />
+                          {c.payload.txSignature ? (
+                            <a
+                              // Cluster comes from getExplorerTxUrl, which
+                              // reads SOLANA_CLUSTER from env. The previous
+                              // hardcoded ?cluster=devnet broke explorer
+                              // links on mainnet — Plan §3.5.
+                              href={getExplorerTxUrl(c.payload.txSignature)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: t.info, textDecoration: 'none', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.7rem' }}
+                            >
+                              {c.payload.txSignature.slice(0, 8)}…
+                            </a>
+                          ) : '—'}
+                        </TableCell>
+                        <TableCell>
+                          <StatusChip
+                            status={c.payload.source === 'admin' ? 'warning' : 'neutral'}
+                            label={c.payload.source === 'admin' ? 'Admin' : 'Auto'}
+                          />
                         </TableCell>
                       </TableRow>
                     ))}
@@ -204,15 +243,15 @@ export function FinancialOverview() {
                 </Table>
               </TableContainer>
               {closuresData?.meta && closuresData.meta.totalPages > 1 && (
-                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', mt: 1 }}>
-                  <Button size="small" disabled={closuresPage <= 1} onClick={() => setClosuresPage(p => p - 1)}>Prev</Button>
-                  <Typography variant="body2" sx={{ alignSelf: 'center' }}>{closuresPage} / {closuresData.meta.totalPages}</Typography>
-                  <Button size="small" disabled={closuresPage >= closuresData.meta.totalPages} onClick={() => setClosuresPage(p => p + 1)}>Next</Button>
+                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', alignItems: 'center', mt: 2 }}>
+                  <ActionButton kind="secondary" label="Previous" disabled={closuresPage <= 1} onClick={() => setClosuresPage(p => p - 1)} />
+                  <Label>{closuresPage} / {closuresData.meta.totalPages}</Label>
+                  <ActionButton kind="secondary" label="Next" disabled={closuresPage >= closuresData.meta.totalPages} onClick={() => setClosuresPage(p => p + 1)} />
                 </Box>
               )}
             </>
           )}
-        </Card>
+        </SectionCard>
       )}
     </Box>
   );
