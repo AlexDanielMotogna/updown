@@ -231,6 +231,13 @@ export async function resolveMatchPools(): Promise<void> {
         // Resolve on-chain so close_pool can reclaim rent (prevents orphans)
         const seed = derivePoolSeed(pool.id);
         const [poolPda] = getPoolPDA(seed);
+        // Whether we managed to flip the on-chain account to Resolved. False
+        // when the on-chain account uses a stale Pool struct layout (a few
+        // legacy pools from the devnet broken-binary window — see
+        // `bug_program_regression_per_side`); in that case we still mark the
+        // DB row as RESOLVED with the off-chain result, and orphan recovery
+        // reclaims the rent from the on-chain husk later.
+        let onChainResolved = false;
 
         try {
           const ix = buildResolveWithWinnerIx(poolPda, wallet.publicKey, winnerSide as 0 | 1 | 2);
@@ -244,10 +251,21 @@ export async function resolveMatchPools(): Promise<void> {
             skipPreflight: false, preflightCommitment: 'confirmed',
           });
           await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
+          onChainResolved = true;
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          // Already resolved or already closed on-chain - safe to proceed
-          if (!msg.includes('InvalidPoolStatus') && !msg.includes('0x177a') && !msg.includes('AccountNotInitialized')) {
+          if (msg.includes('InvalidPoolStatus') || msg.includes('0x177a') || msg.includes('AccountNotInitialized')) {
+            // Already resolved / already closed on-chain — proceed to DB update.
+            onChainResolved = true;
+          } else if (msg.includes('AccountDidNotSerialize') || msg.includes('0xbbc')) {
+            // Stale Pool struct layout — the on-chain account was created by
+            // an older program version whose serialization doesn't match the
+            // current one. No funds at risk (0 bets, vault empty), so we
+            // mark the DB row RESOLVED so the UI shows the result; the
+            // on-chain husk gets cleaned up by recoverOrphanedPools later
+            // (admin → Manual Actions → Recover Orphaned Pools).
+            console.warn(`[Sports] Empty pool ${pool.id} has stale on-chain layout — resolving in DB only (orphan recovery will reclaim rent)`);
+          } else {
             console.warn(`[Sports] Failed to resolve empty pool ${pool.id} on-chain - will retry:`, msg);
             continue; // Don't mark as RESOLVED, will retry next cycle
           }
@@ -258,7 +276,7 @@ export async function resolveMatchPools(): Promise<void> {
           data: { status: 'RESOLVED', winner: winnerLabel, finalPrice: BigInt(0) },
         });
         emitPoolStatus(pool.id, { id: pool.id, status: 'RESOLVED', winner: winnerLabel });
-        console.log(`[Sports] Resolved (empty, on-chain) ${pool.homeTeam} vs ${pool.awayTeam}: ${result.homeScore}-${result.awayScore} → ${winnerLabel}`);
+        console.log(`[Sports] Resolved (empty${onChainResolved ? '' : ', DB-only stale-layout'}) ${pool.homeTeam} vs ${pool.awayTeam}: ${result.homeScore}-${result.awayScore} → ${winnerLabel}`);
         continue;
       }
 
@@ -273,12 +291,29 @@ export async function resolveMatchPools(): Promise<void> {
       tx.feePayer = wallet.publicKey;
       tx.sign(wallet);
 
-      const signature = await connection.sendRawTransaction(tx.serialize(), {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
-      });
-
-      await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
+      try {
+        const signature = await connection.sendRawTransaction(tx.serialize(), {
+          skipPreflight: false,
+          preflightCommitment: 'confirmed',
+        });
+        await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('InvalidPoolStatus') || msg.includes('0x177a') || msg.includes('AccountNotInitialized')) {
+          // Already resolved on-chain (a previous tick succeeded but DB
+          // update raced) — fall through to DB write below to sync state.
+        } else if (msg.includes('AccountDidNotSerialize') || msg.includes('0xbbc')) {
+          // Stale Pool struct layout on a pool WITH bets: do NOT auto-resolve.
+          // Funds are in the vault; admin needs to refund via admin → Manual
+          // Actions → Force Refund Pool, which uses synthetic prices and the
+          // existing autoRefundBets path. Log loudly so it shows up in
+          // monitoring.
+          console.error(`[Sports] STALE-LAYOUT pool with bets needs admin refund: ${pool.id} (${pool.homeTeam} vs ${pool.awayTeam}, ${betCount} bets)`);
+          continue;
+        } else {
+          throw err; // Unknown error — let outer catch log it and try next pool.
+        }
+      }
 
       await prisma.pool.update({
         where: { id: pool.id },

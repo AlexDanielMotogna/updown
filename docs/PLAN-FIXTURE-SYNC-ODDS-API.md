@@ -1,5 +1,11 @@
 # Plan — migrate sports fixture creation to The Odds API
 
+**Status:** ❌ **CANCELLED** 2026-06-01. Superseded by `PLAN-LIVESCORE-SOURCE-SPLIT.md` which keeps TheSportsDB primary for everything (livescore, FT detection, fixture creation) because SDB Premium is $10/mo vs The Odds API $60/mo. Document kept for historical context only — DO NOT implement.
+
+---
+
+(Original plan below, no longer relevant)
+
 **Status:** drafted 2026-06-01, **not implemented**. Keep until we hit a case where TheSportsDB stops returning a fixture that exists in Odds API.
 
 **Context:** in this session we flipped **livescore + resolution** to The Odds API as primary (commits `ee93073`, `f120702`, plus on-chain `resolve.rs` upgrade at slot `466272633`). What is **still on TheSportsDB**:
