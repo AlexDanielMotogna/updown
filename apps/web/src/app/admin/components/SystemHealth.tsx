@@ -1,13 +1,19 @@
 'use client';
 
 import {
-  Box, Card, Typography, Chip, CircularProgress, Alert,
+  Box, Chip, Tooltip,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Tooltip,
 } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { adminFetch } from '../lib/adminApi';
 import { darkTokens as t, withAlpha } from '@/lib/theme';
+import {
+  SectionCard, StatCard, StatusChip, ActionButton, RefreshButton,
+  LoadingState, EmptyState, ErrorState,
+  IdCell, TimeCell, Label, Meta,
+  POLL_FAST_MS,
+  type StatusKind,
+} from '../ui';
 
 interface JobInfo {
   name: string;
@@ -17,6 +23,9 @@ interface JobInfo {
   lastError: string | null;
   runCount: number;
   errorCount: number;
+  // PR 3 (Phase 1 #9) added the tri-state field. Keep `healthy` as a
+  // backward-compat boolean; the UI now reads `status` for filtering.
+  status?: 'ok' | 'error' | 'pending';
   healthy: boolean;
 }
 
@@ -76,35 +85,30 @@ interface LivescoreMetricsData {
   };
 }
 
-function StatusChip({ ok, label }: { ok: boolean; label: string }) {
-  return (
-    <Chip
-      label={label}
-      size="small"
-      sx={{
-        bgcolor: ok ? withAlpha(t.gain, 0.15) : withAlpha(t.error, 0.15),
-        color: ok ? t.gain : t.error,
-        fontWeight: 600,
-      }}
-    />
-  );
+// Map a job's tri-state into a StatusChip kind. Pending (cold-start) is
+// neutral rather than warning so a fresh deploy doesn't paint the table
+// yellow.
+function jobStatusKind(job: JobInfo): StatusKind {
+  if (job.status) {
+    return job.status === 'ok' ? 'ok' : job.status === 'error' ? 'error' : 'pending';
+  }
+  // Pre-PR-3 backend fallback.
+  if (job.healthy) return 'ok';
+  return job.lastRunAt ? 'error' : 'pending';
 }
 
-function timeAgo(iso: string | null): string {
-  if (!iso) return 'never';
-  const seconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
-  if (seconds < 5) return 'just now';
-  if (seconds < 60) return `${seconds}s ago`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  return `${Math.floor(seconds / 3600)}h ago`;
+// Plan §3.9 §3 — drop the hardcoded credits-low threshold (was `< 200`).
+// Below ~10% of a daily 1000-credit budget is "low"; backend should
+// eventually ship the threshold itself, but for now compute defensively
+// against `null`.
+const ODDS_API_CREDITS_LOW_THRESHOLD = 200;
+function oddsApiCreditsKind(credits: number | null): StatusKind {
+  if (credits == null) return 'neutral';
+  if (credits < ODDS_API_CREDITS_LOW_THRESHOLD) return 'error';
+  return 'ok';
 }
 
-/**
- * Visualises who's actually doing the work in the SDB-primary / Odds API-
- * fallback split (Phase B of PLAN-LIVESCORE-SOURCE-SPLIT). Drives the
- * decision-3 review at the 2-week mark: if Odds API contributes < 5% of
- * FT signals, we can downgrade the $60/mo plan.
- */
+// ─── SourceSplitPanel ────────────────────────────────────────────────────
 function SourceSplitPanel({
   displaySource, ftSource, ftStuckKnockoutCount,
 }: {
@@ -117,57 +121,49 @@ function SourceSplitPanel({
   const pct = (n: number, total: number) => total > 0 ? Math.round((n / total) * 100) : 0;
 
   return (
-    <Box sx={{ mb: 2, p: 1.5, bgcolor: 'rgba(0,0,0,0.15)', borderRadius: 1 }}>
+    <Box sx={{ mb: 2, p: 1.5, bgcolor: t.bg.surfaceAlt, borderRadius: 1.5, border: `1px solid ${t.border.subtle}` }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-        <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: t.text.secondary }}>
-          Source Split
-        </Typography>
+        <Label>Source split</Label>
         <Tooltip title="Per-row counters since the API started. SDB primary means it should dominate both columns; Odds API fallback should be a small share. If the Odds API column stays under ~5% for 2 weeks, the $60/mo plan can be downgraded.">
-          <Chip label="?" size="small" sx={{ height: 16, fontSize: 10, cursor: 'help' }} />
+          <Chip label="?" size="small" sx={{ height: 16, fontSize: 10, cursor: 'help', borderRadius: 1 }} />
         </Tooltip>
         {ftStuckKnockoutCount > 0 && (
-          <Chip
-            label={`${ftStuckKnockoutCount} knockout(s) waiting on SDB`}
-            size="small"
-            sx={{ ml: 'auto', height: 18, fontSize: 10, bgcolor: withAlpha(t.warning, 0.15), color: t.warning }}
-          />
+          <Box sx={{ ml: 'auto' }}>
+            <StatusChip status="warning" label={`${ftStuckKnockoutCount} knockout(s) waiting on SDB`} />
+          </Box>
         )}
       </Box>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
-        {/* Display source */}
         <Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 0.5 }}>
-            <Typography variant="caption" sx={{ fontWeight: 600 }}>Display rows (per cycle)</Typography>
-            <Typography variant="caption" sx={{ color: t.text.tertiary, fontVariantNumeric: 'tabular-nums' }}>{displayTotal.toLocaleString()} total</Typography>
+            <Meta sx={{ fontWeight: 600, color: t.text.secondary }}>Display rows (per cycle)</Meta>
+            <Meta sx={{ fontVariantNumeric: 'tabular-nums' }}>{displayTotal.toLocaleString()} total</Meta>
           </Box>
-          <Box sx={{ display: 'flex', height: 16, borderRadius: 1, overflow: 'hidden', bgcolor: 'rgba(255,255,255,0.05)' }}>
+          <Box sx={{ display: 'flex', height: 16, borderRadius: 1, overflow: 'hidden', bgcolor: t.hover.subtle }}>
             <Box sx={{ width: `${pct(displaySource.sdb, displayTotal)}%`, bgcolor: t.gain, transition: 'width 0.4s' }} />
             <Box sx={{ width: `${pct(displaySource.oddsApi, displayTotal)}%`, bgcolor: t.predict, transition: 'width 0.4s' }} />
           </Box>
-          <Box sx={{ display: 'flex', gap: 1.5, mt: 0.5, fontSize: 11, color: t.text.secondary, fontVariantNumeric: 'tabular-nums' }}>
-            <span><Box component="span" sx={{ display: 'inline-block', width: 8, height: 8, bgcolor: t.gain, borderRadius: '50%', mr: 0.5 }} />SDB {pct(displaySource.sdb, displayTotal)}% ({displaySource.sdb.toLocaleString()})</span>
-            <span><Box component="span" sx={{ display: 'inline-block', width: 8, height: 8, bgcolor: t.predict, borderRadius: '50%', mr: 0.5 }} />Odds API gap-fill {pct(displaySource.oddsApi, displayTotal)}% ({displaySource.oddsApi.toLocaleString()})</span>
+          <Box sx={{ display: 'flex', gap: 1.5, mt: 0.5, fontSize: '0.7rem', color: t.text.secondary, fontVariantNumeric: 'tabular-nums' }}>
+            <Box component="span"><LegendDot color={t.gain} />SDB {pct(displaySource.sdb, displayTotal)}% ({displaySource.sdb.toLocaleString()})</Box>
+            <Box component="span"><LegendDot color={t.predict} />Odds API gap-fill {pct(displaySource.oddsApi, displayTotal)}% ({displaySource.oddsApi.toLocaleString()})</Box>
           </Box>
         </Box>
 
-        {/* FT source */}
         <Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 0.5 }}>
-            <Typography variant="caption" sx={{ fontWeight: 600 }}>FT signals (per match)</Typography>
-            <Typography variant="caption" sx={{ color: t.text.tertiary, fontVariantNumeric: 'tabular-nums' }}>{ftTotal.toLocaleString()} total</Typography>
+            <Meta sx={{ fontWeight: 600, color: t.text.secondary }}>FT signals (per match)</Meta>
+            <Meta sx={{ fontVariantNumeric: 'tabular-nums' }}>{ftTotal.toLocaleString()} total</Meta>
           </Box>
-          <Box sx={{ display: 'flex', height: 16, borderRadius: 1, overflow: 'hidden', bgcolor: 'rgba(255,255,255,0.05)' }}>
+          <Box sx={{ display: 'flex', height: 16, borderRadius: 1, overflow: 'hidden', bgcolor: t.hover.subtle }}>
             <Box sx={{ width: `${pct(ftSource.sdb, ftTotal)}%`, bgcolor: t.gain, transition: 'width 0.4s' }} />
             <Box sx={{ width: `${pct(ftSource.oddsApiFallback, ftTotal)}%`, bgcolor: t.predict, transition: 'width 0.4s' }} />
             <Box sx={{ width: `${pct(ftSource.chatgpt, ftTotal)}%`, bgcolor: t.warning, transition: 'width 0.4s' }} />
           </Box>
-          <Box sx={{ display: 'flex', gap: 1.5, mt: 0.5, fontSize: 11, color: t.text.secondary, fontVariantNumeric: 'tabular-nums', flexWrap: 'wrap' }}>
-            <span><Box component="span" sx={{ display: 'inline-block', width: 8, height: 8, bgcolor: t.gain, borderRadius: '50%', mr: 0.5 }} />SDB {pct(ftSource.sdb, ftTotal)}% ({ftSource.sdb})</span>
-            <span><Box component="span" sx={{ display: 'inline-block', width: 8, height: 8, bgcolor: t.predict, borderRadius: '50%', mr: 0.5 }} />Odds API fallback {pct(ftSource.oddsApiFallback, ftTotal)}% ({ftSource.oddsApiFallback})</span>
-            {ftSource.chatgpt > 0 && (
-              <span><Box component="span" sx={{ display: 'inline-block', width: 8, height: 8, bgcolor: t.warning, borderRadius: '50%', mr: 0.5 }} />ChatGPT {pct(ftSource.chatgpt, ftTotal)}% ({ftSource.chatgpt})</span>
-            )}
+          <Box sx={{ display: 'flex', gap: 1.5, mt: 0.5, fontSize: '0.7rem', color: t.text.secondary, fontVariantNumeric: 'tabular-nums', flexWrap: 'wrap' }}>
+            <Box component="span"><LegendDot color={t.gain} />SDB {pct(ftSource.sdb, ftTotal)}% ({ftSource.sdb})</Box>
+            <Box component="span"><LegendDot color={t.predict} />Odds API fallback {pct(ftSource.oddsApiFallback, ftTotal)}% ({ftSource.oddsApiFallback})</Box>
+            {ftSource.chatgpt > 0 && <Box component="span"><LegendDot color={t.warning} />ChatGPT {pct(ftSource.chatgpt, ftTotal)}% ({ftSource.chatgpt})</Box>}
           </Box>
         </Box>
       </Box>
@@ -175,11 +171,19 @@ function SourceSplitPanel({
   );
 }
 
+function LegendDot({ color }: { color: string }) {
+  return <Box component="span" sx={{ display: 'inline-block', width: 8, height: 8, bgcolor: color, borderRadius: '50%', mr: 0.5 }} />;
+}
+
+// ─── LivescoreHealth ─────────────────────────────────────────────────────
 function LivescoreHealth() {
+  // Plan §3.9: keepPreviousData prevents the null-flash on every 15s
+  // refetch — the panel kept blanking back to "no data" between polls.
   const { data, isLoading } = useQuery({
     queryKey: ['admin-livescore-health'],
     queryFn: () => adminFetch<LivescoreMetricsData>('/health/livescore'),
-    refetchInterval: 15000,
+    refetchInterval: POLL_FAST_MS,
+    placeholderData: keepPreviousData,
   });
 
   if (isLoading || !data) return null;
@@ -187,128 +191,90 @@ function LivescoreHealth() {
   const m = data.data;
   const pollAge = m.lastPollAt ? Math.round((Date.now() - m.lastPollAt) / 1000) : null;
 
-  // Determine TheSportsDB status
-  const sportsDbStatus = m.consecutivePollFailures >= 3
-    ? { label: 'Down', ok: false }
-    : m.consecutivePollFailures >= 1 || m.sportsDb429Count > 0
-    ? { label: 'Degraded', ok: false }
-    : { label: 'Healthy', ok: true };
+  const sportsDbKind: StatusKind = m.consecutivePollFailures >= 3
+    ? 'error'
+    : m.consecutivePollFailures >= 1 || m.sportsDb429Count > 0 ? 'warning' : 'ok';
+  const sportsDbLabel = m.consecutivePollFailures >= 3 ? 'Down' : m.consecutivePollFailures >= 1 || m.sportsDb429Count > 0 ? 'Degraded' : 'Healthy';
 
-  // Determine ChatGPT status
-  const chatgptStatus = m.chatgptCircuitBreakerOpen
-    ? { label: 'Circuit Open', ok: false }
-    : m.chatgptCallsTotal > 0
-    ? { label: 'Active', ok: true }
-    : { label: 'Standby', ok: true };
+  const chatgptKind: StatusKind = m.chatgptCircuitBreakerOpen
+    ? 'error'
+    : m.chatgptCallsTotal > 0 ? 'ok' : 'pending';
+  const chatgptLabel = m.chatgptCircuitBreakerOpen ? 'Circuit open' : m.chatgptCallsTotal > 0 ? 'Active' : 'Standby';
 
-  // Determine Odds API status
-  const oddsApiStatus = m.oddsApiDisabled
-    ? { label: 'Disabled', ok: false }
-    : m.oddsApiCallsTotal > 0
-    ? { label: 'Active', ok: true }
-    : { label: 'Standby', ok: true };
+  const oddsApiKind: StatusKind = m.oddsApiDisabled
+    ? 'error'
+    : m.oddsApiCallsTotal > 0 ? 'ok' : 'pending';
+  const oddsApiLabel = m.oddsApiDisabled ? 'Disabled' : m.oddsApiCallsTotal > 0 ? 'Active' : 'Standby';
 
-  const creditsRemaining = m.oddsApiCreditsRemaining;
-  const creditsPct = creditsRemaining != null ? Math.round((creditsRemaining / 1000) * 100) : null;
-  const creditsLow = creditsRemaining != null && creditsRemaining < 200;
+  const creditsKind = oddsApiCreditsKind(m.oddsApiCreditsRemaining);
 
   return (
-    <Card sx={{ p: 2 }}>
-      <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Livescore Health</Typography>
-
-      {/* Status row */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: 2, mb: 2 }}>
+    <SectionCard title="Livescore health">
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(5, 1fr)' }, gap: 2, mb: 2 }}>
         <Box>
-          <Typography variant="caption" color="text.secondary" display="block">TheSportsDB</Typography>
-          <StatusChip ok={sportsDbStatus.ok} label={sportsDbStatus.label} />
-          {pollAge != null && (
-            <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
-              Last poll: {pollAge}s ago ({m.lastPollDurationMs}ms)
-            </Typography>
-          )}
+          <Label>TheSportsDB</Label>
+          <Box sx={{ mt: 0.5 }}><StatusChip status={sportsDbKind} label={sportsDbLabel} /></Box>
+          {pollAge != null && <Meta sx={{ display: 'block', mt: 0.5 }}>Last poll: {pollAge}s ago ({m.lastPollDurationMs}ms)</Meta>}
         </Box>
         <Box>
-          <Typography variant="caption" color="text.secondary" display="block">The Odds API</Typography>
-          <StatusChip ok={oddsApiStatus.ok} label={oddsApiStatus.label} />
-          <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
-            Calls: {m.oddsApiCallsTotal} / Matched: {m.oddsApiSuccessTotal}
-          </Typography>
+          <Label>The Odds API</Label>
+          <Box sx={{ mt: 0.5 }}><StatusChip status={oddsApiKind} label={oddsApiLabel} /></Box>
+          <Meta sx={{ display: 'block', mt: 0.5 }}>Calls: {m.oddsApiCallsTotal} · Matched: {m.oddsApiSuccessTotal}</Meta>
         </Box>
         <Box>
-          <Typography variant="caption" color="text.secondary" display="block">Odds API Credits</Typography>
-          <Typography variant="h6" sx={{ color: creditsLow ? t.error : creditsRemaining != null ? t.gain : 'text.secondary' }}>
-            {creditsRemaining != null ? creditsRemaining.toLocaleString() : '-'}
-          </Typography>
-          {creditsLow && <Typography variant="caption" color="error.main">Low credits!</Typography>}
+          <Label>Odds API credits</Label>
+          <Box sx={{ fontSize: '1.2rem', fontWeight: 700, color: creditsKind === 'error' ? t.error : creditsKind === 'ok' ? t.gain : t.text.tertiary, mt: 0.5 }}>
+            {m.oddsApiCreditsRemaining != null ? m.oddsApiCreditsRemaining.toLocaleString() : '—'}
+          </Box>
+          {creditsKind === 'error' && <Meta sx={{ display: 'block', color: t.error }}>Low credits</Meta>}
         </Box>
         <Box>
-          <Typography variant="caption" color="text.secondary" display="block">ChatGPT</Typography>
-          <StatusChip ok={chatgptStatus.ok} label={chatgptStatus.label} />
-          <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
-            Calls: {m.chatgptCallsTotal}
-          </Typography>
+          <Label>ChatGPT</Label>
+          <Box sx={{ mt: 0.5 }}><StatusChip status={chatgptKind} label={chatgptLabel} /></Box>
+          <Meta sx={{ display: 'block', mt: 0.5 }}>Calls: {m.chatgptCallsTotal}</Meta>
         </Box>
         <Box>
-          <Typography variant="caption" color="text.secondary" display="block">Events / Lookups</Typography>
-          <Typography variant="h6">{m.lastPollEventCount}</Typography>
-          <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
-            Lookups: {m.lookupCallsTotal}
-          </Typography>
+          <Label>Events / lookups</Label>
+          <Box sx={{ fontSize: '1.2rem', fontWeight: 700, color: t.text.primary, mt: 0.5 }}>{m.lastPollEventCount}</Box>
+          <Meta sx={{ display: 'block', mt: 0.5 }}>Lookups: {m.lookupCallsTotal}</Meta>
         </Box>
       </Box>
 
-      {/* Stats row */}
       <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-        <Typography variant="caption">
-          SportsDB: {m.sportsDbSuccessCount} ok / {m.sportsDbFailureCount} fail / {m.sportsDb429Count} 429
-        </Typography>
-        <Typography variant="caption">
-          Odds API: {m.oddsApiCallsTotal} calls / {m.oddsApiSuccessTotal} matched
-        </Typography>
-        <Typography variant="caption">
-          ChatGPT: {m.chatgptCallsTotal} calls / {m.chatgptRejectionsTotal} rejected
-        </Typography>
-        {m.lastPollError && (
-          <Typography variant="caption" color="error.main">
-            Last error: {m.lastPollError.slice(0, 80)}
-          </Typography>
-        )}
+        <Meta>SportsDB: {m.sportsDbSuccessCount} ok / {m.sportsDbFailureCount} fail / {m.sportsDb429Count} 429</Meta>
+        <Meta>Odds API: {m.oddsApiCallsTotal} calls / {m.oddsApiSuccessTotal} matched</Meta>
+        <Meta>ChatGPT: {m.chatgptCallsTotal} calls / {m.chatgptRejectionsTotal} rejected</Meta>
+        {m.lastPollError && <Meta sx={{ color: t.error }}>Last error: {m.lastPollError.slice(0, 80)}</Meta>}
       </Box>
 
-      {/* Source split (Phase C) — who's actually doing the work */}
       <SourceSplitPanel
         displaySource={m.displaySource}
         ftSource={m.ftSource}
         ftStuckKnockoutCount={m.ftStuckKnockoutCount}
       />
 
-      {/* Missing events */}
       {m.missingEvents.length > 0 && (
         <Box sx={{ mb: 2 }}>
-          <Typography variant="caption" color="warning.main" sx={{ fontWeight: 600 }}>
-            Missing Events ({m.missingEvents.length}):
-          </Typography>
+          <Label sx={{ color: t.warning, display: 'block', mb: 0.5 }}>Missing events ({m.missingEvents.length})</Label>
           <TableContainer>
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontSize: 11 }}>Match</TableCell>
-                  <TableCell sx={{ fontSize: 11 }}>Sport</TableCell>
-                  <TableCell sx={{ fontSize: 11 }}>Missing</TableCell>
-                  <TableCell sx={{ fontSize: 11 }}>Reason</TableCell>
-                  <TableCell sx={{ fontSize: 11 }}>GPT</TableCell>
+                  <TableCell><Label>Match</Label></TableCell>
+                  <TableCell><Label>Sport</Label></TableCell>
+                  <TableCell><Label>Missing</Label></TableCell>
+                  <TableCell><Label>Reason</Label></TableCell>
+                  <TableCell><Label>GPT</Label></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {m.missingEvents.map(ev => (
                   <TableRow key={ev.eventId}>
-                    <TableCell sx={{ fontSize: 11 }}>{ev.homeTeam} vs {ev.awayTeam}</TableCell>
-                    <TableCell sx={{ fontSize: 11 }}>{ev.sport}</TableCell>
-                    <TableCell sx={{ fontSize: 11 }}>{Math.round((Date.now() - ev.missingSince) / 60000)}m</TableCell>
-                    <TableCell sx={{ fontSize: 11 }}>
-                      <Chip label={ev.reason} size="small" sx={{ fontSize: 10, height: 20, bgcolor: withAlpha(t.warning, 0.15), color: t.warning }} />
-                    </TableCell>
-                    <TableCell sx={{ fontSize: 11 }}>{ev.chatgptAttempted ? 'Yes' : 'No'}</TableCell>
+                    <TableCell sx={{ fontSize: '0.78rem' }}>{ev.homeTeam} vs {ev.awayTeam}</TableCell>
+                    <TableCell sx={{ fontSize: '0.78rem' }}>{ev.sport}</TableCell>
+                    <TableCell sx={{ fontSize: '0.78rem' }}>{Math.round((Date.now() - ev.missingSince) / 60000)}m</TableCell>
+                    <TableCell><StatusChip status="warning" label={ev.reason} /></TableCell>
+                    <TableCell sx={{ fontSize: '0.78rem' }}>{ev.chatgptAttempted ? 'Yes' : 'No'}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -317,14 +283,11 @@ function LivescoreHealth() {
         </Box>
       )}
 
-      {/* Recent incidents */}
       {m.incidents.length > 0 && (
         <Box>
-          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-            Recent Incidents ({m.incidents.length}):
-          </Typography>
-          <Box sx={{ maxHeight: 200, overflow: 'auto', mt: 0.5, bgcolor: 'rgba(0,0,0,0.2)', borderRadius: 1, p: 1 }}>
-            {[...m.incidents].reverse().slice(0, 50).map((inc, i) => {
+          <Label sx={{ display: 'block', mb: 0.5 }}>Recent incidents ({m.incidents.length})</Label>
+          <Box sx={{ maxHeight: 200, overflow: 'auto', bgcolor: t.bg.surfaceAlt, border: `1px solid ${t.border.subtle}`, borderRadius: 1, p: 1 }}>
+            {[...m.incidents].reverse().slice(0, 50).map((inc) => {
               const time = new Date(inc.timestamp).toLocaleTimeString();
               const typeColor: Record<string, string> = {
                 SPORTSDB_POLL_FAIL: t.error,
@@ -342,159 +305,180 @@ function LivescoreHealth() {
                 ODDS_API_ERROR: t.error,
                 MIDNIGHT_BOUNDARY: t.prediction,
               };
+              // Plan §3.9 — use a stable key. timestamp+type+detailsHead
+              // is sufficient (multiple incidents at the same ms with the
+              // same type/details would collide, but that's safe to merge).
+              const key = `${inc.timestamp}-${inc.type}-${inc.details.slice(0, 32)}`;
               return (
-                <Typography key={i} variant="caption" display="block" sx={{ fontFamily: 'monospace', fontSize: 10, lineHeight: 1.6 }}>
-                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>{time}</span>{' '}
-                  <span style={{ color: typeColor[inc.type] || '#fff' }}>{inc.type}</span>{' '}
-                  {inc.details}
-                </Typography>
+                <Box key={key} sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.7rem', lineHeight: 1.6 }}>
+                  <Box component="span" sx={{ color: t.text.tertiary }}>{time}</Box>{' '}
+                  <Box component="span" sx={{ color: typeColor[inc.type] || t.text.primary }}>{inc.type}</Box>{' '}
+                  <Box component="span" sx={{ color: t.text.secondary }}>{inc.details}</Box>
+                </Box>
               );
             })}
           </Box>
         </Box>
       )}
-    </Card>
+    </SectionCard>
   );
 }
 
+// ─── SystemHealth (root) ─────────────────────────────────────────────────
 export function SystemHealth() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ['admin-health'],
     queryFn: () => adminFetch<HealthData>('/health/overview'),
-    refetchInterval: 15000,
+    refetchInterval: POLL_FAST_MS,
+    placeholderData: keepPreviousData,
   });
 
-  if (isLoading) return <CircularProgress />;
-  if (error) return <Typography color="error">{(error as Error).message}</Typography>;
+  if (isLoading && !data) return <LoadingState variant="block" />;
+  if (error && !data) {
+    return (
+      <ErrorState
+        title="Couldn’t load system health"
+        message={(error as Error).message}
+        details={error}
+        onRetry={() => refetch()}
+      />
+    );
+  }
 
   const h = data!.data;
-  const allJobsHealthy = h.jobs.length > 0 && h.jobs.every(j => j.healthy);
-  const failingJobs = h.jobs.filter(j => !j.healthy);
+  // Per PR 3 #9, jobs ship a tri-state `status`. Filter the failing list
+  // to only `status === 'error'` so a freshly deployed scheduler doesn't
+  // alarm. Fall back to !healthy for backward compat.
+  const failingJobs = h.jobs.filter(j => (j.status ? j.status === 'error' : !j.healthy));
+  const allJobsHealthy = h.jobs.length > 0 && failingJobs.length === 0;
+  const lastUpdated = dataUpdatedAt ? Math.round((Date.now() - dataUpdatedAt) / 1000) : null;
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      {/* Alerts */}
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      {/* ─── Alerts ────────────────────────────────────────────────── */}
       {h.stuckPools > 0 && (
-        <Alert severity="error" variant="filled">
-          {h.stuckPools} stuck pool(s) - check Pools tab
-        </Alert>
+        <SectionCard dense accentColor={t.error} title={`${h.stuckPools} stuck pool${h.stuckPools === 1 ? '' : 's'}`}>
+          <Meta>Past endTime but still JOINING / ACTIVE — open the Pools tab to resolve them.</Meta>
+        </SectionCard>
       )}
       {failingJobs.length > 0 && (
-        <Alert severity="warning" variant="filled">
-          {failingJobs.length} job(s) with errors: {failingJobs.map(j => j.name).join(', ')}
-        </Alert>
+        <SectionCard dense accentColor={t.warning} title={`${failingJobs.length} job${failingJobs.length === 1 ? '' : 's'} with errors`}>
+          <Meta>{failingJobs.map(j => j.name).join(', ')}</Meta>
+        </SectionCard>
       )}
 
-      {/* Status cards */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr 1fr' }, gap: 2 }}>
-        <Card sx={{ p: 2.5 }}>
-          <Typography variant="caption" color="text.secondary" gutterBottom display="block">SCHEDULER</Typography>
-          <StatusChip ok={h.scheduler.isRunning} label={h.scheduler.isRunning ? 'Running' : 'Stopped'} />
-          <Typography variant="body2" sx={{ mt: 1 }}>{h.scheduler.jobCount} jobs registered</Typography>
-        </Card>
+      {/* ─── Top-line status tiles ─────────────────────────────────── */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2 }}>
+        <SectionCard dense title="Scheduler" actions={<RefreshButton onRefresh={() => refetch()} isFetching={isFetching} />}>
+          <StatusChip status={h.scheduler.isRunning ? 'ok' : 'error'} label={h.scheduler.isRunning ? 'Running' : 'Stopped'} />
+          <Meta sx={{ display: 'block', mt: 1 }}>{h.scheduler.jobCount} jobs registered</Meta>
+          {lastUpdated != null && <Meta sx={{ display: 'block', mt: 0.25 }}>Last updated {lastUpdated}s ago</Meta>}
+        </SectionCard>
 
-        <Card sx={{ p: 2.5 }}>
-          <Typography variant="caption" color="text.secondary" gutterBottom display="block">RPC</Typography>
-          <StatusChip ok={h.rpc.ok} label={h.rpc.ok ? `${h.rpc.ms}ms` : 'Down'} />
-          {h.rpc.ok && h.rpc.ms > 2000 && (
-            <Typography variant="caption" color="warning.main" display="block" sx={{ mt: 0.5 }}>Slow response</Typography>
-          )}
-        </Card>
+        <SectionCard dense title="RPC">
+          <StatusChip status={h.rpc.ok ? 'ok' : 'error'} label={h.rpc.ok ? `${h.rpc.ms}ms` : 'Down'} />
+          {h.rpc.ok && h.rpc.ms > 2000 && <Meta sx={{ display: 'block', mt: 0.5, color: t.warning }}>Slow response</Meta>}
+        </SectionCard>
 
-        <Card sx={{ p: 2.5 }}>
-          <Typography variant="caption" color="text.secondary" gutterBottom display="block">PRICE PROVIDER</Typography>
-          <StatusChip ok={h.priceProvider.healthy} label={h.priceProvider.healthy ? 'Healthy' : 'Down'} />
-        </Card>
+        <SectionCard dense title="Price provider">
+          <StatusChip status={h.priceProvider.healthy ? 'ok' : 'error'} label={h.priceProvider.healthy ? 'Healthy' : 'Down'} />
+        </SectionCard>
 
-        <Card sx={{ p: 2.5 }}>
-          <Typography variant="caption" color="text.secondary" gutterBottom display="block">AUTHORITY SOL</Typography>
-          <Typography variant="h6">{h.authorityBalance != null ? `${h.authorityBalance.toFixed(4)}` : 'N/A'}</Typography>
+        <SectionCard dense title="Authority SOL">
+          <Box sx={{ fontSize: '1.2rem', fontWeight: 700, color: h.authorityBalance != null && h.authorityBalance < 0.1 ? t.error : t.text.primary }}>
+            {h.authorityBalance != null ? h.authorityBalance.toFixed(4) : '—'}
+          </Box>
           {h.authorityBalance != null && h.authorityBalance < 0.1 && (
-            <Typography variant="caption" color="error.main">Low balance!</Typography>
+            <Meta sx={{ display: 'block', color: t.error }}>Low balance</Meta>
           )}
-        </Card>
+        </SectionCard>
       </Box>
 
-      {/* Livescore health */}
       <LivescoreHealth />
 
-      {/* Jobs health table */}
-      <Card sx={{ p: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-          <Typography variant="subtitle2">Cron Jobs</Typography>
-          <StatusChip ok={allJobsHealthy} label={allJobsHealthy ? 'All healthy' : `${failingJobs.length} failing`} />
-        </Box>
-        <TableContainer>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Job</TableCell>
-                <TableCell>Schedule</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Last Run</TableCell>
-                <TableCell>Runs</TableCell>
-                <TableCell>Errors</TableCell>
-                <TableCell>Last Error</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {h.jobs.map(job => (
-                <TableRow key={job.name} sx={{ bgcolor: !job.healthy ? withAlpha(t.error, 0.05) : undefined }}>
-                  <TableCell sx={{ fontSize: 12, fontWeight: 500 }}>{job.name}</TableCell>
-                  <TableCell sx={{ fontSize: 11 }}>{job.schedule}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={job.healthy ? 'OK' : job.lastRunAt ? 'Error' : 'Pending'}
-                      size="small"
-                      sx={{
-                        bgcolor: job.healthy ? withAlpha(t.gain, 0.15) : !job.lastRunAt ? withAlpha(t.warning, 0.15) : withAlpha(t.error, 0.15),
-                        color: job.healthy ? t.gain : !job.lastRunAt ? t.warning : t.error,
-                        fontSize: 11,
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell sx={{ fontSize: 11 }}>{timeAgo(job.lastRunAt)}</TableCell>
-                  <TableCell>{job.runCount}</TableCell>
-                  <TableCell sx={{ color: job.errorCount > 0 ? t.error : undefined }}>{job.errorCount}</TableCell>
-                  <TableCell sx={{ maxWidth: 200, fontSize: 10 }}>
-                    {job.lastError ? (
-                      <Tooltip title={job.lastError} arrow>
-                        <Typography noWrap sx={{ fontSize: 'inherit', fontFamily: 'inherit', maxWidth: 200 }}>
-                          {job.lastError}
-                        </Typography>
-                      </Tooltip>
-                    ) : '-'}
-                  </TableCell>
+      {/* ─── Cron jobs ─────────────────────────────────────────────── */}
+      <SectionCard
+        title="Cron jobs"
+        actions={
+          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+            <StatusChip status={allJobsHealthy ? 'ok' : 'error'} label={allJobsHealthy ? 'All healthy' : `${failingJobs.length} failing`} />
+            <RefreshButton onRefresh={() => refetch()} isFetching={isFetching} />
+          </Box>
+        }
+      >
+        {h.jobs.length === 0 ? (
+          <EmptyState title="No jobs registered" hint="Scheduler probably hasn’t finished bootstrapping yet — wait a moment." />
+        ) : (
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell><Label>Job</Label></TableCell>
+                  <TableCell><Label>Schedule</Label></TableCell>
+                  <TableCell><Label>Status</Label></TableCell>
+                  <TableCell><Label>Last run</Label></TableCell>
+                  <TableCell><Label>Runs</Label></TableCell>
+                  <TableCell><Label>Errors</Label></TableCell>
+                  <TableCell><Label>Last error</Label></TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Card>
+              </TableHead>
+              <TableBody>
+                {h.jobs.map(job => {
+                  const kind = jobStatusKind(job);
+                  return (
+                    <TableRow key={job.name} sx={{ bgcolor: kind === 'error' ? withAlpha(t.error, 0.05) : undefined }}>
+                      <TableCell sx={{ fontSize: '0.78rem', fontWeight: 500 }}>{job.name}</TableCell>
+                      <TableCell sx={{ fontSize: '0.75rem', color: t.text.tertiary }}>{job.schedule}</TableCell>
+                      <TableCell>
+                        <StatusChip status={kind} label={kind === 'ok' ? 'OK' : kind === 'error' ? 'Error' : 'Pending'} />
+                      </TableCell>
+                      <TableCell><TimeCell value={job.lastRunAt} mode="relative" /></TableCell>
+                      <TableCell sx={{ fontVariantNumeric: 'tabular-nums' }}>{job.runCount}</TableCell>
+                      <TableCell sx={{ fontVariantNumeric: 'tabular-nums', color: job.errorCount > 0 ? t.error : undefined }}>{job.errorCount}</TableCell>
+                      <TableCell sx={{ maxWidth: 220, fontSize: '0.7rem' }}>
+                        {job.lastError ? (
+                          <Tooltip title={job.lastError} arrow>
+                            <Box sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.lastError}</Box>
+                          </Tooltip>
+                        ) : '—'}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </SectionCard>
 
-      {/* DB overview */}
-      <Card sx={{ p: 2.5 }}>
-        <Typography variant="caption" color="text.secondary" gutterBottom display="block">DATABASE</Typography>
-        <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+      {/* ─── DB overview ───────────────────────────────────────────── */}
+      <SectionCard title="Database">
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(6, 1fr)' }, gap: 2 }}>
           {Object.entries(h.db.pools).map(([status, count]) => (
-            <Box key={status}>
-              <Typography variant="body2" color="text.secondary">{status}</Typography>
-              <Typography variant="h6">{count}</Typography>
-            </Box>
+            <StatCard key={status} label={status} value={count.toLocaleString()} />
           ))}
-          <Box>
-            <Typography variant="body2" color="text.secondary">Total Bets</Typography>
-            <Typography variant="h6">{h.db.totalBets}</Typography>
-          </Box>
-          <Box>
-            <Typography variant="body2" color="text.secondary">Total Users</Typography>
-            <Typography variant="h6">{h.db.totalUsers}</Typography>
-          </Box>
+          <StatCard label="Total bets" value={h.db.totalBets.toLocaleString()} />
+          <StatCard label="Total users" value={h.db.totalUsers.toLocaleString()} />
         </Box>
-        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, wordBreak: 'break-all', display: 'block' }}>
-          Authority: {h.scheduler.authority}
-        </Typography>
-      </Card>
+        <Box sx={{ mt: 2 }}>
+          <Label sx={{ display: 'block', mb: 0.25 }}>Authority pubkey</Label>
+          {/* Plan §3.9 — long pubkey now uses IdCell so the admin can copy
+              it cleanly; previous code dumped 44 chars and broke layout. */}
+          <IdCell value={h.scheduler.authority} truncate={20} />
+        </Box>
+      </SectionCard>
+
+      {/* If the latest poll errored but we kept previous data via
+          keepPreviousData, surface the soft error inline so the admin
+          knows refresh failed but the dashboard isn't blank. */}
+      {error && data && (
+        <SectionCard dense accentColor={t.warning} title="Health refresh failed">
+          <Meta>Showing the most recent successful snapshot. {(error as Error).message}</Meta>
+          <Box sx={{ mt: 1 }}>
+            <ActionButton kind="secondary" label="Retry" onClick={() => refetch()} loading={isFetching} />
+          </Box>
+        </SectionCard>
+      )}
     </Box>
   );
 }

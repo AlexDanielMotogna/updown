@@ -523,24 +523,6 @@ function suggestCode(name: string, sport: string): string {
   return name.replace(/[^A-Za-z0-9]/g, '').slice(0, 5).toUpperCase() || sport.slice(0, 4).toUpperCase();
 }
 
-const SPORT_TO_QUERY: Record<string, string> = {
-  // SDB sport names sometimes don't match the v1 livescore sport names — map
-  // them here so the new category's `sportQuery` is one of the strings
-  // /livescore/{sport} actually accepts.
-  Soccer: 'Soccer',
-  Basketball: 'Basketball',
-  'Ice Hockey': 'Ice Hockey',
-  'American Football': 'American Football',
-  Baseball: 'Baseball',
-  Fighting: 'Fighting',
-  Motorsport: 'Motorsport',
-  Tennis: 'Tennis',
-  Rugby: 'Rugby',
-  Cricket: 'Cricket',
-  Golf: 'Golf',
-  ESports: 'ESports',
-};
-
 function AddCategoryDialog({ league, existingCodes, onClose, onSuccess }: {
   league: SdbLeague;
   existingCodes: Set<string>;
@@ -569,7 +551,10 @@ function AddCategoryDialog({ league, existingCodes, onClose, onSuccess }: {
       const type = isSoccer ? 'FOOTBALL_LEAGUE' : 'SPORTSDB_SPORT';
       const config: Record<string, unknown> = { externalLeagueId: league.id };
       if (!isSoccer) {
-        config.sportQuery = SPORT_TO_QUERY[league.sport] || league.sport;
+        // SDB sport name is already the v1 livescore query string — the
+        // old SPORT_TO_QUERY map mapped every key to itself, so it was
+        // pure noise (Plan §3.10).
+        config.sportQuery = league.sport;
         config.leagueFilter = league.name;
       }
       const body = {

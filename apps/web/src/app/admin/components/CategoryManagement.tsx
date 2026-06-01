@@ -12,6 +12,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminFetch } from '../lib/adminApi';
 import { darkTokens as dt, palette, withAlpha } from '@/lib/theme';
 import { ICON_REGISTRY } from '@/lib/icon-registry';
+import {
+  StatusChip as UiStatusChip, ConfirmDialog, ActionButton,
+  LoadingState,
+  useMutationFeedback,
+  type StatusKind,
+} from '../ui';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
 
@@ -46,10 +52,16 @@ const TYPE_COLORS: Record<string, string> = {
   POLYMARKET: dt.adminTypeColors.polymarket,
 };
 
+// Picks a StatusKind for the canonical <StatusChip> primitive. Replaces
+// the previous local component that re-implemented chip colouring.
+function categoryStatus(cat: { enabled: boolean; comingSoon: boolean }): { kind: StatusKind; label: string } {
+  if (cat.enabled) return { kind: 'ok', label: 'Active' };
+  if (cat.comingSoon) return { kind: 'warning', label: 'Coming soon' };
+  return { kind: 'neutral', label: 'Hidden' };
+}
 function StatusChip({ enabled, comingSoon }: { enabled: boolean; comingSoon: boolean }) {
-  if (enabled) return <Chip label="Active" size="small" sx={{ bgcolor: withAlpha(dt.gain, 0.15), color: dt.gain, fontWeight: 700, fontSize: '0.65rem', height: 22 }} />;
-  if (comingSoon) return <Chip label="Coming Soon" size="small" sx={{ bgcolor: withAlpha(dt.draw, 0.15), color: dt.draw, fontWeight: 700, fontSize: '0.65rem', height: 22 }} />;
-  return <Chip label="Hidden" size="small" sx={{ bgcolor: dt.hover.medium, color: dt.text.dimmed, fontWeight: 700, fontSize: '0.65rem', height: 22 }} />;
+  const { kind, label } = categoryStatus({ enabled, comingSoon });
+  return <UiStatusChip status={kind} label={label} />;
 }
 
 function CategoryCard({ cat, poolCount, onToggle, onToggleComingSoon, onEdit, onDelete }: {
@@ -598,9 +610,13 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
 
 export function CategoryManagement() {
   const qc = useQueryClient();
+  const feedback = useMutationFeedback();
   const [editCat, setEditCat] = useState<Category | null>(null);
   const [creating, setCreating] = useState(false);
-  const [result, setResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  // ConfirmDialog target for delete. Carries the pool count so the
+  // dialog can spell out the consequence ("3 live pool(s) currently
+  // reference this category").
+  const [deleteTarget, setDeleteTarget] = useState<{ cat: Category; poolCount: number } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-categories'],
@@ -618,36 +634,34 @@ export function CategoryManagement() {
   });
   const poolCounts = poolCountsData || {};
 
+  // All mutations now invalidate cache on success and let
+  // useMutationFeedback route the toast + friendly error mapping.
   const toggleMutation = useMutation({
     mutationFn: (id: string) => adminFetch(`/categories/${id}/toggle`, { method: 'PATCH' }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-categories'] }); setResult({ type: 'success', message: 'Category toggled' }); },
-    onError: (e: Error) => setResult({ type: 'error', message: e.message }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-categories'] }),
   });
 
   const comingSoonMutation = useMutation({
     mutationFn: (id: string) => adminFetch(`/categories/${id}/coming-soon`, { method: 'PATCH' }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-categories'] }); },
-    onError: (e: Error) => setResult({ type: 'error', message: e.message }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-categories'] }),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Category> }) =>
       adminFetch(`/categories/${id}`, { method: 'PUT', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-categories'] }); setEditCat(null); setResult({ type: 'success', message: 'Category updated' }); },
-    onError: (e: Error) => setResult({ type: 'error', message: e.message }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-categories'] }); setEditCat(null); },
   });
 
   const createMutation = useMutation({
     mutationFn: (data: Partial<Category>) =>
       adminFetch('/categories', { method: 'POST', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-categories'] }); setCreating(false); setResult({ type: 'success', message: 'Category created' }); },
-    onError: (e: Error) => setResult({ type: 'error', message: e.message }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-categories'] }); setCreating(false); },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => adminFetch(`/categories/${id}`, { method: 'DELETE' }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-categories'] }); setResult({ type: 'success', message: 'Category deleted' }); },
-    onError: (e: Error) => setResult({ type: 'error', message: e.message }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-categories'] }); setDeleteTarget(null); },
+    onError: () => setDeleteTarget(null),
   });
 
   // Re-sync sources with the latest config and create pools now (background job).
@@ -655,8 +669,6 @@ export function CategoryManagement() {
     mutationFn: () => adminFetch<{ success: boolean; message?: string }>('/actions/sync-pools', {
       method: 'POST', body: JSON.stringify({ scope: 'all' }), headers: { 'Content-Type': 'application/json' },
     }),
-    onSuccess: (r) => setResult({ type: 'success', message: r?.message || 'Sync started' }),
-    onError: (e: Error) => setResult({ type: 'error', message: e.message }),
   });
 
   const categories = data?.data || [];
@@ -665,41 +677,26 @@ export function CategoryManagement() {
     return acc;
   }, {});
 
-  if (isLoading) {
-    return <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress size={28} /></Box>;
-  }
+  if (isLoading) return <LoadingState variant="block" />;
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      {result && (
-        <Alert severity={result.type} onClose={() => setResult(null)} sx={{ mb: 1 }}>
-          {result.message}
-        </Alert>
-      )}
-
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-        <Typography sx={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)' }}>
-          {categories.length} categories | {categories.filter(c => c.enabled).length} active | {categories.filter(c => c.comingSoon).length} coming soon
+        <Typography sx={{ fontSize: '0.8rem', color: dt.text.tertiary }}>
+          {categories.length} categories · {categories.filter(c => c.enabled).length} active · {categories.filter(c => c.comingSoon).length} coming soon
         </Typography>
         <Box sx={{ flex: 1 }} />
-        <Button
-          variant="contained"
-          size="small"
+        <ActionButton
+          kind="primary"
+          label="+ New category"
           onClick={() => { setEditCat(null); setCreating(true); }}
-          sx={{ textTransform: 'none', bgcolor: dt.gain, color: dt.text.contrast, fontWeight: 700, whiteSpace: 'nowrap', '&:hover': { bgcolor: palette.green600 } }}
-        >
-          + New Category
-        </Button>
-        <Button
-          variant="outlined"
-          size="small"
-          disabled={syncMutation.isPending}
-          onClick={() => syncMutation.mutate()}
-          startIcon={syncMutation.isPending ? <CircularProgress size={14} sx={{ color: 'inherit' }} /> : undefined}
-          sx={{ textTransform: 'none', borderColor: dt.border.strong, color: dt.text.secondary, whiteSpace: 'nowrap', '&:hover': { borderColor: dt.accent, color: dt.accent } }}
-        >
-          {syncMutation.isPending ? 'Syncing…' : 'Sync pools now'}
-        </Button>
+        />
+        <ActionButton
+          kind="secondary"
+          label="Sync pools now"
+          loading={syncMutation.isPending}
+          onClick={() => feedback.run(syncMutation, undefined, { success: (r) => r?.message || 'Sync started' })}
+        />
       </Box>
 
       {Object.entries(TYPE_LABELS).map(([type, label]) => {
@@ -722,10 +719,13 @@ export function CategoryManagement() {
                   key={cat.id}
                   cat={cat}
                   poolCount={poolCounts[cat.code] ?? 0}
-                  onToggle={() => toggleMutation.mutate(cat.id)}
-                  onToggleComingSoon={() => comingSoonMutation.mutate(cat.id)}
+                  onToggle={() => feedback.run(toggleMutation, cat.id, { success: `${cat.label} ${cat.enabled ? 'disabled' : 'enabled'}` })}
+                  onToggleComingSoon={() => feedback.run(comingSoonMutation, cat.id, { success: 'Coming-soon flag updated' })}
                   onEdit={() => { setCreating(false); setEditCat(cat); }}
-                  onDelete={() => { if (window.confirm(`Delete category "${cat.label}" (${cat.code})? Existing pools are NOT affected on-chain, but will lose this category in the UI.`)) deleteMutation.mutate(cat.id); }}
+                  // Replaces window.confirm — now uses ConfirmDialog with
+                  // severity=destructive and the live pool count in the
+                  // consequence copy (Plan §3.2).
+                  onDelete={() => setDeleteTarget({ cat, poolCount: poolCounts[cat.code] ?? 0 })}
                 />
               ))}
             </Box>
@@ -739,9 +739,35 @@ export function CategoryManagement() {
         open={creating || !!editCat}
         onClose={() => { setCreating(false); setEditCat(null); }}
         onSave={(data) => {
-          if (creating) createMutation.mutate(data);
-          else if (editCat) updateMutation.mutate({ id: editCat.id, data });
+          if (creating) {
+            void feedback.run(createMutation, data, { success: 'Category created' });
+          } else if (editCat) {
+            void feedback.run(updateMutation, { id: editCat.id, data }, { success: 'Category updated' });
+          }
         }}
+      />
+
+      {/* Delete confirmation — destructive, with the live pool count
+          spelled out. The backend (PR 3) ALSO refuses to delete a
+          category with live pools, but surfacing the count up-front
+          avoids the round-trip. */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && feedback.run(deleteMutation, deleteTarget.cat.id, { success: `Deleted ${deleteTarget.cat.label}` })}
+        loading={deleteMutation.isPending}
+        severity="destructive"
+        title="Delete category?"
+        actionLabel="Delete"
+        consequences={deleteTarget ? (
+          <>
+            <Box component="strong" sx={{ color: dt.text.primary }}>{deleteTarget.cat.label}</Box>
+            {' ('}<Box component="code" sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{deleteTarget.cat.code}</Box>{') will be removed from the category list. '}
+            {deleteTarget.poolCount > 0
+              ? <>The backend will <Box component="strong" sx={{ color: dt.error }}>refuse</Box> the delete because {deleteTarget.poolCount} live pool(s) still reference this category. Disable it instead, or wait for those pools to fully close.</>
+              : <>No live pools reference this category, so the delete will succeed. Existing on-chain pool history is not affected.</>}
+          </>
+        ) : ''}
       />
     </Box>
   );
