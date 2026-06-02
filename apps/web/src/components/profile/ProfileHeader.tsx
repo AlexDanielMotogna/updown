@@ -17,6 +17,7 @@ import {
   TrendingDown,
   EmojiEvents,
   AccountBalanceWallet,
+  Edit,
 } from '@mui/icons-material';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
@@ -28,6 +29,7 @@ import { UP_COINS_DIVISOR, getAvatarUrl } from '@/lib/constants';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import type { UserProfile } from '@/lib/api';
+import { EditProfileDialog } from './EditProfileDialog';
 
 function truncateAddress(address: string): string {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -91,6 +93,22 @@ export function ProfileHeader({
   const t = useThemeTokens();
   const [copied, setCopied] = useState(false);
   const [refCopied, setRefCopied] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+
+  // The user's self-edited identity always wins over the wallet-derived
+  // defaults. Keeping fallbacks here (truncated wallet + DiceBear gradient
+  // + empty banner png) means a new wallet without any customisation still
+  // renders the same way it did before this feature shipped.
+  const customDisplayName = userProfile?.displayName?.trim() || null;
+  const customAvatarUrl = userProfile?.avatarUrl?.trim() || null;
+  const customBannerUrl = userProfile?.bannerUrl?.trim() || null;
+  const displayedName = customDisplayName
+    ?? (walletAddress ? truncateAddress(walletAddress) : '');
+  const displayedAvatar = customAvatarUrl
+    ?? (walletAddress ? getAvatarUrl(walletAddress) : '');
+  const bannerImage = customBannerUrl
+    ? `url(${customBannerUrl})`
+    : 'url(/Banner/bannerr-empty.png)';
 
   const handleCopy = () => {
     if (!walletAddress) return;
@@ -159,16 +177,51 @@ export function ProfileHeader({
               exactly with the content below (no overhang) ─── */}
           <Box
             sx={{
+              position: 'relative',
               width: '100%',
               height: { xs: 120, sm: 150, md: 180 },
               borderRadius: 2,
-              backgroundImage: 'url(/Banner/bannerr-empty.png)',
+              backgroundImage: bannerImage,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               backgroundRepeat: 'no-repeat',
               backgroundColor: t.bg.app,
             }}
-          />
+          >
+            {connected && walletAddress && (
+              <Tooltip title="Edit profile" arrow placement="left" slotProps={tooltipSlotProps(t)}>
+                <Box
+                  component="button"
+                  onClick={() => setEditOpen(true)}
+                  sx={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    px: 1.25,
+                    py: 0.5,
+                    borderRadius: '999px',
+                    border: 'none',
+                    bgcolor: 'rgba(0,0,0,0.55)',
+                    color: '#fff',
+                    fontFamily: 'inherit',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    backdropFilter: 'blur(4px)',
+                    transition: 'background 0.15s, transform 0.05s',
+                    '&:hover': { bgcolor: 'rgba(0,0,0,0.75)' },
+                    '&:active': { transform: 'translateY(1px)' },
+                  }}
+                >
+                  <Edit sx={{ fontSize: 14 }} />
+                  Edit
+                </Box>
+              </Tooltip>
+            )}
+          </Box>
           {!connected ? (
             <Box sx={{ textAlign: 'center', py: 8 }}>
               <Typography sx={{ color: 'text.secondary', fontWeight: 400, mb: 3, fontSize: '1rem' }}>
@@ -192,7 +245,7 @@ export function ProfileHeader({
                 <Box sx={{ position: 'relative', flexShrink: 0 }}>
                   {walletAddress ? (
                     <Avatar
-                      src={getAvatarUrl(walletAddress)}
+                      src={displayedAvatar}
                       sx={{
                         width: { xs: 64, md: 84 },
                         height: { xs: 64, md: 84 },
@@ -215,11 +268,18 @@ export function ProfileHeader({
                 <Box sx={{ minWidth: 0, flex: 1, pb: { xs: 0, sm: 0.5 } }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                     <Typography sx={{ fontSize: { xs: '1.05rem', md: '1.4rem' }, fontWeight: 800, color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {walletAddress ? truncateAddress(walletAddress) : ''}
+                      {displayedName}
                     </Typography>
-                    <Box component="button" onClick={handleCopy} sx={{ background: 'none', border: 'none', cursor: 'pointer', p: 0, display: 'flex', alignItems: 'center', flexShrink: 0, color: copied ? t.gain : t.text.dimmed, '&:hover': { color: t.text.primary } }}>
-                      {copied ? <CheckCircle sx={{ fontSize: 15 }} /> : <ContentCopy sx={{ fontSize: 15 }} />}
-                    </Box>
+                    <Tooltip
+                      title={copied ? 'Copied!' : (walletAddress ? truncateAddress(walletAddress) : '')}
+                      arrow
+                      placement="bottom"
+                      slotProps={tooltipSlotProps(t)}
+                    >
+                      <Box component="button" onClick={handleCopy} sx={{ background: 'none', border: 'none', cursor: 'pointer', p: 0, display: 'flex', alignItems: 'center', flexShrink: 0, color: copied ? t.gain : t.text.dimmed, '&:hover': { color: t.text.primary } }}>
+                        {copied ? <CheckCircle sx={{ fontSize: 15 }} /> : <ContentCopy sx={{ fontSize: 15 }} />}
+                      </Box>
+                    </Tooltip>
                   </Box>
 
                   {/* Meta line: level + rank chip (same baseline) */}
@@ -317,6 +377,14 @@ export function ProfileHeader({
           )}
         </Container>
       </Box>
+      {walletAddress && (
+        <EditProfileDialog
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
+          walletAddress={walletAddress}
+          profile={userProfile}
+        />
+      )}
     </>
   );
 }

@@ -71,8 +71,8 @@ export function LeaderboardRow({
         {/* Player */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
           <Avatar
-            src={getAvatarUrl(entry.walletAddress)}
-            alt={entry.walletAddress}
+            src={entry.avatarUrl ?? getAvatarUrl(entry.walletAddress)}
+            alt={entry.displayName ?? entry.walletAddress}
             sx={{
               width: 32,
               height: 32,
@@ -92,7 +92,7 @@ export function LeaderboardRow({
                 whiteSpace: 'nowrap',
               }}
             >
-              {entry.walletAddress.slice(0, 4)}...{entry.walletAddress.slice(-4)}
+              {entry.displayName ?? `${entry.walletAddress.slice(0, 4)}...${entry.walletAddress.slice(-4)}`}
             </Typography>
             <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
               {entry.title}
@@ -186,8 +186,8 @@ export function LeaderboardRow({
             )}
           </Box>
           <Avatar
-            src={getAvatarUrl(entry.walletAddress)}
-            alt={entry.walletAddress}
+            src={entry.avatarUrl ?? getAvatarUrl(entry.walletAddress)}
+            alt={entry.displayName ?? entry.walletAddress}
             sx={{
               width: 28,
               height: 28,
@@ -207,7 +207,7 @@ export function LeaderboardRow({
                 whiteSpace: 'nowrap',
               }}
             >
-              {entry.walletAddress.slice(0, 6)}...{entry.walletAddress.slice(-4)}
+              {entry.displayName ?? `${entry.walletAddress.slice(0, 6)}...${entry.walletAddress.slice(-4)}`}
             </Typography>
           </Box>
           <UserLevelBadge level={entry.level} title={entry.title} size="sm" />
