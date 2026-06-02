@@ -660,6 +660,21 @@ function AddCategoryDialog({ league, existingCodes, onClose, onSuccess }: {
   const codeUpper = code.toUpperCase().replace(/[^A-Z0-9_]/g, '');
   const codeValid = codeUpper.length >= 2 && !existingCodes.has(codeUpper);
 
+  // Map SDB's strSport to the canonical SPORT_GROUP code so newly-added
+  // categories nest correctly under the right umbrella in the public
+  // filter. Soccer → FOOTBALL is handled implicitly via the FOOTBALL_LEAGUE
+  // type's backfill in the DB; here we pin SPORTSDB_SPORT additions.
+  const SDB_SPORT_TO_GROUP: Record<string, string> = {
+    Soccer: 'FOOTBALL',
+    Basketball: 'BASKETBALL',
+    'Ice Hockey': 'ICE_HOCKEY',
+    'American Football': 'AMERICAN_FOOTBALL',
+    Baseball: 'BASEBALL',
+    Fighting: 'FIGHTING',
+    Rugby: 'RUGBY',
+    Tennis: 'TENNIS',
+  };
+
   const submit = async () => {
     setError(null);
     setBusy(true);
@@ -673,6 +688,7 @@ function AddCategoryDialog({ league, existingCodes, onClose, onSuccess }: {
         config.sportQuery = league.sport;
         config.leagueFilter = league.name;
       }
+      const parentCode = SDB_SPORT_TO_GROUP[league.sport] ?? (isSoccer ? 'FOOTBALL' : null);
       const body: Record<string, unknown> = {
         code: codeUpper,
         type,
@@ -686,6 +702,7 @@ function AddCategoryDialog({ league, existingCodes, onClose, onSuccess }: {
         apiSource: 'sports',
         adapterKey: isSoccer ? 'FOOTBALL' : codeUpper,
         config,
+        parentCode,
       };
       // Include badgeUrl when SDB gave us one — categories created from
       // the Browse SDB flow now ship with the league logo already wired.
@@ -748,8 +765,9 @@ function AddCategoryDialog({ league, existingCodes, onClose, onSuccess }: {
 
         <Alert severity="info" sx={{ fontSize: '0.72rem' }}>
           Will be created with type <strong>{isSoccer ? 'FOOTBALL_LEAGUE' : 'SPORTSDB_SPORT'}</strong>,
-          {' '}sides <strong>{isSoccer ? '3-way (H/D/A)' : '2-way (H/A)'}</strong>, and{' '}
-          <strong>coming-soon</strong> (hidden from feed until you toggle it on Categories tab).
+          {' '}sides <strong>{isSoccer ? '3-way (H/D/A)' : '2-way (H/A)'}</strong>,
+          {' '}under sport group <strong>{SDB_SPORT_TO_GROUP[league.sport] ?? (isSoccer ? 'FOOTBALL' : '(none)')}</strong>,
+          {' '}and <strong>coming-soon</strong> (hidden from feed until you toggle it on Categories tab).
         </Alert>
 
         {error && <Alert severity="error" sx={{ fontSize: '0.72rem' }}>{error}</Alert>}

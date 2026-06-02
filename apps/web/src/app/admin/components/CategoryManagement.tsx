@@ -38,6 +38,7 @@ interface Category {
   sideLabels: string[];
   config: Record<string, unknown> | null;
   sortOrder: number;
+  parentCode: string | null;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -416,10 +417,11 @@ function SportsDbConfigFields({ sportQuery, onSportQueryChange, leagueFilter, on
 
 const EMPTY_PM: PmConfig = { tags: [], tagIds: [], minVolume24h: '', maxDaysAhead: '', matchPriority: '', maxMarkets: '', maxSubmarketsPerEvent: '', subcategories: [] };
 
-function EditDialog({ cat, isNew, open, onClose, onSave }: {
+function EditDialog({ cat, isNew, open, parents, onClose, onSave }: {
   cat: Category | null;
   isNew: boolean;
   open: boolean;
+  parents: Category[];
   onClose: () => void;
   onSave: (data: Partial<Category>) => void;
 }) {
@@ -437,13 +439,13 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
   const handleOpen = () => {
     setConfigSportQuery(''); setConfigLeagueFilter(''); setConfigLeagueId(''); setConfigPoolOpenDays(''); setPm(EMPTY_PM);
     if (isNew) {
-      setForm({ code: '', type: 'POLYMARKET', label: '', shortLabel: '', color: '#A78BFA', badgeUrl: '', iconKey: 'Public', sortOrder: 50, numSides: 2, enabled: true, comingSoon: false, apiSource: 'predictions', adapterKey: 'POLYMARKET', sideLabels: ['Yes', 'No'] });
+      setForm({ code: '', type: 'POLYMARKET', label: '', shortLabel: '', color: '#A78BFA', badgeUrl: '', iconKey: 'Public', sortOrder: 50, numSides: 2, enabled: true, comingSoon: false, apiSource: 'predictions', adapterKey: 'POLYMARKET', sideLabels: ['Yes', 'No'], parentCode: null });
       // Sensible PM defaults so the admin isn't guessing blank numbers.
       setPm({ ...EMPTY_PM, minVolume24h: '5000', maxDaysAhead: '90', maxMarkets: '50', maxSubmarketsPerEvent: '1' });
       return;
     }
     if (!cat) return;
-    setForm({ code: cat.code, type: cat.type, label: cat.label, shortLabel: cat.shortLabel, color: cat.color, badgeUrl: cat.badgeUrl, iconKey: cat.iconKey, sortOrder: cat.sortOrder, numSides: cat.numSides, enabled: cat.enabled, comingSoon: cat.comingSoon, apiSource: cat.apiSource, adapterKey: cat.adapterKey, sideLabels: cat.sideLabels });
+    setForm({ code: cat.code, type: cat.type, label: cat.label, shortLabel: cat.shortLabel, color: cat.color, badgeUrl: cat.badgeUrl, iconKey: cat.iconKey, sortOrder: cat.sortOrder, numSides: cat.numSides, enabled: cat.enabled, comingSoon: cat.comingSoon, apiSource: cat.apiSource, adapterKey: cat.adapterKey, sideLabels: cat.sideLabels, parentCode: cat.parentCode });
     const cfg = (cat.config || {}) as Record<string, unknown>;
     setPm({
       tags: Array.isArray(cfg.tags) ? cfg.tags as string[] : [],
@@ -511,6 +513,8 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
         config.poolOpenDaysBefore = Math.floor(n);
       }
     }
+    // `form` already carries parentCode (set in handleOpen + the parent
+    // picker above). PUT/POST /admin/categories passes it through.
     onSave({ ...form, config: Object.keys(config).length > 0 ? config : undefined });
   };
 
@@ -530,13 +534,43 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
             <FormControl size="small" sx={{ flex: 1 }}>
               <InputLabel>Type</InputLabel>
               <Select value={form.type || 'POLYMARKET'} label="Type"
-                onChange={e => setForm(f => ({ ...f, type: e.target.value, ...(e.target.value === 'POLYMARKET' ? { apiSource: 'predictions', adapterKey: 'POLYMARKET', numSides: 2, sideLabels: ['Yes', 'No'] } : { apiSource: 'sports' }) }))}>
+                onChange={e => setForm(f => ({ ...f, type: e.target.value, ...(e.target.value === 'POLYMARKET' ? { apiSource: 'predictions', adapterKey: 'POLYMARKET', numSides: 2, sideLabels: ['Yes', 'No'] } : e.target.value === 'SPORT_GROUP' ? { apiSource: null, adapterKey: null } : { apiSource: 'sports' }) }))}>
                 <MenuItem value="POLYMARKET">Prediction (Polymarket)</MenuItem>
                 <MenuItem value="SPORTSDB_SPORT">Sport (TheSportsDB)</MenuItem>
                 <MenuItem value="FOOTBALL_LEAGUE">Football League</MenuItem>
+                <MenuItem value="SPORT_GROUP">Sport Group (umbrella, no sync)</MenuItem>
               </Select>
             </FormControl>
           </Box>
+        )}
+        {/* Parent picker — only meaningful for sport-typed leagues. SPORT_GROUP
+            and POLYMARKET rows are always top-level, so the picker is hidden
+            for them to keep the form short. */}
+        {(form.type === 'FOOTBALL_LEAGUE' || form.type === 'SPORTSDB_SPORT') && (
+          <FormControl size="small">
+            <InputLabel>Parent group</InputLabel>
+            <Select
+              label="Parent group"
+              value={form.parentCode ?? ''}
+              onChange={e => setForm(f => ({ ...f, parentCode: e.target.value === '' ? null : e.target.value }))}
+              renderValue={(v) => {
+                if (!v) return <Box sx={{ color: dt.text.tertiary }}>(none — top-level)</Box>;
+                const p = parents.find(c => c.code === v);
+                const Ic = p?.iconKey ? ICON_REGISTRY[p.iconKey] : null;
+                return <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>{Ic ? <Ic sx={{ fontSize: 18, color: p?.color || dt.text.tertiary }} /> : null}{p?.label ?? v}</Box>;
+              }}
+            >
+              <MenuItem value=""><em>(none — top-level)</em></MenuItem>
+              {parents.map(p => {
+                const Ic = p.iconKey ? ICON_REGISTRY[p.iconKey] : null;
+                return (
+                  <MenuItem key={p.code} value={p.code}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>{Ic ? <Ic sx={{ fontSize: 18, color: p.color || dt.text.tertiary }} /> : null}<strong>{p.code}</strong><Box sx={{ color: dt.text.tertiary, fontSize: '0.75rem' }}>{p.label}</Box></Box>
+                  </MenuItem>
+                );
+              })}
+            </Select>
+          </FormControl>
         )}
         <TextField label="Label" size="small" value={form.label || ''} onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
           InputProps={tipAdornment('Full display name of the category (e.g. "Culture & Entertainment").')} />
@@ -676,6 +710,10 @@ export function CategoryManagement() {
     (acc[cat.type] = acc[cat.type] || []).push(cat);
     return acc;
   }, {});
+  // Available parents = enabled SPORT_GROUP rows, sorted by sortOrder.
+  // Disabled groups still appear so the operator can re-parent a child
+  // there if they're staging a future enable.
+  const parents = categories.filter(c => c.type === 'SPORT_GROUP').sort((a, b) => a.sortOrder - b.sortOrder);
 
   if (isLoading) return <LoadingState variant="block" />;
 
@@ -737,6 +775,7 @@ export function CategoryManagement() {
         cat={editCat}
         isNew={creating}
         open={creating || !!editCat}
+        parents={parents}
         onClose={() => { setCreating(false); setEditCat(null); }}
         onSave={(data) => {
           if (creating) {
