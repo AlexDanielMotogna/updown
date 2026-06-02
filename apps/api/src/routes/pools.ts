@@ -367,11 +367,44 @@ poolsRouter.get('/:id/bets', async (req, res) => {
       take: 50,
     });
 
+    // Look up the distinct wallets in this slice so we can join displayName /
+    // avatarUrl onto each row. The list is capped at 50 so this never grows
+    // unbounded and stays a single round-trip.
+    const collectWallets = (ws: Array<string | undefined>) => {
+      const set = new Set<string>();
+      for (const w of ws) if (w) set.add(w);
+      return [...set];
+    };
+    const eventWallets = collectWallets(
+      events.map(e => (e.payload as { walletAddress?: string }).walletAddress),
+    );
+
+    type UserSlim = { walletAddress: string; displayName: string | null; avatarUrl: string | null };
+    const buildIdentityMap = async (wallets: string[]) => {
+      if (wallets.length === 0) return new Map<string, UserSlim>();
+      const rows = await prisma.user.findMany({
+        where: { walletAddress: { in: wallets } },
+        select: { walletAddress: true, displayName: true, avatarUrl: true },
+      });
+      return new Map(rows.map(r => [r.walletAddress, r] as const));
+    };
+    const eventIdentities = await buildIdentityMap(eventWallets);
+
+    const truncate = (w: string) => `${w.slice(0, 4)}...${w.slice(-4)}`;
+
     const data = events.map(e => {
       const p = e.payload as { walletAddress?: string; side?: string; amount?: string };
       const w = p.walletAddress || '';
+      const u = eventIdentities.get(w);
       return {
-        wallet: `${w.slice(0, 4)}...${w.slice(-4)}`,
+        // `wallet` is kept for backwards-compat with anything still reading
+        // the pre-truncated label directly. New surfaces should use
+        // walletAddress + displayName + avatarUrl and run them through the
+        // shared frontend helper.
+        wallet: truncate(w),
+        walletAddress: w,
+        displayName: u?.displayName ?? null,
+        avatarUrl: u?.avatarUrl ?? null,
         side: p.side || 'UP',
         amount: p.amount || '0',
         createdAt: e.createdAt.toISOString(),
@@ -386,14 +419,21 @@ poolsRouter.get('/:id/bets', async (req, res) => {
         orderBy: { createdAt: 'desc' },
         take: 50,
       });
+      const betIdentities = await buildIdentityMap(collectWallets(bets.map(b => b.walletAddress)));
       return res.json({
         success: true,
-        data: bets.map(b => ({
-          wallet: `${b.walletAddress.slice(0, 4)}...${b.walletAddress.slice(-4)}`,
-          side: b.side,
-          amount: b.amount.toString(),
-          createdAt: b.createdAt.toISOString(),
-        })),
+        data: bets.map(b => {
+          const u = betIdentities.get(b.walletAddress);
+          return {
+            wallet: truncate(b.walletAddress),
+            walletAddress: b.walletAddress,
+            displayName: u?.displayName ?? null,
+            avatarUrl: u?.avatarUrl ?? null,
+            side: b.side,
+            amount: b.amount.toString(),
+            createdAt: b.createdAt.toISOString(),
+          };
+        }),
       });
     }
 

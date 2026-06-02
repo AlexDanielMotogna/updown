@@ -4,6 +4,7 @@ import { Box, Typography, IconButton, Chip } from '@mui/material';
 import Avatar from '@mui/material/Avatar';
 import { RemoveCircleOutline } from '@mui/icons-material';
 import { getAvatarUrl } from '@/lib/constants';
+import { getDisplayName, getDisplayAvatar } from '@/lib/userDisplay';
 import { formatDateTime } from '@/lib/format';
 import type { SquadMemberEntry } from '@/lib/api';
 import { useThemeTokens } from '@/app/providers';
@@ -66,8 +67,8 @@ export function SquadMemberList({ members, currentWallet, isOwner, onKick }: Squ
             {/* Player */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
               <Avatar
-                src={getAvatarUrl(m.walletAddress)}
-                alt={m.walletAddress}
+                src={getDisplayAvatar(m)}
+                alt={getDisplayName(m)}
                 sx={{ width: 32, height: 32, borderRadius: '50%', border: `1px solid ${t.border.default}`, flexShrink: 0 }}
               />
               <Box sx={{ minWidth: 0 }}>
@@ -81,7 +82,7 @@ export function SquadMemberList({ members, currentWallet, isOwner, onKick }: Squ
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {shortWallet(m.walletAddress)}
+                  {getDisplayName(m)}
                   {isMe && (
                     <Typography component="span" sx={{ color: t.up, fontSize: '0.7rem', ml: 0.5 }}>
                       (you)

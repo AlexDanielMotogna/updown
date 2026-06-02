@@ -185,6 +185,9 @@ export interface UserProfileExtras {
 
 export function serializeUserProfile(user: {
   walletAddress: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  bannerUrl: string | null;
   totalXp: bigint;
   level: number;
   coinsBalance: bigint;
@@ -206,6 +209,9 @@ export function serializeUserProfile(user: {
   const isMaxLevel = level >= 40;
   return {
     walletAddress: user.walletAddress,
+    displayName: user.displayName,
+    avatarUrl: user.avatarUrl,
+    bannerUrl: user.bannerUrl,
     referralCode: user.referralCode,
     level,
     title: getLevelTitle(level),
@@ -233,6 +239,19 @@ export function serializeUserProfile(user: {
     },
     rank: extras.rank ?? null,
     totalUsers: extras.totalUsers ?? null,
+    // 9 unlock milestones rendered as a "Badges"-style strip on the profile
+    // overview. Building this server-side keeps the level/fee/multiplier
+    // tables in a single source of truth (utils/levels.ts + utils/fees.ts);
+    // duplicating the math in the web app drifts the moment a tuning pass
+    // touches either side. The frontend only owns the lock/unlock display.
+    milestones: ([1, 5, 10, 15, 20, 25, 30, 35, 40] as const).map(lvl => ({
+      level: lvl,
+      title: getLevelTitle(lvl),
+      xpRequired: getXpForLevel(lvl).toString(),
+      feePercent: (getFeeBps(lvl) / 100).toFixed(2),
+      coinMultiplier: getLevelMultiplier(lvl),
+      unlocked: level >= lvl,
+    })),
     stats: (() => {
       const refunded = extras.totalRefunded ?? 0;
       // Refunds aren't wins and aren't losses. Excluding them from the

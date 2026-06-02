@@ -1,5 +1,6 @@
 import { Router, type Router as RouterType } from 'express';
 import { z } from 'zod';
+import { prisma } from '../db';
 import {
   resolveReferralCode,
   acceptReferral,
@@ -35,10 +36,22 @@ referralsRouter.get('/resolve', async (req, res) => {
       });
     }
 
+    // Pull the referrer's display identity so the "Referred by X" toast on
+    // signup can render their chosen name + avatar instead of just the
+    // truncated wallet. Keep the truncated fallback in `referrerWallet` so
+    // older clients still get something readable.
+    const referrer = await prisma.user.findUnique({
+      where: { walletAddress: wallet },
+      select: { displayName: true, avatarUrl: true },
+    });
+
     res.json({
       success: true,
       data: {
         referrerWallet: `${wallet.slice(0, 4)}...${wallet.slice(-4)}`,
+        referrerWalletFull: wallet,
+        referrerDisplayName: referrer?.displayName ?? null,
+        referrerAvatarUrl: referrer?.avatarUrl ?? null,
       },
     });
   } catch (error) {

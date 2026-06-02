@@ -6,6 +6,7 @@ import Avatar from '@mui/material/Avatar';
 import { Send, Chat as ChatIcon, Close, KeyboardArrowDown } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAvatarUrl } from '@/lib/constants';
+import { getDisplayName, getDisplayAvatar } from '@/lib/userDisplay';
 import type { SquadChatMessage } from '@/lib/api';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
@@ -162,7 +163,7 @@ export function SquadChat({ messages, onSend, isSending, currentWallet }: SquadC
                     >
                       {!isMe && (
                         <Avatar
-                          src={getAvatarUrl(msg.walletAddress)}
+                          src={getDisplayAvatar(msg)}
                           alt=""
                           sx={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0, border: `1px solid ${t.border.default}` }}
                         />
@@ -177,7 +178,7 @@ export function SquadChat({ messages, onSend, isSending, currentWallet }: SquadC
                       >
                         {!isMe && (
                           <Typography sx={{ fontSize: '0.6rem', color: t.up, fontWeight: 600, lineHeight: 1 }}>
-                            {shortWallet(msg.walletAddress)}
+                            {getDisplayName(msg)}
                           </Typography>
                         )}
                         <Typography sx={{ fontSize: '0.8rem', wordBreak: 'break-word', lineHeight: 1.45, mt: !isMe ? 0.2 : 0 }}>

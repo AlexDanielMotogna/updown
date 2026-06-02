@@ -178,20 +178,38 @@ export async function getSquadLeaderboard(squadId: string) {
   });
   const poolIds = squadPools.map(p => p.id);
 
+  // Shared identity lookup used by both the no-bets early-return and the
+  // aggregated path below. Keeps displayName / avatarUrl in sync with the
+  // member list endpoint.
+  const fetchIdentities = async (wallets: string[]) => {
+    if (wallets.length === 0) return new Map<string, { displayName: string | null; avatarUrl: string | null }>();
+    const rows = await prisma.user.findMany({
+      where: { walletAddress: { in: wallets } },
+      select: { walletAddress: true, displayName: true, avatarUrl: true },
+    });
+    return new Map(rows.map(r => [r.walletAddress, { displayName: r.displayName, avatarUrl: r.avatarUrl }] as const));
+  };
+
   if (poolIds.length === 0) {
     // Return members with zero stats
     const members = await prisma.squadMember.findMany({
       where: { squadId },
       select: { walletAddress: true, role: true },
     });
-    return members.map(m => ({
-      walletAddress: m.walletAddress,
-      role: m.role,
-      totalBets: 0,
-      totalWins: 0,
-      totalWagered: '0',
-      netPnl: '0',
-    }));
+    const ids = await fetchIdentities(members.map(m => m.walletAddress));
+    return members.map(m => {
+      const u = ids.get(m.walletAddress);
+      return {
+        walletAddress: m.walletAddress,
+        displayName: u?.displayName ?? null,
+        avatarUrl: u?.avatarUrl ?? null,
+        role: m.role,
+        totalBets: 0,
+        totalWins: 0,
+        totalWagered: '0',
+        netPnl: '0',
+      };
+    });
   }
 
   // Get all bets in squad pools
@@ -235,14 +253,18 @@ export async function getSquadLeaderboard(squadId: string) {
     where: { squadId },
     select: { walletAddress: true, role: true },
   });
+  const ids = await fetchIdentities(members.map(m => m.walletAddress));
 
   return members
     .map(m => {
       const stats = statsMap.get(m.walletAddress);
       const wagered = stats?.totalWagered ?? 0n;
       const payout = stats?.totalPayout ?? 0n;
+      const u = ids.get(m.walletAddress);
       return {
         walletAddress: m.walletAddress,
+        displayName: u?.displayName ?? null,
+        avatarUrl: u?.avatarUrl ?? null,
         role: m.role,
         totalBets: stats?.totalBets ?? 0,
         totalWins: stats?.totalWins ?? 0,

@@ -251,16 +251,34 @@ export async function getReferralStats(walletAddress: string) {
     referralEarningsByWallet.map((e) => [e.referredWallet, e._sum.commissionAmount ?? 0n]),
   );
 
+  // Identity hydration for the list of people the user has referred so the
+  // referrals tab shows their chosen names + avatars instead of raw wallets.
+  const identityMap = referrals.length
+    ? new Map(
+        (
+          await prisma.user.findMany({
+            where: { walletAddress: { in: referrals.map(r => r.referredWallet) } },
+            select: { walletAddress: true, displayName: true, avatarUrl: true },
+          })
+        ).map(u => [u.walletAddress, u] as const),
+      )
+    : new Map();
+
   return {
     referralCode: code,
     totalReferrals: referralCount,
     totalEarned: (earnings._sum.commissionAmount ?? 0n).toString(),
     unpaidBalance: (unpaidEarnings._sum.commissionAmount ?? 0n).toString(),
-    referrals: referrals.map((r) => ({
-      wallet: r.referredWallet,
-      joinedAt: r.createdAt.toISOString(),
-      earned: (earningsMap.get(r.referredWallet) ?? 0n).toString(),
-    })),
+    referrals: referrals.map((r) => {
+      const u = identityMap.get(r.referredWallet);
+      return {
+        wallet: r.referredWallet,
+        displayName: u?.displayName ?? null,
+        avatarUrl: u?.avatarUrl ?? null,
+        joinedAt: r.createdAt.toISOString(),
+        earned: (earningsMap.get(r.referredWallet) ?? 0n).toString(),
+      };
+    }),
   };
 }
 

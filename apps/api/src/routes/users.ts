@@ -28,6 +28,26 @@ const leaderboardSchema = z.object({
   limit: z.coerce.number().min(1).max(100).default(20),
 });
 
+// Self-edit profile fields. The wallet address authorises the call (same
+// pattern as the rest of this router). Display name is a-zA-Z0-9 + dash/
+// underscore + space, 3-20 chars; rejecting whitespace-only avoids the
+// "  " username trick. URLs must be https Cloudinary or generic https links;
+// we don't render anything fancy with them so a soft check is enough — the
+// MVP explicitly opted out of moderation.
+const profileUpdateSchema = z.object({
+  walletAddress: z.string().min(32).max(44),
+  displayName: z
+    .string()
+    .trim()
+    .min(3)
+    .max(20)
+    .regex(/^[a-zA-Z0-9 _-]+$/, 'Letters, numbers, space, _ or - only')
+    .nullable()
+    .optional(),
+  avatarUrl: z.string().url().max(500).nullable().optional(),
+  bannerUrl: z.string().url().max(500).nullable().optional(),
+});
+
 /**
  * POST /api/users/register
  * Upsert a user on wallet connect.
@@ -277,6 +297,60 @@ usersRouter.get('/category-stats', async (req, res) => {
 /**
  * GET /api/users/leaderboard?sort=xp|coins|level&page=&limit=
  */
+/**
+ * PATCH /api/users/profile
+ * Self-edit displayName / avatarUrl / bannerUrl on the user's own row.
+ * The walletAddress in the body is the auth signal — same convention as
+ * /register and /profile. We pass each field through as undefined when
+ * omitted so partial updates don't blank the others; explicit null clears.
+ */
+usersRouter.patch('/profile', async (req, res) => {
+  try {
+    const parsed = profileUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const first = parsed.error.errors[0];
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: first?.message ?? 'Invalid input' },
+      });
+    }
+    const { walletAddress, displayName, avatarUrl, bannerUrl } = parsed.data;
+
+    // Pre-check uniqueness on displayName. Doing this before the update gives
+    // a clean 409 instead of letting Prisma throw P2002 — easier UX on the
+    // client because we can return the exact field that collided.
+    if (displayName) {
+      const existing = await prisma.user.findUnique({
+        where: { displayName },
+        select: { walletAddress: true },
+      });
+      if (existing && existing.walletAddress !== walletAddress) {
+        return res.status(409).json({
+          success: false,
+          error: { code: 'DISPLAY_NAME_TAKEN', message: 'That display name is already taken' },
+        });
+      }
+    }
+
+    const updated = await prisma.user.update({
+      where: { walletAddress },
+      data: {
+        ...(displayName !== undefined && { displayName }),
+        ...(avatarUrl !== undefined && { avatarUrl }),
+        ...(bannerUrl !== undefined && { bannerUrl }),
+      },
+    });
+
+    res.json({ success: true, data: serializeUserProfile(updated) });
+  } catch (error) {
+    console.error('[Users] profile update error:', error);
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to update profile' },
+    });
+  }
+});
+
 usersRouter.get('/leaderboard', async (req, res) => {
   try {
     const parsed = leaderboardSchema.safeParse(req.query);
@@ -309,6 +383,12 @@ usersRouter.get('/leaderboard', async (req, res) => {
       data: users.map((u, i) => ({
         rank: skip + i + 1,
         walletAddress: u.walletAddress,
+        // displayName + avatarUrl let the leaderboard render the user's
+        // chosen identity instead of a truncated wallet/gradient pair.
+        // Both stay null when the user hasn't customised them, so the
+        // client keeps its existing wallet/gradient fallbacks.
+        displayName: u.displayName,
+        avatarUrl: u.avatarUrl,
         level: u.level,
         title: getLevelTitle(u.level),
         totalXp: u.totalXp.toString(),

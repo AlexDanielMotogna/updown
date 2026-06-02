@@ -11,6 +11,7 @@ import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import { getCategoryMeta } from './category-meta';
 import { getRewardMeta, formatRelativeTime } from './reward-meta';
+import { LevelMilestones } from './LevelMilestones';
 
 function Panel({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   const t = useThemeTokens();
@@ -227,6 +228,14 @@ export function OverviewTab({ walletAddress, userProfile, onViewTab }: OverviewT
         pb: 2,
       }}
     >
+      {/* Full-width unlock strip — sits above the rest of the grid so the
+          user sees the long-term ladder before the per-category breakdown.
+          gridColumn: '1 / -1' spans every column at every breakpoint. */}
+      <Box sx={{ gridColumn: '1 / -1' }}>
+        <Panel title="Badges">
+          <LevelMilestones userProfile={userProfile} />
+        </Panel>
+      </Box>
       <Panel title="Performance by category">
         <PerformanceByCategory wallet={walletAddress} />
       </Panel>

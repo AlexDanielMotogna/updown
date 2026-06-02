@@ -328,6 +328,8 @@ export interface ReferralStats {
   unpaidBalance: string;
   referrals: Array<{
     wallet: string;
+    displayName: string | null;
+    avatarUrl: string | null;
     joinedAt: string;
     earned: string;
   }>;
@@ -354,6 +356,9 @@ export interface ReferralPayoutEntry {
 
 export interface UserProfile {
   walletAddress: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  bannerUrl: string | null;
   referralCode: string | null;
   level: number;
   title: string;
@@ -376,6 +381,17 @@ export interface UserProfile {
   } | null;
   rank: number | null;
   totalUsers: number | null;
+  /** Server-computed level unlock milestones. Each entry comes pre-flagged
+   *  with whether the user has already reached the level — the UI just
+   *  picks the right colour/icon and renders the strip. */
+  milestones: Array<{
+    level: number;
+    title: string;
+    xpRequired: string;
+    feePercent: string;
+    coinMultiplier: number;
+    unlocked: boolean;
+  }>;
   stats: {
     totalBets: number;
     totalWins: number;
@@ -415,6 +431,11 @@ export interface CategoryStatEntry {
 export interface LeaderboardEntry {
   rank: number;
   walletAddress: string;
+  /** Self-edited identity from the profile. Both null until the user
+   *  customises them; the leaderboard then prefers them over the wallet
+   *  truncation / gradient avatar fallback. */
+  displayName: string | null;
+  avatarUrl: string | null;
   level: number;
   title: string;
   totalXp: string;
@@ -437,6 +458,23 @@ export async function fetchUserProfile(
   wallet: string,
 ): Promise<ApiResponse<UserProfile>> {
   return fetchApi<UserProfile>(`/api/users/profile?wallet=${wallet}`);
+}
+
+export interface UpdateUserProfileBody {
+  walletAddress: string;
+  /** Pass `null` to clear, omit to leave unchanged. */
+  displayName?: string | null;
+  avatarUrl?: string | null;
+  bannerUrl?: string | null;
+}
+
+export async function updateUserProfile(
+  body: UpdateUserProfileBody,
+): Promise<ApiResponse<UserProfile>> {
+  return fetchApi<UserProfile>('/api/users/profile', {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
 }
 
 export async function fetchRewardHistory(
@@ -546,6 +584,8 @@ export interface SquadDetail {
 
 export interface SquadMemberEntry {
   walletAddress: string;
+  displayName: string | null;
+  avatarUrl: string | null;
   role: 'OWNER' | 'MEMBER';
   joinedAt: string;
 }
@@ -560,12 +600,16 @@ export interface SquadInviteInfo {
 export interface SquadChatMessage {
   id: string;
   walletAddress: string;
+  displayName: string | null;
+  avatarUrl: string | null;
   content: string;
   createdAt: string;
 }
 
 export interface SquadLeaderboardEntry {
   walletAddress: string;
+  displayName: string | null;
+  avatarUrl: string | null;
   role: 'OWNER' | 'MEMBER';
   totalBets: number;
   totalWins: number;
@@ -850,7 +894,13 @@ export interface TournamentFixture {
 
 export interface TournamentBracket {
   tournament: TournamentSummary;
-  participants: Array<{ walletAddress: string; seed: number; eliminatedRound: number | null }>;
+  participants: Array<{
+    walletAddress: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    seed: number;
+    eliminatedRound: number | null;
+  }>;
   rounds: Record<number, TournamentMatchData[]>;
   fixtures?: Record<number, TournamentFixture[]>;
 }

@@ -246,6 +246,29 @@ export async function getTournamentBracket(tournamentId: string) {
     }),
   ]);
 
+  // Hydrate displayName / avatarUrl per participant so the bracket chips
+  // can render the user's chosen identity. TournamentParticipant joins by
+  // walletAddress only — no FK to users — so one batched lookup keeps this
+  // a single extra round-trip on top of the existing parallel queries.
+  const participantIdentities = participants.length
+    ? new Map(
+        (
+          await prisma.user.findMany({
+            where: { walletAddress: { in: participants.map(p => p.walletAddress) } },
+            select: { walletAddress: true, displayName: true, avatarUrl: true },
+          })
+        ).map(u => [u.walletAddress, u] as const),
+      )
+    : new Map();
+  const enrichedParticipants = participants.map(p => {
+    const u = participantIdentities.get(p.walletAddress);
+    return {
+      ...p,
+      displayName: u?.displayName ?? null,
+      avatarUrl: u?.avatarUrl ?? null,
+    };
+  });
+
   // Group matches by round
   const rounds: Record<number, typeof matches> = {};
   for (const match of matches) {
@@ -262,7 +285,7 @@ export async function getTournamentBracket(tournamentId: string) {
 
   return {
     tournament,
-    participants,
+    participants: enrichedParticipants,
     rounds,
     fixtures,
   };
