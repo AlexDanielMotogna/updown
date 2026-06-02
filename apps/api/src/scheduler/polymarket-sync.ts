@@ -1,6 +1,5 @@
 import cron from 'node-cron';
 import { prisma } from '../db';
-import { getAdapter } from '../services/sports';
 import { polymarketFetch } from '../services/sports/polymarket-fetch';
 import { categorizeEvent } from '../services/sports/polymarket-adapter';
 import { pickSubcategory, getPolymarketCategories } from '../services/category-config';
@@ -440,8 +439,64 @@ export async function recategorizePmPools(): Promise<{ moved: number; rebucketed
 // ── Resolution Poll ─────────────────────────────────────────────────────────
 
 /**
- * Check cached Polymarket markets that are past their endDate but not resolved.
- * Polls Gamma API for each to detect UMA resolution.
+ * Classify a Polymarket market's current state via Gamma /markets?id=X.
+ * Returns a discriminated state instead of the previous null-for-everything
+ * sentinel — the old behaviour silently lumped "delisted" and "still
+ * pending UMA" into the same `null` return, so pool resolution could not
+ * tell the two apart and stayed in JOINING for the full 24h grace window
+ * even when the market had clearly been removed from Gamma.
+ */
+type MarketResolutionState =
+  | { kind: 'delisted' }
+  | { kind: 'pending' }
+  | { kind: 'resolved'; result: MatchResult };
+
+async function pollPolymarketMarket(marketId: string): Promise<MarketResolutionState> {
+  const data = await polymarketFetch(`/markets?id=${marketId}`);
+  // Gamma returns [] when the market has been delisted entirely. Treat
+  // that as a terminal state — the pool cannot resolve naturally and the
+  // sweep can skip its normal 24h grace because waiting is pointless.
+  if (Array.isArray(data) && data.length === 0) return { kind: 'delisted' };
+  const market = Array.isArray(data) ? data[0] : data;
+  if (!market) return { kind: 'delisted' }; // null response, same as []
+
+  if (!market.closed || market.umaResolutionStatus !== 'resolved') {
+    return { kind: 'pending' };
+  }
+
+  const prices = safeJsonParse<string[]>(market.outcomePrices);
+  if (!prices || prices.length < 2) return { kind: 'pending' };
+  const price0 = parseFloat(prices[0]);
+  const price1 = parseFloat(prices[1]);
+  const winner: 'HOME' | 'AWAY' = price0 > price1 ? 'HOME' : 'AWAY';
+  return {
+    kind: 'resolved',
+    result: {
+      matchId: String(market.id),
+      status: 'FINISHED',
+      homeScore: winner === 'HOME' ? 1 : 0,
+      awayScore: winner === 'AWAY' ? 1 : 0,
+      winner,
+    },
+  };
+}
+
+// Throttle the "still pending" log so a 10-min cron doesn't spam stderr
+// when 30+ markets are all waiting on UMA. One line per hour is enough
+// visibility for the operator.
+let lastPendingLogAt = 0;
+const PENDING_LOG_INTERVAL_MS = 60 * 60_000;
+
+/**
+ * Check cached Polymarket markets that are past their endDate but not
+ * resolved. Polls Gamma per market and now distinguishes three states:
+ *
+ *   resolved   — UMA closed it. Mark cache FINISHED with the winner.
+ *   delisted   — Gamma returns []. Mark cache CANCELLED with a reason —
+ *                sweepStuckPmPools then skips the 24h grace and
+ *                cancels the pool immediately.
+ *   pending    — Market still live or UMA hasn't closed. No-op; we'll
+ *                retry next cycle.
  */
 async function resolutionPoll(): Promise<void> {
   const pending = await prisma.sportsFixtureCache.findMany({
@@ -456,30 +511,45 @@ async function resolutionPoll(): Promise<void> {
 
   if (pending.length === 0) return;
 
-  const adapter = getAdapter('POLYMARKET');
   let resolved = 0;
+  let delisted = 0;
+  let stillPending = 0;
 
   for (const { externalId } of pending) {
     try {
-      const result: MatchResult | null = await adapter.fetchMatchResult(externalId);
-      if (!result) continue; // not resolved yet
+      const state = await pollPolymarketMarket(externalId);
 
-      const winner = result.winner === 'HOME'
-        ? 'HOME'
-        : 'AWAY';
-
-      await prisma.sportsFixtureCache.updateMany({
-        where: { externalId, sport: 'POLYMARKET', apiSource: API_SOURCE },
-        data: {
-          status: 'FINISHED',
-          homeScore: result.homeScore,
-          awayScore: result.awayScore,
-          winner,
-          lastSyncedAt: new Date(),
-        },
-      });
-
-      resolved++;
+      if (state.kind === 'resolved') {
+        const winner = state.result.winner === 'HOME' ? 'HOME' : 'AWAY';
+        await prisma.sportsFixtureCache.updateMany({
+          where: { externalId, sport: 'POLYMARKET', apiSource: API_SOURCE },
+          data: {
+            status: 'FINISHED',
+            homeScore: state.result.homeScore,
+            awayScore: state.result.awayScore,
+            winner,
+            lastSyncedAt: new Date(),
+          },
+        });
+        resolved++;
+      } else if (state.kind === 'delisted') {
+        await prisma.sportsFixtureCache.updateMany({
+          where: { externalId, sport: 'POLYMARKET', apiSource: API_SOURCE },
+          data: { status: 'CANCELLED', lastSyncedAt: new Date() },
+        });
+        await prisma.eventLog.create({
+          data: {
+            eventType: 'POOL_PM_DELISTED_DETECTED',
+            entityType: 'market',
+            entityId: externalId,
+            payload: { marketId: externalId, source: 'gamma-empty-response' },
+          },
+        }).catch(() => {});
+        console.warn(`[PolymarketSync] Market ${externalId} delisted from Gamma — cache → CANCELLED. Pool sweep will cancel any matching pool on its next pass.`);
+        delisted++;
+      } else {
+        stillPending++;
+      }
     } catch (error) {
       console.warn(`[PolymarketSync] Resolution poll failed for ${externalId}:`, error instanceof Error ? error.message : error);
     }
@@ -488,8 +558,13 @@ async function resolutionPoll(): Promise<void> {
     await sleep(RATE_LIMIT_MS);
   }
 
-  if (resolved > 0) {
-    console.log(`[PolymarketSync] Resolution poll: resolved ${resolved}/${pending.length} markets`);
+  if (resolved > 0 || delisted > 0) {
+    console.log(`[PolymarketSync] Resolution poll: resolved=${resolved} delisted=${delisted} still-pending=${stillPending} (of ${pending.length})`);
+  } else if (stillPending > 0 && Date.now() - lastPendingLogAt > PENDING_LOG_INTERVAL_MS) {
+    // Throttle: heartbeat once per hour so the operator knows the pipe is
+    // running even when nothing is changing state.
+    console.log(`[PolymarketSync] Resolution poll: ${stillPending} markets still pending UMA / live.`);
+    lastPendingLogAt = Date.now();
   }
 }
 

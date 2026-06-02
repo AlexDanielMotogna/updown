@@ -206,6 +206,51 @@ export async function cancelPmPool(
  * Runs from sweepUnresolvedPools (every 15 min).
  */
 export async function sweepStuckPmPools(): Promise<void> {
+  // ── Phase 1 — pools whose cache row is already CANCELLED ─────────────
+  // resolutionPoll in polymarket-sync.ts now marks the cache CANCELLED as
+  // soon as Gamma returns an empty array for the market id. That's a
+  // terminal state: waiting longer cannot recover the market, so we skip
+  // the 24h grace and cancel immediately. This closes the window where a
+  // 0-bet pool sat in JOINING for hours after its market was delisted
+  // (the pool the operator surfaced today: matchId=1698908 had its
+  // market endDate >25h ago but startTime was just 20h ago, so the old
+  // sweep's grace filter excluded it).
+  const cancelledCacheRows = await prisma.sportsFixtureCache.findMany({
+    where: { sport: 'POLYMARKET', apiSource: 'predictions', status: 'CANCELLED' },
+    select: { externalId: true },
+  });
+  const cancelledMatchIds = cancelledCacheRows.map(r => r.externalId);
+
+  let cancelled = 0;
+  let leftForAdmin = 0;
+  let waitingForUma = 0;
+  let immediateCancelled = 0;
+
+  if (cancelledMatchIds.length > 0) {
+    const explicitlyDelisted = await prisma.pool.findMany({
+      where: {
+        poolType: 'SPORTS',
+        status: { in: [PoolStatus.JOINING, PoolStatus.ACTIVE] },
+        league: { startsWith: 'PM_' },
+        matchId: { in: cancelledMatchIds },
+      },
+      select: { id: true, matchId: true },
+    });
+    for (const pool of explicitlyDelisted) {
+      const betCount = await prisma.bet.count({ where: { poolId: pool.id } });
+      if (betCount > 0) { leftForAdmin++; continue; }
+      try {
+        const r = await cancelPmPool(pool.id, `gamma-delisted-immediate (matchId=${pool.matchId})`);
+        if (r.status === 'cancelled' || r.status === 'already-cancelled') {
+          immediateCancelled++;
+        }
+      } catch (err) {
+        console.warn(`[PM-Cancel] Immediate sweep failed for ${pool.id}:`, err instanceof Error ? err.message : err);
+      }
+    }
+  }
+
+  // ── Phase 2 — pools past the grace window, decided via Gamma ──────────
   // Use the SHORTER grace as the first filter. Anything that hasn't crossed
   // 24h since market close can't possibly be ready to cancel; skip the DB +
   // Gamma round trips for it.
@@ -217,14 +262,12 @@ export async function sweepStuckPmPools(): Promise<void> {
       status: { in: [PoolStatus.JOINING, PoolStatus.ACTIVE] },
       league: { startsWith: 'PM_' },
       startTime: { lte: earliestCutoff },
+      // Skip the ones Phase 1 already handled (or queued for admin).
+      matchId: cancelledMatchIds.length > 0 ? { notIn: cancelledMatchIds } : undefined,
     },
     select: { id: true, matchId: true, homeTeam: true, league: true, startTime: true },
   });
-  if (stuck.length === 0) return;
 
-  let cancelled = 0;
-  let leftForAdmin = 0;
-  let waitingForUma = 0;
   for (const pool of stuck) {
     const betCount = await prisma.bet.count({ where: { poolId: pool.id } });
     if (betCount > 0) {
@@ -250,7 +293,8 @@ export async function sweepStuckPmPools(): Promise<void> {
       console.warn(`[PM-Cancel] Sweep failed for ${pool.id}:`, err instanceof Error ? err.message : err);
     }
   }
-  if (cancelled > 0 || leftForAdmin > 0 || waitingForUma > 0) {
-    console.log(`[PM-Cancel] Sweep: cancelled=${cancelled} (gamma-delisted or past ${PM_SWEEP_UMA_STUCK_GRACE_HOURS}h UMA grace), waiting-for-uma=${waitingForUma}, left-for-admin=${leftForAdmin} (had bets) out of ${stuck.length} candidate(s)`);
+
+  if (cancelled > 0 || immediateCancelled > 0 || leftForAdmin > 0 || waitingForUma > 0) {
+    console.log(`[PM-Cancel] Sweep: immediate-cancelled=${immediateCancelled} cancelled=${cancelled} waiting-for-uma=${waitingForUma} left-for-admin=${leftForAdmin}`);
   }
 }
