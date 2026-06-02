@@ -130,6 +130,18 @@ export default function MatchDetailPage() {
   } | null>(null);
 
   const pool = poolData?.data;
+
+  // Crypto pools live at /pool/[id] — the surface here is built around
+  // sports / PM markets (home vs away team, kickoffs, FT pills). Landing
+  // a crypto pool here used to render HOM/AWA placeholders and an "FT"
+  // pill, which looked like the pool had vanished. Bounce to the right
+  // page as soon as we know the type.
+  useEffect(() => {
+    if (pool && pool.poolType === 'CRYPTO') {
+      router.replace(`/pool/${pool.id}`);
+    }
+  }, [pool, router]);
+
   const liveScore = useLiveScore(pool?.id ?? null);
   const categoryMap = useCategoryMap();
   const isResolved = pool ? (pool.status === 'CLAIMABLE' || pool.status === 'RESOLVED') : false;
@@ -273,7 +285,10 @@ export default function MatchDetailPage() {
     />
   );
 
-  if (isLoading) {
+  // Show the same spinner while the redirect-to-/pool/[id] effect runs for
+  // crypto pools. Otherwise the page would briefly flash the sports header
+  // (HOM / AWA / "FT") before the navigation kicked in.
+  if (isLoading || (pool && pool.poolType === 'CRYPTO')) {
     return (
       <AppShell topBar={filterBar}>
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 12 }}>

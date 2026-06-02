@@ -62,6 +62,12 @@ model Pool {
   subcategory     String?                                    // Single resolved subcategory bucket (exact-match filter key)
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
+  // Set once the pool's on-chain PDA has been closed (or confirmed already
+  // closed via the auto_cleanup path). Acts as a terminal flag for the
+  // scheduler so processClaimableTransitions / processPoolClosures stop
+  // re-picking the row. Without it, RESOLVED↔CLAIMABLE oscillates forever
+  // and POOL_CLOSED auto_cleanup spams the event log.
+  closedAt        DateTime?  @map("closed_at")
 
   squadId         String?    @map("squad_id")
   maxBettors      Int?       @map("max_bettors")
@@ -74,6 +80,7 @@ model Pool {
   @@index([poolType])
   @@index([poolType, league])
   @@index([league, subcategory])
+  @@index([status, closedAt])
   @@map("pools")
 }
 

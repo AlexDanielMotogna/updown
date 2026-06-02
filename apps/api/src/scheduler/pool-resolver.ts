@@ -68,6 +68,12 @@ export class PoolResolver {
       where: {
         status: PoolStatus.RESOLVED,
         updatedAt: { lte: twoSecondsAgo },
+        // closedAt acts as a terminal flag — once the on-chain PDA is gone
+        // we stop revolving the pool through RESOLVED→CLAIMABLE again, which
+        // is what caused the POOL_CLOSED auto_cleanup loop (every successful
+        // close used to mark RESOLVED, this branch immediately re-flipped it
+        // to CLAIMABLE, and processPoolClosures retried close every ~30s).
+        closedAt: null,
       },
       select: { id: true, asset: true, poolType: true, winner: true, homeTeam: true, awayTeam: true, league: true },
     });
@@ -175,6 +181,10 @@ export class PoolResolver {
         where: {
           status: PoolStatus.CLAIMABLE,
           updatedAt: { lte: cutoff },
+          // Already-closed pools never re-enter the close loop. Without this
+          // any pool whose users all claimed (vault empty, PDA reclaimed)
+          // would cycle here forever via processClaimableTransitions.
+          closedAt: null,
         },
         select: { id: true, poolId: true },
       });
@@ -235,9 +245,12 @@ export class PoolResolver {
             await this.deps.prisma.pool.deleteMany({ where: { id: pool.id } });
             console.log(`[Scheduler] Pool ${pool.id} closed on-chain & deleted (empty, rent: +${(rentReclaimed / 1e9).toFixed(6)} SOL)`);
           } else {
-            // Had participants - keep pool + bets for history, mark RESOLVED so it's not retried
-            await this.deps.prisma.pool.update({ where: { id: pool.id }, data: { status: 'RESOLVED' } });
-            console.log(`[Scheduler] Pool ${pool.id} closed on-chain (${betCount} bets kept, marked RESOLVED, rent: +${(rentReclaimed / 1e9).toFixed(6)} SOL)`);
+            // Had participants - keep pool + bets for history. We leave the
+            // status at CLAIMABLE so the UI keeps showing the result, and
+            // stamp closedAt so neither processClaimableTransitions nor
+            // processPoolClosures will look at this row again.
+            await this.deps.prisma.pool.update({ where: { id: pool.id }, data: { closedAt: new Date() } });
+            console.log(`[Scheduler] Pool ${pool.id} closed on-chain (${betCount} bets kept, closedAt stamped, rent: +${(rentReclaimed / 1e9).toFixed(6)} SOL)`);
           }
         } catch (error) {
           const errMsg = error instanceof Error ? error.message : String(error);
@@ -258,8 +271,11 @@ export class PoolResolver {
                 await this.deps.prisma.pool.deleteMany({ where: { id: pool.id } });
                 console.log(`[Scheduler] Pool ${pool.id} resolved + closed on-chain & deleted (empty)`);
               } else {
-                await this.deps.prisma.pool.update({ where: { id: pool.id }, data: { status: 'RESOLVED' } });
-                console.log(`[Scheduler] Pool ${pool.id} resolved + closed on-chain (${betCount} bets kept)`);
+                // Same as the happy path above — stamp closedAt and keep the
+                // row at CLAIMABLE so users still see the result and the
+                // resolver pipeline ignores the row from here on.
+                await this.deps.prisma.pool.update({ where: { id: pool.id }, data: { closedAt: new Date() } });
+                console.log(`[Scheduler] Pool ${pool.id} resolved + closed on-chain (${betCount} bets kept, closedAt stamped)`);
               }
             } catch (resolveErr) {
               this.closeFailures.set(pool.id, Date.now());
@@ -269,7 +285,14 @@ export class PoolResolver {
           }
 
           if (errMsg.includes('AccountNotInitialized') || errMsg.includes('Custom":3012')) {
-            console.log(`[Scheduler] Pool ${pool.id} already closed on-chain - cleaning up DB records`);
+            // The on-chain PDA is gone — either we closed it earlier (and the
+            // row got resurrected by processClaimableTransitions, pre-closedAt
+            // fix) or it was closed out-of-band. Stamp closedAt so we never
+            // come back here for this pool. Previously this branch marked the
+            // row RESOLVED, which the transition job immediately flipped back
+            // to CLAIMABLE, producing one POOL_CLOSED auto_cleanup log every
+            // ~30s indefinitely (5k+ events seen on a single pool).
+            console.log(`[Scheduler] Pool ${pool.id} already closed on-chain - stamping closedAt`);
             await logEvent(this.deps.prisma, 'POOL_CLOSED', 'closure', pool.id, {
               poolId: pool.id,
               asset: poolData?.asset ?? 'unknown',
@@ -285,9 +308,8 @@ export class PoolResolver {
               await this.deps.prisma.pool.deleteMany({ where: { id: pool.id } });
               console.log(`[Scheduler] Pool ${pool.id} already closed - deleted (empty)`);
             } else {
-              // Mark as RESOLVED so it won't be picked up for closure again
-              await this.deps.prisma.pool.update({ where: { id: pool.id }, data: { status: 'RESOLVED' } });
-              console.log(`[Scheduler] Pool ${pool.id} already closed - kept (${betCount} bets, marked RESOLVED)`);
+              await this.deps.prisma.pool.update({ where: { id: pool.id }, data: { closedAt: new Date() } });
+              console.log(`[Scheduler] Pool ${pool.id} already closed - kept (${betCount} bets, closedAt stamped)`);
             }
             continue;
           }

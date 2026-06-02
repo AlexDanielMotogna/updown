@@ -213,6 +213,7 @@ export default function PoolDetailPage() {
             interval={pool.interval}
             startTime={pool.startTime}
             endTime={pool.endTime}
+            poolId={pool.id}
           />
           <PriceTargetStrip
             strikePrice={pool.strikePrice}

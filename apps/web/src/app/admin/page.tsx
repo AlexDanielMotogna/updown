@@ -18,8 +18,9 @@ import { CategoryManagement } from './components/CategoryManagement';
 import { PayoutManagement } from './components/PayoutManagement';
 import { MatchExplorer } from './components/MatchExplorer';
 import { PmExplorer } from './components/PmExplorer';
+import { ResolutionMetrics } from './components/ResolutionMetrics';
 
-const TABS = ['Health', 'Pools', 'Payouts', 'Finance', 'Users', 'Events', 'Actions', 'Tournaments', 'Matches', 'Predictions', 'Categories'] as const;
+const TABS = ['Health', 'Resolution', 'Pools', 'Payouts', 'Finance', 'Users', 'Events', 'Actions', 'Tournaments', 'Matches', 'Predictions', 'Categories'] as const;
 
 // Detect which environment the admin is pointing at, so a single misclick
 // between the dev / prod browser tabs is obvious. Reads NEXT_PUBLIC_ENV
@@ -172,16 +173,17 @@ export default function AdminPage() {
 
         <Box>
           {tab === 0 && <SystemHealth />}
-          {tab === 1 && <PoolManagement />}
-          {tab === 2 && <PayoutManagement />}
-          {tab === 3 && <FinancialOverview />}
-          {tab === 4 && <UserOverview />}
-          {tab === 5 && <EventLog />}
-          {tab === 6 && <ManualActions />}
-          {tab === 7 && <TournamentManagement />}
-          {tab === 8 && <MatchExplorer />}
-          {tab === 9 && <PmExplorer />}
-          {tab === 10 && <CategoryManagement />}
+          {tab === 1 && <ResolutionMetrics />}
+          {tab === 2 && <PoolManagement />}
+          {tab === 3 && <PayoutManagement />}
+          {tab === 4 && <FinancialOverview />}
+          {tab === 5 && <UserOverview />}
+          {tab === 6 && <EventLog />}
+          {tab === 7 && <ManualActions />}
+          {tab === 8 && <TournamentManagement />}
+          {tab === 9 && <MatchExplorer />}
+          {tab === 10 && <PmExplorer />}
+          {tab === 11 && <CategoryManagement />}
         </Box>
       </Box>
     </ToastProvider>
