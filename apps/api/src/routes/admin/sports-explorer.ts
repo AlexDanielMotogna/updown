@@ -10,6 +10,7 @@ import { derivePoolSeed, getConnection, getAuthorityKeypair } from '../../utils/
 import { emitPoolStatus } from '../../websocket';
 import { KNOCKOUT_DISABLE_ODDS_FALLBACK, EXPECTED_MATCH_DURATION_MS, DEFAULT_EXPECTED_DURATION_MS, ODDS_API_FT_FALLBACK_GRACE_MS } from '../../services/sports/livescore/types';
 import { classifyBadgeBackground } from '../../services/sports/badge-analyzer';
+import { backfillCombatSportImages } from '../../scheduler/fixture-sync';
 import type { Match } from '../../services/sports/types';
 
 // In-memory cache for the full SDB leagues catalog (1,475 rows). The list
@@ -224,6 +225,22 @@ adminSportsRouter.get('/matches', async (req, res) => {
     res.json({ success: true, data: { sport, league, direction, count: data.length, matches: data } });
   } catch (error) {
     console.error('[AdminSports] matches error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: error instanceof Error ? error.message : 'unknown' } });
+  }
+});
+
+// ── POST /admin/sports/backfill-fighter-images ───────────────────────────────
+// One-shot trigger that walks combat-sport fixture cache rows whose
+// home/away crest is null and resolves each fighter via SDB's
+// searchplayers endpoint. New events synced after the fighter-images.ts
+// commit already get enriched at upsert time — this is for the legacy
+// rows. Idempotent and rate-limited; safe to run repeatedly.
+adminSportsRouter.post('/backfill-fighter-images', async (_req, res) => {
+  try {
+    const r = await backfillCombatSportImages();
+    res.json({ success: true, data: r });
+  } catch (error) {
+    console.error('[AdminSports] backfill-fighter-images error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL', message: error instanceof Error ? error.message : 'unknown' } });
   }
 });

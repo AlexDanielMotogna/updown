@@ -10,6 +10,7 @@ import {
 import { getFootballConfigs, getSportsDbConfigs } from '../services/category-config';
 import type { Match, MatchResult } from '../services/sports/types';
 import { regulationWinner } from '../services/sports/regulation-time';
+import { getEventFighterImages, isCombatSport } from '../services/sports/fighter-images';
 const RATE_LIMIT_DELAY_MS = 2_000; // 2s between API calls (TheSportsDB allows 100/min)
 const API_SOURCE = 'sports';
 
@@ -196,6 +197,20 @@ export async function dailySync(): Promise<void> {
       const matches = await adapter.fetchUpcomingMatches(config.sport);
 
       for (const match of matches) {
+        // Combat-sport enrichment. SDB's eventsnextleague endpoint leaves
+        // strHomeTeamBadge / strAwayTeamBadge null for boxing / MMA / K-1
+        // (fighters live behind searchplayers.php, not on the event).
+        // Resolve each fighter once, persisted long-term in
+        // fighter_image_cache, and plug the cutout URL into the existing
+        // homeTeamCrest / awayTeamCrest columns so downstream code
+        // (pool cards, match header) renders fighter photos with zero
+        // schema change. Negative cache means an unranked debut costs
+        // one SDB call per 7 days, not one per sync.
+        if (isCombatSport(config.sportQuery) && (!match.homeTeamCrest || !match.awayTeamCrest)) {
+          const { homeImage, awayImage } = await getEventFighterImages(match.homeTeam, match.awayTeam, config.sportQuery);
+          if (!match.homeTeamCrest && homeImage) match.homeTeamCrest = homeImage;
+          if (!match.awayTeamCrest && awayImage) match.awayTeamCrest = awayImage;
+        }
         await upsertMatch(match, API_SOURCE);
       }
 
@@ -344,6 +359,82 @@ export async function cleanupSportsCache(): Promise<{ orphan: number; stale: num
     console.log(`[FixtureSync] Cleanup: ${orphan} orphan + ${stale} stale rows removed`);
   }
   return { orphan, stale };
+}
+
+// ── Combat-sport image backfill ────────────────────────────────────────────
+
+/**
+ * Walk every combat-sport fixture cache row whose home/away crest is empty
+ * and try to fill it from the fighter-image cache. New rows already get
+ * enriched at upsert time (see dailySync above); this is the one-shot path
+ * to repopulate rows created before fighter-images.ts existed. Idempotent.
+ *
+ * Pool rows that point at the same matchId get the same patch — Pool
+ * stores its own crest snapshot so the public app reads it without going
+ * through the cache.
+ *
+ * Rate-limit aware: one SDB call per unique unresolved fighter,
+ * 2s between requests, negative-cache prevents re-trying misses for 7
+ * days even across runs.
+ */
+export async function backfillCombatSportImages(): Promise<{ rowsScanned: number; rowsUpdated: number; poolsUpdated: number }> {
+  const sportsConfigs = await getSportsDbConfigs();
+  const combatConfigs = sportsConfigs.filter(c => isCombatSport(c.sportQuery));
+  if (combatConfigs.length === 0) {
+    return { rowsScanned: 0, rowsUpdated: 0, poolsUpdated: 0 };
+  }
+
+  let rowsScanned = 0;
+  let rowsUpdated = 0;
+  let poolsUpdated = 0;
+
+  for (const config of combatConfigs) {
+    if (!config.sportQuery) continue;
+    const rows = await prisma.sportsFixtureCache.findMany({
+      where: {
+        sport: config.sport,
+        OR: [{ homeTeamCrest: null }, { awayTeamCrest: null }],
+      },
+      select: {
+        externalId: true,
+        homeTeam: true,
+        awayTeam: true,
+        homeTeamCrest: true,
+        awayTeamCrest: true,
+      },
+    });
+
+    for (const row of rows) {
+      rowsScanned++;
+      const { homeImage, awayImage } = await getEventFighterImages(row.homeTeam, row.awayTeam, config.sportQuery);
+      const nextHome = !row.homeTeamCrest && homeImage ? homeImage : row.homeTeamCrest;
+      const nextAway = !row.awayTeamCrest && awayImage ? awayImage : row.awayTeamCrest;
+      if (nextHome === row.homeTeamCrest && nextAway === row.awayTeamCrest) {
+        continue;
+      }
+
+      const updatedCache = await prisma.sportsFixtureCache.updateMany({
+        where: { externalId: row.externalId, sport: config.sport },
+        data: { homeTeamCrest: nextHome, awayTeamCrest: nextAway, lastSyncedAt: new Date() },
+      });
+      rowsUpdated += updatedCache.count;
+
+      const updatedPools = await prisma.pool.updateMany({
+        where: { matchId: row.externalId, poolType: 'SPORTS' },
+        data: { homeTeamCrest: nextHome, awayTeamCrest: nextAway },
+      });
+      poolsUpdated += updatedPools.count;
+
+      // Be polite to SDB — getEventFighterImages already hits the cache
+      // for known names, but new lookups within this loop should pace.
+      await sleep(RATE_LIMIT_DELAY_MS);
+    }
+  }
+
+  if (rowsScanned > 0) {
+    console.log(`[FixtureSync] Combat image backfill: scanned=${rowsScanned} cacheUpdated=${rowsUpdated} poolsUpdated=${poolsUpdated}`);
+  }
+  return { rowsScanned, rowsUpdated, poolsUpdated };
 }
 
 // ── Scheduler Entry Point ──────────────────────────────────────────────────
