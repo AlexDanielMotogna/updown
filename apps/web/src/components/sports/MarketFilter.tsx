@@ -7,12 +7,13 @@ import { useCategories, type CategoryConfig } from '@/hooks/useCategories';
 import { getIcon } from '@/lib/icon-registry';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
+import { resolveBadgeBackground } from '@/lib/badgeBackground';
 
 interface DropdownProps {
   value: string;
   label: string;
   icon?: React.ReactNode;
-  options: Array<{ value: string; label: string; icon?: React.ReactNode; img?: string | null; comingSoon?: boolean }>;
+  options: Array<{ value: string; label: string; icon?: React.ReactNode; img?: string | null; imgBg?: string | null; comingSoon?: boolean }>;
   onChange: (value: string) => void;
   color: string;
 }
@@ -37,7 +38,7 @@ export function FilterDropdown({ value, label, icon, options, onChange, color }:
         }}
       >
         {icon || (selected?.img && (
-          <Box component="img" src={selected.img} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
+          <Box component="img" src={selected.img} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: selected.imgBg ?? resolveBadgeBackground(null), borderRadius: '50%', p: '2px' }} />
         ))}
         <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.text.primary, whiteSpace: 'nowrap' }}>
           {selected?.label || label}
@@ -66,7 +67,7 @@ export function FilterDropdown({ value, label, icon, options, onChange, color }:
               }}
             >
               {opt.img ? (
-                <Box component="img" src={opt.img} alt="" sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
+                <Box component="img" src={opt.img} alt="" sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: opt.imgBg ?? resolveBadgeBackground(null), borderRadius: '50%', p: '2px' }} />
               ) : opt.icon ? (
                 <Box sx={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', color: active ? color : t.text.tertiary }}>
                   {opt.icon}
@@ -248,12 +249,16 @@ export function MarketFilter({
     };
 
     const childLeagues = leaguesForSport(sportFilter);
-    const leagueOptions: Array<{ value: string; label: string; img?: string | null; icon?: React.ReactNode; comingSoon?: boolean }> = [
+    const leagueOptions: Array<{ value: string; label: string; img?: string | null; imgBg?: string | null; icon?: React.ReactNode; comingSoon?: boolean }> = [
       { value: 'ALL', label: 'All', img: null, icon: <GridView sx={{ fontSize: 18 }} /> },
       ...childLeagues.map(c => ({
         value: c.code,
         label: c.shortLabel || c.label,
         img: c.badgeUrl,
+        // Pre-resolve the bg so the dropdown renderer stays dumb — the
+        // helper falls back to the historical white when the category
+        // hasn't been analyzed yet.
+        imgBg: resolveBadgeBackground(c.badgeBgColor),
         comingSoon: !c.enabled && c.comingSoon,
       })),
     ];

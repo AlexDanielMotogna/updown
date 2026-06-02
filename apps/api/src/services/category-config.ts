@@ -11,6 +11,7 @@ export interface PoolCategoryConfig {
   shortLabel: string | null;
   color: string | null;
   badgeUrl: string | null;
+  badgeBgColor: string | null;
   iconKey: string | null;
   apiSource: string | null;
   adapterKey: string | null;
@@ -33,6 +34,7 @@ const FALLBACK: PoolCategoryConfig[] = CATEGORY_DEFAULTS.map(c => ({
   shortLabel: c.shortLabel ?? null,
   color: c.color ?? null,
   badgeUrl: c.badgeUrl ?? null,
+  badgeBgColor: (c as { badgeBgColor?: string | null }).badgeBgColor ?? null,
   iconKey: c.iconKey ?? null,
   apiSource: c.apiSource ?? null,
   adapterKey: c.adapterKey ?? null,
@@ -59,6 +61,7 @@ function mapRow(row: any): PoolCategoryConfig {
     shortLabel: row.shortLabel,
     color: row.color,
     badgeUrl: row.badgeUrl,
+    badgeBgColor: row.badgeBgColor ?? null,
     iconKey: row.iconKey,
     apiSource: row.apiSource,
     adapterKey: row.adapterKey,

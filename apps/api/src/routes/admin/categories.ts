@@ -57,6 +57,12 @@ const categoryBaseSchema = z.object({
   shortLabel: z.string().max(40).nullable().optional(),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Color must be #RRGGBB hex').nullable().optional(),
   badgeUrl: z.string().url().nullable().optional(),
+  // Operator override / auto-detect output. Accepts 'light' | 'dark' or a
+  // #RRGGBB literal; null clears the override.
+  badgeBgColor: z.union([
+    z.enum(['light', 'dark']),
+    z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'badgeBgColor must be "light", "dark" or a #RRGGBB hex'),
+  ]).nullable().optional(),
   iconKey: z.string().max(40).nullable().optional(),
   apiSource: z.string().max(40).nullable().optional(),
   adapterKey: z.string().max(40).nullable().optional(),

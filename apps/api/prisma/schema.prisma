@@ -528,6 +528,11 @@ model PoolCategory {
   shortLabel String?  @map("short_label")
   color      String?
   badgeUrl   String?  @map("badge_url")
+  /// Preferred background for the badge image. Auto-detected when SDB
+  /// supplies a badge that's mostly white (white-on-transparent logos
+  /// vanish on white backgrounds). Values: 'light' | 'dark' | '#RRGGBB'
+  /// hex, or NULL = use frontend default.
+  badgeBgColor String? @map("badge_bg_color")
   iconKey    String?  @map("icon_key")
   apiSource  String?  @map("api_source")
   adapterKey String?  @map("adapter_key")

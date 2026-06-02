@@ -13,6 +13,11 @@ export interface CategoryConfig {
   shortLabel: string | null;
   color: string | null;
   badgeUrl: string | null;
+  /** Preferred background for the badge image. 'light' = put on white,
+   *  'dark' = put on a dark surface (auto-set when SDB ships a white-on-
+   *  transparent logo), or a #RRGGBB literal for full operator override.
+   *  null = frontend default ('light' for backward compat). */
+  badgeBgColor: string | null;
   iconKey: string | null;
   numSides: number;
   sideLabels: string[];

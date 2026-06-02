@@ -9,6 +9,7 @@ import { getPoolPDA, buildResolveWithWinnerIx } from 'solana-client';
 import { derivePoolSeed, getConnection, getAuthorityKeypair } from '../../utils/solana';
 import { emitPoolStatus } from '../../websocket';
 import { KNOCKOUT_DISABLE_ODDS_FALLBACK, EXPECTED_MATCH_DURATION_MS, DEFAULT_EXPECTED_DURATION_MS, ODDS_API_FT_FALLBACK_GRACE_MS } from '../../services/sports/livescore/types';
+import { classifyBadgeBackground } from '../../services/sports/badge-analyzer';
 import type { Match } from '../../services/sports/types';
 
 // In-memory cache for the full SDB leagues catalog (1,475 rows). The list
@@ -21,7 +22,19 @@ const SDB_LEAGUES_TTL_MS = 10 * 60_000;
 // Per-id detail cache for `lookupleague.php`. Badge URLs change ~never,
 // so 6h is comfortable; admins pay ~1 SDB call per league they Add or
 // backfill, not 1 per browse refresh.
-interface SdbLeagueDetail { id: string; name: string; sport: string; badge: string | null; logo: string | null; country: string | null }
+interface SdbLeagueDetail {
+  id: string;
+  name: string;
+  sport: string;
+  badge: string | null;
+  logo: string | null;
+  country: string | null;
+  // Auto-classified by classifyBadgeBackground at fetch time. NULL when
+  // the image isn't a PNG, the fetch failed, or the content luminance
+  // landed in the ambiguous middle zone. The admin override on the
+  // category itself takes precedence.
+  badgeBgColor: 'light' | 'dark' | null;
+}
 const sdbLeagueDetailCache = new Map<string, { ts: number; data: SdbLeagueDetail }>();
 const SDB_LEAGUE_DETAIL_TTL_MS = 6 * 60 * 60_000;
 
@@ -93,6 +106,7 @@ adminSportsRouter.get('/leagues', async (_req, res) => {
         // externalLeagueId exists, the UI offers a 'fetch badge' link
         // that backfills via lookupleague.php.
         badgeUrl: c.badgeUrl ?? null,
+        badgeBgColor: c.badgeBgColor ?? null,
         poolCount: poolCountByLeague.get(c.code) ?? 0,
         cachedMatchCount: cacheCountByKey.get(`${sport}:${c.code}`) ?? 0,
       };
@@ -125,13 +139,21 @@ adminSportsRouter.get('/sdb-league/:id', async (req, res) => {
     if (!row || !row.idLeague) {
       return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: `SDB has no league with id=${id}` } });
     }
+    const badge: string | null = row.strBadge || null;
+    // Analyze the badge once and cache the result inside the league detail
+    // — the 6h SDB cache already amortises the lookup, so we don't burn
+    // SDB credits redundantly. classifyBadgeBackground swallows fetch /
+    // decode errors and returns null so a flaky image never breaks the
+    // endpoint.
+    const badgeBgColor = badge ? await classifyBadgeBackground(badge) : null;
     const detail: SdbLeagueDetail = {
       id: String(row.idLeague),
       name: row.strLeague,
       sport: row.strSport || '',
-      badge: row.strBadge || null,
+      badge,
       logo: row.strLogo || null,
       country: row.strCountry || null,
+      badgeBgColor,
     };
     sdbLeagueDetailCache.set(id, { ts: now, data: detail });
     res.json({ success: true, data: detail, cached: false });

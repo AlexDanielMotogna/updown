@@ -17,6 +17,7 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminFetch, adminPost } from '../lib/adminApi';
 import { darkTokens as t, withAlpha } from '@/lib/theme';
+import { resolveBadgeBackground } from '@/lib/badgeBackground';
 
 type League = {
   code: string;
@@ -30,6 +31,7 @@ type League = {
   leagueFilter: string | null;
   poolOpenDaysBefore: number | null;
   badgeUrl: string | null;
+  badgeBgColor: string | null;
   poolCount: number;
   cachedMatchCount: number;
 };
@@ -145,13 +147,17 @@ export function MatchExplorer() {
   const [backfillingCode, setBackfillingCode] = useState<string | null>(null);
   const backfillBadgeMutation = useMutation({
     mutationFn: async ({ code, sdbId, categoryId }: { code: string; sdbId: string; categoryId: string }) => {
-      const lookup = await adminFetch<{ data: { badge: string | null } }>(`/sports/sdb-league/${encodeURIComponent(sdbId)}`);
+      const lookup = await adminFetch<{ data: { badge: string | null; badgeBgColor: 'light' | 'dark' | null } }>(`/sports/sdb-league/${encodeURIComponent(sdbId)}`);
       const badge = lookup.data.badge;
       if (!badge) throw new Error(`SDB has no badge for league id=${sdbId}`);
+      // Persist the auto-detected bg preference alongside the URL so the
+      // public app picks the right surface without a second admin action.
+      const patch: { badgeUrl: string; badgeBgColor?: 'light' | 'dark' } = { badgeUrl: badge };
+      if (lookup.data.badgeBgColor) patch.badgeBgColor = lookup.data.badgeBgColor;
       await adminFetch(`/categories/${categoryId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ badgeUrl: badge }),
+        body: JSON.stringify(patch),
       });
       return { code, badge };
     },
@@ -265,7 +271,10 @@ export function MatchExplorer() {
                       sx={{
                         width: 18, height: 18, borderRadius: '50%',
                         objectFit: 'contain',
-                        bgcolor: t.bg.surfaceAlt,
+                        // White-on-transparent logos vanish on a light bg;
+                        // the helper reads l.badgeBgColor and picks dark
+                        // when SDB content luminance is high.
+                        bgcolor: resolveBadgeBackground(l.badgeBgColor),
                         p: '1px',
                         flexShrink: 0,
                       }}
@@ -651,11 +660,16 @@ function AddCategoryDialog({ league, existingCodes, onClose, onSuccess }: {
   // category still creates, just without a badge column.
   const detailQ = useQuery({
     queryKey: ['admin-sdb-league-detail', league.id],
-    queryFn: () => adminFetch<{ data: { badge: string | null; logo: string | null; country: string | null } }>(`/sports/sdb-league/${encodeURIComponent(league.id)}`).then(r => r.data),
+    queryFn: () => adminFetch<{ data: { badge: string | null; logo: string | null; country: string | null; badgeBgColor: 'light' | 'dark' | null } }>(`/sports/sdb-league/${encodeURIComponent(league.id)}`).then(r => r.data),
     staleTime: 60 * 60_000, // 1h client cache; backend caches 6h
   });
   const badge = detailQ.data?.badge ?? null;
   const country = detailQ.data?.country ?? null;
+  // Auto-detected by the backend (services/sports/badge-analyzer.ts).
+  // 'dark' means the badge content is bright/white → render on a dark
+  // background; 'light' is the historical default. The operator can
+  // still override in the Categories edit dialog.
+  const badgeBgColor = detailQ.data?.badgeBgColor ?? null;
 
   const codeUpper = code.toUpperCase().replace(/[^A-Z0-9_]/g, '');
   const codeValid = codeUpper.length >= 2 && !existingCodes.has(codeUpper);
@@ -707,6 +721,9 @@ function AddCategoryDialog({ league, existingCodes, onClose, onSuccess }: {
       // Include badgeUrl when SDB gave us one — categories created from
       // the Browse SDB flow now ship with the league logo already wired.
       if (badge) body.badgeUrl = badge;
+      // The auto-detected background preference lets white-on-transparent
+      // logos render correctly without operator intervention.
+      if (badgeBgColor) body.badgeBgColor = badgeBgColor;
       const res = await adminPost<{ success: true; data: { code: string } }>('/categories', body);
       onSuccess(res.data.code);
     } catch (err) {
@@ -728,7 +745,10 @@ function AddCategoryDialog({ league, existingCodes, onClose, onSuccess }: {
           <Box sx={{
             width: 44, height: 44, flexShrink: 0,
             borderRadius: 1,
-            bgcolor: t.bg.surface,
+            // Use the auto-detected preference so the preview matches what
+            // the public app will actually render — a white badge shows
+            // on dark, a coloured badge on light.
+            bgcolor: badge ? resolveBadgeBackground(badgeBgColor) : t.bg.surface,
             border: `1px solid ${t.border.subtle}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             overflow: 'hidden',

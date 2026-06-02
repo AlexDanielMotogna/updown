@@ -16,6 +16,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { useCategories, type CategoryConfig } from '@/hooks/useCategories';
 import { getIcon } from '@/lib/icon-registry';
+import { resolveBadgeBackground } from '@/lib/badgeBackground';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 
@@ -150,12 +151,13 @@ export function MarketSidebar() {
     };
 
     const childLeagues = leaguesForSport(sportFilter);
-    const leagueOptions: Array<{ value: string; label: string; img?: string | null; comingSoon?: boolean }> = [
+    const leagueOptions: Array<{ value: string; label: string; img?: string | null; imgBg?: string | null; comingSoon?: boolean }> = [
       { value: 'ALL', label: 'All Leagues', img: null },
       ...childLeagues.map(c => ({
         value: c.code,
         label: c.shortLabel || c.label,
         img: c.badgeUrl,
+        imgBg: resolveBadgeBackground(c.badgeBgColor),
         comingSoon: !c.enabled && c.comingSoon,
       })),
     ];
@@ -269,7 +271,7 @@ export function MarketSidebar() {
                   active={leagueFilter === o.value}
                   color={t.draw}
                   icon={o.img ? (
-                    <Box component="img" src={o.img} alt="" sx={{ width: 18, height: 18, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '1px' }} />
+                    <Box component="img" src={o.img} alt="" sx={{ width: 18, height: 18, objectFit: 'contain', bgcolor: o.imgBg ?? resolveBadgeBackground(null), borderRadius: '50%', p: '1px' }} />
                   ) : <AllIcon sx={{ fontSize: 16 }} />}
                   comingSoon={o.comingSoon}
                   onClick={() => updateParam('league', o.value)}

@@ -31,6 +31,7 @@ interface Category {
   shortLabel: string | null;
   color: string | null;
   badgeUrl: string | null;
+  badgeBgColor: string | null;
   iconKey: string | null;
   apiSource: string | null;
   adapterKey: string | null;
@@ -439,13 +440,13 @@ function EditDialog({ cat, isNew, open, parents, onClose, onSave }: {
   const handleOpen = () => {
     setConfigSportQuery(''); setConfigLeagueFilter(''); setConfigLeagueId(''); setConfigPoolOpenDays(''); setPm(EMPTY_PM);
     if (isNew) {
-      setForm({ code: '', type: 'POLYMARKET', label: '', shortLabel: '', color: '#A78BFA', badgeUrl: '', iconKey: 'Public', sortOrder: 50, numSides: 2, enabled: true, comingSoon: false, apiSource: 'predictions', adapterKey: 'POLYMARKET', sideLabels: ['Yes', 'No'], parentCode: null });
+      setForm({ code: '', type: 'POLYMARKET', label: '', shortLabel: '', color: '#A78BFA', badgeUrl: '', badgeBgColor: null, iconKey: 'Public', sortOrder: 50, numSides: 2, enabled: true, comingSoon: false, apiSource: 'predictions', adapterKey: 'POLYMARKET', sideLabels: ['Yes', 'No'], parentCode: null });
       // Sensible PM defaults so the admin isn't guessing blank numbers.
       setPm({ ...EMPTY_PM, minVolume24h: '5000', maxDaysAhead: '90', maxMarkets: '50', maxSubmarketsPerEvent: '1' });
       return;
     }
     if (!cat) return;
-    setForm({ code: cat.code, type: cat.type, label: cat.label, shortLabel: cat.shortLabel, color: cat.color, badgeUrl: cat.badgeUrl, iconKey: cat.iconKey, sortOrder: cat.sortOrder, numSides: cat.numSides, enabled: cat.enabled, comingSoon: cat.comingSoon, apiSource: cat.apiSource, adapterKey: cat.adapterKey, sideLabels: cat.sideLabels, parentCode: cat.parentCode });
+    setForm({ code: cat.code, type: cat.type, label: cat.label, shortLabel: cat.shortLabel, color: cat.color, badgeUrl: cat.badgeUrl, badgeBgColor: cat.badgeBgColor, iconKey: cat.iconKey, sortOrder: cat.sortOrder, numSides: cat.numSides, enabled: cat.enabled, comingSoon: cat.comingSoon, apiSource: cat.apiSource, adapterKey: cat.adapterKey, sideLabels: cat.sideLabels, parentCode: cat.parentCode });
     const cfg = (cat.config || {}) as Record<string, unknown>;
     setPm({
       tags: Array.isArray(cfg.tags) ? cfg.tags as string[] : [],
@@ -584,6 +585,30 @@ function EditDialog({ cat, isNew, open, parents, onClose, onSave }: {
         />
         <TextField label="Badge URL" size="small" value={form.badgeUrl || ''} onChange={e => setForm(f => ({ ...f, badgeUrl: e.target.value }))}
           InputProps={tipAdornment('Optional image URL for the category icon. Leave blank to use the Icon below. Cosmetic only.')} />
+        {/* Auto-detected by the backend when the badge comes from SDB
+            (services/sports/badge-analyzer.ts samples pixel luminance and
+            picks 'light' for dark badges, 'dark' for white-on-transparent
+            badges). The operator can override here — useful for hand-
+            uploaded badge URLs or when the analyzer's mid-zone classifies
+            null and the result looks wrong on the public app. */}
+        <FormControl size="small">
+          <InputLabel>Badge background</InputLabel>
+          <Select
+            label="Badge background"
+            value={form.badgeBgColor ?? ''}
+            onChange={e => setForm(f => ({ ...f, badgeBgColor: e.target.value === '' ? null : e.target.value }))}
+            renderValue={(v) => {
+              if (!v) return <Box sx={{ color: dt.text.tertiary }}>Auto / Light (default)</Box>;
+              if (v === 'light') return 'Light (white-tinted)';
+              if (v === 'dark') return 'Dark (slate-tinted)';
+              return <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: String(v) }} />{String(v)}</Box>;
+            }}
+          >
+            <MenuItem value=""><em>Auto / Light (default)</em></MenuItem>
+            <MenuItem value="light">Light (white-tinted)</MenuItem>
+            <MenuItem value="dark">Dark (slate-tinted) — for white badges</MenuItem>
+          </Select>
+        </FormControl>
         <FormControl size="small">
           <InputLabel>Icon</InputLabel>
           <Select label="Icon" value={form.iconKey && ICON_REGISTRY[form.iconKey] ? form.iconKey : ''}

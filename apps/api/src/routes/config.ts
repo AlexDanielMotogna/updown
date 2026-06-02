@@ -23,6 +23,7 @@ configRouter.get('/categories', async (_req, res) => {
           shortLabel: c.shortLabel,
           color: c.color,
           badgeUrl: c.badgeUrl,
+          badgeBgColor: c.badgeBgColor,
           iconKey: c.iconKey,
           numSides: c.numSides,
           sideLabels: c.sideLabels,
