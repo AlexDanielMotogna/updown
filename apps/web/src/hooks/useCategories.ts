@@ -17,6 +17,9 @@ export interface CategoryConfig {
   numSides: number;
   sideLabels: string[];
   sortOrder: number;
+  /** Two-level hierarchy. NULL = top-level (legacy or SPORT_GROUP).
+   *  Non-null = code of the parent SPORT_GROUP this category lives under. */
+  parentCode: string | null;
   subcategories?: string[];
 }
 
