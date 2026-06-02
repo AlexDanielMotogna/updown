@@ -16,6 +16,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { useCategories, type CategoryConfig } from '@/hooks/useCategories';
 import { getIcon } from '@/lib/icon-registry';
+import { resolveBadgeBackground } from '@/lib/badgeBackground';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 
@@ -94,7 +95,9 @@ export function MarketSidebar() {
   const marketType = rawType && (rawType === 'TRENDING' || rawType === 'CRYPTO' || rawType === 'SPORTS' || rawType.startsWith('PM_')) ? rawType : 'CRYPTO';
   const assetFilter = searchParams.get('asset') ?? 'ALL';
   const intervalFilter = searchParams.get('interval') ?? 'ALL';
-  const sportFilter = searchParams.get('sport') ?? 'ALL';
+  // Legacy SOCCER bookmarks are folded into the FOOTBALL group code.
+  const rawSportRead = searchParams.get('sport') ?? 'ALL';
+  const sportFilter = rawSportRead === 'SOCCER' ? 'FOOTBALL' : rawSportRead;
   const leagueFilter = searchParams.get('league') ?? 'ALL';
 
   const updateParam = (key: string, value: string) => {
@@ -107,26 +110,60 @@ export function MarketSidebar() {
 
   const { sportOptions, leagueOptions } = useMemo(() => {
     const cats = categories || [];
-    const sportsDbCats = cats.filter(c => c.type === 'SPORTSDB_SPORT' && c.enabled);
-    const footballCats = cats.filter(c => c.type === 'FOOTBALL_LEAGUE' && c.enabled);
-    const sportsComingSoon = cats.filter(c => c.type === 'SPORTSDB_SPORT' && !c.enabled && c.comingSoon);
-    const footballComingSoon = cats.filter(c => c.type === 'FOOTBALL_LEAGUE' && !c.enabled && c.comingSoon);
+    const visible = (c: CategoryConfig) => c.enabled || c.comingSoon;
+    const sortByOrder = (a: CategoryConfig, b: CategoryConfig) => a.sortOrder - b.sortOrder;
+
+    // Sport dropdown = SPORT_GROUP rows + any legacy league without a parent.
+    const groups = cats.filter(c => c.type === 'SPORT_GROUP' && visible(c)).sort(sortByOrder);
+    const orphanLeagues = cats
+      .filter(c => visible(c)
+        && (c.type === 'FOOTBALL_LEAGUE' || c.type === 'SPORTSDB_SPORT')
+        && !c.parentCode)
+      .sort(sortByOrder);
 
     const sportOptions: Array<{ value: string; label: string; icon?: React.ReactNode; comingSoon?: boolean }> = [
       { value: 'ALL', label: 'All Sports', icon: <GridView sx={{ fontSize: 14 }} /> },
-      { value: 'SOCCER', label: 'Soccer', icon: <SportsSoccer sx={{ fontSize: 14 }} /> },
-      ...sportsDbCats.map(c => ({ value: c.code, label: c.shortLabel || c.label, icon: buildIcon(c, 14) })),
-      ...sportsComingSoon.map(c => ({ value: c.code, label: c.shortLabel || c.label, icon: buildIcon(c, 14), comingSoon: true })),
+      ...groups.map(c => ({
+        value: c.code,
+        label: c.shortLabel || c.label,
+        icon: buildIcon(c, 14),
+        comingSoon: !c.enabled && c.comingSoon,
+      })),
+      ...orphanLeagues.map(c => ({
+        value: c.code,
+        label: c.shortLabel || c.label,
+        icon: buildIcon(c, 14),
+        comingSoon: !c.enabled && c.comingSoon,
+      })),
     ];
 
-    const leagueOptions: Array<{ value: string; label: string; img?: string | null; comingSoon?: boolean }> = [
+    // League dropdown = children of the selected sport group, or every
+    // sport-typed league when ALL is selected.
+    const leaguesForSport = (sportCode: string): CategoryConfig[] => {
+      if (sportCode === 'ALL') {
+        return cats
+          .filter(c => visible(c) && (c.type === 'FOOTBALL_LEAGUE' || c.type === 'SPORTSDB_SPORT'))
+          .sort(sortByOrder);
+      }
+      return cats
+        .filter(c => visible(c) && c.parentCode === sportCode)
+        .sort(sortByOrder);
+    };
+
+    const childLeagues = leaguesForSport(sportFilter);
+    const leagueOptions: Array<{ value: string; label: string; img?: string | null; imgBg?: string | null; comingSoon?: boolean }> = [
       { value: 'ALL', label: 'All Leagues', img: null },
-      ...footballCats.map(c => ({ value: c.code, label: c.shortLabel || c.label, img: c.badgeUrl })),
-      ...footballComingSoon.map(c => ({ value: c.code, label: c.shortLabel || c.label, img: c.badgeUrl, comingSoon: true })),
+      ...childLeagues.map(c => ({
+        value: c.code,
+        label: c.shortLabel || c.label,
+        img: c.badgeUrl,
+        imgBg: resolveBadgeBackground(c.badgeBgColor),
+        comingSoon: !c.enabled && c.comingSoon,
+      })),
     ];
 
     return { sportOptions, leagueOptions };
-  }, [categories]);
+  }, [categories, sportFilter]);
 
   const isSports = marketType === 'SPORTS';
   const isCrypto = marketType === 'CRYPTO';
@@ -222,7 +259,10 @@ export function MarketSidebar() {
               />
             ))}
           </SidebarSection>
-          {(sportFilter === 'ALL' || sportFilter === 'SOCCER') && (
+          {/* League sub-section: ALL surfaces every league; a SPORT_GROUP
+              selection surfaces its children; a specific-league sport
+              selection collapses to just 'All Leagues' so we hide it. */}
+          {leagueOptions.length > 1 && (
             <SidebarSection>
               {leagueOptions.map(o => (
                 <SidebarItem
@@ -231,7 +271,7 @@ export function MarketSidebar() {
                   active={leagueFilter === o.value}
                   color={t.draw}
                   icon={o.img ? (
-                    <Box component="img" src={o.img} alt="" sx={{ width: 18, height: 18, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '1px' }} />
+                    <Box component="img" src={o.img} alt="" sx={{ width: 18, height: 18, objectFit: 'contain', bgcolor: o.imgBg ?? resolveBadgeBackground(null), borderRadius: '50%', p: '1px' }} />
                   ) : <AllIcon sx={{ fontSize: 16 }} />}
                   comingSoon={o.comingSoon}
                   onClick={() => updateParam('league', o.value)}

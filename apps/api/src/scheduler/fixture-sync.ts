@@ -29,33 +29,53 @@ function addDays(d: Date, days: number): Date {
   return result;
 }
 
-// Sport→leagues whitelist for cross-check. When a row tries to upsert with
-// (sport, league) outside this map we treat it as pollution (one historical
-// instance left ~890 soccer matches stamped sport=FOOTBALL/league=MLB in the
-// devnet DB before this guard existed). Extend the map when adding leagues.
-const SPORT_LEAGUE_WHITELIST: Record<string, Set<string>> = {
-  FOOTBALL: new Set(['PL','PD','CL','EL','SA','BL1','FL1','BSA','ELC','DED','PPL','CLI','WC','MLS']),
-  NBA: new Set(['NBA']),
-  NHL: new Set(['NHL']),
-  NFL: new Set(['NFL']),
-  MMA: new Set(['MMA']),
-  MLB: new Set(['MLB']),
-  F1: new Set(['F1']),
-  TENNIS: new Set(['TENNIS']),
-  RUGBY: new Set(['RUGBY']),
-  CRICKET: new Set(['CRICKET']),
-  ESPORTS: new Set(['ESPORTS']),
-  BOXING: new Set(['BOXING']),
-  GOLF: new Set(['GOLF']),
-  POLYMARKET: new Set(['PM_POLITICS','PM_GEO','PM_CULTURE','PM_FINANCE','PM_SCIENCE','PM_SPORTS','PM_CLIMATE','PM_CRYPTO']),
-};
+// Sport→leagues whitelist derived from the live DB. Cached for
+// WHITELIST_TTL_MS so we don't hit the DB on every upsert; invalidated
+// explicitly whenever categories mutate (see invalidateSportLeagueWhitelist).
+// The legacy hardcoded map was wrong for any operator-created category:
+// SPORT_LEAGUE_WHITELIST['BOXIN']  was undefined, so the guard silently
+// accepted anything — that's how 898 soccer matches ended up stamped
+// sport=BOXIN/league=BOXIN. Deriving from PoolCategory closes that hole
+// AND keeps new categories protected automatically.
+const WHITELIST_TTL_MS = 60_000; // 1 min — categories rarely change
+let _whitelistCache: { ts: number; data: Record<string, Set<string>> } | null = null;
+
+async function getSportLeagueWhitelist(): Promise<Record<string, Set<string>>> {
+  const now = Date.now();
+  if (_whitelistCache && now - _whitelistCache.ts < WHITELIST_TTL_MS) return _whitelistCache.data;
+
+  const cats = await prisma.poolCategory.findMany({
+    where: { type: { in: ['FOOTBALL_LEAGUE', 'SPORTSDB_SPORT', 'POLYMARKET'] } },
+    select: { code: true, type: true },
+  });
+  const map: Record<string, Set<string>> = {};
+  const add = (sport: string, code: string) => { (map[sport] ??= new Set<string>()).add(code); };
+  for (const c of cats) {
+    if (c.type === 'FOOTBALL_LEAGUE') add('FOOTBALL', c.code);
+    else if (c.type === 'SPORTSDB_SPORT') add(c.code, c.code); // sport === code for these
+    else if (c.type === 'POLYMARKET') add('POLYMARKET', c.code);
+  }
+  _whitelistCache = { ts: now, data: map };
+  return map;
+}
+
+/** Drop the in-memory whitelist cache. Call from category mutation paths. */
+export function invalidateSportLeagueWhitelist(): void {
+  _whitelistCache = null;
+}
 
 async function upsertMatch(match: Match, source: string): Promise<void> {
   // Pollution guard: refuse to upsert rows where the (sport, league) pair
-  // is not in the whitelist. Logs loudly so misconfiguration shows up in
-  // the API output instead of silently filling the cache with stale rows.
-  const allowed = SPORT_LEAGUE_WHITELIST[match.sport];
-  if (allowed && !allowed.has(match.league)) {
+  // is not in the live category set. Logs loudly so a stale process or
+  // misconfigured adapter surfaces in stderr instead of silently filling
+  // the cache.
+  const whitelist = await getSportLeagueWhitelist();
+  const allowed = whitelist[match.sport];
+  if (!allowed) {
+    console.warn(`[FixtureSync] REFUSED upsert: sport=${match.sport} has no configured category. matchId=${match.id}`);
+    return;
+  }
+  if (!allowed.has(match.league)) {
     console.warn(`[FixtureSync] REFUSED upsert: sport=${match.sport} but league=${match.league} (allowed: ${[...allowed].join(',')}). matchId=${match.id}`);
     return;
   }
@@ -161,6 +181,16 @@ export async function dailySync(): Promise<void> {
   // ── Other sports (NBA, NHL, MMA, NFL via TheSportsDB) ──
   const sportsConfigs = await getSportsDbConfigs();
   for (const config of sportsConfigs) {
+    // Skip categories that don't have a SDB league id wired. The fallback
+    // `eventsday.php?s=<sportQuery>` path returns every event for the
+    // umbrella sport (e.g. sportQuery=Fighting → boxing + MMA + UFC + K-1)
+    // — without a leagueFilter it pollutes the cache, and even with one,
+    // the filter has historically misfired. Treat 'no leagueId' as
+    // 'not ready to sync'. Operator gets a one-shot warning per cycle.
+    if (!config.leagueId) {
+      console.warn(`[FixtureSync] SKIPPED ${config.sport}: no externalLeagueId configured. Add the SDB league id in admin → Categories or via Browse SDB.`);
+      continue;
+    }
     try {
       const adapter = getAdapter(config.sport);
       const matches = await adapter.fetchUpcomingMatches(config.sport);
@@ -250,12 +280,85 @@ async function preMatchRefresh(): Promise<void> {
   }
 }
 
+// ── Cleanup ────────────────────────────────────────────────────────────────
+
+/**
+ * Sweep stale + orphan rows from the sports cache. Runs daily after
+ * dailySync. Mirrors the polymarket-sync cleanup pattern (which has
+ * existed for PM rows since day one); pre-this-commit the non-PM cache
+ * had no cleanup at all and rows accumulated indefinitely.
+ *
+ * Two passes:
+ *  1. Orphan — (sport, league) not in the live category set (e.g. the
+ *     operator deleted a category but cache rows remained).
+ *  2. Stale  — FINISHED events whose last sync is older than
+ *     STALE_FINISHED_DAYS.
+ *
+ * Polymarket rows are skipped — polymarket-sync.cleanup() owns those.
+ */
+const STALE_FINISHED_DAYS = 30;
+export async function cleanupSportsCache(): Promise<{ orphan: number; stale: number }> {
+  const cats = await prisma.poolCategory.findMany({
+    where: { type: { in: ['FOOTBALL_LEAGUE', 'SPORTSDB_SPORT'] } },
+    select: { code: true, type: true },
+  });
+  const validPairs = new Set<string>();
+  for (const c of cats) {
+    const sport = c.type === 'FOOTBALL_LEAGUE' ? 'FOOTBALL' : c.code;
+    validPairs.add(`${sport}|${c.code}`);
+  }
+
+  // Pull just (sport, league) groups so the deleteMany list stays tiny
+  // even on a multi-million-row cache.
+  const groups = await prisma.sportsFixtureCache.groupBy({
+    by: ['sport', 'league'],
+    where: { sport: { not: 'POLYMARKET' } },
+    _count: { _all: true },
+  });
+  const orphanFilters: Array<{ sport: string; league: string }> = [];
+  for (const g of groups) {
+    if (!g.league) continue;
+    if (!validPairs.has(`${g.sport}|${g.league}`)) {
+      orphanFilters.push({ sport: g.sport, league: g.league });
+    }
+  }
+
+  let orphan = 0;
+  if (orphanFilters.length > 0) {
+    const { count } = await prisma.sportsFixtureCache.deleteMany({
+      where: { OR: orphanFilters },
+    });
+    orphan = count;
+  }
+
+  const cutoff = new Date(Date.now() - STALE_FINISHED_DAYS * 24 * 60 * 60 * 1000);
+  const { count: stale } = await prisma.sportsFixtureCache.deleteMany({
+    where: {
+      sport: { not: 'POLYMARKET' },
+      status: 'FINISHED',
+      lastSyncedAt: { lt: cutoff },
+    },
+  });
+
+  if (orphan + stale > 0) {
+    console.log(`[FixtureSync] Cleanup: ${orphan} orphan + ${stale} stale rows removed`);
+  }
+  return { orphan, stale };
+}
+
 // ── Scheduler Entry Point ──────────────────────────────────────────────────
 
 export function startFixtureSyncScheduler(): void {
   // Daily sync at 04:00 UTC
   cron.schedule('0 4 * * *', () => {
     dailySync().catch(e => console.error('[FixtureSync] Daily sync error:', e));
+  });
+
+  // Sports cache cleanup at 04:30 UTC (after dailySync, before the
+  // working day in EU/Americas hits its peak). Idempotent — re-running
+  // returns 0 if nothing to delete.
+  cron.schedule('30 4 * * *', () => {
+    cleanupSportsCache().catch(e => console.error('[FixtureSync] Cleanup error:', e));
   });
 
   // Match window poll every 5 minutes

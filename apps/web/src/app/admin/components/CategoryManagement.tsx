@@ -12,6 +12,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminFetch } from '../lib/adminApi';
 import { darkTokens as dt, palette, withAlpha } from '@/lib/theme';
 import { ICON_REGISTRY } from '@/lib/icon-registry';
+import {
+  StatusChip as UiStatusChip, ConfirmDialog, ActionButton,
+  LoadingState,
+  useMutationFeedback,
+  type StatusKind,
+} from '../ui';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
 
@@ -25,6 +31,7 @@ interface Category {
   shortLabel: string | null;
   color: string | null;
   badgeUrl: string | null;
+  badgeBgColor: string | null;
   iconKey: string | null;
   apiSource: string | null;
   adapterKey: string | null;
@@ -32,6 +39,7 @@ interface Category {
   sideLabels: string[];
   config: Record<string, unknown> | null;
   sortOrder: number;
+  parentCode: string | null;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -46,10 +54,16 @@ const TYPE_COLORS: Record<string, string> = {
   POLYMARKET: dt.adminTypeColors.polymarket,
 };
 
+// Picks a StatusKind for the canonical <StatusChip> primitive. Replaces
+// the previous local component that re-implemented chip colouring.
+function categoryStatus(cat: { enabled: boolean; comingSoon: boolean }): { kind: StatusKind; label: string } {
+  if (cat.enabled) return { kind: 'ok', label: 'Active' };
+  if (cat.comingSoon) return { kind: 'warning', label: 'Coming soon' };
+  return { kind: 'neutral', label: 'Hidden' };
+}
 function StatusChip({ enabled, comingSoon }: { enabled: boolean; comingSoon: boolean }) {
-  if (enabled) return <Chip label="Active" size="small" sx={{ bgcolor: withAlpha(dt.gain, 0.15), color: dt.gain, fontWeight: 700, fontSize: '0.65rem', height: 22 }} />;
-  if (comingSoon) return <Chip label="Coming Soon" size="small" sx={{ bgcolor: withAlpha(dt.draw, 0.15), color: dt.draw, fontWeight: 700, fontSize: '0.65rem', height: 22 }} />;
-  return <Chip label="Hidden" size="small" sx={{ bgcolor: dt.hover.medium, color: dt.text.dimmed, fontWeight: 700, fontSize: '0.65rem', height: 22 }} />;
+  const { kind, label } = categoryStatus({ enabled, comingSoon });
+  return <UiStatusChip status={kind} label={label} />;
 }
 
 function CategoryCard({ cat, poolCount, onToggle, onToggleComingSoon, onEdit, onDelete }: {
@@ -404,10 +418,11 @@ function SportsDbConfigFields({ sportQuery, onSportQueryChange, leagueFilter, on
 
 const EMPTY_PM: PmConfig = { tags: [], tagIds: [], minVolume24h: '', maxDaysAhead: '', matchPriority: '', maxMarkets: '', maxSubmarketsPerEvent: '', subcategories: [] };
 
-function EditDialog({ cat, isNew, open, onClose, onSave }: {
+function EditDialog({ cat, isNew, open, parents, onClose, onSave }: {
   cat: Category | null;
   isNew: boolean;
   open: boolean;
+  parents: Category[];
   onClose: () => void;
   onSave: (data: Partial<Category>) => void;
 }) {
@@ -425,13 +440,13 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
   const handleOpen = () => {
     setConfigSportQuery(''); setConfigLeagueFilter(''); setConfigLeagueId(''); setConfigPoolOpenDays(''); setPm(EMPTY_PM);
     if (isNew) {
-      setForm({ code: '', type: 'POLYMARKET', label: '', shortLabel: '', color: '#A78BFA', badgeUrl: '', iconKey: 'Public', sortOrder: 50, numSides: 2, enabled: true, comingSoon: false, apiSource: 'predictions', adapterKey: 'POLYMARKET', sideLabels: ['Yes', 'No'] });
+      setForm({ code: '', type: 'POLYMARKET', label: '', shortLabel: '', color: '#A78BFA', badgeUrl: '', badgeBgColor: null, iconKey: 'Public', sortOrder: 50, numSides: 2, enabled: true, comingSoon: false, apiSource: 'predictions', adapterKey: 'POLYMARKET', sideLabels: ['Yes', 'No'], parentCode: null });
       // Sensible PM defaults so the admin isn't guessing blank numbers.
       setPm({ ...EMPTY_PM, minVolume24h: '5000', maxDaysAhead: '90', maxMarkets: '50', maxSubmarketsPerEvent: '1' });
       return;
     }
     if (!cat) return;
-    setForm({ code: cat.code, type: cat.type, label: cat.label, shortLabel: cat.shortLabel, color: cat.color, badgeUrl: cat.badgeUrl, iconKey: cat.iconKey, sortOrder: cat.sortOrder, numSides: cat.numSides, enabled: cat.enabled, comingSoon: cat.comingSoon, apiSource: cat.apiSource, adapterKey: cat.adapterKey, sideLabels: cat.sideLabels });
+    setForm({ code: cat.code, type: cat.type, label: cat.label, shortLabel: cat.shortLabel, color: cat.color, badgeUrl: cat.badgeUrl, badgeBgColor: cat.badgeBgColor, iconKey: cat.iconKey, sortOrder: cat.sortOrder, numSides: cat.numSides, enabled: cat.enabled, comingSoon: cat.comingSoon, apiSource: cat.apiSource, adapterKey: cat.adapterKey, sideLabels: cat.sideLabels, parentCode: cat.parentCode });
     const cfg = (cat.config || {}) as Record<string, unknown>;
     setPm({
       tags: Array.isArray(cfg.tags) ? cfg.tags as string[] : [],
@@ -445,7 +460,14 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
     });
     setConfigSportQuery(typeof cfg.sportQuery === 'string' ? cfg.sportQuery : '');
     setConfigLeagueFilter(typeof cfg.leagueFilter === 'string' ? cfg.leagueFilter : '');
-    setConfigLeagueId(typeof cfg.theSportsDbLeagueId === 'string' ? cfg.theSportsDbLeagueId : '');
+    // Read both keys for backward compat with rows persisted under the
+    // legacy name. The save path (handleSave) writes the canonical
+    // `externalLeagueId` only — see PLAN-ADMIN-REFACTOR.md Phase 1 #1.
+    setConfigLeagueId(
+      typeof cfg.externalLeagueId === 'string' ? cfg.externalLeagueId
+        : typeof cfg.theSportsDbLeagueId === 'string' ? cfg.theSportsDbLeagueId
+        : '',
+    );
     const rawDays = (cfg as { poolOpenDaysBefore?: unknown }).poolOpenDaysBefore;
     setConfigPoolOpenDays(typeof rawDays === 'number' ? String(rawDays) : typeof rawDays === 'string' ? rawDays : '');
   };
@@ -453,8 +475,17 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
   const type = form.type;
 
   const handleSave = () => {
-    // Build the FULL config so nothing is dropped (tagIds, matchPriority, caps...).
-    const config: Record<string, unknown> = {};
+    // Preserve the original config so any keys the dialog doesn't render
+    // (e.g. `matchDurationHours`, future fields, hand-edited rows) survive
+    // the save. The previous implementation rebuilt config from scratch
+    // and silently dropped those keys on every edit — see
+    // PLAN-ADMIN-REFACTOR.md Phase 1 #2. The typed fields below overlay
+    // the original via spread; the legacy `theSportsDbLeagueId` key is
+    // also stripped here so the canonical `externalLeagueId` is the
+    // single source of truth going forward.
+    const existing = (cat?.config ?? {}) as Record<string, unknown>;
+    const config: Record<string, unknown> = { ...existing };
+    delete config.theSportsDbLeagueId;
     if (type === 'POLYMARKET') {
       if (pm.tags.length) config.tags = pm.tags;
       if (pm.tagIds.length) config.tagIds = pm.tagIds;
@@ -468,7 +499,11 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
       if (configSportQuery) config.sportQuery = configSportQuery;
       if (configLeagueFilter) config.leagueFilter = configLeagueFilter;
     } else if (type === 'FOOTBALL_LEAGUE') {
-      if (configLeagueId) config.theSportsDbLeagueId = configLeagueId;
+      // Canonical key — `theSportsDbLeagueId` was the legacy alias the
+      // admin used to read/write; the rest of the codebase (fixture
+      // sync, sports-explorer, getFootballConfigs) only knows
+      // `externalLeagueId`. See Phase 1 #1.
+      if (configLeagueId) config.externalLeagueId = configLeagueId;
     }
     // Per-league pool-open window override (sports only). Empty / out-of-range
     // values intentionally aren't written so the backend falls through to its
@@ -479,6 +514,8 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
         config.poolOpenDaysBefore = Math.floor(n);
       }
     }
+    // `form` already carries parentCode (set in handleOpen + the parent
+    // picker above). PUT/POST /admin/categories passes it through.
     onSave({ ...form, config: Object.keys(config).length > 0 ? config : undefined });
   };
 
@@ -498,13 +535,43 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
             <FormControl size="small" sx={{ flex: 1 }}>
               <InputLabel>Type</InputLabel>
               <Select value={form.type || 'POLYMARKET'} label="Type"
-                onChange={e => setForm(f => ({ ...f, type: e.target.value, ...(e.target.value === 'POLYMARKET' ? { apiSource: 'predictions', adapterKey: 'POLYMARKET', numSides: 2, sideLabels: ['Yes', 'No'] } : { apiSource: 'sports' }) }))}>
+                onChange={e => setForm(f => ({ ...f, type: e.target.value, ...(e.target.value === 'POLYMARKET' ? { apiSource: 'predictions', adapterKey: 'POLYMARKET', numSides: 2, sideLabels: ['Yes', 'No'] } : e.target.value === 'SPORT_GROUP' ? { apiSource: null, adapterKey: null } : { apiSource: 'sports' }) }))}>
                 <MenuItem value="POLYMARKET">Prediction (Polymarket)</MenuItem>
                 <MenuItem value="SPORTSDB_SPORT">Sport (TheSportsDB)</MenuItem>
                 <MenuItem value="FOOTBALL_LEAGUE">Football League</MenuItem>
+                <MenuItem value="SPORT_GROUP">Sport Group (umbrella, no sync)</MenuItem>
               </Select>
             </FormControl>
           </Box>
+        )}
+        {/* Parent picker — only meaningful for sport-typed leagues. SPORT_GROUP
+            and POLYMARKET rows are always top-level, so the picker is hidden
+            for them to keep the form short. */}
+        {(form.type === 'FOOTBALL_LEAGUE' || form.type === 'SPORTSDB_SPORT') && (
+          <FormControl size="small">
+            <InputLabel>Parent group</InputLabel>
+            <Select
+              label="Parent group"
+              value={form.parentCode ?? ''}
+              onChange={e => setForm(f => ({ ...f, parentCode: e.target.value === '' ? null : e.target.value }))}
+              renderValue={(v) => {
+                if (!v) return <Box sx={{ color: dt.text.tertiary }}>(none — top-level)</Box>;
+                const p = parents.find(c => c.code === v);
+                const Ic = p?.iconKey ? ICON_REGISTRY[p.iconKey] : null;
+                return <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>{Ic ? <Ic sx={{ fontSize: 18, color: p?.color || dt.text.tertiary }} /> : null}{p?.label ?? v}</Box>;
+              }}
+            >
+              <MenuItem value=""><em>(none — top-level)</em></MenuItem>
+              {parents.map(p => {
+                const Ic = p.iconKey ? ICON_REGISTRY[p.iconKey] : null;
+                return (
+                  <MenuItem key={p.code} value={p.code}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>{Ic ? <Ic sx={{ fontSize: 18, color: p.color || dt.text.tertiary }} /> : null}<strong>{p.code}</strong><Box sx={{ color: dt.text.tertiary, fontSize: '0.75rem' }}>{p.label}</Box></Box>
+                  </MenuItem>
+                );
+              })}
+            </Select>
+          </FormControl>
         )}
         <TextField label="Label" size="small" value={form.label || ''} onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
           InputProps={tipAdornment('Full display name of the category (e.g. "Culture & Entertainment").')} />
@@ -518,6 +585,30 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
         />
         <TextField label="Badge URL" size="small" value={form.badgeUrl || ''} onChange={e => setForm(f => ({ ...f, badgeUrl: e.target.value }))}
           InputProps={tipAdornment('Optional image URL for the category icon. Leave blank to use the Icon below. Cosmetic only.')} />
+        {/* Auto-detected by the backend when the badge comes from SDB
+            (services/sports/badge-analyzer.ts samples pixel luminance and
+            picks 'light' for dark badges, 'dark' for white-on-transparent
+            badges). The operator can override here — useful for hand-
+            uploaded badge URLs or when the analyzer's mid-zone classifies
+            null and the result looks wrong on the public app. */}
+        <FormControl size="small">
+          <InputLabel>Badge background</InputLabel>
+          <Select
+            label="Badge background"
+            value={form.badgeBgColor ?? ''}
+            onChange={e => setForm(f => ({ ...f, badgeBgColor: e.target.value === '' ? null : e.target.value }))}
+            renderValue={(v) => {
+              if (!v) return <Box sx={{ color: dt.text.tertiary }}>Auto / Light (default)</Box>;
+              if (v === 'light') return 'Light (white-tinted)';
+              if (v === 'dark') return 'Dark (slate-tinted)';
+              return <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: String(v) }} />{String(v)}</Box>;
+            }}
+          >
+            <MenuItem value=""><em>Auto / Light (default)</em></MenuItem>
+            <MenuItem value="light">Light (white-tinted)</MenuItem>
+            <MenuItem value="dark">Dark (slate-tinted) — for white badges</MenuItem>
+          </Select>
+        </FormControl>
         <FormControl size="small">
           <InputLabel>Icon</InputLabel>
           <Select label="Icon" value={form.iconKey && ICON_REGISTRY[form.iconKey] ? form.iconKey : ''}
@@ -578,9 +669,13 @@ function EditDialog({ cat, isNew, open, onClose, onSave }: {
 
 export function CategoryManagement() {
   const qc = useQueryClient();
+  const feedback = useMutationFeedback();
   const [editCat, setEditCat] = useState<Category | null>(null);
   const [creating, setCreating] = useState(false);
-  const [result, setResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  // ConfirmDialog target for delete. Carries the pool count so the
+  // dialog can spell out the consequence ("3 live pool(s) currently
+  // reference this category").
+  const [deleteTarget, setDeleteTarget] = useState<{ cat: Category; poolCount: number } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-categories'],
@@ -598,36 +693,34 @@ export function CategoryManagement() {
   });
   const poolCounts = poolCountsData || {};
 
+  // All mutations now invalidate cache on success and let
+  // useMutationFeedback route the toast + friendly error mapping.
   const toggleMutation = useMutation({
     mutationFn: (id: string) => adminFetch(`/categories/${id}/toggle`, { method: 'PATCH' }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-categories'] }); setResult({ type: 'success', message: 'Category toggled' }); },
-    onError: (e: Error) => setResult({ type: 'error', message: e.message }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-categories'] }),
   });
 
   const comingSoonMutation = useMutation({
     mutationFn: (id: string) => adminFetch(`/categories/${id}/coming-soon`, { method: 'PATCH' }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-categories'] }); },
-    onError: (e: Error) => setResult({ type: 'error', message: e.message }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-categories'] }),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Category> }) =>
       adminFetch(`/categories/${id}`, { method: 'PUT', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-categories'] }); setEditCat(null); setResult({ type: 'success', message: 'Category updated' }); },
-    onError: (e: Error) => setResult({ type: 'error', message: e.message }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-categories'] }); setEditCat(null); },
   });
 
   const createMutation = useMutation({
     mutationFn: (data: Partial<Category>) =>
       adminFetch('/categories', { method: 'POST', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-categories'] }); setCreating(false); setResult({ type: 'success', message: 'Category created' }); },
-    onError: (e: Error) => setResult({ type: 'error', message: e.message }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-categories'] }); setCreating(false); },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => adminFetch(`/categories/${id}`, { method: 'DELETE' }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-categories'] }); setResult({ type: 'success', message: 'Category deleted' }); },
-    onError: (e: Error) => setResult({ type: 'error', message: e.message }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-categories'] }); setDeleteTarget(null); },
+    onError: () => setDeleteTarget(null),
   });
 
   // Re-sync sources with the latest config and create pools now (background job).
@@ -635,8 +728,6 @@ export function CategoryManagement() {
     mutationFn: () => adminFetch<{ success: boolean; message?: string }>('/actions/sync-pools', {
       method: 'POST', body: JSON.stringify({ scope: 'all' }), headers: { 'Content-Type': 'application/json' },
     }),
-    onSuccess: (r) => setResult({ type: 'success', message: r?.message || 'Sync started' }),
-    onError: (e: Error) => setResult({ type: 'error', message: e.message }),
   });
 
   const categories = data?.data || [];
@@ -644,42 +735,31 @@ export function CategoryManagement() {
     (acc[cat.type] = acc[cat.type] || []).push(cat);
     return acc;
   }, {});
+  // Available parents = enabled SPORT_GROUP rows, sorted by sortOrder.
+  // Disabled groups still appear so the operator can re-parent a child
+  // there if they're staging a future enable.
+  const parents = categories.filter(c => c.type === 'SPORT_GROUP').sort((a, b) => a.sortOrder - b.sortOrder);
 
-  if (isLoading) {
-    return <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress size={28} /></Box>;
-  }
+  if (isLoading) return <LoadingState variant="block" />;
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      {result && (
-        <Alert severity={result.type} onClose={() => setResult(null)} sx={{ mb: 1 }}>
-          {result.message}
-        </Alert>
-      )}
-
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-        <Typography sx={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)' }}>
-          {categories.length} categories | {categories.filter(c => c.enabled).length} active | {categories.filter(c => c.comingSoon).length} coming soon
+        <Typography sx={{ fontSize: '0.8rem', color: dt.text.tertiary }}>
+          {categories.length} categories · {categories.filter(c => c.enabled).length} active · {categories.filter(c => c.comingSoon).length} coming soon
         </Typography>
         <Box sx={{ flex: 1 }} />
-        <Button
-          variant="contained"
-          size="small"
+        <ActionButton
+          kind="primary"
+          label="+ New category"
           onClick={() => { setEditCat(null); setCreating(true); }}
-          sx={{ textTransform: 'none', bgcolor: dt.gain, color: dt.text.contrast, fontWeight: 700, whiteSpace: 'nowrap', '&:hover': { bgcolor: palette.green600 } }}
-        >
-          + New Category
-        </Button>
-        <Button
-          variant="outlined"
-          size="small"
-          disabled={syncMutation.isPending}
-          onClick={() => syncMutation.mutate()}
-          startIcon={syncMutation.isPending ? <CircularProgress size={14} sx={{ color: 'inherit' }} /> : undefined}
-          sx={{ textTransform: 'none', borderColor: dt.border.strong, color: dt.text.secondary, whiteSpace: 'nowrap', '&:hover': { borderColor: dt.accent, color: dt.accent } }}
-        >
-          {syncMutation.isPending ? 'Syncing…' : 'Sync pools now'}
-        </Button>
+        />
+        <ActionButton
+          kind="secondary"
+          label="Sync pools now"
+          loading={syncMutation.isPending}
+          onClick={() => feedback.run(syncMutation, undefined, { success: (r) => r?.message || 'Sync started' })}
+        />
       </Box>
 
       {Object.entries(TYPE_LABELS).map(([type, label]) => {
@@ -702,10 +782,13 @@ export function CategoryManagement() {
                   key={cat.id}
                   cat={cat}
                   poolCount={poolCounts[cat.code] ?? 0}
-                  onToggle={() => toggleMutation.mutate(cat.id)}
-                  onToggleComingSoon={() => comingSoonMutation.mutate(cat.id)}
+                  onToggle={() => feedback.run(toggleMutation, cat.id, { success: `${cat.label} ${cat.enabled ? 'disabled' : 'enabled'}` })}
+                  onToggleComingSoon={() => feedback.run(comingSoonMutation, cat.id, { success: 'Coming-soon flag updated' })}
                   onEdit={() => { setCreating(false); setEditCat(cat); }}
-                  onDelete={() => { if (window.confirm(`Delete category "${cat.label}" (${cat.code})? Existing pools are NOT affected on-chain, but will lose this category in the UI.`)) deleteMutation.mutate(cat.id); }}
+                  // Replaces window.confirm — now uses ConfirmDialog with
+                  // severity=destructive and the live pool count in the
+                  // consequence copy (Plan §3.2).
+                  onDelete={() => setDeleteTarget({ cat, poolCount: poolCounts[cat.code] ?? 0 })}
                 />
               ))}
             </Box>
@@ -717,11 +800,38 @@ export function CategoryManagement() {
         cat={editCat}
         isNew={creating}
         open={creating || !!editCat}
+        parents={parents}
         onClose={() => { setCreating(false); setEditCat(null); }}
         onSave={(data) => {
-          if (creating) createMutation.mutate(data);
-          else if (editCat) updateMutation.mutate({ id: editCat.id, data });
+          if (creating) {
+            void feedback.run(createMutation, data, { success: 'Category created' });
+          } else if (editCat) {
+            void feedback.run(updateMutation, { id: editCat.id, data }, { success: 'Category updated' });
+          }
         }}
+      />
+
+      {/* Delete confirmation — destructive, with the live pool count
+          spelled out. The backend (PR 3) ALSO refuses to delete a
+          category with live pools, but surfacing the count up-front
+          avoids the round-trip. */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && feedback.run(deleteMutation, deleteTarget.cat.id, { success: `Deleted ${deleteTarget.cat.label}` })}
+        loading={deleteMutation.isPending}
+        severity="destructive"
+        title="Delete category?"
+        actionLabel="Delete"
+        consequences={deleteTarget ? (
+          <>
+            <Box component="strong" sx={{ color: dt.text.primary }}>{deleteTarget.cat.label}</Box>
+            {' ('}<Box component="code" sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{deleteTarget.cat.code}</Box>{') will be removed from the category list. '}
+            {deleteTarget.poolCount > 0
+              ? <>The backend will <Box component="strong" sx={{ color: dt.error }}>refuse</Box> the delete because {deleteTarget.poolCount} live pool(s) still reference this category. Disable it instead, or wait for those pools to fully close.</>
+              : <>No live pools reference this category, so the delete will succeed. Existing on-chain pool history is not affected.</>}
+          </>
+        ) : ''}
       />
     </Box>
   );

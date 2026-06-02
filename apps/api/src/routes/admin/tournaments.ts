@@ -3,10 +3,9 @@ import {
   createTournament,
   startTournament,
   cancelTournament,
-  generateRoundMatches,
+  generateRoundMatchesTx,
 } from '../../services/tournament';
 import { prisma } from '../../db';
-import { getAdapter, getSideLabels, listSports } from '../../services/sports';
 import { getCachedUpcomingFixtures } from '../../services/sports/fixture-cache';
 import { assignFixturesToRound } from '../../services/tournament-sports';
 import { buildActualOutcomes, computeTotalGoals, determineMatchdayWinner, parseMatchdayPrediction } from '../../services/tournament-sports-scoring';
@@ -44,13 +43,8 @@ adminTournamentsRouter.get('/', async (_req, res) => {
     });
   } catch (error) {
     console.error('[Admin] List tournaments error:', error);
-    res.status(500).json({ success: false, error: { code: 'LIST_ERROR', message: 'Failed to list tournaments' } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: 'Failed to list tournaments' } });
   }
-});
-
-// GET /api/admin/tournaments/sports - list available sport adapters
-adminTournamentsRouter.get('/sports', (_req, res) => {
-  res.json({ success: true, data: listSports() });
 });
 
 // GET /api/admin/tournaments/upcoming-matches?league=CL&sport=FOOTBALL - fetch upcoming matches
@@ -74,7 +68,7 @@ adminTournamentsRouter.get('/upcoming-matches', async (req, res) => {
     });
   } catch (error) {
     console.error('[Admin] Fetch upcoming matches error:', error);
-    res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: error instanceof Error ? error.message : 'Failed to fetch matches' } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: error instanceof Error ? error.message : 'Failed to fetch matches' } });
   }
 });
 
@@ -110,7 +104,10 @@ adminTournamentsRouter.post('/create', async (req, res) => {
   } catch (error) {
     console.error('[Admin] Create tournament error:', error);
     const message = error instanceof Error ? error.message : 'Failed to create tournament';
-    res.status(400).json({ success: false, error: { code: 'CREATE_ERROR', message } });
+    // 500 on createTournament throws — those are internal/storage failures.
+    // Explicit 400 cases (missing fields, invalid size) are already handled
+    // above before reaching the service. Phase 5 §HTTP status codes.
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message } });
   }
 });
 
@@ -125,7 +122,7 @@ adminTournamentsRouter.post('/:id/start', async (req, res) => {
   } catch (error) {
     console.error('[Admin] Start tournament error:', error);
     const message = error instanceof Error ? error.message : 'Failed to start tournament';
-    res.status(400).json({ success: false, error: { code: 'START_ERROR', message } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message } });
   }
 });
 
@@ -137,7 +134,7 @@ adminTournamentsRouter.post('/:id/cancel', async (req, res) => {
   } catch (error) {
     console.error('[Admin] Cancel tournament error:', error);
     const message = error instanceof Error ? error.message : 'Failed to cancel tournament';
-    res.status(400).json({ success: false, error: { code: 'CANCEL_ERROR', message } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message } });
   }
 });
 
@@ -147,18 +144,24 @@ adminTournamentsRouter.post('/:id/delete', async (req, res) => {
     const id = req.params.id;
     const tournament = await prisma.tournament.findUniqueOrThrow({ where: { id } });
 
-    // Delete all related data in order (FK constraints)
-    await prisma.tournamentRoundFixture.deleteMany({ where: { tournamentId: id } });
-    await prisma.tournamentMatch.deleteMany({ where: { tournamentId: id } });
-    await prisma.tournamentParticipant.deleteMany({ where: { tournamentId: id } });
-    await prisma.tournament.delete({ where: { id } });
+    // All-or-nothing delete. Previous version chained four awaits with no
+    // transaction — if any step crashed (e.g. an FK violation from a row
+    // added between findUniqueOrThrow and the delete) the tournament was
+    // left half-deleted (orphan fixtures + matches, no parent tournament).
+    // See PLAN-ADMIN-REFACTOR.md Phase 1 #6.
+    await prisma.$transaction([
+      prisma.tournamentRoundFixture.deleteMany({ where: { tournamentId: id } }),
+      prisma.tournamentMatch.deleteMany({ where: { tournamentId: id } }),
+      prisma.tournamentParticipant.deleteMany({ where: { tournamentId: id } }),
+      prisma.tournament.delete({ where: { id } }),
+    ]);
 
     console.log(`[Admin] Deleted tournament ${id} (${tournament.name})`);
     res.json({ success: true, data: { message: `Tournament "${tournament.name}" deleted` } });
   } catch (error) {
     console.error('[Admin] Delete tournament error:', error);
     const message = error instanceof Error ? error.message : 'Failed to delete tournament';
-    res.status(400).json({ success: false, error: { code: 'DELETE_ERROR', message } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message } });
   }
 });
 
@@ -175,33 +178,39 @@ adminTournamentsRouter.post('/:id/reset-round', async (req, res) => {
 
     const round = tournament.currentRound;
 
-    // Get current matches (with pools to clean up)
-    const currentMatches = await prisma.tournamentMatch.findMany({
-      where: { tournamentId: tournament.id, round },
-    });
-
-    // Determine who plays this round
-    let players: string[];
-    if (round === 1) {
-      const participants = await prisma.tournamentParticipant.findMany({
-        where: { tournamentId: tournament.id },
-        orderBy: { seed: 'asc' },
+    // Reset = destructive delete + recreate. Previous version awaited the
+    // deleteMany and the generateRoundMatches() call sequentially with no
+    // shared transaction — if generateRoundMatches threw (FK error, RPC
+    // hiccup) the round's matches were gone with nothing replacing them,
+    // permanently bricking the tournament. Now both run inside one
+    // $transaction so a failure rolls the delete back.
+    // See PLAN-ADMIN-REFACTOR.md Phase 1 #6.
+    const { currentMatches, matches } = await prisma.$transaction(async (tx) => {
+      const before = await tx.tournamentMatch.findMany({
+        where: { tournamentId: tournament.id, round },
       });
-      players = participants.map(p => p.walletAddress);
-    } else {
-      const prevMatches = await prisma.tournamentMatch.findMany({
-        where: { tournamentId: tournament.id, round: round - 1 },
+
+      let players: string[];
+      if (round === 1) {
+        const participants = await tx.tournamentParticipant.findMany({
+          where: { tournamentId: tournament.id },
+          orderBy: { seed: 'asc' },
+        });
+        players = participants.map(p => p.walletAddress);
+      } else {
+        const prevMatches = await tx.tournamentMatch.findMany({
+          where: { tournamentId: tournament.id, round: round - 1 },
+        });
+        players = prevMatches.filter(m => m.winnerWallet).map(m => m.winnerWallet!);
+      }
+
+      await tx.tournamentMatch.deleteMany({
+        where: { tournamentId: tournament.id, round },
       });
-      players = prevMatches.filter(m => m.winnerWallet).map(m => m.winnerWallet!);
-    }
 
-    // Delete old matches
-    await prisma.tournamentMatch.deleteMany({
-      where: { tournamentId: tournament.id, round },
+      const created = await generateRoundMatchesTx(tx, tournament.id, round, players, tournament.predictionWindow);
+      return { currentMatches: before, matches: created };
     });
-
-    // Recreate matches
-    const matches = await generateRoundMatches(tournament.id, round, players);
 
     console.log(`[Admin] Tournament ${tournament.id} round ${round} reset: ${currentMatches.length} deleted, ${matches.length} created`);
 
@@ -216,26 +225,7 @@ adminTournamentsRouter.post('/:id/reset-round', async (req, res) => {
   } catch (error) {
     console.error('[Admin] Reset round error:', error);
     const message = error instanceof Error ? error.message : 'Failed to reset round';
-    res.status(500).json({ success: false, error: { code: 'RESET_ERROR', message } });
-  }
-});
-
-// POST /api/admin/tournaments/:id/update-schedule - update scheduled start time
-adminTournamentsRouter.post('/:id/update-schedule', async (req, res) => {
-  try {
-    const { scheduledAt } = req.body;
-    const tournament = await prisma.tournament.update({
-      where: { id: req.params.id },
-      data: { scheduledAt: scheduledAt ? new Date(scheduledAt) : null },
-    });
-    res.json({
-      success: true,
-      data: { ...tournament, entryFee: tournament.entryFee.toString(), prizePool: tournament.prizePool.toString() },
-    });
-  } catch (error) {
-    console.error('[Admin] Update schedule error:', error);
-    const message = error instanceof Error ? error.message : 'Failed to update schedule';
-    res.status(400).json({ success: false, error: { code: 'UPDATE_ERROR', message } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message } });
   }
 });
 
@@ -268,7 +258,7 @@ adminTournamentsRouter.post('/:id/update', async (req, res) => {
   } catch (error) {
     console.error('[Admin] Update tournament error:', error);
     const message = error instanceof Error ? error.message : 'Failed to update tournament';
-    res.status(400).json({ success: false, error: { code: 'UPDATE_ERROR', message } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message } });
   }
 });
 
@@ -291,19 +281,8 @@ adminTournamentsRouter.post('/:id/assign-matchday', async (req, res) => {
     res.json({ success: true, data: { fixturesAssigned: count, round: targetRound } });
   } catch (error) {
     console.error('[Admin] Assign matchday error:', error);
-    res.status(400).json({ success: false, error: { code: 'ASSIGN_ERROR', message: error instanceof Error ? error.message : 'Failed' } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: error instanceof Error ? error.message : 'Failed' } });
   }
-});
-
-// Keep old endpoint as alias - redirect to assign-matchday
-adminTournamentsRouter.post('/:id/assign-match', async (req, res) => {
-  const { homeTeam, awayTeam, homeTeamCrest, awayTeamCrest, footballMatchId, round } = req.body;
-  if (!homeTeam || !awayTeam) return res.status(400).json({ success: false, error: { code: 'MISSING_FIELDS', message: 'homeTeam and awayTeam required' } });
-  const tournament = await prisma.tournament.findUniqueOrThrow({ where: { id: req.params.id } });
-  const targetRound = round || tournament.currentRound || 1;
-  const fixtures = [{ footballMatchId: footballMatchId || `manual-${Date.now()}`, homeTeam, awayTeam, homeTeamCrest, awayTeamCrest }];
-  const count = await assignFixturesToRound(tournament.id, targetRound, fixtures);
-  res.json({ success: true, data: { fixturesAssigned: count, round: targetRound } });
 });
 
 // POST /api/admin/tournaments/:id/resolve-matchday - manually set fixture results and resolve
@@ -318,50 +297,57 @@ adminTournamentsRouter.post('/:id/resolve-matchday', async (req, res) => {
       return res.status(400).json({ success: false, error: { code: 'NOT_ACTIVE', message: 'Tournament is not active' } });
     }
 
-    // Update fixture results
-    for (const r of results) {
-      const outcome = r.resultHome > r.resultAway ? 'HOME' : r.resultAway > r.resultHome ? 'AWAY' : 'DRAW';
-      await prisma.tournamentRoundFixture.updateMany({
-        where: { tournamentId: tournament.id, round: tournament.currentRound, fixtureIndex: r.fixtureIndex },
-        data: { resultHome: r.resultHome, resultAway: r.resultAway, resultOutcome: outcome, status: 'FINISHED' },
+    // Resolve fixture results + bracket matches atomically. Without a
+    // transaction the route could mark fixtures FINISHED and then crash
+    // before any bracket match update lands, leaving fixtures resolved
+    // but matches stuck ACTIVE — players unable to advance, no easy
+    // recovery path. See PLAN-ADMIN-REFACTOR.md Phase 1 #6.
+    const { resolved, actualOutcomes, actualTotalGoals } = await prisma.$transaction(async (tx) => {
+      for (const r of results) {
+        const outcome = r.resultHome > r.resultAway ? 'HOME' : r.resultAway > r.resultHome ? 'AWAY' : 'DRAW';
+        await tx.tournamentRoundFixture.updateMany({
+          where: { tournamentId: tournament.id, round: tournament.currentRound, fixtureIndex: r.fixtureIndex },
+          data: { resultHome: r.resultHome, resultAway: r.resultAway, resultOutcome: outcome, status: 'FINISHED' },
+        });
+      }
+
+      const fixtures = await tx.tournamentRoundFixture.findMany({
+        where: { tournamentId: tournament.id, round: tournament.currentRound },
+        orderBy: { fixtureIndex: 'asc' },
       });
-    }
+      const outcomes = buildActualOutcomes(fixtures);
+      const totalGoals = computeTotalGoals(fixtures);
+      const resultsJson = JSON.stringify({ outcomes, totalGoals });
+      const now = new Date();
 
-    // Resolve active bracket matches
-    const fixtures = await prisma.tournamentRoundFixture.findMany({
-      where: { tournamentId: tournament.id, round: tournament.currentRound },
-      orderBy: { fixtureIndex: 'asc' },
-    });
-    const actualOutcomes = buildActualOutcomes(fixtures);
-    const actualTotalGoals = computeTotalGoals(fixtures);
-    const resultsJson = JSON.stringify({ outcomes: actualOutcomes, totalGoals: actualTotalGoals });
-    const now = new Date();
-
-    const activeMatches = await prisma.tournamentMatch.findMany({
-      where: { tournamentId: tournament.id, round: tournament.currentRound, status: 'ACTIVE' },
-    });
-
-    let resolved = 0;
-    for (const match of activeMatches) {
-      const p1 = parseMatchdayPrediction(match.player1Prediction);
-      const p2 = parseMatchdayPrediction(match.player2Prediction);
-      if (!p1 || !p2) continue;
-      const { winner, p1Score, p2Score } = determineMatchdayWinner(
-        { prediction: p1, predictedAt: match.player1PredictedAt!, wallet: match.player1Wallet! },
-        { prediction: p2, predictedAt: match.player2PredictedAt!, wallet: match.player2Wallet! },
-        actualOutcomes, actualTotalGoals,
-      );
-      await prisma.tournamentMatch.update({
-        where: { id: match.id },
-        data: { finalPrice: resultsJson, winnerWallet: winner, player1Score: p1Score, player2Score: p2Score, status: 'RESOLVED', resolvedAt: now },
+      const activeMatches = await tx.tournamentMatch.findMany({
+        where: { tournamentId: tournament.id, round: tournament.currentRound, status: 'ACTIVE' },
       });
-      resolved++;
-    }
+
+      let count = 0;
+      for (const match of activeMatches) {
+        const p1 = parseMatchdayPrediction(match.player1Prediction);
+        const p2 = parseMatchdayPrediction(match.player2Prediction);
+        if (!p1 || !p2) continue;
+        const { winner, p1Score, p2Score } = determineMatchdayWinner(
+          { prediction: p1, predictedAt: match.player1PredictedAt!, wallet: match.player1Wallet! },
+          { prediction: p2, predictedAt: match.player2PredictedAt!, wallet: match.player2Wallet! },
+          outcomes, totalGoals,
+        );
+        await tx.tournamentMatch.update({
+          where: { id: match.id },
+          data: { finalPrice: resultsJson, winnerWallet: winner, player1Score: p1Score, player2Score: p2Score, status: 'RESOLVED', resolvedAt: now },
+        });
+        count++;
+      }
+
+      return { resolved: count, actualOutcomes: outcomes, actualTotalGoals: totalGoals };
+    });
 
     console.log(`[Admin] Resolved ${resolved} bracket matches in round ${tournament.currentRound}`);
     res.json({ success: true, data: { resolved, round: tournament.currentRound, actualOutcomes, actualTotalGoals } });
   } catch (error) {
     console.error('[Admin] Resolve matchday error:', error);
-    res.status(400).json({ success: false, error: { code: 'RESOLVE_ERROR', message: error instanceof Error ? error.message : 'Failed' } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: error instanceof Error ? error.message : 'Failed' } });
   }
 });

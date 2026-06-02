@@ -1,0 +1,12 @@
+-- Auto-detected (or operator-overridden) preferred background color for the
+-- category badge. Values:
+--   NULL   — no preference. Frontend picks a sensible default ('light').
+--   'light'— badge content is dark — render on a light/white background.
+--   'dark' — badge content is bright/white — render on a dark background
+--             (otherwise white-on-white logos vanish).
+--   '#RRGGBB' — explicit operator override.
+--
+-- Populated automatically by /admin/sports/sdb-league/:id (server-side pixel
+-- sampling) when the operator uses Browse SDB +Add or the sidebar 'fetch
+-- badge' link, and can be overridden manually in the Categories edit dialog.
+ALTER TABLE "pool_categories" ADD COLUMN IF NOT EXISTS "badge_bg_color" TEXT;

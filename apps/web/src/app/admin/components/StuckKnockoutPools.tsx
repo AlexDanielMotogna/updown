@@ -2,15 +2,19 @@
 
 import { useState } from 'react';
 import {
-  Box, Card, Typography, Button, Chip, Alert, Table, TableBody, TableCell,
-  TableHead, TableRow, CircularProgress, Tooltip, Dialog, DialogTitle,
-  DialogContent, DialogActions, ToggleButtonGroup, ToggleButton, TextField,
+  Box, Chip, Table, TableBody, TableCell, TableHead, TableRow,
+  ToggleButtonGroup, ToggleButton, TextField,
 } from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
 import GavelRoundedIcon from '@mui/icons-material/GavelRounded';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminFetch, adminPost } from '../lib/adminApi';
-import { darkTokens as t, withAlpha } from '@/lib/theme';
+import { darkTokens as t } from '@/lib/theme';
+import {
+  SectionCard, AdminDialog, StatusChip, ActionButton, RefreshButton,
+  LoadingState, EmptyState, ErrorAlert,
+  Body, Meta, Label,
+  useMutationFeedback,
+} from '../ui';
 
 type StuckKnockout = {
   id: string;
@@ -40,9 +44,8 @@ type WinnerChoice = 'HOME' | 'DRAW' | 'AWAY';
  * CL/EL knockouts the Phase B grace-window deliberately leaves stuck:
  * Odds API's `completed:true` can't tell us if the match went to ET, and
  * regulation-time bets on a CL knockout 1-1 reg → 2-1 ET should resolve
- * to DRAW, not the ET winner. The Phase C `SourceSplitPanel` shows the
- * count of these; this panel lets the admin actually resolve them once
- * the regulation result is known.
+ * to DRAW, not the ET winner. This panel lets the admin enter the
+ * regulation result manually.
  */
 export function StuckKnockoutPools() {
   const qc = useQueryClient();
@@ -57,38 +60,26 @@ export function StuckKnockoutPools() {
   const knockouts = data?.data.knockouts ?? [];
 
   return (
-    <Card sx={{ p: 2, border: `1px solid ${t.border.medium}` }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-        <Box>
-          <Typography variant="subtitle2">Stuck Knockout Pools (CL / EL)</Typography>
-          <Typography variant="body2" color="text.secondary">
-            Champions League / Europa League knockouts past expected end. The auto-resolver waits on SDB indefinitely so a 1-1 regulation → 2-1 ET tie doesn&apos;t mis-resolve to the ET winner — admin enters the regulation result manually.
-          </Typography>
-        </Box>
-        <Button
-          size="small"
-          startIcon={<RefreshIcon />}
-          onClick={() => refetch()}
-          disabled={isFetching}
-        >
-          Refresh
-        </Button>
-      </Box>
-
+    <SectionCard
+      dense
+      title="Stuck knockout pools (CL / EL)"
+      subtitle="Champions League / Europa League knockouts past expected end. The auto-resolver waits on SDB indefinitely so a 1-1 regulation → 2-1 ET tie doesn’t mis-resolve to the ET winner — admin enters the regulation result manually."
+      actions={<RefreshButton onRefresh={() => refetch()} isFetching={isFetching} />}
+    >
       {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress size={20} /></Box>
+        <LoadingState variant="block" />
       ) : knockouts.length === 0 ? (
-        <Alert severity="success" variant="outlined">No stuck knockouts — all caught up.</Alert>
+        <EmptyState variant="success" title="All caught up" hint="No knockout pools waiting on regulation-time resolution." />
       ) : (
         <Table size="small" sx={{ '& td, & th': { borderColor: t.border.subtle } }}>
           <TableHead>
             <TableRow>
-              <TableCell>Match</TableCell>
-              <TableCell>League</TableCell>
-              <TableCell align="right">Bets</TableCell>
-              <TableCell align="right">Minutes past end</TableCell>
-              <TableCell>Grace</TableCell>
-              <TableCell align="right">Action</TableCell>
+              <TableCell><Label>Match</Label></TableCell>
+              <TableCell><Label>League</Label></TableCell>
+              <TableCell align="right"><Label>Bets</Label></TableCell>
+              <TableCell align="right"><Label>Past end</Label></TableCell>
+              <TableCell><Label>Grace</Label></TableCell>
+              <TableCell align="right"><Label>Action</Label></TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -97,35 +88,31 @@ export function StuckKnockoutPools() {
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                     {p.homeTeamCrest && <Box component="img" src={p.homeTeamCrest} alt="" sx={{ width: 14, height: 14, objectFit: 'contain' }} />}
-                    <Typography variant="body2" sx={{ fontSize: '0.78rem' }}>{p.homeTeam}</Typography>
-                    <Typography variant="body2" sx={{ fontSize: '0.7rem', color: t.text.tertiary, mx: 0.5 }}>vs</Typography>
+                    <Body sx={{ fontSize: '0.78rem', color: t.text.primary }}>{p.homeTeam}</Body>
+                    <Meta sx={{ mx: 0.5 }}>vs</Meta>
                     {p.awayTeamCrest && <Box component="img" src={p.awayTeamCrest} alt="" sx={{ width: 14, height: 14, objectFit: 'contain' }} />}
-                    <Typography variant="body2" sx={{ fontSize: '0.78rem' }}>{p.awayTeam}</Typography>
+                    <Body sx={{ fontSize: '0.78rem', color: t.text.primary }}>{p.awayTeam}</Body>
                   </Box>
                 </TableCell>
-                <TableCell><Chip size="small" label={p.league} /></TableCell>
+                <TableCell>
+                  <Chip size="small" label={p.league} sx={{ height: 22, fontSize: '0.7rem', borderRadius: 1, bgcolor: t.hover.medium, color: t.text.primary }} />
+                </TableCell>
                 <TableCell align="right">
-                  {p.betCount === 0
-                    ? <Typography variant="body2" color="text.secondary">0</Typography>
-                    : <Chip size="small" color="warning" label={`${p.betCount} bets`} />}
+                  {p.betCount === 0 ? <Meta>0</Meta> : <StatusChip status="warning" label={`${p.betCount} bets`} />}
                 </TableCell>
                 <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{p.minutesPastExpectedEnd}m</TableCell>
                 <TableCell>
                   {p.graceWindowExpired
-                    ? <Chip size="small" color="error" label="expired" />
-                    : <Chip size="small" label="in window" variant="outlined" />}
+                    ? <StatusChip status="error" label="expired" />
+                    : <StatusChip status="pending" label="in window" />}
                 </TableCell>
                 <TableCell align="right">
-                  <Button
-                    size="small"
-                    variant="contained"
-                    color="warning"
-                    startIcon={<GavelRoundedIcon sx={{ fontSize: 14 }} />}
+                  <ActionButton
+                    kind="secondary"
+                    label="Resolve manually"
+                    icon={<GavelRoundedIcon sx={{ fontSize: 14 }} />}
                     onClick={() => setPending(p)}
-                    sx={{ fontSize: '0.7rem', textTransform: 'none' }}
-                  >
-                    Resolve manually
-                  </Button>
+                  />
                 </TableCell>
               </TableRow>
             ))}
@@ -145,7 +132,7 @@ export function StuckKnockoutPools() {
           }}
         />
       )}
-    </Card>
+    </SectionCard>
   );
 }
 
@@ -156,16 +143,12 @@ function ResolveKnockoutDialog({ pool, onClose, onResolved }: {
   onClose: () => void;
   onResolved: () => void;
 }) {
+  const feedback = useMutationFeedback();
   const [winner, setWinner] = useState<WinnerChoice>('DRAW');
   const [homeScore, setHomeScore] = useState<string>('');
   const [awayScore, setAwayScore] = useState<string>('');
   const [reason, setReason] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
 
-  // Auto-fill the regulation score from the winner choice when it implies
-  // an obvious result, so the admin doesn't have to type both fields.
-  // Most CL/EL knockouts that get stuck on us are 1-1 / 0-0 reg games that
-  // went to ET, so DRAW is the dominant case.
   const draw = winner === 'DRAW';
 
   const resolveMutation = useMutation({
@@ -177,7 +160,6 @@ function ResolveKnockoutDialog({ pool, onClose, onResolved }: {
       reason: reason || 'admin-knockout-resolve',
     }),
     onSuccess: () => onResolved(),
-    onError: (err: Error) => setError(err.message),
   });
 
   // Validation: if either score is filled, both must be filled and consistent
@@ -190,27 +172,50 @@ function ResolveKnockoutDialog({ pool, onClose, onResolved }: {
     (winner === 'DRAW' && Number(homeScore) === Number(awayScore))
   ));
 
+  const submit = () => {
+    void feedback.run(resolveMutation, undefined, { success: `Resolved as ${winner}` });
+  };
+
   return (
-    <Dialog open onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { bgcolor: t.bg.surface } }}>
-      <DialogTitle sx={{ fontSize: '1rem' }}>Resolve {pool.league} knockout</DialogTitle>
-      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '12px !important' }}>
-        <Box sx={{ p: 1.5, bgcolor: t.bg.surfaceAlt, border: `1px solid ${t.border.subtle}`, borderRadius: 1 }}>
-          <Typography sx={{ fontSize: '0.9rem', fontWeight: 600 }}>
+    <AdminDialog
+      open
+      onClose={onClose}
+      title={`Resolve ${pool.league} knockout`}
+      maxWidth="sm"
+      loading={resolveMutation.isPending}
+      footer={
+        <>
+          <ActionButton kind="tertiary" label="Cancel" onClick={onClose} disabled={resolveMutation.isPending} />
+          <ActionButton
+            kind="primary"
+            label={`Resolve as ${winner === 'DRAW' ? 'DRAW' : winner === 'HOME' ? pool.homeTeam ?? 'HOME' : pool.awayTeam ?? 'AWAY'}`}
+            loading={resolveMutation.isPending}
+            disabled={!scoresValid}
+            onClick={submit}
+          />
+        </>
+      }
+    >
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Box sx={{ p: 1.25, bgcolor: t.bg.surfaceAlt, border: `1px solid ${t.border.subtle}`, borderRadius: 1.5 }}>
+          <Body sx={{ fontWeight: 600, color: t.text.primary, fontSize: '0.9rem' }}>
             {pool.homeTeam} vs {pool.awayTeam}
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1.5, mt: 0.5, fontSize: '0.7rem', color: t.text.tertiary }}>
-            <span>kickoff <strong>{new Date(pool.startTime).toLocaleString()}</strong></span>
-            <span>{pool.minutesPastExpectedEnd}m past expected end</span>
-            <span>{pool.betCount} bets</span>
+          </Body>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mt: 0.5 }}>
+            <Meta>kickoff <Box component="strong" sx={{ color: t.text.secondary }}>{new Date(pool.startTime).toLocaleString()}</Box></Meta>
+            <Meta>{pool.minutesPastExpectedEnd}m past expected end</Meta>
+            <Meta>{pool.betCount} bets</Meta>
           </Box>
         </Box>
 
-        <Alert severity="info" sx={{ fontSize: '0.78rem' }}>
-          Regulation-time rules: the bet resolves on the <strong>90&apos;</strong> result. If the match went to extra time / penalties, regulation was a draw → pick <strong>DRAW</strong> even if a team eventually won.
-        </Alert>
+        <Box sx={{ p: 1, borderRadius: 1.5, bgcolor: t.bg.surfaceAlt, border: `1px solid ${t.border.subtle}` }}>
+          <Body sx={{ fontSize: '0.78rem' }}>
+            Regulation-time rules: the bet resolves on the <Box component="strong" sx={{ color: t.text.primary }}>90'</Box> result. If the match went to extra time / penalties, regulation was a draw — pick <Box component="strong" sx={{ color: t.text.primary }}>DRAW</Box> even if a team eventually won.
+          </Body>
+        </Box>
 
         <Box>
-          <Typography sx={{ fontSize: '0.78rem', mb: 0.5, fontWeight: 600 }}>Regulation result</Typography>
+          <Label sx={{ display: 'block', mb: 0.5 }}>Regulation result</Label>
           <ToggleButtonGroup
             exclusive
             fullWidth
@@ -219,18 +224,18 @@ function ResolveKnockoutDialog({ pool, onClose, onResolved }: {
             sx={{ '& .MuiToggleButton-root': { textTransform: 'none', fontSize: '0.8rem' } }}
           >
             <ToggleButton value="HOME">{pool.homeTeam} win</ToggleButton>
-            <ToggleButton value="DRAW">Draw at 90&apos;</ToggleButton>
+            <ToggleButton value="DRAW">Draw at 90'</ToggleButton>
             <ToggleButton value="AWAY">{pool.awayTeam} win</ToggleButton>
           </ToggleButtonGroup>
           {draw && (
-            <Typography sx={{ fontSize: '0.68rem', mt: 0.5, color: t.text.tertiary }}>
+            <Meta sx={{ display: 'block', mt: 0.5 }}>
               Use this for ties that went to ET or penalties — the bet still resolves to DRAW.
-            </Typography>
+            </Meta>
           )}
         </Box>
 
         <Box>
-          <Typography sx={{ fontSize: '0.78rem', mb: 0.5, fontWeight: 600 }}>Regulation score (optional)</Typography>
+          <Label sx={{ display: 'block', mb: 0.5 }}>Regulation score (optional)</Label>
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
             <TextField
               size="small"
@@ -241,7 +246,7 @@ function ResolveKnockoutDialog({ pool, onClose, onResolved }: {
               inputProps={{ min: 0, max: 99 }}
               sx={{ width: 120 }}
             />
-            <Typography sx={{ color: t.text.tertiary }}>—</Typography>
+            <Meta>—</Meta>
             <TextField
               size="small"
               type="number"
@@ -253,14 +258,14 @@ function ResolveKnockoutDialog({ pool, onClose, onResolved }: {
             />
           </Box>
           {!scoresValid && bothScoresFilled && (
-            <Typography sx={{ fontSize: '0.68rem', mt: 0.5, color: t.error }}>
+            <Body sx={{ fontSize: '0.7rem', mt: 0.5, color: t.error }}>
               Score is inconsistent with the {winner.toLowerCase()} pick.
-            </Typography>
+            </Body>
           )}
           {neitherFilled && (
-            <Typography sx={{ fontSize: '0.68rem', mt: 0.5, color: t.text.tertiary }}>
-              Leave blank to skip — the public match page won&apos;t show a score.
-            </Typography>
+            <Meta sx={{ display: 'block', mt: 0.5 }}>
+              Leave blank to skip — the public match page won't show a score.
+            </Meta>
           )}
         </Box>
 
@@ -273,20 +278,10 @@ function ResolveKnockoutDialog({ pool, onClose, onResolved }: {
           fullWidth
         />
 
-        {error && <Alert severity="error" sx={{ fontSize: '0.75rem' }}>{error}</Alert>}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={resolveMutation.isPending} sx={{ textTransform: 'none', color: t.text.tertiary }}>Cancel</Button>
-        <Button
-          onClick={() => resolveMutation.mutate()}
-          disabled={resolveMutation.isPending || !scoresValid}
-          variant="contained"
-          color={winner === 'DRAW' ? 'primary' : 'warning'}
-          sx={{ textTransform: 'none', bgcolor: winner === 'DRAW' ? t.draw : undefined, '&:hover': { bgcolor: winner === 'DRAW' ? withAlpha(t.draw, 0.85) : undefined } }}
-        >
-          {resolveMutation.isPending ? 'Resolving…' : `Resolve as ${winner === 'DRAW' ? 'DRAW' : winner === 'HOME' ? pool.homeTeam : pool.awayTeam}`}
-        </Button>
-      </DialogActions>
-    </Dialog>
+        {resolveMutation.isError && (
+          <ErrorAlert title="Resolve failed" message={(resolveMutation.error as Error).message} details={resolveMutation.error} />
+        )}
+      </Box>
+    </AdminDialog>
   );
 }

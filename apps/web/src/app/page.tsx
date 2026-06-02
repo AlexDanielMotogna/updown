@@ -58,7 +58,11 @@ export default function MarketsPage() {
   const marketType: MarketType = rawType && (rawType === 'TRENDING' || rawType === 'CRYPTO' || rawType === 'SPORTS' || rawType.startsWith('PM_')) ? rawType : 'CRYPTO';
   const isPM = marketType.startsWith('PM_');
   const isTrending = marketType === 'TRENDING';
-  const sportFilter = searchParams.get('sport') ?? 'ALL';
+  // SOCCER → FOOTBALL alias for backward-compat with bookmarked URLs
+  // from before the SPORT_GROUP migration (Soccer used to be the hard-
+  // coded value; it's now the FOOTBALL group's code).
+  const rawSport = searchParams.get('sport') ?? 'ALL';
+  const sportFilter = rawSport === 'SOCCER' ? 'FOOTBALL' : rawSport;
   const assetFilter = assetValues.includes(searchParams.get('asset') ?? '') ? searchParams.get('asset')! : 'ALL';
   const intervalFilter = intervalValues.includes(searchParams.get('interval') ?? '') ? searchParams.get('interval')! : 'ALL';
   const leagueFilter = searchParams.get('league') ?? 'ALL';
@@ -211,20 +215,37 @@ export default function MarketsPage() {
   const sportsPools = useMemo(() => {
     const allSports = sortedPools.filter(p => p.poolType === 'SPORTS' && !p.league?.startsWith('PM_'));
     let filtered = allSports;
-    // Filter by sport type
-    if (sportFilter === 'SOCCER') {
-      // Football leagues are those with a category of type FOOTBALL_LEAGUE
-      const footballCodes = new Set([...categoryMap.entries()].filter(([_, c]) => c.type === 'FOOTBALL_LEAGUE').map(([code]) => code));
-      filtered = filtered.filter(p => footballCodes.has(p.league || ''));
-    } else if (sportFilter !== 'ALL') {
-      filtered = filtered.filter(p => p.league === sportFilter);
+
+    // Sport filter — three modes driven by the SPORT_GROUP hierarchy:
+    //   ALL                          → no filter
+    //   <SPORT_GROUP code>           → every pool whose league is a child
+    //                                  of that group (parentCode === group)
+    //   <legacy specific code>       → exact league match
+    const selectedCat = sportFilter !== 'ALL' ? categoryMap.get(sportFilter) : null;
+    const isGroup = selectedCat?.type === 'SPORT_GROUP';
+
+    if (sportFilter !== 'ALL') {
+      if (isGroup) {
+        // Find all child league codes for this group, then match league
+        // in that set. One pass through the categories map.
+        const childCodes = new Set<string>();
+        for (const c of categoryMap.values()) {
+          if (c.parentCode === sportFilter) childCodes.add(c.code);
+        }
+        filtered = filtered.filter(p => childCodes.has(p.league || ''));
+      } else {
+        filtered = filtered.filter(p => p.league === sportFilter);
+      }
     }
-    // Filter by league (only for soccer)
-    if (leagueFilter !== 'ALL' && (sportFilter === 'ALL' || sportFilter === 'SOCCER')) {
+
+    // League sub-filter applies inside ALL or inside a SPORT_GROUP (where
+    // multiple leagues are visible). For a specific-league sport filter
+    // there's nothing further to narrow.
+    if (leagueFilter !== 'ALL' && (sportFilter === 'ALL' || isGroup)) {
       filtered = filtered.filter(p => p.league === leagueFilter);
     }
     return filtered;
-  }, [sortedPools, sportFilter, leagueFilter]);
+  }, [sortedPools, sportFilter, leagueFilter, categoryMap]);
   const predictionPools = useMemo(() => {
     if (!isPM) return [];
     return sortedPools.filter(p => p.poolType === 'SPORTS' && p.league === marketType);

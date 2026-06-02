@@ -104,6 +104,11 @@ model Bet {
   @@index([poolId, claimed, payoutFailed])
   // Speeds up the admin "failed payouts" tab.
   @@index([payoutFailed, lastAttemptedAt])
+  // Admin user search + profile bet history. Without these, /api/admin/users/search
+  // (per-wallet aggregates + recentBets) does a sequential scan of all bets — at
+  // 1M+ bets that's >1s per admin lookup. See PLAN-ADMIN-REFACTOR.md Phase 1 #7.
+  @@index([walletAddress])
+  @@index([walletAddress, createdAt])
   @@map("bets")
 }
 
@@ -516,13 +521,18 @@ model Notification {
 model PoolCategory {
   id         String   @id @default(uuid())
   code       String   @unique
-  type       String                                          // FOOTBALL_LEAGUE, SPORTSDB_SPORT, POLYMARKET
+  type       String                                          // FOOTBALL_LEAGUE, SPORTSDB_SPORT, POLYMARKET, SPORT_GROUP
   enabled    Boolean  @default(true)
   comingSoon Boolean  @default(false) @map("coming_soon")
   label      String
   shortLabel String?  @map("short_label")
   color      String?
   badgeUrl   String?  @map("badge_url")
+  /// Preferred background for the badge image. Auto-detected when SDB
+  /// supplies a badge that's mostly white (white-on-transparent logos
+  /// vanish on white backgrounds). Values: 'light' | 'dark' | '#RRGGBB'
+  /// hex, or NULL = use frontend default.
+  badgeBgColor String? @map("badge_bg_color")
   iconKey    String?  @map("icon_key")
   apiSource  String?  @map("api_source")
   adapterKey String?  @map("adapter_key")
@@ -530,9 +540,15 @@ model PoolCategory {
   sideLabels String[] @default(["Home", "Draw", "Away"]) @map("side_labels")
   config     Json?
   sortOrder  Int      @default(0) @map("sort_order")
+  // Two-level hierarchy: SPORT_GROUP rows are umbrellas (Rugby, Football,
+  // Basketball, ...); leagues point at their group via parentCode. No FK —
+  // categories are operator-managed and we don't want a rename to cascade-
+  // rewrite every child silently. Application layer validates the reference.
+  parentCode String?  @map("parent_code")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@index([type, enabled])
+  @@index([parentCode])
   @@map("pool_categories")
 }

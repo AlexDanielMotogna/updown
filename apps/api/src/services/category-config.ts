@@ -11,6 +11,7 @@ export interface PoolCategoryConfig {
   shortLabel: string | null;
   color: string | null;
   badgeUrl: string | null;
+  badgeBgColor: string | null;
   iconKey: string | null;
   apiSource: string | null;
   adapterKey: string | null;
@@ -18,6 +19,7 @@ export interface PoolCategoryConfig {
   sideLabels: string[];
   config: Record<string, unknown> | null;
   sortOrder: number;
+  parentCode: string | null;
 }
 
 // ── In-memory fallback, derived from the single canonical default list ──────
@@ -32,6 +34,7 @@ const FALLBACK: PoolCategoryConfig[] = CATEGORY_DEFAULTS.map(c => ({
   shortLabel: c.shortLabel ?? null,
   color: c.color ?? null,
   badgeUrl: c.badgeUrl ?? null,
+  badgeBgColor: (c as { badgeBgColor?: string | null }).badgeBgColor ?? null,
   iconKey: c.iconKey ?? null,
   apiSource: c.apiSource ?? null,
   adapterKey: c.adapterKey ?? null,
@@ -39,6 +42,7 @@ const FALLBACK: PoolCategoryConfig[] = CATEGORY_DEFAULTS.map(c => ({
   sideLabels: c.sideLabels,
   config: c.config ?? null,
   sortOrder: c.sortOrder,
+  parentCode: (c as { parentCode?: string | null }).parentCode ?? null,
 }));
 
 // ── In-memory cache ─────────────────────────────────────────────────────────
@@ -57,6 +61,7 @@ function mapRow(row: any): PoolCategoryConfig {
     shortLabel: row.shortLabel,
     color: row.color,
     badgeUrl: row.badgeUrl,
+    badgeBgColor: row.badgeBgColor ?? null,
     iconKey: row.iconKey,
     apiSource: row.apiSource,
     adapterKey: row.adapterKey,
@@ -64,6 +69,7 @@ function mapRow(row: any): PoolCategoryConfig {
     sideLabels: row.sideLabels,
     config: row.config as Record<string, unknown> | null,
     sortOrder: row.sortOrder,
+    parentCode: row.parentCode ?? null,
   };
 }
 

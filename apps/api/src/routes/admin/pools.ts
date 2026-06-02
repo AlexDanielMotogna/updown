@@ -52,7 +52,7 @@ adminPoolsRouter.get('/', async (req, res) => {
     });
   } catch (error) {
     console.error('Admin pools error:', error);
-    res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: 'Failed to fetch pools' } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: 'Failed to fetch pools' } });
   }
 });
 
@@ -79,7 +79,7 @@ adminPoolsRouter.get('/stuck', async (_req, res) => {
     });
   } catch (error) {
     console.error('Admin stuck pools error:', error);
-    res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: 'Failed to fetch stuck pools' } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: 'Failed to fetch stuck pools' } });
   }
 });
 
@@ -97,12 +97,17 @@ adminPoolsRouter.get('/:id', async (req, res) => {
             side: true,
             amount: true,
             claimed: true,
-            claimTx: true,
+            // PR 18 / Phase 5 — `claimTx` was never read by the admin Pool
+            // detail dialog. Drop it from the SELECT; bring it back with a
+            // real renderer when the per-bet 'view tx' link ships.
             payoutAmount: true,
             createdAt: true,
           },
         },
-        priceSnapshots: { orderBy: { timestamp: 'asc' } },
+        // PR 18 / Phase 5 — `priceSnapshots` was included but the admin
+        // Pool detail dialog only renders bets / pool metadata. Drop the
+        // include so the query doesn't drag along strike/final snapshots
+        // (sometimes hundreds of rows for long-running pools).
         _count: { select: { bets: true } },
       },
     });
@@ -122,17 +127,10 @@ adminPoolsRouter.get('/:id', async (req, res) => {
           payoutAmount: b.payoutAmount?.toString() ?? null,
           createdAt: b.createdAt.toISOString(),
         })),
-        priceSnapshots: pool.priceSnapshots.map(s => ({
-          id: s.id,
-          type: s.type,
-          price: s.price.toString(),
-          timestamp: s.timestamp.toISOString(),
-          source: s.source,
-        })),
       },
     });
   } catch (error) {
     console.error('Admin pool detail error:', error);
-    res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: 'Failed to fetch pool' } });
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: 'Failed to fetch pool' } });
   }
 });

@@ -19,6 +19,22 @@ function safeJsonParse<T>(str: string | null | undefined): T | null {
   try { return JSON.parse(str); } catch { return null; }
 }
 
+// ── lastBulkSyncAt tracking ────────────────────────────────────────────────
+// In-process record of when the last successful sync touched each category.
+// Powers the admin "Last synced …" label without needing a DB column. Cleared
+// on restart, which is fine — admins know how long the API has been up via
+// the System Health tab. See PLAN-ADMIN-REFACTOR.md Phase 4.
+const _lastBulkSyncAtByCode = new Map<string, number>();
+export function getLastBulkSyncAt(code: string): number | null {
+  return _lastBulkSyncAtByCode.get(code) ?? null;
+}
+export function getAllLastBulkSyncAt(): Record<string, number> {
+  return Object.fromEntries(_lastBulkSyncAtByCode);
+}
+function recordSync(code: string): void {
+  _lastBulkSyncAtByCode.set(code, Date.now());
+}
+
 // ── Bulk Sync ───────────────────────────────────────────────────────────────
 
 /**
@@ -222,6 +238,165 @@ export async function bulkSync(): Promise<void> {
   }
 
   console.log(`[PolymarketSync] Bulk sync complete: ${totalSynced} markets from ${events.length} events across ${tagIds.length} tags (${Object.entries(counts).map(([k, v]) => `${k}:${v}`).join(', ')})`);
+  for (const code of Object.keys(counts)) recordSync(code);
+}
+
+// ── Single-category sync (admin on-demand) ──────────────────────────────────
+
+/**
+ * Sync ONE PM category by code. Same logic as bulkSync but restricted to the
+ * category's own tagIds, and only upserts markets that categorize to this
+ * code. Used by the admin "Refresh this category" button so the operator
+ * doesn't have to wait the 6h cron cycle.
+ *
+ * Returns the per-tag fetch count + per-event/market upsert count so the UI
+ * can report "fetched 142 events → upserted 38 markets".
+ *
+ * See PLAN-ADMIN-REFACTOR.md Phase 4.
+ */
+export async function syncCategory(code: string): Promise<{ tagIds: string[]; eventsFetched: number; marketsUpserted: number; markets: number }> {
+  const pmCats = await getPolymarketCategories();
+  const cat = pmCats.find(c => c.code === code);
+  if (!cat) throw new Error(`Polymarket category not found: ${code}`);
+  if (cat.tagIds.length === 0) {
+    console.warn(`[PolymarketSync] No tagIds configured on category ${code} - nothing to sync`);
+    return { tagIds: [], eventsFetched: 0, marketsUpserted: 0, markets: 0 };
+  }
+
+  const maxPagesPerTag = Number(process.env.POLYMARKET_MAX_PAGES_PER_TAG) || 4;
+  const eventsById = new Map<string, any>();
+  for (const tagId of cat.tagIds) {
+    let offset = 0;
+    while (offset < maxPagesPerTag * 100) {
+      let page: any = null;
+      for (let attempt = 0; attempt < 2 && page === null; attempt++) {
+        try {
+          page = await polymarketFetch(`/events?closed=false&tag_id=${tagId}&limit=100&offset=${offset}`);
+        } catch (error) {
+          if (attempt === 0) { await sleep(2_000); continue; }
+          console.warn(`[PolymarketSync] fetch failed (tag ${tagId} offset ${offset}):`, error instanceof Error ? error.message : error);
+        }
+      }
+      if (!Array.isArray(page) || page.length === 0) break;
+      for (const e of page) eventsById.set(String(e.id), e);
+      if (page.length < 100) break;
+      offset += 100;
+    }
+  }
+
+  const events = [...eventsById.values()].sort((a, b) => (b.volume24hr ?? 0) - (a.volume24hr ?? 0));
+  if (events.length === 0) {
+    return { tagIds: cat.tagIds, eventsFetched: 0, marketsUpserted: 0, markets: 0 };
+  }
+
+  const lim = { maxMarkets: cat.maxMarkets, maxSubmarketsPerEvent: cat.maxSubmarketsPerEvent };
+  let count = 0;
+  let totalMarkets = 0;
+
+  for (const event of events) {
+    // Restrict to events that categorize to THIS code. Without this guard a
+    // tag the operator shares between categories would import twice.
+    const matched = await categorizeEvent(event.tags ?? []);
+    if (!matched || matched.code !== code) continue;
+    if ((event.volume24hr ?? 0) < cat.minVolume24h) continue;
+
+    const markets = event.markets ?? [];
+    if (markets.length === 0) continue;
+
+    let perEventSynced = 0;
+    for (const market of markets) {
+      if (perEventSynced >= lim.maxSubmarketsPerEvent) break;
+      if (!market?.id || !market.outcomes || !market.endDate) continue;
+      if (market.active === false) continue;
+      if (!market.outcomePrices) continue;
+      if (count >= lim.maxMarkets) break;
+      const outcomes = safeJsonParse<string[]>(market.outcomes);
+      if (!outcomes || outcomes.length < 2) continue;
+      const endDate = new Date(market.endDate);
+      if (isNaN(endDate.getTime())) continue;
+      if (endDate.getTime() < Date.now()) continue;
+      if (market.closed) continue;
+
+      totalMarkets++;
+      const isGenericYesNo = outcomes[0] === 'Yes' && outcomes[1] === 'No';
+      const questionTitle = market.question || event.title || 'Prediction';
+      const homeTeam = isGenericYesNo ? questionTitle : outcomes[0];
+      const awayTeam = isGenericYesNo ? '' : outcomes[1];
+
+      const description: string | null = market.description || event.description || null;
+      const outcomePrices = safeJsonParse<string[]>(market.outcomePrices);
+      const marketOdds = outcomePrices?.length ? parseFloat(outcomePrices[0]) : null;
+      const groupItemTitle: string | null = description || market.groupItemTitle || null;
+      const clobTokenIds: string | null = market.clobTokenIds || null;
+      const crest: string | null = market.image || market.icon || event.image || event.icon || null;
+      const tagLabels: string[] = Array.isArray(event.tags)
+        ? event.tags.map((t: any) => t.label || t).filter(Boolean)
+        : [];
+      const tags: string | null = tagLabels.length > 0 ? JSON.stringify(tagLabels) : null;
+      const subcategory = await pickSubcategory(code, tagLabels);
+
+      let status = 'SCHEDULED';
+      if (market.closed && market.umaResolutionStatus === 'resolved') status = 'FINISHED';
+      else if (market.closed) status = 'LIVE';
+
+      try {
+        await prisma.sportsFixtureCache.upsert({
+          where: {
+            externalId_sport_apiSource: {
+              externalId: market.id,
+              sport: 'POLYMARKET',
+              apiSource: API_SOURCE,
+            },
+          },
+          create: {
+            externalId: market.id,
+            sport: 'POLYMARKET',
+            league: code,
+            leagueName: cat.name,
+            season: null,
+            matchday: null,
+            homeTeam,
+            awayTeam,
+            homeTeamCrest: crest,
+            awayTeamCrest: null,
+            kickoff: endDate,
+            status,
+            homeScore: null,
+            awayScore: null,
+            winner: null,
+            marketOdds,
+            groupItemTitle,
+            clobTokenIds,
+            tags,
+            subcategory,
+            apiSource: API_SOURCE,
+            lastSyncedAt: new Date(),
+          },
+          update: {
+            homeTeam,
+            awayTeam,
+            homeTeamCrest: crest,
+            kickoff: endDate,
+            status,
+            marketOdds,
+            groupItemTitle,
+            clobTokenIds,
+            tags,
+            subcategory,
+            lastSyncedAt: new Date(),
+          },
+        });
+        count++;
+        perEventSynced++;
+      } catch (error) {
+        console.warn(`[PolymarketSync] Upsert failed for market ${market.id}:`, error instanceof Error ? error.message : error);
+      }
+    }
+  }
+
+  recordSync(code);
+  console.log(`[PolymarketSync] syncCategory(${code}): events=${events.length} markets=${totalMarkets} upserted=${count}`);
+  return { tagIds: cat.tagIds, eventsFetched: events.length, marketsUpserted: count, markets: totalMarkets };
 }
 
 // ── Re-bucket existing pools ──────────────────────────────────────────────────

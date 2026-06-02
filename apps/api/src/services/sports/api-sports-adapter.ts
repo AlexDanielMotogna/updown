@@ -174,10 +174,13 @@ export class SportsDbAdapter implements SportAdapter {
           const m = mapEvent(e, this.config.sport, league);
           if (!m) continue;
           if (seen.has(m.id)) continue;
-          // Apply league filter (exact match)
+          // Apply league filter (exact match, case-insensitive). Both
+          // sides uppercase so a category stored as 'Boxing' (mixed-case
+          // from SDB's strLeague) matches an event's strLeague the same
+          // way the hardcoded NBA/NHL/NFL configs do.
           if (this.config.leagueFilter) {
             const leagueName = (m.leagueName || '').toUpperCase();
-            if (leagueName !== this.config.leagueFilter) continue;
+            if (leagueName !== this.config.leagueFilter.toUpperCase()) continue;
           }
           seen.add(m.id);
           allMatches.push(m);

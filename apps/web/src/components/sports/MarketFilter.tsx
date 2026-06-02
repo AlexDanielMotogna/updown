@@ -7,12 +7,13 @@ import { useCategories, type CategoryConfig } from '@/hooks/useCategories';
 import { getIcon } from '@/lib/icon-registry';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
+import { resolveBadgeBackground } from '@/lib/badgeBackground';
 
 interface DropdownProps {
   value: string;
   label: string;
   icon?: React.ReactNode;
-  options: Array<{ value: string; label: string; icon?: React.ReactNode; img?: string | null; comingSoon?: boolean }>;
+  options: Array<{ value: string; label: string; icon?: React.ReactNode; img?: string | null; imgBg?: string | null; comingSoon?: boolean }>;
   onChange: (value: string) => void;
   color: string;
 }
@@ -37,7 +38,7 @@ export function FilterDropdown({ value, label, icon, options, onChange, color }:
         }}
       >
         {icon || (selected?.img && (
-          <Box component="img" src={selected.img} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
+          <Box component="img" src={selected.img} alt="" sx={{ width: 20, height: 20, objectFit: 'contain', bgcolor: selected.imgBg ?? resolveBadgeBackground(null), borderRadius: '50%', p: '2px' }} />
         ))}
         <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.text.primary, whiteSpace: 'nowrap' }}>
           {selected?.label || label}
@@ -66,7 +67,7 @@ export function FilterDropdown({ value, label, icon, options, onChange, color }:
               }}
             >
               {opt.img ? (
-                <Box component="img" src={opt.img} alt="" sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: '50%', p: '2px' }} />
+                <Box component="img" src={opt.img} alt="" sx={{ width: 22, height: 22, objectFit: 'contain', bgcolor: opt.imgBg ?? resolveBadgeBackground(null), borderRadius: '50%', p: '2px' }} />
               ) : opt.icon ? (
                 <Box sx={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', color: active ? color : t.text.tertiary }}>
                   {opt.icon}
@@ -165,14 +166,22 @@ export function MarketFilter({
     }
   };
 
-  // Build dynamic tabs from categories
+  // Build dynamic tabs + Sport/League dropdowns from the SPORT_GROUP tree.
+  //
+  // Hierarchy:
+  //   SPORT_GROUP rows = umbrella sports (Football, Rugby, Basketball, ...).
+  //     They populate the Sport dropdown.
+  //   FOOTBALL_LEAGUE / SPORTSDB_SPORT rows = the actual leagues. They
+  //     populate the League dropdown for whatever sport is selected, via
+  //     parentCode.
+  // Legacy categories without parentCode still surface as top-level entries
+  // in the Sport dropdown so a partially-migrated DB keeps working.
   const { tabs, sportOptions, leagueOptions } = useMemo(() => {
     const cats = categories || [];
-    const pmCats = cats.filter(c => c.type === 'POLYMARKET' && c.enabled);
-    const sportsDbCats = cats.filter(c => c.type === 'SPORTSDB_SPORT' && c.enabled);
-    const footballCats = cats.filter(c => c.type === 'FOOTBALL_LEAGUE' && c.enabled);
+    const visible = (c: CategoryConfig) => c.enabled || c.comingSoon;
+    const sortByOrder = (a: CategoryConfig, b: CategoryConfig) => a.sortOrder - b.sortOrder;
 
-    // Coming soon PM categories
+    const pmCats = cats.filter(c => c.type === 'POLYMARKET' && c.enabled);
     const pmComingSoon = cats.filter(c => c.type === 'POLYMARKET' && !c.enabled && c.comingSoon);
 
     // Tabs: CRYPTO + SPORTS + enabled PM categories + coming soon PM
@@ -195,45 +204,71 @@ export function MarketFilter({
       })),
     ];
 
-    // Sport dropdown: MUI icons only (no badge images), same as Soccer
-    const sportsComingSoon = cats.filter(c => c.type === 'SPORTSDB_SPORT' && !c.enabled && c.comingSoon);
+    // Sport dropdown = SPORT_GROUP rows + any legacy league with no parent.
+    const groups = cats
+      .filter(c => c.type === 'SPORT_GROUP' && visible(c))
+      .sort(sortByOrder);
+    const orphanLeagues = cats
+      .filter(c => visible(c)
+        && (c.type === 'FOOTBALL_LEAGUE' || c.type === 'SPORTSDB_SPORT')
+        && !c.parentCode)
+      .sort(sortByOrder);
+
     const sportOptions: Array<{ value: string; label: string; icon?: React.ReactNode; img?: string | null; comingSoon?: boolean }> = [
       { value: 'ALL', label: 'All Sports', icon: <GridView sx={{ fontSize: 18 }} /> },
-      { value: 'SOCCER', label: 'Soccer', icon: <SportsSoccer sx={{ fontSize: 18 }} /> },
-      ...sportsDbCats.map(c => ({
+      ...groups.map(c => ({
         value: c.code,
         label: c.shortLabel || c.label,
         icon: buildIcon(c, 18),
+        comingSoon: !c.enabled && c.comingSoon,
       })),
-      ...sportsComingSoon.map(c => ({
+      // Legacy top-level leagues still show — parentCode null shouldn't
+      // hide a category from the user just because it pre-dates the
+      // hierarchy migration.
+      ...orphanLeagues.map(c => ({
         value: c.code,
         label: c.shortLabel || c.label,
         icon: buildIcon(c, 18),
-        comingSoon: true,
+        comingSoon: !c.enabled && c.comingSoon,
       })),
     ];
 
-    // League dropdown: All + enabled football leagues + coming soon (greyed out)
-    const footballComingSoon = cats.filter(c => c.type === 'FOOTBALL_LEAGUE' && !c.enabled && c.comingSoon);
+    // League dropdown depends on the selected Sport group. For ALL, surface
+    // every league across every group (the historical "All" behaviour).
+    // For a specific group, list its children. For an orphan top-level
+    // league, hide the League dropdown entirely (no children to show).
+    const leaguesForSport = (sportCode: string): CategoryConfig[] => {
+      if (sportCode === 'ALL') {
+        return cats
+          .filter(c => visible(c) && (c.type === 'FOOTBALL_LEAGUE' || c.type === 'SPORTSDB_SPORT'))
+          .sort(sortByOrder);
+      }
+      return cats
+        .filter(c => visible(c) && c.parentCode === sportCode)
+        .sort(sortByOrder);
+    };
 
-    // League dropdown: All + enabled football leagues
-    const leagueOptions: Array<{ value: string; label: string; img?: string | null; icon?: React.ReactNode; comingSoon?: boolean }> = [
+    const childLeagues = leaguesForSport(sportFilter);
+    const leagueOptions: Array<{ value: string; label: string; img?: string | null; imgBg?: string | null; icon?: React.ReactNode; comingSoon?: boolean }> = [
       { value: 'ALL', label: 'All', img: null, icon: <GridView sx={{ fontSize: 18 }} /> },
-      ...footballCats.map(c => ({
+      ...childLeagues.map(c => ({
         value: c.code,
         label: c.shortLabel || c.label,
         img: c.badgeUrl,
-      })),
-      ...footballComingSoon.map(c => ({
-        value: c.code,
-        label: c.shortLabel || c.label,
-        img: c.badgeUrl,
-        comingSoon: true,
+        // Pre-resolve the bg so the dropdown renderer stays dumb — the
+        // helper falls back to the historical white when the category
+        // hasn't been analyzed yet.
+        imgBg: resolveBadgeBackground(c.badgeBgColor),
+        comingSoon: !c.enabled && c.comingSoon,
       })),
     ];
 
     return { tabs, sportOptions, leagueOptions };
-  }, [categories, t]);
+  }, [categories, sportFilter, t]);
+
+  // Whether to render the League dropdown next to Sport: only if the
+  // selected sport has at least one child league (or is "All").
+  const showLeagueFilter = sportFilter === 'ALL' || leagueOptions.length > 1;
 
   const currentTab = tabs.find(tab => tab.key === marketType) || tabs[0];
   const tabColor = currentTab.color;
@@ -313,7 +348,10 @@ export function MarketFilter({
           ) : marketType === 'SPORTS' ? (
             <>
               <FilterDropdown value={sportFilter} label="Sport" options={sportOptions} onChange={onSportChange || (() => {})} color={t.draw} />
-              {(sportFilter === 'ALL' || sportFilter === 'SOCCER') && (
+              {/* League dropdown appears only when the selected sport has
+                  child leagues. Top-level sports without children (rare
+                  legacy state) hide the League dropdown entirely. */}
+              {showLeagueFilter && (
                 <FilterDropdown value={leagueFilter} label="League" options={leagueOptions} onChange={onLeagueChange} color={t.draw} />
               )}
             </>
