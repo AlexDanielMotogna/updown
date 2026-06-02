@@ -4,16 +4,23 @@ import { z } from 'zod';
 import { prisma } from '../../db';
 import { invalidateCache } from '../../services/category-config';
 import { refreshAllAdapters } from '../../services/sports';
+import { invalidateSportLeagueWhitelist } from '../../scheduler/fixture-sync';
 
 /**
- * Drop the in-memory SportsDbAdapter cache so the next sync rebuilds with
- * the latest category configs from the DB. Called after any mutation that
- * could change adapter behaviour (POST/PUT/DELETE/toggle/coming-soon on
- * FOOTBALL_LEAGUE or SPORTSDB_SPORT categories). Fire-and-forget — a stale
- * adapter for one tick is better than failing the mutation if the refresh
- * stumbles.
+ * Drop all in-memory caches that key off the category config:
+ *  - SportsDbAdapter cache (services/sports) — picks up new sportQuery /
+ *    leagueFilter / leagueId.
+ *  - fixture-sync SPORT_LEAGUE_WHITELIST cache — picks up new codes so
+ *    the upsert guard accepts the new category.
+ *
+ * Called after any mutation that could change adapter behaviour or the
+ * valid (sport, league) set (POST/PUT/DELETE/toggle/coming-soon on
+ * FOOTBALL_LEAGUE or SPORTSDB_SPORT categories). Fire-and-forget on the
+ * adapter refresh — a stale adapter for one tick is better than failing
+ * the mutation if the refresh stumbles.
  */
 function rebuildAdapters(): void {
+  invalidateSportLeagueWhitelist();
   refreshAllAdapters().catch(err => {
     console.warn('[admin-categories] adapter refresh failed:', err instanceof Error ? err.message : err);
   });
@@ -61,6 +68,29 @@ const categoryBaseSchema = z.object({
 const createCategorySchema = categoryBaseSchema;
 const updateCategorySchema = categoryBaseSchema.partial();
 
+/**
+ * Cross-field check: SDB-backed categories must carry a TheSportsDB
+ * `externalLeagueId` in their config, otherwise the daily-sync falls back
+ * to `eventsday.php?s=<sportQuery>` which (historically) contaminated the
+ * cache with the wrong sport. Polymarket has its own path (tagIds).
+ *
+ * For PUT we only enforce if the incoming payload sets type or config —
+ * a 'change-only-the-label' edit shouldn't break because of legacy state.
+ */
+function assertExternalLeagueId(
+  type: string | undefined,
+  config: Record<string, unknown> | null | undefined,
+  required: boolean,
+): { ok: true } | { ok: false; message: string } {
+  if (!required) return { ok: true };
+  if (type !== 'FOOTBALL_LEAGUE' && type !== 'SPORTSDB_SPORT') return { ok: true };
+  const eid = config && typeof config === 'object'
+    ? (config as Record<string, unknown>).externalLeagueId ?? (config as Record<string, unknown>).theSportsDbLeagueId
+    : undefined;
+  if (typeof eid === 'string' && eid.trim().length > 0) return { ok: true };
+  return { ok: false, message: `${type} categories require config.externalLeagueId (the TheSportsDB league id). Browse SDB in admin → Matches to find it.` };
+}
+
 // GET /api/admin/categories - all categories (including disabled)
 adminCategoriesRouter.get('/', async (_req, res) => {
   try {
@@ -89,6 +119,11 @@ adminCategoriesRouter.post('/', async (req, res) => {
     if (!parsed.success) {
       return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.errors[0]?.message ?? 'Invalid category fields', details: parsed.error.flatten() } });
     }
+    // Always enforce on create — no legacy excuse here.
+    const guard = assertExternalLeagueId(parsed.data.type, parsed.data.config, true);
+    if (!guard.ok) {
+      return res.status(400).json({ success: false, error: { code: 'EXTERNAL_LEAGUE_ID_REQUIRED', message: guard.message } });
+    }
     const category = await prisma.poolCategory.create({ data: normalizeConfig(parsed.data) });
     invalidateCache();
     rebuildAdapters();
@@ -105,6 +140,19 @@ adminCategoriesRouter.put('/:id', async (req, res) => {
     const parsed = updateCategorySchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.errors[0]?.message ?? 'Invalid category fields', details: parsed.error.flatten() } });
+    }
+    // Only enforce when the payload actually changes type or config —
+    // a label-only edit of a legacy category without an id shouldn't be
+    // gated by a guard the operator can't satisfy in this request.
+    const touchesShape = parsed.data.type !== undefined || parsed.data.config !== undefined;
+    if (touchesShape) {
+      const existing = await prisma.poolCategory.findUnique({ where: { id: req.params.id }, select: { type: true, config: true } });
+      const nextType = parsed.data.type ?? existing?.type;
+      const nextConfig = parsed.data.config ?? (existing?.config as Record<string, unknown> | null | undefined);
+      const guard = assertExternalLeagueId(nextType, nextConfig, true);
+      if (!guard.ok) {
+        return res.status(400).json({ success: false, error: { code: 'EXTERNAL_LEAGUE_ID_REQUIRED', message: guard.message } });
+      }
     }
     const category = await prisma.poolCategory.update({
       where: { id: req.params.id },
