@@ -4,7 +4,9 @@ import { useRouter } from 'next/navigation';
 import { Box, Typography, Chip, Tooltip } from '@mui/material';
 import { TrendingUp, Star, IosShare } from '@mui/icons-material';
 import { AnimatedValue } from '@/components/AnimatedValue';
+import { LiveBadge } from '@/components/LiveBadge';
 import { getIcon } from '@/lib/icon-registry';
+import { YES_ICON, NO_ICON } from '@/lib/predictionIcons';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import type { Pool } from '@/lib/api';
@@ -126,9 +128,9 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
               />
             )}
             {matchLive ? (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: t.gain, animation: 'livePulse 1.5s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1, transform: 'scale(1)' }, '50%': { opacity: 0.4, transform: 'scale(0.8)' } } }} />
-                <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: t.gain }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                <LiveBadge />
+                <Typography sx={{ fontSize: '0.62rem', fontWeight: 600, color: t.text.tertiary, fontVariantNumeric: 'tabular-nums' }}>
                   {formatLiveStatus(liveScore!.status, liveScore!.progress)}
                 </Typography>
               </Box>
@@ -227,6 +229,12 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
                   ...(!isLocked && { '&:hover': { bgcolor: withAlpha(t.up, 0.15), borderColor: withAlpha(t.up, 0.4) } }),
                 }}
               >
+                {isPrediction && !pool.awayTeam && (
+                  <Box component="img" src={YES_ICON} alt="" sx={{ width: 14, height: 14, flexShrink: 0 }} />
+                )}
+                {isPrediction && pool.awayTeam && pool.homeTeam?.toLowerCase() === 'up' && pool.awayTeam.toLowerCase() === 'down' && (
+                  <Box component="img" src="/assets/up-icon-64x64.png" alt="" sx={{ width: 14, height: 14, flexShrink: 0 }} />
+                )}
                 <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: t.up }}>{homePct}%</Typography>
                 <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: t.text.tertiary }}>
                   {pool.awayTeam ? pool.homeTeam : 'Yes'}
@@ -242,6 +250,12 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
                   ...(!isLocked && { '&:hover': { bgcolor: withAlpha(t.down, 0.15), borderColor: withAlpha(t.down, 0.4) } }),
                 }}
               >
+                {isPrediction && !pool.awayTeam && (
+                  <Box component="img" src={NO_ICON} alt="" sx={{ width: 14, height: 14, flexShrink: 0 }} />
+                )}
+                {isPrediction && pool.awayTeam && pool.homeTeam?.toLowerCase() === 'up' && pool.awayTeam.toLowerCase() === 'down' && (
+                  <Box component="img" src="/assets/down-icon-64x64.png" alt="" sx={{ width: 14, height: 14, flexShrink: 0 }} />
+                )}
                 <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: t.down }}>{awayPct}%</Typography>
                 <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: t.text.tertiary }}>
                   {pool.awayTeam || 'No'}

@@ -1,11 +1,11 @@
 'use client';
 
 import { Box, Typography } from '@mui/material';
-import { TrendingUp, TrendingDown } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import { AnimatedValue } from './AnimatedValue';
+import { UP_ICON, DOWN_ICON } from '@/lib/predictionIcons';
 
 interface PoolDistributionProps {
   totalUp: string;
@@ -32,7 +32,7 @@ export function PoolDistribution({ totalUp, totalDown, totalPool, betCount }: Po
 
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <TrendingUp sx={{ color: t.up, fontSize: 20 }} />
+          <Box component="img" src={UP_ICON} alt="" sx={{ width: 20, height: 20 }} />
           <Typography sx={{ color: t.up, fontWeight: 500 }}>
             UP <AnimatedValue usdcValue={totalUp} prefix="$" />
           </Typography>
@@ -41,7 +41,7 @@ export function PoolDistribution({ totalUp, totalDown, totalPool, betCount }: Po
           <Typography sx={{ color: t.down, fontWeight: 500 }}>
             DOWN <AnimatedValue usdcValue={totalDown} prefix="$" />
           </Typography>
-          <TrendingDown sx={{ color: t.down, fontSize: 20 }} />
+          <Box component="img" src={DOWN_ICON} alt="" sx={{ width: 20, height: 20 }} />
         </Box>
       </Box>
 

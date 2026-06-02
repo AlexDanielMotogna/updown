@@ -8,7 +8,7 @@ import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import { formatUSDC, getExplorerTxUrl } from '@/lib/format';
 import { getBoxImage } from '@/lib/constants';
-import { AssetIcon } from '@/components';
+import { AssetIcon, EmptyMessage } from '@/components';
 import { OpenInNew } from '@mui/icons-material';
 import type { Bet } from '@/lib/api';
 
@@ -88,13 +88,7 @@ export function ActivityTab({ bets, betsLoading }: ActivityTabProps) {
   }
 
   if (entries.length === 0) {
-    return (
-      <Box sx={{ textAlign: 'center', py: 8, px: 4 }}>
-        <Typography sx={{ color: t.text.tertiary, fontSize: '0.9rem' }}>
-          No activity yet - your bets and payouts will appear here.
-        </Typography>
-      </Box>
-    );
+    return <EmptyMessage py={8}>No activity yet — your bets and payouts will appear here.</EmptyMessage>;
   }
 
   return (

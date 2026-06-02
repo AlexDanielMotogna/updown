@@ -1,7 +1,7 @@
 'use client';
 
 import { Card, CardContent, Box, Typography, Chip, Button } from '@mui/material';
-import { TrendingUp, TrendingDown } from '@mui/icons-material';
+import { UP_ICON, DOWN_ICON } from '@/lib/predictionIcons';
 import Link from 'next/link';
 import type { Pool } from '@/lib/api';
 import { formatUSDC, formatPrice, formatDateTime, formatTime, statusStyles, USDC_DIVISOR } from '@/lib/format';
@@ -171,7 +171,7 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
           <Box sx={{ mb: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <TrendingUp sx={{ fontSize: 18, color: t.up }} />
+                <Box component="img" src={UP_ICON} alt="" sx={{ width: 18, height: 18 }} />
                 <Typography variant="body2" sx={{ color: t.up, fontWeight: 500 }}>
                   {formatUSDC(pool.totalUp)}
                 </Typography>
@@ -186,7 +186,7 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
                 <Typography variant="body2" sx={{ color: t.down, fontWeight: 500 }}>
                   {formatUSDC(pool.totalDown)}
                 </Typography>
-                <TrendingDown sx={{ fontSize: 18, color: t.down }} />
+                <Box component="img" src={DOWN_ICON} alt="" sx={{ width: 18, height: 18 }} />
               </Box>
             </Box>
 
@@ -256,9 +256,9 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
               }}
             >
               {pool.winner === 'UP' ? (
-                <TrendingUp sx={{ fontSize: 18, color: t.up }} />
+                <Box component="img" src={UP_ICON} alt="" sx={{ width: 18, height: 18 }} />
               ) : (
-                <TrendingDown sx={{ fontSize: 18, color: t.down }} />
+                <Box component="img" src={DOWN_ICON} alt="" sx={{ width: 18, height: 18 }} />
               )}
               <Typography
                 variant="body2"
@@ -309,9 +309,9 @@ export function PoolCard({ pool, livePrice, userBet }: PoolCardProps) {
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 {userBet.side === 'UP' ? (
-                  <TrendingUp sx={{ fontSize: 16, color: t.up }} />
+                  <Box component="img" src={UP_ICON} alt="" sx={{ width: 16, height: 16 }} />
                 ) : (
-                  <TrendingDown sx={{ fontSize: 16, color: t.down }} />
+                  <Box component="img" src={DOWN_ICON} alt="" sx={{ width: 16, height: 16 }} />
                 )}
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                   You predicted {userBet.side}

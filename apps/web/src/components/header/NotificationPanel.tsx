@@ -192,7 +192,7 @@ export function NotificationPanel() {
                   {notifications.length === 0 ? (
                     <Box sx={{ py: 6, textAlign: 'center' }}>
                       <Notifications sx={{ fontSize: 32, color: t.border.emphasis, mb: 1 }} />
-                      <Typography sx={{ fontSize: '0.8rem', color: t.text.dimmed }}>
+                      <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: t.text.dimmed }}>
                         No notifications yet
                       </Typography>
                     </Box>

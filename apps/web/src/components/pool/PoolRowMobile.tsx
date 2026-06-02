@@ -1,7 +1,8 @@
 'use client';
 
 import { Box, Typography, Chip, Button, LinearProgress } from '@mui/material';
-import { TrendingUp, TrendingDown, Person, LocalFireDepartment, Star } from '@mui/icons-material';
+import { Person, LocalFireDepartment, Star } from '@mui/icons-material';
+import { UP_ICON, DOWN_ICON } from '@/lib/predictionIcons';
 import Link from 'next/link';
 import type { Pool } from '@/lib/api';
 import { formatUSDC } from '@/lib/format';
@@ -240,7 +241,14 @@ export function PoolRowMobile({
           return (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Chip
-              icon={pool.winner === 'UP' ? <TrendingUp sx={{ fontSize: 14 }} /> : <TrendingDown sx={{ fontSize: 14 }} />}
+              icon={
+                <Box
+                  component="img"
+                  src={pool.winner === 'UP' ? UP_ICON : DOWN_ICON}
+                  alt=""
+                  sx={{ width: 14, height: 14, ml: '4px' }}
+                />
+              }
               label={isRefund ? 'REFUNDED' : `${pool.winner} WINS`}
               size="small"
               sx={{

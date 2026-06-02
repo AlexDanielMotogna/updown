@@ -54,11 +54,11 @@ export function MarketSearch() {
 
   return (
     <ClickAwayListener onClickAway={() => setOpen(false)}>
-      <Box sx={{ position: 'relative', display: { xs: 'none', sm: 'block' }, flex: 1, maxWidth: 420, mx: { sm: 1.5, lg: 3 } }}>
+      <Box sx={{ position: 'relative', display: { xs: 'none', sm: 'block' }, flex: 1, maxWidth: 620, mx: { sm: 1.5, lg: 3 } }}>
         <Box
           sx={{
             display: 'flex', alignItems: 'center', gap: 0.75, height: 36,
-            bgcolor: t.hover.default, borderRadius: '8px', px: 1.25,
+            bgcolor: t.hover.default, borderRadius: '10px', px: 1.25,
             border: `1px solid ${open ? t.border.medium : 'transparent'}`,
             transition: 'border-color 0.15s',
           }}

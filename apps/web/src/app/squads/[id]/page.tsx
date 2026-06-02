@@ -325,7 +325,7 @@ export default function SquadDetailPage() {
                 {/* Cancel buttons for user's empty pools */}
                 {pools?.filter(p => p.betCount === 0 && p.status === 'JOINING').map(p => (
                   <Box key={p.id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1, bgcolor: 'rgba(255,255,255,0.02)' }}>
-                    <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>
                       {p.asset} · {p.interval} · No predictions yet
                     </Typography>
                     <Button

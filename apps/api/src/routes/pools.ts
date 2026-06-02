@@ -444,6 +444,103 @@ poolsRouter.get('/:id/bets', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/pools/:id/bets-odds-history
+ *
+ * Real cumulative-odds curve derived from the bet stream — replaces the
+ * sin-wave seed the frontend used to invent when no Polymarket source was
+ * configured. Each bet adds a single point with the running probability
+ * computed AFTER that bet lands, so the curve always matches the totals
+ * the cards show.
+ *
+ * Output (sorted strictly ascending by t, seconds since epoch):
+ *   [
+ *     { t, p },                      // 2-way pools
+ *     { t, p, down, draw },          // 3-way pools (numSides=3)
+ *     ...
+ *   ]
+ *
+ * `p` is share of the FULL pool denominator (up / (up+down+draw)) so the
+ * same numbers come out on 2-way and 3-way without special-casing on the
+ * client.
+ *
+ * A synthetic opening point at startTime = pool.startTime - 5min is
+ * always emitted at the default share (50% / 33%) so even a single-bet
+ * pool reads as "started even, moved to X after one bet" instead of an
+ * orphan single dot.
+ */
+poolsRouter.get('/:id/bets-odds-history', async (req, res) => {
+  try {
+    const pool = await prisma.pool.findUnique({
+      where: { id: req.params.id },
+      // createdAt is the safe anchor: it predates every bet by construc-
+      // tion. We previously used startTime which, on PM markets, points
+      // at the *event* date (e.g. "by June 3, 2026") — that broke the
+      // strict-ascending invariant the moment a user bet days before
+      // the event resolved.
+      select: { id: true, numSides: true, createdAt: true, startTime: true },
+    });
+    if (!pool) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Pool not found' } });
+    }
+
+    const bets = await prisma.bet.findMany({
+      where: { poolId: pool.id },
+      orderBy: { createdAt: 'asc' },
+      select: { side: true, amount: true, createdAt: true },
+    });
+
+    const threeWay = pool.numSides === 3;
+    const defShare = threeWay ? 1 / 3 : 0.5;
+
+    // Anchor 5 minutes before the *earliest* of: pool creation, first
+    // bet, or startTime. Clamping to the first bet defends against any
+    // future where startTime might be tweaked admin-side post-mortem.
+    const firstBetMs = bets.length > 0 ? bets[0].createdAt.getTime() : Number.POSITIVE_INFINITY;
+    const earliestMs = Math.min(pool.createdAt.getTime(), pool.startTime.getTime(), firstBetMs);
+    const startSec = Math.floor(earliestMs / 1000) - 300;
+    type Point = { t: number; p: number; down?: number; draw?: number };
+    const points: Point[] = [
+      { t: startSec, p: defShare, ...(threeWay && { down: defShare, draw: defShare }) },
+    ];
+
+    let up = 0n;
+    let down = 0n;
+    let draw = 0n;
+    for (const bet of bets) {
+      if (bet.side === 'UP') up += bet.amount;
+      else if (bet.side === 'DOWN') down += bet.amount;
+      else if (bet.side === 'DRAW') draw += bet.amount;
+
+      const total = up + down + draw;
+      if (total === 0n) continue;
+      const totalNum = Number(total);
+      const p = Number(up) / totalNum;
+      const sec = Math.floor(bet.createdAt.getTime() / 1000);
+
+      // Two bets in the same wall-clock second would collide on LWC's
+      // strict-ascending invariant, so we overwrite the tail when that
+      // happens. The client still sees the *cumulative* effect of both
+      // bets — only the timestamp granularity is rounded.
+      const last = points[points.length - 1];
+      const point: Point = threeWay
+        ? { t: sec, p, down: Number(down) / totalNum, draw: Number(draw) / totalNum }
+        : { t: sec, p };
+
+      if (last.t === sec) {
+        points[points.length - 1] = point;
+      } else {
+        points.push(point);
+      }
+    }
+
+    res.json({ success: true, data: { history: points } });
+  } catch (error) {
+    console.error('Error deriving bets odds history:', error);
+    res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: 'Failed to derive odds history' } });
+  }
+});
+
 // GET /api/pools/:id/odds-history - Get Polymarket price history for chart
 poolsRouter.get('/:id/odds-history', async (req, res) => {
   try {

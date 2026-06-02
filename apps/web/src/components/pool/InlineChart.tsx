@@ -2,16 +2,14 @@
 
 /**
  * Pool detail-page chart wrapper. Fetches the candle stream from Pacifica
- * and lets the user flip between the real-time snake line view and the
- * classic OHLC candlestick view. All actual rendering lives in:
+ * and lets the user flip between the line (Robinhood-style area) and the
+ * candlestick (Binance-style OHLC) view. Rendering is delegated to a
+ * single TradingView Lightweight Charts component that handles both modes
+ * — see components/pool/chart/PriceChart.tsx.
  *
- *   components/pool/chart/SnakeLineChart.tsx   - Polymarket / Kalshi-style
- *   components/pool/chart/CandlesChart.tsx     - OHLC candles
- *
- * The snake locks to 1-minute candles + a 3-min visible window (see
- * SNAKE_WINDOW_MS) because larger intervals make per-frame motion
- * invisible. The user can't tune that here - Polymarket / Kalshi likewise
- * hide the interval choice on their real-time line views.
+ * The toggle, loader, and error pane stay here so the live-price + strike
+ * props can flow through without coupling the chart implementation to the
+ * data-fetching hook.
  */
 
 import { useState } from 'react';
@@ -21,10 +19,9 @@ import { usePacificaCandles } from '@/hooks';
 import { USDC_DIVISOR } from '@/lib/format';
 import { useThemeTokens } from '@/app/providers';
 import { CHART_INTERVALS } from './chart/constants';
-import { SnakeLineChart } from './chart/SnakeLineChart';
-import { CandlesChart } from './chart/CandlesChart';
+import { PriceChart, type PriceChartMode } from './chart/PriceChart';
 
-type ChartType = 'line' | 'candles';
+type ChartType = PriceChartMode;
 
 interface InlineChartProps {
   asset: string;
@@ -101,13 +98,16 @@ export function InlineChart({ asset, livePrice: livePriceStr, strikePrice: strik
           </Box>
         )}
         {!loading && !error && candles.length > 0 && (
-          chartType === 'line'
-            ? <SnakeLineChart candles={candles} asset={asset} duration={interval.duration} livePrice={livePriceNum} strikePrice={strikePriceNum} />
-            : <CandlesChart candles={candles} duration={interval.duration} livePrice={livePriceNum} strikePrice={strikePriceNum} />
+          <PriceChart
+            candles={candles}
+            mode={chartType}
+            livePrice={livePriceNum}
+            strikePrice={strikePriceNum}
+          />
         )}
         {!loading && !error && candles.length === 0 && (
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>No data available</Typography>
+            <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'text.secondary' }}>No data available</Typography>
           </Box>
         )}
       </Box>

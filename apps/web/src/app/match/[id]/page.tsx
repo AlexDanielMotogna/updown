@@ -11,9 +11,10 @@ import { useDeposit, useClaim } from '@/hooks/useTransactions';
 import { useClaimableBets } from '@/hooks/useBets';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
-import { AppShell, TransactionModal } from '@/components';
+import { AppShell, TransactionModal, EmptyMessage } from '@/components';
 import { ThreeWaySelector } from '@/components/sports/ThreeWaySelector';
 import { OddsChart } from '@/components/pool/OddsChart';
+import { resolveOddsChartIdentity } from '@/lib/oddsChartProps';
 import { MatchHeader } from '@/components/sports/MatchHeader';
 import { MatchScoreRow } from '@/components/sports/MatchScoreRow';
 import { MatchInsights } from '@/components/sports/MatchInsights';
@@ -86,12 +87,12 @@ function MarketInfo({ description }: { description: string }) {
 
       {/* Content */}
       {tab === 'rules' && (
-        <Typography sx={{ fontSize: '0.9rem', color: t.text.vivid, lineHeight: 1.2, whiteSpace: 'pre-wrap' }}>
+        <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: t.text.rich, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
           {rulesText}
         </Typography>
       )}
       {tab === 'context' && (
-        <Typography sx={{ fontSize: '0.9rem', color: t.text.vivid, lineHeight: 1.2, whiteSpace: 'pre-wrap' }}>
+        <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: t.text.rich, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
           {contextText || 'No additional context available for this market.'}
         </Typography>
       )}
@@ -157,8 +158,24 @@ export default function MatchDetailPage() {
   // live indicator.
   const awaitingFinalFeed = pool ? isAwaitingFinalResult(pool, liveScore?.status) : false;
   const matchLive = liveScore && isMatchActive(liveScore) && !awaitingFinalFeed;
-  const awaitingResolution = pool && !isResolved && (
-    (hasScore && !matchLive) || awaitingFinalFeed
+  // PM-specific awaiting state: once the betting window closes we're
+  // sitting on Polymarket / UMA to confirm the outcome. The generic
+  // `awaitingFinalFeed` path keys on startTime + a sports duration which
+  // doesn't translate cleanly to PM markets (their startTime is when the
+  // market opened, which can be days ago — `+2h` always reads as "past
+  // expected end"). We also need the loader to keep showing while the
+  // pool sits in RESOLVED/CLAIMABLE without a `winner` field yet, which
+  // happens during the brief window between the scheduler flipping the
+  // status and the resolve-on-chain call writing the side.
+  const isPmPool = pool?.league?.startsWith('PM_') ?? false;
+  const pmPredictionsClosed = isPmPool && pool && (
+    (pool.lockTime && new Date(pool.lockTime).getTime() < Date.now()) ||
+    (pool.endTime && new Date(pool.endTime).getTime() < Date.now())
+  );
+  const awaitingResolution = pool && (
+    (!isResolved && ((hasScore && !matchLive) || awaitingFinalFeed)) ||
+    (!isResolved && pmPredictionsClosed) ||
+    (isResolved && !pool.winner)
   );
 
   // Poll bets + pool totals every 5s
@@ -452,27 +469,51 @@ export default function MatchDetailPage() {
             />
           )}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 5, px: { xs: 2, md: 3 }, pb: { xs: 4, md: 4 } }}>
-          {/* Sports: chart + head-to-head as a toggle */}
-          {!isPrediction && (
-            <MatchInsights
-              poolId={pool.id}
-              homeTeam={pool.homeTeam || 'Home'}
-              awayTeam={pool.awayTeam || 'Away'}
-              totalUp={liveTotals?.totalUp ?? pool.totalUp}
-              totalDown={liveTotals?.totalDown ?? pool.totalDown}
-              totalDraw={liveTotals?.totalDraw ?? (pool.totalDraw ?? '0')}
-              numSides={pool.numSides}
-              matchAnalysis={pool.matchAnalysis}
-              labels={pool.numSides === 2
-                ? { up: pool.homeTeam || 'Home', down: pool.awayTeam || 'Away' }
-                : { up: pool.homeTeam || 'Home', down: pool.awayTeam || 'Away', draw: 'Draw' }}
-            />
-          )}
+          {/* Sports: chart + head-to-head as a toggle. Labels + icons are
+              resolved via the shared helper so the chart hover tooltip
+              and right-edge badges use the same crests + dot fallbacks as
+              the cards. */}
+          {!isPrediction && (() => {
+            const { labels, icons } = resolveOddsChartIdentity(pool);
+            return (
+              <MatchInsights
+                poolId={pool.id}
+                homeTeam={pool.homeTeam || 'Home'}
+                awayTeam={pool.awayTeam || 'Away'}
+                totalUp={liveTotals?.totalUp ?? pool.totalUp}
+                totalDown={liveTotals?.totalDown ?? pool.totalDown}
+                totalDraw={liveTotals?.totalDraw ?? (pool.totalDraw ?? '0')}
+                numSides={pool.numSides}
+                matchAnalysis={pool.matchAnalysis}
+                labels={labels}
+                icons={icons}
+              />
+            );
+          })()}
 
-          {/* Prediction markets: keep the standalone OddsChart + rules tabs */}
-          {isPrediction && (
-            <OddsChart poolId={pool.id} question={pool.homeTeam} currentOdds={pool.marketOdds} totalUp={pool.totalUp} totalDown={pool.totalDown} />
-          )}
+          {/* Prediction markets: keep the standalone OddsChart + rules tabs.
+              We pass seedDefault so a fresh PM market with no Polymarket
+              history yet still renders a flat baseline instead of the
+              "No market data" placeholder — the UpDown bet stream
+              backfills on top once /bets-odds-history responds. Icons +
+              labels match the cards (Yes/No glyph when there's no
+              awayTeam, question banner otherwise). */}
+          {isPrediction && (() => {
+            const { labels, icons, threeWay } = resolveOddsChartIdentity(pool);
+            return (
+              <OddsChart
+                poolId={pool.id}
+                question={pool.homeTeam}
+                currentOdds={pool.marketOdds}
+                totalUp={pool.totalUp}
+                totalDown={pool.totalDown}
+                seedDefault
+                labels={labels}
+                icons={icons}
+                threeWay={threeWay}
+              />
+            );
+          })()}
           {isPrediction && pool.matchAnalysis && (
             <MarketInfo description={pool.matchAnalysis} />
           )}
@@ -490,9 +531,7 @@ export default function MatchDetailPage() {
               msOverflowStyle: 'none' as unknown as string,
             }}>
               {bets.length === 0 && (
-                <Typography sx={{ fontSize: '0.75rem', color: t.text.muted, py: 2, textAlign: 'center' }}>
-                  No predictions yet
-                </Typography>
+                <EmptyMessage>No predictions yet</EmptyMessage>
               )}
               <AnimatePresence>
                 {bets.map((b) => {

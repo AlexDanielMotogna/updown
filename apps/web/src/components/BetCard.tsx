@@ -1,7 +1,8 @@
 'use client';
 
 import { Card, CardContent, Box, Typography, Chip, Button, CircularProgress } from '@mui/material';
-import { TrendingUp, TrendingDown, OpenInNew } from '@mui/icons-material';
+import { OpenInNew } from '@mui/icons-material';
+import { UP_ICON, DOWN_ICON } from '@/lib/predictionIcons';
 import Link from 'next/link';
 import type { Bet } from '@/lib/api';
 import { formatUSDC, formatDate, formatPrice, formatDateTime, getExplorerTxUrl, statusStyles, USDC_DIVISOR } from '@/lib/format';
@@ -64,7 +65,14 @@ export function BetCard({ bet, onClaim, isClaiming }: BetCardProps) {
               }}
             />
             <Chip
-              icon={bet.side === 'UP' ? <TrendingUp sx={{ fontSize: 14 }} /> : <TrendingDown sx={{ fontSize: 14 }} />}
+              icon={
+                <Box
+                  component="img"
+                  src={bet.side === 'UP' ? UP_ICON : DOWN_ICON}
+                  alt=""
+                  sx={{ width: 14, height: 14, ml: '4px' }}
+                />
+              }
               label={bet.side}
               size="small"
               sx={{

@@ -12,6 +12,7 @@ import { withAlpha } from '@/lib/theme';
 import { getCategoryMeta } from './category-meta';
 import { getRewardMeta, formatRelativeTime } from './reward-meta';
 import { LevelMilestones } from './LevelMilestones';
+import { EmptyMessage } from '@/components/EmptyMessage';
 
 function Panel({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   const t = useThemeTokens();
@@ -53,7 +54,7 @@ function PerformanceByCategory({ wallet }: { wallet: string }) {
     return <>{[0, 1, 2].map(i => <Skeleton key={i} variant="rounded" height={44} sx={{ bgcolor: t.border.default, mb: 1, borderRadius: 1 }} />)}</>;
   }
   if (!data || data.length === 0) {
-    return <Typography sx={{ fontSize: '0.8rem', color: t.text.quaternary, py: 2, textAlign: 'center' }}>No predictions yet.</Typography>;
+    return <EmptyMessage>No predictions yet.</EmptyMessage>;
   }
 
   return (
@@ -147,7 +148,7 @@ function RecentActivity({ wallet, onSeeAll }: { wallet: string; onSeeAll?: () =>
     return <>{[0, 1, 2].map(i => <Skeleton key={i} variant="rounded" height={32} sx={{ bgcolor: t.border.default, mb: 0.75, borderRadius: 1 }} />)}</>;
   }
   if (!data || data.length === 0) {
-    return <Typography sx={{ fontSize: '0.8rem', color: t.text.quaternary, py: 2, textAlign: 'center' }}>No activity yet.</Typography>;
+    return <EmptyMessage>No activity yet.</EmptyMessage>;
   }
 
   return (

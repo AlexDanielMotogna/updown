@@ -5,6 +5,7 @@ import { AnimatedValue } from '@/components/AnimatedValue';
 import { USDC_DIVISOR } from '@/lib/format';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
+import { YES_ICON, NO_ICON, UP_ICON, DOWN_ICON } from '@/lib/predictionIcons';
 
 interface Props {
   side: 'UP' | 'DOWN' | 'DRAW' | null;
@@ -22,10 +23,40 @@ export function ThreeWaySelector({ side, onSideChange, totalUp, totalDown, total
   const t = useThemeTokens();
   const total = totalUp + totalDown + totalDraw;
   const isTwoWay = numSides === 2;
+  // PM markets ship in three flavours we want to badge differently:
+  //
+  //   • Yes/No        → cyan ✓ / red ✗ glyph (US×Iran-style questions).
+  //   • Up/Down       → green ▲ / red ▼ glyph (same PNGs the crypto bet
+  //                     card uses — Polymarket calls these "price-move"
+  //                     style markets, e.g. "Bitcoin Up or Down by X?").
+  //   • Answer pair   → no icon, just the team / answer text.
+  //
+  // The match page hands us literal "Yes"/"No" strings for Yes/No PM
+  // pools because pool.homeTeam stores the question, not an answer.
+  // For Up/Down PM pools the storage is the opposite — homeTeam/awayTeam
+  // hold "Up"/"Down" directly. We accept both casings.
+  const lc = (s?: string) => s?.toLowerCase();
+  const isYesNo =
+    isTwoWay &&
+    ((lc(homeTeam) === 'yes' && lc(awayTeam) === 'no') || (!homeTeam && !awayTeam));
+  const isUpDown =
+    isTwoWay && lc(homeTeam) === 'up' && lc(awayTeam) === 'down';
   const allSides = [
-    { key: 'UP' as const, label: isTwoWay ? (homeTeam || 'Yes') : (homeTeam || 'Home'), total: totalUp, color: t.up },
-    ...(!isTwoWay ? [{ key: 'DRAW' as const, label: 'Draw', total: totalDraw, color: t.draw }] : []),
-    { key: 'DOWN' as const, label: isTwoWay ? (awayTeam || 'No') : (awayTeam || 'Away'), total: totalDown, color: t.down },
+    {
+      key: 'UP' as const,
+      label: isTwoWay ? (homeTeam || 'Yes') : (homeTeam || 'Home'),
+      total: totalUp,
+      color: t.up,
+      iconUrl: isYesNo ? YES_ICON : isUpDown ? UP_ICON : null,
+    },
+    ...(!isTwoWay ? [{ key: 'DRAW' as const, label: 'Draw', total: totalDraw, color: t.draw, iconUrl: null }] : []),
+    {
+      key: 'DOWN' as const,
+      label: isTwoWay ? (awayTeam || 'No') : (awayTeam || 'Away'),
+      total: totalDown,
+      color: t.down,
+      iconUrl: isYesNo ? NO_ICON : isUpDown ? DOWN_ICON : null,
+    },
   ];
   const sides = allSides;
 
@@ -55,9 +86,14 @@ export function ThreeWaySelector({ side, onSideChange, totalUp, totalDown, total
               '&:hover': disabled ? {} : { bgcolor: withAlpha(s.color, 0.07) },
             }}
           >
-            <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: active ? s.color : t.text.bright, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%', px: 0.5, textAlign: 'center' }}>
-              {s.label}
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, maxWidth: '100%', px: 0.5 }}>
+              {s.iconUrl && (
+                <Box component="img" src={s.iconUrl} alt="" sx={{ width: 18, height: 18, flexShrink: 0 }} />
+              )}
+              <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: active ? s.color : t.text.bright, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                {s.label}
+              </Typography>
+            </Box>
             <Typography sx={{ fontSize: '1rem', fontWeight: 800, color: active ? s.color : t.text.primary }}>
               {pct}%
             </Typography>
