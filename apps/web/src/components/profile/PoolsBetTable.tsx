@@ -3,6 +3,7 @@
 import { Box, Typography, Tooltip } from '@mui/material';
 import { InfoOutlined } from '@mui/icons-material';
 import { BetRow, BetRowSkeleton } from '@/components/profile/BetRow';
+import { EmptyMessage } from '@/components/EmptyMessage';
 import type { Bet } from '@/lib/api';
 import { useThemeTokens } from '@/app/providers';
 
@@ -38,13 +39,7 @@ export function PoolsBetTable({ bets, betsLoading, claimingBetId, onClaim }: Poo
   }
 
   if (bets.length === 0) {
-    return (
-      <Box sx={{ textAlign: 'center', py: 12, px: 4 }}>
-        <Typography sx={{ color: 'text.secondary', fontSize: '1rem' }}>
-          No predictions yet
-        </Typography>
-      </Box>
-    );
+    return <EmptyMessage py={12}>No predictions yet</EmptyMessage>;
   }
 
   return (

@@ -15,7 +15,8 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { UP_COINS_DIVISOR, getAvatarUrl } from '@/lib/constants';
+import { UP_COINS_DIVISOR } from '@/lib/constants';
+import { getDisplayName, getDisplayAvatar } from '@/lib/userDisplay';
 import { NAV_ITEMS } from '@/lib/navigation';
 import { UserLevelBadge } from './UserLevelBadge';
 import { XpProgressBar } from './XpProgressBar';
@@ -51,6 +52,18 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Identity for the connected state. Falls back to truncated wallet +
+  // gradient avatar via the shared helper so a user who hasn't customised
+  // their profile keeps the previous look. `identity` reads `null` when
+  // the wallet hasn't loaded yet and the helper guards against that.
+  const identity = walletAddress
+    ? {
+        walletAddress,
+        displayName: userProfile?.displayName ?? null,
+        avatarUrl: userProfile?.avatarUrl ?? null,
+      }
+    : null;
+
   if (!connected) {
     return (
       <Button
@@ -84,9 +97,9 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
           ref={anchorRef}
           onClick={() => setOpen((prev) => !prev)}
           startIcon={
-            walletAddress ? (
+            identity ? (
               <Avatar
-                src={getAvatarUrl(walletAddress)}
+                src={getDisplayAvatar(identity)}
                 sx={{ width: 22, height: 22 }}
               />
             ) : undefined
@@ -115,7 +128,7 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
           }}
         >
           <Box component="span" className="wallet-text">
-            {walletAddress ? truncateAddress(walletAddress) : 'Connected'}
+            {identity ? getDisplayName(identity) : 'Connected'}
           </Box>
         </Button>
 
@@ -153,9 +166,9 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
                     gap: 1.5,
                   }}
                 >
-                  {walletAddress && (
+                  {identity && (
                     <Avatar
-                      src={getAvatarUrl(walletAddress)}
+                      src={getDisplayAvatar(identity)}
                       sx={{ width: 28, height: 28 }}
                     />
                   )}
@@ -170,8 +183,27 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : ''}
+                      {identity ? getDisplayName(identity) : ''}
                     </Typography>
+                    {/* Show the wallet under the display name when the user
+                        has customised their identity — the wallet is still
+                        useful in this menu (copy button below it) but it
+                        shouldn't be the primary identifier anymore. */}
+                    {userProfile?.displayName && walletAddress && (
+                      <Typography
+                        sx={{
+                          fontSize: '0.68rem',
+                          color: t.text.tertiary,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          fontVariantNumeric: 'tabular-nums',
+                          mt: 0.25,
+                        }}
+                      >
+                        {truncateAddress(walletAddress)}
+                      </Typography>
+                    )}
                   </Box>
                   <Button
                     size="small"

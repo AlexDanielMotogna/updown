@@ -93,7 +93,18 @@ const NO_PROGRESS_STATUSES = new Set([
 
 export function formatLiveStatus(status: string, progress?: string): string {
   const label = STATUS_LABELS[status] || status;
-  if (progress && !NO_PROGRESS_STATUSES.has(status)) {
+  // Only append progress when it's actually a soccer-style minute number
+  // ("45", "67+2"). Inning / quarter / period / set codes (IN2, Q3, P2,
+  // S1) come back from the feed with progress === status which used to
+  // render as the redundant "2nd Inning IN2'" string. Anything that
+  // doesn't start with a digit is treated as a non-minute progress field
+  // and dropped here rather than maintained as another exclusion list.
+  if (
+    progress &&
+    !NO_PROGRESS_STATUSES.has(status) &&
+    /^\d/.test(progress) &&
+    progress !== status
+  ) {
     return `${label} ${progress}'`;
   }
   return label;

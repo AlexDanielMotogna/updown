@@ -1,4 +1,5 @@
 export { Countdown } from './Countdown';
+export { EmptyMessage } from './EmptyMessage';
 export { PoolCard } from './PoolCard';
 export { PoolCardSkeleton } from './PoolCardSkeleton';
 export { BetForm } from './BetForm';

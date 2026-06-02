@@ -20,6 +20,8 @@
     "bs58": "^6.0.0",
     "canvas-confetti": "^1.9.4",
     "framer-motion": "^12.34.5",
+    "geist": "^1.7.2",
+    "lightweight-charts": "^5.2.0",
     "next": "^14.0.0",
     "react": "^18.2.0",
     "react-countup": "^6.5.3",

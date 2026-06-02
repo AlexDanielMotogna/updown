@@ -15,8 +15,7 @@ import {
 import { Close, ShowChart, CandlestickChart } from '@mui/icons-material';
 import { usePacificaCandles } from '@/hooks';
 import { USDC_DIVISOR } from '@/lib/format';
-import { LineChart } from './chart/LineChart';
-import { CandlesChart } from './chart/CandlesChart';
+import { PriceChart } from './pool/chart/PriceChart';
 import { type ChartType, INTERVALS, formatChartPrice } from './chart/chart-utils';
 import { useThemeTokens } from '@/app/providers';
 
@@ -179,13 +178,16 @@ export function PriceChartDialog({ open, onClose, asset, livePrice: livePriceStr
           </Box>
         )}
         {!loading && !error && candles.length > 0 && (
-          chartType === 'line'
-            ? <LineChart candles={candles} duration={interval.duration} livePrice={livePriceNum} strikePrice={strikePriceNum} />
-            : <CandlesChart candles={candles} duration={interval.duration} livePrice={livePriceNum} strikePrice={strikePriceNum} />
+          <PriceChart
+            candles={candles}
+            mode={chartType}
+            livePrice={livePriceNum}
+            strikePrice={strikePriceNum}
+          />
         )}
         {!loading && !error && candles.length === 0 && (
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>No data available</Typography>
+            <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'text.secondary' }}>No data available</Typography>
           </Box>
         )}
       </DialogContent>

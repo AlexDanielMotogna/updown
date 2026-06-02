@@ -6,10 +6,10 @@ import {
   ToggleButtonGroup,
   Typography,
 } from '@mui/material';
-import { TrendingUp, TrendingDown } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
+import { UP_ICON, DOWN_ICON } from '@/lib/predictionIcons';
 
 export interface SideSelectorProps {
   side: 'UP' | 'DOWN';
@@ -87,7 +87,12 @@ export function SideSelector({
             },
           }}
         >
-          <TrendingUp sx={{ fontSize: 40, color: side === 'UP' ? t.up : 'text.secondary' }} />
+          <Box
+            component="img"
+            src={UP_ICON}
+            alt=""
+            sx={{ width: 40, height: 40, opacity: side === 'UP' ? 1 : 0.55, transition: 'opacity 0.15s' }}
+          />
           <Typography
             variant="h5"
             sx={{ color: side === 'UP' ? t.up : 'text.primary', fontWeight: 700, letterSpacing: '0.05em' }}
@@ -106,7 +111,7 @@ export function SideSelector({
               {currentOddsUp.toFixed(2)}x
             </Typography>
           </Box>
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', fontWeight: 600 }}>
             {tugTotal > 0 ? `$${totalUp.toFixed(0)} pooled` : 'No predictions yet'}
           </Typography>
         </ToggleButton>
@@ -183,7 +188,12 @@ export function SideSelector({
             },
           }}
         >
-          <TrendingDown sx={{ fontSize: 40, color: side === 'DOWN' ? t.down : 'text.secondary' }} />
+          <Box
+            component="img"
+            src={DOWN_ICON}
+            alt=""
+            sx={{ width: 40, height: 40, opacity: side === 'DOWN' ? 1 : 0.55, transition: 'opacity 0.15s' }}
+          />
           <Typography
             variant="h5"
             sx={{ color: side === 'DOWN' ? t.down : 'text.primary', fontWeight: 700, letterSpacing: '0.05em' }}
@@ -202,7 +212,7 @@ export function SideSelector({
               {currentOddsDown.toFixed(2)}x
             </Typography>
           </Box>
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', fontWeight: 600 }}>
             {tugTotal > 0 ? `$${totalDown.toFixed(0)} pooled` : 'No predictions yet'}
           </Typography>
         </ToggleButton>

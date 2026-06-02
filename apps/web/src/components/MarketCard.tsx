@@ -6,8 +6,12 @@ import { Box, Typography, Chip } from '@mui/material';
 import { Star } from '@mui/icons-material';
 import { AssetIcon } from '@/components/AssetIcon';
 import { AnimatedValue } from '@/components/AnimatedValue';
+import { LiveBadge } from '@/components/LiveBadge';
+import { Countdown } from '@/components/Countdown';
+import { formatPrice } from '@/lib/format';
 import { getSocket, connectSocket, subscribePool, unsubscribePool } from '@/lib/socket';
 import { getIcon } from '@/lib/icon-registry';
+import { YES_ICON, NO_ICON } from '@/lib/predictionIcons';
 import { INTERVAL_LABELS } from '@/lib/constants';
 import { formatPredictionWindow } from '@/lib/format';
 import { getAssetName } from '@/lib/assets';
@@ -20,9 +24,15 @@ import type { CategoryConfig } from '@/hooks/useCategories';
 function relTime(iso: string): string {
   const diff = new Date(iso).getTime() - Date.now();
   if (diff < 0) return 'In play';
-  const m = Math.floor(diff / 60_000);
-  if (m < 60) return `${m}m`;
-  const h = Math.floor(m / 60);
+  // Under an hour we surface seconds — short crypto rounds (3m/5m/15m)
+  // need the seconds digit to feel "live" rather than tick by minute.
+  if (diff < 60 * 60_000) {
+    const totalSec = Math.floor(diff / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+  const h = Math.floor(diff / (60 * 60_000));
   if (h < 24) return `${h}h`;
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
@@ -41,6 +51,8 @@ interface Outcome {
   icon?: ReactNode;
   pct: number;
   mult: number;
+  /** Optional score box rendered next to the name on sports cards. */
+  score?: number;
 }
 
 interface MarketCardProps {
@@ -113,8 +125,23 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
   // For crypto we use the Polymarket-style phrasing ("Bitcoin Up or Down") and
   // surface the actual prediction window ("May 29, 10:35 PM - 10:40 PM ET") as
   // a subtitle below - the implicit interval is encoded in the start/end gap.
+  // Sports score: resolved here once, attached to each outcome row below
+  // as a small chip next to the team name. Live feed wins over the
+  // stored final scores so a card mid-match always reflects "now".
+  const liveHomeScore = liveScore?.homeScore;
+  const liveAwayScore = liveScore?.awayScore;
+  const showLiveScore = liveScore != null && liveHomeScore != null && liveAwayScore != null && (matchLive || matchFinished);
+  const showFinalScore = !showLiveScore && pool.homeScore != null && pool.awayScore != null;
+  const homeScoreLabel = showLiveScore ? liveHomeScore! : showFinalScore ? pool.homeScore! : null;
+  const awayScoreLabel = showLiveScore ? liveAwayScore! : showFinalScore ? pool.awayScore! : null;
+  // Crypto title merges the asset prompt with the strike — once a pool is
+  // live the strike doesn't change, so it reads as part of the headline
+  // rather than a separate metadata row.
+  const cryptoTitle = pool.strikePrice
+    ? `${getAssetName(pool.asset)} Up or Down | ${formatPrice(pool.strikePrice)} target`
+    : `${getAssetName(pool.asset)} Up or Down`;
   const title = isCrypto
-    ? `${getAssetName(pool.asset)} Up or Down`
+    ? cryptoTitle
     : isPrediction
       ? (pool.awayTeam ? `${pool.homeTeam} vs ${pool.awayTeam}` : pool.homeTeam || 'Prediction market')
       : `${pool.homeTeam || 'Home'} vs ${pool.awayTeam || 'Away'}`;
@@ -135,14 +162,57 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
     outcomes.push({ side: 'UP', name: 'Up', color: t.up, icon: <Box component="img" src="/assets/up-icon-64x64.png" alt="" sx={{ width: 18, height: 18 }} />, ...odds(totalUp, 50) });
     outcomes.push({ side: 'DOWN', name: 'Down', color: t.down, icon: <Box component="img" src="/assets/down-icon-64x64.png" alt="" sx={{ width: 18, height: 18 }} />, ...odds(totalDown, 50) });
   } else if (isPrediction) {
-    // Yes/No (or named) outcomes use a colour dot - the market's image is the
-    // card thumbnail (shown next to the title), not a per-outcome icon.
-    outcomes.push({ side: 'UP', name: pool.awayTeam ? pool.homeTeam! : 'Yes', color: t.up, ...odds(totalUp, 50) });
-    outcomes.push({ side: 'DOWN', name: pool.awayTeam || 'No', color: t.down, ...odds(totalDown, 50) });
+    // Three PM shapes get badged differently:
+    //   • Yes/No        → cyan ✓ / red ✗ glyph (lib/predictionIcons).
+    //   • Up/Down       → green ▲ / red ▼ glyph (the crypto PNGs).
+    //   • Answer pair   → no per-outcome icon, just the answer text.
+    const yesNo = !pool.awayTeam;
+    const upDown =
+      !!pool.awayTeam &&
+      pool.homeTeam?.toLowerCase() === 'up' &&
+      pool.awayTeam.toLowerCase() === 'down';
+    const upIcon = yesNo
+      ? <Box component="img" src={YES_ICON} alt="" sx={{ width: 18, height: 18 }} />
+      : upDown
+        ? <Box component="img" src="/assets/up-icon-64x64.png" alt="" sx={{ width: 18, height: 18 }} />
+        : undefined;
+    const downIcon = yesNo
+      ? <Box component="img" src={NO_ICON} alt="" sx={{ width: 18, height: 18 }} />
+      : upDown
+        ? <Box component="img" src="/assets/down-icon-64x64.png" alt="" sx={{ width: 18, height: 18 }} />
+        : undefined;
+    outcomes.push({
+      side: 'UP',
+      name: yesNo ? 'Yes' : pool.homeTeam!,
+      color: t.up,
+      ...(upIcon && { icon: upIcon }),
+      ...odds(totalUp, 50),
+    });
+    outcomes.push({
+      side: 'DOWN',
+      name: yesNo ? 'No' : pool.awayTeam!,
+      color: t.down,
+      ...(downIcon && { icon: downIcon }),
+      ...odds(totalDown, 50),
+    });
   } else {
-    outcomes.push({ side: 'UP', name: pool.homeTeam || 'Home', color: t.up, crest: pool.homeTeamCrest, ...odds(totalUp, isTwoWay ? 50 : 33) });
+    outcomes.push({
+      side: 'UP',
+      name: pool.homeTeam || 'Home',
+      color: t.up,
+      crest: pool.homeTeamCrest,
+      ...(homeScoreLabel != null && { score: homeScoreLabel }),
+      ...odds(totalUp, isTwoWay ? 50 : 33),
+    });
     if (!isTwoWay) outcomes.push({ side: 'DRAW', name: 'Draw', color: t.draw, ...odds(totalDraw, 34) });
-    outcomes.push({ side: 'DOWN', name: pool.awayTeam || 'Away', color: t.down, crest: pool.awayTeamCrest, ...odds(totalDown, isTwoWay ? 50 : 33) });
+    outcomes.push({
+      side: 'DOWN',
+      name: pool.awayTeam || 'Away',
+      color: t.down,
+      crest: pool.awayTeamCrest,
+      ...(awayScoreLabel != null && { score: awayScoreLabel }),
+      ...odds(totalDown, isTwoWay ? 50 : 33),
+    });
   }
 
   const rightLabel = isResolved
@@ -204,10 +274,20 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
               <Chip icon={<Star sx={{ fontSize: 10 }} />} label="Popular" size="small" sx={{ height: 16, fontSize: '0.5rem', fontWeight: 700, bgcolor: withAlpha(t.gain, 0.1), color: t.gain, '& .MuiChip-icon': { color: t.gain, ml: 0.4 } }} />
             )}
             {matchLive ? (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
-                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: t.gain, animation: 'mcPulse 1.5s infinite', '@keyframes mcPulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.35 } } }} />
-                <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, color: t.gain }}>{rightLabel}</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                <LiveBadge />
+                {liveScore && (
+                  <Typography sx={{ fontSize: '0.62rem', fontWeight: 600, color: t.text.tertiary, fontVariantNumeric: 'tabular-nums' }}>
+                    {formatLiveStatus(liveScore.status, liveScore.progress)}
+                  </Typography>
+                )}
               </Box>
+            ) : isCrypto && !isResolved && !awaitingFinalFeed && (pool.status === 'UPCOMING' || pool.status === 'JOINING' || pool.status === 'ACTIVE') ? (
+              <Countdown
+                targetDate={pool.status === 'UPCOMING' ? pool.startTime : pool.endTime}
+                compact
+                compactFontSize="0.66rem"
+              />
             ) : (
               <Typography sx={{ fontSize: '0.66rem', fontWeight: 600, color: t.text.tertiary }}>{rightLabel}</Typography>
             )}
@@ -227,7 +307,20 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
             {title}
           </Typography>
           {cryptoWindow && (
-            <Typography suppressHydrationWarning sx={{ fontSize: '0.66rem', fontWeight: 500, color: t.text.tertiary, lineHeight: 1.35, mt: 0.25, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <Typography
+              suppressHydrationWarning
+              sx={{
+                fontSize: '0.66rem',
+                fontWeight: 500,
+                color: t.text.tertiary,
+                fontVariantNumeric: 'tabular-nums',
+                lineHeight: 1.35,
+                mt: 0.25,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
               {cryptoWindow}
             </Typography>
           )}
@@ -258,6 +351,35 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
               <Typography sx={{ flex: 1, minWidth: 0, fontSize: '0.82rem', fontWeight: isWinner ? 700 : 500, color: isWinner ? o.color : t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {o.name}
               </Typography>
+              {o.score != null && (
+                <Box
+                  sx={{
+                    minWidth: 22,
+                    height: 22,
+                    px: 0.5,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '4px',
+                    bgcolor: 'rgba(0,0,0,0.45)',
+                    border: `1px solid ${t.border.medium}`,
+                    flexShrink: 0,
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: '0.78rem',
+                      fontWeight: 800,
+                      color: t.text.bright,
+                      fontVariantNumeric: 'tabular-nums',
+                      lineHeight: 1,
+                      letterSpacing: '0.02em',
+                    }}
+                  >
+                    {o.score}
+                  </Typography>
+                </Box>
+              )}
               <Typography sx={{ fontSize: '0.68rem', fontWeight: 500, color: t.text.quaternary, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
                 {fmtMult(o.mult)}
               </Typography>

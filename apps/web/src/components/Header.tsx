@@ -3,6 +3,7 @@
 import { Box, Typography, IconButton } from '@mui/material';
 import { AttachMoney, LightMode, DarkMode } from '@mui/icons-material';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { ConnectWalletButton } from './ConnectWalletButton';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
@@ -14,12 +15,24 @@ import { NotificationPanel } from './header/NotificationPanel';
 import { MobileBottomNav } from './header/MobileBottomNav';
 import { useThemeTokens, useThemeMode } from '@/app/providers';
 
+// Top-bar nav links. Kept small (3 entries) so the row never wraps and
+// the search field on the right still has room. The rest of the routes
+// (Tournaments, Squads, Referrals, Faucet, Docs) live in the account
+// dropdown + mobile bottom nav.
+const HEADER_NAV = [
+  { label: 'Markets', href: '/' },
+  { label: 'Profile', href: '/profile' },
+  { label: 'Leaderboard', href: '/leaderboard' },
+] as const;
+
 export function Header() {
   const t = useThemeTokens();
   const { mode, toggle } = useThemeMode();
   const { connected } = useWalletBridge();
   const { data: balance } = useUsdcBalance();
   const { data: userProfile } = useUserProfile();
+  const pathname = usePathname();
+  const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
 
   return (
     <Box
@@ -45,27 +58,71 @@ export function Header() {
           mx: 'auto',
         }}
       >
-        {/* Left: Logo */}
-        <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+        {/* Left: Logo + nav links (Markets / Profile / Leaderboard). The
+            nav row only shows on desktop — mobile keeps the MobileBottomNav
+            below as the primary navigation surface. */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { md: 2.5, lg: 3.5 }, minWidth: 0 }}>
+          <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+            <Box
+              component="img"
+              src="/updown-logos/Logo_48px_Cyan_Transparent.png"
+              alt="UpDown"
+              sx={{ display: { xs: 'block', sm: 'none' }, width: 28, height: 28 }}
+            />
+            <Box
+              component="img"
+              src={mode === 'dark' ? '/updown-logos/Logo_cyan_text_white.png' : '/updown-logos/Logo_cyan_text_dark_Medium.png'}
+              alt="UpDown"
+              sx={{ display: { xs: 'none', sm: 'block' }, height: { sm: 32, md: 36 } }}
+            />
+          </Link>
           <Box
-            component="img"
-            src="/updown-logos/Logo_48px_Cyan_Transparent.png"
-            alt="UpDown"
-            sx={{ display: { xs: 'block', sm: 'none' }, width: 28, height: 28 }}
-          />
-          <Box
-            component="img"
-            src={mode === 'dark' ? '/updown-logos/Logo_cyan_text_white.png' : '/updown-logos/Logo_cyan_text_dark_Medium.png'}
-            alt="UpDown"
-            sx={{ display: { xs: 'none', sm: 'block' }, height: { sm: 32, md: 36 } }}
-          />
-        </Link>
+            component="nav"
+            sx={{
+              display: { xs: 'none', md: 'flex' },
+              alignItems: 'center',
+              gap: { md: 0.5, lg: 1 },
+            }}
+          >
+            {HEADER_NAV.map(item => {
+              const active = isActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  style={{ textDecoration: 'none' }}
+                >
+                  <Box
+                    sx={{
+                      px: { md: 1.25, lg: 1.5 },
+                      py: 0.75,
+                      borderRadius: '6px',
+                      fontFamily: 'inherit',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      color: active ? t.text.primary : t.text.tertiary,
+                      bgcolor: active ? t.hover.default : 'transparent',
+                      transition: 'color 0.15s, background 0.15s',
+                      cursor: 'pointer',
+                      '&:hover': { color: t.text.primary, bgcolor: t.hover.light },
+                    }}
+                  >
+                    {item.label}
+                  </Box>
+                </Link>
+              );
+            })}
+          </Box>
+        </Box>
 
-        {/* Search active markets (nav links now live in the account dropdown) */}
-        <MarketSearch />
-
-        {/* Right: compact stats bar + notifications + wallet */}
+        {/* Right: search + compact stats bar + notifications + wallet */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 } }}>
+          {/* Search active markets — moved to the right cluster so the
+              left side stays anchored to logo + nav. Hidden on the
+              smallest viewport to leave room for the wallet button. */}
+          <Box sx={{ display: { xs: 'none', sm: 'block' }, mr: { sm: 0.5, lg: 1 } }}>
+            <MarketSearch />
+          </Box>
           {connected ? (
             <>
               {/* Unified stats bar */}

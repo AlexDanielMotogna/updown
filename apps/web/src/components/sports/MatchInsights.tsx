@@ -29,6 +29,11 @@ interface Props {
   numSides?: number;
   matchAnalysis?: string | null;
   labels?: { up?: string; down?: string; draw?: string };
+  /** Crests / icons rendered inside the chart hover tooltip + endpoint
+   *  badges. Resolved upstream via lib/oddsChartProps so the chart picks
+   *  up team crests on sports pools, the same way /match/[id]'s PM
+   *  variant gets Yes/No glyphs or Up/Down PNGs. */
+  icons?: { up?: string | null; down?: string | null; draw?: string | null };
 }
 
 type Tab = 'stats' | 'h2h';
@@ -43,6 +48,7 @@ export function MatchInsights({
   numSides,
   matchAnalysis,
   labels,
+  icons,
 }: Props) {
   const t = useThemeTokens();
   // Default to Stats - that's the chart Kalshi shows above the fold. H2H is
@@ -82,6 +88,7 @@ export function MatchInsights({
           seedDefault
           threeWay={numSides === 3}
           labels={labels}
+          icons={icons}
         />
       ) : (
         hasH2H && (

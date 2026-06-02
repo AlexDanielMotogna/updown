@@ -2,6 +2,24 @@
 // Centralized theme - single source of truth for all colors
 // ---------------------------------------------------------------------------
 
+// ─── Font family constants ────────────────────────────────────────────────
+// CSS variable names match the keys declared in layout.tsx via next/font.
+// Use FONT_SANS as the body/UI default (it's already wired into the MUI
+// theme) and FONT_MONO only on dense numerical surfaces — prices, %, USDC
+// balances, XP counters — where digit alignment is the whole point.
+//
+// Usage:   sx={{ fontFamily: FONT_MONO, fontVariantNumeric: 'tabular-nums' }}
+// Or via:  sx={monoNumSx}  for the common preset.
+export const FONT_SANS = 'var(--font-satoshi), "Satoshi", -apple-system, BlinkMacSystemFont, sans-serif';
+export const FONT_MONO = 'ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace';
+
+/** Drop-in sx slice for any data-dense numeric cell. Pairs Geist Mono with
+ *  tabular-nums so columns of prices / percentages align cleanly. */
+export const monoNumSx = {
+  fontFamily: FONT_MONO,
+  fontVariantNumeric: 'tabular-nums',
+} as const;
+
 // ─── Hex alpha helper ─────────────────────────────────────────────────────────
 /** Convert hex + opacity (0-1) to hex-alpha string, e.g. withAlpha('#FF0000', 0.5) → '#FF000080' */
 export function withAlpha(hex: string, opacity: number): string {

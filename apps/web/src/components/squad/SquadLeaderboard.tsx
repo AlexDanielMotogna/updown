@@ -6,6 +6,7 @@ import { MilitaryTech, LocalFireDepartment } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAvatarUrl } from '@/lib/constants';
 import { getDisplayName, getDisplayAvatar } from '@/lib/userDisplay';
+import { EmptyMessage } from '@/components/EmptyMessage';
 import { USDC_DIVISOR } from '@/lib/format';
 import type { SquadLeaderboardEntry } from '@/lib/api';
 import { useThemeTokens } from '@/app/providers';
@@ -220,13 +221,7 @@ function LeaderboardRow({ entry, index, isMe }: { entry: SquadLeaderboardEntry; 
 export function SquadLeaderboard({ entries, currentWallet }: SquadLeaderboardProps) {
   const t = useThemeTokens();
   if (!entries || entries.length === 0) {
-    return (
-      <Box sx={{ textAlign: 'center', py: 8, px: 4 }}>
-        <Typography color="text.secondary" sx={{ fontSize: '1rem' }}>
-          No data yet - play some rounds!
-        </Typography>
-      </Box>
-    );
+    return <EmptyMessage py={8}>No data yet — play some rounds!</EmptyMessage>;
   }
 
   return (
