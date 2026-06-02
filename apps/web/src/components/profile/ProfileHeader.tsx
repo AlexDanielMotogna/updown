@@ -232,8 +232,16 @@ export function ProfileHeader({
           ) : (
             <>
               {/* ─── Identity row (overlaps banner) ─── */}
+              {/* position:relative + z-index here are *required* because the
+                  banner is now position:relative too (it hosts the absolute
+                  Edit pill). Without an explicit positioning context on this
+                  row, the banner — a positioned earlier sibling — paints on
+                  top in the same stacking context and the displayName /
+                  wallet got visually buried behind the banner image. */}
               <Box
                 sx={{
+                  position: 'relative',
+                  zIndex: 1,
                   display: 'flex',
                   alignItems: { xs: 'flex-start', sm: 'flex-end' },
                   gap: { xs: 1.5, md: 2 },
@@ -282,28 +290,13 @@ export function ProfileHeader({
                     </Tooltip>
                   </Box>
 
-                  {/* Meta line: when the user has a custom display name we show
-                      the truncated wallet here so the on-chain identity is still
-                      visible at a glance; otherwise we fall back to "Lv.{N} title"
-                      so untouched profiles read the same as before. The level
-                      title is intentionally dropped when displayName is set —
-                      the icon-only UserLevelBadge clipped to the avatar already
-                      carries the same information. */}
+                  {/* Meta line: only the rank chip when the user has a display
+                      name (level info is already on the avatar badge, and the
+                      wallet lives behind the copy icon's tooltip). For unedited
+                      profiles we still show "Lv.{N} title" so they don't feel
+                      empty before the user has customised anything. */}
                   <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: { xs: 0.75, md: 1.25 }, mt: 0.5 }}>
-                    {customDisplayName && walletAddress ? (
-                      <Typography
-                        sx={{
-                          fontSize: { xs: '0.78rem', md: '0.85rem' },
-                          fontWeight: 600,
-                          color: t.text.tertiary,
-                          letterSpacing: '0.02em',
-                          lineHeight: 1.2,
-                          fontVariantNumeric: 'tabular-nums',
-                        }}
-                      >
-                        {truncateAddress(walletAddress)}
-                      </Typography>
-                    ) : (
+                    {!customDisplayName && (
                       <Typography sx={{ fontSize: { xs: '0.8rem', md: '0.9rem' }, fontWeight: 700, color: ringColor, lineHeight: 1.2 }}>
                         Lv.{level} {userProfile?.title ?? ''}
                       </Typography>

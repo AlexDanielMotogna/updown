@@ -88,7 +88,17 @@ export function EditProfileDialog({ open, onClose, walletAddress, profile }: Edi
 
   const mutation = useMutation({
     mutationFn: updateUserProfile,
-    onSuccess: () => {
+    onSuccess: (response) => {
+      // Eagerly push the server's response into the userProfile cache so the
+      // ProfileHeader re-renders with the new identity immediately, then also
+      // invalidate to trigger a background refetch that picks up any derived
+      // fields the server might recompute (rank, level, milestones). Without
+      // the setQueryData step the header would briefly keep showing the old
+      // wallet truncation until the refetch lands — and on slow links that
+      // briefly was several seconds long.
+      if (response.success && response.data) {
+        queryClient.setQueryData(['userProfile', walletAddress], response);
+      }
       queryClient.invalidateQueries({ queryKey: ['userProfile', walletAddress] });
       onClose();
     },
