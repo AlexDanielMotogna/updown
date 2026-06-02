@@ -571,23 +571,71 @@ async function resolutionPoll(): Promise<void> {
 // ── Cleanup ─────────────────────────────────────────────────────────────────
 
 /**
- * Remove expired/resolved markets from cache and mark expired pools.
+ * Remove expired/resolved markets from cache.
+ *
+ * Two passes, both Polymarket-only:
+ *   1. Expired-not-finished — past kickoff and not FINISHED, but ONLY if
+ *      no open Pool still references the row's externalId. Without this
+ *      guard the daily 05:00 UTC cleanup was nuking cache rows whose
+ *      pool was still JOINING / ACTIVE (operator surfaced pool
+ *      3af0b762 / matchId 825441 in exactly this state). resolutionPoll
+ *      iterates the cache table, so a missing row meant the resolver
+ *      could not even attempt to poll Gamma — the pool sat in JOINING
+ *      indefinitely, only the sweep's 24h startTime grace could rescue
+ *      it.
+ *   2. Old resolved — FINISHED rows older than 30d. Unchanged.
  */
 async function cleanup(): Promise<void> {
-  // Remove expired markets (endDate passed) that aren't resolved
-  const { count: expired } = await prisma.sportsFixtureCache.deleteMany({
+  // Get the matchIds of every PM pool still open. cache rows referenced
+  // by these IDs are protected from the expired-not-finished sweep.
+  const openPools = await prisma.pool.findMany({
+    where: {
+      poolType: 'SPORTS',
+      league: { startsWith: 'PM_' },
+      status: { in: ['JOINING', 'ACTIVE'] },
+      matchId: { not: null },
+    },
+    select: { matchId: true },
+  });
+  const protectedMatchIds = new Set(openPools.map(p => p.matchId!).filter(Boolean));
+  let protectedCount = 0;
+
+  // Expired markets that no longer have an open pool can be removed.
+  const expiredCandidates = await prisma.sportsFixtureCache.findMany({
     where: {
       sport: 'POLYMARKET',
       apiSource: API_SOURCE,
       status: { not: 'FINISHED' },
       kickoff: { lt: new Date() },
     },
+    select: { externalId: true },
   });
-  if (expired > 0) {
-    console.log(`[PolymarketSync] Cleanup: removed ${expired} expired markets`);
+  const toDelete: string[] = [];
+  for (const row of expiredCandidates) {
+    if (protectedMatchIds.has(row.externalId)) {
+      protectedCount++;
+    } else {
+      toDelete.push(row.externalId);
+    }
+  }
+  let expired = 0;
+  if (toDelete.length > 0) {
+    const r = await prisma.sportsFixtureCache.deleteMany({
+      where: {
+        sport: 'POLYMARKET',
+        apiSource: API_SOURCE,
+        externalId: { in: toDelete },
+      },
+    });
+    expired = r.count;
+  }
+  if (expired > 0 || protectedCount > 0) {
+    console.log(`[PolymarketSync] Cleanup: removed=${expired} protected=${protectedCount} (cache rows kept because pool still JOINING/ACTIVE)`);
   }
 
-  // Remove old resolved markets (>30 days)
+  // Remove old resolved markets (>30 days). FINISHED rows can be dropped
+  // freely — no resolver path needs them once the pool is RESOLVED /
+  // CLAIMABLE / CANCELLED.
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const { count } = await prisma.sportsFixtureCache.deleteMany({
     where: {
