@@ -364,37 +364,42 @@ export async function cleanupSportsCache(): Promise<{ orphan: number; stale: num
 // ── Combat-sport image backfill ────────────────────────────────────────────
 
 /**
- * Walk every combat-sport fixture cache row whose home/away crest is empty
- * and try to fill it from the fighter-image cache. New rows already get
- * enriched at upsert time (see dailySync above); this is the one-shot path
- * to repopulate rows created before fighter-images.ts existed. Idempotent.
+ * Walk every combat-sport fixture cache row and make sure (1) the cache
+ * row's crest fields are populated from the fighter-image cache and
+ * (2) the patch is mirrored onto every Pool row that points at the same
+ * matchId. Idempotent.
  *
- * Pool rows that point at the same matchId get the same patch — Pool
- * stores its own crest snapshot so the public app reads it without going
- * through the cache.
+ * Two-phase per row:
+ *   - If the cache row is missing a crest, resolve via SDB (uses the
+ *     fighter_image_cache so a known fighter costs zero SDB calls and a
+ *     known miss costs zero calls for 7 days).
+ *   - Always mirror the resolved cache crests onto pools that still hold
+ *     null. This step is the fix for the v1 backfill, which gated the
+ *     pool patch behind 'cache row had null crest' — pools created
+ *     BEFORE the auto-enrich shipped never got patched because the cache
+ *     row was already fresh by the time the operator pressed the button.
  *
- * Rate-limit aware: one SDB call per unique unresolved fighter,
- * 2s between requests, negative-cache prevents re-trying misses for 7
- * days even across runs.
+ * Rate-limit aware: one SDB call per unique unresolved fighter, 2s
+ * between requests. Repeated runs cost zero SDB calls.
  */
-export async function backfillCombatSportImages(): Promise<{ rowsScanned: number; rowsUpdated: number; poolsUpdated: number }> {
+export async function backfillCombatSportImages(): Promise<{ rowsScanned: number; cacheRowsUpdated: number; poolsUpdated: number }> {
   const sportsConfigs = await getSportsDbConfigs();
   const combatConfigs = sportsConfigs.filter(c => isCombatSport(c.sportQuery));
   if (combatConfigs.length === 0) {
-    return { rowsScanned: 0, rowsUpdated: 0, poolsUpdated: 0 };
+    return { rowsScanned: 0, cacheRowsUpdated: 0, poolsUpdated: 0 };
   }
 
   let rowsScanned = 0;
-  let rowsUpdated = 0;
+  let cacheRowsUpdated = 0;
   let poolsUpdated = 0;
 
   for (const config of combatConfigs) {
     if (!config.sportQuery) continue;
+    // No crest filter here on purpose — we also need to mirror already-
+    // populated cache rows onto pools that were created before the auto-
+    // enrich landed.
     const rows = await prisma.sportsFixtureCache.findMany({
-      where: {
-        sport: config.sport,
-        OR: [{ homeTeamCrest: null }, { awayTeamCrest: null }],
-      },
+      where: { sport: config.sport },
       select: {
         externalId: true,
         homeTeam: true,
@@ -406,35 +411,51 @@ export async function backfillCombatSportImages(): Promise<{ rowsScanned: number
 
     for (const row of rows) {
       rowsScanned++;
-      const { homeImage, awayImage } = await getEventFighterImages(row.homeTeam, row.awayTeam, config.sportQuery);
-      const nextHome = !row.homeTeamCrest && homeImage ? homeImage : row.homeTeamCrest;
-      const nextAway = !row.awayTeamCrest && awayImage ? awayImage : row.awayTeamCrest;
-      if (nextHome === row.homeTeamCrest && nextAway === row.awayTeamCrest) {
-        continue;
+
+      // Phase 1: top up the cache row from SDB if either side is null.
+      let nextHome = row.homeTeamCrest;
+      let nextAway = row.awayTeamCrest;
+      if (!nextHome || !nextAway) {
+        const { homeImage, awayImage } = await getEventFighterImages(row.homeTeam, row.awayTeam, config.sportQuery);
+        if (!nextHome && homeImage) nextHome = homeImage;
+        if (!nextAway && awayImage) nextAway = awayImage;
+        if (nextHome !== row.homeTeamCrest || nextAway !== row.awayTeamCrest) {
+          const u = await prisma.sportsFixtureCache.updateMany({
+            where: { externalId: row.externalId, sport: config.sport },
+            data: { homeTeamCrest: nextHome, awayTeamCrest: nextAway, lastSyncedAt: new Date() },
+          });
+          cacheRowsUpdated += u.count;
+        }
+        // SDB was hit (even if it was all cache hits inside getFighterImage,
+        // pacing here keeps the loop's rhythm predictable when there's
+        // negative-cache pressure).
+        await sleep(RATE_LIMIT_DELAY_MS);
       }
 
-      const updatedCache = await prisma.sportsFixtureCache.updateMany({
-        where: { externalId: row.externalId, sport: config.sport },
-        data: { homeTeamCrest: nextHome, awayTeamCrest: nextAway, lastSyncedAt: new Date() },
-      });
-      rowsUpdated += updatedCache.count;
-
-      const updatedPools = await prisma.pool.updateMany({
-        where: { matchId: row.externalId, poolType: 'SPORTS' },
-        data: { homeTeamCrest: nextHome, awayTeamCrest: nextAway },
-      });
-      poolsUpdated += updatedPools.count;
-
-      // Be polite to SDB — getEventFighterImages already hits the cache
-      // for known names, but new lookups within this loop should pace.
-      await sleep(RATE_LIMIT_DELAY_MS);
+      // Phase 2: mirror onto pools that still hold null. Two updateManys
+      // — one per side — so we don't overwrite a pool's already-set crest
+      // (e.g. a partial patch where only one fighter was resolved).
+      if (nextHome) {
+        const up = await prisma.pool.updateMany({
+          where: { matchId: row.externalId, poolType: 'SPORTS', homeTeamCrest: null },
+          data: { homeTeamCrest: nextHome },
+        });
+        poolsUpdated += up.count;
+      }
+      if (nextAway) {
+        const up = await prisma.pool.updateMany({
+          where: { matchId: row.externalId, poolType: 'SPORTS', awayTeamCrest: null },
+          data: { awayTeamCrest: nextAway },
+        });
+        poolsUpdated += up.count;
+      }
     }
   }
 
   if (rowsScanned > 0) {
-    console.log(`[FixtureSync] Combat image backfill: scanned=${rowsScanned} cacheUpdated=${rowsUpdated} poolsUpdated=${poolsUpdated}`);
+    console.log(`[FixtureSync] Combat image backfill: scanned=${rowsScanned} cacheUpdated=${cacheRowsUpdated} poolUpdates=${poolsUpdated}`);
   }
-  return { rowsScanned, rowsUpdated, poolsUpdated };
+  return { rowsScanned, cacheRowsUpdated, poolsUpdated };
 }
 
 // ── Scheduler Entry Point ──────────────────────────────────────────────────
