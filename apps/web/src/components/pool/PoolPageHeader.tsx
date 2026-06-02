@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Box, Typography, Tooltip } from '@mui/material';
-import { Code, Link as LinkIcon, BookmarkBorder, CheckCircle, ChevronRight } from '@mui/icons-material';
+import { Code, Link as LinkIcon, BookmarkBorder, CheckCircle, ArrowForward } from '@mui/icons-material';
 import { AssetIcon } from '@/components/AssetIcon';
 import { formatPredictionWindow } from '@/lib/format';
 import { INTERVAL_LABELS } from '@/lib/constants';
@@ -120,36 +120,37 @@ export function PoolPageHeader({ asset, interval, startTime, endTime, poolId }: 
       </Box>
 
       {/* Share / embed / bookmark - mirror the icons in the Polymarket header. */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, flexShrink: 0, mt: { xs: 0.5, md: 1 } }}>
-        {/* "Next pool" — jumps to the upcoming pool for the same
-            asset+interval. Disabled state (with a different tooltip) is
-            kept so the slot doesn't shift around once a new pool gets
-            scheduled. */}
-        <Tooltip
-          title={nextPool ? `Next ${intervalLabel} pool` : 'No upcoming pool yet'}
-          arrow
-          placement="bottom"
-        >
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0, mt: { xs: 0.5, md: 1 } }}>
+        {/* "Next pool" — simple labelled pill that jumps to the upcoming
+            pool for the same asset+interval. Hidden when nothing is queued
+            yet (rather than rendered disabled) so the slot doesn't look
+            broken; it reappears the moment the cron lands the next one. */}
+        {nextPool && (
           <Box
             component="button"
             onClick={handleNext}
-            disabled={!nextPool}
             sx={{
-              p: 0.75,
-              borderRadius: 1,
-              border: 'none',
-              bgcolor: 'transparent',
-              color: nextPool ? t.text.tertiary : t.text.quaternary,
-              cursor: nextPool ? 'pointer' : 'not-allowed',
-              opacity: nextPool ? 1 : 0.5,
               display: 'flex',
-              transition: 'color 0.15s, background 0.15s',
-              '&:hover': nextPool ? { color: t.text.primary, bgcolor: t.hover.light } : {},
+              alignItems: 'center',
+              gap: 0.5,
+              px: 1.25,
+              py: 0.5,
+              borderRadius: '999px',
+              border: `1px solid ${t.border.medium}`,
+              bgcolor: 'transparent',
+              color: t.text.primary,
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              fontFamily: 'inherit',
+              cursor: 'pointer',
+              transition: 'background 0.15s, border-color 0.15s',
+              '&:hover': { bgcolor: t.hover.light, borderColor: t.border.strong },
             }}
           >
-            <ChevronRight sx={{ fontSize: 20 }} />
+            Next pool
+            <ArrowForward sx={{ fontSize: 14 }} />
           </Box>
-        </Tooltip>
+        )}
         <Tooltip title="Embed widget (coming soon)" arrow placement="bottom">
           <Box
             sx={{
