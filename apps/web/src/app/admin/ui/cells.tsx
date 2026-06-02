@@ -101,19 +101,33 @@ export interface IdCellProps {
   truncate?: number;
   copyable?: boolean;
   href?: string;
+  /** Open the href in a new tab. Useful when linking from admin → public
+   *  surfaces so the operator doesn't lose the admin context. */
+  external?: boolean;
 }
 
-export function IdCell({ value, truncate, copyable = true, href }: IdCellProps) {
+export function IdCell({ value, truncate, copyable = true, href, external }: IdCellProps) {
   const { copied, copy } = useCopy(value);
   const display = truncate && value.length > truncate
     ? value.slice(0, truncate) + '…'
     : value;
+  const monoSx = {
+    color: t.text.primary,
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+    fontSize: '0.75rem',
+  } as const;
   const label = href ? (
-    <Link href={href} sx={{ color: t.text.primary, textDecorationColor: t.border.medium }}>
+    <Link
+      href={href}
+      target={external ? '_blank' : undefined}
+      rel={external ? 'noopener noreferrer' : undefined}
+      underline="hover"
+      sx={{ ...monoSx, textDecorationColor: t.border.medium, '&:hover': { color: t.text.bright } }}
+    >
       {display}
     </Link>
   ) : (
-    <Box component="span" sx={{ color: t.text.primary, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.75rem' }}>
+    <Box component="span" sx={monoSx}>
       {display}
     </Box>
   );

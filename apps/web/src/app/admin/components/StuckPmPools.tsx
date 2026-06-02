@@ -10,7 +10,7 @@ import { adminFetch, adminPost } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
 import {
   SectionCard, StatusChip, ActionButton, RefreshButton,
-  LoadingState, EmptyState, ErrorAlert,
+  LoadingState, EmptyState, ErrorAlert, IdCell,
   Body, Meta, Label,
   useMutationFeedback,
 } from '../ui';
@@ -104,6 +104,7 @@ export function StuckPmPools() {
             <TableHead>
               <TableRow>
                 <TableCell><Label>Question</Label></TableCell>
+                <TableCell><Label>Pool</Label></TableCell>
                 <TableCell><Label>League</Label></TableCell>
                 <TableCell align="right"><Label>Bets</Label></TableCell>
                 <TableCell align="right"><Label>Overdue</Label></TableCell>
@@ -115,11 +116,21 @@ export function StuckPmPools() {
               {pools.map(p => (
                 <TableRow key={p.id} hover>
                   <TableCell sx={{ maxWidth: 380 }}>
-                    <Tooltip title={`${p.id} · matchId=${p.matchId ?? '—'}`}>
+                    <Tooltip title={`matchId=${p.matchId ?? '—'}`}>
                       <Body sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: t.text.primary }}>
                         {p.homeTeam || '(no question)'}
                       </Body>
                     </Tooltip>
+                  </TableCell>
+                  <TableCell>
+                    {/* Click the truncated id → opens /match/<id> in a new
+                        tab so the operator keeps the admin context open. */}
+                    <IdCell
+                      value={p.id}
+                      truncate={10}
+                      href={`/match/${p.id}`}
+                      external
+                    />
                   </TableCell>
                   <TableCell>
                     <Chip size="small" label={p.league || '—'} sx={{ height: 22, fontSize: '0.7rem', borderRadius: 1, bgcolor: t.hover.medium, color: t.text.primary }} />
