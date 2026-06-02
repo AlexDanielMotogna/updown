@@ -10,6 +10,7 @@ import {
 import { getFootballConfigs, getSportsDbConfigs } from '../services/category-config';
 import type { Match, MatchResult } from '../services/sports/types';
 import { regulationWinner } from '../services/sports/regulation-time';
+import { getEventFighterImages, isCombatSport } from '../services/sports/fighter-images';
 const RATE_LIMIT_DELAY_MS = 2_000; // 2s between API calls (TheSportsDB allows 100/min)
 const API_SOURCE = 'sports';
 
@@ -196,6 +197,20 @@ export async function dailySync(): Promise<void> {
       const matches = await adapter.fetchUpcomingMatches(config.sport);
 
       for (const match of matches) {
+        // Combat-sport enrichment. SDB's eventsnextleague endpoint leaves
+        // strHomeTeamBadge / strAwayTeamBadge null for boxing / MMA / K-1
+        // (fighters live behind searchplayers.php, not on the event).
+        // Resolve each fighter once, persisted long-term in
+        // fighter_image_cache, and plug the cutout URL into the existing
+        // homeTeamCrest / awayTeamCrest columns so downstream code
+        // (pool cards, match header) renders fighter photos with zero
+        // schema change. Negative cache means an unranked debut costs
+        // one SDB call per 7 days, not one per sync.
+        if (isCombatSport(config.sportQuery) && (!match.homeTeamCrest || !match.awayTeamCrest)) {
+          const { homeImage, awayImage } = await getEventFighterImages(match.homeTeam, match.awayTeam, config.sportQuery);
+          if (!match.homeTeamCrest && homeImage) match.homeTeamCrest = homeImage;
+          if (!match.awayTeamCrest && awayImage) match.awayTeamCrest = awayImage;
+        }
         await upsertMatch(match, API_SOURCE);
       }
 
@@ -344,6 +359,103 @@ export async function cleanupSportsCache(): Promise<{ orphan: number; stale: num
     console.log(`[FixtureSync] Cleanup: ${orphan} orphan + ${stale} stale rows removed`);
   }
   return { orphan, stale };
+}
+
+// ── Combat-sport image backfill ────────────────────────────────────────────
+
+/**
+ * Walk every combat-sport fixture cache row and make sure (1) the cache
+ * row's crest fields are populated from the fighter-image cache and
+ * (2) the patch is mirrored onto every Pool row that points at the same
+ * matchId. Idempotent.
+ *
+ * Two-phase per row:
+ *   - If the cache row is missing a crest, resolve via SDB (uses the
+ *     fighter_image_cache so a known fighter costs zero SDB calls and a
+ *     known miss costs zero calls for 7 days).
+ *   - Always mirror the resolved cache crests onto pools that still hold
+ *     null. This step is the fix for the v1 backfill, which gated the
+ *     pool patch behind 'cache row had null crest' — pools created
+ *     BEFORE the auto-enrich shipped never got patched because the cache
+ *     row was already fresh by the time the operator pressed the button.
+ *
+ * Rate-limit aware: one SDB call per unique unresolved fighter, 2s
+ * between requests. Repeated runs cost zero SDB calls.
+ */
+export async function backfillCombatSportImages(): Promise<{ rowsScanned: number; cacheRowsUpdated: number; poolsUpdated: number }> {
+  const sportsConfigs = await getSportsDbConfigs();
+  const combatConfigs = sportsConfigs.filter(c => isCombatSport(c.sportQuery));
+  if (combatConfigs.length === 0) {
+    return { rowsScanned: 0, cacheRowsUpdated: 0, poolsUpdated: 0 };
+  }
+
+  let rowsScanned = 0;
+  let cacheRowsUpdated = 0;
+  let poolsUpdated = 0;
+
+  for (const config of combatConfigs) {
+    if (!config.sportQuery) continue;
+    // No crest filter here on purpose — we also need to mirror already-
+    // populated cache rows onto pools that were created before the auto-
+    // enrich landed.
+    const rows = await prisma.sportsFixtureCache.findMany({
+      where: { sport: config.sport },
+      select: {
+        externalId: true,
+        homeTeam: true,
+        awayTeam: true,
+        homeTeamCrest: true,
+        awayTeamCrest: true,
+      },
+    });
+
+    for (const row of rows) {
+      rowsScanned++;
+
+      // Phase 1: top up the cache row from SDB if either side is null.
+      let nextHome = row.homeTeamCrest;
+      let nextAway = row.awayTeamCrest;
+      if (!nextHome || !nextAway) {
+        const { homeImage, awayImage } = await getEventFighterImages(row.homeTeam, row.awayTeam, config.sportQuery);
+        if (!nextHome && homeImage) nextHome = homeImage;
+        if (!nextAway && awayImage) nextAway = awayImage;
+        if (nextHome !== row.homeTeamCrest || nextAway !== row.awayTeamCrest) {
+          const u = await prisma.sportsFixtureCache.updateMany({
+            where: { externalId: row.externalId, sport: config.sport },
+            data: { homeTeamCrest: nextHome, awayTeamCrest: nextAway, lastSyncedAt: new Date() },
+          });
+          cacheRowsUpdated += u.count;
+        }
+        // SDB was hit (even if it was all cache hits inside getFighterImage,
+        // pacing here keeps the loop's rhythm predictable when there's
+        // negative-cache pressure).
+        await sleep(RATE_LIMIT_DELAY_MS);
+      }
+
+      // Phase 2: mirror onto pools that still hold null. Two updateManys
+      // — one per side — so we don't overwrite a pool's already-set crest
+      // (e.g. a partial patch where only one fighter was resolved).
+      if (nextHome) {
+        const up = await prisma.pool.updateMany({
+          where: { matchId: row.externalId, poolType: 'SPORTS', homeTeamCrest: null },
+          data: { homeTeamCrest: nextHome },
+        });
+        poolsUpdated += up.count;
+      }
+      if (nextAway) {
+        const up = await prisma.pool.updateMany({
+          where: { matchId: row.externalId, poolType: 'SPORTS', awayTeamCrest: null },
+          data: { awayTeamCrest: nextAway },
+        });
+        poolsUpdated += up.count;
+      }
+    }
+  }
+
+  if (rowsScanned > 0) {
+    console.log(`[FixtureSync] Combat image backfill: scanned=${rowsScanned} cacheUpdated=${cacheRowsUpdated} poolUpdates=${poolsUpdated}`);
+  }
+  return { rowsScanned, cacheRowsUpdated, poolsUpdated };
 }
 
 // ── Scheduler Entry Point ──────────────────────────────────────────────────

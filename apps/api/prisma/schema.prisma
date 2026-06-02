@@ -476,6 +476,34 @@ model SportsFixtureCache {
   @@map("sports_fixture_cache")
 }
 
+/// Per-fighter image cache (combat sports — UFC, Boxing, K-1, …).
+/// SDB exposes fighter photos via `searchplayers.php?p=<name>` but not on
+/// the event endpoint. We cache results aggressively because (a) fighter
+/// photos almost never change and (b) the same fighter appears across many
+/// events, so a per-event lookup would 5× the SDB calls during sync.
+///
+/// Populated by services/sports/fighter-images.ts, read by
+/// scheduler/fixture-sync.ts at upsert time, and surfaced through the
+/// existing home_team_crest / away_team_crest columns on
+/// sports_fixture_cache / Pool (no schema change needed downstream).
+model FighterImageCache {
+  nameKey       String   @id @map("name_key")          // normalized: lowercase, single-spaced
+  displayName   String   @map("display_name")          // original casing from the first hit
+  sport         String                                  // 'Fighting' for SDB combat
+  idPlayer      String?  @map("id_player")             // SDB idPlayer when matched
+  team          String?                                 // 'UFC Welterweight' etc.
+  thumbUrl      String?  @map("thumb_url")             // strThumb — jpg headshot
+  cutoutUrl     String?  @map("cutout_url")            // strCutout — png, transparent
+  notFound      Boolean  @default(false) @map("not_found")
+  lastFetchedAt DateTime @default(now()) @map("last_fetched_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([sport])
+  @@index([notFound, lastFetchedAt])
+  @@map("fighter_image_cache")
+}
+
 // ─── Live Scores (DB fallback for TheSportsDB livescore cache) ────────────────
 
 model LiveScore {

@@ -198,8 +198,8 @@ function TeamSide({
       src={crest}
       alt={name}
       sx={{
-        width: { xs: 30, md: 38 },
-        height: { xs: 30, md: 38 },
+        width: { xs: 38, md: 48 },
+        height: { xs: 38, md: 48 },
         objectFit: 'contain',
         flexShrink: 0,
         opacity: muted ? 0.85 : 1,
