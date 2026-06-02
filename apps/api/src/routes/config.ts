@@ -27,6 +27,10 @@ configRouter.get('/categories', async (_req, res) => {
           numSides: c.numSides,
           sideLabels: c.sideLabels,
           sortOrder: c.sortOrder,
+          // Hierarchy: parentCode points at a SPORT_GROUP. NULL means
+          // top-level (group or legacy). Public filter uses this to nest
+          // leagues under their sport umbrella.
+          parentCode: c.parentCode,
           subcategories: Array.isArray(cfg?.subcategories) ? cfg.subcategories : [],
         };
       }),

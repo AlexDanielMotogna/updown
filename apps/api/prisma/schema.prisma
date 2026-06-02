@@ -521,7 +521,7 @@ model Notification {
 model PoolCategory {
   id         String   @id @default(uuid())
   code       String   @unique
-  type       String                                          // FOOTBALL_LEAGUE, SPORTSDB_SPORT, POLYMARKET
+  type       String                                          // FOOTBALL_LEAGUE, SPORTSDB_SPORT, POLYMARKET, SPORT_GROUP
   enabled    Boolean  @default(true)
   comingSoon Boolean  @default(false) @map("coming_soon")
   label      String
@@ -535,9 +535,15 @@ model PoolCategory {
   sideLabels String[] @default(["Home", "Draw", "Away"]) @map("side_labels")
   config     Json?
   sortOrder  Int      @default(0) @map("sort_order")
+  // Two-level hierarchy: SPORT_GROUP rows are umbrellas (Rugby, Football,
+  // Basketball, ...); leagues point at their group via parentCode. No FK —
+  // categories are operator-managed and we don't want a rename to cascade-
+  // rewrite every child silently. Application layer validates the reference.
+  parentCode String?  @map("parent_code")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@index([type, enabled])
+  @@index([parentCode])
   @@map("pool_categories")
 }

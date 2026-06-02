@@ -50,7 +50,7 @@ function safeErrorResponse(action: string, err: unknown): { status: number; body
 // with the existing UI which sends a wide payload. See Phase 1 #10.
 const categoryBaseSchema = z.object({
   code: z.string().min(2).max(32).regex(/^[A-Z][A-Z0-9_]+$/, 'Code must be uppercase A-Z, digits, or underscore'),
-  type: z.enum(['FOOTBALL_LEAGUE', 'SPORTSDB_SPORT', 'POLYMARKET']),
+  type: z.enum(['FOOTBALL_LEAGUE', 'SPORTSDB_SPORT', 'POLYMARKET', 'SPORT_GROUP']),
   enabled: z.boolean(),
   comingSoon: z.boolean(),
   label: z.string().min(1).max(80),
@@ -64,6 +64,9 @@ const categoryBaseSchema = z.object({
   sideLabels: z.array(z.string()).min(2).max(3),
   config: z.record(z.unknown()).nullable().optional(),
   sortOrder: z.number().int().min(0).max(9999),
+  // Two-level hierarchy: NULL = top-level (legacy / group). Children
+  // point at a SPORT_GROUP code.
+  parentCode: z.string().regex(/^[A-Z][A-Z0-9_]+$/, 'parentCode must match an existing category code').nullable().optional(),
 });
 const createCategorySchema = categoryBaseSchema;
 const updateCategorySchema = categoryBaseSchema.partial();
@@ -83,12 +86,29 @@ function assertExternalLeagueId(
   required: boolean,
 ): { ok: true } | { ok: false; message: string } {
   if (!required) return { ok: true };
+  // SPORT_GROUP categories are containers and never sync from SDB — no
+  // externalLeagueId required.
   if (type !== 'FOOTBALL_LEAGUE' && type !== 'SPORTSDB_SPORT') return { ok: true };
   const eid = config && typeof config === 'object'
     ? (config as Record<string, unknown>).externalLeagueId ?? (config as Record<string, unknown>).theSportsDbLeagueId
     : undefined;
   if (typeof eid === 'string' && eid.trim().length > 0) return { ok: true };
   return { ok: false, message: `${type} categories require config.externalLeagueId (the TheSportsDB league id). Browse SDB in admin → Matches to find it.` };
+}
+
+/**
+ * If `parentCode` is provided, verify it resolves to an existing SPORT_GROUP
+ * category. Refuses pointers to non-group rows so the hierarchy stays
+ * exactly two levels deep.
+ */
+async function assertParentCodeValid(parentCode: string | null | undefined): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (parentCode == null) return { ok: true };
+  const parent = await prisma.poolCategory.findUnique({ where: { code: parentCode }, select: { type: true } });
+  if (!parent) return { ok: false, message: `parentCode "${parentCode}" doesn't match any category.` };
+  if (parent.type !== 'SPORT_GROUP') {
+    return { ok: false, message: `parentCode "${parentCode}" is type ${parent.type}; parents must be SPORT_GROUP.` };
+  }
+  return { ok: true };
 }
 
 // GET /api/admin/categories - all categories (including disabled)
@@ -124,6 +144,10 @@ adminCategoriesRouter.post('/', async (req, res) => {
     if (!guard.ok) {
       return res.status(400).json({ success: false, error: { code: 'EXTERNAL_LEAGUE_ID_REQUIRED', message: guard.message } });
     }
+    const parentGuard = await assertParentCodeValid(parsed.data.parentCode);
+    if (!parentGuard.ok) {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_PARENT_CODE', message: parentGuard.message } });
+    }
     const category = await prisma.poolCategory.create({ data: normalizeConfig(parsed.data) });
     invalidateCache();
     rebuildAdapters();
@@ -152,6 +176,12 @@ adminCategoriesRouter.put('/:id', async (req, res) => {
       const guard = assertExternalLeagueId(nextType, nextConfig, true);
       if (!guard.ok) {
         return res.status(400).json({ success: false, error: { code: 'EXTERNAL_LEAGUE_ID_REQUIRED', message: guard.message } });
+      }
+    }
+    if (parsed.data.parentCode !== undefined) {
+      const parentGuard = await assertParentCodeValid(parsed.data.parentCode);
+      if (!parentGuard.ok) {
+        return res.status(400).json({ success: false, error: { code: 'INVALID_PARENT_CODE', message: parentGuard.message } });
       }
     }
     const category = await prisma.poolCategory.update({
@@ -234,6 +264,21 @@ adminCategoriesRouter.delete('/:id', async (req, res) => {
           message: `Cannot delete: ${livePoolCount} active pool(s) still reference this category. Disable it instead, or wait for the pools to fully close.`,
         },
       });
+    }
+    // SPORT_GROUP guard: deleting a parent that still has children would
+    // orphan them in the public filter (their parentCode would point
+    // nowhere). Force the operator to re-parent or delete children first.
+    if (category.type === 'SPORT_GROUP') {
+      const childCount = await prisma.poolCategory.count({ where: { parentCode: category.code } });
+      if (childCount > 0) {
+        return res.status(409).json({
+          success: false,
+          error: {
+            code: 'GROUP_HAS_CHILDREN',
+            message: `Cannot delete: ${childCount} category/categories still point at this group via parentCode. Move them to another parent or delete them first.`,
+          },
+        });
+      }
     }
     await prisma.poolCategory.delete({ where: { id: req.params.id } });
     invalidateCache();

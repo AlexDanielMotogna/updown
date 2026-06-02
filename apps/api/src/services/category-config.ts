@@ -18,6 +18,7 @@ export interface PoolCategoryConfig {
   sideLabels: string[];
   config: Record<string, unknown> | null;
   sortOrder: number;
+  parentCode: string | null;
 }
 
 // ── In-memory fallback, derived from the single canonical default list ──────
@@ -39,6 +40,7 @@ const FALLBACK: PoolCategoryConfig[] = CATEGORY_DEFAULTS.map(c => ({
   sideLabels: c.sideLabels,
   config: c.config ?? null,
   sortOrder: c.sortOrder,
+  parentCode: (c as { parentCode?: string | null }).parentCode ?? null,
 }));
 
 // ── In-memory cache ─────────────────────────────────────────────────────────
@@ -64,6 +66,7 @@ function mapRow(row: any): PoolCategoryConfig {
     sideLabels: row.sideLabels,
     config: row.config as Record<string, unknown> | null,
     sortOrder: row.sortOrder,
+    parentCode: row.parentCode ?? null,
   };
 }
 
