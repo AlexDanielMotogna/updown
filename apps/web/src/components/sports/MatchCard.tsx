@@ -160,7 +160,7 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
         {isPrediction ? (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minHeight: 48, px: 1 }}>
             {/* Fixed badge slot on the left (category-icon fallback when no image) */}
-            <Box sx={{ width: 36, height: 36, flexShrink: 0, borderRadius: 1, overflow: 'hidden', bgcolor: withAlpha(catColor, 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Box sx={{ width: 44, height: 44, flexShrink: 0, borderRadius: 1, overflow: 'hidden', bgcolor: withAlpha(catColor, 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {pool.homeTeamCrest
                 ? <Box component="img" src={pool.homeTeamCrest} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 : (CatIcon ? <CatIcon sx={{ fontSize: 18, color: catColor }} /> : <TrendingUp sx={{ fontSize: 18, color: catColor }} />)}
@@ -177,7 +177,7 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
                 {pool.homeTeam || 'Home'}
               </Typography>
               {pool.homeTeamCrest && (
-                <Box component="img" src={pool.homeTeamCrest} alt={pool.homeTeam || ''} sx={{ width: 24, height: 24, objectFit: 'contain' }} />
+                <Box component="img" src={pool.homeTeamCrest} alt={pool.homeTeam || ''} sx={{ width: 32, height: 32, objectFit: 'contain' }} />
               )}
             </Box>
             {(matchLive || matchFinished) && liveScore ? (
@@ -195,7 +195,7 @@ export function MatchCard({ pool, onClick, isPopular, liveScore, category, userB
             )}
             <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
               {pool.awayTeamCrest && (
-                <Box component="img" src={pool.awayTeamCrest} alt={pool.awayTeam || ''} sx={{ width: 24, height: 24, objectFit: 'contain' }} />
+                <Box component="img" src={pool.awayTeamCrest} alt={pool.awayTeam || ''} sx={{ width: 32, height: 32, objectFit: 'contain' }} />
               )}
               <Typography sx={{ fontSize: { xs: '0.9rem', md: '1rem' }, fontWeight: 700, textAlign: 'left', color: isResolved && pool.winner === 'DOWN' ? t.down : t.text.primary }}>
                 {pool.awayTeam || 'Away'}

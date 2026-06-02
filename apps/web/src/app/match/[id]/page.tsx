@@ -582,10 +582,10 @@ export default function MatchDetailPage() {
           {/* Teams / Question */}
           {isPrediction ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 2, px: 1 }}>
-              <Box sx={{ width: 48, height: 48, flexShrink: 0, borderRadius: 1.5, overflow: 'hidden', bgcolor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Box sx={{ width: 56, height: 56, flexShrink: 0, borderRadius: 1.5, overflow: 'hidden', bgcolor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {pool.homeTeamCrest
                   ? <Box component="img" src={pool.homeTeamCrest} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : <TrendingUp sx={{ fontSize: 24, color: catColor }} />}
+                  : <TrendingUp sx={{ fontSize: 28, color: catColor }} />}
               </Box>
               <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: t.text.primary, lineHeight: 1.4 }}>
                 {pool.awayTeam ? `${pool.homeTeam} vs ${pool.awayTeam}` : pool.homeTeam}
@@ -595,7 +595,7 @@ export default function MatchDetailPage() {
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, py: 1.5 }}>
               <Box sx={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
                 {pool.homeTeamCrest && (
-                  <Box component="img" src={pool.homeTeamCrest} alt="" sx={{ width: 32, height: 32, objectFit: 'contain', mb: 0.5, mx: 'auto', display: 'block' }} />
+                  <Box component="img" src={pool.homeTeamCrest} alt="" sx={{ width: 40, height: 40, objectFit: 'contain', mb: 0.5, mx: 'auto', display: 'block' }} />
                 )}
                 <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: isResolved && pool.winner === 'UP' ? t.up : t.text.primary }}>{homeShort}</Typography>
               </Box>
@@ -628,7 +628,7 @@ export default function MatchDetailPage() {
               )}
               <Box sx={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
                 {pool.awayTeamCrest && (
-                  <Box component="img" src={pool.awayTeamCrest} alt="" sx={{ width: 32, height: 32, objectFit: 'contain', mb: 0.5, mx: 'auto', display: 'block' }} />
+                  <Box component="img" src={pool.awayTeamCrest} alt="" sx={{ width: 40, height: 40, objectFit: 'contain', mb: 0.5, mx: 'auto', display: 'block' }} />
                 )}
                 <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: isResolved && pool.winner === 'DOWN' ? t.down : t.text.primary }}>{awayShort}</Typography>
               </Box>
