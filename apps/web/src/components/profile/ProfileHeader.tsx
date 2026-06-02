@@ -282,11 +282,32 @@ export function ProfileHeader({
                     </Tooltip>
                   </Box>
 
-                  {/* Meta line: level + rank chip (same baseline) */}
+                  {/* Meta line: when the user has a custom display name we show
+                      the truncated wallet here so the on-chain identity is still
+                      visible at a glance; otherwise we fall back to "Lv.{N} title"
+                      so untouched profiles read the same as before. The level
+                      title is intentionally dropped when displayName is set —
+                      the icon-only UserLevelBadge clipped to the avatar already
+                      carries the same information. */}
                   <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: { xs: 0.75, md: 1.25 }, mt: 0.5 }}>
-                    <Typography sx={{ fontSize: { xs: '0.8rem', md: '0.9rem' }, fontWeight: 700, color: ringColor, lineHeight: 1.2 }}>
-                      Lv.{level} {userProfile?.title ?? ''}
-                    </Typography>
+                    {customDisplayName && walletAddress ? (
+                      <Typography
+                        sx={{
+                          fontSize: { xs: '0.78rem', md: '0.85rem' },
+                          fontWeight: 600,
+                          color: t.text.tertiary,
+                          letterSpacing: '0.02em',
+                          lineHeight: 1.2,
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
+                      >
+                        {truncateAddress(walletAddress)}
+                      </Typography>
+                    ) : (
+                      <Typography sx={{ fontSize: { xs: '0.8rem', md: '0.9rem' }, fontWeight: 700, color: ringColor, lineHeight: 1.2 }}>
+                        Lv.{level} {userProfile?.title ?? ''}
+                      </Typography>
+                    )}
                     {userProfile?.rank && (
                       <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.4, px: 0.9, py: 0.2, borderRadius: 1, bgcolor: withAlpha(t.gold, 0.12) }}>
                         <EmojiEvents sx={{ fontSize: 13, color: t.gold }} />
