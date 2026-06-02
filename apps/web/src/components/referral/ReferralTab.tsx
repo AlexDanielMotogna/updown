@@ -5,11 +5,18 @@ import { Box, Typography, Tooltip } from '@mui/material';
 import { InfoOutlined } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAvatarUrl } from '@/lib/constants';
+import { getDisplayName, getDisplayAvatar } from '@/lib/userDisplay';
 import { USDC_DIVISOR, formatDate } from '@/lib/format';
 import { useThemeTokens } from '@/app/providers';
 
 export interface ReferralTabProps {
-  referrals: Array<{ wallet: string; joinedAt: string; earned: string }>;
+  referrals: Array<{
+    wallet: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    joinedAt: string;
+    earned: string;
+  }>;
   totalReferrals: number;
 }
 
@@ -102,8 +109,8 @@ export function ReferralTab({ referrals, totalReferrals }: ReferralTabProps) {
               {/* Player */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
                 <Avatar
-                  src={getAvatarUrl(ref.wallet)}
-                  alt={ref.wallet}
+                  src={getDisplayAvatar({ walletAddress: ref.wallet, avatarUrl: ref.avatarUrl })}
+                  alt={getDisplayName({ walletAddress: ref.wallet, displayName: ref.displayName })}
                   sx={{ width: 32, height: 32, borderRadius: '50%', border: `1px solid ${t.border.default}`, flexShrink: 0 }}
                 />
                 <Typography
@@ -116,7 +123,7 @@ export function ReferralTab({ referrals, totalReferrals }: ReferralTabProps) {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {ref.wallet.slice(0, 4)}...{ref.wallet.slice(-4)}
+                  {getDisplayName({ walletAddress: ref.wallet, displayName: ref.displayName })}
                 </Typography>
               </Box>
 
@@ -146,8 +153,8 @@ export function ReferralTab({ referrals, totalReferrals }: ReferralTabProps) {
                   {i + 1}
                 </Typography>
                 <Avatar
-                  src={getAvatarUrl(ref.wallet)}
-                  alt={ref.wallet}
+                  src={getDisplayAvatar({ walletAddress: ref.wallet, avatarUrl: ref.avatarUrl })}
+                  alt={getDisplayName({ walletAddress: ref.wallet, displayName: ref.displayName })}
                   sx={{ width: 28, height: 28, borderRadius: '50%', border: `1px solid ${t.border.default}`, flexShrink: 0 }}
                 />
                 <Typography
@@ -161,7 +168,7 @@ export function ReferralTab({ referrals, totalReferrals }: ReferralTabProps) {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {ref.wallet.slice(0, 6)}...{ref.wallet.slice(-4)}
+                  {getDisplayName({ walletAddress: ref.wallet, displayName: ref.displayName })}
                 </Typography>
               </Box>
               <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5, pt: 1.5 }}>

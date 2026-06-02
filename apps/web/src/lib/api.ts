@@ -328,6 +328,8 @@ export interface ReferralStats {
   unpaidBalance: string;
   referrals: Array<{
     wallet: string;
+    displayName: string | null;
+    avatarUrl: string | null;
     joinedAt: string;
     earned: string;
   }>;
@@ -582,6 +584,8 @@ export interface SquadDetail {
 
 export interface SquadMemberEntry {
   walletAddress: string;
+  displayName: string | null;
+  avatarUrl: string | null;
   role: 'OWNER' | 'MEMBER';
   joinedAt: string;
 }
@@ -596,12 +600,16 @@ export interface SquadInviteInfo {
 export interface SquadChatMessage {
   id: string;
   walletAddress: string;
+  displayName: string | null;
+  avatarUrl: string | null;
   content: string;
   createdAt: string;
 }
 
 export interface SquadLeaderboardEntry {
   walletAddress: string;
+  displayName: string | null;
+  avatarUrl: string | null;
   role: 'OWNER' | 'MEMBER';
   totalBets: number;
   totalWins: number;
@@ -886,7 +894,13 @@ export interface TournamentFixture {
 
 export interface TournamentBracket {
   tournament: TournamentSummary;
-  participants: Array<{ walletAddress: string; seed: number; eliminatedRound: number | null }>;
+  participants: Array<{
+    walletAddress: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    seed: number;
+    eliminatedRound: number | null;
+  }>;
   rounds: Record<number, TournamentMatchData[]>;
   fixtures?: Record<number, TournamentFixture[]>;
 }

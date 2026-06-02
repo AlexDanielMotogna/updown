@@ -7,6 +7,7 @@ import { EmojiEvents } from '@mui/icons-material';
 import Link from 'next/link';
 import { fetchTournamentBracket, type TournamentBracket } from '@/lib/api';
 import { getAvatarUrl } from '@/lib/constants';
+import { getDisplayName, getDisplayAvatar } from '@/lib/userDisplay';
 import { useThemeTokens } from '@/app/providers';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { usePriceStream } from '@/hooks/usePriceStream';
@@ -299,8 +300,8 @@ export default function TournamentBracketPage() {
             {participants.sort((a, b) => a.seed - b.seed).map((p) => (
               <Chip
                 key={p.walletAddress}
-                avatar={<Avatar src={getAvatarUrl(p.walletAddress)} sx={{ width: 16, height: 16 }} />}
-                label={`#${p.seed} ${truncate(p.walletAddress)}`}
+                avatar={<Avatar src={getDisplayAvatar(p)} sx={{ width: 16, height: 16 }} />}
+                label={`#${p.seed} ${getDisplayName(p)}`}
                 size="small"
                 sx={{
                   fontFamily: 'monospace',

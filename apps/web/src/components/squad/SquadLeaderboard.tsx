@@ -5,6 +5,7 @@ import Avatar from '@mui/material/Avatar';
 import { MilitaryTech, LocalFireDepartment } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAvatarUrl } from '@/lib/constants';
+import { getDisplayName, getDisplayAvatar } from '@/lib/userDisplay';
 import { USDC_DIVISOR } from '@/lib/format';
 import type { SquadLeaderboardEntry } from '@/lib/api';
 import { useThemeTokens } from '@/app/providers';
@@ -63,8 +64,8 @@ function LeaderboardRow({ entry, index, isMe }: { entry: SquadLeaderboardEntry; 
         {/* Player */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
           <Avatar
-            src={getAvatarUrl(entry.walletAddress)}
-            alt={entry.walletAddress}
+            src={getDisplayAvatar(entry)}
+            alt={getDisplayName(entry)}
             sx={{
               width: 32,
               height: 32,
@@ -84,7 +85,7 @@ function LeaderboardRow({ entry, index, isMe }: { entry: SquadLeaderboardEntry; 
                 whiteSpace: 'nowrap',
               }}
             >
-              {shortWallet(entry.walletAddress)}
+              {getDisplayName(entry)}
               {isMe && (
                 <Typography component="span" sx={{ color: t.up, fontSize: '0.7rem', ml: 0.5 }}>
                   (you)
@@ -170,13 +171,13 @@ function LeaderboardRow({ entry, index, isMe }: { entry: SquadLeaderboardEntry; 
             )}
           </Box>
           <Avatar
-            src={getAvatarUrl(entry.walletAddress)}
-            alt={entry.walletAddress}
+            src={getDisplayAvatar(entry)}
+            alt={getDisplayName(entry)}
             sx={{ width: 28, height: 28, borderRadius: '50%', border: rank <= 3 ? `1.5px solid ${withAlpha(MEDAL_COLORS[rank - 1], 0.25)}` : `1px solid ${t.border.default}`, flexShrink: 0 }}
           />
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {shortWallet(entry.walletAddress)}
+              {getDisplayName(entry)}
               {isMe && <Typography component="span" sx={{ color: t.up, fontSize: '0.7rem', ml: 0.5 }}>(you)</Typography>}
             </Typography>
           </Box>

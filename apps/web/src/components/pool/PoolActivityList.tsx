@@ -5,9 +5,15 @@ import { Box, Typography } from '@mui/material';
 import { AnimatePresence, motion } from 'framer-motion';
 import { USDC_DIVISOR } from '@/lib/format';
 import { useThemeTokens } from '@/app/providers';
+import { getDisplayName } from '@/lib/userDisplay';
 
 interface BetRow {
+  /** Pre-truncated label kept for backwards-compat. New code goes through
+   *  the userDisplay helper using walletAddress + displayName instead. */
   wallet: string;
+  walletAddress?: string;
+  displayName?: string | null;
+  avatarUrl?: string | null;
   side: string;
   amount: string;
   createdAt: string;
@@ -110,8 +116,10 @@ export function PoolActivityList({ poolId, limit = 8 }: Props) {
                     px: 0.5,
                   }}
                 >
-                  <Typography sx={{ fontSize: '0.72rem', fontWeight: 600, color: t.text.tertiary, width: 70, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {b.wallet.slice(0, 4)}…{b.wallet.slice(-4)}
+                  <Typography sx={{ fontSize: '0.72rem', fontWeight: 600, color: t.text.tertiary, width: 70, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {b.walletAddress
+                      ? getDisplayName({ walletAddress: b.walletAddress, displayName: b.displayName })
+                      : b.wallet}
                   </Typography>
                   <Typography sx={{ fontSize: '0.72rem', fontWeight: 800, color: sideColor, flexShrink: 0, width: 38 }}>
                     {b.side}

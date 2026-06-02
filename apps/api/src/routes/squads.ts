@@ -202,6 +202,22 @@ squadsRouter.get('/:id', async (req, res) => {
       return res.status(403).json({ success: false, error: { code: 'NOT_MEMBER', message: 'Not a member of this squad' } });
     }
 
+    // Hydrate displayName / avatarUrl per member so the member list and the
+    // chat header can render the user's chosen identity instead of the raw
+    // wallet. squad_members is denormalised on walletAddress only — there's
+    // no FK to users — so we fetch the matching user rows in one query.
+    const memberWallets = squad.members.map(m => m.walletAddress);
+    const memberIdentities = memberWallets.length
+      ? new Map(
+          (
+            await prisma.user.findMany({
+              where: { walletAddress: { in: memberWallets } },
+              select: { walletAddress: true, displayName: true, avatarUrl: true },
+            })
+          ).map(u => [u.walletAddress, u] as const),
+        )
+      : new Map();
+
     res.json({
       success: true,
       data: {
@@ -212,11 +228,16 @@ squadsRouter.get('/:id', async (req, res) => {
         maxMembers: squad.maxMembers,
         memberCount: squad._count.members,
         poolCount: squad._count.pools,
-        members: squad.members.map(m => ({
-          walletAddress: m.walletAddress,
-          role: m.role,
-          joinedAt: m.joinedAt.toISOString(),
-        })),
+        members: squad.members.map(m => {
+          const u = memberIdentities.get(m.walletAddress);
+          return {
+            walletAddress: m.walletAddress,
+            displayName: u?.displayName ?? null,
+            avatarUrl: u?.avatarUrl ?? null,
+            role: m.role,
+            joinedAt: m.joinedAt.toISOString(),
+          };
+        }),
         createdAt: squad.createdAt.toISOString(),
       },
     });
@@ -552,14 +573,33 @@ squadsRouter.get('/:id/messages', async (req, res) => {
       take: limit,
     });
 
+    // Same identity hydration as the member list — one round-trip for the
+    // distinct authors in this page of messages.
+    const authorWallets = Array.from(new Set(messages.map(m => m.walletAddress)));
+    const authorIdentities = authorWallets.length
+      ? new Map(
+          (
+            await prisma.user.findMany({
+              where: { walletAddress: { in: authorWallets } },
+              select: { walletAddress: true, displayName: true, avatarUrl: true },
+            })
+          ).map(u => [u.walletAddress, u] as const),
+        )
+      : new Map();
+
     res.json({
       success: true,
-      data: messages.map(m => ({
-        id: m.id,
-        walletAddress: m.walletAddress,
-        content: m.content,
-        createdAt: m.createdAt.toISOString(),
-      })),
+      data: messages.map(m => {
+        const u = authorIdentities.get(m.walletAddress);
+        return {
+          id: m.id,
+          walletAddress: m.walletAddress,
+          displayName: u?.displayName ?? null,
+          avatarUrl: u?.avatarUrl ?? null,
+          content: m.content,
+          createdAt: m.createdAt.toISOString(),
+        };
+      }),
     });
   } catch (error) {
     console.error('Error fetching messages:', error);
@@ -592,9 +632,20 @@ squadsRouter.post('/:id/messages', async (req, res) => {
       },
     });
 
+    // Hydrate the author so the echoed message + the WS broadcast carry the
+    // sender's display identity. Without this, the message appears next to
+    // a truncated wallet for a fraction of a second before the next page
+    // fetch fills it in.
+    const author = await prisma.user.findUnique({
+      where: { walletAddress: message.walletAddress },
+      select: { displayName: true, avatarUrl: true },
+    });
+
     const serialized = {
       id: message.id,
       walletAddress: message.walletAddress,
+      displayName: author?.displayName ?? null,
+      avatarUrl: author?.avatarUrl ?? null,
       content: message.content,
       createdAt: message.createdAt.toISOString(),
     };
