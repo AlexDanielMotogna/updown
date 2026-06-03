@@ -161,6 +161,31 @@ function startPriceStream(asset: string): void {
   });
 }
 
+/**
+ * Server-initiated price subscriptions. Without this, the WS callback
+ * that feeds services/price-history.ts only ever fires when a client
+ * lands on /pool/[id] and explicitly subscribes via subscribe:prices.
+ * Crypto pools whose end time falls in a "no client on the detail
+ * page" gap resolve with the spot-fallback path (logged warning) and
+ * lose the at-endTime precision the buffer was meant to provide.
+ *
+ * Called at startup (with the unique asset set of every open crypto
+ * pool) AND every time a new pool is created so a fresh asset never
+ * waits on a client to fill the buffer.
+ *
+ * Reference-counted with the same activeAssets set as the
+ * client-initiated path: a single subscribe call wins, no duplicate WS
+ * traffic. We deliberately do NOT decrement on close — the scheduler-
+ * side stream stays alive forever, regardless of whether any pool is
+ * currently open, so the buffer is always warm when the next pool
+ * lands.
+ */
+export function ensurePriceStreams(assets: Iterable<string>): void {
+  for (const asset of assets) {
+    startPriceStream(asset);
+  }
+}
+
 function stopPriceStream(asset: string): void {
   activeAssets.delete(asset);
   if (priceProvider) {

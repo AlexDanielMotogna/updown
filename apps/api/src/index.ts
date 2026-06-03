@@ -20,7 +20,7 @@ import { startFixtureSyncScheduler } from './scheduler/fixture-sync';
 import { startPolymarketSyncScheduler } from './scheduler/polymarket-sync';
 import { seedCategoriesIfEmpty } from './services/category-config';
 import { startLiveScorePolling } from './services/sports/livescore';
-import { initWebSocket, shutdownWebSocket } from './websocket';
+import { initWebSocket, shutdownWebSocket, ensurePriceStreams } from './websocket';
 import { prisma } from './db';
 import { initPriceHistoryPersistence, hydratePriceHistory } from './services/price-history';
 
@@ -98,6 +98,31 @@ httpServer.listen(PORT, async () => {
     }
   } catch (err) {
     console.warn('[PriceHistory] Hydration failed (resolver will fall back to spot price):', err instanceof Error ? err.message : err);
+  }
+
+  // Server-initiated Pacifica WS subscriptions for every asset we have
+  // an open crypto pool on. Without this the buffer only fills when a
+  // client lands on /pool/[id] — so a pool whose endTime falls in a
+  // "no client connected" gap resolves with the spot-fallback (which
+  // is the exact "current price, not at endTime" bug we fixed in this
+  // branch). startPriceStream is ref-counted via activeAssets so the
+  // client-initiated path still works on top.
+  try {
+    const openCryptoPools = await prisma.pool.findMany({
+      where: {
+        poolType: 'CRYPTO',
+        status: { in: ['UPCOMING', 'JOINING', 'ACTIVE'] },
+      },
+      select: { asset: true },
+      distinct: ['asset'],
+    });
+    const assets = openCryptoPools.map(p => p.asset);
+    if (assets.length > 0) {
+      ensurePriceStreams(assets);
+      console.log(`[PriceHistory] Auto-subscribed to Pacifica price stream for ${assets.length} asset(s): ${assets.join(', ')}`);
+    }
+  } catch (err) {
+    console.warn('[PriceHistory] Auto-subscribe failed (buffer will only fill when clients subscribe):', err instanceof Error ? err.message : err);
   }
 
   // Auto-seed category config if the table is empty (must run before schedulers,
