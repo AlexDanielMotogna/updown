@@ -78,6 +78,13 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
   const isTwoWay = isCrypto || isPrediction || pool.numSides === 2;
   const isResolved = pool.status === 'CLAIMABLE' || pool.status === 'RESOLVED';
   const isLocked = !isResolved && !!pool.lockTime && new Date(pool.lockTime).getTime() < Date.now();
+  // "NEW" badge: surfaces pools created in the last 2h so users can spot
+  // freshly-listed markets in the grid. Excluded for crypto — those pools
+  // are minted every few minutes by the scheduler so a NEW pill would be
+  // background noise; only meaningful for sports / PM where listings are
+  // sparse and human-driven. Stops showing once the pool resolves.
+  const createdMs = pool.createdAt ? new Date(pool.createdAt).getTime() : 0;
+  const isNew = !isCrypto && !isResolved && createdMs > 0 && Date.now() - createdMs < 2 * 60 * 60 * 1000;
 
   const matchFinished = !isResolved && liveScore != null && isMatchFinished(liveScore.status);
   // Phase B: past expected match end but feed hasn't reported FT yet — we
@@ -270,6 +277,9 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+            {isNew && (
+              <Chip label="NEW" size="small" sx={{ height: 16, fontSize: '0.5rem', fontWeight: 800, letterSpacing: '0.06em', bgcolor: withAlpha(t.prediction, 0.14), color: t.prediction }} />
+            )}
             {isPopular && (
               <Chip icon={<Star sx={{ fontSize: 10 }} />} label="Popular" size="small" sx={{ height: 16, fontSize: '0.5rem', fontWeight: 700, bgcolor: withAlpha(t.gain, 0.1), color: t.gain, '& .MuiChip-icon': { color: t.gain, ml: 0.4 } }} />
             )}
@@ -327,6 +337,9 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
         </Box>
         {isPrediction && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0, mt: 0.25 }}>
+            {isNew && (
+              <Chip label="NEW" size="small" sx={{ height: 16, fontSize: '0.5rem', fontWeight: 800, letterSpacing: '0.06em', bgcolor: withAlpha(t.prediction, 0.14), color: t.prediction }} />
+            )}
             {isPopular && (
               <Chip icon={<Star sx={{ fontSize: 10 }} />} label="Popular" size="small" sx={{ height: 16, fontSize: '0.5rem', fontWeight: 700, bgcolor: withAlpha(t.gain, 0.1), color: t.gain, '& .MuiChip-icon': { color: t.gain, ml: 0.4 } }} />
             )}

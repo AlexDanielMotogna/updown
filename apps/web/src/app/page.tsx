@@ -54,8 +54,11 @@ export default function MarketsPage() {
   const assetValues = ASSET_FILTERS.map(f => f.value);
   const intervalValues = INTERVAL_FILTERS.map(f => f.value);
   const rawType = searchParams.get('type');
-  // Accept any type that starts with PM_ or is CRYPTO/SPORTS (dynamic from DB)
-  const marketType: MarketType = rawType && (rawType === 'TRENDING' || rawType === 'CRYPTO' || rawType === 'SPORTS' || rawType.startsWith('PM_')) ? rawType : 'CRYPTO';
+  // Accept any type that starts with PM_ or is CRYPTO/SPORTS (dynamic from DB).
+  // Default is TRENDING — the Markets landing surfaces the Polymarket /
+  // Kalshi-style mix of hottest crypto + sports + PM, and category-specific
+  // grids live behind ?type=CRYPTO / SPORTS / PM_* once the user filters.
+  const marketType: MarketType = rawType && (rawType === 'TRENDING' || rawType === 'CRYPTO' || rawType === 'SPORTS' || rawType.startsWith('PM_')) ? rawType : 'TRENDING';
   const isPM = marketType.startsWith('PM_');
   const isTrending = marketType === 'TRENDING';
   // SOCCER → FOOTBALL alias for backward-compat with bookmarked URLs
@@ -278,7 +281,11 @@ export default function MarketsPage() {
       marketType={marketType}
       onMarketTypeChange={(v: MarketType) => {
         const params = new URLSearchParams();
-        if (v !== 'CRYPTO') params.set('type', v);
+        // Only the *default* type (TRENDING) is left out of the URL —
+        // every other tab (CRYPTO / SPORTS / PM_*) must carry an explicit
+        // ?type param, otherwise navigating "to CRYPTO" silently lands
+        // back on the trending landing because that's what /  resolves to.
+        if (v !== 'TRENDING') params.set('type', v);
         const qs = params.toString();
         router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
         setSportsVisible(CARDS_PER_PAGE);
