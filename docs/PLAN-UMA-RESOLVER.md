@@ -117,6 +117,48 @@ Decision matrix:
 - [ ] Delete `gamma-delisted-immediate` Phase 1 path from
   `sweepStuckPmPools()` once UMA is trusted
 
+## 2026-06-03 — Smoke-test finding (BLOCKS cutover)
+
+After the resolver was wired end-to-end (commits up to `1f50ffd`) we
+probed 10 cached questionIds against the static UmaCtfAdapter address
+(`0x6A9D…F74`) with a corrected 10-field ABI. **Every question returned
+the zero struct** — `requestTimestamp` decodes as the literal value
+`32` (the ABI offset pointer for the empty `ancillaryData` bytes tail
+in a zeroed struct), `creator=0x00…00`, `resolved=false`. The
+questions are NOT registered with that contract.
+
+Gamma's per-market `resolvedBy` field points at a different address
+(`0x65070BE91477460D8A7AeEb94ef92fe056C2f2A7` for US x Iran). Probing
+that contract with the same ABI also returns the zero struct, which
+either means it has a different struct layout OR it's a different
+contract type entirely (Polymarket settlement, not the UMA adapter).
+
+So: the resolver is mechanically correct (viem + RPC + decode all
+work — see `scripts/test-uma-resolver.ts` output), but the static
+`UMA_CTF_ADAPTER_POLYGON` address is the wrong target for the
+real-world distribution of markets we ingest today. The flag stays
+**off** — turning it on right now would resolve nothing via UMA and
+fall through to Gamma for every market (safe but pointless).
+
+Two paths forward, pick after a short spike:
+
+  A. **Per-market resolver dispatch** — add `resolvedBy` to the cache,
+     stash it on ingest, pass to `readUmaQuestion(questionId, adapter)`.
+     Probe each known Polymarket adapter (`0x6A9D…F74`,
+     `0x65070BE9…`, the NegRisk variant if found) with the right ABI.
+     1-2 days of contract archaeology + code.
+
+  B. **Query the UMA Optimistic Oracle V2 directly** using the
+     ancillary data hash. Bypasses Polymarket's adapter layer entirely
+     and reads from UMA's source-of-truth oracle. Cleaner long-term,
+     but the request key is the ancillary-data hash (not the
+     questionID), so we'd need to compute it from market metadata. 2-3
+     days.
+
+Until one of these lands, the existing Gamma path stays primary and
+the UMA scaffolding is dead code behind the off flag — no regression
+risk, no upside yet.
+
 ## Limits / honest caveats
 
 1. **Coverage** ~85% of markets resolve via UMA-CTF. Sports markets

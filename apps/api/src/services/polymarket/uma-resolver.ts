@@ -47,6 +47,14 @@ export type UmaQuestionState =
  * Minimal subset of the UmaCtfAdapter ABI we need. Kept inline (instead
  * of a JSON artifact) so the bundle doesn't carry the full ABI for a
  * single read call.
+ *
+ * IMPORTANT — the QuestionData struct has 10 fields. Earlier drafts of
+ * this file omitted `creator` (field #2), which silently shifted every
+ * subsequent decoded value by one slot. `getQuestion` then returned
+ * `requestTimestamp=32` for every question (the `32` is actually the
+ * offset prefix of the ancillaryData bytes when read into the wrong
+ * slot), and the resolver mistakenly reported every market as "pending".
+ * Source: https://github.com/Polymarket/uma-ctf-adapter/blob/main/src/UmaCtfAdapter.sol
  */
 export const UMA_CTF_ADAPTER_ABI = [
   {
@@ -56,6 +64,7 @@ export const UMA_CTF_ADAPTER_ABI = [
     inputs: [{ name: 'questionID', type: 'bytes32' }],
     outputs: [
       { name: 'requestTimestamp', type: 'uint256' },
+      { name: 'creator', type: 'address' },
       { name: 'rewardToken', type: 'address' },
       { name: 'reward', type: 'uint256' },
       { name: 'proposalBond', type: 'uint256' },
@@ -150,7 +159,9 @@ export async function readUmaQuestion(questionId: string): Promise<UmaQuestionSt
     return { kind: 'unknown' };
   }
 
-  let raw: readonly [bigint, `0x${string}`, bigint, bigint, bigint, boolean, boolean, boolean, `0x${string}`];
+  // Tuple order MUST match the QuestionData struct (10 fields). See
+  // UMA_CTF_ADAPTER_ABI comment for why this matters.
+  let raw: readonly [bigint, `0x${string}`, `0x${string}`, bigint, bigint, bigint, boolean, boolean, boolean, `0x${string}`];
   try {
     raw = (await client.readContract({
       address: UMA_CTF_ADAPTER_POLYGON,
@@ -165,7 +176,7 @@ export async function readUmaQuestion(questionId: string): Promise<UmaQuestionSt
     return state;
   }
 
-  const [requestTimestamp, , , , emergencyResolutionTimestamp, resolved, paused] = raw;
+  const [requestTimestamp, , , , , emergencyResolutionTimestamp, resolved, paused] = raw;
 
   let state: UmaQuestionState;
   if (paused) {
