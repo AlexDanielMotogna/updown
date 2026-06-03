@@ -117,7 +117,34 @@ Decision matrix:
 - [ ] Delete `gamma-delisted-immediate` Phase 1 path from
   `sweepStuckPmPools()` once UMA is trusted
 
-## 2026-06-03 — Smoke-test finding (BLOCKS cutover)
+## 2026-06-03 — Path B chosen: query CTF directly
+
+Pivot from the UmaCtfAdapter approach (Path A) to querying Polymarket's
+Conditional Tokens Framework (`0x4D97DCd97eC945f40cF65F87097ACe5EA0476045`
+on Polygon). CTF is the canonical settlement layer for every PM market
+regardless of which UMA adapter wrapped the request, so a single
+contract + single ABI gives 100% coverage.
+
+Validated against three actually-closed markets pulled from
+`/markets?closed=true&limit=5`:
+
+| Market                              | Gamma           | CTF             |
+|-------------------------------------|-----------------|-----------------|
+| Katana FDV > $1B one day after launch | NO won (0,1)   | NO won (0,1) ✓  |
+| Espresso FDV > $200M                | YES won (1,0)   | YES won (1,0) ✓ |
+| Espresso FDV > $100M                | YES won (1,0)   | YES won (1,0) ✓ |
+
+100% agreement. CTF returns `payoutDenominator=0` for unresolved
+markets, so the resolver can cleanly distinguish pending from resolved
+without ambiguity.
+
+Implementation lives in `services/polymarket/ctf-resolver.ts`:
+`readCtfResolution(conditionId)` returns one of
+`resolved | refund | pending | unknown | rpc-error`.
+The UMA-direct `uma-resolver.ts` was deleted along with its
+question-id backfill, since the CTF path supersedes it.
+
+## 2026-06-03 — (superseded) Smoke-test finding for Path A
 
 After the resolver was wired end-to-end (commits up to `1f50ffd`) we
 probed 10 cached questionIds against the static UmaCtfAdapter address

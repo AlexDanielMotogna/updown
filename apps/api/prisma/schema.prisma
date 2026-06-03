@@ -478,14 +478,14 @@ model SportsFixtureCache {
   clobTokenIds   String?  @map("clob_token_ids")
   tags           String? // JSON array of raw tag labels from Polymarket
   subcategory    String? // Single resolved subcategory bucket (carried to Pool on creation)
-  // Polymarket markets settle via UMA's Optimistic Oracle (Polygon). We
-  // cache the questionID here so the resolution poll can read the result
-  // directly from the UmaCtfAdapter contract when Gamma stops returning
-  // the market (delisted but still queryable on-chain). bytes32 hex (0x…).
-  // Null for non-PM rows (sports/football) and for legacy PM rows that
-  // were ingested before this column existed — those keep the Gamma-only
-  // resolution path.
+  // Polymarket markets settle via UMA → CTF on Polygon. We cache both
+  // ids from Gamma; the resolver primarily uses conditionId (queries
+  // ConditionalTokens at 0x4D97...6045, a single address for every PM
+  // market regardless of which UMA adapter wrapped the request), and
+  // questionId is kept around for a potential OO V2 fallback. Both are
+  // bytes32 hex (0x… 64chars). Null for non-PM rows.
   questionId     String?  @map("question_id")
+  conditionId    String?  @map("condition_id")
   apiSource      String   @default("sports") @map("api_source")
   lastSyncedAt   DateTime @map("last_synced_at")
   createdAt      DateTime @default(now()) @map("created_at")
