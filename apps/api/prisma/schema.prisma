@@ -58,8 +58,8 @@ model Pool {
   marketOdds      Float?     @map("market_odds")
   groupItemTitle  String?    @map("group_item_title")
   clobTokenIds    String?    @map("clob_token_ids")
-  tags            String?                                    // JSON array of raw tag labels from Polymarket (display/debug)
-  subcategory     String?                                    // Single resolved subcategory bucket (exact-match filter key)
+  tags            String? // JSON array of raw tag labels from Polymarket (display/debug)
+  subcategory     String? // Single resolved subcategory bucket (exact-match filter key)
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
   // Set once the pool's on-chain PDA has been closed (or confirmed already
@@ -69,12 +69,13 @@ model Pool {
   // and POOL_CLOSED auto_cleanup spams the event log.
   closedAt        DateTime?  @map("closed_at")
 
-  squadId         String?    @map("squad_id")
-  maxBettors      Int?       @map("max_bettors")
+  squadId    String? @map("squad_id")
+  maxBettors Int?    @map("max_bettors")
 
-  squad              Squad?           @relation("SquadPools", fields: [squadId], references: [id])
-  bets               Bet[]
-  priceSnapshots     PriceSnapshot[]
+  squad          Squad?          @relation("SquadPools", fields: [squadId], references: [id])
+  bets           Bet[]
+  priceSnapshots PriceSnapshot[]
+
   @@index([asset, interval, status])
   @@index([squadId, status])
   @@index([poolType])
@@ -85,22 +86,22 @@ model Pool {
 }
 
 model Bet {
-  id            String   @id @default(uuid())
-  poolId        String   @map("pool_id")
-  walletAddress String   @map("wallet_address")
-  side          Side
-  amount        BigInt
-  depositTx     String?  @map("deposit_tx")
-  claimed       Boolean  @default(false)
-  claimTx       String?  @map("claim_tx")
-  payoutAmount  BigInt?  @map("payout_amount")
+  id              String    @id @default(uuid())
+  poolId          String    @map("pool_id")
+  walletAddress   String    @map("wallet_address")
+  side            Side
+  amount          BigInt
+  depositTx       String?   @map("deposit_tx")
+  claimed         Boolean   @default(false)
+  claimTx         String?   @map("claim_tx")
+  payoutAmount    BigInt?   @map("payout_amount")
   // Auto-payout tracking - set by the scheduler's autoClaimBets job. Stays
   // null/0 for bets paid via the manual claim flow.
-  payoutFailed     Boolean   @default(false) @map("payout_failed")
-  payoutAttempts   Int       @default(0) @map("payout_attempts")
-  lastAttemptedAt  DateTime? @map("last_attempted_at")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
+  payoutFailed    Boolean   @default(false) @map("payout_failed")
+  payoutAttempts  Int       @default(0) @map("payout_attempts")
+  lastAttemptedAt DateTime? @map("last_attempted_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   pool Pool @relation(fields: [poolId], references: [id])
 
@@ -122,7 +123,7 @@ model Bet {
 model PriceSnapshot {
   id        String   @id @default(uuid())
   poolId    String   @map("pool_id")
-  type      String   // 'STRIKE' or 'FINAL'
+  type      String // 'STRIKE' or 'FINAL'
   price     BigInt
   timestamp DateTime
   source    String
@@ -152,50 +153,50 @@ enum RewardReason {
 }
 
 model User {
-  id             String   @id @default(uuid())
-  walletAddress  String   @unique @map("wallet_address")
+  id            String @id @default(uuid())
+  walletAddress String @unique @map("wallet_address")
 
   // Optional self-edited profile fields. displayName is unique so we can
   // surface it in the leaderboard / activity feed without ambiguity; the
   // wallet address stays the immutable identity.
-  displayName    String?  @unique @map("display_name")
-  avatarUrl      String?  @map("avatar_url")
-  bannerUrl      String?  @map("banner_url")
+  displayName String? @unique @map("display_name")
+  avatarUrl   String? @map("avatar_url")
+  bannerUrl   String? @map("banner_url")
 
   // XP & Level
-  totalXp        BigInt   @default(0) @map("total_xp")
-  level          Int      @default(1)
+  totalXp BigInt @default(0) @map("total_xp")
+  level   Int    @default(1)
 
   // UP Coins (8-decimal internal currency)
-  coinsBalance   BigInt   @default(0) @map("coins_balance")
-  coinsLifetime  BigInt   @default(0) @map("coins_lifetime")
-  coinsRedeemed  BigInt   @default(0) @map("coins_redeemed")
+  coinsBalance  BigInt @default(0) @map("coins_balance")
+  coinsLifetime BigInt @default(0) @map("coins_lifetime")
+  coinsRedeemed BigInt @default(0) @map("coins_redeemed")
 
   // Stats
-  totalBets      Int      @default(0) @map("total_bets")
-  totalWins      Int      @default(0) @map("total_wins")
-  totalWagered   BigInt   @default(0) @map("total_wagered")
+  totalBets    Int    @default(0) @map("total_bets")
+  totalWins    Int    @default(0) @map("total_wins")
+  totalWagered BigInt @default(0) @map("total_wagered")
 
   // Streaks
-  currentStreak  Int      @default(0) @map("current_streak")
-  bestStreak     Int      @default(0) @map("best_streak")
+  currentStreak  Int       @default(0) @map("current_streak")
+  bestStreak     Int       @default(0) @map("best_streak")
   lastActiveDate DateTime? @map("last_active_date")
 
   // Daily tracking
-  dailyBetCount  Int      @default(0) @map("daily_bet_count")
-  dailyCoins     BigInt   @default(0) @map("daily_coins")
+  dailyBetCount  Int       @default(0) @map("daily_bet_count")
+  dailyCoins     BigInt    @default(0) @map("daily_coins")
   dailyResetDate DateTime? @map("daily_reset_date")
 
   // Referrals
-  referralCode   String?  @unique @map("referral_code")
-  referredBy     String?  @map("referred_by")
+  referralCode String? @unique @map("referral_code")
+  referredBy   String? @map("referred_by")
 
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  rewardLogs     RewardLog[]
-  referralsGiven Referral[] @relation("referrer")
-  referralsReceived Referral[] @relation("referred")
+  rewardLogs        RewardLog[]
+  referralsGiven    Referral[]  @relation("referrer")
+  referralsReceived Referral[]  @relation("referred")
 
   @@index([level])
   @@index([coinsLifetime])
@@ -220,16 +221,16 @@ model RewardLog {
 }
 
 model EmissionConfig {
-  id               String   @id @default(uuid())
-  epoch            Int      @unique
-  coinsPerUsdcBet  BigInt   @map("coins_per_usdc_bet") // coins per $1 bet (8 decimals)
-  winMultiplier    Int      @map("win_multiplier")      // basis points (5000 = 50%)
-  dailyCoinsCap    BigInt   @map("daily_coins_cap")     // global daily cap
-  epochStartDate   DateTime @map("epoch_start_date")
+  id               String    @id @default(uuid())
+  epoch            Int       @unique
+  coinsPerUsdcBet  BigInt    @map("coins_per_usdc_bet") // coins per $1 bet (8 decimals)
+  winMultiplier    Int       @map("win_multiplier") // basis points (5000 = 50%)
+  dailyCoinsCap    BigInt    @map("daily_coins_cap") // global daily cap
+  epochStartDate   DateTime  @map("epoch_start_date")
   epochEndDate     DateTime? @map("epoch_end_date")
-  totalAllocated   BigInt   @default(0) @map("total_allocated")
-  totalDistributed BigInt   @default(0) @map("total_distributed")
-  active           Boolean  @default(false)
+  totalAllocated   BigInt    @default(0) @map("total_allocated")
+  totalDistributed BigInt    @default(0) @map("total_distributed")
+  active           Boolean   @default(false)
 
   @@map("emission_configs")
 }
@@ -249,8 +250,8 @@ model EventLog {
 
 model UptimeCheck {
   id        String   @id @default(uuid())
-  status    String   // operational, degraded, partial_outage
-  services  Json     // array of { name, status, latency?, details? }
+  status    String // operational, degraded, partial_outage
+  services  Json // array of { name, status, latency?, details? }
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([createdAt])
@@ -351,29 +352,29 @@ model SquadMessage {
 // ─── Tournaments ─────────────────────────────────────────────────────────────
 
 model Tournament {
-  id            String    @id @default(uuid())
-  name          String
-  asset         String
-  entryFee      BigInt    @map("entry_fee")
-  size          Int                                // 8, 16, 32
-  matchDuration     Int       @map("match_duration")       // seconds - wait time after predictions
-  predictionWindow  Int       @default(300) @map("prediction_window") // seconds - time to predict
-  status        String    @default("REGISTERING")  // REGISTERING, ACTIVE, COMPLETED, CANCELLED
-  currentRound  Int       @default(0) @map("current_round")
-  totalRounds   Int       @map("total_rounds")     // log2(size)
-  prizePool     BigInt    @default(0) @map("prize_pool")
-  winnerWallet  String?   @map("winner_wallet")
-  prizeClaimedTx String?  @map("prize_claimed_tx")
-  scheduledAt   DateTime? @map("scheduled_at")       // informational - estimated start time
-  createdAt     DateTime  @default(now()) @map("created_at")
-  startedAt     DateTime? @map("started_at")
-  completedAt   DateTime? @map("completed_at")
-  tournamentType String   @default("CRYPTO") @map("tournament_type") // CRYPTO | SPORTS
-  sport          String?                             // FOOTBALL
-  league         String?                             // CL, PL, PD, etc.
-  matchConfig    String?  @map("match_config")       // JSON: pre-configured matches per round
-  onChainPda     String?  @map("on_chain_pda")       // Tournament PDA address (null = legacy)
-  onChainVault   String?  @map("on_chain_vault")     // Vault PDA address
+  id               String    @id @default(uuid())
+  name             String
+  asset            String
+  entryFee         BigInt    @map("entry_fee")
+  size             Int // 8, 16, 32
+  matchDuration    Int       @map("match_duration") // seconds - wait time after predictions
+  predictionWindow Int       @default(300) @map("prediction_window") // seconds - time to predict
+  status           String    @default("REGISTERING") // REGISTERING, ACTIVE, COMPLETED, CANCELLED
+  currentRound     Int       @default(0) @map("current_round")
+  totalRounds      Int       @map("total_rounds") // log2(size)
+  prizePool        BigInt    @default(0) @map("prize_pool")
+  winnerWallet     String?   @map("winner_wallet")
+  prizeClaimedTx   String?   @map("prize_claimed_tx")
+  scheduledAt      DateTime? @map("scheduled_at") // informational - estimated start time
+  createdAt        DateTime  @default(now()) @map("created_at")
+  startedAt        DateTime? @map("started_at")
+  completedAt      DateTime? @map("completed_at")
+  tournamentType   String    @default("CRYPTO") @map("tournament_type") // CRYPTO | SPORTS
+  sport            String? // FOOTBALL
+  league           String? // CL, PL, PD, etc.
+  matchConfig      String?   @map("match_config") // JSON: pre-configured matches per round
+  onChainPda       String?   @map("on_chain_pda") // Tournament PDA address (null = legacy)
+  onChainVault     String?   @map("on_chain_vault") // Vault PDA address
 
   participants TournamentParticipant[]
   matches      TournamentMatch[]
@@ -400,29 +401,29 @@ model TournamentParticipant {
 }
 
 model TournamentMatch {
-  id                  String    @id @default(uuid())
-  tournamentId        String    @map("tournament_id")
-  round               Int
-  matchIndex          Int       @map("match_index")
-  player1Wallet       String?   @map("player1_wallet")
-  player2Wallet       String?   @map("player2_wallet")
-  player1Prediction   String?   @map("player1_prediction")   // Crypto: numeric string. Sports: JSON {outcomes, totalGoals}
-  player2Prediction   String?   @map("player2_prediction")
-  player1PredictedAt  DateTime? @map("player1_predicted_at")
-  player2PredictedAt  DateTime? @map("player2_predicted_at")
-  player1TotalGoals   Int?      @map("player1_total_goals")  // Sports tiebreaker
-  player2TotalGoals   Int?      @map("player2_total_goals")
-  player1Score        Int?      @map("player1_score")         // Sports: correct predictions count
-  player2Score        Int?      @map("player2_score")
-  predictionDeadline  DateTime? @map("prediction_deadline")
-  startTime           DateTime? @map("start_time")
-  endTime             DateTime? @map("end_time")
-  strikePrice         String?   @map("strike_price")          // Crypto only
-  finalPrice          String?   @map("final_price")           // Crypto: numeric. Sports: JSON outcomes
-  winnerWallet        String?   @map("winner_wallet")
-  status              String    @default("PENDING") // PENDING, ACTIVE, RESOLVED, BYE
-  createdAt           DateTime  @default(now()) @map("created_at")
-  resolvedAt          DateTime? @map("resolved_at")
+  id                 String    @id @default(uuid())
+  tournamentId       String    @map("tournament_id")
+  round              Int
+  matchIndex         Int       @map("match_index")
+  player1Wallet      String?   @map("player1_wallet")
+  player2Wallet      String?   @map("player2_wallet")
+  player1Prediction  String?   @map("player1_prediction") // Crypto: numeric string. Sports: JSON {outcomes, totalGoals}
+  player2Prediction  String?   @map("player2_prediction")
+  player1PredictedAt DateTime? @map("player1_predicted_at")
+  player2PredictedAt DateTime? @map("player2_predicted_at")
+  player1TotalGoals  Int?      @map("player1_total_goals") // Sports tiebreaker
+  player2TotalGoals  Int?      @map("player2_total_goals")
+  player1Score       Int?      @map("player1_score") // Sports: correct predictions count
+  player2Score       Int?      @map("player2_score")
+  predictionDeadline DateTime? @map("prediction_deadline")
+  startTime          DateTime? @map("start_time")
+  endTime            DateTime? @map("end_time")
+  strikePrice        String?   @map("strike_price") // Crypto only
+  finalPrice         String?   @map("final_price") // Crypto: numeric. Sports: JSON outcomes
+  winnerWallet       String?   @map("winner_wallet")
+  status             String    @default("PENDING") // PENDING, ACTIVE, RESOLVED, BYE
+  createdAt          DateTime  @default(now()) @map("created_at")
+  resolvedAt         DateTime? @map("resolved_at")
 
   tournament Tournament @relation(fields: [tournamentId], references: [id])
 
@@ -444,8 +445,8 @@ model TournamentRoundFixture {
   kickoff         DateTime?
   resultHome      Int?      @map("result_home")
   resultAway      Int?      @map("result_away")
-  resultOutcome   String?   @map("result_outcome")  // HOME | DRAW | AWAY
-  status          String    @default("SCHEDULED")    // SCHEDULED | LIVE | FINISHED
+  resultOutcome   String?   @map("result_outcome") // HOME | DRAW | AWAY
+  status          String    @default("SCHEDULED") // SCHEDULED | LIVE | FINISHED
   createdAt       DateTime  @default(now()) @map("created_at")
 
   tournament Tournament @relation(fields: [tournamentId], references: [id])
@@ -456,31 +457,39 @@ model TournamentRoundFixture {
 }
 
 model SportsFixtureCache {
-  id            String   @id @default(uuid())
-  externalId    String   @map("external_id")
-  sport         String
-  league        String
-  leagueName    String   @map("league_name")
-  season        Int?
-  matchday      Int?
-  homeTeam      String   @map("home_team")
-  awayTeam      String   @map("away_team")
-  homeTeamCrest String?  @map("home_team_crest")
-  awayTeamCrest String?  @map("away_team_crest")
-  kickoff       DateTime
-  status        String   @default("SCHEDULED")
-  homeScore     Int?     @map("home_score")
-  awayScore     Int?     @map("away_score")
-  winner          String?
-  marketOdds      Float?           @map("market_odds")
-  groupItemTitle  String?          @map("group_item_title")
-  clobTokenIds    String?          @map("clob_token_ids")
-  tags            String?                                  // JSON array of raw tag labels from Polymarket
-  subcategory     String?                                  // Single resolved subcategory bucket (carried to Pool on creation)
-  apiSource       String   @default("sports") @map("api_source")
-  lastSyncedAt    DateTime @map("last_synced_at")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id             String   @id @default(uuid())
+  externalId     String   @map("external_id")
+  sport          String
+  league         String
+  leagueName     String   @map("league_name")
+  season         Int?
+  matchday       Int?
+  homeTeam       String   @map("home_team")
+  awayTeam       String   @map("away_team")
+  homeTeamCrest  String?  @map("home_team_crest")
+  awayTeamCrest  String?  @map("away_team_crest")
+  kickoff        DateTime
+  status         String   @default("SCHEDULED")
+  homeScore      Int?     @map("home_score")
+  awayScore      Int?     @map("away_score")
+  winner         String?
+  marketOdds     Float?   @map("market_odds")
+  groupItemTitle String?  @map("group_item_title")
+  clobTokenIds   String?  @map("clob_token_ids")
+  tags           String? // JSON array of raw tag labels from Polymarket
+  subcategory    String? // Single resolved subcategory bucket (carried to Pool on creation)
+  // Polymarket markets settle via UMA → CTF on Polygon. We cache both
+  // ids from Gamma; the resolver primarily uses conditionId (queries
+  // ConditionalTokens at 0x4D97...6045, a single address for every PM
+  // market regardless of which UMA adapter wrapped the request), and
+  // questionId is kept around for a potential OO V2 fallback. Both are
+  // bytes32 hex (0x… 64chars). Null for non-PM rows.
+  questionId     String?  @map("question_id")
+  conditionId    String?  @map("condition_id")
+  apiSource      String   @default("sports") @map("api_source")
+  lastSyncedAt   DateTime @map("last_synced_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   @@unique([externalId, sport, apiSource])
   @@index([sport, league, kickoff])
@@ -501,13 +510,13 @@ model SportsFixtureCache {
 /// existing home_team_crest / away_team_crest columns on
 /// sports_fixture_cache / Pool (no schema change needed downstream).
 model FighterImageCache {
-  nameKey       String   @id @map("name_key")          // normalized: lowercase, single-spaced
-  displayName   String   @map("display_name")          // original casing from the first hit
-  sport         String                                  // 'Fighting' for SDB combat
-  idPlayer      String?  @map("id_player")             // SDB idPlayer when matched
-  team          String?                                 // 'UFC Welterweight' etc.
-  thumbUrl      String?  @map("thumb_url")             // strThumb — jpg headshot
-  cutoutUrl     String?  @map("cutout_url")            // strCutout — png, transparent
+  nameKey       String   @id @map("name_key") // normalized: lowercase, single-spaced
+  displayName   String   @map("display_name") // original casing from the first hit
+  sport         String // 'Fighting' for SDB combat
+  idPlayer      String?  @map("id_player") // SDB idPlayer when matched
+  team          String? // 'UFC Welterweight' etc.
+  thumbUrl      String?  @map("thumb_url") // strThumb — jpg headshot
+  cutoutUrl     String?  @map("cutout_url") // strCutout — png, transparent
   notFound      Boolean  @default(false) @map("not_found")
   lastFetchedAt DateTime @default(now()) @map("last_fetched_at")
   createdAt     DateTime @default(now()) @map("created_at")
@@ -521,15 +530,15 @@ model FighterImageCache {
 // ─── Live Scores (DB fallback for TheSportsDB livescore cache) ────────────────
 
 model LiveScore {
-  eventId       String   @id @map("event_id")          // TheSportsDB idEvent
-  sport         String                                   // 'Soccer', 'Ice Hockey', 'Basketball', etc.
-  league        String                                   // 'NHL', 'NBA', 'English Premier League', etc.
+  eventId       String   @id @map("event_id") // TheSportsDB idEvent
+  sport         String // 'Soccer', 'Ice Hockey', 'Basketball', etc.
+  league        String // 'NHL', 'NBA', 'English Premier League', etc.
   homeTeam      String   @map("home_team")
   awayTeam      String   @map("away_team")
   homeScore     Int      @default(0) @map("home_score")
   awayScore     Int      @default(0) @map("away_score")
-  status        String                                   // Raw TheSportsDB status code (P1, Q2, HT, FT, etc.)
-  progress      String   @default("")                    // '45', '90+3', 'Q3 8:42', etc.
+  status        String // Raw TheSportsDB status code (P1, Q2, HT, FT, etc.)
+  progress      String   @default("") // '45', '90+3', 'Q3 8:42', etc.
   homeTeamBadge String   @default("") @map("home_team_badge")
   awayTeamBadge String   @default("") @map("away_team_badge")
   homeTeamNorm  String   @default("") @map("home_team_norm") // normalized: lowercase alphanumeric only
@@ -546,10 +555,10 @@ model LiveScore {
 model Notification {
   id            String   @id @default(uuid())
   walletAddress String   @map("wallet_address")
-  type          String                              // POOL_WON, POOL_LOST, POOL_CLAIMABLE, REFUND_RECEIVED, etc.
+  type          String // POOL_WON, POOL_LOST, POOL_CLAIMABLE, REFUND_RECEIVED, etc.
   title         String
   message       String
-  severity      String   @default("info")           // success, info, warning, error
+  severity      String   @default("info") // success, info, warning, error
   poolId        String?  @map("pool_id")
   poolType      String?  @map("pool_type")
   read          Boolean  @default(false)
@@ -561,34 +570,34 @@ model Notification {
 }
 
 model PoolCategory {
-  id         String   @id @default(uuid())
-  code       String   @unique
-  type       String                                          // FOOTBALL_LEAGUE, SPORTSDB_SPORT, POLYMARKET, SPORT_GROUP
-  enabled    Boolean  @default(true)
-  comingSoon Boolean  @default(false) @map("coming_soon")
-  label      String
-  shortLabel String?  @map("short_label")
-  color      String?
-  badgeUrl   String?  @map("badge_url")
+  id           String   @id @default(uuid())
+  code         String   @unique
+  type         String // FOOTBALL_LEAGUE, SPORTSDB_SPORT, POLYMARKET, SPORT_GROUP
+  enabled      Boolean  @default(true)
+  comingSoon   Boolean  @default(false) @map("coming_soon")
+  label        String
+  shortLabel   String?  @map("short_label")
+  color        String?
+  badgeUrl     String?  @map("badge_url")
   /// Preferred background for the badge image. Auto-detected when SDB
   /// supplies a badge that's mostly white (white-on-transparent logos
   /// vanish on white backgrounds). Values: 'light' | 'dark' | '#RRGGBB'
   /// hex, or NULL = use frontend default.
-  badgeBgColor String? @map("badge_bg_color")
-  iconKey    String?  @map("icon_key")
-  apiSource  String?  @map("api_source")
-  adapterKey String?  @map("adapter_key")
-  numSides   Int      @default(3) @map("num_sides")
-  sideLabels String[] @default(["Home", "Draw", "Away"]) @map("side_labels")
-  config     Json?
-  sortOrder  Int      @default(0) @map("sort_order")
+  badgeBgColor String?  @map("badge_bg_color")
+  iconKey      String?  @map("icon_key")
+  apiSource    String?  @map("api_source")
+  adapterKey   String?  @map("adapter_key")
+  numSides     Int      @default(3) @map("num_sides")
+  sideLabels   String[] @default(["Home", "Draw", "Away"]) @map("side_labels")
+  config       Json?
+  sortOrder    Int      @default(0) @map("sort_order")
   // Two-level hierarchy: SPORT_GROUP rows are umbrellas (Rugby, Football,
   // Basketball, ...); leagues point at their group via parentCode. No FK —
   // categories are operator-managed and we don't want a rename to cascade-
   // rewrite every child silently. Application layer validates the reference.
-  parentCode String?  @map("parent_code")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  parentCode   String?  @map("parent_code")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@index([type, enabled])
   @@index([parentCode])

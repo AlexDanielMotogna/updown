@@ -11,13 +11,21 @@
  *   - OutcomeCard: large filled check tile + "Outcome: {label}" — final
  *     state once `pool.winner` is set.
  *
- * Both wrap the same EndedCard shell so the border / padding / "Terms of
- * Use" footer are identical across surfaces. Generic over the side labels
- * (Up/Down for crypto, Home/Away/Draw or actual team names for sports).
+ *   - CancelledCard: "Market cancelled" + refund explainer. Shown when
+ *     pool.status === 'CANCELLED' (Polymarket retired the listing AND
+ *     our oracle layer couldn't recover the resolution from CTF, or the
+ *     pool stuck > UMA grace window). Any user position is refunded
+ *     on-chain — we surface that fact instead of leaving the user
+ *     staring at the determining spinner forever.
+ *
+ * All three wrap the same EndedCard shell so the border / padding /
+ * "Terms of Use" footer are identical across surfaces. Generic over the
+ * side labels (Up/Down for crypto, Home/Away/Draw or actual team names
+ * for sports).
  */
 
 import { Box, CircularProgress, Tooltip, Typography } from '@mui/material';
-import { CheckCircle } from '@mui/icons-material';
+import { CheckCircle, ReplayCircleFilled } from '@mui/icons-material';
 import { useThemeTokens } from '@/app/providers';
 
 // ─── Terms of Use footer (shared) ────────────────────────────────────────────
@@ -182,6 +190,64 @@ export function OutcomeCard({ subtitle, meta, outcomeLabel, outcomeColor }: Outc
       </Box>
       <Typography sx={{ fontSize: '1.05rem', fontWeight: 800, color: outcomeColor, lineHeight: 1.3 }}>
         Outcome: {outcomeLabel}
+      </Typography>
+    </EndedShell>
+  );
+}
+
+// ─── Cancelled ───────────────────────────────────────────────────────────────
+
+interface CancelledCardProps {
+  subtitle: string;
+  meta?: string;
+  /** When true, the body line acknowledges the user's position and tells
+   *  them the refund has landed. When false (or omitted), the generic
+   *  no-position copy is shown — useful for the public read-only state.
+   *
+   *  The match page doesn't yet wire per-user bet status into this
+   *  surface, so this prop is opt-in; PlaceBetCard (crypto) does have
+   *  the bet context and can flip it on. */
+  hasUserPosition?: boolean;
+  /** Optional override for the body copy. Defaults to a Polymarket-aware
+   *  explanation about market retirement + automatic refund. */
+  bodyText?: string;
+}
+
+export function CancelledCard({
+  subtitle,
+  meta,
+  hasUserPosition = false,
+  bodyText,
+}: CancelledCardProps) {
+  const t = useThemeTokens();
+  // Cancellation copy. We avoid using the word "refund" when there's no
+  // position — for a 0-bet pool the surface is informational, not a
+  // status update on the viewer's money.
+  const body = bodyText
+    ?? (hasUserPosition
+      ? 'This market could not be resolved on the source feed and has been cancelled. Your position has been refunded automatically to your wallet — no action needed.'
+      : 'This market could not be resolved on the source feed and has been cancelled. Any positions that had been opened on it were refunded automatically.');
+  return (
+    <EndedShell subtitle={subtitle} meta={meta}>
+      <Box
+        sx={{
+          width: 52,
+          height: 52,
+          borderRadius: '50%',
+          bgcolor: t.text.dimmed,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          mt: 0.5,
+        }}
+      >
+        <ReplayCircleFilled sx={{ fontSize: 36, color: t.text.contrast }} />
+      </Box>
+      <Typography sx={{ fontSize: '1.05rem', fontWeight: 800, color: t.text.primary, lineHeight: 1.3 }}>
+        Market cancelled
+      </Typography>
+      <Typography sx={{ fontSize: '0.78rem', fontWeight: 500, color: t.text.tertiary, lineHeight: 1.45, maxWidth: 300 }}>
+        {body}
       </Typography>
     </EndedShell>
   );

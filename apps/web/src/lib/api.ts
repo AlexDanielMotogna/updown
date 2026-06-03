@@ -22,7 +22,12 @@ export interface Pool {
   asset: string;
   interval: string;
   durationSeconds: number;
-  status: 'UPCOMING' | 'JOINING' | 'ACTIVE' | 'RESOLVED' | 'CLAIMABLE';
+  // CANCELLED added 2026-06-03 — PM pools that couldn't be resolved
+  // (Polymarket retired the market AND neither Gamma nor CTF could give
+  // an outcome) end up here. winner stays null; bets refunded on-chain
+  // or 0-bet → account closed. The web surface routes this through
+  // CancelledCard, never DeterminingCard.
+  status: 'UPCOMING' | 'JOINING' | 'ACTIVE' | 'RESOLVED' | 'CLAIMABLE' | 'CANCELLED';
   startTime: string;
   endTime: string;
   lockTime: string;

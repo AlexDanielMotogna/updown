@@ -3,6 +3,7 @@ import { prisma } from '../db';
 import { polymarketFetch } from '../services/sports/polymarket-fetch';
 import { categorizeEvent } from '../services/sports/polymarket-adapter';
 import { pickSubcategory, getPolymarketCategories } from '../services/category-config';
+import { readCtfResolution } from '../services/polymarket/ctf-resolver';
 import type { MatchResult } from '../services/sports/types';
 import { createMatchPools } from './sports-scheduler';
 
@@ -16,6 +17,24 @@ function sleep(ms: number): Promise<void> {
 function safeJsonParse<T>(str: string | null | undefined): T | null {
   if (!str) return null;
   try { return JSON.parse(str); } catch { return null; }
+}
+
+/**
+ * Normalise a bytes32 hex value from a Gamma market response (questionID,
+ * conditionId) into the 0x-prefixed lowercase form our resolvers expect.
+ * Rejects empty / wrong-length / non-hex inputs so the columns never get
+ * poisoned with malformed data that the on-chain reads would later fail
+ * to decode.
+ */
+function normalizeHex32(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const withPrefix = trimmed.toLowerCase().startsWith('0x') ? trimmed.toLowerCase() : `0x${trimmed.toLowerCase()}`;
+  // bytes32 = 0x + 64 hex chars = 66 total
+  if (withPrefix.length !== 66) return null;
+  if (!/^0x[0-9a-f]{64}$/.test(withPrefix)) return null;
+  return withPrefix;
 }
 
 // ── lastBulkSyncAt tracking ────────────────────────────────────────────────
@@ -151,6 +170,12 @@ export async function bulkSync(): Promise<void> {
       // Resolve the single subcategory bucket (exact-match filter key) from the
       // category's ordered whitelist. null when no whitelisted tag is present.
       const subcategory = await pickSubcategory(cat.code, tagLabels);
+      // bytes32 ids from Gamma. conditionId is the primary key the CTF
+      // resolver uses (ConditionalTokens at 0x4D97...6045 is a single
+      // address for every PM market regardless of adapter). questionId
+      // is kept for a potential OO V2 fallback. Both lowercase 0x….
+      const questionId = normalizeHex32(market.questionID);
+      const conditionId = normalizeHex32(market.conditionId);
 
       // Determine status from Polymarket fields
       let status = 'SCHEDULED';
@@ -206,6 +231,8 @@ export async function bulkSync(): Promise<void> {
             clobTokenIds,
             tags,
             subcategory,
+            questionId,
+            conditionId,
             apiSource: API_SOURCE,
             lastSyncedAt: new Date(),
           },
@@ -223,6 +250,11 @@ export async function bulkSync(): Promise<void> {
             clobTokenIds,
             tags,
             subcategory,
+            // Backfill on existing rows that pre-date these columns. Once
+            // written, Gamma re-emits the same values every poll so the
+            // upsert is idempotent.
+            questionId,
+            conditionId,
             lastSyncedAt: new Date(),
           },
         });
@@ -333,6 +365,8 @@ export async function syncCategory(code: string): Promise<{ tagIds: string[]; ev
         : [];
       const tags: string | null = tagLabels.length > 0 ? JSON.stringify(tagLabels) : null;
       const subcategory = await pickSubcategory(code, tagLabels);
+      const questionId = normalizeHex32(market.questionID);
+      const conditionId = normalizeHex32(market.conditionId);
 
       let status = 'SCHEDULED';
       if (market.closed && market.umaResolutionStatus === 'resolved') status = 'FINISHED';
@@ -368,6 +402,8 @@ export async function syncCategory(code: string): Promise<{ tagIds: string[]; ev
             clobTokenIds,
             tags,
             subcategory,
+            questionId,
+            conditionId,
             apiSource: API_SOURCE,
             lastSyncedAt: new Date(),
           },
@@ -382,6 +418,8 @@ export async function syncCategory(code: string): Promise<{ tagIds: string[]; ev
             clobTokenIds,
             tags,
             subcategory,
+            questionId,
+            conditionId,
             lastSyncedAt: new Date(),
           },
         });
@@ -439,26 +477,82 @@ export async function recategorizePmPools(): Promise<{ moved: number; rebucketed
 // ── Resolution Poll ─────────────────────────────────────────────────────────
 
 /**
- * Classify a Polymarket market's current state via Gamma /markets?id=X.
- * Returns a discriminated state instead of the previous null-for-everything
- * sentinel — the old behaviour silently lumped "delisted" and "still
- * pending UMA" into the same `null` return, so pool resolution could not
- * tell the two apart and stayed in JOINING for the full 24h grace window
- * even when the market had clearly been removed from Gamma.
+ * Classify a Polymarket market's current state. Reads Polymarket's CTF
+ * contract on Polygon first when the flag POLYMARKET_USE_UMA=true and
+ * we have a cached conditionId — CTF is the single source-of-truth
+ * settlement layer for every PM market regardless of which adapter
+ * mediated. Falls back to Gamma for everything CTF can't answer.
+ *
+ *   resolved   — CTF says payoutDenominator > 0 (terminal, on-chain)
+ *                OR Gamma's closed && umaResolutionStatus==='resolved'.
+ *   refund     — CTF returned a [1,1] split. Caller should leave the
+ *                pool for admin force-refund (we never lose user funds
+ *                to an unexpected push).
+ *   delisted   — Gamma returns [] AND CTF either confirms unresolved
+ *                or we have no conditionId to ask CTF. The sweep then
+ *                cancels the pool after grace.
+ *   pending    — Market still live, or CTF hasn't reported yet, or
+ *                Gamma dropped the listing while CTF still says
+ *                pending (editorial action — don't cancel).
  */
 type MarketResolutionState =
   | { kind: 'delisted' }
   | { kind: 'pending' }
-  | { kind: 'resolved'; result: MatchResult };
+  | { kind: 'refund' }
+  | { kind: 'resolved'; result: MatchResult; oracle: 'ctf' | 'gamma' };
 
-async function pollPolymarketMarket(marketId: string): Promise<MarketResolutionState> {
+const POLYMARKET_USE_UMA = (): boolean => process.env.POLYMARKET_USE_UMA === 'true';
+
+async function pollPolymarketMarket(
+  marketId: string,
+  conditionId: string | null,
+): Promise<MarketResolutionState> {
+  // ── CTF-first path (behind flag) ──────────────────────────────────────
+  // When enabled + we have a conditionId, ask Polymarket's Conditional
+  // Tokens contract directly. Its answer is authoritative — once
+  // reportPayouts has been called, the position is final regardless of
+  // what Gamma's editorial layer is doing. We still fall through to
+  // Gamma when CTF can't help so resolutions never get stuck waiting on
+  // a degraded Polygon RPC.
+  const ctfEnabled = POLYMARKET_USE_UMA() && !!conditionId;
+  let ctfSaidPending = false;
+  if (ctfEnabled) {
+    const ctf = await readCtfResolution(conditionId!);
+    if (ctf.kind === 'resolved') {
+      // CTF outcome maps to our HOME/AWAY convention: 1 = YES = HOME,
+      // 0 = NO = AWAY. Same mapping the Gamma path uses, downstream
+      // pipeline doesn't change.
+      const winner: 'HOME' | 'AWAY' = ctf.outcome === 1 ? 'HOME' : 'AWAY';
+      return {
+        kind: 'resolved',
+        oracle: 'ctf',
+        result: {
+          matchId: marketId,
+          status: 'FINISHED',
+          homeScore: winner === 'HOME' ? 1 : 0,
+          awayScore: winner === 'AWAY' ? 1 : 0,
+          winner,
+        },
+      };
+    }
+    if (ctf.kind === 'refund') return { kind: 'refund' };
+    if (ctf.kind === 'pending') ctfSaidPending = true;
+    // 'unknown' / 'rpc-error' → fall through to Gamma.
+  }
+
   const data = await polymarketFetch(`/markets?id=${marketId}`);
-  // Gamma returns [] when the market has been delisted entirely. Treat
-  // that as a terminal state — the pool cannot resolve naturally and the
-  // sweep can skip its normal 24h grace because waiting is pointless.
-  if (Array.isArray(data) && data.length === 0) return { kind: 'delisted' };
+  // Gamma returns [] when the market has been delisted entirely. Default
+  // behaviour is to treat that as terminal — but if CTF explicitly told
+  // us the position is still pending, the delisting is editorial and we
+  // hold the resolution open. This is the exact fix for the gamma-
+  // delisted-immediate cancellations that today eat hourly PM_FINANCE
+  // duplicates and PM_CULTURE markets whose listing got pulled mid-
+  // window.
+  if (Array.isArray(data) && data.length === 0) {
+    return ctfSaidPending ? { kind: 'pending' } : { kind: 'delisted' };
+  }
   const market = Array.isArray(data) ? data[0] : data;
-  if (!market) return { kind: 'delisted' }; // null response, same as []
+  if (!market) return ctfSaidPending ? { kind: 'pending' } : { kind: 'delisted' };
 
   if (!market.closed || market.umaResolutionStatus !== 'resolved') {
     return { kind: 'pending' };
@@ -471,6 +565,7 @@ async function pollPolymarketMarket(marketId: string): Promise<MarketResolutionS
   const winner: 'HOME' | 'AWAY' = price0 > price1 ? 'HOME' : 'AWAY';
   return {
     kind: 'resolved',
+    oracle: 'gamma',
     result: {
       matchId: String(market.id),
       status: 'FINISHED',
@@ -506,18 +601,20 @@ async function resolutionPoll(): Promise<void> {
       status: { notIn: ['FINISHED', 'CANCELLED'] },
       kickoff: { lte: new Date() }, // past endDate
     },
-    select: { externalId: true },
+    select: { externalId: true, conditionId: true },
   });
 
   if (pending.length === 0) return;
 
   let resolved = 0;
+  let resolvedByCtf = 0;
   let delisted = 0;
+  let refunds = 0;
   let stillPending = 0;
 
-  for (const { externalId } of pending) {
+  for (const { externalId, conditionId } of pending) {
     try {
-      const state = await pollPolymarketMarket(externalId);
+      const state = await pollPolymarketMarket(externalId, conditionId);
 
       if (state.kind === 'resolved') {
         const winner = state.result.winner === 'HOME' ? 'HOME' : 'AWAY';
@@ -531,7 +628,19 @@ async function resolutionPoll(): Promise<void> {
             lastSyncedAt: new Date(),
           },
         });
+        // Track the oracle source so the cutover decision has hard data.
+        // Event log is best-effort — losing a counter row is fine, the
+        // cache update is the source of truth.
+        await prisma.eventLog.create({
+          data: {
+            eventType: 'POOL_PM_MARKET_RESOLVED',
+            entityType: 'market',
+            entityId: externalId,
+            payload: { marketId: externalId, oracle: state.oracle, winner },
+          },
+        }).catch(() => {});
         resolved++;
+        if (state.oracle === 'ctf') resolvedByCtf++;
       } else if (state.kind === 'delisted') {
         await prisma.sportsFixtureCache.updateMany({
           where: { externalId, sport: 'POLYMARKET', apiSource: API_SOURCE },
@@ -547,6 +656,20 @@ async function resolutionPoll(): Promise<void> {
         }).catch(() => {});
         console.warn(`[PolymarketSync] Market ${externalId} delisted from Gamma — cache → CANCELLED. Pool sweep will cancel any matching pool on its next pass.`);
         delisted++;
+      } else if (state.kind === 'refund') {
+        // CTF reported a [1,1] split — both outcomes pay equally. Rare
+        // (push/cancelled by oracle). Leave the cache row alone and log
+        // so the admin tab can force-refund the pool by hand. We never
+        // pick a "winner" automatically in this case.
+        await prisma.eventLog.create({
+          data: {
+            eventType: 'POOL_PM_CTF_REFUND',
+            entityType: 'market',
+            entityId: externalId,
+            payload: { marketId: externalId, conditionId },
+          },
+        }).catch(() => {});
+        refunds++;
       } else {
         stillPending++;
       }
@@ -558,8 +681,8 @@ async function resolutionPoll(): Promise<void> {
     await sleep(RATE_LIMIT_MS);
   }
 
-  if (resolved > 0 || delisted > 0) {
-    console.log(`[PolymarketSync] Resolution poll: resolved=${resolved} delisted=${delisted} still-pending=${stillPending} (of ${pending.length})`);
+  if (resolved > 0 || delisted > 0 || refunds > 0) {
+    console.log(`[PolymarketSync] Resolution poll: resolved=${resolved} (ctf=${resolvedByCtf}) delisted=${delisted} refund=${refunds} still-pending=${stillPending} (of ${pending.length})`);
   } else if (stillPending > 0 && Date.now() - lastPendingLogAt > PENDING_LOG_INTERVAL_MS) {
     // Throttle: heartbeat once per hour so the operator knows the pipe is
     // running even when nothing is changing state.
