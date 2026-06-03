@@ -2,7 +2,7 @@ import { Router, type Router as RouterType } from 'express';
 import { z } from 'zod';
 import { PublicKey } from '@solana/web3.js';
 import { prisma } from '../db';
-import { emitPoolUpdate } from '../websocket';
+import { emitPoolUpdate, emitBetPlaced } from '../websocket';
 import { getPoolPDA, getVaultPDA, getUserBetPDA, PROGRAM_ID, sideToIndex } from 'solana-client';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { getConnection, getUsdcMint, derivePoolSeed } from '../utils/solana';
@@ -409,6 +409,18 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
       totalUp: updatedPool.totalUp.toString(),
       totalDown: updatedPool.totalDown.toString(),
       totalDraw: updatedPool.totalDraw.toString(),
+    });
+
+    // Side-channel emit for the UI "BetFlash" pulse — we send just the
+    // delta (side + the amount on THIS deposit, not the cumulative
+    // per-side total). Decoupled from emitPoolUpdate above because the
+    // card grid wants to flash an exact amount, not a recomputed
+    // increment.
+    emitBetPlaced(pool.id, {
+      poolId: pool.id,
+      side,
+      amount: betAmount.toString(),
+      at: Date.now(),
     });
 
     // Track placement stats only (fire-and-forget). XP is awarded at pool

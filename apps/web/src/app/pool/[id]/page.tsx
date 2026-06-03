@@ -21,6 +21,8 @@ import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter'
 import { useThemeTokens } from '@/app/providers';
 import { PlaceBetCard } from '@/components/pool/PlaceBetCard';
 import { InlineChart } from '@/components/pool/InlineChart';
+import { BetFlash } from '@/components/BetFlash';
+import { useBetFlash } from '@/hooks/useBetFlash';
 import { PoolPageHeader } from '@/components/pool/PoolPageHeader';
 import { PriceTargetStrip } from '@/components/pool/PriceTargetStrip';
 import { ActiveCryptoPoolsSidebar } from '@/components/pool/ActiveCryptoPoolsSidebar';
@@ -73,6 +75,7 @@ export default function PoolDetailPage() {
     { enabled: !!pool?.asset }
   );
   const livePrice = pool?.asset ? getPrice(pool.asset) : null;
+  const betFlashes = useBetFlash(pool?.id);
 
   // Quick green/red flash on the price tile when the WS tick lands.
   const prevPrice = useRef(livePrice);
@@ -224,7 +227,13 @@ export default function PoolDetailPage() {
             finalPrice={pool.finalPrice}
             isLive={isLive}
           />
-          <Box sx={{ px: { xs: 0, md: 1 } }}>
+          {/* BetFlash anchored to the top-left of the chart panel — same
+              social-proof signal we render on the card grid, just sitting
+              over the price chart on the detail page. position: relative
+              on the wrapper is what BetFlash needs to anchor its absolute
+              variant. */}
+          <Box sx={{ px: { xs: 0, md: 1 }, position: 'relative' }}>
+            <BetFlash flashes={betFlashes} variant="chart-left" />
             <InlineChart
               asset={pool.asset}
               livePrice={livePrice}
