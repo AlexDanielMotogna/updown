@@ -18,6 +18,25 @@ function safeJsonParse<T>(str: string | null | undefined): T | null {
   try { return JSON.parse(str); } catch { return null; }
 }
 
+/**
+ * Normalise the UMA questionID from a Gamma market response into the
+ * 0x-prefixed lowercase bytes32 hex the UmaCtfAdapter expects. Rejects
+ * anything that isn't a 32-byte hex value — Polymarket occasionally
+ * returns empty strings for admin-resolved specials, and we'd rather
+ * persist NULL than poison the column with a malformed value that
+ * uma-resolver would later try to query.
+ */
+function normalizeQuestionId(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const withPrefix = trimmed.toLowerCase().startsWith('0x') ? trimmed.toLowerCase() : `0x${trimmed.toLowerCase()}`;
+  // bytes32 = 0x + 64 hex chars = 66 total
+  if (withPrefix.length !== 66) return null;
+  if (!/^0x[0-9a-f]{64}$/.test(withPrefix)) return null;
+  return withPrefix;
+}
+
 // ── lastBulkSyncAt tracking ────────────────────────────────────────────────
 // In-process record of when the last successful sync touched each category.
 // Powers the admin "Last synced …" label without needing a DB column. Cleared
@@ -151,6 +170,12 @@ export async function bulkSync(): Promise<void> {
       // Resolve the single subcategory bucket (exact-match filter key) from the
       // category's ordered whitelist. null when no whitelisted tag is present.
       const subcategory = await pickSubcategory(cat.code, tagLabels);
+      // UMA questionID — bytes32 key Polymarket registers with UmaCtfAdapter
+      // on Polygon. Persisted so services/polymarket/uma-resolver.ts can
+      // read settlement straight from the oracle, surviving Gamma editorial
+      // delisting. Normalised to lowercase 0x… for consistent storage.
+      // Null when Gamma omits the field (rare, admin-resolved specials).
+      const questionId = normalizeQuestionId(market.questionID);
 
       // Determine status from Polymarket fields
       let status = 'SCHEDULED';
@@ -206,6 +231,7 @@ export async function bulkSync(): Promise<void> {
             clobTokenIds,
             tags,
             subcategory,
+            questionId,
             apiSource: API_SOURCE,
             lastSyncedAt: new Date(),
           },
@@ -223,6 +249,10 @@ export async function bulkSync(): Promise<void> {
             clobTokenIds,
             tags,
             subcategory,
+            // Backfill questionId on existing rows that pre-date this column.
+            // Once written, Gamma re-emits the same value every poll so the
+            // upsert is idempotent.
+            questionId,
             lastSyncedAt: new Date(),
           },
         });
@@ -333,6 +363,7 @@ export async function syncCategory(code: string): Promise<{ tagIds: string[]; ev
         : [];
       const tags: string | null = tagLabels.length > 0 ? JSON.stringify(tagLabels) : null;
       const subcategory = await pickSubcategory(code, tagLabels);
+      const questionId = normalizeQuestionId(market.questionID);
 
       let status = 'SCHEDULED';
       if (market.closed && market.umaResolutionStatus === 'resolved') status = 'FINISHED';
@@ -368,6 +399,7 @@ export async function syncCategory(code: string): Promise<{ tagIds: string[]; ev
             clobTokenIds,
             tags,
             subcategory,
+            questionId,
             apiSource: API_SOURCE,
             lastSyncedAt: new Date(),
           },
@@ -382,6 +414,7 @@ export async function syncCategory(code: string): Promise<{ tagIds: string[]; ev
             clobTokenIds,
             tags,
             subcategory,
+            questionId,
             lastSyncedAt: new Date(),
           },
         });
