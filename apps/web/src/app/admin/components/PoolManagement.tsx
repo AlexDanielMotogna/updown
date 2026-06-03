@@ -1,12 +1,10 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Select, MenuItem, FormControl, InputLabel,
-  IconButton, Popover, MenuList,
 } from '@mui/material';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminFetch, adminPost } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
@@ -62,9 +60,6 @@ export function PoolManagement() {
   // a single misclick burned a transaction. Same gate now also covers
   // Close (reclaims rent) and Delete (DB-only forced removal).
   const [confirmAction, setConfirmAction] = useState<{ kind: 'resolve' | 'refund' | 'close' | 'delete'; poolId: string; asset: string } | null>(null);
-  // Row-level action menu anchor — one popover state because only one
-  // row's menu can be open at a time.
-  const [menuRow, setMenuRow] = useState<{ pool: PoolRow; anchor: HTMLElement } | null>(null);
 
   const { data: stuckData, isLoading: stuckLoading } = useQuery({
     queryKey: ['admin-stuck-pools'],
@@ -287,13 +282,41 @@ export function PoolManagement() {
                     <TableCell>{p.totalUp} / {p.totalDown}</TableCell>
                     <TableCell>{p.betCount}</TableCell>
                     <TableCell align="right" onClick={(e) => e.stopPropagation()}>
-                      <IconButton
-                        size="small"
-                        aria-label="Pool actions"
-                        onClick={(e) => setMenuRow({ pool: p, anchor: e.currentTarget })}
-                      >
-                        <MoreVertIcon fontSize="small" />
-                      </IconButton>
+                      {/* Inline buttons (not a popover menu) so every
+                          available action is visible without an extra
+                          click — same pattern Stuck pools uses up top.
+                          Each predicate hides the irrelevant action
+                          (Resolve only when past endTime, Refund only
+                          when there are bets, Close only when CLAIMABLE).
+                          Delete is always present in error colour. */}
+                      <Box sx={{ display: 'inline-flex', gap: 0.75, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        {canResolve(p) && (
+                          <ActionButton
+                            kind="secondary"
+                            label="Resolve"
+                            onClick={() => setConfirmAction({ kind: 'resolve', poolId: p.id, asset: p.asset })}
+                          />
+                        )}
+                        {canRefund(p) && (
+                          <ActionButton
+                            kind="destructive"
+                            label="Refund"
+                            onClick={() => setConfirmAction({ kind: 'refund', poolId: p.id, asset: p.asset })}
+                          />
+                        )}
+                        {canClose(p) && (
+                          <ActionButton
+                            kind="secondary"
+                            label="Close"
+                            onClick={() => setConfirmAction({ kind: 'close', poolId: p.id, asset: p.asset })}
+                          />
+                        )}
+                        <ActionButton
+                          kind="destructive"
+                          label="Delete"
+                          onClick={() => setConfirmAction({ kind: 'delete', poolId: p.id, asset: p.asset })}
+                        />
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -303,68 +326,6 @@ export function PoolManagement() {
         )}
       </SectionCard>
 
-      {/* ─── Row action menu ────────────────────────────────────────── */}
-      <Popover
-        open={!!menuRow}
-        anchorEl={menuRow?.anchor ?? null}
-        onClose={() => setMenuRow(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <MenuList dense sx={{ minWidth: 200 }}>
-          {menuRow && (
-            <>
-              <MenuItem
-                onClick={() => {
-                  setSelectedPoolId(menuRow.pool.id);
-                  setMenuRow(null);
-                }}
-              >
-                View detail
-              </MenuItem>
-              {canResolve(menuRow.pool) && (
-                <MenuItem
-                  onClick={() => {
-                    setConfirmAction({ kind: 'resolve', poolId: menuRow.pool.id, asset: menuRow.pool.asset });
-                    setMenuRow(null);
-                  }}
-                >
-                  Resolve (on-chain)
-                </MenuItem>
-              )}
-              {canRefund(menuRow.pool) && (
-                <MenuItem
-                  onClick={() => {
-                    setConfirmAction({ kind: 'refund', poolId: menuRow.pool.id, asset: menuRow.pool.asset });
-                    setMenuRow(null);
-                  }}
-                >
-                  Refund all bets
-                </MenuItem>
-              )}
-              {canClose(menuRow.pool) && (
-                <MenuItem
-                  onClick={() => {
-                    setConfirmAction({ kind: 'close', poolId: menuRow.pool.id, asset: menuRow.pool.asset });
-                    setMenuRow(null);
-                  }}
-                >
-                  Close (reclaim rent)
-                </MenuItem>
-              )}
-              <MenuItem
-                onClick={() => {
-                  setConfirmAction({ kind: 'delete', poolId: menuRow.pool.id, asset: menuRow.pool.asset });
-                  setMenuRow(null);
-                }}
-                sx={{ color: t.error }}
-              >
-                Delete (DB only)
-              </MenuItem>
-            </>
-          )}
-        </MenuList>
-      </Popover>
 
       {/* ─── Pool detail dialog ─────────────────────────────────────── */}
       <AdminDialog
