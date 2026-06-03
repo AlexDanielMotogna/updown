@@ -184,6 +184,33 @@ export function emitPoolUpdate(poolId: string, data: {
 }
 
 /**
+ * Emit a freshly-placed bet to subscribers. Used by the UI "BetFlash"
+ * pill — a 2-second pulse over each market card / chart panel that
+ * shows the side + amount the moment a deposit is confirmed on-chain.
+ *
+ * Broadcast on the global channel (not just the pool room) so the card
+ * grid in / Markets can react without every card needing to join a
+ * room per pool — the client filters by poolId itself.
+ *
+ * Amount is stringified BigInt USDC (6 decimals), matching the rest of
+ * the pool payloads so the frontend can divide by USDC_DIVISOR uniformly.
+ * We deliberately omit walletAddress to keep the broadcast privacy-
+ * neutral; the bet table still has the full record for the owner.
+ */
+export function emitBetPlaced(poolId: string, data: {
+  poolId: string;
+  side: 'UP' | 'DOWN' | 'DRAW';
+  amount: string;
+  /** Server-stamped ms epoch so clients can dedupe + stale-drop without
+   *  trusting their own clock. */
+  at: number;
+}): void {
+  if (io) {
+    io.emit('pool:bet-placed', data);
+  }
+}
+
+/**
  * Emit a pool status change to subscribers
  */
 export function emitPoolStatus(poolId: string, data: {

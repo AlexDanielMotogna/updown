@@ -8,6 +8,8 @@ import { AssetIcon } from '@/components/AssetIcon';
 import { AnimatedValue } from '@/components/AnimatedValue';
 import { LiveBadge } from '@/components/LiveBadge';
 import { Countdown } from '@/components/Countdown';
+import { BetFlash } from '@/components/BetFlash';
+import { useBetFlash } from '@/hooks/useBetFlash';
 import { formatPrice } from '@/lib/format';
 import { getSocket, connectSocket, subscribePool, unsubscribePool } from '@/lib/socket';
 import { getIcon } from '@/lib/icon-registry';
@@ -234,10 +236,17 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
 
   const canClaim = isResolved && userBet?.isWinner && !userBet.claimed && userBet.betId && onClaim;
 
+  // BetFlash overlay — subscribes to pool:bet-placed and renders a
+  // 2-second pill in the centre of the card every time a fresh bet
+  // lands. Hook is idempotent and bails when poolId is falsy, so it's
+  // safe even on placeholder cards.
+  const flashes = useBetFlash(pool.id);
+
   return (
     <Box
       onClick={onClick}
       sx={{
+        position: 'relative',
         bgcolor: t.bg.surface,
         border: t.surfaceBorder,
         borderRadius: 2,
@@ -250,6 +259,12 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
         '&:hover': { borderColor: t.border.medium, bgcolor: t.hover.subtle },
       }}
     >
+      <BetFlash
+        flashes={flashes}
+        variant="card"
+        prediction={isPrediction}
+        sideLabel={!isCrypto && !isPrediction ? { UP: pool.homeTeam || 'Home', DOWN: pool.awayTeam || 'Away', DRAW: 'Draw' } : undefined}
+      />
       {/* Header: category chip + right meta (Popular pill + live/time-to-close).
           PM cards skip this row entirely so the question sits flush at the top
           edge of the card — the question + thumbnail are enough context, and

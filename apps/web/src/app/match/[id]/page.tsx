@@ -19,6 +19,8 @@ import { MatchHeader } from '@/components/sports/MatchHeader';
 import { MatchScoreRow } from '@/components/sports/MatchScoreRow';
 import { MatchInsights } from '@/components/sports/MatchInsights';
 import { DeterminingCard, OutcomeCard, CancelledCard } from '@/components/pool/ResolutionCards';
+import { BetFlash } from '@/components/BetFlash';
+import { useBetFlash } from '@/hooks/useBetFlash';
 import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter';
 import { useThemeTokens } from '@/app/providers';
 import { formatUSDC, USDC_DIVISOR } from '@/lib/format';
@@ -145,6 +147,7 @@ export default function MatchDetailPage() {
 
   const liveScore = useLiveScore(pool?.id ?? null);
   const categoryMap = useCategoryMap();
+  const betFlashes = useBetFlash(pool?.id);
   const isResolved = pool ? (pool.status === 'CLAIMABLE' || pool.status === 'RESOLVED') : false;
   // CANCELLED pools (PM markets retired by Polymarket where neither
   // Gamma nor CTF could resolve, or sports pools admin-cancelled) need
@@ -475,51 +478,62 @@ export default function MatchDetailPage() {
             />
           )}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 5, px: { xs: 2, md: 3 }, pb: { xs: 4, md: 4 } }}>
-          {/* Sports: chart + head-to-head as a toggle. Labels + icons are
-              resolved via the shared helper so the chart hover tooltip
-              and right-edge badges use the same crests + dot fallbacks as
-              the cards. */}
-          {!isPrediction && (() => {
-            const { labels, icons } = resolveOddsChartIdentity(pool);
-            return (
-              <MatchInsights
-                poolId={pool.id}
-                homeTeam={pool.homeTeam || 'Home'}
-                awayTeam={pool.awayTeam || 'Away'}
-                totalUp={liveTotals?.totalUp ?? pool.totalUp}
-                totalDown={liveTotals?.totalDown ?? pool.totalDown}
-                totalDraw={liveTotals?.totalDraw ?? (pool.totalDraw ?? '0')}
-                numSides={pool.numSides}
-                matchAnalysis={pool.matchAnalysis}
-                labels={labels}
-                icons={icons}
-              />
-            );
-          })()}
+          {/* Chart slot. Wrap with position: relative so BetFlash can
+              anchor to the top-left regardless of which chart variant
+              renders (sports MatchInsights vs PM OddsChart). */}
+          <Box sx={{ position: 'relative' }}>
+            <BetFlash
+              flashes={betFlashes}
+              variant="chart-left"
+              prediction={isPrediction}
+              sideLabel={!isPrediction ? { UP: pool.homeTeam || 'Home', DOWN: pool.awayTeam || 'Away', DRAW: 'Draw' } : undefined}
+            />
+            {/* Sports: chart + head-to-head as a toggle. Labels + icons are
+                resolved via the shared helper so the chart hover tooltip
+                and right-edge badges use the same crests + dot fallbacks as
+                the cards. */}
+            {!isPrediction && (() => {
+              const { labels, icons } = resolveOddsChartIdentity(pool);
+              return (
+                <MatchInsights
+                  poolId={pool.id}
+                  homeTeam={pool.homeTeam || 'Home'}
+                  awayTeam={pool.awayTeam || 'Away'}
+                  totalUp={liveTotals?.totalUp ?? pool.totalUp}
+                  totalDown={liveTotals?.totalDown ?? pool.totalDown}
+                  totalDraw={liveTotals?.totalDraw ?? (pool.totalDraw ?? '0')}
+                  numSides={pool.numSides}
+                  matchAnalysis={pool.matchAnalysis}
+                  labels={labels}
+                  icons={icons}
+                />
+              );
+            })()}
 
-          {/* Prediction markets: keep the standalone OddsChart + rules tabs.
-              We pass seedDefault so a fresh PM market with no Polymarket
-              history yet still renders a flat baseline instead of the
-              "No market data" placeholder — the UpDown bet stream
-              backfills on top once /bets-odds-history responds. Icons +
-              labels match the cards (Yes/No glyph when there's no
-              awayTeam, question banner otherwise). */}
-          {isPrediction && (() => {
-            const { labels, icons, threeWay } = resolveOddsChartIdentity(pool);
-            return (
-              <OddsChart
-                poolId={pool.id}
-                question={pool.homeTeam}
-                currentOdds={pool.marketOdds}
-                totalUp={pool.totalUp}
-                totalDown={pool.totalDown}
-                seedDefault
-                labels={labels}
-                icons={icons}
-                threeWay={threeWay}
-              />
-            );
-          })()}
+            {/* Prediction markets: keep the standalone OddsChart + rules tabs.
+                We pass seedDefault so a fresh PM market with no Polymarket
+                history yet still renders a flat baseline instead of the
+                "No market data" placeholder — the UpDown bet stream
+                backfills on top once /bets-odds-history responds. Icons +
+                labels match the cards (Yes/No glyph when there's no
+                awayTeam, question banner otherwise). */}
+            {isPrediction && (() => {
+              const { labels, icons, threeWay } = resolveOddsChartIdentity(pool);
+              return (
+                <OddsChart
+                  poolId={pool.id}
+                  question={pool.homeTeam}
+                  currentOdds={pool.marketOdds}
+                  totalUp={pool.totalUp}
+                  totalDown={pool.totalDown}
+                  seedDefault
+                  labels={labels}
+                  icons={icons}
+                  threeWay={threeWay}
+                />
+              );
+            })()}
+          </Box>
           {isPrediction && pool.matchAnalysis && (
             <MarketInfo description={pool.matchAnalysis} />
           )}
