@@ -4,6 +4,7 @@ import { prisma } from '../db';
 import { derivePoolSeed, getConnection, getAuthorityKeypair } from '../utils/solana';
 import { emitPoolStatus } from '../websocket';
 import { polymarketFetch } from '../services/sports/polymarket-fetch';
+import { readUmaQuestion } from '../services/polymarket/uma-resolver';
 import { logEvent } from './resolver-types';
 import { PoolStatus } from '@prisma/client';
 import { forceRefundPool } from './admin-actions';
@@ -25,6 +26,45 @@ import { forceRefundPool } from './admin-actions';
 // Both still gated by betCount === 0 — pools with money stay for admin review.
 const PM_SWEEP_GAMMA_DELISTED_GRACE_HOURS = Number(process.env.PM_SWEEP_GAMMA_DELISTED_GRACE_HOURS) || 24;
 const PM_SWEEP_UMA_STUCK_GRACE_HOURS = Number(process.env.PM_SWEEP_UMA_STUCK_GRACE_HOURS) || 120;
+
+/**
+ * UMA-direct guard the sweep consults before pulling the trigger on a
+ * cancellation. When POLYMARKET_USE_UMA is on, we don't cancel pools whose
+ * underlying UMA question is still resolvable on Polygon — even if Gamma
+ * has dropped the listing. This closes the second path (after
+ * resolutionPoll's own guard) where editorial actions on Polymarket's
+ * side could nuke a pool whose oracle is still live.
+ *
+ * Returns:
+ *   • 'cancel'         — proceed with the existing cancel logic
+ *   • 'skip-pending'   — UMA says the question is still resolvable; let
+ *                        resolutionPoll catch it on the next cycle
+ *   • 'skip-paused'    — UMA adapter paused (DVM dispute). Admin review.
+ *   • 'skip-rpc-error' — transient Polygon RPC failure. Don't risk
+ *                        user funds; the next sweep retries.
+ *
+ * When the flag is OFF or the cache row has no questionId, returns
+ * 'cancel' so the legacy path is unchanged.
+ */
+type UmaSweepDecision = 'cancel' | 'skip-pending' | 'skip-paused' | 'skip-rpc-error';
+
+async function consultUmaBeforeCancel(matchId: string | null): Promise<UmaSweepDecision> {
+  if (process.env.POLYMARKET_USE_UMA !== 'true') return 'cancel';
+  if (!matchId) return 'cancel';
+  const cacheRow = await prisma.sportsFixtureCache.findFirst({
+    where: { sport: 'POLYMARKET', externalId: matchId },
+    select: { questionId: true },
+  });
+  const questionId = cacheRow?.questionId;
+  if (!questionId) return 'cancel';
+  const uma = await readUmaQuestion(questionId);
+  if (uma.kind === 'resolved') return 'skip-pending'; // resolutionPoll will FINISH it
+  if (uma.kind === 'paused') return 'skip-paused';
+  if (uma.kind === 'pending') return 'skip-pending';
+  if (uma.kind === 'rpc-error') return 'skip-rpc-error';
+  // 'unknown' — adapter never knew about this questionID; proceed with cancel.
+  return 'cancel';
+}
 
 /**
  * Check whether a Polymarket market is still queryable on Gamma. Returns true
@@ -225,6 +265,12 @@ export async function sweepStuckPmPools(): Promise<void> {
   let leftForAdmin = 0;
   let waitingForUma = 0;
   let immediateCancelled = 0;
+  // UMA guard counters — surface how many cancellations the oracle-direct
+  // check is blocking so the cutover decision has data. Each maps to a
+  // specific UmaSweepDecision.
+  let umaHeldPending = 0;
+  let umaHeldPaused = 0;
+  let umaRpcErrors = 0;
 
   if (cancelledMatchIds.length > 0) {
     const explicitlyDelisted = await prisma.pool.findMany({
@@ -239,6 +285,24 @@ export async function sweepStuckPmPools(): Promise<void> {
     for (const pool of explicitlyDelisted) {
       const betCount = await prisma.bet.count({ where: { poolId: pool.id } });
       if (betCount > 0) { leftForAdmin++; continue; }
+      // Ask UMA before pulling the trigger. The cache row was marked
+      // CANCELLED by resolutionPoll when Gamma returned [], but the
+      // adapter on Polygon might still consider the question live —
+      // e.g. an hourly PM_FINANCE that Polymarket rotated the listing
+      // for. Skip cancellation in that case; the next resolutionPoll
+      // will either FINISH it (UMA resolves) or keep retrying.
+      const decision = await consultUmaBeforeCancel(pool.matchId);
+      if (decision !== 'cancel') {
+        if (decision === 'skip-pending') umaHeldPending++;
+        else if (decision === 'skip-paused') umaHeldPaused++;
+        else if (decision === 'skip-rpc-error') umaRpcErrors++;
+        await logEvent(prisma, 'POOL_PM_UMA_GUARD_HELD', 'pool', pool.id, {
+          phase: 'immediate',
+          decision,
+          matchId: pool.matchId ?? '',
+        });
+        continue;
+      }
       try {
         const r = await cancelPmPool(pool.id, `gamma-delisted-immediate (matchId=${pool.matchId})`);
         if (r.status === 'cancelled' || r.status === 'already-cancelled') {
@@ -282,6 +346,21 @@ export async function sweepStuckPmPools(): Promise<void> {
         waitingForUma++;
         continue;
       }
+      // Same UMA guard the immediate phase uses. Even at the longer
+      // uma-stuck-120h window we'd rather wait another cycle than
+      // cancel a pool whose oracle is still chewing on the question.
+      const decision = await consultUmaBeforeCancel(pool.matchId);
+      if (decision !== 'cancel') {
+        if (decision === 'skip-pending') umaHeldPending++;
+        else if (decision === 'skip-paused') umaHeldPaused++;
+        else if (decision === 'skip-rpc-error') umaRpcErrors++;
+        await logEvent(prisma, 'POOL_PM_UMA_GUARD_HELD', 'pool', pool.id, {
+          phase: delisted ? 'gamma-delisted' : 'uma-stuck',
+          decision,
+          matchId: pool.matchId ?? '',
+        });
+        continue;
+      }
       const reason = delisted
         ? `gamma-delisted (matchId=${pool.matchId})`
         : `uma-stuck-${PM_SWEEP_UMA_STUCK_GRACE_HOURS}h`;
@@ -294,7 +373,12 @@ export async function sweepStuckPmPools(): Promise<void> {
     }
   }
 
-  if (cancelled > 0 || immediateCancelled > 0 || leftForAdmin > 0 || waitingForUma > 0) {
-    console.log(`[PM-Cancel] Sweep: immediate-cancelled=${immediateCancelled} cancelled=${cancelled} waiting-for-uma=${waitingForUma} left-for-admin=${leftForAdmin}`);
+  const umaHeldTotal = umaHeldPending + umaHeldPaused + umaRpcErrors;
+  if (cancelled > 0 || immediateCancelled > 0 || leftForAdmin > 0 || waitingForUma > 0 || umaHeldTotal > 0) {
+    console.log(
+      `[PM-Cancel] Sweep: immediate-cancelled=${immediateCancelled} cancelled=${cancelled} ` +
+      `waiting-for-uma=${waitingForUma} left-for-admin=${leftForAdmin} ` +
+      `uma-held=${umaHeldTotal} (pending=${umaHeldPending} paused=${umaHeldPaused} rpc-err=${umaRpcErrors})`,
+    );
   }
 }
