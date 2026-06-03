@@ -37,6 +37,39 @@ function normalizeHex32(raw: unknown): string | null {
   return withPrefix;
 }
 
+/**
+ * Skip Polymarket markets whose CONSENSUS PRICE on Gamma is already
+ * outside [LOPSIDED_THRESHOLD, 1 - LOPSIDED_THRESHOLD]. Default 0.15 →
+ * any market trading at 85/15 or more lopsided is "effectively decided"
+ * by Polymarket bettors and shouldn't be ingested as a fair UpDown
+ * pool — whoever knows the answer (almost always public news for these
+ * deadline questions) just steals the other side's stake. The exact
+ * scenario the operator surfaced on 2026-06-04 with the "Israeli
+ * forces enter Choukine by May 31?" market (10.85 / 89.15) created
+ * 3 days after the deadline in the title with 0 bets on UpDown.
+ */
+const PM_LOPSIDED_THRESHOLD = (() => {
+  const n = Number(process.env.PM_LOPSIDED_THRESHOLD);
+  return Number.isFinite(n) && n > 0 && n < 0.5 ? n : 0.15;
+})();
+
+/**
+ * True when the market's outcome prices are too lopsided to be worth
+ * ingesting: one side trades at <= PM_LOPSIDED_THRESHOLD or >=
+ * 1 - PM_LOPSIDED_THRESHOLD on Polymarket. Returns false when prices
+ * are missing or malformed (we don't reject on insufficient data —
+ * the caller already validates outcomePrices upstream).
+ */
+function isMarketLopsided(rawOutcomePrices: string | null | undefined): boolean {
+  const prices = safeJsonParse<string[]>(rawOutcomePrices);
+  if (!prices || prices.length < 2) return false;
+  const p0 = parseFloat(prices[0]);
+  const p1 = parseFloat(prices[1]);
+  if (!Number.isFinite(p0) || !Number.isFinite(p1)) return false;
+  const min = Math.min(p0, p1);
+  return min < PM_LOPSIDED_THRESHOLD;
+}
+
 // ── lastBulkSyncAt tracking ────────────────────────────────────────────────
 // In-process record of when the last successful sync touched each category.
 // Powers the admin "Last synced …" label without needing a DB column. Cleared
@@ -145,6 +178,12 @@ export async function bulkSync(): Promise<void> {
 
       // Skip already closed/resolved markets
       if (market.closed) continue;
+
+      // Skip markets whose Polymarket consensus is already > PM_LOPSIDED_
+      // THRESHOLD lopsided. These are "by date X" questions whose answer
+      // is publicly knowable BEFORE UMA closes — listing them on UpDown
+      // just hands free money to whoever Googles first.
+      if (isMarketLopsided(market.outcomePrices)) continue;
 
       // Use market.question (specific) over event.title (generic with __ placeholders)
       const isGenericYesNo = outcomes[0] === 'Yes' && outcomes[1] === 'No';
@@ -347,6 +386,11 @@ export async function syncCategory(code: string): Promise<{ tagIds: string[]; ev
       if (isNaN(endDate.getTime())) continue;
       if (endDate.getTime() < Date.now()) continue;
       if (market.closed) continue;
+      // Same lopsided guard as the bulk path: a market trading at
+      // 85/15 or worse on Polymarket is effectively already decided,
+      // and the only people who'd bet on UpDown are the ones who know
+      // the public answer.
+      if (isMarketLopsided(market.outcomePrices)) continue;
 
       totalMarkets++;
       const isGenericYesNo = outcomes[0] === 'Yes' && outcomes[1] === 'No';
