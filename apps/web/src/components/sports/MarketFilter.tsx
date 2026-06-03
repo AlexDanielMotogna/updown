@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import { Box, Typography, IconButton, Collapse, Popover, Chip } from '@mui/material';
-import { ShowChart, FilterList, KeyboardArrowDown, Schedule, GridView, SportsSoccer, LocalFireDepartment } from '@mui/icons-material';
+import { ShowChart, FilterList, KeyboardArrowDown, Schedule, GridView, SportsSoccer, LocalFireDepartment, Sort, FiberManualRecord, NewReleases, History, BarChart, Timer, CheckCircleOutline } from '@mui/icons-material';
 import { useCategories, type CategoryConfig } from '@/hooks/useCategories';
 import { getIcon } from '@/lib/icon-registry';
 import { useThemeTokens } from '@/app/providers';
@@ -89,6 +89,28 @@ export function FilterDropdown({ value, label, icon, options, onChange, color }:
 
 export type MarketType = string; // 'CRYPTO' | 'SPORTS' | 'PM_POLITICS' | 'PM_GEO' | ...
 
+// Secondary sort/filter applied to whatever grid the category tab is
+// showing. Lives in the URL as ?sort=... so it survives reloads.
+// DEFAULT keeps the upstream ordering (live → popular → upcoming → ended).
+export type SortFilter =
+  | 'DEFAULT'
+  | 'NEWEST'
+  | 'OLDEST'
+  | 'VOLUME'
+  | 'LIVE'
+  | 'STARTING_SOON'
+  | 'ENDED';
+
+export const SORT_OPTIONS: Array<{ value: SortFilter; label: string; icon: React.ReactNode }> = [
+  { value: 'DEFAULT',       label: 'Recommended',     icon: <Sort sx={{ fontSize: 18 }} /> },
+  { value: 'NEWEST',        label: 'Newest',          icon: <NewReleases sx={{ fontSize: 18 }} /> },
+  { value: 'OLDEST',        label: 'Oldest',          icon: <History sx={{ fontSize: 18 }} /> },
+  { value: 'VOLUME',        label: 'Highest volume',  icon: <BarChart sx={{ fontSize: 18 }} /> },
+  { value: 'LIVE',          label: 'Live now',        icon: <FiberManualRecord sx={{ fontSize: 14 }} /> },
+  { value: 'STARTING_SOON', label: 'Starting in < 2h', icon: <Timer sx={{ fontSize: 18 }} /> },
+  { value: 'ENDED',         label: 'Ended',           icon: <CheckCircleOutline sx={{ fontSize: 18 }} /> },
+];
+
 interface Props {
   marketType: MarketType;
   onMarketTypeChange: (type: MarketType) => void;
@@ -102,6 +124,8 @@ interface Props {
   onSportChange?: (value: string) => void;
   leagueFilter: string;
   onLeagueChange: (value: string) => void;
+  sortFilter?: SortFilter;
+  onSortChange?: (value: SortFilter) => void;
 }
 
 function buildIcon(cat: CategoryConfig, size: number = 16): React.ReactNode {
@@ -116,6 +140,7 @@ export function MarketFilter({
   assetOptions, intervalOptions,
   sportFilter = 'ALL', onSportChange,
   leagueFilter, onLeagueChange,
+  sortFilter = 'DEFAULT', onSortChange,
 }: Props) {
   const t = useThemeTokens();
   const [showFilters, setShowFilters] = useState(false);
@@ -273,7 +298,13 @@ export function MarketFilter({
   const currentTab = tabs.find(tab => tab.key === marketType) || tabs[0];
   const tabColor = currentTab.color;
   const isPM = marketType.startsWith('PM_');
-  const hideFilters = isPM || marketType === 'TRENDING';
+  // Hide the secondary filter row only on the Trending landing — every
+  // category grid (crypto, sports, PM_*) gets the row so users can sort
+  // / filter the cards (newest, ended, live, starting soon, volume, …).
+  // PM used to be excluded but a sort selector makes sense there too;
+  // PM rows just don't have Asset/Interval or Sport/League dropdowns,
+  // they only get the Sort one below.
+  const hideFilters = marketType === 'TRENDING';
 
   const assetOpts = assetOptions.map(o => ({ ...o, img: o.img || null }));
   const intervalOpts = intervalOptions.map(o => ({ ...o, img: null }));
@@ -339,7 +370,20 @@ export function MarketFilter({
 
       {/* Collapsible filter dropdowns */}
       <Collapse in={showFilters && !hideFilters}>
-        <Box sx={{ display: 'flex', gap: 1, py: 0.5 }}>
+        <Box sx={{ display: 'flex', gap: 1, py: 0.5, flexWrap: 'wrap' }}>
+          {/* Sort/filter: same dropdown across crypto / sports / PM. Sits
+              first so users don't have to hunt for it after picking sport
+              or asset. "Recommended" keeps the upstream order. */}
+          {onSortChange && (
+            <FilterDropdown
+              value={sortFilter}
+              label="Sort"
+              icon={<Sort sx={{ fontSize: 18, color: t.text.secondary }} />}
+              options={SORT_OPTIONS.map(o => ({ value: o.value, label: o.label, icon: o.icon }))}
+              onChange={(v) => onSortChange(v as SortFilter)}
+              color={tabColor}
+            />
+          )}
           {marketType === 'CRYPTO' ? (
             <>
               <FilterDropdown value={assetFilter} label="Asset" options={assetOpts} onChange={onAssetChange} color={t.up} />

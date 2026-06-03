@@ -23,7 +23,7 @@ import { AppShell } from '@/components';
 import { MarketCard } from '@/components/MarketCard';
 import { MarketSections } from '@/components/MarketSections';
 import { FeaturedHero } from '@/components/FeaturedHero';
-import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter';
+import { MarketFilter, type MarketType, type SortFilter } from '@/components/sports/MarketFilter';
 import { useQuery } from '@tanstack/react-query';
 import { useMarketsLiveSync } from '@/hooks/useMarketsLiveSync';
 import { fetchPools } from '@/lib/api';
@@ -69,6 +69,12 @@ export default function MarketsPage() {
   const assetFilter = assetValues.includes(searchParams.get('asset') ?? '') ? searchParams.get('asset')! : 'ALL';
   const intervalFilter = intervalValues.includes(searchParams.get('interval') ?? '') ? searchParams.get('interval')! : 'ALL';
   const leagueFilter = searchParams.get('league') ?? 'ALL';
+  // Secondary sort/filter selector — see SORT_OPTIONS in MarketFilter for
+  // the full set (newest, oldest, volume, live, starting_soon, ended).
+  const rawSort = searchParams.get('sort') ?? 'DEFAULT';
+  const sortFilter: SortFilter = (
+    ['DEFAULT','NEWEST','OLDEST','VOLUME','LIVE','STARTING_SOON','ENDED'].includes(rawSort) ? rawSort : 'DEFAULT'
+  ) as SortFilter;
 
   const updateParam = useCallback((key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -213,8 +219,40 @@ export default function MarketsPage() {
     hasNextPage && !isFetchingNextPage
   );
 
+  // User-driven secondary sort/filter applied on top of the recommended
+  // ordering. Filters first (LIVE, STARTING_SOON, ENDED narrow the set),
+  // then re-sort. DEFAULT preserves the upstream order so the recommended
+  // tiering (live → popular → upcoming → ended) is kept intact.
+  const FINISHED_STATUSES = useMemo(() => new Set(['FT', 'AET', 'PEN', 'AOT', 'AP']), []);
+  const applySortFilter = useCallback((pools: typeof sortedPools): typeof sortedPools => {
+    if (sortFilter === 'DEFAULT') return pools;
+    let arr = pools;
+    if (sortFilter === 'LIVE') {
+      arr = arr.filter(p => {
+        const ls = getPoolLiveScore(p);
+        return !!(ls && !FINISHED_STATUSES.has(ls.status) && ls.status !== 'NS');
+      });
+    } else if (sortFilter === 'ENDED') {
+      arr = arr.filter(p => p.status === 'RESOLVED' || p.status === 'CLAIMABLE');
+    } else if (sortFilter === 'STARTING_SOON') {
+      const now = Date.now();
+      const cutoff = now + 2 * 60 * 60 * 1000;
+      arr = arr.filter(p => {
+        const t = new Date(p.startTime).getTime();
+        return t > now && t < cutoff && p.status === 'JOINING';
+      });
+    }
+    const copy = [...arr];
+    if (sortFilter === 'NEWEST') copy.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    else if (sortFilter === 'OLDEST') copy.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    else if (sortFilter === 'VOLUME') copy.sort((a, b) => Number(b.totalPool) - Number(a.totalPool));
+    else if (sortFilter === 'ENDED') copy.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    else if (sortFilter === 'STARTING_SOON') copy.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+    return copy;
+  }, [sortFilter, getPoolLiveScore, FINISHED_STATUSES]);
+
   // Split pools by type for conditional rendering
-  const cryptoPools = useMemo(() => sortedPools.filter(p => p.poolType !== 'SPORTS'), [sortedPools]);
+  const cryptoPools = useMemo(() => applySortFilter(sortedPools.filter(p => p.poolType !== 'SPORTS')), [sortedPools, applySortFilter]);
   const sportsPools = useMemo(() => {
     const allSports = sortedPools.filter(p => p.poolType === 'SPORTS' && !p.league?.startsWith('PM_'));
     let filtered = allSports;
@@ -247,12 +285,12 @@ export default function MarketsPage() {
     if (leagueFilter !== 'ALL' && (sportFilter === 'ALL' || isGroup)) {
       filtered = filtered.filter(p => p.league === leagueFilter);
     }
-    return filtered;
-  }, [sortedPools, sportFilter, leagueFilter, categoryMap]);
+    return applySortFilter(filtered);
+  }, [sortedPools, sportFilter, leagueFilter, categoryMap, applySortFilter]);
   const predictionPools = useMemo(() => {
     if (!isPM) return [];
-    return sortedPools.filter(p => p.poolType === 'SPORTS' && p.league === marketType);
-  }, [sortedPools, marketType, isPM]);
+    return applySortFilter(sortedPools.filter(p => p.poolType === 'SPORTS' && p.league === marketType));
+  }, [sortedPools, marketType, isPM, applySortFilter]);
 
   const CARDS_PER_PAGE = 12;
   const [sportsVisible, setSportsVisible] = useState(CARDS_PER_PAGE);
@@ -301,6 +339,8 @@ export default function MarketsPage() {
       onSportChange={(v) => updateParam('sport', v)}
       leagueFilter={leagueFilter}
       onLeagueChange={(v) => updateParam('league', v)}
+      sortFilter={sortFilter}
+      onSortChange={(v) => updateParam('sort', v === 'DEFAULT' ? 'ALL' : v)}
     />
   );
 
