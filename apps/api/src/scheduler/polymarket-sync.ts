@@ -3,6 +3,7 @@ import { prisma } from '../db';
 import { polymarketFetch } from '../services/sports/polymarket-fetch';
 import { categorizeEvent } from '../services/sports/polymarket-adapter';
 import { pickSubcategory, getPolymarketCategories } from '../services/category-config';
+import { readUmaQuestion } from '../services/polymarket/uma-resolver';
 import type { MatchResult } from '../services/sports/types';
 import { createMatchPools } from './sports-scheduler';
 
@@ -472,26 +473,86 @@ export async function recategorizePmPools(): Promise<{ moved: number; rebucketed
 // ── Resolution Poll ─────────────────────────────────────────────────────────
 
 /**
- * Classify a Polymarket market's current state via Gamma /markets?id=X.
- * Returns a discriminated state instead of the previous null-for-everything
- * sentinel — the old behaviour silently lumped "delisted" and "still
- * pending UMA" into the same `null` return, so pool resolution could not
- * tell the two apart and stayed in JOINING for the full 24h grace window
- * even when the market had clearly been removed from Gamma.
+ * Classify a Polymarket market's current state via Gamma /markets?id=X,
+ * optionally consulting UMA's Optimistic Oracle on Polygon first when the
+ * flag POLYMARKET_USE_UMA=true and we have a cached questionId.
+ *
+ * Why the discriminated state: the original null-for-everything sentinel
+ * silently lumped "delisted" and "still pending UMA" into the same return,
+ * so pool resolution could not tell the two apart and stayed in JOINING
+ * for the full 24h grace window even when the market had clearly been
+ * removed from Gamma.
+ *
+ *   resolved   — UMA closed it (oracle-direct) OR Gamma's
+ *                umaResolutionStatus matches.
+ *   paused     — UMA adapter paused (DVM dispute). Leave alone; admin
+ *                review territory. Cache stays in current status.
+ *   delisted   — Gamma returns [] AND UMA either confirms it's gone or
+ *                we have no questionId to ask UMA. The sweep then
+ *                cancels the pool after grace.
+ *   pending    — Market still live, or UMA hasn't closed yet, or UMA
+ *                says it's still live even though Gamma dropped it
+ *                (editorial action — don't cancel).
  */
 type MarketResolutionState =
   | { kind: 'delisted' }
   | { kind: 'pending' }
-  | { kind: 'resolved'; result: MatchResult };
+  | { kind: 'paused' }
+  | { kind: 'resolved'; result: MatchResult; oracle: 'uma' | 'gamma' };
 
-async function pollPolymarketMarket(marketId: string): Promise<MarketResolutionState> {
+const POLYMARKET_USE_UMA = (): boolean => process.env.POLYMARKET_USE_UMA === 'true';
+
+async function pollPolymarketMarket(
+  marketId: string,
+  questionId: string | null,
+): Promise<MarketResolutionState> {
+  // ── UMA-first path (behind flag) ──────────────────────────────────────
+  // When enabled + we have a questionId, ask the oracle directly. UMA's
+  // answer is authoritative — once the adapter returns `resolved=true`,
+  // the outcome is final regardless of what Gamma's editorial layer is
+  // doing. We still fall through to Gamma when UMA can't help (pending,
+  // unknown, rpc-error) so resolutions never get stuck waiting on the
+  // RPC if it's degraded.
+  const umaEnabled = POLYMARKET_USE_UMA() && !!questionId;
+  let umaSaidPending = false;
+  if (umaEnabled) {
+    const uma = await readUmaQuestion(questionId!);
+    if (uma.kind === 'resolved') {
+      // UMA encodes outcomes as int256 (0 = NO/AWAY, 1 = YES/HOME for
+      // two-outcome markets). Same HOME/AWAY mapping the Gamma path uses
+      // downstream, so the rest of the pipeline doesn't change.
+      const winner: 'HOME' | 'AWAY' = uma.outcome === 1 ? 'HOME' : 'AWAY';
+      return {
+        kind: 'resolved',
+        oracle: 'uma',
+        result: {
+          matchId: marketId,
+          status: 'FINISHED',
+          homeScore: winner === 'HOME' ? 1 : 0,
+          awayScore: winner === 'AWAY' ? 1 : 0,
+          winner,
+        },
+      };
+    }
+    if (uma.kind === 'paused') return { kind: 'paused' };
+    if (uma.kind === 'pending') umaSaidPending = true;
+    // 'unknown' / 'rpc-error' → fall through to Gamma without overriding
+    // the delisted path. unknown means the question was never registered
+    // (admin-resolved special), so Gamma is the only source of truth.
+  }
+
   const data = await polymarketFetch(`/markets?id=${marketId}`);
-  // Gamma returns [] when the market has been delisted entirely. Treat
-  // that as a terminal state — the pool cannot resolve naturally and the
-  // sweep can skip its normal 24h grace because waiting is pointless.
-  if (Array.isArray(data) && data.length === 0) return { kind: 'delisted' };
+  // Gamma returns [] when the market has been delisted entirely. Default
+  // behaviour is to treat that as terminal — but if UMA explicitly told us
+  // the question is still pending, the delisting is editorial and we hold
+  // the resolution open. This is the exact fix for the gamma-delisted-
+  // immediate cancellations that today eat hourly PM_FINANCE duplicates
+  // and PM_CULTURE markets whose listing got pulled mid-window.
+  if (Array.isArray(data) && data.length === 0) {
+    return umaSaidPending ? { kind: 'pending' } : { kind: 'delisted' };
+  }
   const market = Array.isArray(data) ? data[0] : data;
-  if (!market) return { kind: 'delisted' }; // null response, same as []
+  if (!market) return umaSaidPending ? { kind: 'pending' } : { kind: 'delisted' };
 
   if (!market.closed || market.umaResolutionStatus !== 'resolved') {
     return { kind: 'pending' };
@@ -504,6 +565,7 @@ async function pollPolymarketMarket(marketId: string): Promise<MarketResolutionS
   const winner: 'HOME' | 'AWAY' = price0 > price1 ? 'HOME' : 'AWAY';
   return {
     kind: 'resolved',
+    oracle: 'gamma',
     result: {
       matchId: String(market.id),
       status: 'FINISHED',
@@ -539,18 +601,20 @@ async function resolutionPoll(): Promise<void> {
       status: { notIn: ['FINISHED', 'CANCELLED'] },
       kickoff: { lte: new Date() }, // past endDate
     },
-    select: { externalId: true },
+    select: { externalId: true, questionId: true },
   });
 
   if (pending.length === 0) return;
 
   let resolved = 0;
+  let resolvedByUma = 0;
   let delisted = 0;
+  let paused = 0;
   let stillPending = 0;
 
-  for (const { externalId } of pending) {
+  for (const { externalId, questionId } of pending) {
     try {
-      const state = await pollPolymarketMarket(externalId);
+      const state = await pollPolymarketMarket(externalId, questionId);
 
       if (state.kind === 'resolved') {
         const winner = state.result.winner === 'HOME' ? 'HOME' : 'AWAY';
@@ -564,7 +628,19 @@ async function resolutionPoll(): Promise<void> {
             lastSyncedAt: new Date(),
           },
         });
+        // Track the oracle source so the cutover decision has hard data.
+        // Event log is best-effort — losing a counter row is fine, the
+        // cache update is the source of truth.
+        await prisma.eventLog.create({
+          data: {
+            eventType: 'POOL_PM_MARKET_RESOLVED',
+            entityType: 'market',
+            entityId: externalId,
+            payload: { marketId: externalId, oracle: state.oracle, winner },
+          },
+        }).catch(() => {});
         resolved++;
+        if (state.oracle === 'uma') resolvedByUma++;
       } else if (state.kind === 'delisted') {
         await prisma.sportsFixtureCache.updateMany({
           where: { externalId, sport: 'POLYMARKET', apiSource: API_SOURCE },
@@ -580,6 +656,20 @@ async function resolutionPoll(): Promise<void> {
         }).catch(() => {});
         console.warn(`[PolymarketSync] Market ${externalId} delisted from Gamma — cache → CANCELLED. Pool sweep will cancel any matching pool on its next pass.`);
         delisted++;
+      } else if (state.kind === 'paused') {
+        // UMA adapter paused — usually a disputed market waiting on DVM
+        // vote. We leave the cache row alone (don't cancel, don't
+        // FINISH) and log so the admin tab can surface it. Polls retry
+        // each cycle in case the dispute settles.
+        await prisma.eventLog.create({
+          data: {
+            eventType: 'POOL_PM_UMA_PAUSED',
+            entityType: 'market',
+            entityId: externalId,
+            payload: { marketId: externalId, questionId },
+          },
+        }).catch(() => {});
+        paused++;
       } else {
         stillPending++;
       }
@@ -591,8 +681,8 @@ async function resolutionPoll(): Promise<void> {
     await sleep(RATE_LIMIT_MS);
   }
 
-  if (resolved > 0 || delisted > 0) {
-    console.log(`[PolymarketSync] Resolution poll: resolved=${resolved} delisted=${delisted} still-pending=${stillPending} (of ${pending.length})`);
+  if (resolved > 0 || delisted > 0 || paused > 0) {
+    console.log(`[PolymarketSync] Resolution poll: resolved=${resolved} (uma=${resolvedByUma}) delisted=${delisted} paused=${paused} still-pending=${stillPending} (of ${pending.length})`);
   } else if (stillPending > 0 && Date.now() - lastPendingLogAt > PENDING_LOG_INTERVAL_MS) {
     // Throttle: heartbeat once per hour so the operator knows the pipe is
     // running even when nothing is changing state.
