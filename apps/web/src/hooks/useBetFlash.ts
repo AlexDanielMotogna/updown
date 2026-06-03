@@ -27,8 +27,19 @@ export interface BetFlash {
 
 const FLASH_LIFETIME_MS = 2000;
 // Drop bets older than the lifetime if they land late (e.g. ws reconnect
-// replayed an old payload). Keeps the pill from blinking on stale data.
-const STALE_DROP_MS = 5000;
+// replayed an old payload). Bumped from 5s to 30s because the prod
+// debug session on 2026-06-04 revealed every live event was being
+// silently rejected — the client's clock was running ~7-12s behind
+// Railway's NTP-synced clock, so Date.now() - data.at consistently
+// exceeded the old 5s window. 30s is generous enough to absorb any
+// reasonable clock skew without showing genuinely-replayed events on
+// a 30s+ socket reconnect.
+const STALE_DROP_MS = 30_000;
+// Console-side breadcrumb so the operator can see in DevTools whether
+// the socket is delivering events at all and (if so) why a given event
+// gets dropped. Cheap, off in production builds when NEXT_PUBLIC_
+// DEBUG_BET_FLASH isn't set.
+const DEBUG = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_BET_FLASH === '1';
 
 export function useBetFlash(poolId: string | undefined): BetFlash[] {
   const [flashes, setFlashes] = useState<BetFlash[]>([]);
@@ -42,8 +53,19 @@ export function useBetFlash(poolId: string | undefined): BetFlash[] {
     connectSocket();
 
     const onBet = (data: { poolId: string; side: 'UP' | 'DOWN' | 'DRAW'; amount: string; at: number }) => {
+      const ageMs = Date.now() - data.at;
+      if (DEBUG) {
+        // eslint-disable-next-line no-console
+        console.log('[BetFlash] event', { incoming: data.poolId, watching: poolId, side: data.side, amount: data.amount, ageMs });
+      }
       if (data.poolId !== poolId) return;
-      if (Date.now() - data.at > STALE_DROP_MS) return;
+      if (ageMs > STALE_DROP_MS) {
+        if (DEBUG) {
+          // eslint-disable-next-line no-console
+          console.warn('[BetFlash] dropped stale event', { ageMs, limit: STALE_DROP_MS });
+        }
+        return;
+      }
       const key = `${data.at}-${data.side}-${Math.random().toString(36).slice(2, 6)}`;
       const flash: BetFlash = {
         key,
