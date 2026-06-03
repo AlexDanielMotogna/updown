@@ -21,6 +21,8 @@ import { startPolymarketSyncScheduler } from './scheduler/polymarket-sync';
 import { seedCategoriesIfEmpty } from './services/category-config';
 import { startLiveScorePolling } from './services/sports/livescore';
 import { initWebSocket, shutdownWebSocket } from './websocket';
+import { prisma } from './db';
+import { initPriceHistoryPersistence, hydratePriceHistory } from './services/price-history';
 
 dotenv.config();
 
@@ -75,9 +77,28 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 // Initialize WebSocket
 initWebSocket(httpServer);
 
+// Wire the price-history buffer to persist into Postgres so a restart
+// doesn't leave the next 8 minutes of crypto pool resolutions falling
+// back to the "current" spot price. See services/price-history.ts.
+initPriceHistoryPersistence(prisma);
+
 // Start server and scheduler
 httpServer.listen(PORT, async () => {
   console.log(`API server running on port ${PORT}`);
+
+  // Cold-start: hydrate the price-history ring buffer with the last
+  // hour of ticks BEFORE the scheduler comes up. Without this, any
+  // crypto pool whose endTime falls inside the post-restart 8-minute
+  // window resolves with the "spot now" fallback — exactly the bug
+  // class this whole branch fixes.
+  try {
+    const { assets, ticks } = await hydratePriceHistory(prisma);
+    if (ticks > 0) {
+      console.log(`[PriceHistory] Hydrated ${ticks} tick(s) across ${assets} asset(s) from price_ticks.`);
+    }
+  } catch (err) {
+    console.warn('[PriceHistory] Hydration failed (resolver will fall back to spot price):', err instanceof Error ? err.message : err);
+  }
 
   // Auto-seed category config if the table is empty (must run before schedulers,
   // which read category config). Makes a fresh DB admin-driven from the start.

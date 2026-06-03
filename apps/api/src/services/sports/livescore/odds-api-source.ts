@@ -88,11 +88,20 @@ export async function fetchOddsApiScores(
  *
  * KICKOFF_TOLERANCE_MS — how far apart the Odds API commence_time
  * can drift from our pool.startTime and still count as the same game.
- * Schedulers occasionally reschedule by an hour or two (rain
- * delays, broadcast slot changes); 4h is generous without being
- * permissive enough to ever match a back-to-back same-team game.
+ * Tightened to 3h after the doubleheader edge-case audit:
+ *   • 4h would allow a 13:00 + 17:00 MLB doubleheader (4h apart) to
+ *     get confused if either matched first.
+ *   • 3h still covers all reasonable rain-delay reschedules (real
+ *     MLB delays cap around 2h; longer ones get the game pushed to
+ *     the next day, no team-name collision risk).
+ *
+ * Multiple-match safety: even within tolerance, if MORE than one
+ * candidate game still matches (a real same-day doubleheader < 3h
+ * apart), we pick the one CLOSEST to pool.startTime. That makes the
+ * Rays vs Tigers 13:00 pool match the 13:00 game, not the 14:30 game
+ * that's also within ±3h.
  */
-const KICKOFF_TOLERANCE_MS = 4 * 3600_000;
+const KICKOFF_TOLERANCE_MS = 3 * 3600_000;
 
 export function matchGamesToPools(
   games: OddsApiGame[],
@@ -105,21 +114,31 @@ export function matchGamesToPools(
     const awayNorm = normalizeTeam(pool.awayTeam);
     const poolStartMs = pool.startTime.getTime();
 
-    const matched = games.find(g => {
-      if (!g.scores) return false;
+    // Collect all candidates first, then pick the closest commence_time
+    // to pool.startTime. Doubleheader-safe: when two games for the same
+    // teams both fall within the tolerance window, the temporally
+    // closest one wins. Without this loop a same-day pre-3h game would
+    // match the 'find first' candidate even if the real game is at
+    // 4pm.
+    let matched: OddsApiGame | null = null;
+    let matchedDelta = Number.POSITIVE_INFINITY;
+    for (const g of games) {
+      if (!g.scores) continue;
       const gHome = normalizeTeam(g.home_team);
       const gAway = normalizeTeam(g.away_team);
       const teamsMatch =
         (gHome === homeNorm && gAway === awayNorm) ||
         (gHome === awayNorm && gAway === homeNorm);
-      if (!teamsMatch) return false;
-      // Reject games whose commence_time is more than KICKOFF_TOLERANCE_MS
-      // off our pool kickoff — almost certainly a different fixture
-      // (yesterday's game, tomorrow's game, a doubleheader, etc.).
+      if (!teamsMatch) continue;
       const gameMs = Date.parse(g.commence_time);
-      if (Number.isNaN(gameMs)) return false;
-      return Math.abs(gameMs - poolStartMs) <= KICKOFF_TOLERANCE_MS;
-    });
+      if (Number.isNaN(gameMs)) continue;
+      const delta = Math.abs(gameMs - poolStartMs);
+      if (delta > KICKOFF_TOLERANCE_MS) continue;
+      if (delta < matchedDelta) {
+        matched = g;
+        matchedDelta = delta;
+      }
+    }
 
     if (!matched || !matched.scores) continue;
 
