@@ -4,7 +4,7 @@ import { Connection, Keypair, PublicKey, Transaction } from '@solana/web3.js';
 import { PacificaProvider } from 'market-data';
 import { getPoolPDA, getVaultPDA, buildInitializePoolIx } from 'solana-client';
 import { PoolTemplate } from './config';
-import { emitNewPool } from '../websocket';
+import { emitNewPool, ensurePriceStreams } from '../websocket';
 import { getUsdcMint, derivePoolSeed, getConnection, rotateConnection } from '../utils/solana';
 
 export interface CreatorDeps {
@@ -208,6 +208,14 @@ export class PoolCreator {
       });
 
       console.log(`[Scheduler] Pool created: ${pool.id} (${poolPda.toBase58()}) strike=${strikePrice}`);
+
+      // Make sure the Pacifica WS price stream for this asset is running
+      // so the price-history buffer fills regardless of whether any
+      // client is currently on /pool/[id]. Ref-counted; no-op when the
+      // stream is already active. Without this a 5m pool whose entire
+      // life happens with no client connected would resolve via the
+      // spot-fallback path.
+      ensurePriceStreams([template.asset]);
 
       emitNewPool({
         id: pool.id,
