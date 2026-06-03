@@ -1,10 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Select, MenuItem, FormControl, InputLabel,
+  IconButton, Popover, MenuList,
 } from '@mui/material';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminFetch, adminPost } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
@@ -57,8 +59,12 @@ export function PoolManagement() {
   const [search, setSearch] = useState('');
   // Confirmation gate for irreversible on-chain actions. Per
   // PLAN-ADMIN-REFACTOR.md §3.3: Resolve/Refund had NO confirmation —
-  // a single misclick burned a transaction.
-  const [confirmAction, setConfirmAction] = useState<{ kind: 'resolve' | 'refund'; poolId: string; asset: string } | null>(null);
+  // a single misclick burned a transaction. Same gate now also covers
+  // Close (reclaims rent) and Delete (DB-only forced removal).
+  const [confirmAction, setConfirmAction] = useState<{ kind: 'resolve' | 'refund' | 'close' | 'delete'; poolId: string; asset: string } | null>(null);
+  // Row-level action menu anchor — one popover state because only one
+  // row's menu can be open at a time.
+  const [menuRow, setMenuRow] = useState<{ pool: PoolRow; anchor: HTMLElement } | null>(null);
 
   const { data: stuckData, isLoading: stuckLoading } = useQuery({
     queryKey: ['admin-stuck-pools'],
@@ -102,6 +108,36 @@ export function PoolManagement() {
     onError: () => setConfirmAction(null),
   });
 
+  // Close reclaims the on-chain rent (vault + pool PDA → authority).
+  // Server gates it: only CLAIMABLE pools with zero unclaimed bets, OR
+  // any CLAIMABLE pool when force=true. Surfaced here without force —
+  // the admin can use the CLI if they want to override.
+  const closeMut = useMutation({
+    mutationFn: (poolId: string) => adminPost('/actions/close-pool', { poolId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-pools'] });
+      qc.invalidateQueries({ queryKey: ['admin-stuck-pools'] });
+      qc.invalidateQueries({ queryKey: ['admin-pool-detail'] });
+      setConfirmAction(null);
+    },
+    onError: () => setConfirmAction(null),
+  });
+
+  // DB-only delete. Does NOT touch the on-chain PDA. The operator
+  // reclaims rent separately (or accepts the loss when the row was a
+  // lopsided PM pool that never warranted a chain footprint to begin
+  // with).
+  const deleteMut = useMutation({
+    mutationFn: (poolId: string) => adminPost('/actions/delete-pool', { poolId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-pools'] });
+      qc.invalidateQueries({ queryKey: ['admin-stuck-pools'] });
+      qc.invalidateQueries({ queryKey: ['admin-pool-detail'] });
+      setConfirmAction(null);
+    },
+    onError: () => setConfirmAction(null),
+  });
+
   const stuckPools = stuckData?.data ?? [];
   const allPools = poolsData?.data ?? [];
   const totalPools = poolsData?.meta?.total ?? allPools.length;
@@ -117,11 +153,25 @@ export function PoolManagement() {
 
   const submitConfirm = () => {
     if (!confirmAction) return;
-    const mut = confirmAction.kind === 'resolve' ? resolveMut : refundMut;
-    const verb = confirmAction.kind === 'resolve' ? 'Resolved' : 'Refunded';
+    const mut = confirmAction.kind === 'resolve' ? resolveMut
+      : confirmAction.kind === 'refund' ? refundMut
+      : confirmAction.kind === 'close' ? closeMut
+      : deleteMut;
+    const verb = confirmAction.kind === 'resolve' ? 'Resolved'
+      : confirmAction.kind === 'refund' ? 'Refunded'
+      : confirmAction.kind === 'close' ? 'Closed'
+      : 'Deleted';
     void feedback.run(mut, confirmAction.poolId, { success: `${verb} pool ${confirmAction.asset}` });
   };
-  const confirmLoading = resolveMut.isPending || refundMut.isPending;
+  const confirmLoading = resolveMut.isPending || refundMut.isPending || closeMut.isPending || deleteMut.isPending;
+
+  // Predicate helpers — keep the row-menu visibility rules in one
+  // place so the inline JSX stays readable.
+  const canResolve = (p: PoolRow) => (p.status === 'JOINING' || p.status === 'ACTIVE') && new Date(p.endTime).getTime() <= Date.now();
+  const canRefund = (p: PoolRow) => p.betCount > 0 && (p.status === 'JOINING' || p.status === 'ACTIVE' || p.status === 'RESOLVED');
+  const canClose = (p: PoolRow) => p.status === 'CLAIMABLE';
+  // Delete is always available — DB only, the operator owns the
+  // on-chain consequence either way.
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -218,6 +268,7 @@ export function PoolManagement() {
                   <TableCell><Label>End time</Label></TableCell>
                   <TableCell><Label>Up / Down</Label></TableCell>
                   <TableCell><Label>Bets</Label></TableCell>
+                  <TableCell align="right"><Label>Actions</Label></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -235,6 +286,15 @@ export function PoolManagement() {
                     <TableCell><TimeCell value={p.endTime} mode="datetime" /></TableCell>
                     <TableCell>{p.totalUp} / {p.totalDown}</TableCell>
                     <TableCell>{p.betCount}</TableCell>
+                    <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+                      <IconButton
+                        size="small"
+                        aria-label="Pool actions"
+                        onClick={(e) => setMenuRow({ pool: p, anchor: e.currentTarget })}
+                      >
+                        <MoreVertIcon fontSize="small" />
+                      </IconButton>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -242,6 +302,69 @@ export function PoolManagement() {
           </TableContainer>
         )}
       </SectionCard>
+
+      {/* ─── Row action menu ────────────────────────────────────────── */}
+      <Popover
+        open={!!menuRow}
+        anchorEl={menuRow?.anchor ?? null}
+        onClose={() => setMenuRow(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <MenuList dense sx={{ minWidth: 200 }}>
+          {menuRow && (
+            <>
+              <MenuItem
+                onClick={() => {
+                  setSelectedPoolId(menuRow.pool.id);
+                  setMenuRow(null);
+                }}
+              >
+                View detail
+              </MenuItem>
+              {canResolve(menuRow.pool) && (
+                <MenuItem
+                  onClick={() => {
+                    setConfirmAction({ kind: 'resolve', poolId: menuRow.pool.id, asset: menuRow.pool.asset });
+                    setMenuRow(null);
+                  }}
+                >
+                  Resolve (on-chain)
+                </MenuItem>
+              )}
+              {canRefund(menuRow.pool) && (
+                <MenuItem
+                  onClick={() => {
+                    setConfirmAction({ kind: 'refund', poolId: menuRow.pool.id, asset: menuRow.pool.asset });
+                    setMenuRow(null);
+                  }}
+                >
+                  Refund all bets
+                </MenuItem>
+              )}
+              {canClose(menuRow.pool) && (
+                <MenuItem
+                  onClick={() => {
+                    setConfirmAction({ kind: 'close', poolId: menuRow.pool.id, asset: menuRow.pool.asset });
+                    setMenuRow(null);
+                  }}
+                >
+                  Close (reclaim rent)
+                </MenuItem>
+              )}
+              <MenuItem
+                onClick={() => {
+                  setConfirmAction({ kind: 'delete', poolId: menuRow.pool.id, asset: menuRow.pool.asset });
+                  setMenuRow(null);
+                }}
+                sx={{ color: t.error }}
+              >
+                Delete (DB only)
+              </MenuItem>
+            </>
+          )}
+        </MenuList>
+      </Popover>
 
       {/* ─── Pool detail dialog ─────────────────────────────────────── */}
       <AdminDialog
@@ -299,19 +422,33 @@ export function PoolManagement() {
         )}
       </AdminDialog>
 
-      {/* ─── Resolve / Refund confirm (irreversible) ────────────────── */}
+      {/* ─── Pool action confirm (irreversible / on-chain) ────────── */}
       <ConfirmDialog
         open={!!confirmAction}
         onClose={() => setConfirmAction(null)}
         onConfirm={submitConfirm}
         loading={confirmLoading}
-        title={confirmAction?.kind === 'resolve' ? 'Resolve pool?' : 'Refund pool?'}
-        actionLabel={confirmAction?.kind === 'resolve' ? 'Resolve' : 'Refund'}
-        severity={confirmAction?.kind === 'refund' ? 'destructive' : 'warning'}
+        title={
+          confirmAction?.kind === 'resolve' ? 'Resolve pool?'
+          : confirmAction?.kind === 'refund' ? 'Refund pool?'
+          : confirmAction?.kind === 'close' ? 'Close pool & reclaim rent?'
+          : 'Delete pool from DB?'
+        }
+        actionLabel={
+          confirmAction?.kind === 'resolve' ? 'Resolve'
+          : confirmAction?.kind === 'refund' ? 'Refund'
+          : confirmAction?.kind === 'close' ? 'Close'
+          : 'Delete'
+        }
+        severity={confirmAction?.kind === 'refund' || confirmAction?.kind === 'delete' ? 'destructive' : 'warning'}
         consequences={confirmAction
           ? confirmAction.kind === 'resolve'
             ? <>This will fetch the final price and resolve <b>{confirmAction.asset}</b> on-chain. The transaction cannot be undone.</>
-            : <>This will refund every bet on <b>{confirmAction.asset}</b> and close the pool. Each refund is a separate on-chain transaction and cannot be undone.</>
+          : confirmAction.kind === 'refund'
+            ? <>This will refund every bet on <b>{confirmAction.asset}</b> and close the pool. Each refund is a separate on-chain transaction and cannot be undone.</>
+          : confirmAction.kind === 'close'
+            ? <>This closes the on-chain pool PDA for <b>{confirmAction.asset}</b> and returns the rent (vault + pool account lamports) to the authority wallet. Server-side gate: pool must be CLAIMABLE with 0 unclaimed bets.</>
+          : <>This removes the pool row + every bet + every price snapshot from the database. <b>It does NOT touch the on-chain PDA</b> — you reclaim rent separately via Close, or leave the lamports on-chain. Cannot be undone.</>
           : ''
         }
       />

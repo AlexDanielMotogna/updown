@@ -132,6 +132,61 @@ adminActionsRouter.post('/close-pool', async (req, res) => {
   }
 });
 
+// POST /actions/delete-pool
+// Database-only delete. Removes the pool row + every dependent (bets,
+// price_snapshots) in a transaction. Does NOT touch the on-chain PDA —
+// the operator reclaims rent separately via close-pool when they want
+// to, or leaves the lamports on-chain.
+//
+// Use cases:
+//   - Bulk cleanup of dead-on-arrival pools (lopsided PM markets pre
+//     2026-06-04 filter, ghost crypto pools that never got bets)
+//   - Removing a malformed row that the natural lifecycle can't resolve
+//
+// Not idempotent: the second call returns NOT_FOUND.
+const deletePoolSchema = z.object({ poolId: z.string().uuid() });
+
+adminActionsRouter.post('/delete-pool', async (req, res) => {
+  try {
+    const parsed = deletePoolSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid body', details: parsed.error.flatten() } });
+    }
+    const { poolId } = parsed.data;
+    const pool = await prisma.pool.findUnique({ where: { id: poolId } });
+    if (!pool) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Pool not found' } });
+    }
+
+    // Cascade-delete manually — the schema doesn't declare ON DELETE
+    // CASCADE on Bet / PriceSnapshot's pool FK so a bare pool.delete
+    // would throw P2003. Transaction keeps it atomic.
+    const [betCount, snapshotCount] = await prisma.$transaction([
+      prisma.bet.deleteMany({ where: { poolId } }),
+      prisma.priceSnapshot.deleteMany({ where: { poolId } }),
+      prisma.pool.delete({ where: { id: poolId } }),
+    ]).then(([b, s]) => [b.count, s.count]);
+
+    await logAdminEvent('ADMIN_FORCE_DELETE', poolId, {
+      action: 'delete-pool',
+      poolKey: pool.poolId,
+      asset: pool.asset,
+      status: pool.status,
+      betCount: betCount.toString(),
+      snapshotCount: snapshotCount.toString(),
+    });
+
+    res.json({
+      success: true,
+      data: { poolId, status: 'DELETED', betCount, snapshotCount },
+      message: `Pool removed from DB (${betCount} bet(s), ${snapshotCount} snapshot(s)). On-chain PDA NOT touched — close-pool to reclaim rent.`,
+    });
+  } catch (error) {
+    console.error('Admin delete-pool error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: error instanceof Error ? error.message : 'Failed to delete pool' } });
+  }
+});
+
 // POST /actions/restart-scheduler
 adminActionsRouter.post('/restart-scheduler', async (_req, res) => {
   try {
