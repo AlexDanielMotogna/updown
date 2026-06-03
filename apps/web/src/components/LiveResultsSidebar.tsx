@@ -50,10 +50,9 @@ export function LiveResultsSidebar() {
   const pools = (() => {
     const all = data?.data ?? [];
     // Active sports pools with live scores go first
-    const activeSports = all.filter(p => p.poolType === 'SPORTS' && p.status === 'ACTIVE' && (
-      (p.matchId && liveScores.has(p.matchId)) ||
-      (p.homeTeam && liveScores.has(p.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '')))
-    ));
+    // matchId is the only safe key — the team-name fallback was dropped
+    // from useLiveScores so this `.has(matchId)` is the canonical check.
+    const activeSports = all.filter(p => p.poolType === 'SPORTS' && p.status === 'ACTIVE' && p.matchId && liveScores.has(p.matchId));
     // Then resolved/claimable pools (last 48h only)
     const cutoff = Date.now() - 48 * 60 * 60 * 1000;
     const resolved = all.filter(p => (p.status === 'RESOLVED' || p.status === 'CLAIMABLE') && p.totalPool !== '0' && new Date(p.updatedAt).getTime() > cutoff);

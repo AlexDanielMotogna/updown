@@ -123,13 +123,33 @@ export async function getFromDb(eventId: string): Promise<LiveScore | null> {
   }
 }
 
-export async function getFromDbByTeam(homeTeam: string): Promise<LiveScore | null> {
+/**
+ * DB-fallback team-name lookup. Must take `kickoffMs` to avoid the
+ * cross-day collision the 2026-06-03 livescore bug exposed: querying
+ * by team name + a "freshness" window (updatedAt > now - 4h) happily
+ * returns yesterday's same-team game when its row is still warm.
+ *
+ * The reject rule mirrors cacheGetByTeam: refuse rows whose
+ * `updatedAt` is older than `kickoffMs - 2h`. Today's pool starting
+ * at 17:00 will not be matched to a row last updated at yesterday's
+ * 22:00.
+ *
+ * The freshness window is kept as a secondary guard — old rows older
+ * than DB_FALLBACK_TTL_MS are still excluded so a stale row from
+ * three days ago can't slip through if the pool's kickoff is in the
+ * future.
+ */
+const DB_MATCH_LIFE_WINDOW_MS = 2 * 3_600_000;
+export async function getFromDbByTeam(homeTeam: string, kickoffMs?: number): Promise<LiveScore | null> {
   try {
     const norm = normalizeTeam(homeTeam);
+    const lowerBound = kickoffMs != null
+      ? new Date(kickoffMs - DB_MATCH_LIFE_WINDOW_MS)
+      : new Date(Date.now() - DB_FALLBACK_TTL_MS);
     const row = await prisma.liveScore.findFirst({
       where: {
         homeTeamNorm: norm,
-        updatedAt: { gt: new Date(Date.now() - DB_FALLBACK_TTL_MS) },
+        updatedAt: { gt: lowerBound },
       },
       orderBy: { updatedAt: 'desc' },
     });

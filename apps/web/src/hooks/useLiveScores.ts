@@ -177,12 +177,18 @@ export function useLiveScores() {
         if (data.success && Array.isArray(data.data)) {
           const map = new Map<string, LiveScore>();
           for (const s of data.data) {
-            // Key by eventId (matches TheSportsDB pools: NBA, NHL, NFL, MMA)
+            // Key by eventId ONLY. The previous codepath ALSO indexed by
+            // a normalised homeTeam ("manchesterunited") as a fallback for
+            // football pools whose matchId came from football-data.org
+            // and didn't line up with the SDB eventId — but that fallback
+            // had the exact same cross-day collision bug as the backend
+            // odds-api gap-fill (2026-06-03 Rays/Tigers incident): when
+            // the same team plays back-to-back days, the second day's
+            // entry silently overwrote the first, and pool cards rendered
+            // with whichever score happened to land last. Football pools
+            // need a real cross-ID mapping at ingest, not a name-based
+            // fallback here.
             map.set(s.eventId, s);
-            // Also key by normalized homeTeam (fallback for football pools)
-            if (s.homeTeam) {
-              map.set(s.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, ''), s);
-            }
           }
           setScores(map);
         }

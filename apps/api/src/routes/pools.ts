@@ -601,14 +601,17 @@ poolsRouter.get('/:id/livescore', async (req, res) => {
   try {
     const pool = await prisma.pool.findUnique({
       where: { id: req.params.id },
-      select: { matchId: true, homeTeam: true },
+      select: { matchId: true, homeTeam: true, startTime: true },
     });
     if (!pool?.matchId) return res.json({ success: true, data: null });
     // Try by eventId first, then fallback to DB (TheSportsDB sports: NBA, NHL, NFL, MMA)
     let score = await getLiveScoreWithFallback(pool.matchId);
-    // Fallback: try by team name (football pools)
+    // Fallback: try by team name (football pools whose matchId comes
+    // from football-data.org and doesn't match the SDB eventId we
+    // cache under). MUST pass startTime — without the kickoff window
+    // the lookup would happily return yesterday's same-team game.
     if (!score && pool.homeTeam) {
-      score = await getLiveScoreByTeamWithFallback(pool.homeTeam);
+      score = await getLiveScoreByTeamWithFallback(pool.homeTeam, pool.startTime.getTime());
     }
     res.json({ success: true, data: score });
   } catch {
