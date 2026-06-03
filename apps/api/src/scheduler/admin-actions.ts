@@ -16,6 +16,7 @@ export async function forceResolvePool(
     strikePrice: bigint | null;
     totalUp: bigint;
     totalDown: bigint;
+    endTime: Date;
   },
 ): Promise<void> {
   await resolvePool(deps, pool);

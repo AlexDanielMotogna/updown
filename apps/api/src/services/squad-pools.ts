@@ -302,6 +302,20 @@ export async function confirmSquadPool(params: {
     throw new Error('TX_NOT_CONFIRMED');
   }
 
+  // Prepare → confirm arbitrage guard. The strikePrice was captured
+  // by prepareSquadPool() at its execution moment and baked into the
+  // initialize_pool instruction (the on-chain strike). If the user
+  // waits to sign while watching the price move, they can selectively
+  // confirm only when the stale strike is favorable to them. We can't
+  // change the on-chain strike at this point, but we CAN reject confirms
+  // that come more than PREPARE_TTL after prepare — measured against
+  // startTime, which prepare set to its own "now".
+  const PREPARE_TTL_MS = 30_000;
+  const startMs = startTime * 1000;
+  if (Date.now() - startMs > PREPARE_TTL_MS) {
+    throw new Error(`PREPARE_EXPIRED — strikePrice from prepareSquadPool is older than ${PREPARE_TTL_MS / 1000}s; re-prepare to capture a fresh strike.`);
+  }
+
   const seed = derivePoolSeed(poolId);
   const [poolPda] = getPoolPDA(seed);
 

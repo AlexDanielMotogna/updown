@@ -144,9 +144,14 @@ export async function getCachedFixtureResults(
           awayScore: row.awayScore,
           winner,
         });
-        // Sync back to SportsFixtureCache so next time it's found in primary
+        // Sync back to SportsFixtureCache so next time it's found in
+        // primary. Composite scope (externalId, sport, apiSource):
+        // bare externalId would risk bleed across data sources if IDs
+        // ever collide. row.sport comes from the live_scores row we
+        // just queried; apiSource is hard-coded 'sports' since SDB is
+        // the only feed that populates this table.
         prisma.sportsFixtureCache.updateMany({
-          where: { externalId: row.eventId },
+          where: { externalId: row.eventId, sport: row.sport, apiSource: 'sports' },
           data: { status: 'FINISHED', homeScore: row.homeScore, awayScore: row.awayScore, winner, lastSyncedAt: new Date() },
         }).catch(() => {});
       }
@@ -173,9 +178,12 @@ export async function getCachedFixtureResults(
       // Regulation-time rules: extra-time / penalty winners collapse to DRAW.
       const winner = regulationWinner(homeScore, awayScore, rawStatus);
       map.set(eventId, { matchId: eventId, status: 'FINISHED', rawStatus, homeScore, awayScore, winner });
-      // Sync to both caches
+      // Sync to both caches. Composite scope on the fixture row: SDB
+      // event lookup gives us evt.strSport; apiSource is the SDB
+      // constant 'sports'. Without these the updateMany could clobber
+      // a different-source row that happens to share the externalId.
       prisma.sportsFixtureCache.updateMany({
-        where: { externalId: eventId },
+        where: { externalId: eventId, sport: evt.strSport || '', apiSource: 'sports' },
         data: { status: 'FINISHED', homeScore, awayScore, winner, lastSyncedAt: new Date() },
       }).catch(() => {});
       prisma.liveScore.upsert({

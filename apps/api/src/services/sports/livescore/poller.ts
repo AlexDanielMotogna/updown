@@ -216,10 +216,19 @@ async function pollOddsApiFallback(
       if (p.matchId) poolByMatchId.set(p.matchId, p);
     }
 
-    // Build pool list for matching
+    // Build pool list for matching. startTime is REQUIRED by the
+    // matcher now — it rejects games whose commence_time is more than
+    // 4h off, killing the silent yesterday's-result resolution we hit
+    // for the Rays/Tigers MLB pool (matchId 2387793, 2026-06-03).
     const poolsForMatching = activePools
       .filter(p => p.matchId && p.homeTeam && p.awayTeam && p.league)
-      .map(p => ({ matchId: p.matchId!, homeTeam: p.homeTeam!, awayTeam: p.awayTeam!, league: p.league! }));
+      .map(p => ({
+        matchId: p.matchId!,
+        homeTeam: p.homeTeam!,
+        awayTeam: p.awayTeam!,
+        league: p.league!,
+        startTime: p.startTime,
+      }));
 
     // Match and merge
     let gapFilled = 0;

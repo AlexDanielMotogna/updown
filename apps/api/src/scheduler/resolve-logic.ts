@@ -6,6 +6,7 @@ import { ResolverDeps, logEvent, handleRpcError } from './resolver-types';
 import { notifyPoolResolved } from '../services/notifications';
 import { resolvePoolOnChain, autoRefundBets } from './onchain-tx';
 import { getDistinctBettorWallets } from '../utils/bets';
+import { getPriceAtOrBefore } from '../services/price-history';
 
 /**
  * Generate strike/final prices that make a given side win on-chain.
@@ -296,6 +297,11 @@ export async function resolvePool(
     strikePrice: bigint | null;
     totalUp: bigint;
     totalDown: bigint;
+    // REQUIRED so we can read the price tick at-or-just-before endTime
+    // from the price-history buffer instead of grabbing the spot price
+    // NOW (which is whatever the asset is at resolution time, not what
+    // it was at pool.endTime). See services/price-history.ts.
+    endTime: Date;
   },
 ): Promise<void> {
   // Explicit null check - `!pool.strikePrice` is wrong because 0n is falsy in
@@ -322,15 +328,42 @@ export async function resolvePool(
   if (claimed.count === 0) return;
 
   try {
-    const [priceTick, betCount] = await Promise.all([
-      deps.priceProvider.getSpotPrice(pool.asset),
-      deps.prisma.bet.count({ where: { poolId: pool.id } }),
-    ]);
-    const finalPrice = priceTick.price;
+    // Final-price capture: pull the tick at-or-just-before pool.endTime
+    // from the price-history buffer first. Falls back to getSpotPrice
+    // when the buffer is cold (process just restarted, no WS subscriber
+    // yet) — that path keeps the legacy behaviour so resolution never
+    // blocks, but logs a warning so operations can spot the gap.
+    const endMs = pool.endTime.getTime();
+    const buffered = getPriceAtOrBefore(pool.asset, endMs);
+    let finalPrice: bigint;
+    let finalTimestamp: Date;
+    let finalSource: string;
+    let finalRawHash = '';
+    let priceSource: 'buffer' | 'spot-fallback' = 'spot-fallback';
+    let driftMs = 0;
+    if (buffered) {
+      // The buffer stores stringified 2-decimal USD; convert to the same
+      // BigInt micro-USD format as getSpotPrice (price * 1_000_000).
+      finalPrice = BigInt(Math.round(parseFloat(buffered.price) * 1_000_000));
+      finalTimestamp = new Date(buffered.timestamp);
+      finalSource = 'pacifica-ws-buffer';
+      priceSource = 'buffer';
+      driftMs = endMs - buffered.timestamp;
+    } else {
+      console.warn(
+        `[Scheduler] Pool ${pool.id} price-history buffer empty for ${pool.asset} at endTime=${pool.endTime.toISOString()} — falling back to current spot price (resolution drift risk).`,
+      );
+      const tick = await deps.priceProvider.getSpotPrice(pool.asset);
+      finalPrice = tick.price;
+      finalTimestamp = tick.timestamp;
+      finalSource = tick.source;
+      finalRawHash = tick.rawHash || '';
+    }
+    const betCount = await deps.prisma.bet.count({ where: { poolId: pool.id } });
     const strikePrice = pool.strikePrice;
 
     console.log(
-      `[Scheduler] Pool ${pool.id} resolution: strike=${strikePrice} final=${finalPrice} diff=${finalPrice - strikePrice}`,
+      `[Scheduler] Pool ${pool.id} resolution: strike=${strikePrice} final=${finalPrice} diff=${finalPrice - strikePrice} source=${priceSource}${priceSource === 'buffer' ? ` drift=${driftMs}ms` : ''}`,
     );
 
     // Empty pool - no winner, but still resolve on-chain so close_pool works
@@ -366,9 +399,9 @@ export async function resolvePool(
         poolId: pool.id,
         type: 'FINAL',
         price: finalPrice,
-        timestamp: priceTick.timestamp,
-        source: priceTick.source,
-        rawHash: priceTick.rawHash || '',
+        timestamp: finalTimestamp,
+        source: finalSource,
+        rawHash: finalRawHash,
       },
     }).catch((err) => console.error(`[Scheduler] Failed to save price snapshot:`, err));
 

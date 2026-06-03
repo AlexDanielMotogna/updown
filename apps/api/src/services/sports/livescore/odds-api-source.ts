@@ -79,25 +79,46 @@ export async function fetchOddsApiScores(
 }
 
 /**
- * Match Odds API games to active pools by team name.
- * Returns LiveScore entries ready for cache/persist.
+ * Match Odds API games to active pools by team name **AND** kickoff
+ * time. Without the time match we'd happily return yesterday's
+ * 8-0 Tigers win for today's Rays vs Tigers fixture — the same
+ * (home_team, away_team) pair repeats every day for back-to-back
+ * MLB / NHL series, and `/scores?daysFrom=1` returns the last 24h
+ * inclusive.
+ *
+ * KICKOFF_TOLERANCE_MS — how far apart the Odds API commence_time
+ * can drift from our pool.startTime and still count as the same game.
+ * Schedulers occasionally reschedule by an hour or two (rain
+ * delays, broadcast slot changes); 4h is generous without being
+ * permissive enough to ever match a back-to-back same-team game.
  */
+const KICKOFF_TOLERANCE_MS = 4 * 3600_000;
+
 export function matchGamesToPools(
   games: OddsApiGame[],
-  pools: Array<{ matchId: string; homeTeam: string; awayTeam: string; league: string }>,
+  pools: Array<{ matchId: string; homeTeam: string; awayTeam: string; league: string; startTime: Date }>,
 ): LiveScore[] {
   const results: LiveScore[] = [];
 
   for (const pool of pools) {
     const homeNorm = normalizeTeam(pool.homeTeam);
     const awayNorm = normalizeTeam(pool.awayTeam);
+    const poolStartMs = pool.startTime.getTime();
 
     const matched = games.find(g => {
       if (!g.scores) return false;
       const gHome = normalizeTeam(g.home_team);
       const gAway = normalizeTeam(g.away_team);
-      return (gHome === homeNorm && gAway === awayNorm) ||
-             (gHome === awayNorm && gAway === homeNorm);
+      const teamsMatch =
+        (gHome === homeNorm && gAway === awayNorm) ||
+        (gHome === awayNorm && gAway === homeNorm);
+      if (!teamsMatch) return false;
+      // Reject games whose commence_time is more than KICKOFF_TOLERANCE_MS
+      // off our pool kickoff — almost certainly a different fixture
+      // (yesterday's game, tomorrow's game, a doubleheader, etc.).
+      const gameMs = Date.parse(g.commence_time);
+      if (Number.isNaN(gameMs)) return false;
+      return Math.abs(gameMs - poolStartMs) <= KICKOFF_TOLERANCE_MS;
     });
 
     if (!matched || !matched.scores) continue;

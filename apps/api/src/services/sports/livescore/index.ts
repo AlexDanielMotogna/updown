@@ -29,13 +29,21 @@ export async function getLiveScoreWithFallback(eventId: string) {
   return getFromDb(eventId);
 }
 
-export async function getLiveScoreByTeamWithFallback(homeTeam: string) {
+/**
+ * Team-name livescore lookup used by football pools (whose matchId
+ * comes from football-data.org and doesn't match the SDB eventId we
+ * cache scores under). `kickoffMs` is REQUIRED for safety — without it
+ * we'd happily return yesterday's same-team game when both clubs play
+ * back-to-back fixtures. See cacheGetByTeam / getFromDbByTeam comments
+ * for the rejection rule.
+ */
+export async function getLiveScoreByTeamWithFallback(homeTeam: string, kickoffMs: number) {
   // 1. Check cache
-  const cached = cacheGetByTeam(homeTeam);
+  const cached = cacheGetByTeam(homeTeam, kickoffMs);
   if (cached) return cached;
 
   // 2. Fallback to DB
-  return getFromDbByTeam(homeTeam);
+  return getFromDbByTeam(homeTeam, kickoffMs);
 }
 
 export async function getAllLiveScoresWithFallback() {
