@@ -263,7 +263,15 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
         flashes={flashes}
         variant="card"
         prediction={isPrediction}
-        sideLabel={!isCrypto && !isPrediction ? { UP: pool.homeTeam || 'Home', DOWN: pool.awayTeam || 'Away', DRAW: 'Draw' } : undefined}
+        sideLabel={!isCrypto && !isPrediction
+          ? { UP: pool.homeTeam || 'Home', DOWN: pool.awayTeam || 'Away', DRAW: 'Draw' }
+          : undefined}
+        // Sports flashes use the actual team crest (same image source as
+        // the outcome rows) so the pulse reads as 'X just bet on FCB'
+        // rather than an abstract Up/Down arrow.
+        sideIcon={!isCrypto && !isPrediction
+          ? { UP: pool.homeTeamCrest, DOWN: pool.awayTeamCrest, DRAW: null }
+          : undefined}
       />
       {/* Header: category chip + right meta (Popular pill + live/time-to-close).
           PM cards skip this row entirely so the question sits flush at the top
