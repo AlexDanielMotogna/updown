@@ -486,7 +486,12 @@ export default function MatchDetailPage() {
               flashes={betFlashes}
               variant="chart-left"
               prediction={isPrediction}
-              sideLabel={!isPrediction ? { UP: pool.homeTeam || 'Home', DOWN: pool.awayTeam || 'Away', DRAW: 'Draw' } : undefined}
+              sideLabel={!isPrediction
+                ? { UP: pool.homeTeam || 'Home', DOWN: pool.awayTeam || 'Away', DRAW: 'Draw' }
+                : undefined}
+              sideIcon={!isPrediction
+                ? { UP: pool.homeTeamCrest, DOWN: pool.awayTeamCrest, DRAW: null }
+                : undefined}
             />
             {/* Sports: chart + head-to-head as a toggle. Labels + icons are
                 resolved via the shared helper so the chart hover tooltip
