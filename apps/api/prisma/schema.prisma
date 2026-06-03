@@ -135,6 +135,26 @@ model PriceSnapshot {
   @@map("price_snapshots")
 }
 
+/// Persistent backing store for the in-process price-history ring buffer
+/// (services/price-history.ts). Fed by a throttled writer (~5s/asset) so
+/// after an API restart the scheduler can hydrate the buffer from
+/// recent history and resolve pools at their actual endTime even when
+/// the WebSocket subscription hasn't started pushing ticks yet.
+///
+/// Pruned daily: anything older than 24h is dropped, the buffer only
+/// ever reads the last hour at startup.
+model PriceTick {
+  id        String   @id @default(uuid())
+  asset     String
+  price     String // stringified 2-decimal USD — matches the WS broadcast payload format
+  timestamp DateTime
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([asset, timestamp])
+  @@index([asset, timestamp(sort: Desc)])
+  @@map("price_ticks")
+}
+
 // ─── XP & Rewards ──────────────────────────────────────────────────────────
 
 enum RewardType {

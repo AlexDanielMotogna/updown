@@ -481,6 +481,20 @@ export function startFixtureSyncScheduler(): void {
     cleanupSportsCache().catch(e => console.error('[FixtureSync] Cleanup error:', e));
   });
 
+  // Daily prune of price_ticks at 04:45 UTC. Keeps the table tight —
+  // anything older than 24h is dropped; the price-history buffer only
+  // ever rehydrates the last hour at startup.
+  cron.schedule('45 4 * * *', async () => {
+    try {
+      const { pruneOldTicks } = await import('../services/price-history');
+      const { prisma } = await import('../db');
+      const removed = await pruneOldTicks(prisma);
+      if (removed > 0) console.log(`[PriceHistory] Pruned ${removed} stale price_ticks rows.`);
+    } catch (e) {
+      console.error('[PriceHistory] Prune error:', e);
+    }
+  });
+
   // Match window poll every 5 minutes
   setInterval(() => {
     matchWindowPoll().catch(e => console.error('[FixtureSync] Poll error:', e));
