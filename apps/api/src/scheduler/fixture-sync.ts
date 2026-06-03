@@ -128,14 +128,19 @@ async function upsertMatch(match: Match, source: string): Promise<void> {
   });
 }
 
-async function updateCacheFromResult(result: MatchResult): Promise<void> {
+async function updateCacheFromResult(result: MatchResult, sport: string, apiSource: string): Promise<void> {
   // Prefer the regulation-time winner already on the MatchResult; fall back
   // to recomputing from rawStatus + score for callers that don't populate it.
   const winner = result.winner
     ?? regulationWinner(result.homeScore, result.awayScore, result.rawStatus);
 
+  // Scope by the composite unique key (externalId, sport, apiSource). The
+  // previous externalId-only WHERE was vulnerable to cross-source bleed:
+  // if a numeric SDB event id ever lined up with a football-data.org id,
+  // updateMany would write the SDB result onto both rows. Low probability
+  // but the same class of bug the 2026-06-03 livescore incident hit.
   await prisma.sportsFixtureCache.updateMany({
-    where: { externalId: result.matchId },
+    where: { externalId: result.matchId, sport, apiSource },
     data: {
       status: result.status,
       homeScore: result.homeScore,
@@ -243,7 +248,7 @@ async function matchWindowPoll(): Promise<void> {
       const adapter = getAdapter(fix.sport);
       const result = await adapter.fetchMatchResult(fix.externalId);
       if (result) {
-        await updateCacheFromResult(result);
+        await updateCacheFromResult(result, fix.sport, fix.apiSource);
         updated++;
       }
     } catch (error) {
@@ -273,8 +278,11 @@ async function preMatchRefresh(): Promise<void> {
       const adapter = getAdapter(fix.sport);
       const result = await adapter.fetchMatchResult(fix.externalId);
       if (result) {
+        // Composite unique key — same cross-source guard as
+        // updateCacheFromResult. Without sport+apiSource we'd risk
+        // writing across rows that share an externalId.
         await prisma.sportsFixtureCache.updateMany({
-          where: { externalId: fix.externalId },
+          where: { externalId: fix.externalId, sport: fix.sport, apiSource: fix.apiSource },
           data: {
             status: result.status,
             homeScore: result.homeScore,

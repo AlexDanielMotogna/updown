@@ -1,6 +1,7 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import { PacificaProvider } from 'market-data';
+import { recordTick } from '../services/price-history';
 
 let io: Server | null = null;
 let priceProvider: PacificaProvider | null = null;
@@ -138,17 +139,23 @@ function startPriceStream(asset: string): void {
 
   priceProvider.subscribe(asset, (tick) => {
     const priceStr = (Number(tick.price) / 1_000_000).toFixed(2);
+    const tsMs = tick.timestamp.getTime();
 
     priceCache.set(asset, {
       price: priceStr,
-      timestamp: tick.timestamp.getTime(),
+      timestamp: tsMs,
     });
+
+    // Feed the price-history ring buffer so the scheduler can read
+    // the price AT pool.endTime instead of NOW. See
+    // services/price-history.ts for the why.
+    recordTick(asset, priceStr, tsMs);
 
     if (io) {
       io.to(`prices:${asset}`).emit('price:tick', {
         asset,
         price: priceStr,
-        timestamp: tick.timestamp.getTime(),
+        timestamp: tsMs,
       });
     }
   });

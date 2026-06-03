@@ -5,6 +5,7 @@ import { checkAndAdvanceRound } from '../services/tournament';
 import { emitTournamentMatchResult } from '../websocket';
 import { processSportsTournament } from './tournament-sports-resolver';
 import { assignMatchdayToRound } from '../services/tournament-sports';
+import { getPriceAtOrBefore } from '../services/price-history';
 
 const priceProvider = new PacificaProvider();
 
@@ -118,8 +119,20 @@ async function processTournaments(): Promise<void> {
         if (!match.endTime || now < match.endTime) continue;
 
         try {
-          const priceTick = await priceProvider.getSpotPrice(tournament.asset);
-          const finalPrice = priceTick.price;
+          // Same fix as scheduler/resolve-logic.ts: pick the price tick
+          // at-or-just-before match.endTime from the in-process buffer
+          // so a 10-15s scheduler-tick lag doesn't silently swap the
+          // winner when predictions are close.
+          const endMs = match.endTime.getTime();
+          const buffered = getPriceAtOrBefore(tournament.asset, endMs);
+          let finalPrice: bigint;
+          if (buffered) {
+            finalPrice = BigInt(Math.round(parseFloat(buffered.price) * 1_000_000));
+          } else {
+            console.warn(`[Tournament] Match ${match.id} buffer empty for ${tournament.asset} at endTime — falling back to current spot price.`);
+            const tick = await priceProvider.getSpotPrice(tournament.asset);
+            finalPrice = tick.price;
+          }
 
           const p1Pred = match.player1Prediction ? BigInt(match.player1Prediction) : null;
           const p2Pred = match.player2Prediction ? BigInt(match.player2Prediction) : null;

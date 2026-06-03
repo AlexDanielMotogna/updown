@@ -89,9 +89,12 @@ export async function syncFinishedToUi(entries: LiveScore[]): Promise<void> {
       data: { homeScore: e.homeScore, awayScore: e.awayScore },
     }).catch(() => {});
 
-    // Update fixture cache to FINISHED so resolver finds it instantly
+    // Update fixture cache to FINISHED so resolver finds it instantly.
+    // Composite scope (externalId, sport, apiSource) — bare externalId
+    // would risk bleed across data sources. LiveScore entries are
+    // SDB-sourced so apiSource is the SDB constant 'sports'.
     prisma.sportsFixtureCache.updateMany({
-      where: { externalId: e.eventId, status: { not: 'FINISHED' } },
+      where: { externalId: e.eventId, sport: e.sport, apiSource: 'sports', status: { not: 'FINISHED' } },
       data: { status: 'FINISHED', homeScore: e.homeScore, awayScore: e.awayScore, winner, lastSyncedAt: new Date() },
     }).catch(() => {});
   }

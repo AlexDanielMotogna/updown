@@ -338,6 +338,7 @@ export class PoolResolver {
     strikePrice: bigint | null;
     totalUp: bigint;
     totalDown: bigint;
+    endTime: Date;
   }): Promise<void> {
     await _forceResolvePool(this.deps, pool);
   }

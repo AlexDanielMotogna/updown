@@ -610,18 +610,31 @@ adminSportsRouter.post('/resolve-knockout', async (req, res) => {
       },
     });
 
-    // Mirror to the fixture cache so the read-paths the rest of the app uses
-    // (live_scores fallback chain, /match/[id] page) line up.
-    await prisma.sportsFixtureCache.updateMany({
-      where: { externalId: pool.matchId ?? '' },
-      data: {
-        status: 'FINISHED',
-        winner: winner,
-        ...(regulationHomeScore != null ? { homeScore: regulationHomeScore } : {}),
-        ...(regulationAwayScore != null ? { awayScore: regulationAwayScore } : {}),
-        lastSyncedAt: new Date(),
-      },
-    }).catch(() => {});
+    // Mirror to the fixture cache so the read-paths the rest of the app
+    // uses (live_scores fallback chain, /match/[id] page) line up. The
+    // admin endpoint only has pool.matchId in scope — sport / apiSource
+    // would need to come from a join. Safest path is to look the cache
+    // row up by primary key and update it directly, scoping by id (which
+    // is unique) so we never bleed across data sources even if a
+    // numeric externalId ever collides.
+    const cacheRow = pool.matchId
+      ? await prisma.sportsFixtureCache.findFirst({
+          where: { externalId: pool.matchId },
+          select: { id: true },
+        })
+      : null;
+    if (cacheRow) {
+      await prisma.sportsFixtureCache.update({
+        where: { id: cacheRow.id },
+        data: {
+          status: 'FINISHED',
+          winner: winner,
+          ...(regulationHomeScore != null ? { homeScore: regulationHomeScore } : {}),
+          ...(regulationAwayScore != null ? { awayScore: regulationAwayScore } : {}),
+          lastSyncedAt: new Date(),
+        },
+      }).catch(() => {});
+    }
 
     emitPoolStatus(pool.id, { id: pool.id, status: 'CLAIMABLE', winner: winnerLabel });
 
