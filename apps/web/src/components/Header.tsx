@@ -115,14 +115,18 @@ export function Header() {
           </Box>
         </Box>
 
-        {/* Right: search + compact stats bar + notifications + wallet */}
+        {/* Search active markets sits IN the main header row (not in the
+            right cluster) so its `flex: 1` actually takes the empty
+            space between the left nav and the right wallet/stats group.
+            When it lived inside the right cluster, the cluster sized
+            itself to its own contents and the search could only grow
+            within that tiny strip. */}
+        <Box sx={{ display: { xs: 'none', sm: 'flex' }, flex: 1, minWidth: 0 }}>
+          <MarketSearch />
+        </Box>
+
+        {/* Right: compact stats bar + notifications + wallet */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 } }}>
-          {/* Search active markets — moved to the right cluster so the
-              left side stays anchored to logo + nav. Hidden on the
-              smallest viewport to leave room for the wallet button. */}
-          <Box sx={{ display: { xs: 'none', sm: 'block' }, mr: { sm: 0.5, lg: 1 } }}>
-            <MarketSearch />
-          </Box>
           {connected ? (
             <>
               {/* Unified stats bar */}

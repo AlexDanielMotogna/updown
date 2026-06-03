@@ -5,12 +5,21 @@ import { Box, Typography, ClickAwayListener, CircularProgress } from '@mui/mater
 import { Search, Close } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { searchPools, type PoolSearchResult } from '@/lib/api';
+import { searchPools, fetchTrendingPools, type PoolSearchResult } from '@/lib/api';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
+import { AssetIcon } from '@/components/AssetIcon';
+import { getAssetName } from '@/lib/assets';
+import { INTERVAL_LABELS } from '@/lib/constants';
 
 function resultLabel(r: PoolSearchResult): string {
-  if (r.poolType !== 'SPORTS') return `${r.asset} · ${r.interval}`;
+  // Crypto rows reuse the same headline the cards use ("Bitcoin Up or
+  // Down · 5m") instead of the bare "BTC · 5m" so the dropdown reads
+  // like a real market list rather than an asset ticker.
+  if (r.poolType !== 'SPORTS') {
+    const intervalLabel = INTERVAL_LABELS[r.interval] || r.interval;
+    return `${getAssetName(r.asset)} Up or Down · ${intervalLabel}`;
+  }
   if (r.awayTeam) return `${r.homeTeam} vs ${r.awayTeam}`;
   return r.homeTeam || 'Market';
 }
@@ -37,12 +46,42 @@ export function MarketSearch() {
     return () => clearTimeout(id);
   }, [value]);
 
-  const { data: results = [], isFetching } = useQuery({
+  const { data: searchResults = [], isFetching: searchFetching } = useQuery({
     queryKey: ['pool-search', debounced],
     queryFn: () => searchPools(debounced).then(r => r.data ?? []),
     enabled: debounced.length >= 2,
     staleTime: 15_000,
   });
+
+  // When the input is empty and the dropdown is open, we surface the
+  // trending mix the home page uses (mixed crypto / sports / PM, ranked
+  // by 24h volume, falling through to lower-activity pools when nothing
+  // is hot). The trending endpoint returns the full Pool shape; we
+  // narrow it to the PoolSearchResult fields the dropdown row renders.
+  const { data: trendingResults = [], isFetching: trendingFetching } = useQuery({
+    queryKey: ['pool-search-trending'],
+    queryFn: async () => {
+      const r = await fetchTrendingPools();
+      return (r.data ?? []).slice(0, 12).map<PoolSearchResult>(p => ({
+        id: p.id,
+        status: p.status,
+        poolType: p.poolType,
+        league: p.league ?? null,
+        asset: p.asset,
+        interval: p.interval,
+        homeTeam: p.homeTeam ?? null,
+        awayTeam: p.awayTeam ?? null,
+        homeTeamCrest: p.homeTeamCrest ?? null,
+        startTime: p.startTime,
+      }));
+    },
+    enabled: open && debounced.length < 2,
+    staleTime: 30_000,
+  });
+
+  const isSearchMode = debounced.length >= 2;
+  const results = isSearchMode ? searchResults : trendingResults;
+  const isFetching = isSearchMode ? searchFetching : trendingFetching;
 
   const navigate = (r: PoolSearchResult) => {
     router.push(r.poolType !== 'SPORTS' ? `/pool/${r.id}` : `/match/${r.id}`);
@@ -50,15 +89,15 @@ export function MarketSearch() {
     setValue('');
   };
 
-  const showDropdown = open && debounced.length >= 2;
+  const showDropdown = open;
 
   return (
     <ClickAwayListener onClickAway={() => setOpen(false)}>
-      <Box sx={{ position: 'relative', display: { xs: 'none', sm: 'block' }, flex: 1, maxWidth: 620, mx: { sm: 1.5, lg: 3 } }}>
+      <Box sx={{ position: 'relative', display: { xs: 'none', sm: 'block' }, flex: 1, maxWidth: 480, mx: { sm: 1.5, lg: 3 } }}>
         <Box
           sx={{
             display: 'flex', alignItems: 'center', gap: 0.75, height: 36,
-            bgcolor: t.hover.default, borderRadius: '10px', px: 1.25,
+            bgcolor: t.hover.default, borderRadius: '20px', px: 1.5,
             border: `1px solid ${open ? t.border.medium : 'transparent'}`,
             transition: 'border-color 0.15s',
           }}
@@ -103,16 +142,44 @@ export function MarketSearch() {
               </Box>
             ) : results.length === 0 ? (
               <Typography sx={{ fontSize: '0.8rem', color: t.text.dimmed, px: 2, py: 2, textAlign: 'center' }}>
-                No active markets found
+                {isSearchMode ? 'No active markets found' : 'No markets available yet'}
               </Typography>
             ) : (
-              results.map(r => (
+              <>
+                {/* Section header — tells the user where the rows come
+                    from. Hidden once they type 2+ chars so the dropdown
+                    reads as pure search results. */}
+                {!isSearchMode && (
+                  <Typography
+                    sx={{
+                      fontSize: '0.6rem',
+                      fontWeight: 800,
+                      color: t.text.quaternary,
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                      px: 1.75,
+                      pt: 1.25,
+                      pb: 0.5,
+                    }}
+                  >
+                    Trending markets
+                  </Typography>
+                )}
+              {results.map(r => (
                 <Box
                   key={r.id}
                   onClick={() => navigate(r)}
                   sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 1.5, py: 1.1, cursor: 'pointer', '&:hover': { bgcolor: t.hover.default } }}
                 >
-                  {r.homeTeamCrest ? (
+                  {/* Icon priority — crypto gets the Pacifica token SVG
+                      via AssetIcon (same identity the cards use), sports
+                      / PM keep the homeTeamCrest. Falls back to a coloured
+                      initial when neither path resolves. */}
+                  {r.poolType !== 'SPORTS' ? (
+                    <Box sx={{ flexShrink: 0, display: 'flex' }}>
+                      <AssetIcon asset={r.asset} size={22} />
+                    </Box>
+                  ) : r.homeTeamCrest ? (
                     <Box component="img" src={r.homeTeamCrest} alt="" sx={{ width: 22, height: 22, objectFit: 'contain', borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.85)', p: '1px', flexShrink: 0 }} />
                   ) : (
                     <Box sx={{ width: 22, height: 22, borderRadius: '50%', bgcolor: withAlpha(t.prediction, 0.15), color: t.prediction, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, flexShrink: 0 }}>
@@ -123,12 +190,13 @@ export function MarketSearch() {
                     <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {resultLabel(r)}
                     </Typography>
-                    <Typography sx={{ fontSize: '0.68rem', color: t.text.quaternary }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: t.text.secondary }}>
                       {resultCategory(r)}
                     </Typography>
                   </Box>
                 </Box>
-              ))
+              ))}
+              </>
             )}
           </Box>
         )}
