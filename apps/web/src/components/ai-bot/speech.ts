@@ -5,7 +5,7 @@ import type { PacificaPriceData } from '@/hooks/usePacificaPrices';
 // Types
 // ---------------------------------------------------------------------------
 
-export type PoolStatus = 'UPCOMING' | 'JOINING' | 'ACTIVE' | 'RESOLVED' | 'CLAIMABLE';
+export type PoolStatus = 'UPCOMING' | 'JOINING' | 'ACTIVE' | 'RESOLVED' | 'CLAIMABLE' | 'CANCELLED';
 
 export interface ChatMessage {
   id: number;

@@ -18,7 +18,7 @@ import { resolveOddsChartIdentity } from '@/lib/oddsChartProps';
 import { MatchHeader } from '@/components/sports/MatchHeader';
 import { MatchScoreRow } from '@/components/sports/MatchScoreRow';
 import { MatchInsights } from '@/components/sports/MatchInsights';
-import { DeterminingCard, OutcomeCard } from '@/components/pool/ResolutionCards';
+import { DeterminingCard, OutcomeCard, CancelledCard } from '@/components/pool/ResolutionCards';
 import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter';
 import { useThemeTokens } from '@/app/providers';
 import { formatUSDC, USDC_DIVISOR } from '@/lib/format';
@@ -146,6 +146,12 @@ export default function MatchDetailPage() {
   const liveScore = useLiveScore(pool?.id ?? null);
   const categoryMap = useCategoryMap();
   const isResolved = pool ? (pool.status === 'CLAIMABLE' || pool.status === 'RESOLVED') : false;
+  // CANCELLED pools (PM markets retired by Polymarket where neither
+  // Gamma nor CTF could resolve, or sports pools admin-cancelled) need
+  // their own surface — without this flag the page falls through to
+  // DeterminingCard and the user sees "Hold on, determining winner…"
+  // forever for a market that will never resolve.
+  const isCancelled = pool ? pool.status === 'CANCELLED' : false;
   const matchFinished = liveScore && isMatchFinished(liveScore.status);
   const isLocked = pool && !isResolved && pool.lockTime && new Date(pool.lockTime).getTime() < Date.now();
   const hasStarted = pool && new Date(pool.startTime).getTime() < Date.now();
@@ -608,6 +614,14 @@ export default function MatchDetailPage() {
               : pool.poolType === 'SPORTS'
                 ? "Waiting for the final whistle to be confirmed by the data feed. Usually within minutes of full time."
                 : undefined; // crypto keeps the generic on-chain copy
+            // CANCELLED takes precedence over every other end-state. The
+            // pool can show CANCELLED + winner=null + status flag, so we
+            // must check this BEFORE isResolved (which is false here) and
+            // BEFORE the determining branch (which would otherwise spin
+            // forever for a market that's been formally cancelled).
+            if (isCancelled) {
+              return <CancelledCard subtitle={subtitle} meta={meta} />;
+            }
             if (isResolved && winnerLabel) {
               return (
                 <OutcomeCard
@@ -623,7 +637,7 @@ export default function MatchDetailPage() {
             }
             return null;
           })()}
-          {!(isResolved && winnerLabel) && !(matchFinished || awaitingResolution) && (
+          {!isCancelled && !(isResolved && winnerLabel) && !(matchFinished || awaitingResolution) && (
           <Box sx={{
             display: 'flex',
             flexDirection: 'column',

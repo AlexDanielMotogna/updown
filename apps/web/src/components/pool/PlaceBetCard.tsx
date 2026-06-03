@@ -31,7 +31,7 @@ import {
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { AssetIcon } from '@/components/AssetIcon';
-import { DeterminingCard as SharedDetermining, OutcomeCard as SharedOutcome, TermsFooter } from './ResolutionCards';
+import { DeterminingCard as SharedDetermining, OutcomeCard as SharedOutcome, CancelledCard as SharedCancelled, TermsFooter } from './ResolutionCards';
 import { USDC_DIVISOR, formatPredictionWindow } from '@/lib/format';
 import {
   DEFAULT_FEE_PERCENT,
@@ -89,6 +89,14 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
   const canBet = canInteract && parseFloat(amount) > 0;
 
   // ── End-of-pool states ──────────────────────────────────────────────
+  // CANCELLED takes precedence: the pool can be cancelled with winner=null
+  // (PM markets retired by Polymarket where neither Gamma nor CTF could
+  // resolve, or admin-cancelled sports pools). Without this branch the
+  // page falls through to DeterminingCard and the user stares at the
+  // determining spinner for a market that will never resolve.
+  if (pool.status === 'CANCELLED') {
+    return <CancelledCard pool={pool} hasUserPosition={hasUserBet(pool)} />;
+  }
   const hasWinner = pool.winner === 'UP' || pool.winner === 'DOWN';
   if (hasWinner) {
     return <OutcomeCard pool={pool} winner={pool.winner as 'UP' | 'DOWN'} />;
@@ -383,4 +391,33 @@ function OutcomeCard({ pool, winner }: { pool: PoolDetail; winner: 'UP' | 'DOWN'
       outcomeColor={winner === 'UP' ? t.up : t.down}
     />
   );
+}
+
+function CancelledCard({ pool, hasUserPosition }: { pool: PoolDetail; hasUserPosition: boolean }) {
+  const intervalLabel = INTERVAL_LABELS[pool.interval] || pool.interval;
+  return (
+    <SharedCancelled
+      subtitle={`${getAssetName(pool.asset)} Up or Down · ${intervalLabel}`}
+      meta={formatPredictionWindow(pool.startTime, pool.endTime)}
+      hasUserPosition={hasUserPosition}
+    />
+  );
+}
+
+/**
+ * True when the wallet has any bet on this pool. We look at total bets
+ * on either side that the current user contributed to — the API doesn't
+ * expose per-user totals on the pool detail directly, but the bet form
+ * caller already gates rendering by `pool.status`, so by the time we're
+ * here we only need a yes/no answer for the cancelled copy variant.
+ *
+ * Best signal we have without extra plumbing: PoolDetail surfaces the
+ * user's own bet via the betsByPool map upstream; the form passes that
+ * down as `userBet`. If the type ever stops carrying it, defaulting to
+ * `false` keeps the public-read copy (which is the safer fallback —
+ * never says "your refund landed" without knowing).
+ */
+function hasUserBet(pool: PoolDetail): boolean {
+  const anyPool = pool as PoolDetail & { userBet?: { side?: string; refunded?: boolean } | null };
+  return !!anyPool.userBet;
 }
