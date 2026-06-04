@@ -4,6 +4,7 @@ import { prisma } from '../db';
 import type { PoolStatus, Prisma } from '@prisma/client';
 import { serializePool } from '../utils/serializers';
 import { getAllLiveScoresWithFallback, getLiveScoreWithFallback, getLiveScoreByTeamWithFallback } from '../services/sports/livescore';
+import { computeWeight, currentMultiplier, getTimeWeightedConfig } from '../services/time-weighted-payout';
 
 export const poolsRouter: RouterType = Router();
 
@@ -616,6 +617,75 @@ poolsRouter.get('/:id/livescore', async (req, res) => {
     res.json({ success: true, data: score });
   } catch {
     res.json({ success: true, data: null });
+  }
+});
+
+// GET /api/pools/:id/weighting
+//
+// Live time-weighting snapshot for the bet form. Returns the current
+// multiplier (decays as the lock approaches), the weighted totals on
+// both sides, and a per-amount projection of what a fresh bet would
+// be worth if the user wins. Cheap to compute (no on-chain calls);
+// safe to poll every few seconds for the countdown display.
+//
+// Phase 1A — advisory only. Real on-chain payouts still use the plain
+// parimutuel formula until Phase 1B/2 reroutes them.
+poolsRouter.get('/:id/weighting', async (req, res) => {
+  try {
+    const pool = await prisma.pool.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true, status: true, startTime: true, lockTime: true,
+        totalUp: true, totalDown: true, totalDraw: true,
+      },
+    });
+    if (!pool) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Pool not found' } });
+
+    const bets = await prisma.bet.findMany({
+      where: { poolId: pool.id },
+      select: { amount: true, side: true, createdAt: true },
+    });
+
+    // Per-side weighted sums + raw stake sums. We don't know the winner
+    // yet so we compute both — the UI can show "if UP wins" and "if
+    // DOWN wins" projected payouts for the prospective bettor.
+    let weightedUp = 0n;
+    let weightedDown = 0n;
+    let weightedDraw = 0n;
+    for (const b of bets) {
+      const w = computeWeight(pool, { amount: b.amount, side: b.side, createdAt: b.createdAt });
+      if (b.side === 'UP') weightedUp += w;
+      else if (b.side === 'DOWN') weightedDown += w;
+      else weightedDraw += w;
+    }
+
+    const mult = currentMultiplier(pool);
+    const cfg = getTimeWeightedConfig();
+
+    res.json({
+      success: true,
+      data: {
+        poolId: pool.id,
+        status: pool.status,
+        currentMultiplier: mult,
+        config: cfg,
+        windowMs: pool.lockTime.getTime() - pool.startTime.getTime(),
+        msUntilLock: Math.max(0, pool.lockTime.getTime() - Date.now()),
+        stakes: {
+          up: pool.totalUp.toString(),
+          down: pool.totalDown.toString(),
+          draw: pool.totalDraw.toString(),
+        },
+        weighted: {
+          up: weightedUp.toString(),
+          down: weightedDown.toString(),
+          draw: weightedDraw.toString(),
+        },
+      },
+    });
+  } catch (e) {
+    console.error('Pool weighting error:', e);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: 'Failed to compute pool weighting' } });
   }
 });
 

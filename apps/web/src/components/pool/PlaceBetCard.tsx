@@ -26,10 +26,12 @@ import {
   Button,
   InputAdornment,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUserProfile } from '@/hooks/useUserProfile';
+import { usePoolWeighting, projectWeightedPayout } from '@/hooks/usePoolWeighting';
 import { AssetIcon } from '@/components/AssetIcon';
 import { DeterminingCard as SharedDetermining, OutcomeCard as SharedOutcome, CancelledCard as SharedCancelled, TermsFooter } from './ResolutionCards';
 import { USDC_DIVISOR, formatPredictionWindow } from '@/lib/format';
@@ -119,6 +121,21 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
   const feePercent = userProfile ? userProfile.feeBps / FEE_BPS_DIVISOR : DEFAULT_FEE_PERCENT;
   const potentialPayout = grossPayout * (1 - feePercent);
   const potentialOdds = amountNum > 0 ? potentialPayout / amountNum : 0;
+
+  // Phase 1A — time-weighted payout projection. The hook polls
+  // /api/pools/:id/weighting every 3s so the multiplier countdown
+  // ticks smoothly. We render the weighted projection ALONGSIDE the
+  // raw one during Phase 1A so users can see both worlds before the
+  // on-chain change in Phase 1B/2 makes the weighted one canonical.
+  const { data: weighting } = usePoolWeighting(pool.id, isPoolOpen);
+  const weightedProjection = weighting && amountNum > 0
+    ? projectWeightedPayout({
+        weighting,
+        amount: BigInt(Math.round(amountNum * USDC_DIVISOR)),
+        side: selectedSide,
+        feePercent,
+      })
+    : null;
 
   const sideColor = selectedSide === 'UP' ? t.up : t.down;
   const intervalLabel = INTERVAL_LABELS[pool.interval] || pool.interval;
@@ -249,7 +266,38 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
         })}
       </Box>
 
-      {/* ── Payout preview ── */}
+      {/* ── Time-weight badge + Payout preview ──────────────────────
+           Phase 1A: shows the live multiplier and the projected
+           weighted payout side-by-side with the raw parimutuel one
+           so users see what's coming when Phase 1B/2 makes it the
+           canonical formula. Multiplier is the live currentMultiplier
+           from /weighting — drops as lockTime approaches. */}
+      {weighting && (
+        <Box
+          sx={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            bgcolor: withAlpha(sideColor, 0.07),
+            border: `1px solid ${withAlpha(sideColor, 0.18)}`,
+            borderRadius: 1.5,
+            px: 1.25,
+            py: 0.75,
+          }}
+        >
+          <Tooltip
+            arrow
+            placement="top"
+            title={`Bets placed earlier in the window earn a bigger share of the losing pool. Floor ${(weighting.config.floor * 100).toFixed(0)}%, decay exponent ${weighting.config.exponent}.`}
+          >
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: t.text.tertiary, cursor: 'help' }}>
+              Time-weight now
+            </Typography>
+          </Tooltip>
+          <Typography sx={{ fontSize: '0.85rem', fontWeight: 800, color: sideColor, fontVariantNumeric: 'tabular-nums' }}>
+            ×{weighting.currentMultiplier.toFixed(2)}
+          </Typography>
+        </Box>
+      )}
+
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: t.text.tertiary }}>
@@ -265,6 +313,27 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
             {potentialOdds > 0 ? `${potentialOdds.toFixed(2)}x` : '-'}
           </Typography>
         </Box>
+        {weightedProjection && (
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mt: 0.25, pt: 0.5, borderTop: `1px dashed ${t.border.subtle}` }}>
+            <Tooltip
+              arrow
+              placement="top"
+              title="Phase 1A preview — the on-chain claim still pays the raw amount until the next program update."
+            >
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: t.text.quaternary, cursor: 'help' }}>
+                Weighted projection
+              </Typography>
+            </Tooltip>
+            <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: t.text.tertiary, fontVariantNumeric: 'tabular-nums' }}>
+              ${weightedProjection.payout.toFixed(2)}
+              {weightedProjection.odds > 0 && (
+                <Box component="span" sx={{ color: t.text.quaternary, ml: 0.5, fontWeight: 500 }}>
+                  ({weightedProjection.odds.toFixed(2)}x)
+                </Box>
+              )}
+            </Typography>
+          </Box>
+        )}
       </Box>
 
       {/* ── Error ── */}
