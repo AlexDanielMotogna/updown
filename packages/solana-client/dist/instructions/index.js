@@ -99,7 +99,7 @@ amount) {
     return new web3_js_1.TransactionInstruction({ keys, programId: accounts_1.PROGRAM_ID, data });
 }
 /**
- * Build `resolve` TransactionInstruction (crypto pools — resolve by price).
+ * Build `resolve` TransactionInstruction (crypto pools - resolve by price).
  * Accounts: pool, authority
  */
 function buildResolveIx(pool, authority, strikePrice, finalPrice) {
@@ -115,7 +115,7 @@ function buildResolveIx(pool, authority, strikePrice, finalPrice) {
     return new web3_js_1.TransactionInstruction({ keys, programId: accounts_1.PROGRAM_ID, data });
 }
 /**
- * Build `resolve_with_winner` TransactionInstruction (sports pools — explicit winner).
+ * Build `resolve_with_winner` TransactionInstruction (sports pools - explicit winner).
  * Accounts: pool, authority
  */
 function buildResolveWithWinnerIx(pool, authority, winner) {
@@ -132,7 +132,7 @@ function buildResolveWithWinnerIx(pool, authority, winner) {
 /**
  * Build `claim` TransactionInstruction (with fee).
  *
- * `user` is NOT marked as signer on the instruction's account meta — the
+ * `user` is NOT marked as signer on the instruction's account meta - the
  * relaxed claim.rs (user: AccountInfo) only requires authority to sign.
  * The manual-claim path still works because the user wallet is the
  * transaction fee payer, which forces a signature at the runtime level
@@ -196,7 +196,7 @@ function buildClosePoolIx(pool, vault, authority) {
 const FORCE_CLOSE_POOL_DISC = Buffer.from([113, 203, 148, 102, 142, 248, 118, 240]);
 /**
  * Build `force_close_pool` TransactionInstruction.
- * Closes pool account only (no vault) — for orphan recovery of old pools
+ * Closes pool account only (no vault) - for orphan recovery of old pools
  * where vault bump is corrupted from struct layout changes.
  * Accounts: pool, authority
  */

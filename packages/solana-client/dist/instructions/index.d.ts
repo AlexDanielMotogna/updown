@@ -11,19 +11,19 @@ export declare function buildInitializePoolIx(pool: PublicKey, vault: PublicKey,
 export declare function buildDepositIx(pool: PublicKey, userBet: PublicKey, vault: PublicKey, userTokenAccount: PublicKey, user: PublicKey, side: 0 | 1 | 2, // 0=Up/Home, 1=Down/Away, 2=Draw
 amount: bigint | number): TransactionInstruction;
 /**
- * Build `resolve` TransactionInstruction (crypto pools — resolve by price).
+ * Build `resolve` TransactionInstruction (crypto pools - resolve by price).
  * Accounts: pool, authority
  */
 export declare function buildResolveIx(pool: PublicKey, authority: PublicKey, strikePrice: bigint | number, finalPrice: bigint | number): TransactionInstruction;
 /**
- * Build `resolve_with_winner` TransactionInstruction (sports pools — explicit winner).
+ * Build `resolve_with_winner` TransactionInstruction (sports pools - explicit winner).
  * Accounts: pool, authority
  */
 export declare function buildResolveWithWinnerIx(pool: PublicKey, authority: PublicKey, winner: 0 | 1 | 2): TransactionInstruction;
 /**
  * Build `claim` TransactionInstruction (with fee).
  *
- * `user` is NOT marked as signer on the instruction's account meta — the
+ * `user` is NOT marked as signer on the instruction's account meta - the
  * relaxed claim.rs (user: AccountInfo) only requires authority to sign.
  * The manual-claim path still works because the user wallet is the
  * transaction fee payer, which forces a signature at the runtime level
@@ -46,7 +46,7 @@ export declare function buildRefundIx(pool: PublicKey, userBet: PublicKey, vault
 export declare function buildClosePoolIx(pool: PublicKey, vault: PublicKey, authority: PublicKey): TransactionInstruction;
 /**
  * Build `force_close_pool` TransactionInstruction.
- * Closes pool account only (no vault) — for orphan recovery of old pools
+ * Closes pool account only (no vault) - for orphan recovery of old pools
  * where vault bump is corrupted from struct layout changes.
  * Accounts: pool, authority
  */

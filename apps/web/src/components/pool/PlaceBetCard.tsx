@@ -133,10 +133,12 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
   const potentialPayout = grossPayout * (1 - feePercent);
   const potentialOdds = amountNum > 0 ? potentialPayout / amountNum : 0;
 
-  // Phase 1A — time-weighted payout projection. `weighting` was fetched
-  // by the hook at the top of the component (kept above the early
-  // returns to keep hook order stable). Here we just derive the
-  // projection from the cached value + the user's prospective amount.
+  // Time-weighted payout. `weighting` was fetched by the hook at the top
+  // of the component (kept above the early returns to keep hook order
+  // stable). The program now enforces this weighting on-chain at claim,
+  // so this is the REAL payout — not an advisory preview. We fall back to
+  // the plain parimutuel estimate only while the /weighting snapshot is
+  // still loading (first ~3s), which is a close approximation.
   const weightedProjection = weighting && amountNum > 0
     ? projectWeightedPayout({
         weighting,
@@ -145,6 +147,8 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
         feePercent,
       })
     : null;
+  const displayPayout = weightedProjection ? weightedProjection.payout : potentialPayout;
+  const displayOdds = weightedProjection ? weightedProjection.odds : potentialOdds;
 
   const sideColor = selectedSide === 'UP' ? t.up : t.down;
   const intervalLabel = INTERVAL_LABELS[pool.interval] || pool.interval;
@@ -313,36 +317,23 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
             Payout if {selectedSide === 'UP' ? 'Up' : 'Down'}
           </Typography>
           <Typography sx={{ fontSize: '0.95rem', fontWeight: 800, color: amountNum > 0 ? t.gain : t.text.quaternary, fontVariantNumeric: 'tabular-nums' }}>
-            ${potentialPayout.toFixed(2)}
+            ${displayPayout.toFixed(2)}
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: t.text.quaternary }}>Current odds</Typography>
+          <Tooltip
+            arrow
+            placement="top"
+            title="Time-weighted parimutuel: earlier deposits earn a larger share of the losing pool. Your live multiplier is shown above and is enforced on-chain when you claim."
+          >
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: t.text.quaternary, cursor: 'help' }}>
+              Current odds
+            </Typography>
+          </Tooltip>
           <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: t.text.tertiary, fontVariantNumeric: 'tabular-nums' }}>
-            {potentialOdds > 0 ? `${potentialOdds.toFixed(2)}x` : '-'}
+            {displayOdds > 0 ? `${displayOdds.toFixed(2)}x` : '-'}
           </Typography>
         </Box>
-        {weightedProjection && (
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mt: 0.25, pt: 0.5, borderTop: `1px dashed ${t.border.subtle}` }}>
-            <Tooltip
-              arrow
-              placement="top"
-              title="Phase 1A preview — the on-chain claim still pays the raw amount until the next program update."
-            >
-              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: t.text.quaternary, cursor: 'help' }}>
-                Weighted projection
-              </Typography>
-            </Tooltip>
-            <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: t.text.tertiary, fontVariantNumeric: 'tabular-nums' }}>
-              ${weightedProjection.payout.toFixed(2)}
-              {weightedProjection.odds > 0 && (
-                <Box component="span" sx={{ color: t.text.quaternary, ml: 0.5, fontWeight: 500 }}>
-                  ({weightedProjection.odds.toFixed(2)}x)
-                </Box>
-              )}
-            </Typography>
-          </Box>
-        )}
       </Box>
 
       {/* ── Error ── */}

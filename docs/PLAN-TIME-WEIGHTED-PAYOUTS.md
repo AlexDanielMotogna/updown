@@ -1,7 +1,12 @@
 # Time-weighted parimutuel payouts
 
-**Branch**: `feature/time-weighted-payouts`
-**Status (2026-06-04)**: code complete (off-chain Phase 1A + on-chain Phase 2). NOT deployed.
+**Branch**: `feature/time-weighted-payouts` (merged to `main`, commit `f463ab9`)
+**Status (2026-06-05)**: DEPLOYED. On-chain Phase 2 program upgraded on devnet
+(sig `638FF7c…`, program `HnqB6ahd…`). DB migration already applied on all 3
+envs (local/dev/prod). All pre-upgrade pools wiped (testing data) so schedulers
+recreate fresh pools with the new layout. Post-deploy deposit simulation passed
+clean (`err: null`) on a fresh pool — no seeds regression. Bet card updated to
+show the weighted payout as the real number (advisory dual-display removed).
 
 ## Problem
 
@@ -68,7 +73,7 @@ Treasury-routed off-chain payouts would have taken ~3 days of plumbing
 just to be thrown away when Phase 2 lands. The operator chose to skip
 straight to Phase 2.
 
-### Phase 2 - On-chain enforcement (CODE DONE, NOT DEPLOYED)
+### Phase 2 - On-chain enforcement (DEPLOYED 2026-06-05)
 
 Anchor program changes:
 

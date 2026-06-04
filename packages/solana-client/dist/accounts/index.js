@@ -24,7 +24,7 @@ function getVaultPDA(poolId) {
     return web3_js_1.PublicKey.findProgramAddressSync([Buffer.from('vault'), poolId], exports.PROGRAM_ID);
 }
 /**
- * Map a side label to its on-chain index (UP=0, DOWN=1, DRAW=2) — the single
+ * Map a side label to its on-chain index (UP=0, DOWN=1, DRAW=2) - the single
  * source of truth for the `side` byte used in UserBet PDA seeds and instruction
  * data. Use this everywhere instead of inlining the ternary.
  */
