@@ -24,15 +24,51 @@ interface OddsApiGame {
 
 // ─── Sport name mapping ─────────────────────────────────────────────────────
 
+// Odds API sport_key → SDB strSport canonical name. Anything we
+// persist into `live_scores.sport` (and therefore into the observed
+// coverage set in pool-validation.ts) flows through this. Missing
+// entries used to leak the raw key (e.g. "baseball_mlb") into the
+// effective whitelist — harmless for filtering since "Baseball" came
+// through other rows, but ugly in the admin UI and a footgun if a
+// new sport_key showed up without a matching mapping.
 const SPORT_KEY_TO_NAME: Record<string, string> = {
   basketball_nba: 'Basketball',
   icehockey_nhl: 'Ice Hockey',
   americanfootball_nfl: 'American Football',
+  baseball_mlb: 'Baseball',
   mma_mixed_martial_arts: 'Fighting',
+  boxing_boxing: 'Fighting',
+  // Tennis sport_keys come in many flavours (atp_french_open,
+  // wta_us_open, …). The prefix branch handles them generically below.
 };
 
+// Prefix → canonical mapping for sport_key families. Order matters
+// only for keys that share a prefix, which Odds API avoids by design.
+const SPORT_KEY_PREFIXES: Array<[string, string]> = [
+  ['soccer_', 'Soccer'],
+  ['tennis_', 'Tennis'],
+  ['golf_', 'Golf'],
+  ['cricket_', 'Cricket'],
+  ['rugbyleague_', 'Rugby'],
+  ['rugbyunion_', 'Rugby'],
+  ['basketball_', 'Basketball'],
+  ['icehockey_', 'Ice Hockey'],
+  ['americanfootball_', 'American Football'],
+  ['baseball_', 'Baseball'],
+  ['mma_', 'Fighting'],
+  ['boxing_', 'Fighting'],
+];
+
 function sportKeyToName(key: string): string {
-  return SPORT_KEY_TO_NAME[key] || (key.startsWith('soccer_') ? 'Soccer' : key);
+  const direct = SPORT_KEY_TO_NAME[key];
+  if (direct) return direct;
+  for (const [prefix, name] of SPORT_KEY_PREFIXES) {
+    if (key.startsWith(prefix)) return name;
+  }
+  // Unknown family. Fall back to the raw key so the row still
+  // persists; the operator notices it in `/admin/sports/coverage` and
+  // either adds the prefix mapping or sets SPORTS_POOL_WHITELIST.
+  return key;
 }
 
 // ─── Parallel poller ─────────────────────────────────────────────────────────
