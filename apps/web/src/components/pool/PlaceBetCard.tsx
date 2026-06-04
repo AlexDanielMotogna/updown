@@ -90,6 +90,17 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
   const canInteract = isPoolOpen && connected && !isSubmitting;
   const canBet = canInteract && parseFloat(amount) > 0;
 
+  // Phase 1A — time-weighted payout snapshot. MUST be called before the
+  // early returns below so the hook order stays stable across renders.
+  // Originally I parked this next to the payout-estimate math down at
+  // line ~130, but the early returns for CANCELLED / hasWinner /
+  // !isPoolOpen skip the call on resolved pools and React threw error
+  // #300 ("Rendered fewer hooks than expected") on the JOINING →
+  // RESOLVED transition. The hook itself gates polling via `enabled`,
+  // so calling it on a resolved pool is cheap (single fetch, no
+  // refetchInterval).
+  const { data: weighting } = usePoolWeighting(pool.id, isPoolOpen);
+
   // ── End-of-pool states ──────────────────────────────────────────────
   // CANCELLED takes precedence: the pool can be cancelled with winner=null
   // (PM markets retired by Polymarket where neither Gamma nor CTF could
@@ -122,12 +133,10 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
   const potentialPayout = grossPayout * (1 - feePercent);
   const potentialOdds = amountNum > 0 ? potentialPayout / amountNum : 0;
 
-  // Phase 1A — time-weighted payout projection. The hook polls
-  // /api/pools/:id/weighting every 3s so the multiplier countdown
-  // ticks smoothly. We render the weighted projection ALONGSIDE the
-  // raw one during Phase 1A so users can see both worlds before the
-  // on-chain change in Phase 1B/2 makes the weighted one canonical.
-  const { data: weighting } = usePoolWeighting(pool.id, isPoolOpen);
+  // Phase 1A — time-weighted payout projection. `weighting` was fetched
+  // by the hook at the top of the component (kept above the early
+  // returns to keep hook order stable). Here we just derive the
+  // projection from the cached value + the user's prospective amount.
   const weightedProjection = weighting && amountNum > 0
     ? projectWeightedPayout({
         weighting,
