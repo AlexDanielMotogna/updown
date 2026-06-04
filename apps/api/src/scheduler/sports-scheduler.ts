@@ -147,13 +147,13 @@ async function _createMatchPoolsInner(): Promise<void> {
   // ── Other sports (dynamic from DB config) ──
   const sportsConfigs = await getSportsDbConfigs();
   for (const config of sportsConfigs) {
-    // Layer 1 — sport whitelist. Skip the whole sport upfront if we
-    // don't have live coverage for it. Tennis / Golf / Cricket / F1 /
-    // Esports failed this check on 2026-06-04 after a WTA pool
-    // surfaced with a wrong kickoff and no live feed; see
-    // services/sports/pool-validation.ts for the gory details.
-    if (!isSportLiveCovered(config.sport)) {
-      console.log(`[Sports] ${config.sport}: skipped — not in SPORTS_POOL_WHITELIST (no proven live coverage)`);
+    // Layer 1 — dynamic sport whitelist. isSportLiveCovered now reads
+    // from the live_scores table (sports we've observed broadcasting
+    // in the last 7 days) with env / bootstrap fallbacks. Tennis /
+    // Golf / Cricket etc. fall out naturally because they never
+    // appear in /livescore/all, not because they're hardcoded.
+    if (!(await isSportLiveCovered(config.sport))) {
+      console.log(`[Sports] ${config.sport}: skipped — no observed live coverage in the last 7 days`);
       continue;
     }
     try {

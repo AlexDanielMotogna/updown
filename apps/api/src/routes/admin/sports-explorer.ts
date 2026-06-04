@@ -12,7 +12,7 @@ import { KNOCKOUT_DISABLE_ODDS_FALLBACK, EXPECTED_MATCH_DURATION_MS, DEFAULT_EXP
 import { classifyBadgeBackground } from '../../services/sports/badge-analyzer';
 import { backfillCombatSportImages } from '../../scheduler/fixture-sync';
 import type { Match } from '../../services/sports/types';
-import { isSportLiveCovered, revalidateSdbEventBeforeCreation, getLiveCoveredSports } from '../../services/sports/pool-validation';
+import { isSportLiveCovered, revalidateSdbEventBeforeCreation, getCoverageSnapshot } from '../../services/sports/pool-validation';
 
 // In-memory cache for the full SDB leagues catalog (1,475 rows). The list
 // changes monthly at most; 10 min TTL means at most 6 SDB calls per hour
@@ -60,19 +60,33 @@ export const adminSportsRouter: RouterType = Router();
 // scheduler knows about, annotated with the operator-relevant counts. PM
 // categories are excluded (they have their own admin flow and a different
 // concept of "match").
-// GET /admin/sports/coverage - which sports the operator can create
-// pools for. Backs the badges in MatchExplorer ("Live ✓" /
-// "No live feed ✗") so the admin doesn't waste a click on a match
-// that would be rejected by the scheduler / create-pool endpoint.
+// GET /admin/sports/coverage — which sports the operator can create
+// pools for, broken down by source so the admin can see WHY a sport
+// is on/off the list. Three sources, evaluated in this order:
+//
+//   1. envOverride  → SPORTS_POOL_WHITELIST env var. Manual win.
+//   2. observed     → distinct sport names from live_scores rows in
+//                     the last 7 days. Self-healing: SDB stops
+//                     covering a sport, it falls off; starts covering
+//                     a new one, it gets added automatically.
+//   3. bootstrap    → DEFAULT_LIVE_COVERED_SPORTS fallback. Only used
+//                     when the API just started on a fresh DB and the
+//                     livescore poller hasn't filled the table yet.
+//
+// `effective` is the actual allow-list the create-pool guard uses.
+// `source` tells the UI which of the three rules won.
 adminSportsRouter.get('/coverage', async (_req, res) => {
   try {
+    const snapshot = await getCoverageSnapshot();
     res.json({
       success: true,
       data: {
-        liveCovered: getLiveCoveredSports(),
-        // Hard-coded list of well-known SDB sport names so the UI can
-        // present a "blocked" set even when no pool of that sport
-        // currently exists. Anything not in `liveCovered` is rejected.
+        liveCovered: [...snapshot.effective],
+        observed: [...snapshot.observed],
+        envOverride: snapshot.envOverride ? [...snapshot.envOverride] : null,
+        source: snapshot.source,
+        cachedAt: snapshot.cachedAt,
+        observationWindowDays: 7,
         knownSports: [
           'Soccer', 'Basketball', 'Baseball', 'Ice Hockey', 'American Football',
           'Fighting', 'Rugby', 'Tennis', 'Golf', 'Cricket', 'Boxing',
@@ -378,12 +392,12 @@ adminSportsRouter.post('/create-pool', async (req, res) => {
     // reason in the body lets the UI surface "this match has no live
     // coverage" / "this match already finished" to the operator.
     const sdbSportName = cacheRow.sport;
-    if (!isSportLiveCovered(sdbSportName)) {
+    if (!(await isSportLiveCovered(sdbSportName))) {
       return res.status(409).json({
         success: false,
         error: {
           code: 'SPORT_NOT_LIVE_COVERED',
-          message: `${sdbSportName} is not in the live-coverage whitelist. Override with SPORTS_POOL_WHITELIST env or pick a covered sport.`,
+          message: `${sdbSportName} has no observed live coverage. Wait for SDB to start broadcasting it (we re-check every 5 min) or set SPORTS_POOL_WHITELIST env to override.`,
         },
       });
     }

@@ -34,17 +34,32 @@ import { EXPECTED_MATCH_DURATION_MS, DEFAULT_EXPECTED_DURATION_MS } from './live
 // ─── Layer 1 — Sport whitelist ────────────────────────────────────────────────
 
 /**
- * SDB `strSport` values for which we've confirmed live-score coverage
- * — either through the SDB v2 `/livescore/all` feed (observed daily
- * across these sports) OR through the Odds API fallback (mapped via
- * `LEAGUE_TO_ODDS_API`).
+ * Three sources of truth for "this sport has reliable live coverage":
  *
- * Anything outside this set is a gamble — SDB will quietly stop
- * publishing scores mid-tournament, the Odds API doesn't cover the
- * generic tour, and we end up with zombie pools.
+ *  1. **Env override (`SPORTS_POOL_WHITELIST`)** — if set, wins over
+ *     everything. Use for emergency rollouts ("turn on tennis right
+ *     now because a tournament started") or rollbacks ("turn off
+ *     basketball, SDB feed is misbehaving").
  *
- * Override at runtime via env so the operator can A/B add a sport
- * without a redeploy: `SPORTS_POOL_WHITELIST=Soccer,Basketball,…`.
+ *  2. **Observed coverage (`live_scores` rows in the last
+ *     `OBSERVATION_WINDOW_MS`)** — distinct sports we've actually
+ *     received a livescore row for recently. This is the canonical
+ *     answer because it's empirical: if we've been getting Basketball
+ *     livescores all week, basketball is covered. If we haven't seen
+ *     Tennis in 7 days, tennis is dark. Self-healing — when SDB
+ *     starts/stops covering a sport, our policy follows automatically.
+ *
+ *  3. **Bootstrap fallback** — when the API has just started on a
+ *     fresh DB the `live_scores` table is empty. Falling back to
+ *     `DEFAULT_LIVE_COVERED_SPORTS` for the first observation window
+ *     keeps pool creation alive while the livescore poller fills the
+ *     table. Once even one row lands for a sport, that sport is the
+ *     fresh source of truth.
+ *
+ * Cache: the observed-set query is cheap (single distinct on an
+ * indexed column) but called per pool creation. 5-minute in-process
+ * cache absorbs the burst when the scheduler creates many pools in a
+ * tick.
  */
 const DEFAULT_LIVE_COVERED_SPORTS = new Set([
   'Soccer',
@@ -56,20 +71,83 @@ const DEFAULT_LIVE_COVERED_SPORTS = new Set([
   'Rugby',
 ]);
 
-const LIVE_COVERED_SPORTS: Set<string> = (() => {
-  const raw = process.env.SPORTS_POOL_WHITELIST;
-  if (!raw) return DEFAULT_LIVE_COVERED_SPORTS;
-  const items = raw.split(',').map(s => s.trim()).filter(Boolean);
-  return items.length > 0 ? new Set(items) : DEFAULT_LIVE_COVERED_SPORTS;
-})();
+const OBSERVATION_WINDOW_MS = 7 * 24 * 60 * 60_000; // 7 days
+const COVERAGE_CACHE_MS = 5 * 60_000;
 
-export function isSportLiveCovered(sportName: string | null | undefined): boolean {
-  if (!sportName) return false;
-  return LIVE_COVERED_SPORTS.has(sportName);
+interface CoverageSnapshot {
+  envOverride: Set<string> | null;
+  observed: Set<string>;
+  effective: Set<string>;
+  source: 'env' | 'observed' | 'bootstrap';
+  cachedAt: number;
 }
 
-export function getLiveCoveredSports(): string[] {
-  return [...LIVE_COVERED_SPORTS];
+let coverageCache: CoverageSnapshot | null = null;
+
+const ENV_OVERRIDE: Set<string> | null = (() => {
+  const raw = process.env.SPORTS_POOL_WHITELIST;
+  if (!raw) return null;
+  const items = raw.split(',').map(s => s.trim()).filter(Boolean);
+  return items.length > 0 ? new Set(items) : null;
+})();
+
+/**
+ * Hit the `live_scores` table for distinct sports we've seen in the
+ * observation window, merge with env / bootstrap rules, cache for the
+ * COVERAGE_CACHE_MS window. The cache is invalidated only by time so
+ * a sport that goes dark today doesn't disappear from the whitelist
+ * until the cache expires — that's fine, the pool-creation impact of
+ * a stale 5-minute decision is negligible compared to the constant
+ * DB churn of querying every call.
+ */
+export async function getCoverageSnapshot(): Promise<CoverageSnapshot> {
+  const now = Date.now();
+  if (coverageCache && now - coverageCache.cachedAt < COVERAGE_CACHE_MS) {
+    return coverageCache;
+  }
+  const since = new Date(now - OBSERVATION_WINDOW_MS);
+  const rows = await prisma.liveScore.findMany({
+    where: { updatedAt: { gt: since } },
+    select: { sport: true },
+    distinct: ['sport'],
+  });
+  const observed = new Set(
+    rows.map(r => r.sport).filter((s): s is string => !!s && s !== 'Unknown'),
+  );
+
+  let effective: Set<string>;
+  let source: CoverageSnapshot['source'];
+  if (ENV_OVERRIDE) {
+    effective = ENV_OVERRIDE;
+    source = 'env';
+  } else if (observed.size > 0) {
+    effective = observed;
+    source = 'observed';
+  } else {
+    effective = DEFAULT_LIVE_COVERED_SPORTS;
+    source = 'bootstrap';
+  }
+  coverageCache = { envOverride: ENV_OVERRIDE, observed, effective, source, cachedAt: now };
+  return coverageCache;
+}
+
+/** Test-only — drops the in-memory cache so unit tests don't carry
+ *  state across scenarios. */
+export function __resetCoverageCache(): void {
+  coverageCache = null;
+}
+
+export async function isSportLiveCovered(sportName: string | null | undefined): Promise<boolean> {
+  if (!sportName) return false;
+  const snapshot = await getCoverageSnapshot();
+  return snapshot.effective.has(sportName);
+}
+
+/** Effective allow-list (env > observed > bootstrap). Used by the
+ *  admin badges + the create-pool guard. */
+export async function getLiveCoveredSports(): Promise<string[]> {
+  const snapshot = await getCoverageSnapshot();
+  return [...snapshot.effective];
 }
 
 // ─── Layer 2 — SDB re-validation ──────────────────────────────────────────────
