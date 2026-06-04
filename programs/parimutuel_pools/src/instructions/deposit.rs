@@ -74,16 +74,29 @@ pub fn handler(ctx: Context<Deposit>, side: Side, amount: u64) -> Result<()> {
     let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
     token::transfer(cpi_ctx, amount)?;
 
-    // Update pool totals
+    // Time-weight multiplier in BPS (10_000 = 1.0). Computed against the
+    // deposit's actual timestamp so a hedger top-up later in the window
+    // gets a smaller weight contribution than the initial bet.
+    let multiplier_bps = pool.multiplier_bps(clock.unix_timestamp);
+    let weight_added: u64 = (amount as u128)
+        .checked_mul(multiplier_bps as u128)
+        .ok_or(PoolError::Overflow)?
+        .checked_div(10_000u128)
+        .ok_or(PoolError::Overflow)? as u64;
+
+    // Update pool totals (raw + weighted) atomically per side.
     match side {
         Side::Up => {
             pool.total_up = pool.total_up.checked_add(amount).ok_or(PoolError::Overflow)?;
+            pool.weighted_up = pool.weighted_up.checked_add(weight_added).ok_or(PoolError::Overflow)?;
         }
         Side::Down => {
             pool.total_down = pool.total_down.checked_add(amount).ok_or(PoolError::Overflow)?;
+            pool.weighted_down = pool.weighted_down.checked_add(weight_added).ok_or(PoolError::Overflow)?;
         }
         Side::Draw => {
             pool.total_draw = pool.total_draw.checked_add(amount).ok_or(PoolError::Overflow)?;
+            pool.weighted_draw = pool.weighted_draw.checked_add(weight_added).ok_or(PoolError::Overflow)?;
         }
     }
 
@@ -91,16 +104,21 @@ pub fn handler(ctx: Context<Deposit>, side: Side, amount: u64) -> Result<()> {
     // guarantees this account belongs to `side`, so re-deposits just add to it.
     let user_bet = &mut ctx.accounts.user_bet;
     if user_bet.user == Pubkey::default() {
-        // New bet - initialize all fields
+        // New bet - initialize all fields including time-weight tracking.
         user_bet.pool = pool.key();
         user_bet.user = ctx.accounts.user.key();
         user_bet.side = side;
         user_bet.amount = amount;
+        user_bet.weight = weight_added;
+        user_bet.entry_time = clock.unix_timestamp;
         user_bet.claimed = false;
         user_bet.bump = ctx.bumps.user_bet;
     } else {
-        // Same side guaranteed by the per-side seed - accumulate.
+        // Same side guaranteed by the per-side seed — accumulate amount AND
+        // weight. entry_time stays as the FIRST deposit; the analytics field
+        // tracks initial entry, not last top-up.
         user_bet.amount = user_bet.amount.checked_add(amount).ok_or(PoolError::Overflow)?;
+        user_bet.weight = user_bet.weight.checked_add(weight_added).ok_or(PoolError::Overflow)?;
     }
 
     emit!(Deposited {
@@ -108,6 +126,8 @@ pub fn handler(ctx: Context<Deposit>, side: Side, amount: u64) -> Result<()> {
         user: ctx.accounts.user.key(),
         side,
         amount,
+        weight: weight_added,
+        multiplier_bps,
         total_up: pool.total_up,
         total_down: pool.total_down,
         total_draw: pool.total_draw,

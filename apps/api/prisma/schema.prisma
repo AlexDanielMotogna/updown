@@ -91,6 +91,18 @@ model Bet {
   walletAddress   String    @map("wallet_address")
   side            Side
   amount          BigInt
+  /// Time-weighted contribution to the side's pool. Mirror of the
+  /// on-chain UserBet.weight field — captured by the deposit confirm
+  /// route from the Deposited event so we can compute analytics
+  /// (sniper rate, average entry multiplier, etc.) without an RPC
+  /// per bet. Null on bets created before Phase 2 ships; the chain
+  /// still has the authoritative value.
+  weight          BigInt?   @map("weight")
+  /// Multiplier in basis points that was applied to this specific
+  /// deposit (10_000 == 1.0). For multi-deposit bets this stores the
+  /// FIRST deposit's multiplier — the weight field accumulates the
+  /// weighted sum across deposits.
+  entryMultiplierBps Int?   @map("entry_multiplier_bps")
   depositTx       String?   @map("deposit_tx")
   claimed         Boolean   @default(false)
   claimTx         String?   @map("claim_tx")

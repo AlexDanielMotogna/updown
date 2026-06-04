@@ -46,7 +46,7 @@ export type ParimutuelPools = {
     {
       "name": "claim",
       "docs": [
-        "Claim payout from resolved pool. Authority signs; user does NOT need to sign - the manual-claim path keeps working because the user wallet is the transaction fee payer, while the auto-payout path lets authority be the sole signer.",
+        "Claim payout from resolved pool (user + authority co-sign, with fee).",
         "`side` selects which per-side UserBet account to claim (the winning side)."
       ],
       "discriminator": [
@@ -78,14 +78,19 @@ export type ParimutuelPools = {
         {
           "name": "user",
           "docs": [
-            "User receives the closed user_bet's rent. NOT required to sign - validated via user_bet.user == user.key()."
+            "`user_bet.user == user.key()` above. NOT required to be a signer",
+            "- the manual-claim path naturally signs because the user wallet",
+            "pays tx fees, but the auto-payout path lets `authority` be the",
+            "sole transaction signer (no user interaction required)."
           ],
           "writable": true
         },
         {
           "name": "authority",
           "docs": [
-            "Authority signs - enforces fee_bps (prevents users from passing fee_bps=0) AND authorises authority-driven auto-payout when the user wallet isn't available to sign."
+            "Authority signs - enforces fee_bps (prevents users from passing fee_bps=0)",
+            "AND authorises authority-driven auto-payout when the user wallet isn't",
+            "available to sign."
           ],
           "signer": true
         },
@@ -1312,6 +1317,23 @@ export type ParimutuelPools = {
             "type": "u64"
           },
           {
+            "name": "weight",
+            "docs": [
+              "Time-weight credited to this deposit (amount × multiplier).",
+              "Off-chain analytics use this to flag sniper-vs-early-buyer ratios."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "multiplierBps",
+            "docs": [
+              "Multiplier applied to this deposit in basis points (10_000 = 1.0).",
+              "Captured per-deposit, not per-bet — a hedger top-up emits its own",
+              "(smaller) multiplier even though the bet account accumulates."
+            ],
+            "type": "u64"
+          },
+          {
             "name": "totalUp",
             "type": "u64"
           },
@@ -1519,6 +1541,31 @@ export type ParimutuelPools = {
             "name": "totalDraw",
             "docs": [
               "Total USDC deposited on side 2 (DRAW - sports only, always 0 for crypto)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "weightedUp",
+            "docs": [
+              "Time-weighted sum on side 0 (UP). Each deposit adds amount × M(t)",
+              "where M(t) = max(WEIGHT_FLOOR_BPS / 10000, (lock - now) / window).",
+              "Used as the denominator in the claim payout share so early bettors",
+              "keep a larger slice of the losing pool. See PLAN-TIME-WEIGHTED-",
+              "PAYOUTS.md for the derivation."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "weightedDown",
+            "docs": [
+              "Time-weighted sum on side 1 (DOWN)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "weightedDraw",
+            "docs": [
+              "Time-weighted sum on side 2 (DRAW, 0 for 2-way pools)."
             ],
             "type": "u64"
           },
@@ -2061,6 +2108,26 @@ export type ParimutuelPools = {
               "Amount deposited"
             ],
             "type": "u64"
+          },
+          {
+            "name": "weight",
+            "docs": [
+              "Time-weighted contribution = amount × M(t) at deposit time.",
+              "Multiple deposits on the same side accumulate weights at their",
+              "individual moments — early USDC gets credited with a fatter",
+              "multiplier than top-ups added near the lock."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "entryTime",
+            "docs": [
+              "unix_timestamp (seconds) of the FIRST deposit on this account.",
+              "Pure analytics / verification field — payout uses `weight`, not",
+              "this. Kept so the operator can audit suspicious patterns and so",
+              "future migrations have a single canonical entry time per bet."
+            ],
+            "type": "i64"
           },
           {
             "name": "claimed",

@@ -31,6 +31,16 @@ pub struct Pool {
     pub total_down: u64,
     /// Total USDC deposited on side 2 (DRAW - sports only, always 0 for crypto)
     pub total_draw: u64,
+    /// Time-weighted sum on side 0 (UP). Each deposit adds amount × M(t)
+    /// where M(t) = max(WEIGHT_FLOOR_BPS / 10000, (lock - now) / window).
+    /// Used as the denominator in the claim payout share so early bettors
+    /// keep a larger slice of the losing pool. See PLAN-TIME-WEIGHTED-
+    /// PAYOUTS.md for the derivation.
+    pub weighted_up: u64,
+    /// Time-weighted sum on side 1 (DOWN).
+    pub weighted_down: u64,
+    /// Time-weighted sum on side 2 (DRAW, 0 for 2-way pools).
+    pub weighted_draw: u64,
     /// Number of sides: 2 for crypto, 3 for sports
     pub num_sides: u8,
     /// Pool status
@@ -66,6 +76,16 @@ pub struct UserBet {
     pub side: Side,
     /// Amount deposited
     pub amount: u64,
+    /// Time-weighted contribution = amount × M(t) at deposit time.
+    /// Multiple deposits on the same side accumulate weights at their
+    /// individual moments — early USDC gets credited with a fatter
+    /// multiplier than top-ups added near the lock.
+    pub weight: u64,
+    /// unix_timestamp (seconds) of the FIRST deposit on this account.
+    /// Pure analytics / verification field — payout uses `weight`, not
+    /// this. Kept so the operator can audit suspicious patterns and so
+    /// future migrations have a single canonical entry time per bet.
+    pub entry_time: i64,
     /// Whether payout has been claimed
     pub claimed: bool,
     /// Bump seed for PDA
@@ -92,7 +112,54 @@ impl Pool {
             Side::Draw => self.total_draw,
         }
     }
+
+    /// Time-weighted sum on the given side. Mirrors `total_for_side` for
+    /// the new weighted claim formula.
+    pub fn weighted_for_side(&self, side: Side) -> u64 {
+        match side {
+            Side::Up => self.weighted_up,
+            Side::Down => self.weighted_down,
+            Side::Draw => self.weighted_draw,
+        }
+    }
+
+    /// Compute the current time-weight multiplier in basis points
+    /// (10_000 == 1.0). Linear decay with a floor:
+    ///
+    ///   ratio_bps = (lock_time − now) × 10_000 / window
+    ///   multiplier_bps = max(WEIGHT_FLOOR_BPS, ratio_bps)
+    ///
+    /// Linear (not 1.5-power like the off-chain advisory) because BPF
+    /// can't do floating-point and a fractional exponent isn't worth a
+    /// lookup table — the FLOOR does most of the late-bettor punishment
+    /// anyway. Floor is 0.10 by default so a snipe at t-1s still earns
+    /// 10 % of full credit; high enough to avoid "win the bet, lose
+    /// money" but low enough to make sniping economically unattractive.
+    ///
+    /// Returns WEIGHT_FLOOR_BPS for any pool with a degenerate window
+    /// (start_time >= lock_time) so resolving such a pool falls back to
+    /// flat-rate payouts rather than crashing.
+    pub fn multiplier_bps(&self, now_ts: i64) -> u64 {
+        let window = self.lock_time.saturating_sub(self.start_time);
+        if window <= 0 {
+            return WEIGHT_FLOOR_BPS;
+        }
+        let now_clamped = now_ts.max(self.start_time).min(self.lock_time);
+        let remaining = (self.lock_time - now_clamped) as u64;
+        let raw_bps = remaining
+            .checked_mul(10_000)
+            .unwrap_or(WEIGHT_FLOOR_BPS)
+            .checked_div(window as u64)
+            .unwrap_or(WEIGHT_FLOOR_BPS);
+        raw_bps.max(WEIGHT_FLOOR_BPS)
+    }
 }
+
+/// Floor on the time-weight multiplier (basis points). 1000 == 0.10.
+/// A bet placed at the very last second of the deposit window still
+/// earns this share of full credit — enough that picking the winning
+/// side returns the principal plus a small positive bonus.
+pub const WEIGHT_FLOOR_BPS: u64 = 1_000;
 
 impl UserBet {
     pub const SEED_PREFIX: &'static [u8] = b"bet";

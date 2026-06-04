@@ -347,6 +347,25 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
 
     console.log(`[Deposit] Verified on-chain: pool=${poolId}, wallet=${walletAddress}, side=${side}, amount=${betAmount}`);
 
+    // Mirror the on-chain time-weight math (state.rs::multiplier_bps).
+    // Linear decay with WEIGHT_FLOOR_BPS = 1000 floor. We capture this
+    // server-side so analytics (snipe rate, per-wallet entry timing) can
+    // run without an RPC per bet. The chain has the authoritative weight
+    // either way; if these diverge for any reason, the chain wins.
+    const WEIGHT_FLOOR_BPS = 1_000n;
+    const startSec = BigInt(Math.floor(pool.startTime.getTime() / 1000));
+    const lockSec = BigInt(Math.floor(pool.lockTime.getTime() / 1000));
+    const nowSec = BigInt(Math.floor(Date.now() / 1000));
+    const windowSec = lockSec - startSec;
+    let multiplierBps = WEIGHT_FLOOR_BPS;
+    if (windowSec > 0n) {
+      const nowClamped = nowSec < startSec ? startSec : nowSec > lockSec ? lockSec : nowSec;
+      const remaining = lockSec - nowClamped;
+      const rawBps = (remaining * 10_000n) / windowSec;
+      multiplierBps = rawBps > WEIGHT_FLOOR_BPS ? rawBps : WEIGHT_FLOOR_BPS;
+    }
+    const weightAdded = (betAmount * multiplierBps) / 10_000n;
+
     // Atomic transaction - bet.upsert + pool.update together (supports multiple deposits)
     const [bet, updatedPool] = await prisma.$transaction(async (tx) => {
       const newBet = await tx.bet.upsert({
@@ -362,10 +381,15 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
           walletAddress,
           side,
           amount: betAmount,
+          weight: weightAdded,
+          entryMultiplierBps: Number(multiplierBps),
           depositTx: txSignature,
         },
         update: {
           amount: { increment: betAmount },
+          // Top-ups accumulate weight; entry multiplier stays as the
+          // FIRST deposit's value (analytics field, not payout-relevant).
+          weight: { increment: weightAdded },
           depositTx: txSignature,
         },
       });
