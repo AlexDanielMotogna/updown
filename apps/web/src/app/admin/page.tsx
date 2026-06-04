@@ -9,6 +9,7 @@ import { ADMIN_AUTH_EXPIRED_EVENT, verifyKey } from './lib/adminApi';
 import { ToastProvider } from './ui';
 import { SystemHealth } from './components/SystemHealth';
 import { PoolManagement } from './components/PoolManagement';
+import { ZombiePools } from './components/ZombiePools';
 import { FinancialOverview } from './components/FinancialOverview';
 import { UserOverview } from './components/UserOverview';
 import { EventLog } from './components/EventLog';
@@ -20,7 +21,7 @@ import { MatchExplorer } from './components/MatchExplorer';
 import { PmExplorer } from './components/PmExplorer';
 import { ResolutionMetrics } from './components/ResolutionMetrics';
 
-const TABS = ['Health', 'Resolution', 'Pools', 'Payouts', 'Finance', 'Users', 'Events', 'Actions', 'Tournaments', 'Matches', 'Predictions', 'Categories'] as const;
+const TABS = ['Health', 'Resolution', 'Pools', 'Zombies', 'Payouts', 'Finance', 'Users', 'Events', 'Actions', 'Tournaments', 'Matches', 'Predictions', 'Categories'] as const;
 
 // Detect which environment the admin is pointing at, so a single misclick
 // between the dev / prod browser tabs is obvious. Reads NEXT_PUBLIC_ENV
@@ -175,15 +176,16 @@ export default function AdminPage() {
           {tab === 0 && <SystemHealth />}
           {tab === 1 && <ResolutionMetrics />}
           {tab === 2 && <PoolManagement />}
-          {tab === 3 && <PayoutManagement />}
-          {tab === 4 && <FinancialOverview />}
-          {tab === 5 && <UserOverview />}
-          {tab === 6 && <EventLog />}
-          {tab === 7 && <ManualActions />}
-          {tab === 8 && <TournamentManagement />}
-          {tab === 9 && <MatchExplorer />}
-          {tab === 10 && <PmExplorer />}
-          {tab === 11 && <CategoryManagement />}
+          {tab === 3 && <ZombiePools />}
+          {tab === 4 && <PayoutManagement />}
+          {tab === 5 && <FinancialOverview />}
+          {tab === 6 && <UserOverview />}
+          {tab === 7 && <EventLog />}
+          {tab === 8 && <ManualActions />}
+          {tab === 9 && <TournamentManagement />}
+          {tab === 10 && <MatchExplorer />}
+          {tab === 11 && <PmExplorer />}
+          {tab === 12 && <CategoryManagement />}
         </Box>
       </Box>
     </ToastProvider>

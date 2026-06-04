@@ -12,6 +12,7 @@ import { KNOCKOUT_DISABLE_ODDS_FALLBACK, EXPECTED_MATCH_DURATION_MS, DEFAULT_EXP
 import { classifyBadgeBackground } from '../../services/sports/badge-analyzer';
 import { backfillCombatSportImages } from '../../scheduler/fixture-sync';
 import type { Match } from '../../services/sports/types';
+import { isSportLiveCovered, revalidateSdbEventBeforeCreation, getLiveCoveredSports } from '../../services/sports/pool-validation';
 
 // In-memory cache for the full SDB leagues catalog (1,475 rows). The list
 // changes monthly at most; 10 min TTL means at most 6 SDB calls per hour
@@ -59,6 +60,32 @@ export const adminSportsRouter: RouterType = Router();
 // scheduler knows about, annotated with the operator-relevant counts. PM
 // categories are excluded (they have their own admin flow and a different
 // concept of "match").
+// GET /admin/sports/coverage - which sports the operator can create
+// pools for. Backs the badges in MatchExplorer ("Live ✓" /
+// "No live feed ✗") so the admin doesn't waste a click on a match
+// that would be rejected by the scheduler / create-pool endpoint.
+adminSportsRouter.get('/coverage', async (_req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: {
+        liveCovered: getLiveCoveredSports(),
+        // Hard-coded list of well-known SDB sport names so the UI can
+        // present a "blocked" set even when no pool of that sport
+        // currently exists. Anything not in `liveCovered` is rejected.
+        knownSports: [
+          'Soccer', 'Basketball', 'Baseball', 'Ice Hockey', 'American Football',
+          'Fighting', 'Rugby', 'Tennis', 'Golf', 'Cricket', 'Boxing',
+          'Motorsport', 'Esports', 'Cycling', 'Darts', 'Snooker',
+          'Handball', 'Volleyball',
+        ],
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: error instanceof Error ? error.message : 'unknown' } });
+  }
+});
+
 adminSportsRouter.get('/leagues', async (_req, res) => {
   try {
     const cats = await prisma.poolCategory.findMany({
@@ -340,6 +367,35 @@ adminSportsRouter.post('/create-pool', async (req, res) => {
     });
     if (!cacheRow) {
       return res.status(404).json({ success: false, error: { code: 'MATCH_NOT_CACHED', message: 'Match not found in fixture cache. Try Refresh from SDB first.' } });
+    }
+
+    // Same 3-layer guard the scheduler uses — admin manual creation
+    // can't bypass the live-coverage whitelist or the SDB revalidation
+    // check. Layer 1: scheduler is the same `getSportsDbConfigs` loop
+    // so we check the SDB sport name here; Layer 2: fresh SDB lookup
+    // for the event id catches the "fixture was synced last week,
+    // event got moved or deleted since" case. Returning 4xx with the
+    // reason in the body lets the UI surface "this match has no live
+    // coverage" / "this match already finished" to the operator.
+    const sdbSportName = cacheRow.sport;
+    if (!isSportLiveCovered(sdbSportName)) {
+      return res.status(409).json({
+        success: false,
+        error: {
+          code: 'SPORT_NOT_LIVE_COVERED',
+          message: `${sdbSportName} is not in the live-coverage whitelist. Override with SPORTS_POOL_WHITELIST env or pick a covered sport.`,
+        },
+      });
+    }
+    const valid = await revalidateSdbEventBeforeCreation(matchId);
+    if (!valid.ok && (valid.reason === 'finished' || valid.reason === 'in-progress' || valid.reason === 'not-found')) {
+      return res.status(409).json({
+        success: false,
+        error: {
+          code: `SDB_${valid.reason.replace('-', '_').toUpperCase()}`,
+          message: `SDB says this match is ${valid.reason}${valid.detail ? ` (${valid.detail})` : ''}. Refresh from SDB and try again, or pick a different match.`,
+        },
+      });
     }
 
     // Build the Match shape createSportsPool expects. Football pools use

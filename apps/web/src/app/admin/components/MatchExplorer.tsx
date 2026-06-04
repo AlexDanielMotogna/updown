@@ -112,6 +112,18 @@ export function MatchExplorer() {
     queryFn: () => adminFetch<{ success: true; data: League[] }>('/sports/leagues').then(r => r.data),
   });
 
+  // Live-coverage whitelist — drives the "Live ✓ / No feed ✗" badges
+  // next to each league row + disables Add as match for matches whose
+  // sport isn't in the set. Mirrors the server-side guard in
+  // /sports/create-pool so the UI doesn't tempt the operator with an
+  // action that would 409 the moment they click it.
+  const coverageQ = useQuery({
+    queryKey: ['admin-sports-coverage'],
+    queryFn: () => adminFetch<{ success: true; data: { liveCovered: string[]; knownSports: string[] } }>('/sports/coverage').then(r => r.data),
+    staleTime: 60 * 60_000, // 1h — coverage list changes via env, not via runtime data
+  });
+  const liveCoveredSet = new Set(coverageQ.data?.liveCovered ?? []);
+
   const matchesQ = useQuery({
     queryKey: ['admin-sports-matches', selectedLeague, direction],
     queryFn: () => adminFetch<{ success: true; data: { matches: CachedMatch[] } }>(`/sports/matches?league=${selectedLeague}&direction=${direction}&limit=100`).then(r => r.data.matches),
@@ -356,7 +368,29 @@ export function MatchExplorer() {
             <Card sx={{ p: 2, border: `1px solid ${t.border.subtle}`, bgcolor: t.bg.surface }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
                 <Box>
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 600 }}>{selected.label}</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 600 }}>{selected.label}</Typography>
+                    {/* Live-coverage badge. Green ✓ when the sport is in
+                        SPORTS_POOL_WHITELIST; red ✗ otherwise. Backed by
+                        /sports/coverage so the operator gets immediate
+                        visual feedback without waiting on the create-pool
+                        API to 409. */}
+                    {coverageQ.data && (
+                      liveCoveredSet.has(selected.sport) ? (
+                        <Chip
+                          label="Live ✓"
+                          size="small"
+                          sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, bgcolor: withAlpha(t.gain, 0.15), color: t.gain }}
+                        />
+                      ) : (
+                        <Chip
+                          label="No live feed"
+                          size="small"
+                          sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, bgcolor: withAlpha(t.down, 0.15), color: t.down }}
+                        />
+                      )
+                    )}
+                  </Box>
                   <Box sx={{ display: 'flex', gap: 1.5, mt: 0.5, fontSize: '0.72rem', color: t.text.tertiary }}>
                     <span>code <strong>{selected.code}</strong></span>
                     <span>sport <strong>{selected.sport}</strong></span>
@@ -454,15 +488,25 @@ export function MatchExplorer() {
                                 <OpenInNewRoundedIcon sx={{ fontSize: 12 }} />
                               </Box>
                             ) : (
-                              <Button
-                                size="small"
-                                startIcon={<AddRoundedIcon sx={{ fontSize: 14 }} />}
-                                onClick={() => createMutation.mutate({ matchId: m.externalId, league: selected.code })}
-                                disabled={isCreating}
-                                sx={{ fontSize: '0.7rem', textTransform: 'none', py: 0.25, px: 1.25, color: t.text.primary, bgcolor: t.hover.medium, '&:hover': { bgcolor: t.hover.strong } }}
+                              <Tooltip
+                                arrow
+                                placement="top"
+                                title={!liveCoveredSet.has(selected.sport)
+                                  ? `${selected.sport} is not in the live-coverage whitelist. The server will 409 this request. Override via SPORTS_POOL_WHITELIST env to enable.`
+                                  : ''}
                               >
-                                {isCreating ? 'Creating…' : 'Create pool'}
-                              </Button>
+                                <span>
+                                  <Button
+                                    size="small"
+                                    startIcon={<AddRoundedIcon sx={{ fontSize: 14 }} />}
+                                    onClick={() => createMutation.mutate({ matchId: m.externalId, league: selected.code })}
+                                    disabled={isCreating || !liveCoveredSet.has(selected.sport)}
+                                    sx={{ fontSize: '0.7rem', textTransform: 'none', py: 0.25, px: 1.25, color: t.text.primary, bgcolor: t.hover.medium, '&:hover': { bgcolor: t.hover.strong } }}
+                                  >
+                                    {isCreating ? 'Creating…' : 'Create pool'}
+                                  </Button>
+                                </span>
+                              </Tooltip>
                             )}
                           </TableCell>
                         </TableRow>
