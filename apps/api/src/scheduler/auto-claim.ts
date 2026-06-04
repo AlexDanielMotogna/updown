@@ -24,7 +24,8 @@ import {
   type SideLabel,
 } from 'solana-client';
 import { derivePoolSeed, getUsdcMint, getConnection } from '../utils/solana';
-import { resolveFeeBps, calculatePayout } from '../utils/payout';
+import { resolveFeeBps, calculateWeightedPayout } from '../utils/payout';
+import { readOnchainClaimPayout } from '../utils/claim-payout';
 import { getDistinctBettorWallets } from '../utils/bets';
 import { awardBetWin, awardClaimCompleted } from '../services/rewards';
 import { notifyBetPaid } from '../services/notifications';
@@ -136,20 +137,33 @@ export async function autoClaimBets(
       claimed: false,
       payoutFailed: false,
     },
-    select: { id: true, walletAddress: true, side: true, amount: true },
+    select: { id: true, walletAddress: true, side: true, amount: true, weight: true },
   });
 
   if (winningBets.length === 0) {
     return { attempted: 0, succeeded: 0, failed: 0, skipped: 0 };
   }
 
-  // Read the totals once for the server-side payout calculation that mirrors
-  // the on-chain transfer. Same numbers the contract uses: payout =
-  // (stake × totalPool) / sideTotal − fee (fee waived if 1 distinct bettor).
+  // Totals + winning-side weight sum, read once. Used only as a FALLBACK
+  // for the (rare) case where we can't read the actual transfer back off
+  // the claim tx — the time-weighted formula the contract enforces is
+  // payout = amount + weight × losingStake / winningWeightSum − fee.
   const poolRow = await deps.prisma.pool.findUnique({
     where: { id: pool.id },
     select: { totalUp: true, totalDown: true, totalDraw: true },
   });
+  const winnerSide = pool.winner as 'UP' | 'DOWN' | 'DRAW';
+  const winWeightAgg = await deps.prisma.bet.aggregate({
+    where: { poolId: pool.id, side: winnerSide },
+    _sum: { weight: true },
+  });
+  const winningWeightSum = winWeightAgg._sum.weight ?? 0n;
+  const losingStakeTotal = poolRow
+    ? (poolRow.totalUp + poolRow.totalDown + (poolRow.totalDraw ?? 0n))
+      - (winnerSide === 'UP' ? poolRow.totalUp
+        : winnerSide === 'DOWN' ? poolRow.totalDown
+        : (poolRow.totalDraw ?? 0n))
+    : 0n;
   const distinctWallets = (await getDistinctBettorWallets(pool.id)).length;
 
   const startedAt = Date.now();
@@ -186,22 +200,26 @@ export async function autoClaimBets(
           feeBps,
         );
 
-        // Mirror the on-chain payout math server-side and persist it. Without
-        // this, backend aggregations like `totalWon` (sum of payoutAmount on
-        // the user profile) miss auto-paid bets entirely - only refunds
-        // (which autoRefundBets already stores) show up in the Net P&L card,
-        // so the header desyncs from the table.
-        const { payout: payoutAmount } = poolRow
-          ? calculatePayout({
-              betAmount: bet.amount,
-              totalUp: poolRow.totalUp,
-              totalDown: poolRow.totalDown,
-              totalDraw: poolRow.totalDraw,
-              side: bet.side as 'UP' | 'DOWN' | 'DRAW',
-              betCount: distinctWallets,
-              feeBps,
-            })
-          : { payout: bet.amount };
+        // Persist the ACTUAL on-chain payout. The contract now enforces a
+        // time-weighted claim (early entry = bigger share of the losing
+        // pool), so a server-side parimutuel recompute would disagree with
+        // what the chain actually transferred. We read the real credit off
+        // the claim tx (same approach as the manual confirm-claim route) and
+        // only fall back to the weighted formula if the tx can't be read.
+        // Without persisting this, profile aggregations like `totalWon` (sum
+        // of payoutAmount) would miss auto-paid bets and the Net P&L header
+        // would desync from the table.
+        const onchainPayout = await readOnchainClaimPayout(
+          getConnection(), txSig, bet.walletAddress, getUsdcMint(),
+        );
+        const payoutAmount = onchainPayout ?? calculateWeightedPayout({
+          betAmount: bet.amount,
+          betWeight: bet.weight ?? bet.amount,
+          winningWeightSum,
+          losingStakeTotal,
+          betCount: distinctWallets,
+          feeBps,
+        }).payout;
 
         // Optimistic lock - manual confirm-claim may have already updated
         // the row; in that case updateMany returns count=0 and we skip

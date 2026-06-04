@@ -3,10 +3,28 @@ import { z } from 'zod';
 import { prisma } from '../db';
 
 import { getFeeBps, DEFAULT_FEE_BPS } from '../utils/fees';
-import { calculatePayout } from '../utils/payout';
+import { calculatePayout, calculateWeightedPayout } from '../utils/payout';
 import { serializeBet } from '../utils/serializers';
 
 export const betsRouter: RouterType = Router();
+
+/**
+ * Sum each pool's per-side time-weight, keyed `${poolId}:${side}`. The
+ * resolved on-chain claim pays a winner `amount + weight × losingStake /
+ * winningWeightSum − fee`, so the projection needs the winning side's total
+ * weight. One grouped query covers every pool on the page.
+ */
+async function winningWeightByPoolSide(poolIds: string[]): Promise<Map<string, bigint>> {
+  if (poolIds.length === 0) return new Map();
+  const rows = await prisma.bet.groupBy({
+    by: ['poolId', 'side'],
+    where: { poolId: { in: poolIds } },
+    _sum: { weight: true },
+  });
+  const m = new Map<string, bigint>();
+  for (const r of rows) m.set(`${r.poolId}:${r.side}`, r._sum.weight ?? 0n);
+  return m;
+}
 
 // Query schema for bets listing
 const betsQuerySchema = z.object({
@@ -51,6 +69,7 @@ betsRouter.get('/', async (req, res) => {
               finalPrice: true,
               totalUp: true,
               totalDown: true,
+              totalDraw: true,
               winner: true,
               poolType: true,
               league: true,
@@ -72,9 +91,16 @@ betsRouter.get('/', async (req, res) => {
 
     const feeBps = userRecord ? getFeeBps(userRecord.level) : DEFAULT_FEE_BPS;
 
+    // Winning-side weight sums for the resolved pools on this page, so the
+    // payout projection matches the time-weighted on-chain claim.
+    const weightMap = await winningWeightByPoolSide([...new Set(bets.map(b => b.poolId))]);
+
     res.json({
       success: true,
-      data: bets.map((b) => serializeBet(b, feeBps)),
+      data: bets.map((b) => serializeBet(
+        b, feeBps,
+        b.pool.winner ? weightMap.get(`${b.poolId}:${b.pool.winner}`) : undefined,
+      )),
       meta: {
         page,
         limit,
@@ -136,6 +162,7 @@ betsRouter.get('/claimable', async (req, res) => {
             finalPrice: true,
             totalUp: true,
             totalDown: true,
+            totalDraw: true,
             winner: true,
             _count: { select: { bets: true } },
           },
@@ -154,23 +181,44 @@ betsRouter.get('/claimable', async (req, res) => {
     });
     const feeBps = userRecord ? getFeeBps(userRecord.level) : DEFAULT_FEE_BPS;
 
+    // Winning-side weight sums so the claimable projection matches the
+    // time-weighted on-chain claim (early entry = bigger share).
+    const weightMap = await winningWeightByPoolSide([...new Set(winningBets.map(b => b.poolId))]);
+    const winWeight = (b: typeof winningBets[number]) =>
+      b.pool.winner ? weightMap.get(`${b.poolId}:${b.pool.winner}`) : undefined;
+
     // Calculate total claimable amount
     const totalClaimable = winningBets.reduce((sum, bet) => {
-      const { payout } = calculatePayout({
-        betAmount: bet.amount,
-        totalUp: bet.pool.totalUp,
-        totalDown: bet.pool.totalDown,
-        side: bet.side,
-        betCount: bet.pool._count.bets,
-        feeBps,
-      });
+      const wSum = winWeight(bet);
+      const totalPool = bet.pool.totalUp + bet.pool.totalDown + (bet.pool.totalDraw ?? 0n);
+      const winnerStake = bet.side === 'UP' ? bet.pool.totalUp
+        : bet.side === 'DOWN' ? bet.pool.totalDown
+        : (bet.pool.totalDraw ?? 0n);
+      const { payout } = (wSum != null && wSum > 0n && bet.weight != null)
+        ? calculateWeightedPayout({
+            betAmount: bet.amount,
+            betWeight: bet.weight,
+            winningWeightSum: wSum,
+            losingStakeTotal: totalPool - winnerStake,
+            betCount: bet.pool._count.bets,
+            feeBps,
+          })
+        : calculatePayout({
+            betAmount: bet.amount,
+            totalUp: bet.pool.totalUp,
+            totalDown: bet.pool.totalDown,
+            totalDraw: bet.pool.totalDraw,
+            side: bet.side,
+            betCount: bet.pool._count.bets,
+            feeBps,
+          });
       return sum + payout;
     }, 0n);
 
     res.json({
       success: true,
       data: {
-        bets: winningBets.map((b) => serializeBet(b, feeBps)),
+        bets: winningBets.map((b) => serializeBet(b, feeBps, winWeight(b))),
         summary: {
           count: winningBets.length,
           totalClaimable: totalClaimable.toString(),

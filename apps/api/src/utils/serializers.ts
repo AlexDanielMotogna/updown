@@ -1,7 +1,7 @@
 import type { PoolStatus, Side } from '@prisma/client';
 import { getLevelTitle, getXpForLevel, getXpToNextLevel, getLevelForXp, getLevelMultiplier } from './levels';
 import { getFeeBps, DEFAULT_FEE_BPS } from './fees';
-import { calculatePayout } from './payout';
+import { calculatePayout, calculateWeightedPayout } from './payout';
 
 /* ─── Pool Serializer ─── */
 
@@ -68,6 +68,8 @@ export function serializeBet(bet: {
   walletAddress: string;
   side: Side;
   amount: bigint;
+  /** Time-weight mirror of on-chain UserBet.weight (null on legacy bets). */
+  weight?: bigint | null;
   depositTx: string | null;
   claimed: boolean;
   claimTx: string | null;
@@ -95,21 +97,41 @@ export function serializeBet(bet: {
     totalDraw?: bigint;
     winner: Side | null;
   };
-}, feeBps: number = DEFAULT_FEE_BPS) {
+}, feeBps: number = DEFAULT_FEE_BPS, winningWeightSum?: bigint | null) {
   const isWinner = bet.pool.winner === bet.side;
 
-  // Calculate potential/actual payout
+  // Calculate potential/actual payout. Once a pool resolves the chain pays
+  // a TIME-WEIGHTED claim (early entry = bigger share of the losing pool),
+  // so the projection must use the weighted formula to match what the user
+  // will actually receive — falling back to plain parimutuel only when the
+  // caller didn't supply the winning-side weight sum (or this is a legacy
+  // bet with no weight). For a settled bet `payoutAmount` (the real on-chain
+  // transfer) overrides this estimate below.
   let payout: string | null = null;
   if (bet.pool.winner && isWinner) {
-    const result = calculatePayout({
-      betAmount: bet.amount,
-      totalUp: bet.pool.totalUp,
-      totalDown: bet.pool.totalDown,
-      totalDraw: bet.pool.totalDraw,
-      side: bet.side,
-      betCount: bet.pool._count.bets,
-      feeBps,
-    });
+    const useWeighted = winningWeightSum != null && winningWeightSum > 0n && bet.weight != null;
+    const totalPool = bet.pool.totalUp + bet.pool.totalDown + (bet.pool.totalDraw ?? 0n);
+    const winnerSideStake = bet.side === 'UP' ? bet.pool.totalUp
+      : bet.side === 'DOWN' ? bet.pool.totalDown
+      : (bet.pool.totalDraw ?? 0n);
+    const result = useWeighted
+      ? calculateWeightedPayout({
+          betAmount: bet.amount,
+          betWeight: bet.weight!,
+          winningWeightSum,
+          losingStakeTotal: totalPool - winnerSideStake,
+          betCount: bet.pool._count.bets,
+          feeBps,
+        })
+      : calculatePayout({
+          betAmount: bet.amount,
+          totalUp: bet.pool.totalUp,
+          totalDown: bet.pool.totalDown,
+          totalDraw: bet.pool.totalDraw,
+          side: bet.side,
+          betCount: bet.pool._count.bets,
+          feeBps,
+        });
     payout = result.payout.toString();
   }
 
