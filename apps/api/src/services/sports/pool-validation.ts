@@ -61,14 +61,30 @@ import { EXPECTED_MATCH_DURATION_MS, DEFAULT_EXPECTED_DURATION_MS } from './live
  * cache absorbs the burst when the scheduler creates many pools in a
  * tick.
  */
+/**
+ * Bootstrap fallback used when the `live_scores` table is empty
+ * (cold start on a fresh DB) and the env override is unset. THIS LIST
+ * MUST MATCH THE PROVIDER'S DECLARED LIVE COVERAGE — the steady-state
+ * decision flows from observed rows, but the bootstrap window is
+ * exposed to the operator before the poller fills the table.
+ *
+ * TheSportsDB confirmed coverage 2026-06-04 (operator received written
+ * confirmation from the SDB account contact):
+ *
+ *   Soccer, NFL (American Football), Basketball, Baseball, Ice Hockey
+ *
+ * Previous versions of this list (Fighting + Rugby) were assumed,
+ * NOT verified — the assumption was wrong and would have produced
+ * zombie pools the moment a fresh deploy created a Fighting or Rugby
+ * pool inside the bootstrap window. Don't reintroduce sports here
+ * without a documented coverage signal from the provider.
+ */
 const DEFAULT_LIVE_COVERED_SPORTS = new Set([
   'Soccer',
+  'American Football',
   'Basketball',
   'Baseball',
   'Ice Hockey',
-  'American Football',
-  'Fighting',
-  'Rugby',
 ]);
 
 const OBSERVATION_WINDOW_MS = 7 * 24 * 60 * 60_000; // 7 days
