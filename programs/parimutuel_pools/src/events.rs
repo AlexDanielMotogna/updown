@@ -19,6 +19,13 @@ pub struct Deposited {
     pub user: Pubkey,
     pub side: Side,
     pub amount: u64,
+    /// Time-weight credited to this deposit (amount × multiplier).
+    /// Off-chain analytics use this to flag sniper-vs-early-buyer ratios.
+    pub weight: u64,
+    /// Multiplier applied to this deposit in basis points (10_000 = 1.0).
+    /// Captured per-deposit, not per-bet — a hedger top-up emits its own
+    /// (smaller) multiplier even though the bet account accumulates.
+    pub multiplier_bps: u64,
     pub total_up: u64,
     pub total_down: u64,
     pub total_draw: u64,

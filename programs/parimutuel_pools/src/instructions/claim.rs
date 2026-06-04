@@ -75,17 +75,36 @@ pub fn handler(ctx: Context<Claim>, fee_bps: u16, _side: Side) -> Result<()> {
     let winner = pool.winner.ok_or(PoolError::NotResolved)?;
     require!(user_bet.side == winner, PoolError::NotWinner);
 
-    // Calculate gross payout using helper methods
+    // ── Time-weighted payout ─────────────────────────────────────────
+    // Plain parimutuel paid `amount × total_pool / total_winning_side`,
+    // which gave a sniper at t-1s the same proportional share as a t=0
+    // believer. The weighted formula returns the principal in full to
+    // every winner and then splits the LOSING pool by time-weight:
+    //
+    //   winnings  = (bet.weight / Σ weight_winners) × Σ losing_stake
+    //   payout    = bet.amount + winnings
+    //
+    // Conservation holds — see PLAN-TIME-WEIGHTED-PAYOUTS.md.
     let total_pool = pool.total_pool()?;
     let total_winning_side = pool.total_for_side(winner);
+    let total_weighted_winning = pool.weighted_for_side(winner);
 
     require!(total_winning_side > 0, PoolError::NoWinningBets);
+    require!(total_weighted_winning > 0, PoolError::NoWinningBets);
 
-    let gross_payout = (user_bet.amount as u128)
-        .checked_mul(total_pool as u128)
+    let losing_stake = total_pool
+        .checked_sub(total_winning_side)
+        .ok_or(PoolError::Overflow)?;
+
+    let winnings = (user_bet.weight as u128)
+        .checked_mul(losing_stake as u128)
         .ok_or(PoolError::Overflow)?
-        .checked_div(total_winning_side as u128)
+        .checked_div(total_weighted_winning as u128)
         .ok_or(PoolError::Overflow)? as u64;
+
+    let gross_payout = user_bet.amount
+        .checked_add(winnings)
+        .ok_or(PoolError::Overflow)?;
 
     // Calculate fee
     let fee = (gross_payout as u128)
