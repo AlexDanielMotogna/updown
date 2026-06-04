@@ -357,6 +357,23 @@ adminActionsRouter.post('/cancel-pm-pool', async (req, res) => {
   }
 });
 
+// GET /actions/zombie-sports-pools — Layer 3 of the sports-pool
+// validation system. Returns JOINING/ACTIVE sports pools whose
+// `lockTime + 2 × expected match duration` is in the past and that
+// still don't have a live_score row. The admin tab uses this for
+// manual force-refund decisions (bet-count > 0 zombies are common
+// when SDB silently dropped a fixture mid-tournament).
+adminActionsRouter.get('/zombie-sports-pools', async (_req, res) => {
+  try {
+    const { findZombieSportsPools } = await import('../../services/sports/pool-validation');
+    const zombies = await findZombieSportsPools();
+    res.json({ success: true, data: zombies, meta: { count: zombies.length } });
+  } catch (error) {
+    console.error('Admin zombie-sports-pools error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: error instanceof Error ? error.message : 'Failed to list zombie pools' } });
+  }
+});
+
 // GET /actions/stuck-pm-pools - list PM pools that are past kickoff but still
 // JOINING/ACTIVE, flagging those whose Gamma market has been delisted so admin
 // can prioritise them. Filters: minHoursOverdue (default 0 = all overdue).

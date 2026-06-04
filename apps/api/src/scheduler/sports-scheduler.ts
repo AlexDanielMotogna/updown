@@ -15,6 +15,12 @@ import {
   getMatchDurationHours, getPoolOpenHoursForLeague,
 } from '../services/category-config';
 import { sweepStuckPmPools } from './pm-cancel';
+import {
+  isSportLiveCovered,
+  revalidateSdbEventBeforeCreation,
+  findZombieSportsPools,
+  logZombieSportsPools,
+} from '../services/sports/pool-validation';
 const TX_DELAY_MS = 2_000; // 2s between on-chain transactions to avoid RPC 429s
 
 function sleep(ms: number): Promise<void> {
@@ -72,7 +78,7 @@ async function _createMatchPoolsInner(): Promise<void> {
       // category.config.poolOpenDaysBefore. Read once per league so we don't
       // hit the cache for every match.
       const openHours = await getPoolOpenHoursForLeague(leagueCode);
-      let created = 0, exists = 0, tooFar = 0, alreadyStarted = 0;
+      let created = 0, exists = 0, tooFar = 0, alreadyStarted = 0, sdbRejected = 0;
 
       for (const match of matches) {
         const existing = await prisma.pool.findFirst({
@@ -84,12 +90,29 @@ async function _createMatchPoolsInner(): Promise<void> {
         if (hoursUntilKickoff < 0) { alreadyStarted++; continue; }
         if (hoursUntilKickoff > openHours) { tooFar++; continue; }
 
+        // Layer 2 — football fixtures come from football-data.org but we
+        // still cross-validate against SDB when possible. Football matches
+        // typically have idEvent populated via the sync, so the lookup
+        // works. Non-existent / past events get rejected the same way.
+        const valid = await revalidateSdbEventBeforeCreation(match.id);
+        if (!valid.ok) {
+          // Only reject for terminal reasons. 'not-found' / 'malformed'
+          // are tolerated for football because football-data.org IDs
+          // sometimes don't match an SDB lookup; we trust the
+          // football-data feed for those.
+          if (valid.reason === 'finished' || valid.reason === 'in-progress') {
+            console.warn(`[Sports] ${leagueCode}: SDB says ${match.id} is ${valid.reason} (${valid.detail ?? ''}) — skipping`);
+            sdbRejected++;
+            continue;
+          }
+        }
+
         await createSportsPool(match, leagueCode);
         created++;
         await sleep(TX_DELAY_MS);
       }
       if (matches.length > 0) {
-        console.log(`[Sports] ${leagueCode}: ${matches.length} cached → created=${created} exists=${exists} too-far(>${openHours / 24}d)=${tooFar} kickoff-passed=${alreadyStarted}`);
+        console.log(`[Sports] ${leagueCode}: ${matches.length} cached → created=${created} exists=${exists} too-far(>${openHours / 24}d)=${tooFar} kickoff-passed=${alreadyStarted} sdb-rejected=${sdbRejected}`);
       }
     } catch (error) {
       console.error(`[Sports] Failed to fetch matches for ${leagueCode}:`, error);
@@ -124,11 +147,20 @@ async function _createMatchPoolsInner(): Promise<void> {
   // ── Other sports (dynamic from DB config) ──
   const sportsConfigs = await getSportsDbConfigs();
   for (const config of sportsConfigs) {
+    // Layer 1 — sport whitelist. Skip the whole sport upfront if we
+    // don't have live coverage for it. Tennis / Golf / Cricket / F1 /
+    // Esports failed this check on 2026-06-04 after a WTA pool
+    // surfaced with a wrong kickoff and no live feed; see
+    // services/sports/pool-validation.ts for the gory details.
+    if (!isSportLiveCovered(config.sport)) {
+      console.log(`[Sports] ${config.sport}: skipped — not in SPORTS_POOL_WHITELIST (no proven live coverage)`);
+      continue;
+    }
     try {
       const matches = await getCachedUpcomingFixtures(config.sport, config.sport);
       // Per-sport window: same admin-tunable knob as football leagues.
       const openHours = await getPoolOpenHoursForLeague(config.sport);
-      let created = 0, exists = 0, tooFar = 0, alreadyStarted = 0;
+      let created = 0, exists = 0, tooFar = 0, alreadyStarted = 0, sdbRejected = 0;
 
       for (const match of matches) {
         const existing = await prisma.pool.findFirst({
@@ -140,12 +172,21 @@ async function _createMatchPoolsInner(): Promise<void> {
         if (hoursUntilKickoff < 0) { alreadyStarted++; continue; }
         if (hoursUntilKickoff > openHours) { tooFar++; continue; }
 
+        // Layer 2 — re-validate against SDB right before pool creation.
+        // Catches the "cache row stale, event got deleted/moved" case.
+        const valid = await revalidateSdbEventBeforeCreation(match.id);
+        if (!valid.ok) {
+          console.warn(`[Sports] ${config.sport}: SDB rejected ${match.id} (${valid.reason}${valid.detail ? `: ${valid.detail}` : ''}) — skipping pool creation`);
+          sdbRejected++;
+          continue;
+        }
+
         await createSportsPool(match, config.sport);
         created++;
         await sleep(TX_DELAY_MS);
       }
       if (matches.length > 0) {
-        console.log(`[Sports] ${config.sport}: ${matches.length} cached → created=${created} exists=${exists} too-far(>${openHours / 24}d)=${tooFar} kickoff-passed=${alreadyStarted}`);
+        console.log(`[Sports] ${config.sport}: ${matches.length} cached → created=${created} exists=${exists} too-far(>${openHours / 24}d)=${tooFar} kickoff-passed=${alreadyStarted} sdb-rejected=${sdbRejected}`);
       }
     } catch (error) {
       console.error(`[Sports] Failed to create ${config.sport} pools:`, error);
@@ -521,6 +562,26 @@ export function startSportsScheduler(): void {
     }
   }, 15 * 60 * 1000);
 
+  // Layer 3 — Zombie sports pool audit, every 30 minutes. Finds pools
+  // whose `lockTime + 2 × expected duration` is past with no live_score
+  // row. Logs to event_log so the admin dashboard can surface them.
+  // Doesn't auto-cancel — the operator decides what to do (force
+  // refund / delete) because the bet count might be > 0.
+  setInterval(async () => {
+    try {
+      const zombies = await findZombieSportsPools();
+      if (zombies.length > 0) {
+        console.warn(`[Sports] ZOMBIE AUDIT: ${zombies.length} pool(s) past expected end without live scores`);
+        for (const z of zombies) {
+          console.warn(`  [${z.id.slice(0, 8)}] ${z.league} ${z.homeTeam} vs ${z.awayTeam} — ${z.hoursOverdue}h overdue, ${z.betCount} bet(s)`);
+        }
+        await logZombieSportsPools(zombies);
+      }
+    } catch (error) {
+      console.error('[Sports] Zombie audit error:', error);
+    }
+  }, 30 * 60 * 1000);
+
   // Initial pool creation is handled by fixture-sync.ts after dailySync completes.
   // Do NOT call createMatchPools() here to avoid duplicate pool creation.
 
@@ -529,5 +590,5 @@ export function startSportsScheduler(): void {
     resolveMatchPools().catch(e => console.error('[Sports] Initial resolve error:', e));
   }, 15_000);
 
-  console.log('[Sports] Scheduler started (create: 2h, resolve: 2m, sweep: 15m, initial resolve: 15s)');
+  console.log('[Sports] Scheduler started (create: 2h, resolve: 2m, sweep: 15m, zombie audit: 30m, initial resolve: 15s)');
 }
