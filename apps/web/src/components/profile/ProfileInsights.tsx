@@ -2,12 +2,14 @@
 
 import { useMemo } from 'react';
 import { Box, Typography } from '@mui/material';
-import { LocalFireDepartment, ShowChart, MilitaryTech } from '@mui/icons-material';
+import { LocalFireDepartment, ShowChart, MilitaryTech, Leaderboard } from '@mui/icons-material';
 import { useThemeTokens } from '@/app/providers';
 import type { Bet } from '@/lib/api';
 
 /** Minimal shape of the fields we read off the profile aggregate. */
 interface InsightsProfile {
+  rank?: number | null;
+  totalUsers?: number | null;
   stats?: {
     netPnl?: string | number | null;
     totalWon?: string | number | null;
@@ -66,7 +68,20 @@ export function ProfileInsights({ bets, profile }: Props) {
 
   const roiColor = roi >= 0 ? t.gain : t.down;
 
+  const rank = profile?.rank ?? null;
+  const totalUsers = profile?.totalUsers ?? null;
+  const percentile = rank && totalUsers && totalUsers >= 25
+    ? Math.max(0.1, Math.round((rank / totalUsers) * 1000) / 10)
+    : null;
+
   const tiles: Array<{ icon: React.ReactNode; label: string; value: string; sub?: string; color?: string }> = [
+    ...(rank ? [{
+      icon: <Leaderboard sx={{ fontSize: 18 }} />,
+      label: 'Global rank',
+      value: `#${rank}`,
+      sub: percentile != null ? `Top ${percentile}%` : 'climbing',
+      color: t.gold,
+    }] : []),
     {
       icon: <ShowChart sx={{ fontSize: 18 }} />,
       label: 'ROI',
