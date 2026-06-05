@@ -214,7 +214,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         bgcolor: isPM && !marketImage ? withAlpha(pmColor, 0.12) : t.hover.medium,
         color: isPM ? pmColor : 'inherit',
-        borderRadius: '6px', overflow: 'hidden',
+        borderRadius: '50%', overflow: 'hidden',
       }}>
         {marketImage ? (
           <Box component="img" src={marketImage} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -375,29 +375,30 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
         );
       })}
 
-      {isActive && isHedged && (
-        <Typography sx={{ fontSize: '0.66rem', fontWeight: 500, color: t.text.quaternary, fontStyle: 'italic', mt: 0.25 }}>
-          Only one side can win — the headline shows your net for each outcome.
-        </Typography>
-      )}
-
-      {(txLink || claimBtn) && (
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1, mt: 0.25 }}>
-          {claimBtn}
-          {txLink && (
-            <Button
-              component="a"
-              href={getExplorerTxUrl(txLink.sig)}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={stopToggle}
-              size="small"
-              startIcon={<OpenInNew sx={{ fontSize: 14 }} />}
-              sx={{ minWidth: 0, px: 1, py: 0.25, fontSize: '0.7rem', fontWeight: 700, color: t.text.secondary, textTransform: 'none', '&:hover': { color: t.text.primary } }}
-            >
-              {txLink.label}
-            </Button>
-          )}
+      {((isActive && isHedged) || txLink || claimBtn) && (
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mt: 0.5 }}>
+          {isActive && isHedged ? (
+            <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.text.primary }}>
+              Only one side can win — the headline shows your net for each outcome.
+            </Typography>
+          ) : <Box />}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+            {claimBtn}
+            {txLink && (
+              <Button
+                component="a"
+                href={getExplorerTxUrl(txLink.sig)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={stopToggle}
+                size="small"
+                startIcon={<OpenInNew sx={{ fontSize: 14 }} />}
+                sx={{ minWidth: 0, px: 1, py: 0.25, fontSize: '0.7rem', fontWeight: 700, color: t.text.secondary, textTransform: 'none', '&:hover': { color: t.text.primary } }}
+              >
+                {txLink.label}
+              </Button>
+            )}
+          </Box>
         </Box>
       )}
     </Box>
@@ -471,7 +472,7 @@ export function PoolPositionRowSkeleton() {
     }}>
       <Skeleton variant="rounded" width={80} height={22} sx={{ bgcolor: t.hover.default, borderRadius: '4px' }} />
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-        <Skeleton variant="rounded" width={36} height={36} sx={{ bgcolor: t.hover.default, borderRadius: '6px' }} />
+        <Skeleton variant="circular" width={36} height={36} sx={{ bgcolor: t.hover.default }} />
         <Box sx={{ flex: 1 }}>
           <Skeleton variant="text" width="60%" height={18} sx={{ bgcolor: t.border.default }} />
           <Skeleton variant="text" width="35%" height={14} sx={{ bgcolor: t.hover.default }} />
