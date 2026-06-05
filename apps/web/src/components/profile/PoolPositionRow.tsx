@@ -159,17 +159,34 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId, 
   const { result, isAllRefunded, isPending, isPayoutFailed, isActive, hasMixedOutcome } = deriveStatus(position, t);
 
   // Potential payout for active positions - sum across the user's bet sides.
+  // The on-chain claim is TIME-WEIGHTED (early entry = bigger share of the
+  // losing pool), so when the API supplies per-side weight sums we project
+  // with that formula: gross = stake + (myWeight / sideWeightSum) × losingStake.
+  // Falls back to plain parimutuel when weight data is missing (legacy bets /
+  // pools created before the weighting shipped). Both agree when weights are
+  // uniform, so the fallback is continuous.
   const totalUp = Number(pool.totalUp ?? 0);
   const totalDown = Number(pool.totalDown ?? 0);
   const totalDraw = Number(pool.totalDraw ?? 0);
   const totalPool = totalUp + totalDown + totalDraw;
+  const weightedUp = Number(pool.weightedUp ?? 0);
+  const weightedDown = Number(pool.weightedDown ?? 0);
+  const weightedDraw = Number(pool.weightedDraw ?? 0);
   const potentialPayoutNum =
     isActive && totalPool > 0
       ? bets.reduce((acc, b) => {
           const stake = Number(b.amount);
           const sideTotal = b.side === 'UP' ? totalUp : b.side === 'DOWN' ? totalDown : totalDraw;
           if (sideTotal <= 0) return acc;
-          return acc + (stake / sideTotal) * totalPool * 0.95;
+          const sideWeight = b.side === 'UP' ? weightedUp : b.side === 'DOWN' ? weightedDown : weightedDraw;
+          const myWeight = b.weight != null ? Number(b.weight) : null;
+          const losingStake = totalPool - sideTotal;
+          // Weighted projection when we have this bet's weight + the side's
+          // weight sum; otherwise plain parimutuel (stake-share of the pool).
+          const gross = myWeight != null && sideWeight > 0
+            ? stake + (myWeight / sideWeight) * losingStake
+            : (stake / sideTotal) * totalPool;
+          return acc + gross * 0.95;
         }, 0)
       : 0;
   const potentialDelta = potentialPayoutNum - totalStakeNum;

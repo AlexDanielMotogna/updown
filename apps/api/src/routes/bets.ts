@@ -91,16 +91,18 @@ betsRouter.get('/', async (req, res) => {
 
     const feeBps = userRecord ? getFeeBps(userRecord.level) : DEFAULT_FEE_BPS;
 
-    // Winning-side weight sums for the resolved pools on this page, so the
-    // payout projection matches the time-weighted on-chain claim.
+    // Per-side weight sums for the pools on this page, so the payout
+    // projection (resolved + active) matches the time-weighted on-chain claim.
     const weightMap = await winningWeightByPoolSide([...new Set(bets.map(b => b.poolId))]);
+    const sideWeights = (poolId: string) => ({
+      up: weightMap.get(`${poolId}:UP`) ?? 0n,
+      down: weightMap.get(`${poolId}:DOWN`) ?? 0n,
+      draw: weightMap.get(`${poolId}:DRAW`) ?? 0n,
+    });
 
     res.json({
       success: true,
-      data: bets.map((b) => serializeBet(
-        b, feeBps,
-        b.pool.winner ? weightMap.get(`${b.poolId}:${b.pool.winner}`) : undefined,
-      )),
+      data: bets.map((b) => serializeBet(b, feeBps, sideWeights(b.poolId))),
       meta: {
         page,
         limit,
@@ -184,6 +186,11 @@ betsRouter.get('/claimable', async (req, res) => {
     // Winning-side weight sums so the claimable projection matches the
     // time-weighted on-chain claim (early entry = bigger share).
     const weightMap = await winningWeightByPoolSide([...new Set(winningBets.map(b => b.poolId))]);
+    const sideWeights = (poolId: string) => ({
+      up: weightMap.get(`${poolId}:UP`) ?? 0n,
+      down: weightMap.get(`${poolId}:DOWN`) ?? 0n,
+      draw: weightMap.get(`${poolId}:DRAW`) ?? 0n,
+    });
     const winWeight = (b: typeof winningBets[number]) =>
       b.pool.winner ? weightMap.get(`${b.poolId}:${b.pool.winner}`) : undefined;
 
@@ -218,7 +225,7 @@ betsRouter.get('/claimable', async (req, res) => {
     res.json({
       success: true,
       data: {
-        bets: winningBets.map((b) => serializeBet(b, feeBps, winWeight(b))),
+        bets: winningBets.map((b) => serializeBet(b, feeBps, sideWeights(b.poolId))),
         summary: {
           count: winningBets.length,
           totalClaimable: totalClaimable.toString(),

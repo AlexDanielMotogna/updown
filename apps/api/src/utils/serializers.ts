@@ -97,8 +97,17 @@ export function serializeBet(bet: {
     totalDraw?: bigint;
     winner: Side | null;
   };
-}, feeBps: number = DEFAULT_FEE_BPS, winningWeightSum?: bigint | null) {
+}, feeBps: number = DEFAULT_FEE_BPS, poolSideWeights?: { up: bigint; down: bigint; draw: bigint } | null) {
   const isWinner = bet.pool.winner === bet.side;
+
+  // Sum of time-weight on the side that won (null when unknown). Drives the
+  // weighted payout projection below and is exposed on the pool so the
+  // profile UI can compute a weighted potential for still-active positions.
+  const winningWeightSum = bet.pool.winner && poolSideWeights
+    ? (bet.pool.winner === 'UP' ? poolSideWeights.up
+      : bet.pool.winner === 'DOWN' ? poolSideWeights.down
+      : poolSideWeights.draw)
+    : null;
 
   // Calculate potential/actual payout. Once a pool resolves the chain pays
   // a TIME-WEIGHTED claim (early entry = bigger share of the losing pool),
@@ -141,6 +150,7 @@ export function serializeBet(bet: {
     walletAddress: bet.walletAddress,
     side: bet.side,
     amount: bet.amount.toString(),
+    weight: bet.weight?.toString() ?? null,
     depositTx: bet.depositTx,
     claimed: bet.claimed,
     claimTx: bet.claimTx,
@@ -172,6 +182,11 @@ export function serializeBet(bet: {
       totalUp: bet.pool.totalUp.toString(),
       totalDown: bet.pool.totalDown.toString(),
       totalDraw: (bet.pool.totalDraw ?? 0n).toString(),
+      // Per-side time-weight sums — let the profile UI project a weighted
+      // potential payout for active positions (matches the on-chain claim).
+      weightedUp: poolSideWeights?.up?.toString() ?? null,
+      weightedDown: poolSideWeights?.down?.toString() ?? null,
+      weightedDraw: poolSideWeights?.draw?.toString() ?? null,
       betCount: bet.pool._count.bets,
     },
   };

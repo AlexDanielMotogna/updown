@@ -80,6 +80,10 @@ export interface Bet {
   walletAddress: string;
   side: 'UP' | 'DOWN' | 'DRAW';
   amount: string;
+  /** Time-weight of this bet (mirror of on-chain UserBet.weight). Null on
+   *  legacy bets. Used with the pool's weighted* totals to project the
+   *  time-weighted payout. */
+  weight?: string | null;
   depositTx: string | null;
   claimed: boolean;
   claimTx: string | null;
@@ -113,6 +117,11 @@ export interface Bet {
     totalUp?: string;
     totalDown?: string;
     totalDraw?: string;
+    // Per-side time-weight sums — used to project a weighted potential
+    // payout for active positions (matches the on-chain claim formula).
+    weightedUp?: string | null;
+    weightedDown?: string | null;
+    weightedDraw?: string | null;
     betCount?: number;
   };
 }
