@@ -66,7 +66,7 @@ export function ProfileAchievements({ profile }: Props) {
       </Box>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' }, gap: 1 }}>
         {badges.map(b => (
-          <Tooltip key={b.label} arrow title={b.unlocked ? `Unlocked — ${b.how}` : `Locked — ${b.how}`}>
+          <Tooltip key={b.label} arrow title={b.unlocked ? `Unlocked · ${b.how}` : `Locked · ${b.how}`}>
             <Box
               sx={{
                 display: 'flex', alignItems: 'center', gap: 1,

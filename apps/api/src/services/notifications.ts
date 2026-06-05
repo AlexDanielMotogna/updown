@@ -114,7 +114,7 @@ export async function notifyPoolResolved(pool: {
         walletAddress: wallet,
         type: positive ? 'POOL_WON' : 'POOL_LOST',
         title: positive ? 'You won' : 'Pool settled',
-        message: `${matchLabel}${scoreLabel} — PnL ${netStr}`,
+        message: `${matchLabel}${scoreLabel} · PnL ${netStr}`,
         severity: positive ? 'success' : 'warning',
         poolId: pool.id,
         poolType: pool.poolType,

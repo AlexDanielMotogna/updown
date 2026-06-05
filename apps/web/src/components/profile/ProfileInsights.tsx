@@ -92,7 +92,7 @@ export function ProfileInsights({ bets, profile }: Props) {
     {
       icon: <LocalFireDepartment sx={{ fontSize: 18 }} />,
       label: 'Current streak',
-      value: currentStreak > 0 ? `${currentStreak} 🔥` : '—',
+      value: currentStreak > 0 ? `${currentStreak} 🔥` : '0',
       sub: currentStreak > 0 ? 'winning pools' : 'no active streak',
       color: currentStreak > 0 ? t.gain : t.text.secondary,
     },
