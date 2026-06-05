@@ -363,7 +363,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mt: 0.5 }}>
           {isActive && isHedged ? (
             <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.text.primary }}>
-              Only one side can win — the headline shows your PnL for each outcome.
+              Only one side can win. The headline shows your PnL for each outcome.
             </Typography>
           ) : <Box />}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
