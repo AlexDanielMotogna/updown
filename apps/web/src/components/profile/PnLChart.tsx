@@ -1,42 +1,27 @@
 'use client';
 
 /**
- * Cumulative P&L chart for the profile page, powered by TradingView
- * Lightweight Charts.
+ * Gamified cumulative P&L chart — a custom neon SVG built from scratch.
  *
- * Replaces ~300 lines of hand-rolled SVG (manual path generation, custom
- * hover overlay, ad-hoc tooltip layout). LWC handles the time axis,
- * crosshair, and y-scale animation; we own the data shaping + range
- * selector + a custom React tooltip (so we can show formatted USDC +
- * timezone-local date in the same font system the rest of the profile
- * uses).
+ * Replaces the lightweight-charts version with an arcade look: a glowing
+ * draw-in line over a gradient area, a count-up "score" header, and milestone
+ * flags planted on the curve (🏆 all-time peak, 🔥 current win streak). Pure
+ * SVG + an HTML overlay for the flags/tooltip — no charting lib.
  *
- * Per-pool bucket logic is preserved from the original: hedged single-
- * bettor pools used to spike the curve when plotted per-bet because the
- * scheduler writes both a winner and a loser row with the same createdAt.
- * Collapsing to (poolId → netΔ at pool.endTime) keeps every pool a single
- * step on the line.
+ * Data shaping is per-pool (one cumulative step per resolved pool at its
+ * endTime) so a hedged pool that writes a winner + loser row doesn't spike
+ * the curve.
  */
 
-import { useMemo, useState, useRef, useEffect } from 'react';
+import { useMemo, useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { Box, Typography } from '@mui/material';
-import {
-  createChart,
-  AreaSeries,
-  type IChartApi,
-  type ISeriesApi,
-  type AreaData,
-  type UTCTimestamp,
-  CrosshairMode,
-  LineStyle,
-  LineType,
-} from 'lightweight-charts';
 import { useThemeTokens } from '@/app/providers';
-import { formatUSDC, USDC_DIVISOR } from '@/lib/format';
+import { withAlpha } from '@/lib/theme';
+import { formatUSDC } from '@/lib/format';
 import type { Bet } from '@/lib/api';
 
-type Range = '1D' | '1W' | '1M' | '1Y' | 'YTD' | 'ALL';
-const RANGES: Range[] = ['1D', '1W', '1M', '1Y', 'YTD', 'ALL'];
+type Range = '1D' | '1W' | '1M' | '1Y' | 'ALL';
+const RANGES: Range[] = ['1D', '1W', '1M', '1Y', 'ALL'];
 
 function rangeStart(range: Range): number {
   const now = Date.now();
@@ -45,14 +30,13 @@ function rangeStart(range: Range): number {
     case '1W': return now - 7 * 24 * 60 * 60 * 1000;
     case '1M': return now - 30 * 24 * 60 * 60 * 1000;
     case '1Y': return now - 365 * 24 * 60 * 60 * 1000;
-    case 'YTD': return new Date(new Date().getFullYear(), 0, 1).getTime();
     case 'ALL': return 0;
   }
 }
 
-const HEIGHT = 160;
-
-const toUtc = (ms: number): UTCTimestamp => Math.floor(ms / 1000) as UTCTimestamp;
+const H = 210;
+const PAD = { left: 10, right: 52, top: 30, bottom: 22 };
+const easeOut = (k: number) => 1 - Math.pow(1 - k, 3);
 
 interface PnLChartProps {
   bets: Bet[];
@@ -61,20 +45,24 @@ interface PnLChartProps {
 export function PnLChart({ bets }: PnLChartProps) {
   const t = useThemeTokens();
   const [range, setRange] = useState<Range>('ALL');
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<ISeriesApi<'Area'> | null>(null);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [w, setW] = useState(640);
+  const [hoverX, setHoverX] = useState<number | null>(null);
 
-  const [hover, setHover] = useState<
-    | { x: number; y: number; pnl: number; ts: number }
-    | null
-  >(null);
+  // Measure width for crisp (non-distorted) pixel coordinates.
+  useLayoutEffect(() => {
+    if (!wrapRef.current) return;
+    const el = wrapRef.current;
+    const update = () => setW(el.clientWidth || 640);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
-  // Build cumulative P&L per pool — see the comment block at the top of the
-  // file for why this is per-pool, not per-bet.
+  // ── Cumulative P&L per pool ──────────────────────────────────────────
   const allPoints = useMemo(() => {
-    type Bucket = { t: number; delta: number };
-    const buckets = new Map<string, Bucket>();
+    const buckets = new Map<string, { t: number; delta: number }>();
     for (const b of bets) {
       if (b.isWinner === null) continue;
       if (!b.claimed && b.isWinner !== false) continue;
@@ -83,216 +71,143 @@ export function PnLChart({ bets }: PnLChartProps) {
       const isRefund = payout > 0 && payout === stake;
       const delta = isRefund ? 0 : b.isWinner === false ? -stake : payout - stake;
       const ts = new Date(b.pool.endTime).getTime();
-      const existing = buckets.get(b.pool.id);
-      if (existing) existing.delta += delta;
+      const e = buckets.get(b.pool.id);
+      if (e) e.delta += delta;
       else buckets.set(b.pool.id, { t: ts, delta });
     }
     const sorted = [...buckets.values()].sort((a, b) => a.t - b.t);
     let cum = 0;
-    return sorted.map(({ t, delta }) => {
-      cum += delta;
-      return { t, pnl: cum };
-    });
+    return sorted.map(({ t, delta }) => { cum += delta; return { t, pnl: cum }; });
   }, [bets]);
 
-  // Slice by selected range, but rebase the curve so the visible window
-  // starts at the user's cumulative P&L AT the cutoff (rather than zero,
-  // which would draw a misleading discontinuity).
   const points = useMemo(() => {
     if (range === 'ALL') return allPoints;
     if (allPoints.length === 0) return [];
     const cutoff = rangeStart(range);
     let baseline = 0;
-    for (const p of allPoints) {
-      if (p.t < cutoff) baseline = p.pnl;
-      else break;
-    }
+    for (const p of allPoints) { if (p.t < cutoff) baseline = p.pnl; else break; }
     return allPoints.filter(p => p.t >= cutoff).map(p => ({ t: p.t, pnl: p.pnl - baseline }));
   }, [allPoints, range]);
 
-  const latestPnl = allPoints.length > 0 ? allPoints[allPoints.length - 1].pnl : 0;
-  const pnlPositive = latestPnl >= 0;
-  const pnlColor = pnlPositive ? t.gain : t.down;
+  const latestPnl = points.length > 0 ? points[points.length - 1].pnl : 0;
+  const positive = latestPnl >= 0;
+  const color = positive ? t.gain : t.down;
 
-  // ── LWC area data ──────────────────────────────────────────────────
-  const areaData = useMemo<AreaData[]>(() => {
-    // Dedupe to strictly-ascending seconds; two bets settled in the same
-    // wall-clock second would otherwise blow up LWC's strict-asc assert.
-    const out: AreaData[] = [];
-    let prevSec = -1;
-    for (const p of points) {
-      const sec = Math.floor(p.t / 1000);
-      // USDC values stored as integer base units — divide for display.
-      const value = p.pnl / USDC_DIVISOR;
-      if (sec === prevSec) {
-        out[out.length - 1] = { time: sec as UTCTimestamp, value };
-        continue;
-      }
-      if (sec < prevSec) continue;
-      out.push({ time: sec as UTCTimestamp, value });
-      prevSec = sec;
+  // Current win streak (consecutive trailing pools with delta > 0).
+  const streak = useMemo(() => {
+    let s = 0;
+    for (let i = points.length - 1; i > 0; i--) {
+      if (points[i].pnl > points[i - 1].pnl) s++; else break;
     }
-    return out;
+    // include the first point if it alone is a gain
+    if (points.length === 1 && points[0].pnl > 0) s = 1;
+    return s;
   }, [points]);
 
-  // ── Chart instance lifecycle ───────────────────────────────────────
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const chart = createChart(containerRef.current, {
-      layout: {
-        background: { color: 'transparent' },
-        textColor: t.text.dimmed,
-        fontFamily: 'var(--font-satoshi), "Satoshi", -apple-system, BlinkMacSystemFont, sans-serif',
-        fontSize: 10,
-        attributionLogo: false,
-      },
-      localization: {
-        // Header tile already shows the USDC value formatted; the y-axis
-        // tick labels just need a compact $ prefix.
-        priceFormatter: (price: number) => {
-          const abs = Math.abs(price);
-          if (abs >= 1000) return `$${(price / 1000).toFixed(1)}K`;
-          return `$${price.toFixed(0)}`;
-        },
-        timeFormatter: (time: number) => {
-          const d = new Date(time * 1000);
-          return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-        },
-      },
-      grid: {
-        vertLines: { visible: false },
-        horzLines: { visible: false },
-      },
-      crosshair: {
-        mode: CrosshairMode.Magnet,
-        vertLine: { color: t.border.medium, width: 1, style: LineStyle.Solid, labelVisible: false },
-        horzLine: { color: t.border.medium, width: 1, style: LineStyle.Dotted, labelVisible: false },
-      },
-      rightPriceScale: {
-        borderVisible: false,
-        scaleMargins: { top: 0.15, bottom: 0.15 },
-      },
-      timeScale: {
-        borderVisible: false,
-        timeVisible: false,
-        secondsVisible: false,
-        tickMarkFormatter: (time: number, tickMarkType: number) => {
-          const d = new Date(time * 1000);
-          if (tickMarkType >= 3) {
-            return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
-          }
-          if (tickMarkType === 2) return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-          if (tickMarkType === 1) return d.toLocaleDateString(undefined, { month: 'short' });
-          return d.getFullYear().toString();
-        },
-      },
-      autoSize: true,
-      handleScroll: false,
-      handleScale: false,
-    });
-    chartRef.current = chart;
-
-    // Single React-rendered tooltip — same pattern OddsChart uses. We
-    // capture the cursor x/y from param.point and the value from the
-    // series data map so a hover always reads a real datapoint.
-    chart.subscribeCrosshairMove((param) => {
-      if (!param.point || param.time == null || !seriesRef.current) {
-        setHover(null);
-        return;
-      }
-      const d = param.seriesData.get(seriesRef.current) as AreaData | undefined;
-      if (!d) {
-        setHover(null);
-        return;
-      }
-      const ts = typeof param.time === 'number' ? param.time : 0;
-      setHover({ x: param.point.x, y: param.point.y, pnl: d.value, ts });
-    });
-
-    return () => {
-      seriesRef.current = null;
-      chart.remove();
-      chartRef.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Theme + color update without re-creating the chart (color changes when
-  // the user flips between positive / negative P&L).
-  useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart) return;
-    chart.applyOptions({
-      layout: { textColor: t.text.dimmed },
-      crosshair: {
-        vertLine: { color: t.border.medium },
-        horzLine: { color: t.border.medium },
-      },
-    });
-
-    // Detach the previous series and attach a fresh one in the new colour.
-    if (seriesRef.current) {
-      chart.removeSeries(seriesRef.current);
-      seriesRef.current = null;
+  // ── Geometry (pixel space) ───────────────────────────────────────────
+  const geo = useMemo(() => {
+    const plotW = Math.max(1, w - PAD.left - PAD.right);
+    const plotH = H - PAD.top - PAD.bottom;
+    if (points.length === 0) return null;
+    const ts = points.map(p => p.t);
+    const ys = points.map(p => p.pnl);
+    const minT = ts[0];
+    const maxT = ts[ts.length - 1];
+    const minY = Math.min(0, ...ys);
+    const maxY = Math.max(0, ...ys);
+    const spanT = maxT - minT || 1;
+    const spanY = maxY - minY || 1;
+    const sx = (tv: number) => PAD.left + (points.length === 1 ? plotW : ((tv - minT) / spanT) * plotW);
+    const sy = (v: number) => PAD.top + (1 - (v - minY) / spanY) * plotH;
+    const coords = points.map(p => ({ x: sx(p.t), y: sy(p.pnl), pnl: p.pnl, t: p.t }));
+    // Smooth (Catmull-Rom → bezier) for rounded "waves".
+    let line = coords.length ? `M ${coords[0].x.toFixed(1)} ${coords[0].y.toFixed(1)}` : '';
+    for (let i = 0; i < coords.length - 1; i++) {
+      const p0 = coords[i - 1] || coords[i];
+      const p1 = coords[i];
+      const p2 = coords[i + 1];
+      const p3 = coords[i + 2] || p2;
+      const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
+      const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
+      line += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
     }
-    seriesRef.current = chart.addSeries(AreaSeries, {
-      lineColor: pnlColor,
-      topColor: `${pnlColor}38`,
-      bottomColor: `${pnlColor}00`,
-      lineWidth: 2,
-      // Step lines — each settled pool is a discrete event, so the
-      // curve should jump vertically at the moment P&L was realised.
-      // Matches the Kalshi / Polymarket house style we use everywhere
-      // else (see OddsChart for the same choice).
-      lineType: LineType.WithSteps,
-      priceLineVisible: false,
-      lastValueVisible: false,
-      crosshairMarkerVisible: true,
-      crosshairMarkerRadius: 4,
-      crosshairMarkerBorderWidth: 2,
-      crosshairMarkerBorderColor: t.bg.app,
-      crosshairMarkerBackgroundColor: pnlColor,
-      priceFormat: {
-        type: 'custom',
-        formatter: (v: number) => `$${v.toFixed(2)}`,
-        minMove: 0.01,
-      },
-    });
-    seriesRef.current.setData(areaData);
-    try { chart.timeScale().fitContent(); } catch { /* ignore */ }
-  }, [pnlColor, areaData, t.bg.app, t.border.medium, t.text.dimmed]);
+    const bottom = PAD.top + plotH;
+    const area = coords.length
+      ? `${line} L ${coords[coords.length - 1].x.toFixed(1)} ${bottom} L ${coords[0].x.toFixed(1)} ${bottom} Z`
+      : '';
+    // Peak (all-time high within range) for the 🏆 flag.
+    let peakIdx = 0;
+    for (let i = 1; i < coords.length; i++) if (coords[i].pnl > coords[peakIdx].pnl) peakIdx = i;
+    const zeroY = sy(0);
+    return { coords, line, area, bottom, peakIdx, zeroY, plotW };
+  }, [points, w]);
 
-  function formatHoverDate(secs: number): string {
-    return new Date(secs * 1000).toLocaleString(undefined, {
-      month: 'short', day: 'numeric',
-      hour: 'numeric', minute: '2-digit', hour12: true,
-    });
-  }
+  // ── Count-up score ───────────────────────────────────────────────────
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    let raf = 0;
+    const from = 0, to = latestPnl, dur = 650;
+    let startTs = 0;
+    const tick = (now: number) => {
+      if (!startTs) startTs = now;
+      const k = Math.min(1, (now - startTs) / dur);
+      setShown(from + (to - from) * easeOut(k));
+      if (k < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [latestPnl, range]);
+
+  const scoreStr = `${shown >= 0 ? '+' : '−'}${formatUSDC(String(Math.round(Math.abs(shown))), { min: 2 })}`;
+
+  const hover = useMemo(() => {
+    if (hoverX == null || !geo) return null;
+    let best = geo.coords[0];
+    let bestD = Infinity;
+    for (const c of geo.coords) { const d = Math.abs(c.x - hoverX); if (d < bestD) { bestD = d; best = c; } }
+    return best;
+  }, [hoverX, geo]);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-      {/* Header: title + range selector. The numeric value lives in the
-          Net P&L tile above; repeating it here would be visual duplication. */}
+      {/* Header: animated score + range selector */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
-        <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: t.text.primary }}>
-          Profit/Loss
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 0.25, p: 0.25, bgcolor: t.bg.surface, borderRadius: '6px', border: `1px solid ${t.border.subtle}` }}>
+        <Box>
+          <Typography sx={{ fontSize: '0.62rem', fontWeight: 800, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 1 }}>
+            Profit / Loss
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <Typography sx={{
+              fontSize: '1.7rem', fontWeight: 900, color, fontVariantNumeric: 'tabular-nums', lineHeight: 1,
+              textShadow: `0 0 18px ${withAlpha(color, 0.55)}`,
+            }}>
+              {scoreStr}
+            </Typography>
+            <Box component="span" sx={{ fontSize: '1rem', color }}>{positive ? '▲' : '▼'}</Box>
+            {streak > 1 && (
+              <Box sx={{
+                display: 'inline-flex', alignItems: 'center', gap: 0.25, ml: 0.5,
+                px: 0.75, py: 0.2, borderRadius: '999px',
+                bgcolor: withAlpha(t.gold, 0.15), border: `1px solid ${withAlpha(t.gold, 0.45)}`,
+              }}>
+                <Typography sx={{ fontSize: '0.72rem', fontWeight: 900, color: t.gold }}>🔥 {streak}</Typography>
+              </Box>
+            )}
+          </Box>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 0.25, p: 0.25, bgcolor: t.bg.surfaceAlt, borderRadius: '8px', border: `1px solid ${t.border.subtle}` }}>
           {RANGES.map(r => {
             const active = r === range;
             return (
-              <Box
-                key={r}
-                onClick={() => setRange(r)}
-                sx={{
-                  px: 1, py: 0.4, cursor: 'pointer', borderRadius: '4px',
-                  fontSize: '0.7rem', fontWeight: 700,
-                  color: active ? t.text.primary : t.text.tertiary,
-                  bgcolor: active ? t.bg.surfaceAlt : 'transparent',
-                  transition: 'all 0.12s ease',
-                  '&:hover': { color: t.text.primary },
-                }}
-              >
+              <Box key={r} onClick={() => setRange(r)} sx={{
+                px: 1, py: 0.4, cursor: 'pointer', borderRadius: '6px',
+                fontSize: '0.7rem', fontWeight: 800,
+                color: active ? t.text.contrast : t.text.tertiary,
+                bgcolor: active ? color : 'transparent',
+                boxShadow: active ? `0 0 12px ${withAlpha(color, 0.5)}` : 'none',
+                transition: 'all 0.15s ease',
+                '&:hover': { color: active ? t.text.contrast : t.text.primary },
+              }}>
                 {r}
               </Box>
             );
@@ -300,56 +215,116 @@ export function PnLChart({ bets }: PnLChartProps) {
         </Box>
       </Box>
 
-      {/* Chart canvas — container ALWAYS mounts. Placeholder and tooltip
-          overlay on top via absolute positioning so the LWC instance can
-          create itself on first paint without racing the data fetch. */}
-      <Box sx={{ width: '100%', height: HEIGHT, position: 'relative' }}>
-        <Box ref={containerRef} sx={{ width: '100%', height: '100%' }} />
-        {areaData.length === 0 && (
-          <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-            <Typography sx={{ fontSize: '0.78rem', color: t.text.quaternary }}>
-              No settled bets in this range yet
-            </Typography>
+      {/* Chart canvas */}
+      <Box ref={wrapRef} sx={{
+        position: 'relative', width: '100%', height: H,
+        '@keyframes pnlDraw': { from: { strokeDashoffset: 1 }, to: { strokeDashoffset: 0 } },
+        '@keyframes pnlPulse': { '0%,100%': { opacity: 0.1 }, '50%': { opacity: 0.45 } },
+        '& .pnl-line': { strokeDasharray: 1, animation: 'pnlDraw 1.1s ease-out forwards' },
+        '& .pnl-pulse': { animation: 'pnlPulse 1.6s ease-in-out infinite' },
+      }}>
+        {!geo ? (
+          <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Typography sx={{ fontSize: '0.8rem', color: t.text.quaternary }}>No settled bets in this range yet</Typography>
           </Box>
-        )}
-        {hover && areaData.length > 0 && (() => {
-          const TOOLTIP_W = 150;
-          const positive = hover.pnl >= 0;
-          const tipColor = positive ? t.gain : t.down;
-          const sign = positive ? '+' : '−';
-          const tipText = `${sign}${formatUSDC(String(Math.round(Math.abs(hover.pnl) * USDC_DIVISOR)), { min: 2 })}`;
-          const containerW = containerRef.current?.clientWidth ?? 400;
-          const flipLeft = hover.x > 0.65 * containerW;
-          const left = flipLeft
-            ? Math.max(4, hover.x - TOOLTIP_W - 12)
-            : Math.min(containerW - TOOLTIP_W - 4, hover.x + 12);
-          const top = Math.max(4, Math.min(hover.y - 12, HEIGHT - 60));
-          return (
-            <Box
-              sx={{
-                position: 'absolute',
-                left, top,
-                width: TOOLTIP_W,
-                px: 1, py: 0.75,
-                borderRadius: 1,
-                bgcolor: 'rgba(8, 13, 22, 0.88)',
-                border: `1px solid ${t.border.medium}`,
-                backdropFilter: 'blur(8px)',
-                boxShadow: '0 6px 18px rgba(0,0,0,0.4)',
-                pointerEvents: 'none',
-                zIndex: 4,
-                fontFamily: 'var(--font-satoshi), "Satoshi", sans-serif',
+        ) : (
+          <>
+            <svg
+              width={w}
+              height={H}
+              style={{ display: 'block', overflow: 'visible' }}
+              onMouseMove={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setHoverX(e.clientX - rect.left);
               }}
+              onMouseLeave={() => setHoverX(null)}
             >
-              <Typography sx={{ fontSize: '0.62rem', color: t.text.quaternary, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                {formatHoverDate(hover.ts)}
-              </Typography>
-              <Typography sx={{ fontSize: '0.95rem', color: tipColor, fontWeight: 700, fontVariantNumeric: 'tabular-nums', mt: 0.25 }}>
-                {tipText}
-              </Typography>
-            </Box>
-          );
-        })()}
+              <defs>
+                <linearGradient id="pnlFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={color} stopOpacity={0.35} />
+                  <stop offset="100%" stopColor={color} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+
+              {/* zero baseline */}
+              {geo.zeroY > PAD.top && geo.zeroY < geo.bottom && (
+                <line x1={PAD.left} y1={geo.zeroY} x2={w - PAD.right} y2={geo.zeroY}
+                  stroke={t.border.medium} strokeWidth={1} strokeDasharray="3 4" opacity={0.6} />
+              )}
+
+              {/* area */}
+              <path d={geo.area} fill="url(#pnlFill)" />
+
+              {/* glowing line with draw-in animation */}
+              <path
+                className="pnl-line"
+                d={geo.line}
+                fill="none"
+                stroke={color}
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                pathLength={1}
+                style={{ filter: `drop-shadow(0 0 3px ${withAlpha(color, 0.9)}) drop-shadow(0 0 7px ${withAlpha(color, 0.5)})` }}
+              />
+
+              {/* endpoint pulse dot */}
+              {geo.coords.length > 0 && (() => {
+                const last = geo.coords[geo.coords.length - 1];
+                return (
+                  <>
+                    <circle className="pnl-pulse" cx={last.x} cy={last.y} r={8} fill={color} />
+                    <circle cx={last.x} cy={last.y} r={3.5} fill={color} style={{ filter: `drop-shadow(0 0 5px ${color})` }} />
+                  </>
+                );
+              })()}
+
+              {/* hover crosshair + dot */}
+              {hover && (
+                <>
+                  <line x1={hover.x} y1={PAD.top} x2={hover.x} y2={geo.bottom} stroke={t.border.medium} strokeWidth={1} opacity={0.7} />
+                  <circle cx={hover.x} cy={hover.y} r={4} fill={t.bg.surface} stroke={color} strokeWidth={2} />
+                </>
+              )}
+            </svg>
+
+            {/* 🏆 peak flag (HTML overlay, pixel-positioned) */}
+            {geo.coords.length > 1 && geo.coords[geo.peakIdx].pnl > 0 && (
+              <Box sx={{
+                position: 'absolute', pointerEvents: 'none',
+                left: geo.coords[geo.peakIdx].x, top: geo.coords[geo.peakIdx].y - 26,
+                transform: 'translateX(-50%)',
+                fontSize: '1rem', filter: `drop-shadow(0 0 6px ${withAlpha(t.gold, 0.8)})`,
+              }}>
+                🏆
+              </Box>
+            )}
+
+            {/* hover tooltip */}
+            {hover && (() => {
+              const TW = 130;
+              const flip = hover.x > w - TW - 12;
+              const left = flip ? hover.x - TW - 10 : hover.x + 10;
+              const hp = hover.pnl >= 0;
+              return (
+                <Box sx={{
+                  position: 'absolute', pointerEvents: 'none', zIndex: 4,
+                  left: Math.max(2, Math.min(left, w - TW - 2)), top: Math.max(2, hover.y - 44),
+                  width: TW, px: 1, py: 0.6, borderRadius: 1,
+                  bgcolor: 'rgba(8,13,22,0.92)', border: `1px solid ${t.border.medium}`,
+                  backdropFilter: 'blur(8px)', boxShadow: '0 6px 18px rgba(0,0,0,0.45)',
+                }}>
+                  <Typography sx={{ fontSize: '0.6rem', color: t.text.quaternary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                    {new Date(hover.t).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 800, color: hp ? t.gain : t.down, fontVariantNumeric: 'tabular-nums' }}>
+                    {hp ? '+' : '−'}{formatUSDC(String(Math.round(Math.abs(hover.pnl))), { min: 2 })}
+                  </Typography>
+                </Box>
+              );
+            })()}
+          </>
+        )}
       </Box>
     </Box>
   );
