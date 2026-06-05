@@ -21,6 +21,7 @@ import { useThemeTokens } from '@/app/providers';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { PositionsTab } from '@/components/profile/PositionsTab';
 import { PnLChart } from '@/components/profile/PnLChart';
+import { ProfileInsights } from '@/components/profile/ProfileInsights';
 
 /**
  * /profile - intentionally minimal. Identity header + P&L chart + the single
@@ -201,9 +202,14 @@ export default function MyBetsPage() {
               </Box>
             )}
 
-            {/* P&L chart */}
-            <Box sx={{ mb: 4, bgcolor: t.bg.surface, border: `1px solid ${t.border.subtle}`, borderRadius: 1.5, p: 2 }}>
-              <PnLChart bets={bets} />
+            {/* P&L chart (narrower) + insight tiles beside it. Stacks on mobile. */}
+            <Box sx={{ mb: 4, display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.6fr 1fr' }, gap: 2 }}>
+              <Box sx={{ bgcolor: t.bg.surface, border: `1px solid ${t.border.subtle}`, borderRadius: 1.5, p: 2 }}>
+                <PnLChart bets={bets} />
+              </Box>
+              <Box sx={{ bgcolor: t.bg.surface, border: `1px solid ${t.border.subtle}`, borderRadius: 1.5, p: 2 }}>
+                <ProfileInsights bets={bets} profile={userProfile} />
+              </Box>
             </Box>
 
             {/* Positions */}
