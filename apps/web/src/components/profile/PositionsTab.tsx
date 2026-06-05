@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { Box, Typography, TextField, InputAdornment, Button, CircularProgress, useMediaQuery } from '@mui/material';
-import { Search } from '@mui/icons-material';
+import { Box, Typography, Button, CircularProgress, useMediaQuery } from '@mui/material';
+import { Search, Close } from '@mui/icons-material';
 import { useThemeTokens } from '@/app/providers';
 import { PoolPositionRow, PoolPositionRowSkeleton, type PoolPosition } from './PoolPositionRow';
 import type { Bet } from '@/lib/api';
@@ -32,6 +32,7 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim, hasMor
   const t = useThemeTokens();
   const [sub, setSub] = useState<SubTab>('active');
   const [query, setQuery] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
   // Show fewer rows up front, then "Load more" — 5 on mobile, 10 on desktop.
   const isMobile = useMediaQuery('(max-width: 899px)');
   const pageSize = isMobile ? 5 : 10;
@@ -103,27 +104,37 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim, hasMor
           <Box onClick={() => setSub('active')} sx={subTabSx(sub === 'active')}>Active</Box>
           <Box onClick={() => setSub('closed')} sx={subTabSx(sub === 'closed')}>Closed</Box>
         </Box>
-        <TextField
-          placeholder="Search positions"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          size="small"
+        {/* Same look as the markets search bar (rounded pill, inline input). */}
+        <Box
           sx={{
+            display: 'flex', alignItems: 'center', gap: 0.75, height: 36,
             flex: 1, minWidth: 200, maxWidth: 360,
-            '& .MuiOutlinedInput-root': {
-              fontSize: '0.85rem', bgcolor: t.bg.surface,
-              '& fieldset': { borderColor: t.border.subtle },
-              '&:hover fieldset': { borderColor: t.border.medium },
-            },
+            bgcolor: t.hover.default, borderRadius: '20px', px: 1.5,
+            border: `1px solid ${searchFocused ? t.border.medium : 'transparent'}`,
+            transition: 'border-color 0.15s',
           }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Search sx={{ fontSize: 18, color: t.text.quaternary }} />
-              </InputAdornment>
-            ),
-          }}
-        />
+        >
+          <Search sx={{ fontSize: 18, color: t.text.dimmed, flexShrink: 0 }} />
+          <Box
+            component="input"
+            value={query}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+            placeholder="Search positions"
+            sx={{
+              flex: 1, minWidth: 0, bgcolor: 'transparent', border: 'none', outline: 'none',
+              color: t.text.primary, fontSize: '0.85rem', fontFamily: 'inherit',
+              '&::placeholder': { color: t.text.dimmed },
+            }}
+          />
+          {query && (
+            <Close
+              onClick={() => setQuery('')}
+              sx={{ fontSize: 16, color: t.text.dimmed, cursor: 'pointer', flexShrink: 0, '&:hover': { color: t.text.primary } }}
+            />
+          )}
+        </Box>
       </Box>
 
       {/* Column headers (desktop only). Active shows a PnL-per-scenario split;
