@@ -64,8 +64,6 @@ export function LevelMilestones({ userProfile }: LevelMilestonesProps) {
         // avatar ring + level badge — no new accent colours introduced.
         const tierIndex = Math.min(Math.floor((m.level - 1) / 4), 9);
         const tierColor = t.levelTiers[tierIndex];
-        const bg = m.unlocked ? withAlpha(tierColor, 0.12) : t.hover.light;
-        const border = m.unlocked ? withAlpha(tierColor, 0.45) : t.border.subtle;
         const titleColor = m.unlocked ? t.text.primary : t.text.tertiary;
 
         return (
@@ -90,20 +88,16 @@ export function LevelMilestones({ userProfile }: LevelMilestonesProps) {
             <Box
               sx={{
                 position: 'relative',
-                aspectRatio: '1 / 1',
-                borderRadius: 1.5,
-                border: `1px solid ${border}`,
-                bgcolor: bg,
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 0.25,
                 px: 0.5,
-                py: 0.75,
-                transition: 'transform 0.1s, border-color 0.15s',
+                py: 0.5,
+                transition: 'transform 0.1s',
                 cursor: 'help',
-                '&:hover': { transform: 'translateY(-1px)', borderColor: tierColor },
+                '&:hover': { transform: 'translateY(-2px)' },
               }}
             >
               <Typography
