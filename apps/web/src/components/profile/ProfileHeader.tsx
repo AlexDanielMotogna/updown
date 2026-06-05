@@ -186,7 +186,7 @@ export function ProfileHeader({
                   alignItems: { xs: 'flex-start', sm: 'flex-end' },
                   gap: { xs: 1.5, md: 2 },
                   mt: { xs: -4, md: -5 },
-                  flexWrap: 'wrap',
+                  flexWrap: { xs: 'wrap', md: 'nowrap' },
                 }}
               >
                 {/* Avatar with level ring + badge */}
@@ -215,7 +215,7 @@ export function ProfileHeader({
                 {/* Name + meta */}
                 <Box sx={{ minWidth: 0, flex: 1, pb: { xs: 0, sm: 0.5 } }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                    <Typography sx={{ fontSize: { xs: '1.05rem', md: '1.4rem' }, fontWeight: 800, color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Typography sx={{ fontSize: { xs: '0.95rem', md: '1.4rem' }, fontWeight: 800, color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {displayedName}
                     </Typography>
                     <Tooltip
@@ -258,8 +258,9 @@ export function ProfileHeader({
                   )}
                 </Box>
 
-                {/* Actions: balance pill + share */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0, pb: { xs: 0, sm: 0.5 } }}>
+                {/* Actions: balance pill + share. On mobile they drop to their
+                    own full-width row (instead of squeezing/wrapping mid-line). */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0, width: { xs: '100%', md: 'auto' }, mt: { xs: 0.5, md: 0 }, pb: { xs: 0, sm: 0.5 } }}>
                   <Tooltip title="Your USDC balance on Solana" arrow placement="bottom" slotProps={tooltipSlotProps(t)}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6, px: 1.25, py: 0.75, borderRadius: 1, bgcolor: t.hover.light, border: `1px solid ${t.border.subtle}` }}>
                       <AccountBalanceWallet sx={{ fontSize: 16, color: t.text.tertiary }} />

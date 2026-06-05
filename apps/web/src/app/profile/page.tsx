@@ -7,10 +7,9 @@ import {
   Container,
   Alert,
   Button,
-  CircularProgress,
 } from '@mui/material';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
-import { useInfiniteBets, useClaimableBets, useClaim, useIntersectionObserver } from '@/hooks';
+import { useInfiniteBets, useClaimableBets, useClaim } from '@/hooks';
 import { useLivePoolTotals } from '@/hooks/useLivePoolTotals';
 import type { Bet } from '@/lib/api';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -146,11 +145,6 @@ export default function MyBetsPage() {
   const claimable = claimableData?.data;
   const hasClaimable = claimable && claimable.summary.count > 0;
 
-  const sentinelRef = useIntersectionObserver(
-    () => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); },
-    hasNextPage && !isFetchingNextPage
-  );
-
   return (
     <AppShell centered>
       <ProfileHeader
@@ -223,14 +217,10 @@ export default function MyBetsPage() {
                 betsLoading={betsLoading}
                 claimingBetId={claimingBetId}
                 onClaim={handleClaim}
+                hasMore={hasNextPage}
+                isLoadingMore={isFetchingNextPage}
+                onLoadMore={fetchNextPage}
               />
-            )}
-
-            <Box ref={sentinelRef} />
-            {isFetchingNextPage && (
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, pb: 4 }}>
-                <CircularProgress size={32} sx={{ color: t.text.primary }} />
-              </Box>
             )}
           </>
         )}

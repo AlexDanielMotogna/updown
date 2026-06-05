@@ -160,9 +160,14 @@ export function PnLChart({ bets }: PnLChartProps) {
 
   // ── Count-up score ───────────────────────────────────────────────────
   const [shown, setShown] = useState(0);
+  const shownRef = useRef(0);
+  shownRef.current = shown;
   useEffect(() => {
     let raf = 0;
-    const from = 0, to = latestPnl, dur = 650;
+    // Animate from the currently-shown value (not 0) so switching range
+    // doesn't flash through $0 — which changed the number's width and made
+    // the range selector on the right jump for an instant.
+    const from = shownRef.current, to = latestPnl, dur = 650;
     let startTs = 0;
     const tick = (now: number) => {
       if (!startTs) startTs = now;
@@ -201,7 +206,7 @@ export function PnLChart({ bets }: PnLChartProps) {
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
             <Typography sx={{
-              fontSize: '1.7rem', fontWeight: 900, color, fontVariantNumeric: 'tabular-nums', lineHeight: 1,
+              fontSize: { xs: '1.3rem', md: '1.7rem' }, fontWeight: 900, color, fontVariantNumeric: 'tabular-nums', lineHeight: 1,
               textShadow: `0 0 18px ${withAlpha(color, 0.55)}`,
             }}>
               {scoreStr}

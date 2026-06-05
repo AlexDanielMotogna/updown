@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Box, Typography, TextField, InputAdornment } from '@mui/material';
+import { useState, useMemo, useEffect } from 'react';
+import { Box, Typography, TextField, InputAdornment, Button, CircularProgress, useMediaQuery } from '@mui/material';
 import { Search } from '@mui/icons-material';
 import { useThemeTokens } from '@/app/providers';
 import { PoolPositionRow, PoolPositionRowSkeleton, type PoolPosition } from './PoolPositionRow';
@@ -14,6 +14,10 @@ interface PositionsTabProps {
   betsLoading: boolean;
   claimingBetId: string | null;
   onClaim: (poolId: string, betId: string) => void;
+  /** True when the server has more bet pages to fetch. */
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 /**
@@ -24,10 +28,14 @@ interface PositionsTabProps {
  * Cerrado = bets on pools that have resolved (RESOLVED / CLAIMABLE), regardless
  *           of whether the user has actually claimed yet.
  */
-export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim }: PositionsTabProps) {
+export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim, hasMore, isLoadingMore, onLoadMore }: PositionsTabProps) {
   const t = useThemeTokens();
   const [sub, setSub] = useState<SubTab>('active');
   const [query, setQuery] = useState('');
+  // Show fewer rows up front, then "Load more" — 5 on mobile, 10 on desktop.
+  const isMobile = useMediaQuery('(max-width: 899px)');
+  const pageSize = isMobile ? 5 : 10;
+  const [visibleCount, setVisibleCount] = useState(pageSize);
 
   // Group bets by pool so a hedger doesn't see two rows for the same
   // market. Preserves insertion order (newest pool first because the bets
@@ -63,6 +71,16 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim }: Posi
       return asset.includes(q) || home.includes(q) || away.includes(q);
     });
   }, [shown, query]);
+
+  // Reset the visible window when the tab, search, or breakpoint changes.
+  useEffect(() => { setVisibleCount(pageSize); }, [sub, query, pageSize]);
+  const visible = filtered.slice(0, visibleCount);
+  const canLoadMore = filtered.length > visibleCount || !!hasMore;
+  const handleLoadMore = () => {
+    setVisibleCount(c => c + pageSize);
+    // Pull the next server page once we're revealing everything loaded.
+    if (visibleCount + pageSize >= filtered.length && hasMore) onLoadMore?.();
+  };
 
   const subTabSx = (active: boolean) => ({
     px: 2.5, py: 0.85,
@@ -144,7 +162,7 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim }: Posi
         </Box>
       ) : (
         <Box>
-          {filtered.map(pos => (
+          {visible.map(pos => (
             <PoolPositionRow
               key={pos.poolId}
               position={pos}
@@ -153,6 +171,21 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim }: Posi
               claimingBetId={claimingBetId}
             />
           ))}
+          {canLoadMore && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+              <Button
+                onClick={handleLoadMore}
+                disabled={isLoadingMore}
+                sx={{
+                  px: 3, py: 0.85, fontSize: '0.82rem', fontWeight: 700, textTransform: 'none',
+                  color: t.text.primary, bgcolor: t.bg.surfaceAlt, border: `1px solid ${t.border.medium}`,
+                  borderRadius: 1.5, '&:hover': { bgcolor: t.hover.default, borderColor: t.border.strong },
+                }}
+              >
+                {isLoadingMore ? <CircularProgress size={16} sx={{ color: t.text.secondary }} /> : 'Load more'}
+              </Button>
+            </Box>
+          )}
         </Box>
       )}
     </Box>
