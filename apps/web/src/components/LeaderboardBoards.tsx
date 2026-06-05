@@ -3,12 +3,14 @@
 import { Box, Typography, Avatar, CircularProgress } from '@mui/material';
 import { AttachMoney, BarChart, MilitaryTech } from '@mui/icons-material';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
+import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
 import { formatUSDC } from '@/lib/format';
 import { getAvatarUrl } from '@/lib/constants';
 import type { LeaderboardEntry, LeaderboardSort } from '@/lib/api';
 
-const BOARD_LIMIT = 25;
+const BOARD_LIMIT = 30;
 
 function truncate(addr: string): string {
   return `${addr.slice(0, 4)}…${addr.slice(-4)}`;
@@ -25,17 +27,48 @@ interface BoardProps {
   title: string;
   icon: React.ReactNode;
   sort: LeaderboardSort;
+  wallet?: string | null;
+  isLast?: boolean;
   /** Renders the right-hand value for an entry. */
   value: (e: LeaderboardEntry) => React.ReactNode;
 }
 
-function Board({ title, icon, sort, value }: BoardProps) {
+function Board({ title, icon, sort, wallet, isLast, value }: BoardProps) {
   const t = useThemeTokens();
-  const { data, isLoading } = useLeaderboard({ sort, page: 1, limit: BOARD_LIMIT });
+  const { data, isLoading } = useLeaderboard({ sort, page: 1, limit: BOARD_LIMIT, wallet: wallet ?? undefined });
   const entries = data?.data ?? [];
+  const self = data?.self ?? null;
+  const selfInList = !!wallet && entries.some(e => e.walletAddress === wallet);
+  const showSelf = !!self && !!wallet && !selfInList;
+
+  const row = (e: LeaderboardEntry, highlight: boolean) => (
+    <Box
+      key={e.walletAddress}
+      sx={{
+        display: 'flex', alignItems: 'center', gap: 1.25, px: 2, py: 1,
+        bgcolor: highlight ? withAlpha(t.up, 0.08) : 'transparent',
+        '&:not(:first-of-type)': { borderTop: `1px solid ${t.border.subtle}` },
+        '&:hover': { bgcolor: highlight ? withAlpha(t.up, 0.12) : t.hover.light },
+      }}
+    >
+      <Typography sx={{ width: 22, flexShrink: 0, fontSize: '0.78rem', fontWeight: 800, color: rankColor(e.rank, t), fontVariantNumeric: 'tabular-nums' }}>
+        {e.rank}
+      </Typography>
+      <Avatar src={e.avatarUrl ?? getAvatarUrl(e.walletAddress)} sx={{ width: 28, height: 28, flexShrink: 0, bgcolor: t.bg.surfaceAlt }} />
+      <Typography sx={{ flex: 1, minWidth: 0, fontSize: '0.85rem', fontWeight: highlight ? 800 : 600, color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {e.displayName || truncate(e.walletAddress)}{highlight ? ' (you)' : ''}
+      </Typography>
+      <Box sx={{ flexShrink: 0, textAlign: 'right' }}>{value(e)}</Box>
+    </Box>
+  );
 
   return (
-    <Box sx={{ bgcolor: t.bg.surface, border: `1px solid ${t.border.subtle}`, borderRadius: 2, overflow: 'hidden' }}>
+    <Box sx={{
+      bgcolor: t.bg.surface, overflow: 'hidden',
+      // Flush columns separated by single dividers (no gap / radius).
+      borderBottom: { xs: isLast ? 'none' : `1px solid ${t.border.subtle}`, md: 'none' },
+      borderRight: { xs: 'none', md: isLast ? 'none' : `1px solid ${t.border.subtle}` },
+    }}>
       {/* Board header */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 2, py: 1.5, borderBottom: `1px solid ${t.border.subtle}` }}>
         <Box sx={{ display: 'flex', color: t.text.secondary }}>{icon}</Box>
@@ -51,27 +84,14 @@ function Board({ title, icon, sort, value }: BoardProps) {
           No players yet
         </Typography>
       ) : (
-        <Box>
-          {entries.map((e) => (
-            <Box
-              key={e.walletAddress}
-              sx={{
-                display: 'flex', alignItems: 'center', gap: 1.25, px: 2, py: 1,
-                '& + &': { borderTop: `1px solid ${t.border.subtle}` },
-                '&:hover': { bgcolor: t.hover.light },
-              }}
-            >
-              <Typography sx={{ width: 22, flexShrink: 0, fontSize: '0.78rem', fontWeight: 800, color: rankColor(e.rank, t), fontVariantNumeric: 'tabular-nums' }}>
-                {e.rank}
-              </Typography>
-              <Avatar src={e.avatarUrl ?? getAvatarUrl(e.walletAddress)} sx={{ width: 28, height: 28, flexShrink: 0, bgcolor: t.bg.surfaceAlt }} />
-              <Typography sx={{ flex: 1, minWidth: 0, fontSize: '0.85rem', fontWeight: 600, color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {e.displayName || truncate(e.walletAddress)}
-              </Typography>
-              <Box sx={{ flexShrink: 0, textAlign: 'right' }}>{value(e)}</Box>
+        <>
+          <Box>{entries.map(e => row(e, e.walletAddress === wallet))}</Box>
+          {showSelf && self && (
+            <Box sx={{ borderTop: `2px dashed ${t.border.medium}` }}>
+              {row(self, true)}
             </Box>
-          ))}
-        </Box>
+          )}
+        </>
       )}
     </Box>
   );
@@ -84,22 +104,24 @@ function Board({ title, icon, sort, value }: BoardProps) {
  */
 export function LeaderboardBoards() {
   const t = useThemeTokens();
+  const { walletAddress } = useWalletBridge();
   const usd = (micro?: string) => formatUSDC(micro ?? '0', { min: 0 });
 
   return (
     <Box sx={{ pt: { xs: 2, md: 3 }, pb: 6 }}>
-      <Typography sx={{ fontSize: { xs: '1.4rem', md: '1.8rem' }, fontWeight: 900, color: t.text.primary, mb: 0.5 }}>
+      <Typography sx={{ fontSize: { xs: '1.4rem', md: '1.8rem' }, fontWeight: 900, color: t.text.primary, mb: 3 }}>
         Leaderboard
       </Typography>
-      <Typography sx={{ fontSize: '0.8rem', color: t.text.tertiary, mb: 3 }}>
-        All-time · the metrics that matter
-      </Typography>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 2 }}>
+      <Box sx={{
+        display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 0,
+        border: `1px solid ${t.border.subtle}`, overflow: 'hidden',
+      }}>
         <Board
           title="Profit"
           icon={<AttachMoney sx={{ fontSize: 20 }} />}
           sort="profit"
+          wallet={walletAddress}
           value={(e) => {
             const p = Number(e.profit ?? '0');
             const pos = p >= 0;
@@ -114,6 +136,7 @@ export function LeaderboardBoards() {
           title="Volume"
           icon={<BarChart sx={{ fontSize: 20 }} />}
           sort="volume"
+          wallet={walletAddress}
           value={(e) => (
             <Typography sx={{ fontSize: '0.85rem', fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
               {usd(e.totalWagered)}
@@ -124,6 +147,8 @@ export function LeaderboardBoards() {
           title="Predictions"
           icon={<MilitaryTech sx={{ fontSize: 20 }} />}
           sort="predictions"
+          wallet={walletAddress}
+          isLast
           value={(e) => (
             <Typography sx={{ fontSize: '0.85rem', fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
               {e.totalBets.toLocaleString()}

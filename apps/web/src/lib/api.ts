@@ -514,15 +514,18 @@ export async function fetchUserCategoryStats(
   return fetchApi<CategoryStatEntry[]>(`/api/users/category-stats?wallet=${wallet}`);
 }
 
+export type LeaderboardResponse = ApiResponse<LeaderboardEntry[]> & { self?: LeaderboardEntry | null };
+
 export async function fetchLeaderboard(
-  params?: { sort?: LeaderboardSort; page?: number; limit?: number },
-): Promise<ApiResponse<LeaderboardEntry[]>> {
+  params?: { sort?: LeaderboardSort; page?: number; limit?: number; wallet?: string },
+): Promise<LeaderboardResponse> {
   const searchParams = new URLSearchParams();
   if (params?.sort) searchParams.set('sort', params.sort);
   if (params?.page) searchParams.set('page', params.page.toString());
   if (params?.limit) searchParams.set('limit', params.limit.toString());
+  if (params?.wallet) searchParams.set('wallet', params.wallet);
   const query = searchParams.toString();
-  return fetchApi<LeaderboardEntry[]>(`/api/users/leaderboard${query ? `?${query}` : ''}`);
+  return fetchApi<LeaderboardEntry[]>(`/api/users/leaderboard${query ? `?${query}` : ''}`) as Promise<LeaderboardResponse>;
 }
 
 // ─── Referral endpoints ──────────────────────────────────────────────────────

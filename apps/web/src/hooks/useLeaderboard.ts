@@ -5,6 +5,7 @@ export function useLeaderboard(params?: {
   sort?: LeaderboardSort;
   page?: number;
   limit?: number;
+  wallet?: string;
 }) {
   return useQuery({
     queryKey: ['leaderboard', params],

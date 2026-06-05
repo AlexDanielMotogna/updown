@@ -24,6 +24,8 @@ const rewardHistorySchema = z.object({
 
 const leaderboardSchema = z.object({
   sort: z.enum(['xp', 'coins', 'level', 'profit', 'volume', 'predictions']).default('xp'),
+  /** When set, the response also includes the wallet's own ranked entry. */
+  wallet: z.string().optional(),
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(100).default(20),
 });
@@ -361,7 +363,7 @@ usersRouter.get('/leaderboard', async (req, res) => {
       });
     }
 
-    const { sort, page, limit } = parsed.data;
+    const { sort, page, limit, wallet } = parsed.data;
     const skip = (page - 1) * limit;
 
     type Row = Awaited<ReturnType<typeof prisma.user.findMany>>[number];
@@ -414,9 +416,37 @@ usersRouter.get('/leaderboard', async (req, res) => {
       data = users.map((u, i) => serialize(u, skip + i + 1));
     }
 
+    // The requesting wallet's own ranked entry — so the UI can pin it below
+    // the board when the user isn't in the visible top N.
+    let self: ReturnType<typeof serialize> | null = null;
+    if (wallet) {
+      const u = await prisma.user.findUnique({ where: { walletAddress: wallet } });
+      if (u) {
+        let higher = 0;
+        if (sort === 'volume') {
+          higher = await prisma.user.count({ where: { totalWagered: { gt: u.totalWagered } } });
+        } else if (sort === 'predictions') {
+          higher = await prisma.user.count({ where: { totalBets: { gt: u.totalBets } } });
+        } else if (sort === 'profit') {
+          const p = u.totalWon - u.totalWagered;
+          const rows = await prisma.$queryRaw<{ c: bigint }[]>`
+            SELECT count(*)::bigint AS c FROM users WHERE (total_won - total_wagered) > ${p}`;
+          higher = Number(rows[0]?.c ?? 0n);
+        } else if (sort === 'coins') {
+          higher = await prisma.user.count({ where: { coinsLifetime: { gt: u.coinsLifetime } } });
+        } else if (sort === 'level') {
+          higher = await prisma.user.count({ where: { level: { gt: u.level } } });
+        } else {
+          higher = await prisma.user.count({ where: { totalXp: { gt: u.totalXp } } });
+        }
+        self = serialize(u, higher + 1);
+      }
+    }
+
     res.json({
       success: true,
       data,
+      self,
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {
