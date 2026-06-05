@@ -100,18 +100,6 @@ export function LevelMilestones({ userProfile }: LevelMilestonesProps) {
                 '&:hover': { transform: 'translateY(-2px)' },
               }}
             >
-              <Typography
-                sx={{
-                  fontSize: { xs: '0.6rem', md: '0.65rem' },
-                  fontWeight: 700,
-                  color: t.text.tertiary,
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
-                  lineHeight: 1,
-                }}
-              >
-                Lv.{m.level}
-              </Typography>
               <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
                 <Box
                   component="img"
