@@ -202,6 +202,11 @@ export function emitPoolUpdate(poolId: string, data: {
   totalUp: string;
   totalDown: string;
   totalDraw?: string;
+  // Per-side time-weight sums — let live consumers (profile positions, etc.)
+  // recompute the weighted payout projection without a refetch.
+  weightedUp?: string;
+  weightedDown?: string;
+  weightedDraw?: string;
 }): void {
   if (io) {
     io.to(`pool:${poolId}`).emit('pool:updated', data);

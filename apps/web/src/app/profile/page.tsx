@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
+import { useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import {
   Box,
   Container,
@@ -10,6 +11,8 @@ import {
 } from '@mui/material';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useInfiniteBets, useClaimableBets, useClaim, useIntersectionObserver } from '@/hooks';
+import { useLivePoolTotals } from '@/hooks/useLivePoolTotals';
+import type { Bet } from '@/lib/api';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { TransactionModal, AppShell } from '@/components';
@@ -93,6 +96,51 @@ export default function MyBetsPage() {
       return true;
     });
   }, [betsData]);
+
+  // Live totals: subscribe to the pools backing the user's ACTIVE positions
+  // and patch the cached bets in place so the scenario P&L updates as new bets
+  // land — no refetch. The hook is reusable for other live-pool surfaces.
+  const queryClient = useQueryClient();
+  const activePoolIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const b of bets) {
+      if (b.pool.status === 'JOINING' || b.pool.status === 'ACTIVE' || b.pool.status === 'UPCOMING') {
+        ids.add(b.pool.id);
+      }
+    }
+    return [...ids];
+  }, [bets]);
+
+  useLivePoolTotals(activePoolIds, (d) => {
+    queryClient.setQueryData<InfiniteData<{ data?: Bet[]; meta?: unknown }>>(
+      ['infiniteBets', walletAddress],
+      (old) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((pg) => ({
+            ...pg,
+            data: pg.data?.map((b) =>
+              b.pool.id === d.id
+                ? {
+                    ...b,
+                    pool: {
+                      ...b.pool,
+                      totalUp: d.totalUp ?? b.pool.totalUp,
+                      totalDown: d.totalDown ?? b.pool.totalDown,
+                      totalDraw: d.totalDraw ?? b.pool.totalDraw,
+                      weightedUp: d.weightedUp ?? b.pool.weightedUp,
+                      weightedDown: d.weightedDown ?? b.pool.weightedDown,
+                      weightedDraw: d.weightedDraw ?? b.pool.weightedDraw,
+                    },
+                  }
+                : b,
+            ),
+          })),
+        };
+      },
+    );
+  });
 
   const claimable = claimableData?.data;
   const hasClaimable = claimable && claimable.summary.count > 0;

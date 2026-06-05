@@ -427,12 +427,23 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
       return [newBet, newPool] as const;
     });
 
-    // BUG-07: Emit pool update so other clients see updated totals in real-time
+    // BUG-07: Emit pool update so other clients see updated totals in real-time.
+    // Include per-side weight sums so live consumers can recompute the
+    // time-weighted payout projection (profile positions) without refetching.
+    const weightRows = await prisma.bet.groupBy({
+      by: ['side'],
+      where: { poolId: pool.id },
+      _sum: { weight: true },
+    });
+    const wsum = (s: 'UP' | 'DOWN' | 'DRAW') => (weightRows.find(r => r.side === s)?._sum.weight ?? 0n).toString();
     emitPoolUpdate(pool.id, {
       id: pool.id,
       totalUp: updatedPool.totalUp.toString(),
       totalDown: updatedPool.totalDown.toString(),
       totalDraw: updatedPool.totalDraw.toString(),
+      weightedUp: wsum('UP'),
+      weightedDown: wsum('DOWN'),
+      weightedDraw: wsum('DRAW'),
     });
 
     // Side-channel emit for the UI "BetFlash" pulse — we send just the

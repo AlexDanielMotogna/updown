@@ -8,6 +8,7 @@ import {
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { formatUSDC, getExplorerTxUrl, formatPredictionWindow } from '@/lib/format';
+import { INTERVAL_LABELS } from '@/lib/constants';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import { AssetIcon } from '@/components';
@@ -151,11 +152,14 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
   const pmColorKey = isPM ? PM_COLOR_KEYS[pool.league || ''] : undefined;
   const pmColor = pmColorKey ? t.categoryColors[pmColorKey] : t.prediction;
   const pmIcon = isPM ? (PM_ICONS[pool.league || ''] ?? <TrendingUp sx={{ fontSize: 20 }} />) : null;
+  // Interval label (3m / 5m / 1h …) so same-asset pools are distinguishable
+  // at a glance. Appended to the crypto title; shown as a chip elsewhere.
+  const intervalLabel = pool.interval ? (INTERVAL_LABELS[pool.interval] || pool.interval) : null;
   const title = isPM
     ? (pool.homeTeam || pool.asset).slice(0, 80)
     : isSports
       ? `${pool.homeTeam || ''} vs ${pool.awayTeam || ''}`.trim()
-      : `${pool.asset}/USD`;
+      : `${pool.asset}/USD${intervalLabel ? ` · ${intervalLabel}` : ''}`;
   const poolLink = isSports ? `/match/${pool.id}` : `/pool/${pool.id}`;
   const cryptoWindow = !isSports && !isPM
     ? formatPredictionWindow(pool.startTime, pool.endTime)
