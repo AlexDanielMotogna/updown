@@ -2,6 +2,7 @@ import type { PoolStatus, Side } from '@prisma/client';
 import { getLevelTitle, getXpForLevel, getXpToNextLevel, getLevelForXp, getLevelMultiplier } from './levels';
 import { getFeeBps, DEFAULT_FEE_BPS } from './fees';
 import { calculatePayout, calculateWeightedPayout } from './payout';
+import { TESTING_MODE, ACTIVE_BET_THRESHOLD, BET_MILESTONE_REWARD } from './testing';
 
 /* ─── Pool Serializer ─── */
 
@@ -233,6 +234,7 @@ export function serializeUserProfile(user: {
   totalBets: number;
   totalWins: number;
   totalWagered: bigint;
+  settledBets: number;
   currentStreak: number;
   bestStreak: number;
   referralCode: string | null;
@@ -313,6 +315,8 @@ export function serializeUserProfile(user: {
         totalBets: user.totalBets,
         totalWins: user.totalWins,
         totalRefunded: refunded,
+        // Farm-proof resolved-bet count — drives the 20-bet reward progress.
+        settledBets: user.settledBets,
         winRate: settled > 0
           ? ((user.totalWins / settled) * 100).toFixed(1)
           : '0.0',
@@ -326,6 +330,17 @@ export function serializeUserProfile(user: {
         bestStreak: user.bestStreak,
       };
     })(),
+    // Testing-campaign reward progress (null when the campaign is off) — drives
+    // the "X/20 predictions → 1000 UP" card on the profile.
+    testingReward: TESTING_MODE
+      ? {
+          type: 'bet_milestone',
+          threshold: ACTIVE_BET_THRESHOLD,
+          amount: Number(BET_MILESTONE_REWARD) / 100,
+          progress: Math.min(user.settledBets, ACTIVE_BET_THRESHOLD),
+          unlocked: user.settledBets >= ACTIVE_BET_THRESHOLD,
+        }
+      : null,
     createdAt: user.createdAt.toISOString(),
   };
 }

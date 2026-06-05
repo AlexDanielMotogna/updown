@@ -418,9 +418,19 @@ export interface UserProfile {
     volumeStaked?: string;
     /** Realized P&L from settled non-refund bets. Active stakes don't move it. */
     netPnl?: string;
+    /** Bets that reached a real resolution (drives the reward progress). */
+    settledBets?: number;
     currentStreak: number;
     bestStreak: number;
   };
+  /** Testing-campaign reward progress; null when the campaign is off. */
+  testingReward?: {
+    type: string;
+    threshold: number;
+    amount: number;
+    progress: number;
+    unlocked: boolean;
+  } | null;
   createdAt: string;
 }
 

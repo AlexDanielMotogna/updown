@@ -21,6 +21,7 @@ import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { PositionsTab } from '@/components/profile/PositionsTab';
 import { PnLChart } from '@/components/profile/PnLChart';
 import { ProfileStatsPanel } from '@/components/profile/ProfileStatsPanel';
+import { BetRewardProgress } from '@/components/profile/BetRewardProgress';
 
 /**
  * /profile - intentionally minimal. Identity header + P&L chart + the single
@@ -157,6 +158,9 @@ export default function MyBetsPage() {
       <Container maxWidth={false} sx={{ maxWidth: 1400, pb: { xs: 3, md: 6 }, pt: { xs: 2, md: 3 }, px: { xs: 2, md: 3 } }}>
         {connected && walletAddress && (
           <>
+            {/* Testing-campaign 20-bet reward progress */}
+            <BetRewardProgress reward={userProfile?.testingReward} />
+
             {/* Claim All Banner (manual fallback for payoutFailed bets) */}
             {hasClaimable && (
               <Box

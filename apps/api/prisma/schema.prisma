@@ -211,6 +211,10 @@ model User {
   /// Lifetime payout received from claims (winning + refund claims). Net
   /// profit = totalWon − totalWagered. Drives the leaderboard Profit board.
   totalWon     BigInt @default(0) @map("total_won")
+  /// Bets that reached a REAL resolution (win/loss, not refund). Farm-proof
+  /// "active user" counter — drives the 20-bet reward, milestone eligibility
+  /// and referral-prize validity. Incremented at normal resolution only.
+  settledBets  Int    @default(0) @map("settled_bets")
 
   // Streaks
   currentStreak  Int       @default(0) @map("current_streak")
@@ -253,6 +257,23 @@ model RewardLog {
   @@index([walletAddress, createdAt])
   @@index([rewardType])
   @@map("reward_logs")
+}
+
+/// One-time / per-key UP airdrops (20-bet reward, community milestones, …).
+/// The unique (wallet, type) makes every grant idempotent — safe to retry.
+model RewardGrant {
+  id            String   @id @default(uuid())
+  walletAddress String   @map("wallet_address")
+  /// e.g. 'BET_MILESTONE_20', 'COMMUNITY_MILESTONE_STONE'.
+  type          String
+  /// UP coins granted, in stored units (display = /100).
+  amount        BigInt
+  meta          Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@unique([walletAddress, type])
+  @@index([type])
+  @@map("reward_grants")
 }
 
 model EmissionConfig {

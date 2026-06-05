@@ -8,6 +8,7 @@ import {
 } from '../utils/coins';
 import { emitUserReward } from '../websocket';
 import { ensureReferralCode } from './referrals';
+import { TESTING_MODE, ACTIVE_BET_THRESHOLD, BET_MILESTONE_REWARD, BET_MILESTONE_TYPE } from '../utils/testing';
 
 /** Check if two dates are the same calendar day (UTC). */
 function isSameDay(a: Date, b: Date): boolean {
@@ -130,6 +131,7 @@ export async function awardBetResolution(walletAddress: string): Promise<void> {
     const newTotalXp = user.totalXp + totalXpAward;
     let newLevel = getLevelForXp(newTotalXp);
     let didLevelUp = newLevel > user.level;
+    let newSettledBets = user.settledBets;
 
     await prisma.$transaction(async (tx) => {
       const updated = await tx.user.update({
@@ -137,8 +139,11 @@ export async function awardBetResolution(walletAddress: string): Promise<void> {
         data: {
           totalXp: { increment: totalXpAward },
           level: newLevel,
+          // Farm-proof activity counter — only real resolutions reach here.
+          settledBets: { increment: 1 },
         },
       });
+      newSettledBets = updated.settledBets;
 
       // Reconcile level against the authoritative post-increment XP total (same
       // pattern as the claim/referral awards) to avoid the stored level lagging
@@ -191,9 +196,54 @@ export async function awardBetResolution(walletAddress: string): Promise<void> {
       totalXp: Number(newTotalXp),
       xpToNextLevel: Number(getXpForLevel(newLevel + 1) - newTotalXp),
     });
+
+    // Testing campaign: one-time 1000 UP at 20 real resolutions. Idempotent.
+    grantBetMilestoneReward(walletAddress, newSettledBets)
+      .catch(e => console.warn('[Rewards] bet-milestone grant failed:', e instanceof Error ? e.message : e));
   } catch (error) {
     console.error('[Rewards] awardBetResolution failed:', error);
   }
+}
+
+/**
+ * Grant the one-time 20-bet UP reward once the wallet hits ACTIVE_BET_THRESHOLD
+ * real resolutions. Idempotent via the unique RewardGrant (wallet, type) —
+ * safe to call on every resolution.
+ */
+export async function grantBetMilestoneReward(walletAddress: string, settledBets: number): Promise<void> {
+  if (!TESTING_MODE || settledBets < ACTIVE_BET_THRESHOLD) return;
+  try {
+    await prisma.rewardGrant.create({
+      data: { walletAddress, type: BET_MILESTONE_TYPE, amount: BET_MILESTONE_REWARD },
+    });
+  } catch (e) {
+    if ((e as { code?: string }).code === 'P2002') return; // already granted
+    throw e;
+  }
+  const u = await prisma.user.update({
+    where: { walletAddress },
+    data: {
+      coinsBalance: { increment: BET_MILESTONE_REWARD },
+      coinsLifetime: { increment: BET_MILESTONE_REWARD },
+    },
+  });
+  await prisma.eventLog.create({
+    data: {
+      eventType: 'REWARD_BET_MILESTONE',
+      entityType: 'user',
+      entityId: walletAddress,
+      payload: { amount: BET_MILESTONE_REWARD.toString(), settledBets },
+    },
+  }).catch(() => { /* best-effort audit */ });
+  emitUserReward(walletAddress, {
+    xp: 0,
+    coins: Number(BET_MILESTONE_REWARD),
+    level: u.level,
+    levelUp: false,
+    totalXp: Number(u.totalXp),
+    xpToNextLevel: Number(getXpForLevel(u.level + 1) - u.totalXp),
+    reason: 'bet_milestone',
+  });
 }
 
 /**
