@@ -17,7 +17,7 @@ export const NOTIFICATION_DEFS: Record<NotificationType, NotificationDef> = {
     build: (ctx) => ({
       title: 'You won',
       message: ctx.net
-        ? `${ctx.asset ?? 'Pool'} settled — net ${ctx.net}`
+        ? `${ctx.asset ?? 'Pool'} settled — PnL ${ctx.net}`
         : `${ctx.asset ?? 'Asset'}/USD ${ctx.interval ?? ''}  Collect your winnings`,
     }),
   },
@@ -29,7 +29,7 @@ export const NOTIFICATION_DEFS: Record<NotificationType, NotificationDef> = {
     build: (ctx) => ({
       title: 'Pool settled',
       message: ctx.net
-        ? `${ctx.asset ?? 'Pool'} settled — net ${ctx.net}`
+        ? `${ctx.asset ?? 'Pool'} settled — PnL ${ctx.net}`
         : `${ctx.asset ?? 'Asset'}/USD ${ctx.interval ?? ''}  Prediction was incorrect`,
     }),
   },

@@ -132,6 +132,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
   // Bets ordered the same way for the dropdown.
   const orderedBets = [...bets].sort((a, b) => SIDE_ORDER[a.side] - SIDE_ORDER[b.side]);
   const isHedged = userSides.length > 1;
+  const netBySide = new Map(scenarios.map(s => [s.side, s.net]));
 
   // ── Special states (still relevant; net replaces only won/lost) ────────
   const allRefunded = bets.length > 0 && bets.every(b =>
@@ -182,7 +183,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
     } else {
       const pos = netClosed >= 0;
       headChip = {
-        label: `Net ${fmtSigned(netClosed)}`,
+        label: `PnL ${fmtSigned(netClosed)}`,
         color: pos ? t.gain : t.down,
         bg: withAlpha(pos ? t.gain : t.down, 0.12),
         icon: pos ? <CheckCircle sx={{ fontSize: 14 }} /> : <Cancel sx={{ fontSize: 14 }} />,
@@ -218,7 +219,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
       }}>
         {marketImage ? (
           <Box component="img" src={marketImage} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        ) : isPM ? pmIcon : <AssetIcon asset={pool.asset} size={24} />}
+        ) : isPM ? pmIcon : <AssetIcon asset={pool.asset} size={40} />}
       </Box>
       <Box sx={{ minWidth: 0 }}>
         <Link href={poolLink} style={{ textDecoration: 'none', color: 'inherit' }} onClick={stopToggle}>
@@ -322,7 +323,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
           Side · stake
         </Typography>
         <Typography sx={{ fontSize: '0.62rem', fontWeight: 800, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-          {isActive ? 'To win (gross)' : 'Result'}
+          {isActive ? 'If this side wins' : 'Result'}
         </Typography>
       </Box>
       {orderedBets.map(b => {
@@ -346,8 +347,11 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, textAlign: 'right' }}>
               {isActive ? (
-                <Typography sx={{ fontSize: '0.78rem', fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
-                  {fmtMicro(potential)}
+                <Typography sx={{ fontSize: '0.76rem', fontWeight: 700, color: t.text.secondary, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                  you receive {fmtMicro(potential)}
+                  <Box component="span" sx={{ color: (netBySide.get(b.side) ?? 0) >= 0 ? t.gain : t.down, fontWeight: 800, ml: 0.6 }}>
+                    (PnL {fmtSigned(netBySide.get(b.side) ?? 0)})
+                  </Box>
                 </Typography>
               ) : (
                 <>
@@ -379,7 +383,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mt: 0.5 }}>
           {isActive && isHedged ? (
             <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.text.primary }}>
-              Only one side can win — the headline shows your net for each outcome.
+              Only one side can win — the headline shows your PnL for each outcome.
             </Typography>
           ) : <Box />}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
