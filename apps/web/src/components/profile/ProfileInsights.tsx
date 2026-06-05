@@ -4,6 +4,8 @@ import { useMemo } from 'react';
 import { Box, Typography } from '@mui/material';
 import { LocalFireDepartment, ShowChart, MilitaryTech, Leaderboard } from '@mui/icons-material';
 import { useThemeTokens } from '@/app/providers';
+import { withAlpha } from '@/lib/theme';
+import { computePredictionScore, getTier } from '@/lib/predictionScore';
 import type { Bet } from '@/lib/api';
 
 /** Minimal shape of the fields we read off the profile aggregate. */
@@ -16,6 +18,8 @@ interface InsightsProfile {
     totalWagered?: string | number | null;
     volumeStaked?: string | number | null;
     winRate?: string | number | null;
+    totalBets?: number | null;
+    bestStreak?: number | null;
   } | null;
 }
 
@@ -68,6 +72,17 @@ export function ProfileInsights({ bets, profile }: Props) {
 
   const roiColor = roi >= 0 ? t.gain : t.down;
 
+  // Prediction Score — ELO-style competitive rating (see lib/predictionScore).
+  const score = computePredictionScore({
+    winRate,
+    roi,
+    totalBets: num(profile?.stats?.totalBets),
+    bestStreak: num(profile?.stats?.bestStreak),
+  });
+  const tier = getTier(score);
+  const tierColors = [t.text.tertiary, t.info, t.gain, t.prediction, t.gold, t.gold];
+  const tierColor = tierColors[tier.level] ?? t.text.secondary;
+
   const rank = profile?.rank ?? null;
   const totalUsers = profile?.totalUsers ?? null;
   const percentile = rank && totalUsers && totalUsers >= 25
@@ -109,6 +124,30 @@ export function ProfileInsights({ bets, profile }: Props) {
       <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: t.text.primary }}>
         Insights
       </Typography>
+
+      {/* Featured: Prediction Score (ELO-style rating) + tier. */}
+      <Box sx={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1,
+        px: 1.5, py: 1.25, borderRadius: 1.5,
+        bgcolor: withAlpha(tierColor, 0.1), border: `1px solid ${withAlpha(tierColor, 0.35)}`,
+      }}>
+        <Box>
+          <Typography sx={{ fontSize: '0.62rem', fontWeight: 800, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Prediction Score
+          </Typography>
+          <Typography sx={{ fontSize: '1.6rem', fontWeight: 900, color: t.text.primary, fontVariantNumeric: 'tabular-nums', lineHeight: 1.05 }}>
+            {score}
+          </Typography>
+        </Box>
+        <Box sx={{
+          px: 1.25, py: 0.5, borderRadius: 1, flexShrink: 0,
+          bgcolor: withAlpha(tierColor, 0.18), border: `1px solid ${withAlpha(tierColor, 0.5)}`,
+        }}>
+          <Typography sx={{ fontSize: '0.82rem', fontWeight: 900, color: tierColor, letterSpacing: 0.3 }}>
+            {tier.label}
+          </Typography>
+        </Box>
+      </Box>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1 }}>
         {tiles.map(tile => (
           <Box
