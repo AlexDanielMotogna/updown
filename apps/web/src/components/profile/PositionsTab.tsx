@@ -108,19 +108,17 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim }: Posi
         />
       </Box>
 
-      {/* Column headers (desktop only). Active shows a scenario split instead
-          of a single payout; Closed leads with the net-result chip. */}
+      {/* Column headers (desktop only). Active shows a PnL-per-scenario split;
+          Closed shows total payout with its PnL delta (no separate Result
+          column — that was duplicate). */}
       <Box sx={{
         display: { xs: 'none', md: 'grid' },
         gridTemplateColumns: sub === 'active'
-          ? '1fr 120px 200px 40px'
-          : '150px 1fr 110px 150px 40px',
+          ? '1fr 120px 210px 40px'
+          : '1fr 120px 170px 40px',
         gap: 2, px: 2, py: 1, mb: 0.5,
         borderBottom: `1px solid ${t.border.subtle}`,
       }}>
-        {sub !== 'active' && (
-          <Typography sx={{ fontSize: '0.7rem', color: t.text.secondary, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>Result</Typography>
-        )}
         <Typography sx={{ fontSize: '0.7rem', color: t.text.secondary, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>Market</Typography>
         <Typography sx={{ fontSize: '0.7rem', color: t.text.secondary, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' }}>Stake</Typography>
         <Typography sx={{ fontSize: '0.7rem', color: t.text.secondary, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' }}>

@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Box, Typography, Chip, Button, CircularProgress, Skeleton, Collapse } from '@mui/material';
+import { Box, Typography, Button, CircularProgress, Skeleton, Collapse } from '@mui/material';
 import {
-  CheckCircle, Cancel, Refresh, AccessTime, OpenInNew, ExpandMore,
+  CheckCircle, Cancel, OpenInNew, ExpandMore,
   Gavel, Public, TheaterComedy, AccountBalance, TrendingUp,
 } from '@mui/icons-material';
 import Link from 'next/link';
@@ -175,42 +175,25 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
       ? { label: 'Deposit tx', sig: txBet.depositTx }
       : null;
 
-  // ── Headline (closed): net chip, unless a special state pre-empts it ───
-  let headChip: { label: string; color: string; bg: string; icon: React.ReactNode } | null = null;
-  if (!isActive) {
-    if (anyFailed) {
-      headChip = { label: 'Claim manually', color: t.down, bg: withAlpha(t.down, 0.12), icon: <Refresh sx={{ fontSize: 14 }} /> };
-    } else if (anyPending) {
-      headChip = { label: 'Paying soon', color: t.text.secondary, bg: t.hover.medium, icon: <AccessTime sx={{ fontSize: 14 }} /> };
-    } else if (allRefunded) {
-      headChip = { label: 'Refunded', color: t.info, bg: 'rgba(59,130,246,0.12)', icon: <Refresh sx={{ fontSize: 14 }} /> };
-    } else {
-      const pos = netClosed >= 0;
-      headChip = {
-        label: `PnL ${fmtSigned(netClosed)}`,
-        color: pos ? t.gain : t.down,
-        bg: withAlpha(pos ? t.gain : t.down, 0.12),
-        icon: pos ? <CheckCircle sx={{ fontSize: 14 }} /> : <Cancel sx={{ fontSize: 14 }} />,
-      };
-    }
-  }
-
   const stopToggle = (e: React.MouseEvent) => e.stopPropagation();
 
   // ── Cells ──────────────────────────────────────────────────────────────
-  const headChipEl = headChip && (
-    <Chip
-      icon={headChip.icon as React.ReactElement}
-      label={headChip.label}
+  // Claim button for the (rare) auto-payout-failed bet — shown inline in the
+  // payout cell so the row is actionable without expanding.
+  const claimBtn = anyFailed && failedBet && onClaim ? (
+    <Button
       size="small"
+      onClick={(e) => { stopToggle(e); onClaim(pool.id, failedBet.id); }}
+      disabled={isClaiming && claimingBetId === failedBet.id}
       sx={{
-        height: 22, fontSize: '0.72rem', fontWeight: 800,
-        bgcolor: headChip.bg, color: headChip.color, borderRadius: '4px',
-        '& .MuiChip-icon': { color: 'inherit', ml: 0.5 },
-        '& .MuiChip-label': { px: 0.75 },
+        minWidth: 0, px: 1.5, py: 0.25, fontSize: '0.72rem', fontWeight: 800,
+        bgcolor: t.gain, color: t.text.contrast, borderRadius: '4px', textTransform: 'none',
+        '&:hover': { bgcolor: t.gain, filter: 'brightness(1.15)' },
       }}
-    />
-  );
+    >
+      {isClaiming && claimingBetId === failedBet.id ? <CircularProgress size={12} sx={{ color: 'inherit' }} /> : 'Claim'}
+    </Button>
+  ) : null;
 
   const marketCell = (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
@@ -274,10 +257,14 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
     </Box>
   );
 
-  // Closed headline payout: total payout + net delta.
+  // Closed payout cell — total payout + PnL delta (this IS the result, so the
+  // old separate "Result" column was dropped as duplicate). Special states
+  // (failed / pending / refunded) take over the cell when they apply.
   const payoutCell = (
     <Box sx={{ textAlign: 'right' }}>
-      {anyPending ? (
+      {claimBtn ? (
+        claimBtn
+      ) : anyPending ? (
         <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: t.text.secondary, fontStyle: 'italic' }}>
           Paying soon…
         </Typography>
@@ -286,29 +273,18 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
           <Typography sx={{ fontSize: '1rem', fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
             {fmtMicro(totalPayout)}
           </Typography>
-          <Typography sx={{ fontSize: '0.74rem', fontWeight: 700, color: netClosed >= 0 ? t.gain : t.down, fontVariantNumeric: 'tabular-nums' }}>
-            {fmtSigned(netClosed)} ({netPct.toFixed(1)}%)
-          </Typography>
+          {allRefunded ? (
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: t.info }}>refunded</Typography>
+          ) : (
+            <Typography sx={{ fontSize: '0.74rem', fontWeight: 800, color: netClosed >= 0 ? t.gain : t.down, fontVariantNumeric: 'tabular-nums' }}>
+              PnL {fmtSigned(netClosed)} ({netPct.toFixed(1)}%)
+            </Typography>
+          )}
         </>
       ) : (
         <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: t.text.secondary }}>-</Typography>
       )}
     </Box>
-  );
-
-  const claimBtn = anyFailed && failedBet && onClaim && (
-    <Button
-      size="small"
-      onClick={(e) => { stopToggle(e); onClaim(pool.id, failedBet.id); }}
-      disabled={isClaiming && claimingBetId === failedBet.id}
-      sx={{
-        minWidth: 0, px: 1.5, py: 0.25, fontSize: '0.72rem', fontWeight: 800,
-        bgcolor: t.gain, color: t.text.contrast, borderRadius: '4px', textTransform: 'none',
-        '&:hover': { bgcolor: t.gain, filter: 'brightness(1.15)' },
-      }}
-    >
-      {isClaiming && claimingBetId === failedBet.id ? <CircularProgress size={12} sx={{ color: 'inherit' }} /> : 'Claim'}
-    </Button>
   );
 
   const chevron = (
@@ -420,48 +396,42 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
       transition: 'background 0.12s ease, border-color 0.12s ease',
       '&:hover': { background: t.hover.default, borderColor: t.border.medium },
     }}>
-      {/* ── Desktop collapsed header ── */}
+      {/* ── Desktop collapsed header — no Result column (PnL lives in Payout). ── */}
       <Box
         onClick={() => setExpanded(e => !e)}
         sx={{
           display: { xs: 'none', md: 'grid' },
-          gridTemplateColumns: isActive ? '1fr 120px 200px 40px' : '150px 1fr 110px 150px 40px',
+          gridTemplateColumns: isActive ? '1fr 120px 210px 40px' : '1fr 120px 170px 40px',
           alignItems: 'center', gap: 2, px: 2, py: 1.5, cursor: 'pointer',
         }}
       >
-        {!isActive && <Box sx={{ display: 'flex', alignItems: 'center' }}>{headChipEl}</Box>}
         {marketCell}
         {stakeCell}
         {isActive ? scenarioCell : payoutCell}
         <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>{chevron}</Box>
       </Box>
 
-      {/* ── Mobile collapsed header ── */}
-      <Box
-        onClick={() => setExpanded(e => !e)}
-        sx={{ display: { xs: 'flex', md: 'none' }, alignItems: 'center', justifyContent: 'space-between', gap: 1, px: 1.5, py: 1.5, cursor: 'pointer' }}
-      >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, minWidth: 0, flex: 1 }}>
-          {!isActive && headChipEl && <Box>{headChipEl}</Box>}
-          {marketCell}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 0.25 }}>
-            <Typography sx={{ fontSize: '0.74rem', fontWeight: 700, color: t.text.secondary }}>
-              Stake {fmtMicro(totalStake)}
+      {/* ── Mobile collapsed header — market on top, stake / result row below. ── */}
+      <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+        <Box
+          onClick={() => setExpanded(e => !e)}
+          sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, pt: 1.5, pb: 1, cursor: 'pointer' }}
+        >
+          <Box sx={{ flex: 1, minWidth: 0 }}>{marketCell}</Box>
+          {chevron}
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 1, px: 1.5, pb: 1.5 }}>
+          <Box>
+            <Typography sx={{ fontSize: '0.62rem', fontWeight: 800, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Stake</Typography>
+            <Typography sx={{ fontSize: '0.95rem', fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>{fmtMicro(totalStake)}</Typography>
+          </Box>
+          <Box sx={{ textAlign: 'right' }}>
+            <Typography sx={{ fontSize: '0.62rem', fontWeight: 800, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              {isActive ? 'PnL if win' : 'Payout'}
             </Typography>
-            {isActive
-              ? scenarios.map(s => (
-                  <Typography key={s.side} sx={{ fontSize: '0.74rem', fontWeight: 700, color: s.net >= 0 ? t.gain : t.down, fontVariantNumeric: 'tabular-nums' }}>
-                    {sideLabel(s.side, pool)} {fmtSigned(s.net)}
-                  </Typography>
-                ))
-              : totalPayout > 0 && (
-                  <Typography sx={{ fontSize: '0.74rem', fontWeight: 700, color: netClosed >= 0 ? t.gain : t.down, fontVariantNumeric: 'tabular-nums' }}>
-                    {fmtSigned(netClosed)} ({netPct.toFixed(1)}%)
-                  </Typography>
-                )}
+            {isActive ? scenarioCell : payoutCell}
           </Box>
         </Box>
-        {chevron}
       </Box>
 
       <Collapse in={expanded} timeout={180} unmountOnExit>{dropdown}</Collapse>
@@ -474,11 +444,10 @@ export function PoolPositionRowSkeleton() {
   return (
     <Box sx={{
       display: 'grid',
-      gridTemplateColumns: { xs: '1fr', md: '150px 1fr 110px 150px 40px' },
+      gridTemplateColumns: { xs: '1fr', md: '1fr 120px 170px 40px' },
       alignItems: 'center', gap: 2, px: 2, py: 1.5,
       bgcolor: t.bg.surfaceAlt, border: `1px solid ${t.border.subtle}`, borderRadius: 1, mb: 1,
     }}>
-      <Skeleton variant="rounded" width={80} height={22} sx={{ bgcolor: t.hover.default, borderRadius: '4px' }} />
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
         <Skeleton variant="circular" width={36} height={36} sx={{ bgcolor: t.hover.default }} />
         <Box sx={{ flex: 1 }}>
