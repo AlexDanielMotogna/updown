@@ -29,13 +29,6 @@ import { UserLevelBadge } from '../UserLevelBadge';
 import { GAIN_COLOR, ACCENT_COLOR, DOWN_COLOR } from '@/lib/constants';
 import { useThemeTokens } from '@/app/providers';
 
-const SEVERITY_COLORS: Record<NotificationSeverity, string> = {
-  success: GAIN_COLOR,
-  info: ACCENT_COLOR,
-  warning: ACCENT_COLOR,
-  error: DOWN_COLOR,
-};
-
 function getSeverityIcon(severity: NotificationSeverity, type: string) {
   if (type === 'POOL_WON' || type === 'POOL_CLAIMABLE' || type === 'BET_PAID')
     return <EmojiEvents sx={{ fontSize: 18, color: GAIN_COLOR }} />;
@@ -208,7 +201,6 @@ export function NotificationPanel() {
                           px: 2,
                           py: 1.5,
                           cursor: n.poolId ? 'pointer' : 'default',
-                          borderLeft: `3px solid ${SEVERITY_COLORS[n.severity]}`,
                           opacity: n.dismissed ? 0.45 : 1,
                           transition: 'background 0.15s',
                           '&:hover': n.poolId
