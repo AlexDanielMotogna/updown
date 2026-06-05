@@ -67,12 +67,19 @@ export function LevelMilestones({ userProfile }: LevelMilestonesProps) {
   return (
     <Box
       sx={{
-        display: 'grid',
-        // 9 tiers fit nicely on desktop; on small screens we wrap so a
-        // phone reader can still see every milestone without horizontal
-        // scroll. minmax(80px, 1fr) keeps the cards square-ish.
-        gridTemplateColumns: { xs: 'repeat(4, 1fr)', sm: 'repeat(5, 1fr)', md: 'repeat(9, 1fr)' },
-        gap: { xs: 1, md: 1.25 },
+        // Desktop: the 9 tiers fit in a single grid row. Mobile: they don't,
+        // so swap to a horizontal scroll slider (scrollbar already hidden
+        // globally in providers). Each badge keeps a fixed width and never
+        // shrinks, so the row scrolls instead of squashing.
+        display: { xs: 'flex', md: 'grid' },
+        gridTemplateColumns: { md: 'repeat(9, 1fr)' },
+        gap: { xs: 1.5, md: 1.25 },
+        overflowX: { xs: 'auto', md: 'visible' },
+        flexWrap: 'nowrap',
+        scrollSnapType: { xs: 'x proximity', md: 'none' },
+        WebkitOverflowScrolling: 'touch',
+        '&::-webkit-scrollbar': { display: 'none' },
+        scrollbarWidth: 'none',
       }}
     >
       {milestones.map((m) => {
@@ -121,6 +128,10 @@ export function LevelMilestones({ userProfile }: LevelMilestonesProps) {
                 gap: 0.25,
                 px: 0.5,
                 py: 0.5,
+                // Fixed width + no shrink on mobile so the row scrolls.
+                flexShrink: 0,
+                width: { xs: 62, md: 'auto' },
+                scrollSnapAlign: { xs: 'start', md: 'none' },
                 transition: 'transform 0.1s',
                 cursor: 'help',
                 '&:hover': { transform: 'translateY(-2px)' },
