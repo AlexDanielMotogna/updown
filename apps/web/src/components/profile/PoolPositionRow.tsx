@@ -55,6 +55,7 @@ interface PoolPositionRowProps {
 }
 
 const FEE_FACTOR = 0.95; // matches the 5% payout fee used elsewhere in the UI
+const SIDE_ORDER: Record<string, number> = { UP: 0, DOWN: 1, DRAW: 2 };
 
 function sideLabel(side: Bet['side'], pool: Bet['pool']): string {
   const isPM = pool.league?.startsWith('PM_');
@@ -121,12 +122,16 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
   };
 
   // Scenario split (active): for each side the user holds, the NET if that
-  // side wins (its bets pay out, the others are lost).
-  const userSides = [...new Set(bets.map(b => b.side))];
+  // side wins (its bets pay out, the others are lost). Ordered Up→Down→Draw
+  // so the rows read consistently regardless of bet order.
+  const userSides = [...new Set(bets.map(b => b.side))].sort((a, b) => SIDE_ORDER[a] - SIDE_ORDER[b]);
   const scenarios = userSides.map(side => {
     const winSidePayout = bets.filter(b => b.side === side).reduce((a, b) => a + grossIfWin(b), 0);
     return { side, net: winSidePayout - totalStake };
   });
+  // Bets ordered the same way for the dropdown.
+  const orderedBets = [...bets].sort((a, b) => SIDE_ORDER[a.side] - SIDE_ORDER[b.side]);
+  const isHedged = userSides.length > 1;
 
   // ── Special states (still relevant; net replaces only won/lost) ────────
   const allRefunded = bets.length > 0 && bets.every(b =>
@@ -247,16 +252,18 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
     </Typography>
   );
 
-  // Active headline: the scenario split.
+  // Active headline: the scenario split — net P&L per possible winning side.
   const scenarioCell = (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.15, alignItems: 'flex-end' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.2, alignItems: 'flex-end' }}>
       {scenarios.map(s => (
-        <Typography key={s.side} sx={{ fontSize: '0.74rem', fontWeight: 700, color: t.text.tertiary, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-          If {sideLabel(s.side, pool)}{' '}
-          <Box component="span" sx={{ color: s.net >= 0 ? t.gain : t.down, fontWeight: 800 }}>
+        <Box key={s.side} sx={{ display: 'flex', alignItems: 'baseline', gap: 0.6, justifyContent: 'flex-end' }}>
+          <Typography sx={{ fontSize: '0.68rem', fontWeight: 600, color: t.text.quaternary, whiteSpace: 'nowrap' }}>
+            {sideLabel(s.side, pool)} wins
+          </Typography>
+          <Typography sx={{ fontSize: '0.8rem', fontWeight: 800, color: s.net >= 0 ? t.gain : t.down, fontVariantNumeric: 'tabular-nums', minWidth: 64, textAlign: 'right' }}>
             {fmtSigned(s.net)}
-          </Box>
-        </Typography>
+          </Typography>
+        </Box>
       ))}
       {scenarios.length === 0 && <Typography sx={{ color: t.text.quaternary }}>-</Typography>}
     </Box>
@@ -309,10 +316,18 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
   // ── Dropdown: per-side breakdown ───────────────────────────────────────
   const dropdown = (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, px: { xs: 1.5, md: 2 }, pb: 1.5, pt: 1, borderTop: `1px solid ${t.border.subtle}` }}>
-      {bets.map(b => {
+      {/* Per-side column labels so the numbers are self-explanatory. */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+        <Typography sx={{ fontSize: '0.62rem', fontWeight: 800, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          Side · stake
+        </Typography>
+        <Typography sx={{ fontSize: '0.62rem', fontWeight: 800, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          {isActive ? 'To win (gross)' : 'Result'}
+        </Typography>
+      </Box>
+      {orderedBets.map(b => {
         const stake = Number(b.amount);
         const potential = grossIfWin(b);
-        const potentialPct = stake > 0 ? ((potential - stake) / stake) * 100 : 0;
         const won = b.isWinner === true;
         const lost = b.isWinner === false;
         const paid = b.payoutAmount ? Number(b.payoutAmount) : null;
@@ -331,11 +346,8 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, textAlign: 'right' }}>
               {isActive ? (
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: t.text.tertiary, fontVariantNumeric: 'tabular-nums' }}>
-                  if wins ~{fmtMicro(potential)}{' '}
-                  <Box component="span" sx={{ color: potentialPct >= 0 ? t.gain : t.down }}>
-                    ({potentialPct >= 0 ? '+' : ''}{potentialPct.toFixed(0)}%)
-                  </Box>
+                <Typography sx={{ fontSize: '0.78rem', fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
+                  {fmtMicro(potential)}
                 </Typography>
               ) : (
                 <>
@@ -362,6 +374,12 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
           </Box>
         );
       })}
+
+      {isActive && isHedged && (
+        <Typography sx={{ fontSize: '0.66rem', fontWeight: 500, color: t.text.quaternary, fontStyle: 'italic', mt: 0.25 }}>
+          Only one side can win — the headline shows your net for each outcome.
+        </Typography>
+      )}
 
       {(txLink || claimBtn) && (
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1, mt: 0.25 }}>

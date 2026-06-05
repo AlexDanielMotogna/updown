@@ -124,7 +124,7 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim }: Posi
         <Typography sx={{ fontSize: '0.7rem', color: t.text.secondary, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>Market</Typography>
         <Typography sx={{ fontSize: '0.7rem', color: t.text.secondary, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' }}>Stake</Typography>
         <Typography sx={{ fontSize: '0.7rem', color: t.text.secondary, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' }}>
-          {sub === 'active' ? 'If win' : 'Payout'}
+          {sub === 'active' ? 'Net if win' : 'Payout'}
         </Typography>
         <Box />
       </Box>
