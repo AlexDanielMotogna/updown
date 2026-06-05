@@ -42,21 +42,19 @@ export function getLevelForXp(totalXp: bigint): number {
   return 1;
 }
 
-// Level titles (14 titles mapped across 40 levels)
+// Level titles — one per 5-level band, aligned exactly with the milestone
+// strip shown on the profile (levels 1,5,10,…,40). A level only earns the
+// next title when it reaches that milestone (e.g. level 3 is still Newcomer;
+// Observer starts at level 5).
 const LEVEL_TITLES: [number, string][] = [
   [1, 'Newcomer'],
-  [3, 'Observer'],
-  [6, 'Speculator'],
-  [9, 'Analyst'],
-  [12, 'Trader'],
-  [16, 'Oracle'],
+  [5, 'Observer'],
+  [10, 'Analyst'],
+  [15, 'Trader'],
   [20, 'Veteran'],
-  [24, 'Expert'],
-  [28, 'Legend'],
-  [32, 'Mythic'],
+  [25, 'Expert'],
+  [30, 'Legend'],
   [35, 'Titan'],
-  [37, 'Immortal'],
-  [39, 'Paragon'],
   [40, 'Apex Legend'],
 ];
 
@@ -71,14 +69,16 @@ export function getLevelTitle(level: number): string {
  * Earning multiplier for UP Coins based on level.
  */
 export function getLevelMultiplier(level: number): number {
-  if (level <= 5) return 1.0;
-  if (level <= 10) return 1.1;
-  if (level <= 15) return 1.2;
-  if (level <= 20) return 1.35;
-  if (level <= 25) return 1.5;
-  if (level <= 30) return 1.7;
-  if (level <= 35) return 1.9;
-  return 2.0; // 36-40
+  // Bands aligned with the milestone strip: the bonus only steps up AT each
+  // milestone level (e.g. levels 5-9 stay at 1.0x; 1.1x starts at level 10).
+  if (level < 10) return 1.0;   // 1-9
+  if (level < 15) return 1.1;   // 10-14
+  if (level < 20) return 1.2;   // 15-19
+  if (level < 25) return 1.35;  // 20-24
+  if (level < 30) return 1.5;   // 25-29
+  if (level < 35) return 1.7;   // 30-34
+  if (level < 40) return 1.9;   // 35-39
+  return 2.0;                   // 40
 }
 
 /**

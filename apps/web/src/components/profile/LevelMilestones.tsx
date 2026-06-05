@@ -24,17 +24,24 @@ interface LevelMilestonesProps {
   userProfile: UserProfile | null | undefined;
 }
 
+// The tooltip box stays dark in both themes, so its text uses fixed
+// light-on-dark colours (theme text tokens flip to dark in light mode and
+// would vanish against the dark tooltip).
+const TT_MUTED = 'rgba(255,255,255,0.6)';
+const TT_TEXT = 'rgba(255,255,255,0.95)';
+const TT_BORDER = 'rgba(255,255,255,0.12)';
+const TT_GOOD = '#4ade80';
+
 /** One label/value row inside a milestone tooltip. */
-function MetaRow({ label, value, valueColor, t }: {
+function MetaRow({ label, value, valueColor }: {
   label: string;
   value: string;
   valueColor?: string;
-  t: ReturnType<typeof useThemeTokens>;
 }) {
   return (
     <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2.5, py: 0.2 }}>
-      <Typography sx={{ fontSize: '0.7rem', color: t.text.tertiary }}>{label}</Typography>
-      <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: valueColor ?? t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
+      <Typography sx={{ fontSize: '0.7rem', color: TT_MUTED }}>{label}</Typography>
+      <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: valueColor ?? TT_TEXT, fontVariantNumeric: 'tabular-nums' }}>
         {value}
       </Typography>
     </Box>
@@ -101,19 +108,19 @@ export function LevelMilestones({ userProfile }: LevelMilestonesProps) {
             }}
             title={
               <Box sx={{ minWidth: 150 }}>
-                <Typography sx={{ fontSize: '0.82rem', fontWeight: 800, color: m.unlocked ? tierColor : t.text.secondary, lineHeight: 1.2 }}>
+                <Typography sx={{ fontSize: '0.82rem', fontWeight: 800, color: m.unlocked ? tierColor : TT_TEXT, lineHeight: 1.2 }}>
                   {m.title}
                 </Typography>
-                <Typography sx={{ fontSize: '0.66rem', fontWeight: 600, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5, mb: 0.75 }}>
+                <Typography sx={{ fontSize: '0.66rem', fontWeight: 600, color: TT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, mb: 0.75 }}>
                   Level {m.level}
                 </Typography>
-                <Box sx={{ borderTop: `1px solid ${t.border.subtle}`, pt: 0.6 }}>
-                  <MetaRow t={t} label="Status" value={m.unlocked ? 'Unlocked' : 'Locked'} valueColor={m.unlocked ? t.gain : t.text.secondary} />
+                <Box sx={{ borderTop: `1px solid ${TT_BORDER}`, pt: 0.6 }}>
+                  <MetaRow label="Status" value={m.unlocked ? 'Unlocked' : 'Locked'} valueColor={m.unlocked ? TT_GOOD : TT_TEXT} />
                   {!m.unlocked && (
-                    <MetaRow t={t} label="XP required" value={Number(m.xpRequired).toLocaleString()} />
+                    <MetaRow label="XP required" value={Number(m.xpRequired).toLocaleString()} />
                   )}
-                  <MetaRow t={t} label="Trading fee" value={`${m.feePercent}%`} />
-                  <MetaRow t={t} label="Coin bonus" value={`${m.coinMultiplier}x`} />
+                  <MetaRow label="Trading fee" value={`${m.feePercent}%`} />
+                  <MetaRow label="Coin bonus" value={`${m.coinMultiplier}x`} />
                 </Box>
               </Box>
             }

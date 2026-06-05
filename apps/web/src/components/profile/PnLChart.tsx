@@ -341,7 +341,7 @@ export function PnLChart({ bets }: PnLChartProps) {
                   bgcolor: 'rgba(8,13,22,0.92)', border: `1px solid ${t.border.medium}`,
                   backdropFilter: 'blur(8px)', boxShadow: '0 6px 18px rgba(0,0,0,0.45)',
                 }}>
-                  <Typography sx={{ fontSize: '0.6rem', color: t.text.quaternary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                  <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.6)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>
                     {new Date(hover.t).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                   </Typography>
                   <Typography sx={{ fontSize: '0.9rem', fontWeight: 800, color: hp ? t.gain : t.down, fontVariantNumeric: 'tabular-nums' }}>
