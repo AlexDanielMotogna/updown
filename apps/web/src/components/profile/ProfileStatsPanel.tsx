@@ -65,11 +65,18 @@ export function ProfileStatsPanel({ userProfile }: Props) {
   ];
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, height: '100%' }}>
+    <Box sx={{
+      // Desktop: vertical column beside the chart. Mobile: a compact 2×2 grid
+      // below it (4 tall stacked boxes wasted vertical space).
+      display: { xs: 'grid', md: 'flex' },
+      gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'none' },
+      flexDirection: { md: 'column' },
+      gap: 1, height: '100%',
+    }}>
       {tiles.map(tile => (
         <Tooltip key={tile.label} arrow placement="left" title={tile.tip}>
           <Box sx={{
-            flex: 1, minHeight: 56, display: 'flex', flexDirection: 'column', justifyContent: 'center',
+            flex: { md: 1 }, minHeight: 56, display: 'flex', flexDirection: 'column', justifyContent: 'center',
             px: 1.5, py: 1, borderRadius: 1.5,
             bgcolor: t.bg.surfaceAlt, border: `1px solid ${t.border.subtle}`, cursor: 'help',
           }}>
