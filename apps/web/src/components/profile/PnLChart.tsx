@@ -65,6 +65,10 @@ export function PnLChart({ bets }: PnLChartProps) {
   // this ref so 1D/1W show clock times and longer ranges show dates.
   const rangeRef = useRef<Range>(range);
   rangeRef.current = range;
+  // Number of plotted points — used to pin the visible logical range exactly
+  // from point 0 to point N-1, killing the half-bar edge margins that
+  // fitContent leaves when there are few points.
+  const dataLenRef = useRef(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Area'> | null>(null);
@@ -172,6 +176,7 @@ export function PnLChart({ bets }: PnLChartProps) {
         vertLine: { color: t.border.medium, width: 1, style: LineStyle.Solid, labelVisible: false },
         horzLine: { color: t.border.medium, width: 1, style: LineStyle.Dotted, labelVisible: false },
       },
+      leftPriceScale: { visible: false },
       rightPriceScale: {
         borderVisible: false,
         scaleMargins: { top: 0.1, bottom: 0.08 },
@@ -180,12 +185,7 @@ export function PnLChart({ bets }: PnLChartProps) {
         borderVisible: false,
         timeVisible: true,
         secondsVisible: false,
-        // Pin the first/last datapoint to the plot edges so the curve spans
-        // the full width (no empty margins on the left or before the axis).
-        fixLeftEdge: true,
-        fixRightEdge: true,
         rightOffset: 0,
-        lockVisibleTimeRangeOnResize: true,
         tickMarkFormatter: (time: number, tickMarkType: number) => {
           const d = new Date(time * 1000);
           const r = rangeRef.current;
@@ -207,6 +207,20 @@ export function PnLChart({ bets }: PnLChartProps) {
     });
     chartRef.current = chart;
 
+    // Pin the visible logical range to [0, N-1] so the first/last points sit
+    // exactly on the plot edges (no half-bar margins). Re-applied on every
+    // resize because autoSize changes the canvas but not the range.
+    const fillWidth = () => {
+      const n = dataLenRef.current;
+      const ts = chart.timeScale();
+      try {
+        if (n > 1) ts.setVisibleLogicalRange({ from: 0, to: n - 1 });
+        else ts.fitContent();
+      } catch { /* chart disposed */ }
+    };
+    const ro = new ResizeObserver(fillWidth);
+    if (containerRef.current) ro.observe(containerRef.current);
+
     // Single React-rendered tooltip — same pattern OddsChart uses. We
     // capture the cursor x/y from param.point and the value from the
     // series data map so a hover always reads a real datapoint.
@@ -225,6 +239,7 @@ export function PnLChart({ bets }: PnLChartProps) {
     });
 
     return () => {
+      ro.disconnect();
       seriesRef.current = null;
       chart.remove();
       chartRef.current = null;
@@ -273,7 +288,13 @@ export function PnLChart({ bets }: PnLChartProps) {
       },
     });
     seriesRef.current.setData(areaData);
-    try { chart.timeScale().fitContent(); } catch { /* ignore */ }
+    dataLenRef.current = areaData.length;
+    // Pin first/last point to the plot edges (no half-bar margins).
+    try {
+      const ts = chart.timeScale();
+      if (areaData.length > 1) ts.setVisibleLogicalRange({ from: 0, to: areaData.length - 1 });
+      else ts.fitContent();
+    } catch { /* ignore */ }
   }, [pnlColor, areaData, t.bg.app, t.border.medium, t.text.dimmed]);
 
   function formatHoverDate(secs: number): string {
