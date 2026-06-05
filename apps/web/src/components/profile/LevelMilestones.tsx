@@ -24,6 +24,23 @@ interface LevelMilestonesProps {
   userProfile: UserProfile | null | undefined;
 }
 
+/** One label/value row inside a milestone tooltip. */
+function MetaRow({ label, value, valueColor, t }: {
+  label: string;
+  value: string;
+  valueColor?: string;
+  t: ReturnType<typeof useThemeTokens>;
+}) {
+  return (
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2.5, py: 0.2 }}>
+      <Typography sx={{ fontSize: '0.7rem', color: t.text.tertiary }}>{label}</Typography>
+      <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: valueColor ?? t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
+        {value}
+      </Typography>
+    </Box>
+  );
+}
+
 /**
  * Lock/unlock strip showing the 9 level milestones the server returns in
  * `userProfile.milestones`. Each card carries the level number, the title
@@ -71,17 +88,26 @@ export function LevelMilestones({ userProfile }: LevelMilestonesProps) {
             key={m.level}
             arrow
             placement="top"
+            slotProps={{
+              tooltip: { sx: { bgcolor: t.bg.tooltip, border: `1px solid ${t.border.strong}`, borderRadius: 1.5, p: 1.25, maxWidth: 200 } },
+              arrow: { sx: { color: t.bg.tooltip } },
+            }}
             title={
-              <Box sx={{ p: 0.25 }}>
-                <Typography sx={{ fontSize: '0.78rem', fontWeight: 700 }}>
-                  Lv.{m.level} · {m.title}
+              <Box sx={{ minWidth: 150 }}>
+                <Typography sx={{ fontSize: '0.82rem', fontWeight: 800, color: m.unlocked ? tierColor : t.text.secondary, lineHeight: 1.2 }}>
+                  {m.title}
                 </Typography>
-                <Typography sx={{ fontSize: '0.7rem', mt: 0.25 }}>
-                  {m.unlocked ? 'Unlocked' : `${Number(m.xpRequired).toLocaleString()} XP needed`}
+                <Typography sx={{ fontSize: '0.66rem', fontWeight: 600, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5, mb: 0.75 }}>
+                  Level {m.level}
                 </Typography>
-                <Typography sx={{ fontSize: '0.68rem', mt: 0.4, opacity: 0.85 }}>
-                  Fee {m.feePercent}% · Coins ×{m.coinMultiplier}
-                </Typography>
+                <Box sx={{ borderTop: `1px solid ${t.border.subtle}`, pt: 0.6 }}>
+                  <MetaRow t={t} label="Status" value={m.unlocked ? 'Unlocked' : 'Locked'} valueColor={m.unlocked ? t.gain : t.text.secondary} />
+                  {!m.unlocked && (
+                    <MetaRow t={t} label="XP required" value={Number(m.xpRequired).toLocaleString()} />
+                  )}
+                  <MetaRow t={t} label="Trading fee" value={`${m.feePercent}%`} />
+                  <MetaRow t={t} label="Coin bonus" value={`${m.coinMultiplier}x`} />
+                </Box>
               </Box>
             }
           >
