@@ -8,20 +8,29 @@ interface NotificationDef {
 }
 
 export const NOTIFICATION_DEFS: Record<NotificationType, NotificationDef> = {
+  // Pool settled with a net-positive result. A wallet can hold both sides, so
+  // we report the net P&L rather than a bare "you won" that ignores the losing
+  // leg of a hedge. `ctx.net` is a pre-formatted signed string (e.g. "+$7.33").
   POOL_WON: {
     severity: 'success',
     autoHideDuration: 8000,
     build: (ctx) => ({
-      title: 'You Won!',
-      message: `${ctx.asset ?? 'Asset'}/USD ${ctx.interval ?? ''}  Collect your winnings`,
+      title: 'You won',
+      message: ctx.net
+        ? `${ctx.asset ?? 'Pool'} settled — net ${ctx.net}`
+        : `${ctx.asset ?? 'Asset'}/USD ${ctx.interval ?? ''}  Collect your winnings`,
     }),
   },
+  // Pool settled net-flat-or-negative. Neutral wording (no "better luck") since
+  // the user may have won one side and lost another.
   POOL_LOST: {
     severity: 'warning',
     autoHideDuration: 6000,
     build: (ctx) => ({
-      title: 'Better Luck Next Time',
-      message: `${ctx.asset ?? 'Asset'}/USD ${ctx.interval ?? ''}  Prediction was incorrect`,
+      title: 'Pool settled',
+      message: ctx.net
+        ? `${ctx.asset ?? 'Pool'} settled — net ${ctx.net}`
+        : `${ctx.asset ?? 'Asset'}/USD ${ctx.interval ?? ''}  Prediction was incorrect`,
     }),
   },
   POOL_CLAIMABLE: {

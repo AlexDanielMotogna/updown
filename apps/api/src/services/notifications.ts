@@ -1,5 +1,6 @@
 import { prisma } from '../db';
 import { autoPayoutEnabledFor } from '../utils/auto-payout-flag';
+import { calculateWeightedPayout, resolveFeeBps } from '../utils/payout';
 
 interface NotificationInput {
   walletAddress: string;
@@ -37,7 +38,7 @@ export async function notifyPoolResolved(pool: {
   try {
     const bets = await prisma.bet.findMany({
       where: { poolId: pool.id },
-      select: { walletAddress: true, side: true },
+      select: { walletAddress: true, side: true, amount: true, weight: true },
     });
 
     if (bets.length === 0) return;
@@ -50,38 +51,80 @@ export async function notifyPoolResolved(pool: {
       ? ` (${pool.homeScore}-${pool.awayScore})`
       : '';
 
-    // When auto-payout is on for this pool, skip the POOL_WON notification -
-    // it says "Collect your winnings" which is misleading because the
-    // scheduler is about to pay automatically. The follow-up BET_PAID toast
-    // from autoClaimBets is the right surface ("Payout sent to your wallet").
-    // POOL_LOST still fires in both modes (losers need closure).
     const autoEnabled = await autoPayoutEnabledFor({
       poolType: pool.poolType,
       league: pool.league ?? null,
     });
 
-    const notifications = bets
-      .map(bet => {
-        const won = bet.side === pool.winner;
-        if (won && autoEnabled) return null; // BET_PAID will follow
-        return {
-          walletAddress: bet.walletAddress,
-          type: won ? 'POOL_WON' : 'POOL_LOST',
-          title: won ? 'You Won!' : 'Better Luck Next Time',
-          message: won
-            ? `${matchLabel}${scoreLabel} - Collect your winnings`
-            : `${matchLabel}${scoreLabel} - Prediction was incorrect`,
-          severity: won ? 'success' as const : 'warning' as const,
-          poolId: pool.id,
-          poolType: pool.poolType,
-        };
-      })
-      .filter((n): n is NonNullable<typeof n> => n !== null);
+    // A wallet can hold bets on multiple sides, so "won/lost" isn't meaningful
+    // per pool — we send ONE net-result notification per wallet. Net is the
+    // time-weighted payout (mirrors the on-chain claim) minus total stake.
+    const winner = pool.winner;
+    const winningWeightSum = bets
+      .filter(b => b.side === winner)
+      .reduce((a, b) => a + (b.weight ?? b.amount), 0n);
+    const losingStakeTotal = bets
+      .filter(b => b.side !== winner)
+      .reduce((a, b) => a + b.amount, 0n);
+    const distinctWallets = new Set(bets.map(b => b.walletAddress)).size;
+
+    const byWallet = new Map<string, typeof bets>();
+    for (const b of bets) {
+      const arr = byWallet.get(b.walletAddress);
+      if (arr) arr.push(b); else byWallet.set(b.walletAddress, [b]);
+    }
+
+    const notifications: Array<{
+      walletAddress: string; type: string; title: string; message: string;
+      severity: 'success' | 'warning'; poolId: string; poolType: string;
+    }> = [];
+
+    for (const [wallet, wbets] of byWallet) {
+      const stake = wbets.reduce((a, b) => a + b.amount, 0n);
+      const feeBps = await resolveFeeBps(prisma, wallet);
+      let payout = 0n;
+      let hasWin = false;
+      let hasLoss = false;
+      for (const b of wbets) {
+        if (b.side === winner) {
+          hasWin = true;
+          payout += calculateWeightedPayout({
+            betAmount: b.amount,
+            betWeight: b.weight ?? b.amount,
+            winningWeightSum,
+            losingStakeTotal,
+            betCount: distinctWallets,
+            feeBps,
+          }).payout;
+        } else {
+          hasLoss = true;
+        }
+      }
+
+      // A pure winner on an auto-payout pool gets the exact figure from the
+      // BET_PAID notification the scheduler fires after transferring funds —
+      // skip the summary to avoid a duplicate. Hedgers (win + loss) and
+      // losers still get the net closure here.
+      if (autoEnabled && hasWin && !hasLoss) continue;
+
+      const net = payout - stake;
+      const positive = net > 0n;
+      const netStr = `${net >= 0n ? '+' : '-'}$${(Math.abs(Number(net)) / 1_000_000).toFixed(2)}`;
+      notifications.push({
+        walletAddress: wallet,
+        type: positive ? 'POOL_WON' : 'POOL_LOST',
+        title: positive ? 'You won' : 'Pool settled',
+        message: `${matchLabel}${scoreLabel} — net ${netStr}`,
+        severity: positive ? 'success' : 'warning',
+        poolId: pool.id,
+        poolType: pool.poolType,
+      });
+    }
 
     if (notifications.length === 0) return;
 
     await prisma.notification.createMany({ data: notifications });
-    console.log(`[Notifications] Created ${notifications.length} for pool ${pool.id}${autoEnabled ? ' (auto-payout: POOL_WON suppressed)' : ''}`);
+    console.log(`[Notifications] Created ${notifications.length} net result(s) for pool ${pool.id}${autoEnabled ? ' (auto-payout: pure winners via BET_PAID)' : ''}`);
   } catch (error) {
     console.error('[Notifications] Failed to notify pool resolved:', (error as Error).message);
   }

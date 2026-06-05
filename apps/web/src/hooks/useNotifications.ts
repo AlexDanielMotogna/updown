@@ -88,18 +88,41 @@ export function useNotifications() {
       const userBet = userBets[0]; // pool-level fields are identical across rows
       const won = !!data.winner && userBets.some((b) => b.side === data.winner);
 
+      // Since a wallet can hold both sides, "won/lost" isn't meaningful per
+      // pool — report the NET result. Net = time-weighted payout of the bets on
+      // the winning side (mirrors the on-chain claim) minus total stake.
+      const p = userBet.pool;
+      const totalStake = userBets.reduce((a, b) => a + Number(b.amount), 0);
+      const totalUp = Number(p.totalUp ?? 0), totalDown = Number(p.totalDown ?? 0), totalDraw = Number(p.totalDraw ?? 0);
+      const totalPool = totalUp + totalDown + totalDraw;
+      const sideStake = (s: string) => (s === 'UP' ? totalUp : s === 'DOWN' ? totalDown : totalDraw);
+      const sideWeight = (s: string) => (s === 'UP' ? Number(p.weightedUp ?? 0) : s === 'DOWN' ? Number(p.weightedDown ?? 0) : Number(p.weightedDraw ?? 0));
+      let payout = 0;
+      for (const b of userBets) {
+        if (b.side !== data.winner) continue;
+        const stake = Number(b.amount);
+        const st = sideStake(b.side);
+        if (st <= 0) { payout += stake; continue; }
+        const sw = sideWeight(b.side);
+        const myW = b.weight != null ? Number(b.weight) : null;
+        const gross = myW != null && sw > 0 ? stake + (myW / sw) * (totalPool - st) : (stake / st) * totalPool;
+        payout += gross * 0.95;
+      }
+      const net = payout - totalStake;
+      const netStr = `${net >= 0 ? '+' : '-'}$${(Math.abs(net) / 1_000_000).toFixed(2)}`;
+
       const ctx = {
         poolId: data.id,
         poolType: userBet.pool.poolType,
         asset: data.asset ?? userBet.pool.asset,
         interval: data.interval ?? '',
         winner: data.winner ?? null,
+        net: netStr,
       };
 
-      // One clean notification per pool: if any position is on the winning side
-      // the user won (and can claim); otherwise it's a loss. No contradictory pair.
+      // One net notification per pool — no contradictory won+lost pair for hedgers.
       if (data.status === 'RESOLVED' && data.winner) {
-        push(buildNotification(won ? 'POOL_WON' : 'POOL_LOST', ctx));
+        push(buildNotification(net > 0 ? 'POOL_WON' : 'POOL_LOST', ctx));
       }
 
       if (data.status === 'CLAIMABLE' && won) {

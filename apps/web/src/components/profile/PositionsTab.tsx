@@ -108,12 +108,13 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim }: Posi
         />
       </Box>
 
-      {/* Column headers (desktop only) - Result column drops on Active. */}
+      {/* Column headers (desktop only). Active shows a scenario split instead
+          of a single payout; Closed leads with the net-result chip. */}
       <Box sx={{
         display: { xs: 'none', md: 'grid' },
         gridTemplateColumns: sub === 'active'
-          ? '1fr 130px 180px 100px'
-          : '110px 1fr 130px 180px 100px',
+          ? '1fr 120px 200px 40px'
+          : '150px 1fr 110px 150px 40px',
         gap: 2, px: 2, py: 1, mb: 0.5,
         borderBottom: `1px solid ${t.border.subtle}`,
       }}>
@@ -122,7 +123,9 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim }: Posi
         )}
         <Typography sx={{ fontSize: '0.7rem', color: t.text.secondary, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>Market</Typography>
         <Typography sx={{ fontSize: '0.7rem', color: t.text.secondary, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' }}>Stake</Typography>
-        <Typography sx={{ fontSize: '0.7rem', color: t.text.secondary, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' }}>Payout</Typography>
+        <Typography sx={{ fontSize: '0.7rem', color: t.text.secondary, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' }}>
+          {sub === 'active' ? 'If win' : 'Payout'}
+        </Typography>
         <Box />
       </Box>
 
@@ -150,11 +153,6 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim }: Posi
               onClaim={onClaim}
               isClaiming={claimingBetId != null}
               claimingBetId={claimingBetId}
-              // Inside the Active sub-tab every row's chip would say 'Active'
-              // - pure duplication of the surrounding nav state. Suppress
-              // both the chip and the empty Result column it would leave.
-              hideStatusChipWhen={sub === 'active' ? 'Active' : undefined}
-              hideResultColumn={sub === 'active'}
             />
           ))}
         </Box>
