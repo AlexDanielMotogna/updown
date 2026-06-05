@@ -413,7 +413,7 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
         </Box>
 
         <Box sx={{ minWidth: 0, position: 'relative' }}>
-          <OddsChart key={pool.id} poolId={pool.id} totalUp={pool.totalUp} totalDown={pool.totalDown} totalDraw={pool.totalDraw} lockSource="updown" hideControls seedDefault threeWay={pool.numSides === 3} labels={chartLabels} icons={chartIcons} />
+          <OddsChart key={pool.id} poolId={pool.id} totalUp={pool.totalUp} totalDown={pool.totalDown} totalDraw={pool.totalDraw} lockSource="updown" hideControls seedDefault threeWay={pool.numSides === 3} labels={chartLabels} icons={chartIcons} surfaceColor={t.bg.surface} />
           {/* Live trade ticks - floating pills on incoming bets. */}
           {ticks.length > 0 && (
             <Box sx={{ position: 'absolute', top: 8, right: 64, pointerEvents: 'none', zIndex: 5, display: 'flex', flexDirection: 'column', gap: 0.25, alignItems: 'flex-end' }}>

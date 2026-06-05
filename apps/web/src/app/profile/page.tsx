@@ -21,9 +21,6 @@ import { useThemeTokens } from '@/app/providers';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { PositionsTab } from '@/components/profile/PositionsTab';
 import { PnLChart } from '@/components/profile/PnLChart';
-import { ProfileInsights } from '@/components/profile/ProfileInsights';
-import { ProfileAchievements } from '@/components/profile/ProfileAchievements';
-import { ActivityHeatmap } from '@/components/profile/ActivityHeatmap';
 
 /**
  * /profile - intentionally minimal. Identity header + P&L chart + the single
@@ -204,24 +201,9 @@ export default function MyBetsPage() {
               </Box>
             )}
 
-            {/* P&L chart (narrower) + insight tiles beside it. Stacks on mobile. */}
-            <Box sx={{ mb: 4, display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.6fr 1fr' }, gap: 2 }}>
-              <Box sx={{ bgcolor: t.bg.surface, border: `1px solid ${t.border.subtle}`, borderRadius: 1.5, p: 2, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <PnLChart bets={bets} />
-              </Box>
-              <Box sx={{ bgcolor: t.bg.surface, border: `1px solid ${t.border.subtle}`, borderRadius: 1.5, p: 2 }}>
-                <ProfileInsights bets={bets} profile={userProfile} />
-              </Box>
-            </Box>
-
-            {/* Achievements + activity heatmap */}
-            <Box sx={{ mb: 4, display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.4fr 1fr' }, gap: 2 }}>
-              <Box sx={{ bgcolor: t.bg.surface, border: `1px solid ${t.border.subtle}`, borderRadius: 1.5, p: 2 }}>
-                <ProfileAchievements profile={userProfile} />
-              </Box>
-              <Box sx={{ bgcolor: t.bg.surface, border: `1px solid ${t.border.subtle}`, borderRadius: 1.5, p: 2 }}>
-                <ActivityHeatmap bets={bets} />
-              </Box>
+            {/* P&L chart */}
+            <Box sx={{ mb: 4, bgcolor: t.bg.surface, border: `1px solid ${t.border.subtle}`, borderRadius: 1.5, p: 2 }}>
+              <PnLChart bets={bets} />
             </Box>
 
             {/* Positions */}

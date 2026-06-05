@@ -61,14 +61,6 @@ interface PnLChartProps {
 export function PnLChart({ bets }: PnLChartProps) {
   const t = useThemeTokens();
   const [range, setRange] = useState<Range>('ALL');
-  // The chart is created once; its axis formatter reads the current range via
-  // this ref so 1D/1W show clock times and longer ranges show dates.
-  const rangeRef = useRef<Range>(range);
-  rangeRef.current = range;
-  // Number of plotted points — used to pin the visible logical range exactly
-  // from point 0 to point N-1, killing the half-bar edge margins that
-  // fitContent leaves when there are few points.
-  const dataLenRef = useRef(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Area'> | null>(null);
@@ -176,23 +168,16 @@ export function PnLChart({ bets }: PnLChartProps) {
         vertLine: { color: t.border.medium, width: 1, style: LineStyle.Solid, labelVisible: false },
         horzLine: { color: t.border.medium, width: 1, style: LineStyle.Dotted, labelVisible: false },
       },
-      leftPriceScale: { visible: false },
       rightPriceScale: {
         borderVisible: false,
-        scaleMargins: { top: 0.1, bottom: 0.08 },
+        scaleMargins: { top: 0.15, bottom: 0.15 },
       },
       timeScale: {
         borderVisible: false,
-        timeVisible: true,
+        timeVisible: false,
         secondsVisible: false,
-        rightOffset: 0,
         tickMarkFormatter: (time: number, tickMarkType: number) => {
           const d = new Date(time * 1000);
-          const r = rangeRef.current;
-          // Intraday ranges read better with clock times than a repeated date.
-          if (r === '1D' || r === '1W') {
-            return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
-          }
           if (tickMarkType >= 3) {
             return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
           }
@@ -206,20 +191,6 @@ export function PnLChart({ bets }: PnLChartProps) {
       handleScale: false,
     });
     chartRef.current = chart;
-
-    // Pin the visible logical range to [0, N-1] so the first/last points sit
-    // exactly on the plot edges (no half-bar margins). Re-applied on every
-    // resize because autoSize changes the canvas but not the range.
-    const fillWidth = () => {
-      const n = dataLenRef.current;
-      const ts = chart.timeScale();
-      try {
-        if (n > 1) ts.setVisibleLogicalRange({ from: 0, to: n - 1 });
-        else ts.fitContent();
-      } catch { /* chart disposed */ }
-    };
-    const ro = new ResizeObserver(fillWidth);
-    if (containerRef.current) ro.observe(containerRef.current);
 
     // Single React-rendered tooltip — same pattern OddsChart uses. We
     // capture the cursor x/y from param.point and the value from the
@@ -239,7 +210,6 @@ export function PnLChart({ bets }: PnLChartProps) {
     });
 
     return () => {
-      ro.disconnect();
       seriesRef.current = null;
       chart.remove();
       chartRef.current = null;
@@ -270,10 +240,11 @@ export function PnLChart({ bets }: PnLChartProps) {
       topColor: `${pnlColor}38`,
       bottomColor: `${pnlColor}00`,
       lineWidth: 2,
-      // Smooth curved line (rounded "waves") rather than step lines — for the
-      // profile P&L the trend reads better as a continuous curve than as the
-      // discrete vertical jumps the markets charts use.
-      lineType: LineType.Curved,
+      // Step lines — each settled pool is a discrete event, so the
+      // curve should jump vertically at the moment P&L was realised.
+      // Matches the Kalshi / Polymarket house style we use everywhere
+      // else (see OddsChart for the same choice).
+      lineType: LineType.WithSteps,
       priceLineVisible: false,
       lastValueVisible: false,
       crosshairMarkerVisible: true,
@@ -288,13 +259,7 @@ export function PnLChart({ bets }: PnLChartProps) {
       },
     });
     seriesRef.current.setData(areaData);
-    dataLenRef.current = areaData.length;
-    // Pin first/last point to the plot edges (no half-bar margins).
-    try {
-      const ts = chart.timeScale();
-      if (areaData.length > 1) ts.setVisibleLogicalRange({ from: 0, to: areaData.length - 1 });
-      else ts.fitContent();
-    } catch { /* ignore */ }
+    try { chart.timeScale().fitContent(); } catch { /* ignore */ }
   }, [pnlColor, areaData, t.bg.app, t.border.medium, t.text.dimmed]);
 
   function formatHoverDate(secs: number): string {
@@ -305,7 +270,7 @@ export function PnLChart({ bets }: PnLChartProps) {
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, height: '100%' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
       {/* Header: title + range selector. The numeric value lives in the
           Net P&L tile above; repeating it here would be visual duplication. */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
@@ -337,11 +302,8 @@ export function PnLChart({ bets }: PnLChartProps) {
 
       {/* Chart canvas — container ALWAYS mounts. Placeholder and tooltip
           overlay on top via absolute positioning so the LWC instance can
-          create itself on first paint without racing the data fetch.
-          `flex: 1` makes it grow to fill the card height; negative margins
-          bleed it to the card edges (left edge + right price axis) so it
-          isn't inset by the card's padding. */}
-      <Box sx={{ position: 'relative', flex: 1, minHeight: HEIGHT, mx: -2, mb: -2 }}>
+          create itself on first paint without racing the data fetch. */}
+      <Box sx={{ width: '100%', height: HEIGHT, position: 'relative' }}>
         <Box ref={containerRef} sx={{ width: '100%', height: '100%' }} />
         {areaData.length === 0 && (
           <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
@@ -361,8 +323,7 @@ export function PnLChart({ bets }: PnLChartProps) {
           const left = flipLeft
             ? Math.max(4, hover.x - TOOLTIP_W - 12)
             : Math.min(containerW - TOOLTIP_W - 4, hover.x + 12);
-          const containerH = containerRef.current?.clientHeight ?? HEIGHT;
-          const top = Math.max(4, Math.min(hover.y - 12, containerH - 60));
+          const top = Math.max(4, Math.min(hover.y - 12, HEIGHT - 60));
           return (
             <Box
               sx={{

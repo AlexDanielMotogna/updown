@@ -66,6 +66,13 @@ interface OddsChartProps {
    *  for crypto. Each side is optional; missing icons render a coloured
    *  dot fallback so the tooltip never breaks. */
   icons?: { up?: string | null; down?: string | null; draw?: string | null };
+  /** Background colour the chart is rendered on top of. Used by the
+   *  "future dim" hover overlay, the crosshair marker cutout and the
+   *  loading/empty overlays so they blend into the surrounding surface.
+   *  Defaults to the page background (t.bg.app) — the /match page case.
+   *  The trending hero card sits on t.bg.surface and passes that so the
+   *  hover shadow matches its own card colour instead of the page. */
+  surfaceColor?: string;
 }
 
 const CHART_H = 300;
@@ -90,8 +97,12 @@ export function OddsChart({
   threeWay,
   labels,
   icons,
+  surfaceColor,
 }: OddsChartProps) {
   const t = useThemeTokens();
+  // The colour the chart blends into (hover dim, crosshair cutout, overlays).
+  // Defaults to the page background; surfaces like the hero card override it.
+  const dimBg = surfaceColor ?? t.bg.app;
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const upSeriesRef = useRef<ISeriesApi<'Area'> | null>(null);
@@ -542,7 +553,7 @@ export function OddsChart({
       crosshairMarkerVisible: true,
       crosshairMarkerRadius: 5,
       crosshairMarkerBorderWidth: 2,
-      crosshairMarkerBorderColor: t.bg.app,
+      crosshairMarkerBorderColor: dimBg,
       crosshairMarkerBackgroundColor: color,
       lastPriceAnimation: LastPriceAnimationMode.Continuous,
       priceFormat: {
@@ -855,7 +866,7 @@ export function OddsChart({
               // x-axis labels at the bottom stay vivid.
               right: axisInsets.right,
               bottom: axisInsets.bottom,
-              background: `linear-gradient(to right, ${t.bg.app}00 0%, ${t.bg.app}DC 3%, ${t.bg.app}DC 100%)`,
+              background: `linear-gradient(to right, ${dimBg}00 0%, ${dimBg}DC 3%, ${dimBg}DC 100%)`,
               pointerEvents: 'none',
               zIndex: 2,
             }}
@@ -925,7 +936,7 @@ export function OddsChart({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              bgcolor: t.bg.app,
+              bgcolor: dimBg,
               pointerEvents: 'none',
             }}
           >
@@ -940,7 +951,7 @@ export function OddsChart({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              bgcolor: t.bg.app,
+              bgcolor: dimBg,
               pointerEvents: 'none',
             }}
           >
