@@ -1,10 +1,24 @@
 'use client';
 
 import { Box, Tooltip, Typography } from '@mui/material';
-import { LockOutlined, EmojiEvents } from '@mui/icons-material';
+import { LockOutlined } from '@mui/icons-material';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import type { UserProfile } from '@/lib/api';
+
+// Tier artwork in /public/Level, one image per 4-level band (tiers 0-9).
+const LEVEL_ICONS = [
+  '/Level/Level_1-4.png',
+  '/Level/Level_5-8.png',
+  '/Level/Level_9-12.png',
+  '/Level/Level_13-16.png',
+  '/Level/Level_17-20.png',
+  '/Level/Level_21-24.png',
+  '/Level/Level_25-28.png',
+  '/Level/Level_29-32.png',
+  '/Level/Level_33-36.png',
+  '/Level/Level_37-40.png',
+];
 
 interface LevelMilestonesProps {
   userProfile: UserProfile | null | undefined;
@@ -52,7 +66,6 @@ export function LevelMilestones({ userProfile }: LevelMilestonesProps) {
         const tierColor = t.levelTiers[tierIndex];
         const bg = m.unlocked ? withAlpha(tierColor, 0.12) : t.hover.light;
         const border = m.unlocked ? withAlpha(tierColor, 0.45) : t.border.subtle;
-        const iconColor = m.unlocked ? tierColor : t.text.quaternary;
         const titleColor = m.unlocked ? t.text.primary : t.text.tertiary;
 
         return (
@@ -105,10 +118,21 @@ export function LevelMilestones({ userProfile }: LevelMilestonesProps) {
               >
                 Lv.{m.level}
               </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-                {m.unlocked
-                  ? <EmojiEvents sx={{ fontSize: { xs: 22, md: 26 }, color: iconColor }} />
-                  : <LockOutlined sx={{ fontSize: { xs: 20, md: 22 }, color: iconColor }} />}
+              <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+                <Box
+                  component="img"
+                  src={LEVEL_ICONS[tierIndex]}
+                  alt={`Level ${m.level}`}
+                  sx={{
+                    width: { xs: 30, md: 40 }, height: { xs: 30, md: 40 }, objectFit: 'contain',
+                    filter: m.unlocked ? `drop-shadow(0 0 6px ${withAlpha(tierColor, 0.5)})` : 'grayscale(1)',
+                    opacity: m.unlocked ? 1 : 0.35,
+                    transition: 'opacity 0.15s, filter 0.15s',
+                  }}
+                />
+                {!m.unlocked && (
+                  <LockOutlined sx={{ position: 'absolute', fontSize: { xs: 14, md: 16 }, color: t.text.secondary }} />
+                )}
               </Box>
               <Typography
                 sx={{

@@ -35,8 +35,17 @@ function rangeStart(range: Range): number {
 }
 
 const H = 210;
-const PAD = { left: 10, right: 52, top: 30, bottom: 22 };
+const PAD = { left: 10, right: 50, top: 16, bottom: 24 };
 const easeOut = (k: number) => 1 - Math.pow(1 - k, 3);
+
+/** micro-USDC → compact $ axis label. */
+function fmtAxisUsd(micro: number): string {
+  const d = micro / 1_000_000;
+  const a = Math.abs(d);
+  const s = d < 0 ? '-' : '';
+  if (a >= 1000) return `${s}$${(a / 1000).toFixed(1)}K`;
+  return `${s}$${Math.round(a)}`;
+}
 
 interface PnLChartProps {
   bets: Bet[];
@@ -135,11 +144,18 @@ export function PnLChart({ bets }: PnLChartProps) {
     const area = coords.length
       ? `${line} L ${coords[coords.length - 1].x.toFixed(1)} ${bottom} L ${coords[0].x.toFixed(1)} ${bottom} Z`
       : '';
-    // Peak (all-time high within range) for the 🏆 flag.
-    let peakIdx = 0;
-    for (let i = 1; i < coords.length; i++) if (coords[i].pnl > coords[peakIdx].pnl) peakIdx = i;
     const zeroY = sy(0);
-    return { coords, line, area, bottom, peakIdx, zeroY, plotW };
+    // Axis ticks.
+    const yTicks: Array<{ v: number; y: number }> = [];
+    for (let i = 0; i <= 3; i++) { const v = minY + (maxY - minY) * (i / 3); yTicks.push({ v, y: sy(v) }); }
+    const xTicks: Array<{ t: number; x: number }> = [];
+    const xn = Math.min(4, coords.length);
+    if (xn === 1) xTicks.push({ t: coords[0].t, x: coords[0].x });
+    else for (let i = 0; i < xn; i++) {
+      const idx = Math.round((coords.length - 1) * (i / (xn - 1)));
+      xTicks.push({ t: coords[idx].t, x: coords[idx].x });
+    }
+    return { coords, line, area, bottom, zeroY, plotW, yTicks, xTicks };
   }, [points, w]);
 
   // ── Count-up score ───────────────────────────────────────────────────
@@ -159,6 +175,13 @@ export function PnLChart({ bets }: PnLChartProps) {
   }, [latestPnl, range]);
 
   const scoreStr = `${shown >= 0 ? '+' : '−'}${formatUSDC(String(Math.round(Math.abs(shown))), { min: 2 })}`;
+
+  const fmtX = (ms: number) => {
+    const d = new Date(ms);
+    return range === '1D' || range === '1W'
+      ? d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })
+      : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
 
   const hover = useMemo(() => {
     if (hoverX == null || !geo) return null;
@@ -246,6 +269,17 @@ export function PnLChart({ bets }: PnLChartProps) {
                 </linearGradient>
               </defs>
 
+              {/* y gridlines + value labels (right), x time labels (bottom) */}
+              {geo.yTicks.map((tk, i) => (
+                <g key={`y${i}`}>
+                  <line x1={PAD.left} y1={tk.y} x2={w - PAD.right} y2={tk.y} stroke={t.border.subtle} strokeWidth={1} opacity={0.4} />
+                  <text x={w - PAD.right + 6} y={tk.y + 3} fill={t.text.quaternary} fontSize={9}>{fmtAxisUsd(tk.v)}</text>
+                </g>
+              ))}
+              {geo.xTicks.map((tk, i) => (
+                <text key={`x${i}`} x={tk.x} y={H - 7} fill={t.text.quaternary} fontSize={9} textAnchor="middle">{fmtX(tk.t)}</text>
+              ))}
+
               {/* zero baseline */}
               {geo.zeroY > PAD.top && geo.zeroY < geo.bottom && (
                 <line x1={PAD.left} y1={geo.zeroY} x2={w - PAD.right} y2={geo.zeroY}
@@ -287,18 +321,6 @@ export function PnLChart({ bets }: PnLChartProps) {
                 </>
               )}
             </svg>
-
-            {/* 🏆 peak flag (HTML overlay, pixel-positioned) */}
-            {geo.coords.length > 1 && geo.coords[geo.peakIdx].pnl > 0 && (
-              <Box sx={{
-                position: 'absolute', pointerEvents: 'none',
-                left: geo.coords[geo.peakIdx].x, top: geo.coords[geo.peakIdx].y - 26,
-                transform: 'translateX(-50%)',
-                fontSize: '1rem', filter: `drop-shadow(0 0 6px ${withAlpha(t.gold, 0.8)})`,
-              }}>
-                🏆
-              </Box>
-            )}
 
             {/* hover tooltip */}
             {hover && (() => {

@@ -11,25 +11,21 @@ import {
 import {
   ContentCopy,
   CheckCircle,
-  InfoOutlined,
   Share,
-  TrendingUp,
-  TrendingDown,
   EmojiEvents,
   AccountBalanceWallet,
   Edit,
 } from '@mui/icons-material';
 import { useState } from 'react';
-import type { ReactNode } from 'react';
 import { ConnectWalletButton } from '@/components';
 import { UserLevelBadge } from '@/components/UserLevelBadge';
 import { XpProgressBar } from '@/components/XpProgressBar';
-import { formatUSDC, USDC_DIVISOR } from '@/lib/format';
-import { UP_COINS_DIVISOR, getAvatarUrl } from '@/lib/constants';
+import { getAvatarUrl } from '@/lib/constants';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import type { UserProfile } from '@/lib/api';
 import { EditProfileDialog } from './EditProfileDialog';
+import { LevelMilestones } from './LevelMilestones';
 
 function truncateAddress(address: string): string {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -40,41 +36,6 @@ function tooltipSlotProps(t: ReturnType<typeof useThemeTokens>) {
     tooltip: { sx: { bgcolor: t.bg.tooltip, border: `1px solid ${t.border.strong}`, fontSize: '0.75rem' } },
     arrow: { sx: { color: t.bg.tooltip } },
   } as const;
-}
-
-/** One of the four north-star metric tiles. */
-function HeroTile({ label, value, sub, color, icon, tip }: {
-  label: string;
-  value: ReactNode;
-  sub?: ReactNode;
-  color: string;
-  icon?: ReactNode;
-  tip?: string;
-}) {
-  const t = useThemeTokens();
-  return (
-    <Box sx={{ bgcolor: t.hover.light, borderRadius: 1.5, px: { xs: 1.5, md: 2 }, py: { xs: 1.25, md: 1.75 }, display: 'flex', flexDirection: 'column', gap: 0.4, minWidth: 0 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-        {icon}
-        <Typography sx={{ fontSize: { xs: '0.6rem', md: '0.68rem' }, fontWeight: 600, color: t.text.tertiary, letterSpacing: '0.04em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
-          {label}
-        </Typography>
-        {tip && (
-          <Tooltip title={tip} arrow placement="top" slotProps={tooltipSlotProps(t)}>
-            <InfoOutlined sx={{ fontSize: 11, color: t.border.emphasis, cursor: 'help', '&:hover': { color: t.text.secondary }, transition: 'color 0.15s' }} />
-          </Tooltip>
-        )}
-      </Box>
-      <Typography sx={{ fontSize: { xs: '1.05rem', md: '1.4rem' }, fontWeight: 800, color, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {value}
-      </Typography>
-      {sub != null && (
-        <Typography sx={{ fontSize: { xs: '0.62rem', md: '0.7rem' }, fontWeight: 500, color: t.text.quaternary, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-          {sub}
-        </Typography>
-      )}
-    </Box>
-  );
 }
 
 interface ProfileHeaderProps {
@@ -125,30 +86,9 @@ export function ProfileHeader({
     setTimeout(() => setRefCopied(false), 2000);
   };
 
-  // ── Derived metrics (all-time, from the profile aggregate) ──
-  // Net P&L is now computed server-side over settled non-refund bets only,
-  // so opening a new active bet no longer drags the number down (the stake is
-  // still in play, not lost). Falls back to the old won-minus-wagered formula
-  // for older API responses that don't yet send `netPnl`.
-  const netPnl = userProfile?.stats.netPnl != null
-    ? Number(userProfile.stats.netPnl)
-    : Number(userProfile?.stats.totalWon ?? '0') - Number(userProfile?.stats.totalWagered ?? '0');
-  // Volume Staked: lifetime placed minus refunds (real money put at risk).
-  // Active stakes still count - money is currently committed.
-  const wagered = userProfile?.stats.volumeStaked != null
-    ? Number(userProfile.stats.volumeStaked)
-    : Number(userProfile?.stats.totalWagered ?? '0');
-  const pnlPositive = netPnl >= 0;
-  const totalBets = userProfile?.stats.totalBets ?? 0;
-  const totalWins = userProfile?.stats.totalWins ?? 0;
-  const totalRefunded = userProfile?.stats.totalRefunded ?? 0;
-  // "X predictions" matches the Win Rate denominator: refunds are no-ops, not
-  // real predictions against a counterparty.
-  const settledPredictions = Math.max(0, totalBets - totalRefunded);
-  // Refunds aren't losses (stake came back) - drop them out of the L counter
-  // so 2W / 1L matches Win Rate's own (wins / settled) denominator.
-  const losses = Math.max(0, totalBets - totalWins - totalRefunded);
-
+  // ── Derived metrics ──
+  // (The four north-star stats moved to ProfileStatsPanel beside the chart;
+  //  the header now shows the level-milestone strip instead.)
   const level = userProfile?.level ?? 1;
   const tierIndex = Math.min(Math.floor((level - 1) / 4), 9);
   const ringColor = t.levelTiers[tierIndex];
@@ -346,46 +286,9 @@ export function ProfileHeader({
                 </Box>
               )}
 
-              {/* ─── Hero metrics (4 north-star tiles) ─── */}
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-                  gap: { xs: 1, md: 1.5 },
-                  py: { xs: 2, md: 2.5 },
-                }}
-              >
-                <HeroTile
-                  label="Net P&L"
-                  tip="Realized profit/loss from settled predictions. Active bets and refunds don't move it."
-                  icon={pnlPositive
-                    ? <TrendingUp sx={{ fontSize: 15, color: t.gain }} />
-                    : <TrendingDown sx={{ fontSize: 15, color: t.down }} />}
-                  color={pnlPositive ? t.gain : t.down}
-                  value={`${pnlPositive ? '+' : ''}${formatUSDC(String(netPnl), { min: 2 })}`}
-                />
-                <HeroTile
-                  label="Win Rate"
-                  tip="Share of your predictions that won"
-                  color={t.gain}
-                  value={`${userProfile?.stats.winRate ?? '0.0'}%`}
-                  sub={`${totalWins}W / ${losses}L`}
-                />
-                <HeroTile
-                  label="Volume Staked"
-                  tip="USDC put at risk across all pools. Refunded stakes don't count (they came back)."
-                  color={t.text.primary}
-                  value={formatUSDC(String(wagered), { min: 0 })}
-                  sub={`${settledPredictions} prediction${settledPredictions === 1 ? '' : 's'}`}
-                />
-                <HeroTile
-                  label="UP Coins"
-                  tip="Coins earned from activity. Convert to $UP at launch"
-                  color={t.accent}
-                  icon={<Box component="img" src="/token/Token_16px_Gold.png" alt="UP" sx={{ width: 14, height: 14 }} />}
-                  value={userProfile ? (Number(userProfile.coinsBalance) / UP_COINS_DIVISOR).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
-                  sub={`best streak ${userProfile?.stats.bestStreak ?? 0}`}
-                />
+              {/* ─── Level milestones (locked/unlocked by level) ─── */}
+              <Box sx={{ py: { xs: 2, md: 2.5 } }}>
+                <LevelMilestones userProfile={userProfile} />
               </Box>
             </>
           )}
