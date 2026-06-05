@@ -362,7 +362,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
       {((isActive && isHedged) || txLink || claimBtn) && (
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mt: 0.5 }}>
           {isActive && isHedged ? (
-            <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.text.primary }}>
+            <Typography sx={{ fontSize: '0.66rem', fontWeight: 400, color: t.text.quaternary }}>
               Only one side can win. The headline shows your PnL for each outcome.
             </Typography>
           ) : <Box />}
