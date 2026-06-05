@@ -285,7 +285,11 @@ export function emitBetPaid(walletAddress: string, data: {
   poolId: string;
   betId: string;
   side: string;
+  /** Original stake (micro-USDC). */
   amount: string;
+  /** Actual amount paid out on-chain (micro-USDC) — the time-weighted
+   *  winnings. The toast reports this, not the stake. */
+  payoutAmount: string;
   txSignature: string;
 }): void {
   if (io) {

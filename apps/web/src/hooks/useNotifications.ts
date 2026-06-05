@@ -130,13 +130,15 @@ export function useNotifications() {
     // Auto-payout settled - fires when the scheduler's autoClaim has confirmed
     // the on-chain transfer to the user's wallet. Replaces the POOL_CLAIMABLE
     // toast for users on auto-payout-enabled pools.
-    const onBetPaid = (payload: { walletAddress?: string; poolId?: string; betId?: string; amount?: string; txSignature?: string }) => {
+    const onBetPaid = (payload: { walletAddress?: string; poolId?: string; betId?: string; amount?: string; payoutAmount?: string; txSignature?: string }) => {
       if (!walletAddress || payload.walletAddress !== walletAddress) return;
 
       push(
         buildNotification('BET_PAID', {
           poolId: payload.poolId,
-          amount: payload.amount,
+          // Report the actual payout (time-weighted winnings), falling back to
+          // the stake field only for older events that didn't send it.
+          amount: payload.payoutAmount ?? payload.amount,
         }),
       );
       // Refresh bets so the row flips from "Paying soon" to "Paid" without a

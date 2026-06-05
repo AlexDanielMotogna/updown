@@ -189,6 +189,9 @@ export async function autoClaimBets(
 
     let claimedSignature: string | null = null;
     let lastError: string | null = null;
+    // Actual amount paid out on-chain — used for the toast / notification so
+    // they report the real (time-weighted) winnings, not the stake.
+    let paidAmount: bigint = bet.amount;
 
     for (let attempt = 1; attempt <= AUTO_CLAIM_MAX_RETRIES; attempt++) {
       try {
@@ -220,6 +223,7 @@ export async function autoClaimBets(
           betCount: distinctWallets,
           feeBps,
         }).payout;
+        paidAmount = payoutAmount;
 
         // Optimistic lock - manual confirm-claim may have already updated
         // the row; in that case updateMany returns count=0 and we skip
@@ -282,10 +286,11 @@ export async function autoClaimBets(
         betId: bet.id,
         side: bet.side,
         amount: bet.amount.toString(),
+        payoutAmount: paidAmount.toString(),
         txSignature: claimedSignature,
       });
 
-      notifyBetPaid(bet.walletAddress, pool, bet.amount, claimedSignature)
+      notifyBetPaid(bet.walletAddress, pool, paidAmount, claimedSignature)
         .catch(e => console.warn('[AutoClaim] notifyBetPaid failed:', e instanceof Error ? e.message : e));
 
       awardBetWin(bet.walletAddress, bet.amount, bet.id)
