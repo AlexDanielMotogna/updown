@@ -180,6 +180,12 @@ export function PnLChart({ bets }: PnLChartProps) {
         borderVisible: false,
         timeVisible: true,
         secondsVisible: false,
+        // Pin the first/last datapoint to the plot edges so the curve spans
+        // the full width (no empty margins on the left or before the axis).
+        fixLeftEdge: true,
+        fixRightEdge: true,
+        rightOffset: 0,
+        lockVisibleTimeRangeOnResize: true,
         tickMarkFormatter: (time: number, tickMarkType: number) => {
           const d = new Date(time * 1000);
           const r = rangeRef.current;
