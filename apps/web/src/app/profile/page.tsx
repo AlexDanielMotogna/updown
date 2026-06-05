@@ -204,7 +204,7 @@ export default function MyBetsPage() {
 
             {/* P&L chart (narrower) + insight tiles beside it. Stacks on mobile. */}
             <Box sx={{ mb: 4, display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.6fr 1fr' }, gap: 2 }}>
-              <Box sx={{ bgcolor: t.bg.surface, border: `1px solid ${t.border.subtle}`, borderRadius: 1.5, p: 2 }}>
+              <Box sx={{ bgcolor: t.bg.surface, border: `1px solid ${t.border.subtle}`, borderRadius: 1.5, p: 2, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <PnLChart bets={bets} />
               </Box>
               <Box sx={{ bgcolor: t.bg.surface, border: `1px solid ${t.border.subtle}`, borderRadius: 1.5, p: 2 }}>

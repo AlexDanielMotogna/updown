@@ -170,7 +170,7 @@ export function PnLChart({ bets }: PnLChartProps) {
       },
       rightPriceScale: {
         borderVisible: false,
-        scaleMargins: { top: 0.15, bottom: 0.15 },
+        scaleMargins: { top: 0.1, bottom: 0.08 },
       },
       timeScale: {
         borderVisible: false,
@@ -240,11 +240,10 @@ export function PnLChart({ bets }: PnLChartProps) {
       topColor: `${pnlColor}38`,
       bottomColor: `${pnlColor}00`,
       lineWidth: 2,
-      // Step lines — each settled pool is a discrete event, so the
-      // curve should jump vertically at the moment P&L was realised.
-      // Matches the Kalshi / Polymarket house style we use everywhere
-      // else (see OddsChart for the same choice).
-      lineType: LineType.WithSteps,
+      // Smooth curved line (rounded "waves") rather than step lines — for the
+      // profile P&L the trend reads better as a continuous curve than as the
+      // discrete vertical jumps the markets charts use.
+      lineType: LineType.Curved,
       priceLineVisible: false,
       lastValueVisible: false,
       crosshairMarkerVisible: true,
@@ -270,7 +269,7 @@ export function PnLChart({ bets }: PnLChartProps) {
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, height: '100%' }}>
       {/* Header: title + range selector. The numeric value lives in the
           Net P&L tile above; repeating it here would be visual duplication. */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
@@ -302,8 +301,11 @@ export function PnLChart({ bets }: PnLChartProps) {
 
       {/* Chart canvas — container ALWAYS mounts. Placeholder and tooltip
           overlay on top via absolute positioning so the LWC instance can
-          create itself on first paint without racing the data fetch. */}
-      <Box sx={{ width: '100%', height: HEIGHT, position: 'relative' }}>
+          create itself on first paint without racing the data fetch.
+          `flex: 1` makes it grow to fill the card height; negative margins
+          bleed it to the card edges (left edge + right price axis) so it
+          isn't inset by the card's padding. */}
+      <Box sx={{ position: 'relative', flex: 1, minHeight: HEIGHT, mx: -2, mb: -2 }}>
         <Box ref={containerRef} sx={{ width: '100%', height: '100%' }} />
         {areaData.length === 0 && (
           <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
@@ -323,7 +325,8 @@ export function PnLChart({ bets }: PnLChartProps) {
           const left = flipLeft
             ? Math.max(4, hover.x - TOOLTIP_W - 12)
             : Math.min(containerW - TOOLTIP_W - 4, hover.x + 12);
-          const top = Math.max(4, Math.min(hover.y - 12, HEIGHT - 60));
+          const containerH = containerRef.current?.clientHeight ?? HEIGHT;
+          const top = Math.max(4, Math.min(hover.y - 12, containerH - 60));
           return (
             <Box
               sx={{
