@@ -1,13 +1,13 @@
 'use client';
 
 import { Container } from '@mui/material';
-import { AppShell, LeaderboardTable } from '@/components';
+import { AppShell, LeaderboardBoards } from '@/components';
 
 export default function LeaderboardPage() {
   return (
     <AppShell>
-      <Container maxWidth={false} sx={{ px: { xs: 2, md: 3 } }}>
-        <LeaderboardTable />
+      <Container maxWidth={false} sx={{ maxWidth: 1200, px: { xs: 2, md: 3 } }}>
+        <LeaderboardBoards />
       </Container>
     </AppShell>
   );

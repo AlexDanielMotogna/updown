@@ -330,6 +330,14 @@ claimsRouter.post('/confirm-claim', async (req, res) => {
       },
     });
 
+    // Lifetime payout total for the leaderboard Profit board
+    // (profit = totalWon − totalWagered). Refunds net to zero since the
+    // returned stake is already counted in totalWagered.
+    await prisma.user.update({
+      where: { walletAddress: bet.walletAddress },
+      data: { totalWon: { increment: payout } },
+    }).catch((e) => console.warn('[Claims] totalWon update failed:', e instanceof Error ? e.message : e));
+
     // Log event
     await prisma.eventLog.create({
       data: {

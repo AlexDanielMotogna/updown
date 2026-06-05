@@ -299,6 +299,13 @@ export async function autoClaimBets(
       awardClaimCompleted(bet.walletAddress)
         .catch(e => console.warn('[AutoClaim] awardClaimCompleted failed:', e instanceof Error ? e.message : e));
 
+      // Lifetime payout total — drives the leaderboard Profit board
+      // (profit = totalWon − totalWagered).
+      deps.prisma.user.update({
+        where: { walletAddress: bet.walletAddress },
+        data: { totalWon: { increment: paidAmount } },
+      }).catch(e => console.warn('[AutoClaim] totalWon update failed:', e instanceof Error ? e.message : e));
+
       succeeded++;
     } else if (claimedSignature === 'skipped') {
       // already counted in skipped

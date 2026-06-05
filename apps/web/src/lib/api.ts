@@ -457,7 +457,13 @@ export interface LeaderboardEntry {
   totalBets: number;
   totalWins: number;
   bestStreak: number;
+  // Kalshi-style boards (micro-USDC strings).
+  totalWagered?: string;
+  totalWon?: string;
+  profit?: string;
 }
+
+export type LeaderboardSort = 'xp' | 'coins' | 'level' | 'profit' | 'volume' | 'predictions';
 
 export async function registerUser(
   walletAddress: string,
@@ -509,7 +515,7 @@ export async function fetchUserCategoryStats(
 }
 
 export async function fetchLeaderboard(
-  params?: { sort?: 'xp' | 'coins' | 'level'; page?: number; limit?: number },
+  params?: { sort?: LeaderboardSort; page?: number; limit?: number },
 ): Promise<ApiResponse<LeaderboardEntry[]>> {
   const searchParams = new URLSearchParams();
   if (params?.sort) searchParams.set('sort', params.sort);

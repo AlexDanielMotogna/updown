@@ -208,6 +208,9 @@ model User {
   totalBets    Int    @default(0) @map("total_bets")
   totalWins    Int    @default(0) @map("total_wins")
   totalWagered BigInt @default(0) @map("total_wagered")
+  /// Lifetime payout received from claims (winning + refund claims). Net
+  /// profit = totalWon − totalWagered. Drives the leaderboard Profit board.
+  totalWon     BigInt @default(0) @map("total_won")
 
   // Streaks
   currentStreak  Int       @default(0) @map("current_streak")

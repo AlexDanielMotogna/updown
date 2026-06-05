@@ -23,7 +23,7 @@ const rewardHistorySchema = z.object({
 });
 
 const leaderboardSchema = z.object({
-  sort: z.enum(['xp', 'coins', 'level']).default('xp'),
+  sort: z.enum(['xp', 'coins', 'level', 'profit', 'volume', 'predictions']).default('xp'),
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(100).default(20),
 });
@@ -364,39 +364,59 @@ usersRouter.get('/leaderboard', async (req, res) => {
     const { sort, page, limit } = parsed.data;
     const skip = (page - 1) * limit;
 
-    const orderBy: Record<string, 'desc'> =
-      sort === 'coins' ? { coinsLifetime: 'desc' }
-      : sort === 'level' ? { level: 'desc' }
-      : { totalXp: 'desc' };
+    type Row = Awaited<ReturnType<typeof prisma.user.findMany>>[number];
+    const serialize = (u: Row, rank: number) => ({
+      rank,
+      walletAddress: u.walletAddress,
+      // displayName + avatarUrl let the leaderboard render the user's chosen
+      // identity instead of a truncated wallet/gradient pair. Both stay null
+      // when the user hasn't customised them, so the client keeps its existing
+      // wallet/gradient fallbacks.
+      displayName: u.displayName,
+      avatarUrl: u.avatarUrl,
+      level: u.level,
+      title: getLevelTitle(u.level),
+      totalXp: u.totalXp.toString(),
+      coinsLifetime: u.coinsLifetime.toString(),
+      totalBets: u.totalBets,
+      totalWins: u.totalWins,
+      bestStreak: u.bestStreak,
+      // Kalshi-style boards.
+      totalWagered: u.totalWagered.toString(),
+      totalWon: u.totalWon.toString(),
+      profit: (u.totalWon - u.totalWagered).toString(),
+    });
 
-    const [users, total] = await Promise.all([
-      prisma.user.findMany({
-        orderBy: [orderBy, { createdAt: 'asc' }], // tie-break by oldest
-        skip,
-        take: limit,
-      }),
-      prisma.user.count(),
-    ]);
+    let data: ReturnType<typeof serialize>[];
+    let total: number;
+
+    if (sort === 'profit') {
+      // Profit is a computed metric (totalWon − totalWagered) that Prisma
+      // can't order by directly, so rank in JS. Fine at current scale.
+      const all = await prisma.user.findMany({ orderBy: { createdAt: 'asc' } });
+      const ranked = all
+        .map(u => ({ u, profit: u.totalWon - u.totalWagered }))
+        .sort((a, b) => (b.profit > a.profit ? 1 : b.profit < a.profit ? -1 : 0));
+      total = ranked.length;
+      data = ranked.slice(skip, skip + limit).map((r, i) => serialize(r.u, skip + i + 1));
+    } else {
+      const orderBy: Record<string, 'desc'> =
+        sort === 'coins' ? { coinsLifetime: 'desc' }
+        : sort === 'level' ? { level: 'desc' }
+        : sort === 'volume' ? { totalWagered: 'desc' }
+        : sort === 'predictions' ? { totalBets: 'desc' }
+        : { totalXp: 'desc' };
+      const [users, count] = await Promise.all([
+        prisma.user.findMany({ orderBy: [orderBy, { createdAt: 'asc' }], skip, take: limit }),
+        prisma.user.count(),
+      ]);
+      total = count;
+      data = users.map((u, i) => serialize(u, skip + i + 1));
+    }
 
     res.json({
       success: true,
-      data: users.map((u, i) => ({
-        rank: skip + i + 1,
-        walletAddress: u.walletAddress,
-        // displayName + avatarUrl let the leaderboard render the user's
-        // chosen identity instead of a truncated wallet/gradient pair.
-        // Both stay null when the user hasn't customised them, so the
-        // client keeps its existing wallet/gradient fallbacks.
-        displayName: u.displayName,
-        avatarUrl: u.avatarUrl,
-        level: u.level,
-        title: getLevelTitle(u.level),
-        totalXp: u.totalXp.toString(),
-        coinsLifetime: u.coinsLifetime.toString(),
-        totalBets: u.totalBets,
-        totalWins: u.totalWins,
-        bestStreak: u.bestStreak,
-      })),
+      data,
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {

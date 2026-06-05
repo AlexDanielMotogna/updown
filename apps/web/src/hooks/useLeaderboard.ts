@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchLeaderboard } from '@/lib/api';
+import { fetchLeaderboard, type LeaderboardSort } from '@/lib/api';
 
 export function useLeaderboard(params?: {
-  sort?: 'xp' | 'coins' | 'level';
+  sort?: LeaderboardSort;
   page?: number;
   limit?: number;
 }) {
