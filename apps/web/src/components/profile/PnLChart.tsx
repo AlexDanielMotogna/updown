@@ -61,6 +61,10 @@ interface PnLChartProps {
 export function PnLChart({ bets }: PnLChartProps) {
   const t = useThemeTokens();
   const [range, setRange] = useState<Range>('ALL');
+  // The chart is created once; its axis formatter reads the current range via
+  // this ref so 1D/1W show clock times and longer ranges show dates.
+  const rangeRef = useRef<Range>(range);
+  rangeRef.current = range;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Area'> | null>(null);
@@ -174,10 +178,15 @@ export function PnLChart({ bets }: PnLChartProps) {
       },
       timeScale: {
         borderVisible: false,
-        timeVisible: false,
+        timeVisible: true,
         secondsVisible: false,
         tickMarkFormatter: (time: number, tickMarkType: number) => {
           const d = new Date(time * 1000);
+          const r = rangeRef.current;
+          // Intraday ranges read better with clock times than a repeated date.
+          if (r === '1D' || r === '1W') {
+            return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
+          }
           if (tickMarkType >= 3) {
             return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
           }
