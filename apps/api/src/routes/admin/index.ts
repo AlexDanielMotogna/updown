@@ -12,6 +12,7 @@ import { adminPayoutsRouter, adminWalletRouter } from './payouts';
 import { adminSportsRouter } from './sports-explorer';
 import { adminPolymarketRouter } from './polymarket-explorer';
 import { adminResolutionMetricsRouter } from './resolution-metrics';
+import { adminReferralsRouter } from './referrals';
 
 export const adminRouter: RouterType = Router();
 
@@ -36,3 +37,4 @@ adminRouter.use('/wallet', adminWalletRouter);
 adminRouter.use('/sports', adminSportsRouter);
 adminRouter.use('/polymarket', adminPolymarketRouter);
 adminRouter.use('/resolution-metrics', adminResolutionMetricsRouter);
+adminRouter.use('/referrals', adminReferralsRouter);
