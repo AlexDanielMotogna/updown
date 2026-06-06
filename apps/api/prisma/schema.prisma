@@ -693,3 +693,29 @@ model PoolCategory {
   @@index([parentCode])
   @@map("pool_categories")
 }
+
+// LLM-suggested final results for stuck sports pools (TheSportsDB never posted
+// the FT). Generated automatically by the scheduler; an admin reviews and
+// applies/dismisses. Never auto-resolves a pool.
+model ResolutionSuggestion {
+  id              String   @id @default(uuid())
+  poolId          String   @unique @map("pool_id")
+  matchId         String?  @map("match_id")
+  homeTeam        String   @map("home_team")
+  awayTeam        String   @map("away_team")
+  league          String?
+  matchDate       String   @map("match_date") // YYYY-MM-DD
+  homeScore       Int      @map("home_score")
+  awayScore       Int      @map("away_score")
+  suggestedWinner String   @map("suggested_winner") // UP | DOWN | DRAW
+  finished        Boolean
+  confident       Boolean
+  note            String?
+  model           String
+  status          String   @default("PENDING") // PENDING | APPLIED | DISMISSED
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("resolution_suggestions")
+}

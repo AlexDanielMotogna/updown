@@ -14,6 +14,7 @@ import { adminPolymarketRouter } from './polymarket-explorer';
 import { adminResolutionMetricsRouter } from './resolution-metrics';
 import { adminReferralsRouter } from './referrals';
 import { adminResolutionInspectorRouter } from './resolution-inspector';
+import { adminResolutionSuggestionsRouter } from './resolution-suggestions';
 
 export const adminRouter: RouterType = Router();
 
@@ -40,3 +41,4 @@ adminRouter.use('/polymarket', adminPolymarketRouter);
 adminRouter.use('/resolution-metrics', adminResolutionMetricsRouter);
 adminRouter.use('/referrals', adminReferralsRouter);
 adminRouter.use('/resolution-inspector', adminResolutionInspectorRouter);
+adminRouter.use('/resolution-suggestions', adminResolutionSuggestionsRouter);

@@ -1,4 +1,5 @@
 import { prisma } from '../db';
+import { suggestStuckPoolResults } from './result-suggestions';
 import { getAdapter } from '../services/sports';
 import type { Match } from '../services/sports/types';
 import { notifyPoolResolved } from '../services/notifications';
@@ -581,6 +582,13 @@ export function startSportsScheduler(): void {
       await sweepStuckPmPools();
     } catch (error) {
       console.error('[Sports] PM sweep error:', error);
+    }
+    try {
+      // For sports pools TheSportsDB never resolved, ask the web-search LLM and
+      // queue a PENDING suggestion for admin review (never auto-resolves).
+      await suggestStuckPoolResults();
+    } catch (error) {
+      console.error('[Sports] Result-suggestion error:', error);
     }
   }, 15 * 60 * 1000);
 

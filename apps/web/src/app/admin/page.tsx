@@ -22,8 +22,9 @@ import { PmExplorer } from './components/PmExplorer';
 import { ResolutionMetrics } from './components/ResolutionMetrics';
 import { GrowthOverview } from './components/GrowthOverview';
 import { ResolutionInspector } from './components/ResolutionInspector';
+import { ResolutionSuggestions } from './components/ResolutionSuggestions';
 
-const TABS = ['Health', 'Resolution', 'Pools', 'Zombies', 'Payouts', 'Finance', 'Users', 'Events', 'Actions', 'Tournaments', 'Matches', 'Predictions', 'Categories', 'Growth', 'Inspect'] as const;
+const TABS = ['Health', 'Resolution', 'Pools', 'Zombies', 'Payouts', 'Finance', 'Users', 'Events', 'Actions', 'Tournaments', 'Matches', 'Predictions', 'Categories', 'Growth', 'Inspect', 'Review'] as const;
 
 // Detect which environment the admin is pointing at, so a single misclick
 // between the dev / prod browser tabs is obvious. Reads NEXT_PUBLIC_ENV
@@ -190,6 +191,7 @@ export default function AdminPage() {
           {tab === 12 && <CategoryManagement />}
           {tab === 13 && <GrowthOverview />}
           {tab === 14 && <ResolutionInspector />}
+          {tab === 15 && <ResolutionSuggestions />}
         </Box>
       </Box>
     </ToastProvider>
