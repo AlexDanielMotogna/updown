@@ -1,11 +1,12 @@
 import { prisma } from '../db';
 import { ACTIVE_BET_THRESHOLD, MILESTONES, MILESTONE_POOL } from '../utils/testing';
 
-let ensured = false;
-
-/** Upsert the milestone config rows once per process (idempotent). */
+/**
+ * Upsert the milestone config rows (idempotent). Cheap INSERT…ON CONFLICT DO
+ * NOTHING with 5 rows — safe to call on every request. Deliberately not cached
+ * in-process so deleting/re-seeding rows recovers without a restart.
+ */
 async function ensureMilestones(): Promise<void> {
-  if (ensured) return;
   await prisma.milestone.createMany({
     data: MILESTONES.map((m, i) => ({
       key: m.key,
@@ -16,7 +17,6 @@ async function ensureMilestones(): Promise<void> {
     })),
     skipDuplicates: true,
   });
-  ensured = true;
 }
 
 /** Wallets flagged suspect by the referral anti-cheat — excluded from airdrops. */
