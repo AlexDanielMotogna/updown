@@ -52,15 +52,25 @@ adminResolutionInspectorRouter.get('/', async (req, res) => {
     const isPM = (pool.asset?.startsWith('PM_') ?? false) || !!pool.clobTokenIds;
 
     if (isPM) {
+      // The conditionId we persisted at ingest (in the PM cache) is the
+      // reliable source — Gamma DELISTS markets, so a live Gamma lookup
+      // returns nothing exactly when we most need to resolve. Read it first.
+      const cacheRow = pool.matchId
+        ? await prisma.sportsFixtureCache.findFirst({
+            where: { externalId: pool.matchId, sport: 'POLYMARKET' },
+            select: { conditionId: true, status: true },
+          })
+        : null;
+      let conditionId: string | null = cacheRow?.conditionId ?? null;
+
       // ── Polymarket (Gamma) ──────────────────────────────────────────────
-      let conditionId: string | null = null;
       try {
         const data = await polymarketFetch(`/markets?id=${pool.matchId}`);
         const m = Array.isArray(data) ? data[0] : data;
         if (!m) {
-          checks.push({ source: 'Polymarket (Gamma)', resolved: null, summary: 'Market not found on Gamma' });
+          checks.push({ source: 'Polymarket (Gamma)', resolved: false, summary: `DELISTED from Gamma${conditionId ? ' (using cached conditionId for on-chain check)' : ''}`, data: { cacheStatus: cacheRow?.status ?? null, conditionId } });
         } else {
-          conditionId = m.conditionId ?? null;
+          conditionId = m.conditionId ?? conditionId;
           const resolved = !!m.closed && m.umaResolutionStatus === 'resolved';
           checks.push({
             source: 'Polymarket (Gamma)',
@@ -75,7 +85,7 @@ adminResolutionInspectorRouter.get('/', async (req, res) => {
         checks.push({ source: 'Polymarket (Gamma)', resolved: null, summary: `Error: ${msg(e)}` });
       }
 
-      // ── UMA / CTF on-chain (Polygon) ────────────────────────────────────
+      // ── UMA / CTF on-chain (Polygon) — authoritative ────────────────────
       if (conditionId) {
         try {
           const r = await readCtfResolution(conditionId);
