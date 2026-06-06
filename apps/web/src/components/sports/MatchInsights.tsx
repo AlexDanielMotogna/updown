@@ -120,7 +120,7 @@ export function MatchInsights({
           numSides={numSides}
         />
       )}
-      {tab === 'lineups' && lineup && <LineupGrid lineup={lineup} />}
+      {tab === 'lineups' && lineup && <LineupGrid lineup={lineup} homeName={homeTeam} awayName={awayTeam} />}
     </Box>
   );
 }

@@ -34,13 +34,13 @@ function PlayerRow({ p, t }: { p: LineupPlayer; t: ReturnType<typeof useThemeTok
   );
 }
 
-function Side({ side, t }: { side: SideLineup | null; t: ReturnType<typeof useThemeTokens> }) {
+function Side({ side, t, teamName }: { side: SideLineup | null; t: ReturnType<typeof useThemeTokens>; teamName?: string | null }) {
   if (!side) return <Box />;
   return (
     <Box sx={{ minWidth: 0 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1 }}>
         <Typography sx={{ fontSize: '0.85rem', fontWeight: 800, color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {side.team ?? 'Team'}
+          {teamName || side.team || 'Team'}
         </Typography>
         {side.formation && (
           <Box component="span" sx={{ flexShrink: 0, px: 0.8, py: 0.2, borderRadius: '4px', fontSize: '0.7rem', fontWeight: 800, color: t.draw, bgcolor: withAlpha(t.draw, 0.14), fontVariantNumeric: 'tabular-nums' }}>
@@ -64,13 +64,14 @@ function Side({ side, t }: { side: SideLineup | null; t: ReturnType<typeof useTh
 }
 
 /** Bare two-column Home/Away lineup grid (no card wrapper) — used inside the
- *  MatchInsights tab. */
-export function LineupGrid({ lineup }: { lineup: EventLineup }) {
+ *  MatchInsights tab. homeName/awayName come from the match (the data's strTeam
+ *  is the player's CLUB, wrong for internationals — e.g. "Lazio" for Albania). */
+export function LineupGrid({ lineup, homeName, awayName }: { lineup: EventLineup; homeName?: string | null; awayName?: string | null }) {
   const t = useThemeTokens();
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: { xs: 3, sm: 4 }, px: { xs: 0.5, md: 1 }, py: 1 }}>
-      <Side side={lineup.home} t={t} />
-      <Side side={lineup.away} t={t} />
+      <Side side={lineup.home} t={t} teamName={homeName} />
+      <Side side={lineup.away} t={t} teamName={awayName} />
     </Box>
   );
 }
