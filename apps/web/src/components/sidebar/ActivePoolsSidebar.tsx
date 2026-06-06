@@ -11,6 +11,7 @@ import { withAlpha } from '@/lib/theme';
 import { formatUSDC } from '@/lib/format';
 import { AssetIcon } from '@/components/AssetIcon';
 import type { Bet } from '@/lib/api';
+import { kindOf } from '@/lib/poolKind';
 
 interface Row { pool: Bet['pool']; amount: bigint; side: string; claimable: boolean }
 
@@ -39,10 +40,10 @@ export function ActivePoolsSidebar({ onClose }: { onClose: () => void }) {
   }
   const items = [...byPool.values()].sort((a, b) => Number(b.claimable) - Number(a.claimable));
 
-  const isSports = (p: Bet['pool']) => p.poolType === 'SPORTS';
-  const isPM = (p: Bet['pool']) => isSports(p) && !p.awayTeam;
-  const go = (p: Bet['pool']) => router.push(`${isSports(p) ? '/match/' : '/pool/'}${p.id}`);
-  const title = (p: Bet['pool']) => (isSports(p) ? (p.homeTeam || p.asset) : `${p.asset}/USD`);
+  const isSports = (p: Bet['pool']) => kindOf(p) === 'sports';
+  const isPM = (p: Bet['pool']) => kindOf(p) === 'pm';
+  const go = (p: Bet['pool']) => router.push(`${kindOf(p) === 'crypto' ? '/pool/' : '/match/'}${p.id}`);
+  const title = (p: Bet['pool']) => (kindOf(p) !== 'crypto' ? (p.homeTeam || p.asset) : `${p.asset}/USD`);
   const sideLabel = (p: Bet['pool'], side: string) => {
     if (side === 'MULTI') return 'Both sides';
     if (side === 'DRAW') return 'Draw';

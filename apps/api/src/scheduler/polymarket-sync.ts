@@ -4,6 +4,7 @@ import { polymarketFetch } from '../services/sports/polymarket-fetch';
 import { categorizeEvent } from '../services/sports/polymarket-adapter';
 import { pickSubcategory, getPolymarketCategories } from '../services/category-config';
 import { readCtfResolution } from '../services/polymarket/ctf-resolver';
+import { resolvePolymarketPools } from '../services/polymarket/resolver';
 import type { MatchResult } from '../services/sports/types';
 import { createMatchPools } from './sports-scheduler';
 
@@ -779,8 +780,7 @@ async function cleanup(): Promise<void> {
   // by these IDs are protected from the expired-not-finished sweep.
   const openPools = await prisma.pool.findMany({
     where: {
-      poolType: 'SPORTS',
-      league: { startsWith: 'PM_' },
+      poolType: 'POLYMARKET',
       status: { in: ['JOINING', 'ACTIVE'] },
       matchId: { not: null },
     },
@@ -857,10 +857,15 @@ export function startPolymarketSyncScheduler(): void {
     bulkSync().catch(e => console.error('[PolymarketSync] Bulk sync error:', e));
   }, syncIntervalHours * 60 * 60 * 1000);
 
-  // Resolution poll on interval
+  // Resolution poll on interval (detection: marks the PM cache FINISHED via CTF)
   setInterval(() => {
     resolutionPoll().catch(e => console.error('[PolymarketSync] Resolution poll error:', e));
   }, pollIntervalMinutes * 60 * 1000);
+
+  // On-chain settle of resolved PM pools (self-contained PM domain; every 2m).
+  setInterval(() => {
+    resolvePolymarketPools().catch(e => console.error('[PolymarketSync] PM settle error:', e));
+  }, 2 * 60 * 1000);
 
   // Cleanup daily at 05:00 UTC
   cron.schedule('0 5 * * *', () => {

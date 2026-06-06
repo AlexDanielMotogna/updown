@@ -147,7 +147,7 @@ adminPolymarketRouter.get('/events', async (req, res) => {
       }
     }
     const existingPools = marketIds.length === 0 ? [] : await prisma.pool.findMany({
-      where: { matchId: { in: marketIds }, poolType: 'SPORTS' },
+      where: { matchId: { in: marketIds }, poolType: 'POLYMARKET' },
       select: { matchId: true, id: true, status: true },
     });
     const poolByMatchId = new Map(existingPools.map(p => [p.matchId, p]));
@@ -217,7 +217,7 @@ adminPolymarketRouter.get('/markets', async (req, res) => {
     // Annotate with poolExists in one query.
     const ids = rows.map(r => r.externalId);
     const pools = ids.length === 0 ? [] : await prisma.pool.findMany({
-      where: { matchId: { in: ids }, poolType: 'SPORTS' },
+      where: { matchId: { in: ids }, poolType: 'POLYMARKET' },
       select: { matchId: true, id: true, status: true },
     });
     const poolByMatchId = new Map(pools.map(p => [p.matchId, p]));
@@ -280,7 +280,7 @@ adminPolymarketRouter.post('/create-pool', async (req, res) => {
     const { matchId, category } = parsed.data;
 
     const existing = await prisma.pool.findFirst({
-      where: { matchId, poolType: 'SPORTS' },
+      where: { matchId, poolType: 'POLYMARKET' },
       select: { id: true, status: true },
     });
     if (existing) {
@@ -365,7 +365,7 @@ adminPolymarketRouter.post('/resolve-market', async (req, res) => {
 
     const pool = await prisma.pool.findUnique({ where: { id: poolId } });
     if (!pool) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Pool not found' } });
-    if (pool.poolType !== 'SPORTS' || !pool.league || !pool.league.startsWith('PM_')) {
+    if (pool.poolType !== 'POLYMARKET' && !pool.league?.startsWith('PM_')) {
       // Loose check — PM categories almost always start with PM_, but we
       // also accept any pool whose category is POLYMARKET via a follow-up
       // lookup so the operator isn't blocked by a non-conventional code.

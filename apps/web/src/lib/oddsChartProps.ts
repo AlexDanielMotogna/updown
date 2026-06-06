@@ -18,6 +18,7 @@
  */
 
 import { YES_ICON, NO_ICON, UP_ICON, DOWN_ICON } from './predictionIcons';
+import { kindOf } from './poolKind';
 
 interface PoolLike {
   asset?: string | null;
@@ -45,8 +46,9 @@ export interface OddsChartIdentity {
 const lc = (s?: string | null) => s?.toLowerCase();
 
 export function resolveOddsChartIdentity(pool: PoolLike): OddsChartIdentity {
-  const isPrediction = !!pool.league?.startsWith('PM_');
-  const isCrypto = pool.poolType !== 'SPORTS';
+  const k = kindOf(pool);
+  const isPrediction = k === 'pm';
+  const isCrypto = k === 'crypto';
   const threeWay = (pool.numSides ?? 2) === 3;
 
   const isYesNoPm = isPrediction && !pool.awayTeam;

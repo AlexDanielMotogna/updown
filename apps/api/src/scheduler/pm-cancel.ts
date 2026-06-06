@@ -277,9 +277,8 @@ export async function sweepStuckPmPools(): Promise<void> {
   if (cancelledMatchIds.length > 0) {
     const explicitlyDelisted = await prisma.pool.findMany({
       where: {
-        poolType: 'SPORTS',
+        poolType: 'POLYMARKET',
         status: { in: [PoolStatus.JOINING, PoolStatus.ACTIVE] },
-        league: { startsWith: 'PM_' },
         matchId: { in: cancelledMatchIds },
       },
       select: { id: true, matchId: true },
@@ -324,14 +323,16 @@ export async function sweepStuckPmPools(): Promise<void> {
   const umaCutoff = new Date(Date.now() - PM_SWEEP_UMA_STUCK_GRACE_HOURS * 60 * 60 * 1000);
   const stuck = await prisma.pool.findMany({
     where: {
-      poolType: 'SPORTS',
+      poolType: 'POLYMARKET',
       status: { in: [PoolStatus.JOINING, PoolStatus.ACTIVE] },
-      league: { startsWith: 'PM_' },
-      startTime: { lte: earliestCutoff },
+      // Grace is measured from the market deadline (endTime), not startTime —
+      // the PM time model sets startTime to pool-creation, so startTime no
+      // longer means "deadline". endTime == endDate.
+      endTime: { lte: earliestCutoff },
       // Skip the ones Phase 1 already handled (or queued for admin).
       matchId: cancelledMatchIds.length > 0 ? { notIn: cancelledMatchIds } : undefined,
     },
-    select: { id: true, matchId: true, homeTeam: true, league: true, startTime: true },
+    select: { id: true, matchId: true, homeTeam: true, league: true, endTime: true },
   });
 
   for (const pool of stuck) {
@@ -344,7 +345,7 @@ export async function sweepStuckPmPools(): Promise<void> {
       const delisted = pool.matchId ? await isMarketDelistedFromGamma(pool.matchId) : false;
       // Apply the right grace per bucket. Delisted pools already passed the
       // 24h filter above; uma-stuck ones need the bigger window.
-      if (!delisted && pool.startTime > umaCutoff) {
+      if (!delisted && pool.endTime > umaCutoff) {
         waitingForUma++;
         continue;
       }

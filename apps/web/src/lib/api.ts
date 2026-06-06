@@ -43,7 +43,7 @@ export interface Pool {
   downCount: number;
   drawCount: number;
   numSides: number;
-  poolType: 'CRYPTO' | 'SPORTS';
+  poolType: 'CRYPTO' | 'SPORTS' | 'POLYMARKET';
   matchId?: string | null;
   homeTeam?: string | null;
   awayTeam?: string | null;

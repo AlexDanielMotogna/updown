@@ -98,7 +98,7 @@ const ToastItem = memo(function ToastItem({ notification, onDismiss }: ToastItem
 
   const handleClick = useCallback(() => {
     if (notification.poolId) {
-      const path = notification.poolType === 'SPORTS' ? `/match/${notification.poolId}` : `/pool/${notification.poolId}`;
+      const path = notification.poolType === 'CRYPTO' ? `/pool/${notification.poolId}` : `/match/${notification.poolId}`;
       router.push(path);
       onDismiss(notification.id);
     }

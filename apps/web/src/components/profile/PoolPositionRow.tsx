@@ -13,6 +13,7 @@ import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import { AssetIcon } from '@/components';
 import type { Bet } from '@/lib/api';
+import { kindOf } from '@/lib/poolKind';
 
 // Polymarket category icons + colours - same mapping the legacy BetRow used,
 // kept local so PM pools render with their identity icon (a question-shaped
@@ -59,8 +60,9 @@ const FEE_FACTOR = 0.95; // matches the 5% payout fee used elsewhere in the UI
 const SIDE_ORDER: Record<string, number> = { UP: 0, DOWN: 1, DRAW: 2 };
 
 function sideLabel(side: Bet['side'], pool: Bet['pool']): string {
-  const isPM = pool.league?.startsWith('PM_');
-  const isSports = pool.poolType === 'SPORTS';
+  const k = kindOf(pool);
+  const isPM = k === 'pm';
+  const isSports = k === 'sports';
   if (isPM) return side === 'UP' ? 'Yes' : 'No';
   if (isSports) {
     if (side === 'UP') return pool.homeTeam || 'Home';
@@ -146,8 +148,9 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
   const failedBet = bets.find(b => !!b.payoutFailed && !b.claimed);
 
   // ── Market identity ────────────────────────────────────────────────────
-  const isSports = pool.poolType === 'SPORTS';
-  const isPM = pool.league?.startsWith('PM_');
+  const kind = kindOf(pool);
+  const isSports = kind === 'sports';
+  const isPM = kind === 'pm';
   const marketImage = isSports ? pool.homeTeamCrest : null;
   const pmColorKey = isPM ? PM_COLOR_KEYS[pool.league || ''] : undefined;
   const pmColor = pmColorKey ? t.categoryColors[pmColorKey] : t.prediction;
@@ -160,8 +163,8 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
     : isSports
       ? `${pool.homeTeam || ''} vs ${pool.awayTeam || ''}`.trim()
       : `${pool.asset}/USD${intervalLabel ? ` · ${intervalLabel}` : ''}`;
-  const poolLink = isSports ? `/match/${pool.id}` : `/pool/${pool.id}`;
-  const cryptoWindow = !isSports && !isPM
+  const poolLink = kind === 'crypto' ? `/pool/${pool.id}` : `/match/${pool.id}`;
+  const cryptoWindow = kind === 'crypto'
     ? formatPredictionWindow(pool.startTime, pool.endTime)
     : null;
   const winnerLabel = pool.winner ? sideLabel(pool.winner, pool) : null;

@@ -7,6 +7,7 @@ import { formatUSDC } from '@/lib/format';
 import { INTERVAL_TAG_IMAGES, INTERVAL_LABELS } from '@/lib/constants';
 import { AssetIcon } from '@/components/AssetIcon';
 import type { Pool } from '@/lib/api';
+import { kindOf } from '@/lib/poolKind';
 import { isMatchActive, isMatchFinished, formatLiveStatus, type LiveScore } from '@/hooks/useLiveScores';
 import type { CategoryConfig } from '@/hooks/useCategories';
 import { useThemeTokens } from '@/app/providers';
@@ -26,19 +27,21 @@ function short(name: string | null | undefined): string {
 }
 
 function poolName(pool: Pool): string {
-  if (pool.poolType !== 'SPORTS') return `${pool.asset}/USD`;
-  if (pool.league?.startsWith('PM_')) return pool.homeTeam || 'Prediction';
+  const k = kindOf(pool);
+  if (k === 'crypto') return `${pool.asset}/USD`;
+  if (k === 'pm') return pool.homeTeam || 'Prediction';
   if (pool.homeTeam && pool.awayTeam) return `${short(pool.homeTeam)} vs ${short(pool.awayTeam)}`;
   return pool.homeTeam || pool.asset;
 }
 
 function poolLink(pool: Pool): string {
-  return pool.poolType === 'SPORTS' ? `/match/${pool.id}` : `/pool/${pool.id}`;
+  return kindOf(pool) === 'crypto' ? `/pool/${pool.id}` : `/match/${pool.id}`;
 }
 
 function winnerLabel(pool: Pool): string {
-  if (pool.poolType !== 'SPORTS') return `${pool.winner} WINS`;
-  if (pool.league?.startsWith('PM_')) {
+  const k = kindOf(pool);
+  if (k === 'crypto') return `${pool.winner} WINS`;
+  if (k === 'pm') {
     return pool.winner === 'UP' ? 'YES' : 'NO';
   }
   if (pool.winner === 'UP') return short(pool.homeTeam) + ' WINS';
@@ -76,8 +79,8 @@ export function PoolsSidebarList({ pools, newIds, liveScores, categoryMap }: Poo
       <AnimatePresence>
         {pools.map((pool, i) => {
           const isNew = newIds.has(pool.id);
-          const isSports = pool.poolType === 'SPORTS';
-          const isPM = pool.league?.startsWith('PM_');
+          const isSports = kindOf(pool) === 'sports';
+          const isPM = kindOf(pool) === 'pm';
           const cat = pool.league && categoryMap ? categoryMap.get(pool.league) : undefined;
           const ls = liveScores && pool.matchId ? liveScores.get(pool.matchId) : undefined;
           const isMatchLive = ls && isMatchActive(ls);
