@@ -22,6 +22,7 @@ import { startFixtureSyncScheduler } from './scheduler/fixture-sync';
 import { startPolymarketSyncScheduler } from './scheduler/polymarket-sync';
 import { seedCategoriesIfEmpty } from './services/category-config';
 import { startLiveScorePolling } from './services/sports/livescore';
+import { startLiquidityBotScheduler } from './services/liquidity-bot/bot';
 import { initWebSocket, shutdownWebSocket, ensurePriceStreams } from './websocket';
 import { prisma } from './db';
 import { initPriceHistoryPersistence, hydratePriceHistory } from './services/price-history';
@@ -180,6 +181,12 @@ httpServer.listen(PORT, async () => {
     startLiveScorePolling();
   } catch (error) {
     console.error('Failed to start livescore polling:', error);
+  }
+
+  try {
+    startLiquidityBotScheduler();
+  } catch (error) {
+    console.error('Failed to start liquidity bot scheduler:', error);
   }
 });
 

@@ -8,6 +8,7 @@ import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { getConnection, getUsdcMint, derivePoolSeed } from '../utils/solana';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { trackBetPlacement } from '../services/rewards';
+import { recordConfirmedBet } from '../services/bet-recording';
 import { isSquadMember } from '../services/squads';
 import { getDistinctBettorWallets } from '../utils/bets';
 
@@ -347,125 +348,14 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
 
     console.log(`[Deposit] Verified on-chain: pool=${poolId}, wallet=${walletAddress}, side=${side}, amount=${betAmount}`);
 
-    // Mirror the on-chain time-weight math (state.rs::multiplier_bps).
-    // Linear decay with WEIGHT_FLOOR_BPS = 1000 floor. We capture this
-    // server-side so analytics (snipe rate, per-wallet entry timing) can
-    // run without an RPC per bet. The chain has the authoritative weight
-    // either way; if these diverge for any reason, the chain wins.
-    const WEIGHT_FLOOR_BPS = 1_000n;
-    const startSec = BigInt(Math.floor(pool.startTime.getTime() / 1000));
-    const lockSec = BigInt(Math.floor(pool.lockTime.getTime() / 1000));
-    const nowSec = BigInt(Math.floor(Date.now() / 1000));
-    const windowSec = lockSec - startSec;
-    let multiplierBps = WEIGHT_FLOOR_BPS;
-    if (windowSec > 0n) {
-      const nowClamped = nowSec < startSec ? startSec : nowSec > lockSec ? lockSec : nowSec;
-      const remaining = lockSec - nowClamped;
-      const rawBps = (remaining * 10_000n) / windowSec;
-      multiplierBps = rawBps > WEIGHT_FLOOR_BPS ? rawBps : WEIGHT_FLOOR_BPS;
-    }
-    const weightAdded = (betAmount * multiplierBps) / 10_000n;
-
-    // Atomic transaction - bet.upsert + pool.update together (supports multiple deposits)
-    const [bet, updatedPool] = await prisma.$transaction(async (tx) => {
-      const newBet = await tx.bet.upsert({
-        where: {
-          poolId_walletAddress_side: {
-            poolId: pool.id,
-            walletAddress,
-            side,
-          },
-        },
-        create: {
-          poolId: pool.id,
-          walletAddress,
-          side,
-          amount: betAmount,
-          weight: weightAdded,
-          entryMultiplierBps: Number(multiplierBps),
-          depositTx: txSignature,
-        },
-        update: {
-          amount: { increment: betAmount },
-          // Top-ups accumulate weight; entry multiplier stays as the
-          // FIRST deposit's value (analytics field, not payout-relevant).
-          weight: { increment: weightAdded },
-          depositTx: txSignature,
-        },
-      });
-
-      const newPool = await tx.pool.update({
-        where: { id: pool.id },
-        data: {
-          totalUp: side === 'UP'
-            ? { increment: betAmount }
-            : undefined,
-          totalDown: side === 'DOWN'
-            ? { increment: betAmount }
-            : undefined,
-          totalDraw: side === 'DRAW'
-            ? { increment: betAmount }
-            : undefined,
-        },
-      });
-
-      await tx.eventLog.create({
-        data: {
-          eventType: 'DEPOSIT_CONFIRMED',
-          entityType: 'bet',
-          entityId: newBet.id,
-          payload: {
-            poolId: pool.id,
-            walletAddress,
-            side,
-            amount: betAmount.toString(),
-            txSignature,
-          },
-        },
-      });
-
-      return [newBet, newPool] as const;
-    });
-
-    // BUG-07: Emit pool update so other clients see updated totals in real-time.
-    // Include per-side weight sums so live consumers can recompute the
-    // time-weighted payout projection (profile positions) without refetching.
-    const weightRows = await prisma.bet.groupBy({
-      by: ['side'],
-      where: { poolId: pool.id },
-      _sum: { weight: true },
-    });
-    const wsum = (s: 'UP' | 'DOWN' | 'DRAW') => (weightRows.find(r => r.side === s)?._sum.weight ?? 0n).toString();
-    emitPoolUpdate(pool.id, {
-      id: pool.id,
-      totalUp: updatedPool.totalUp.toString(),
-      totalDown: updatedPool.totalDown.toString(),
-      totalDraw: updatedPool.totalDraw.toString(),
-      weightedUp: wsum('UP'),
-      weightedDown: wsum('DOWN'),
-      weightedDraw: wsum('DRAW'),
-    });
-
-    // Side-channel emit for the UI "BetFlash" pulse — we send just the
-    // delta (side + the amount on THIS deposit, not the cumulative
-    // per-side total). Decoupled from emitPoolUpdate above because the
-    // card grid wants to flash an exact amount, not a recomputed
-    // increment.
-    emitBetPlaced(pool.id, {
-      poolId: pool.id,
-      side,
-      amount: betAmount.toString(),
-      at: Date.now(),
-    });
-
-    // Track placement stats only (fire-and-forget). XP is awarded at pool
-    // resolution (awardBetResolution), not here - see trackBetPlacement docs.
-    trackBetPlacement(walletAddress, betAmount).catch(e => console.warn('[Deposits] trackBetPlacement failed:', e instanceof Error ? e.message : e));
+    // Record the bet (weight math, Bet upsert + pool totals, event, WebSocket).
+    // Shared with the liquidity bot via recordConfirmedBet.
+    const { betId } = await recordConfirmedBet({ pool, walletAddress, side, betAmount, txSignature });
 
     res.json({
       success: true,
       data: {
-        betId: bet.id,
+        betId,
         side,
         amount: betAmount.toString(),
         status: 'confirmed',

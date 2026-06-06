@@ -114,6 +114,44 @@ export function getAuthorityKeypair(): Keypair {
   throw new Error('AUTHORITY_SECRET_KEY or AUTHORITY_KEYPAIR_PATH not configured');
 }
 
+/**
+ * Which cluster we're pointed at, inferred from the RPC URL. Used by the
+ * liquidity bot to pick its funding strategy (devnet = mint free, mainnet =
+ * transfer real USDC from treasury). Defaults to 'mainnet' (the safe assumption
+ * — a misconfigured RPC must NOT be treated as devnet).
+ */
+export function getCluster(): 'devnet' | 'mainnet' {
+  const rpc = (process.env.SOLANA_RPC_URL || process.env.SOLANA_RPC_URLS || 'https://api.devnet.solana.com').toLowerCase();
+  if (rpc.includes('devnet') || rpc.includes('testnet') || rpc.includes('localhost') || rpc.includes('127.0.0.1')) {
+    return 'devnet';
+  }
+  return 'mainnet';
+}
+
+export function isDevnet(): boolean {
+  return getCluster() === 'devnet';
+}
+
+/** Treasury wallet that funds liquidity-bot wallets on mainnet (real USDC+SOL).
+ *  Null when not configured (devnet uses mint authority instead). */
+export function getTreasuryKeypair(): Keypair | null {
+  const sk = process.env.TREASURY_SECRET_KEY;
+  if (!sk) return null;
+  try { return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(sk))); } catch { return null; }
+}
+
+/** Liquidity-bot wallets. LIQUIDITY_BOT_KEYS is a JSON array of secret-key
+ *  arrays: [[..64..],[..64..],...]. Empty array when not configured. */
+export function getLiquidityBotKeypairs(): Keypair[] {
+  const raw = process.env.LIQUIDITY_BOT_KEYS;
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr.map((sk: number[]) => Keypair.fromSecretKey(Uint8Array.from(sk)));
+  } catch { return []; }
+}
+
 /** Derive deterministic 32-byte seed from a pool UUID via SHA-256. */
 export function derivePoolSeed(poolUuid: string): Buffer {
   const crypto = require('crypto');
