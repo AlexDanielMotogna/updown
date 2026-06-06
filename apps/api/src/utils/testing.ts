@@ -10,7 +10,7 @@ export const TESTING_MODE = process.env.TESTING_MODE !== 'false';
  * as an "active / real" user. Single source of truth reused by the 20-bet
  * reward, community-milestone eligibility and referral-prize validity.
  */
-export const ACTIVE_BET_THRESHOLD = 1; // TEMP: lowered from 20 to test the reward flow — revert to 20
+export const ACTIVE_BET_THRESHOLD = 20;
 
 /** Fixed UP reward at the 20-bet milestone (stored units; display = /100 = 1000 UP). */
 export const BET_MILESTONE_REWARD = 100_000n;
