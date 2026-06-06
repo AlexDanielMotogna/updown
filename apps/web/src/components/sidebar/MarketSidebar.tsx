@@ -91,8 +91,10 @@ export function MarketSidebar() {
   // Only show on pages with market filters
   if (pathname !== '/' && pathname !== '/tournaments') return null;
 
-  const rawType = searchParams.get('type') ?? 'CRYPTO';
-  const marketType = rawType && (rawType === 'TRENDING' || rawType === 'CRYPTO' || rawType === 'SPORTS' || rawType.startsWith('PM_')) ? rawType : 'CRYPTO';
+  // Default to TRENDING (matches the home page) so the landing view doesn't
+  // fall back to the CRYPTO sidebar and show crypto asset/interval filters.
+  const rawType = searchParams.get('type') ?? 'TRENDING';
+  const marketType = rawType && (rawType === 'TRENDING' || rawType === 'CRYPTO' || rawType === 'SPORTS' || rawType.startsWith('PM_')) ? rawType : 'TRENDING';
   const assetFilter = searchParams.get('asset') ?? 'ALL';
   const intervalFilter = searchParams.get('interval') ?? 'ALL';
   // Legacy SOCCER bookmarks are folded into the FOOTBALL group code.
