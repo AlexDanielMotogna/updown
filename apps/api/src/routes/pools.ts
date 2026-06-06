@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../db';
 import type { PoolStatus, Prisma } from '@prisma/client';
 import { serializePool } from '../utils/serializers';
+import { isPmPool } from '../utils/pool-kind';
 import { getAllLiveScoresWithFallback, getLiveScoreWithFallback, getLiveScoreByTeamWithFallback } from '../services/sports/livescore';
 import { computeWeight, currentMultiplier, getTimeWeightedConfig } from '../services/time-weighted-payout';
 
@@ -236,7 +237,7 @@ poolsRouter.get('/trending', async (_req, res) => {
       : b.pool._count.bets - a.pool._count.bets;
 
     const bucketOf = (p: { poolType: string | null; league: string | null }) =>
-      p.poolType !== 'SPORTS' ? 'CRYPTO' : p.league?.startsWith('PM_') ? 'PM' : 'SPORTS';
+      isPmPool(p) ? 'PM' : p.poolType === 'SPORTS' ? 'SPORTS' : 'CRYPTO';
 
     const buckets: Record<string, typeof scored> = { SPORTS: [], PM: [], CRYPTO: [] };
     for (const s of scored) buckets[bucketOf(s.pool)]!.push(s);

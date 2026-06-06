@@ -49,7 +49,7 @@ adminResolutionInspectorRouter.get('/', async (req, res) => {
       data: { status: pool.status, winner: pool.winner, ended, closedAt: pool.closedAt },
     });
 
-    const isPM = (pool.asset?.startsWith('PM_') ?? false) || !!pool.clobTokenIds;
+    const isPM = pool.poolType === 'POLYMARKET' || (pool.asset?.startsWith('PM_') ?? false) || !!pool.clobTokenIds;
 
     if (isPM) {
       // The conditionId we persisted at ingest (in the PM cache) is the

@@ -1,6 +1,15 @@
 import { prisma } from '../db';
 import { autoPayoutEnabledFor } from '../utils/auto-payout-flag';
 import { calculateWeightedPayout, resolveFeeBps } from '../utils/payout';
+import { poolKind } from '../utils/pool-kind';
+
+/** Human label for a pool: PM → its question, sports → "A vs B", crypto → asset. */
+function matchLabelFor(pool: { poolType?: string | null; league?: string | null; homeTeam?: string | null; awayTeam?: string | null; asset: string }): string {
+  const kind = poolKind(pool);
+  if (kind === 'pm') return pool.homeTeam || pool.asset;
+  if (kind === 'sports' && pool.homeTeam) return `${pool.homeTeam} vs ${pool.awayTeam}`;
+  return pool.asset;
+}
 
 interface NotificationInput {
   walletAddress: string;
@@ -43,10 +52,7 @@ export async function notifyPoolResolved(pool: {
 
     if (bets.length === 0) return;
 
-    const isSports = pool.poolType === 'SPORTS';
-    const matchLabel = isSports && pool.homeTeam
-      ? `${pool.homeTeam} vs ${pool.awayTeam}`
-      : `${pool.asset}`;
+    const matchLabel = matchLabelFor(pool);
     const scoreLabel = pool.homeScore != null && pool.awayScore != null
       ? ` (${pool.homeScore}-${pool.awayScore})`
       : '';
@@ -149,10 +155,7 @@ export async function notifyPoolClaimable(pool: {
 
     if (winningBets.length === 0) return;
 
-    const isSports = pool.poolType === 'SPORTS';
-    const matchLabel = isSports && pool.homeTeam
-      ? `${pool.homeTeam} vs ${pool.awayTeam}`
-      : `${pool.asset}`;
+    const matchLabel = matchLabelFor(pool);
 
     const notifications = winningBets.map(bet => ({
       walletAddress: bet.walletAddress,
@@ -193,10 +196,7 @@ export async function notifyBetPaid(
   payoutUsdc: bigint,
   txSignature: string,
 ): Promise<void> {
-  const isSports = pool.poolType === 'SPORTS';
-  const matchLabel = isSports && pool.homeTeam
-    ? `${pool.homeTeam} vs ${pool.awayTeam}`
-    : `${pool.asset}`;
+  const matchLabel = matchLabelFor(pool);
   const dollarStr = (Number(payoutUsdc) / 1_000_000).toFixed(2);
   await createNotification({
     walletAddress,

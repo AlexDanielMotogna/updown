@@ -383,13 +383,14 @@ adminActionsRouter.get('/stuck-pm-pools', async (req, res) => {
     const cutoff = new Date(Date.now() - minHours * 60 * 60 * 1000);
     const stuck = await prisma.pool.findMany({
       where: {
-        poolType: 'SPORTS',
+        poolType: 'POLYMARKET',
         status: { in: [PoolStatus.JOINING, PoolStatus.ACTIVE] },
-        league: { startsWith: 'PM_' },
-        startTime: { lte: cutoff },
+        // "Overdue" is measured from the market deadline (endTime), not startTime
+        // (which now == pool creation under the PM time model).
+        endTime: { lte: cutoff },
       },
-      orderBy: { startTime: 'asc' },
-      select: { id: true, matchId: true, homeTeam: true, league: true, subcategory: true, startTime: true, status: true },
+      orderBy: { endTime: 'asc' },
+      select: { id: true, matchId: true, homeTeam: true, league: true, subcategory: true, startTime: true, endTime: true, status: true },
     });
     // Annotate each with bet count + Gamma availability (lookup is rate-limited
     // to 3s/call by polymarketFetch — keep the result set small).

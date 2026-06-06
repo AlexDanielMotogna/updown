@@ -780,8 +780,7 @@ async function cleanup(): Promise<void> {
   // by these IDs are protected from the expired-not-finished sweep.
   const openPools = await prisma.pool.findMany({
     where: {
-      poolType: 'SPORTS',
-      league: { startsWith: 'PM_' },
+      poolType: 'POLYMARKET',
       status: { in: ['JOINING', 'ACTIVE'] },
       matchId: { not: null },
     },
