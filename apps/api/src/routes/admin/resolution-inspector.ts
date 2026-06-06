@@ -3,6 +3,7 @@ import { prisma } from '../../db';
 import { polymarketFetch } from '../../services/sports/polymarket-fetch';
 import { sportsDbFetch } from '../../services/sports/api-sports-fetch';
 import { readCtfResolution } from '../../services/polymarket/ctf-resolver';
+import { isFinishedStatus } from '../../services/sports/livescore';
 
 export const adminResolutionInspectorRouter: RouterType = Router();
 
@@ -113,13 +114,18 @@ adminResolutionInspectorRouter.get('/', async (req, res) => {
         } else {
           const hs = e.intHomeScore, as = e.intAwayScore;
           const status: string = e.strStatus ?? '';
-          const finished = /finish|^ft$|final|aet|after extra|ended/i.test(status) ||
-            (hs != null && as != null && hs !== '' && as !== '');
+          // FINISHED only when the status says so (FT/AET/PEN/AOT/AP) — NOT just
+          // because a score exists. A live match ("2H", "1H", "HT"…) has a score
+          // but isn't over. Same canonical check the real resolver uses.
+          const finished = isFinishedStatus(status);
+          const scoreStr = (hs != null && hs !== '' && as != null && as !== '') ? `${hs}-${as}` : 'no score';
           checks.push({
             source: 'TheSportsDB',
             resolved: finished,
-            summary: finished ? `FINISHED ${hs}-${as} (${status || 'scores present'})` : `not final · status=${status || '—'}`,
-            data: { status, homeScore: hs, awayScore: as, home: e.strHomeTeam, away: e.strAwayTeam, date: e.dateEvent },
+            summary: finished
+              ? `FINISHED ${scoreStr} (${status})`
+              : `IN PLAY / not final — status=${status || '—'}${scoreStr !== 'no score' ? ` · live ${scoreStr}` : ''}`,
+            data: { rawStatus: status, finished, homeScore: hs, awayScore: as, progress: e.strProgress ?? null, home: e.strHomeTeam, away: e.strAwayTeam, date: e.dateEvent },
           });
         }
       } catch (e) {
