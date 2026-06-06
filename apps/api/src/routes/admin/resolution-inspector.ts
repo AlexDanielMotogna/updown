@@ -4,6 +4,7 @@ import { polymarketFetch } from '../../services/sports/polymarket-fetch';
 import { sportsDbFetch } from '../../services/sports/api-sports-fetch';
 import { readCtfResolution } from '../../services/polymarket/ctf-resolver';
 import { isFinishedStatus } from '../../services/sports/livescore';
+import { getCachedFixtureResults } from '../../services/sports/fixture-cache';
 
 export const adminResolutionInspectorRouter: RouterType = Router();
 
@@ -105,32 +106,41 @@ adminResolutionInspectorRouter.get('/', async (req, res) => {
         checks.push({ source: 'UMA / CTF (Polygon on-chain)', resolved: null, summary: 'No conditionId (Gamma lookup needed first)' });
       }
     } else if (pool.poolType === 'SPORTS') {
-      // ── TheSportsDB ─────────────────────────────────────────────────────
+      // ── Resolver's view (live_scores first — the SAME source resolution
+      // uses). lookupevent.php's strStatus lags (shows "2H" for a match that
+      // already ended), so we DON'T base the verdict on it. ────────────────
       try {
-        const data = await sportsDbFetch(`lookupevent.php?id=${pool.matchId}`);
-        const e = data?.events?.[0];
-        if (!e) {
-          checks.push({ source: 'TheSportsDB', resolved: null, summary: 'Event not found' });
-        } else {
-          const hs = e.intHomeScore, as = e.intAwayScore;
+        const live = pool.matchId
+          ? await prisma.liveScore.findUnique({ where: { eventId: pool.matchId }, select: { status: true, homeScore: true, awayScore: true, progress: true, updatedAt: true } })
+          : null;
+        const results = pool.matchId ? await getCachedFixtureResults([pool.matchId]) : new Map();
+        const result = pool.matchId ? results.get(pool.matchId) : undefined;
+        checks.push({
+          source: 'TheSportsDB (livescore — resolver source)',
+          resolved: !!result,
+          summary: result
+            ? `FINISHED ${result.homeScore}-${result.awayScore} · winner ${result.winner}`
+            : live
+              ? `IN PLAY — ${live.status} ${live.homeScore}-${live.awayScore}${live.progress ? ` (${live.progress})` : ''}`
+              : 'no live/result yet',
+          data: { resolverResult: result ?? null, liveScore: live ?? null },
+        });
+      } catch (e) {
+        checks.push({ source: 'TheSportsDB (livescore)', resolved: null, summary: `Error: ${msg(e)}` });
+      }
+      // Raw per-event lookup, shown only for reference (its status can lag).
+      try {
+        const e = (await sportsDbFetch(`lookupevent.php?id=${pool.matchId}`))?.events?.[0];
+        if (e) {
           const status: string = e.strStatus ?? '';
-          // FINISHED only when the status says so (FT/AET/PEN/AOT/AP) — NOT just
-          // because a score exists. A live match ("2H", "1H", "HT"…) has a score
-          // but isn't over. Same canonical check the real resolver uses.
-          const finished = isFinishedStatus(status);
-          const scoreStr = (hs != null && hs !== '' && as != null && as !== '') ? `${hs}-${as}` : 'no score';
           checks.push({
-            source: 'TheSportsDB',
-            resolved: finished,
-            summary: finished
-              ? `FINISHED ${scoreStr} (${status})`
-              : `IN PLAY / not final — status=${status || '—'}${scoreStr !== 'no score' ? ` · live ${scoreStr}` : ''}`,
-            data: { rawStatus: status, finished, homeScore: hs, awayScore: as, progress: e.strProgress ?? null, home: e.strHomeTeam, away: e.strAwayTeam, date: e.dateEvent },
+            source: 'TheSportsDB lookupevent (raw — can lag)',
+            resolved: isFinishedStatus(status),
+            summary: `status=${status || '—'} · ${e.intHomeScore ?? '?'}-${e.intAwayScore ?? '?'}${e.strProgress ? ` (${e.strProgress})` : ''}`,
+            data: { rawStatus: status, homeScore: e.intHomeScore, awayScore: e.intAwayScore, progress: e.strProgress ?? null },
           });
         }
-      } catch (e) {
-        checks.push({ source: 'TheSportsDB', resolved: null, summary: `Error: ${msg(e)}` });
-      }
+      } catch { /* reference only */ }
     } else {
       // ── Crypto (price-settled, no external oracle) ──────────────────────
       checks.push({
