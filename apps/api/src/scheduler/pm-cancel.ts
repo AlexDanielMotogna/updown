@@ -28,12 +28,12 @@ const PM_SWEEP_GAMMA_DELISTED_GRACE_HOURS = Number(process.env.PM_SWEEP_GAMMA_DE
 const PM_SWEEP_UMA_STUCK_GRACE_HOURS = Number(process.env.PM_SWEEP_UMA_STUCK_GRACE_HOURS) || 120;
 
 /**
- * CTF-direct guard the sweep consults before pulling the trigger on a
- * cancellation. When POLYMARKET_USE_UMA is on, we don't cancel pools whose
- * underlying ConditionalTokens entry is still resolvable on Polygon — even
- * if Gamma has dropped the listing. This closes the second path (after
- * resolutionPoll's own guard) where editorial actions on Polymarket's
- * side could nuke a pool whose on-chain position is still live.
+ * CTF-direct guard the sweep ALWAYS consults before pulling the trigger on a
+ * cancellation: we don't cancel pools whose underlying ConditionalTokens entry
+ * is still resolvable on Polygon — even if Gamma has dropped the listing. This
+ * closes the second path (after resolutionPoll's own guard) where editorial
+ * actions on Polymarket's side could nuke a pool whose on-chain position is
+ * still live.
  *
  * Returns:
  *   • 'cancel'         — proceed with the existing cancel logic
@@ -45,13 +45,12 @@ const PM_SWEEP_UMA_STUCK_GRACE_HOURS = Number(process.env.PM_SWEEP_UMA_STUCK_GRA
  *   • 'skip-rpc-error' — transient Polygon RPC failure. Don't risk
  *                        user funds; the next sweep retries.
  *
- * When the flag is OFF or the cache row has no conditionId, returns
- * 'cancel' so the legacy path is unchanged.
+ * When the cache row has no conditionId, returns 'cancel' so pools we can't
+ * verify on-chain still follow the legacy Gamma-only path.
  */
 type UmaSweepDecision = 'cancel' | 'skip-pending' | 'skip-refund' | 'skip-rpc-error';
 
 async function consultUmaBeforeCancel(matchId: string | null): Promise<UmaSweepDecision> {
-  if (process.env.POLYMARKET_USE_UMA !== 'true') return 'cancel';
   if (!matchId) return 'cancel';
   const cacheRow = await prisma.sportsFixtureCache.findFirst({
     where: { sport: 'POLYMARKET', externalId: matchId },
