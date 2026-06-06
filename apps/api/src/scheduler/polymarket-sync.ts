@@ -522,10 +522,9 @@ export async function recategorizePmPools(): Promise<{ moved: number; rebucketed
 
 /**
  * Classify a Polymarket market's current state. Reads Polymarket's CTF
- * contract on Polygon first when the flag POLYMARKET_USE_UMA=true and
- * we have a cached conditionId — CTF is the single source-of-truth
- * settlement layer for every PM market regardless of which adapter
- * mediated. Falls back to Gamma for everything CTF can't answer.
+ * contract on Polygon FIRST whenever we have a conditionId — CTF is the single
+ * source-of-truth settlement layer for every PM market regardless of which
+ * adapter mediated. Falls back to Gamma for everything CTF can't answer.
  *
  *   resolved   — CTF says payoutDenominator > 0 (terminal, on-chain)
  *                OR Gamma's closed && umaResolutionStatus==='resolved'.
@@ -545,22 +544,19 @@ type MarketResolutionState =
   | { kind: 'refund' }
   | { kind: 'resolved'; result: MatchResult; oracle: 'ctf' | 'gamma' };
 
-const POLYMARKET_USE_UMA = (): boolean => process.env.POLYMARKET_USE_UMA === 'true';
-
 async function pollPolymarketMarket(
   marketId: string,
   conditionId: string | null,
 ): Promise<MarketResolutionState> {
-  // ── CTF-first path (behind flag) ──────────────────────────────────────
-  // When enabled + we have a conditionId, ask Polymarket's Conditional
-  // Tokens contract directly. Its answer is authoritative — once
-  // reportPayouts has been called, the position is final regardless of
-  // what Gamma's editorial layer is doing. We still fall through to
-  // Gamma when CTF can't help so resolutions never get stuck waiting on
-  // a degraded Polygon RPC.
-  const ctfEnabled = POLYMARKET_USE_UMA() && !!conditionId;
+  // ── CTF-first (authoritative) ─────────────────────────────────────────
+  // CTF on-chain is the PRIMARY resolver: once reportPayouts has been called
+  // the position is final forever, regardless of what Gamma's editorial layer
+  // does (it delists markets). Always consult it when we have a conditionId.
+  // Gamma is only a fallback/enrichment. We still fall through to Gamma when
+  // CTF can't help (no conditionId, malformed, or a degraded Polygon RPC) so
+  // resolutions never get stuck on a transient RPC failure.
   let ctfSaidPending = false;
-  if (ctfEnabled) {
+  if (conditionId) {
     const ctf = await readCtfResolution(conditionId!);
     if (ctf.kind === 'resolved') {
       // CTF outcome maps to our HOME/AWAY convention: 1 = YES = HOME,
@@ -585,18 +581,17 @@ async function pollPolymarketMarket(
   }
 
   const data = await polymarketFetch(`/markets?id=${marketId}`);
-  // Gamma returns [] when the market has been delisted entirely. Default
-  // behaviour is to treat that as terminal — but if CTF explicitly told
-  // us the position is still pending, the delisting is editorial and we
-  // hold the resolution open. This is the exact fix for the gamma-
-  // delisted-immediate cancellations that today eat hourly PM_FINANCE
-  // duplicates and PM_CULTURE markets whose listing got pulled mid-
-  // window.
+  // Gamma returns [] when the market has been delisted (editorial). This is
+  // NEVER terminal while we hold a conditionId: the market is still resolvable
+  // on-chain via CTF, so we keep the pool open (pending) and let CTF settle it
+  // on a later cycle. Cancelling here is exactly what stranded resolved-on-chain
+  // pools (e.g. MrBeast PM_CULTURE 2026-06-06). Only markets we can't resolve
+  // on-chain at all (no conditionId) are treated as delisted/terminal.
   if (Array.isArray(data) && data.length === 0) {
-    return ctfSaidPending ? { kind: 'pending' } : { kind: 'delisted' };
+    return conditionId ? { kind: 'pending' } : { kind: 'delisted' };
   }
   const market = Array.isArray(data) ? data[0] : data;
-  if (!market) return ctfSaidPending ? { kind: 'pending' } : { kind: 'delisted' };
+  if (!market) return conditionId ? { kind: 'pending' } : { kind: 'delisted' };
 
   if (!market.closed || market.umaResolutionStatus !== 'resolved') {
     return { kind: 'pending' };

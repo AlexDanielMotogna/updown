@@ -460,6 +460,7 @@ export async function createSportsPool(match: Match, leagueCode: string): Promis
         league: leagueCode,
         marketOdds: cacheEntry?.marketOdds ?? null,
         clobTokenIds: cacheEntry?.clobTokenIds ?? null,
+        conditionId: cacheEntry?.conditionId ?? null, // CTF settlement key (survives Gamma delisting)
         matchAnalysis: cacheEntry?.groupItemTitle ?? null, // PM description/rules
         tags: cacheEntry?.tags ?? null,
         subcategory: cacheEntry?.subcategory ?? null,

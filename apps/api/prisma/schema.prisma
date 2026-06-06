@@ -58,6 +58,9 @@ model Pool {
   marketOdds      Float?     @map("market_odds")
   groupItemTitle  String?    @map("group_item_title")
   clobTokenIds    String?    @map("clob_token_ids")
+  /// Polymarket CTF conditionId (bytes32, 0x…). Persisted at creation so the
+  /// resolver can settle on-chain even after Gamma delists the market.
+  conditionId     String?    @map("condition_id")
   tags            String? // JSON array of raw tag labels from Polymarket (display/debug)
   subcategory     String? // Single resolved subcategory bucket (exact-match filter key)
   createdAt       DateTime   @default(now()) @map("created_at")
