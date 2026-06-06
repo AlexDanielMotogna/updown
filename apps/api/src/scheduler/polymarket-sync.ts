@@ -60,6 +60,29 @@ const PM_LOPSIDED_THRESHOLD = (() => {
  * are missing or malformed (we don't reject on insufficient data —
  * the caller already validates outcomePrices upstream).
  */
+/**
+ * Skip markets that are already too far through their life — the operator's
+ * "don't create pools for markets that started 10 days ago with 2 days left"
+ * complaint. We only ingest a market when LESS than PM_MAX_ELAPSED_FRACTION of
+ * its [startDate, endDate] span has elapsed (default 0.5 → must catch it in the
+ * first half). Relative, not an arbitrary absolute age, so genuinely long
+ * markets we catch early still qualify. Never rejects when the dates are
+ * missing/invalid (can't compute → let other filters decide).
+ */
+const PM_MAX_ELAPSED_FRACTION = (() => {
+  const n = Number(process.env.PM_MAX_ELAPSED_FRACTION);
+  return Number.isFinite(n) && n > 0 && n <= 1 ? n : 0.5;
+})();
+
+function isMarketStale(startDateRaw: unknown, endDateRaw: unknown): boolean {
+  if (typeof startDateRaw !== 'string' || typeof endDateRaw !== 'string') return false;
+  const start = new Date(startDateRaw).getTime();
+  const end = new Date(endDateRaw).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return false;
+  const elapsed = (Date.now() - start) / (end - start);
+  return elapsed > PM_MAX_ELAPSED_FRACTION;
+}
+
 function isMarketLopsided(rawOutcomePrices: string | null | undefined): boolean {
   const prices = safeJsonParse<string[]>(rawOutcomePrices);
   if (!prices || prices.length < 2) return false;
@@ -184,6 +207,9 @@ export async function bulkSync(): Promise<void> {
       // is publicly knowable BEFORE UMA closes — listing them on UpDown
       // just hands free money to whoever Googles first.
       if (isMarketLopsided(market.outcomePrices)) continue;
+
+      // Freshness: only ingest markets caught early in their life (see helper).
+      if (isMarketStale(market.startDate, market.endDate)) continue;
 
       // Use market.question (specific) over event.title (generic with __ placeholders)
       const isGenericYesNo = outcomes[0] === 'Yes' && outcomes[1] === 'No';
@@ -391,6 +417,7 @@ export async function syncCategory(code: string): Promise<{ tagIds: string[]; ev
       // and the only people who'd bet on UpDown are the ones who know
       // the public answer.
       if (isMarketLopsided(market.outcomePrices)) continue;
+      if (isMarketStale(market.startDate, market.endDate)) continue;
 
       totalMarkets++;
       const isGenericYesNo = outcomes[0] === 'Yes' && outcomes[1] === 'No';
