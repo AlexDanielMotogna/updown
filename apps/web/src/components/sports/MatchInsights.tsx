@@ -13,9 +13,12 @@
 
 import { useState } from 'react';
 import { Box, Typography } from '@mui/material';
-import { BarChart, History } from '@mui/icons-material';
+import { BarChart, History, Groups } from '@mui/icons-material';
+import { useQuery } from '@tanstack/react-query';
 import { OddsChart } from '@/components/pool/OddsChart';
 import { MatchAnalysis } from '@/components/sports/MatchAnalysis';
+import { LineupGrid } from '@/components/sports/MatchLineups';
+import { fetchLineup } from '@/lib/api';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 
@@ -27,6 +30,7 @@ interface Props {
   totalDown: string;
   totalDraw: string;
   numSides?: number;
+  matchId?: string | null;
   matchAnalysis?: string | null;
   labels?: { up?: string; down?: string; draw?: string };
   /** Crests / icons rendered inside the chart hover tooltip + endpoint
@@ -36,7 +40,7 @@ interface Props {
   icons?: { up?: string | null; down?: string | null; draw?: string | null };
 }
 
-type Tab = 'stats' | 'h2h';
+type Tab = 'stats' | 'h2h' | 'lineups';
 
 export function MatchInsights({
   poolId,
@@ -46,6 +50,7 @@ export function MatchInsights({
   totalDown,
   totalDraw,
   numSides,
+  matchId,
   matchAnalysis,
   labels,
   icons,
@@ -55,6 +60,14 @@ export function MatchInsights({
   // the secondary lens for users who want context on past meetings.
   const [tab, setTab] = useState<Tab>('stats');
   const hasH2H = !!matchAnalysis;
+  const { data: lineupData } = useQuery({
+    queryKey: ['lineup', matchId],
+    queryFn: () => fetchLineup(matchId!),
+    enabled: !!matchId,
+    staleTime: 5 * 60_000,
+  });
+  const lineup = lineupData?.data;
+  const hasLineup = !!lineup?.hasData;
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -74,10 +87,18 @@ export function MatchInsights({
             label="Head to Head"
           />
         )}
+        {hasLineup && (
+          <TabButton
+            active={tab === 'lineups'}
+            onClick={() => setTab('lineups')}
+            icon={<Groups sx={{ fontSize: 16 }} />}
+            label="Lineups"
+          />
+        )}
       </Box>
 
       {/* Tab body */}
-      {tab === 'stats' ? (
+      {tab === 'stats' && (
         <OddsChart
           poolId={poolId}
           totalUp={totalUp}
@@ -90,16 +111,16 @@ export function MatchInsights({
           labels={labels}
           icons={icons}
         />
-      ) : (
-        hasH2H && (
-          <MatchAnalysis
-            matchAnalysis={matchAnalysis}
-            homeTeam={homeTeam}
-            awayTeam={awayTeam}
-            numSides={numSides}
-          />
-        )
       )}
+      {tab === 'h2h' && hasH2H && (
+        <MatchAnalysis
+          matchAnalysis={matchAnalysis}
+          homeTeam={homeTeam}
+          awayTeam={awayTeam}
+          numSides={numSides}
+        />
+      )}
+      {tab === 'lineups' && lineup && <LineupGrid lineup={lineup} />}
     </Box>
   );
 }

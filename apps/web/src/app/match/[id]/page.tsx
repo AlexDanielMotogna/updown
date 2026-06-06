@@ -14,7 +14,6 @@ import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { AppShell, TransactionModal, EmptyMessage } from '@/components';
 import { ThreeWaySelector } from '@/components/sports/ThreeWaySelector';
 import { OddsChart } from '@/components/pool/OddsChart';
-import { MatchLineups } from '@/components/sports/MatchLineups';
 import { resolveOddsChartIdentity } from '@/lib/oddsChartProps';
 import { MatchHeader } from '@/components/sports/MatchHeader';
 import { MatchScoreRow } from '@/components/sports/MatchScoreRow';
@@ -503,6 +502,7 @@ export default function MatchDetailPage() {
               return (
                 <MatchInsights
                   poolId={pool.id}
+                  matchId={pool.matchId}
                   homeTeam={pool.homeTeam || 'Home'}
                   awayTeam={pool.awayTeam || 'Away'}
                   totalUp={liveTotals?.totalUp ?? pool.totalUp}
@@ -543,9 +543,6 @@ export default function MatchDetailPage() {
           {isPrediction && pool.matchAnalysis && (
             <MarketInfo description={pool.matchAnalysis} />
           )}
-
-          {/* Team lineups (real sports only; self-hides when no coverage) */}
-          {!isPrediction && pool.matchId && <MatchLineups matchId={pool.matchId} />}
 
           {/* Activity log */}
           <Box>

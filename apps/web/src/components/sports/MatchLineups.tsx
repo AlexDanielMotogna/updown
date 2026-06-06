@@ -4,7 +4,7 @@ import { Box, Typography, Avatar } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
-import { fetchLineup, type SideLineup, type LineupPlayer } from '@/lib/api';
+import { fetchLineup, type SideLineup, type LineupPlayer, type EventLineup } from '@/lib/api';
 
 function PlayerRow({ p, t }: { p: LineupPlayer; t: ReturnType<typeof useThemeTokens> }) {
   return (
@@ -63,8 +63,20 @@ function Side({ side, t }: { side: SideLineup | null; t: ReturnType<typeof useTh
   );
 }
 
-/** Two-column team lineups for a sports match. Self-hides when TheSportsDB has
- *  no lineup coverage (e.g. NHL, MMA) or for non-sports pools. */
+/** Bare two-column Home/Away lineup grid (no card wrapper) — used inside the
+ *  MatchInsights tab. */
+export function LineupGrid({ lineup }: { lineup: EventLineup }) {
+  const t = useThemeTokens();
+  return (
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: { xs: 3, sm: 4 }, px: { xs: 0.5, md: 1 }, py: 1 }}>
+      <Side side={lineup.home} t={t} />
+      <Side side={lineup.away} t={t} />
+    </Box>
+  );
+}
+
+/** Standalone lineups card (self-fetching). Kept for non-tabbed surfaces;
+ *  the /match page renders the Lineups tab via MatchInsights instead. */
 export function MatchLineups({ matchId }: { matchId: string | null | undefined }) {
   const t = useThemeTokens();
   const { data } = useQuery({
@@ -79,10 +91,7 @@ export function MatchLineups({ matchId }: { matchId: string | null | undefined }
   return (
     <Box sx={{ bgcolor: t.bg.surface, border: `1px solid ${t.border.subtle}`, borderRadius: 2, p: { xs: 2, md: 2.5 }, mt: 3 }}>
       <Typography sx={{ fontSize: '0.95rem', fontWeight: 800, color: t.text.primary, mb: 2 }}>Lineups</Typography>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: { xs: 3, sm: 4 } }}>
-        <Side side={lineup.home} t={t} />
-        <Side side={lineup.away} t={t} />
-      </Box>
+      <LineupGrid lineup={lineup} />
     </Box>
   );
 }
