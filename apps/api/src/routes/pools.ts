@@ -145,6 +145,96 @@ poolsRouter.get('/', async (req, res) => {
   }
 });
 
+// GET /api/pools/live - discovery feed of active markets (open for betting,
+// not resolved), ranked by trending / volume / bets / new / ending-soon, with
+// hero stats. Categories live in the normal grid; Live is for opportunities.
+poolsRouter.get('/live', async (req, res) => {
+  try {
+    const sort = String(req.query.sort || 'trending');         // trending|volume|bets|new|ending
+    const category = String(req.query.category || 'all');      // all|crypto|sports|politics|world
+    const limit = Math.min(60, Math.max(1, Number(req.query.limit) || 40));
+    const now = new Date();
+    const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    // Base: open for betting (not locked, not resolved), public (non-squad).
+    const baseWhere: Prisma.PoolWhereInput = {
+      squadId: null,
+      status: { in: ['JOINING', 'ACTIVE'] },
+      lockTime: { gt: now },
+    };
+    const where: Prisma.PoolWhereInput = { ...baseWhere };
+    if (category === 'crypto') where.poolType = 'CRYPTO';
+    else if (category === 'sports') where.poolType = 'SPORTS';
+    else if (category === 'politics') where.league = 'PM_POLITICS';
+    else if (category === 'world') where.league = 'PM_GEO';
+
+    // Working set (live markets are bounded; cap for ranking).
+    const candidates = await prisma.pool.findMany({
+      where,
+      include: { _count: { select: { bets: true } } },
+      take: 300,
+    });
+
+    // Recent 24h activity (for trending) — bets + volume per pool.
+    const ids = candidates.map(p => p.id);
+    const recent = new Map<string, { vol: number; bets: number }>();
+    if (ids.length > 0 && sort === 'trending') {
+      const agg = await prisma.bet.groupBy({
+        by: ['poolId'],
+        where: { poolId: { in: ids }, createdAt: { gte: dayAgo } },
+        _count: true,
+        _sum: { amount: true },
+      });
+      for (const r of agg) recent.set(r.poolId, { vol: Number(r._sum.amount ?? 0n), bets: r._count });
+    }
+
+    const totalPool = (p: (typeof candidates)[number]) => p.totalUp + p.totalDown + p.totalDraw;
+    const sorted = [...candidates];
+    if (sort === 'volume') sorted.sort((a, b) => (totalPool(b) > totalPool(a) ? 1 : totalPool(b) < totalPool(a) ? -1 : 0));
+    else if (sort === 'bets') sorted.sort((a, b) => b._count.bets - a._count.bets);
+    else if (sort === 'new') sorted.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    else if (sort === 'ending') sorted.sort((a, b) => a.lockTime.getTime() - b.lockTime.getTime());
+    else {
+      // trending: recent USDC volume + recent bet count.
+      const score = (p: (typeof candidates)[number]) => { const r = recent.get(p.id); return r ? (r.vol / 1e6) * 0.6 + r.bets * 0.4 : 0; };
+      sorted.sort((a, b) => score(b) - score(a));
+    }
+    const pageItems = sorted.slice(0, limit);
+
+    // Per-side bet counts (same shape the grid expects).
+    const poolIds = pageItems.map(p => p.id);
+    const sideCounts = poolIds.length > 0
+      ? await prisma.bet.groupBy({ by: ['poolId', 'side'], where: { poolId: { in: poolIds } }, _count: true })
+      : [];
+    const sideMap = new Map<string, { upCount: number; downCount: number; drawCount: number }>();
+    for (const row of sideCounts) {
+      const e = sideMap.get(row.poolId) || { upCount: 0, downCount: 0, drawCount: 0 };
+      if (row.side === 'UP') e.upCount = row._count;
+      else if (row.side === 'DOWN') e.downCount = row._count;
+      else if (row.side === 'DRAW') e.drawCount = row._count;
+      sideMap.set(row.poolId, e);
+    }
+
+    // Hero stats — total active markets + USDC wagered in the last 24h.
+    const [activeCount, wageredAgg] = await Promise.all([
+      prisma.pool.count({ where: baseWhere }),
+      prisma.bet.aggregate({ _sum: { amount: true }, where: { createdAt: { gte: dayAgo } } }),
+    ]);
+
+    res.json({
+      success: true,
+      data: pageItems.map(pool => {
+        const counts = sideMap.get(pool.id) || { upCount: 0, downCount: 0, drawCount: 0 };
+        return { ...serializePool(pool), betCount: pool._count.bets, upCount: counts.upCount, downCount: counts.downCount, drawCount: counts.drawCount };
+      }),
+      meta: { activeCount, wageredToday: (wageredAgg._sum.amount ?? 0n).toString() },
+    });
+  } catch (error) {
+    console.error('Error fetching live pools:', error);
+    res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: 'Failed to fetch live markets' } });
+  }
+});
+
 // GET /api/pools/livescores - all current live scores (must be before /:id)
 poolsRouter.get('/livescores', async (_req, res) => {
   const data = await getAllLiveScoresWithFallback();

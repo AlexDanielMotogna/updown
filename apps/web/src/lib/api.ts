@@ -543,6 +543,13 @@ export async function fetchLineup(matchId: string): Promise<ApiResponse<EventLin
   return fetchApi<EventLineup>(`/api/lineups/${encodeURIComponent(matchId)}`);
 }
 
+export interface LiveMeta { activeCount: number; wageredToday: string; }
+export type LivePoolsResponse = ApiResponse<Pool[]> & { meta?: LiveMeta };
+export async function fetchLivePools(params: { sort: string; category: string; limit?: number }): Promise<LivePoolsResponse> {
+  const q = new URLSearchParams({ sort: params.sort, category: params.category, limit: String(params.limit ?? 40) });
+  return fetchApi<Pool[]>(`/api/pools/live?${q.toString()}`) as Promise<LivePoolsResponse>;
+}
+
 export async function registerUser(
   walletAddress: string,
 ): Promise<ApiResponse<UserProfile>> {

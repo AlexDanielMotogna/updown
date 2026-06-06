@@ -21,6 +21,7 @@ import { useThemeTokens, useThemeMode } from '@/app/providers';
 // dropdown + mobile bottom nav.
 const HEADER_NAV = [
   { label: 'Markets', href: '/' },
+  { label: 'Live', href: '/live' },
   { label: 'Profile', href: '/profile' },
   { label: 'Leaderboard', href: '/leaderboard' },
 ] as const;
