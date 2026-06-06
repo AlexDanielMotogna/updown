@@ -8,7 +8,7 @@ import {
 } from '../utils/coins';
 import { emitUserReward } from '../websocket';
 import { ensureReferralCode } from './referrals';
-import { TESTING_MODE, ACTIVE_BET_THRESHOLD, BET_MILESTONE_REWARD, BET_MILESTONE_TYPE } from '../utils/testing';
+import { TESTING_MODE, ACTIVE_BET_THRESHOLD, BET_MILESTONE_REWARD, BET_MILESTONE_TYPE, REFERRER_REWARD, REFERRER_REWARD_TYPE } from '../utils/testing';
 
 /** Check if two dates are the same calendar day (UTC). */
 function isSameDay(a: Date, b: Date): boolean {
@@ -197,12 +197,62 @@ export async function awardBetResolution(walletAddress: string): Promise<void> {
       xpToNextLevel: Number(getXpForLevel(newLevel + 1) - newTotalXp),
     });
 
-    // Testing campaign: one-time 1000 UP at 20 real resolutions. Idempotent.
+    // Testing campaign: one-time 1000 UP at 20 real resolutions, plus the
+    // referrer's reward once this user is "activated". Both idempotent.
     grantBetMilestoneReward(walletAddress, newSettledBets)
       .catch(e => console.warn('[Rewards] bet-milestone grant failed:', e instanceof Error ? e.message : e));
+    grantReferrerReward(walletAddress, newSettledBets)
+      .catch(e => console.warn('[Rewards] referrer grant failed:', e instanceof Error ? e.message : e));
   } catch (error) {
     console.error('[Rewards] awardBetResolution failed:', error);
   }
+}
+
+/**
+ * Pay the referrer once their referred user becomes activated (reaches the
+ * 20-bet threshold). One reward per referred wallet (idempotent). Skips
+ * referrals flagged suspect by the anti-cheat system.
+ */
+export async function grantReferrerReward(referredWallet: string, referredSettledBets: number): Promise<void> {
+  if (!TESTING_MODE || referredSettledBets < ACTIVE_BET_THRESHOLD) return;
+  const ref = await prisma.referral.findUnique({
+    where: { referredWallet },
+    select: { referrerWallet: true },
+  });
+  if (!ref) return;
+  const type = `${REFERRER_REWARD_TYPE}:${referredWallet}`;
+  try {
+    await prisma.rewardGrant.create({
+      data: { walletAddress: ref.referrerWallet, type, amount: REFERRER_REWARD, meta: { referredWallet } },
+    });
+  } catch (e) {
+    if ((e as { code?: string }).code === 'P2002') return; // already rewarded for this referral
+    throw e;
+  }
+  const u = await prisma.user.update({
+    where: { walletAddress: ref.referrerWallet },
+    data: {
+      coinsBalance: { increment: REFERRER_REWARD },
+      coinsLifetime: { increment: REFERRER_REWARD },
+    },
+  });
+  await prisma.eventLog.create({
+    data: {
+      eventType: 'REWARD_REFERRAL_ACTIVATED',
+      entityType: 'user',
+      entityId: ref.referrerWallet,
+      payload: { referredWallet, amount: REFERRER_REWARD.toString() },
+    },
+  }).catch(() => { /* best-effort audit */ });
+  emitUserReward(ref.referrerWallet, {
+    xp: 0,
+    coins: Number(REFERRER_REWARD),
+    level: u.level,
+    levelUp: false,
+    totalXp: Number(u.totalXp),
+    xpToNextLevel: Number(getXpForLevel(u.level + 1) - u.totalXp),
+    reason: 'referral_activated',
+  });
 }
 
 /**

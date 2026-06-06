@@ -15,3 +15,12 @@ export const ACTIVE_BET_THRESHOLD = 20;
 /** Fixed UP reward at the 20-bet milestone (stored units; display = /100 = 1000 UP). */
 export const BET_MILESTONE_REWARD = 100_000n;
 export const BET_MILESTONE_TYPE = 'BET_MILESTONE_20';
+
+/**
+ * UP reward to the REFERRER each time one of their referred users becomes
+ * "activated" (reaches the 20-bet threshold). Stored units → 1000 UP. Gated on
+ * the referral not being flagged suspect (anti-cheat, #2). Idempotent per
+ * referred wallet via RewardGrant type `REFERRAL_ACTIVATED:<referredWallet>`.
+ */
+export const REFERRER_REWARD = 100_000n;
+export const REFERRER_REWARD_TYPE = 'REFERRAL_ACTIVATED';
