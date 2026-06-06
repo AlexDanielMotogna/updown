@@ -69,7 +69,7 @@ export default function LivePage() {
 
   return (
     <AppShell>
-      <Container maxWidth={false} sx={{ maxWidth: 1200, px: { xs: 2, md: 3 }, pt: { xs: 2, md: 3 }, pb: 6 }}>
+      <Container maxWidth={false} sx={{ maxWidth: 1400, px: { xs: 2, md: 3 }, pt: { xs: 2, md: 3 }, pb: 6 }}>
         {/* Hero */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, mb: 3, p: { xs: 2, md: 2.5 }, borderRadius: 2, bgcolor: t.bg.surface, border: `1px solid ${t.border.subtle}` }}>
           <Box>
