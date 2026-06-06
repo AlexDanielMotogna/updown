@@ -40,3 +40,18 @@ export const REFERRAL_PRIZES: number[] = [
 export function referralPrizeForRank(rank: number): number {
   return REFERRAL_PRIZES[rank - 1] ?? 0;
 }
+
+/**
+ * Community milestones by user count. Each completed milestone airdrops a UP
+ * pool, split 50% equally among qualified users + 50% pro-rata by their
+ * settledBets ("effort"). Qualified = active (>= ACTIVE_BET_THRESHOLD) and not
+ * flagged suspect. Keepable in production.
+ */
+export const MILESTONE_POOL = 10_000_000n; // 100,000 UP (stored units)
+export const MILESTONES: Array<{ key: string; label: string; targetUsers: number }> = [
+  { key: 'stone', label: 'Stone', targetUsers: 200 },
+  { key: 'iron', label: 'Iron', targetUsers: 400 },
+  { key: 'steel', label: 'Steel', targetUsers: 600 },
+  { key: 'titanium', label: 'Titanium', targetUsers: 800 },
+  { key: 'diamond', label: 'Diamond', targetUsers: 1000 },
+];

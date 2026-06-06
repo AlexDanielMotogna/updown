@@ -13,6 +13,7 @@ import { squadsRouter } from './routes/squads';
 import { tournamentRouter } from './routes/tournaments';
 import { configRouter } from './routes/config';
 import { notificationsRouter } from './routes/notifications';
+import { milestonesRouter } from './routes/milestones';
 import { getScheduler } from './scheduler';
 import { startTournamentScheduler } from './scheduler/tournament-scheduler';
 import { startSportsScheduler } from './scheduler/sports-scheduler';
@@ -55,6 +56,7 @@ app.use('/api/squads', squadsRouter);
 app.use('/api/tournaments', tournamentRouter);
 app.use('/api/config', configRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/milestones', milestonesRouter);
 
 // Scheduler status endpoint
 app.get('/api/scheduler/status', (req, res) => {

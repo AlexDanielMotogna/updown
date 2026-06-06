@@ -8,6 +8,7 @@ import {
 } from '../utils/coins';
 import { emitUserReward } from '../websocket';
 import { ensureReferralCode } from './referrals';
+import { checkAndDistributeMilestones } from './milestones';
 import { TESTING_MODE, ACTIVE_BET_THRESHOLD, BET_MILESTONE_REWARD, BET_MILESTONE_TYPE, REFERRER_REWARD, REFERRER_REWARD_TYPE } from '../utils/testing';
 
 /** Check if two dates are the same calendar day (UTC). */
@@ -42,6 +43,11 @@ export async function registerUser(walletAddress: string) {
   // Generate referral code if missing (fire-and-forget)
   ensureReferralCode(walletAddress).catch((err) =>
     console.error('[Rewards] ensureReferralCode failed:', err),
+  );
+
+  // A new signup may have just crossed a community-milestone target.
+  checkAndDistributeMilestones().catch((err) =>
+    console.error('[Rewards] milestone check failed:', err),
   );
 
   return user;

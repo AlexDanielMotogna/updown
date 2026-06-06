@@ -32,4 +32,5 @@ export { UserProfilePanel } from './UserProfilePanel';
 export { LeaderboardTable } from './LeaderboardTable';
 export { LeaderboardBoards } from './LeaderboardBoards';
 export { ReferralLeaderboard } from './ReferralLeaderboard';
+export { MilestoneProgress } from './MilestoneProgress';
 export { InlineChart } from './pool/InlineChart';

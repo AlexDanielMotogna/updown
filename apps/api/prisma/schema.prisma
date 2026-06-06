@@ -259,6 +259,24 @@ model RewardLog {
   @@map("reward_logs")
 }
 
+/// Community milestones (Stone…Diamond by user count). Config lives in code
+/// and is upserted here; this table just tracks completion + the airdrop.
+model Milestone {
+  id               String    @id @default(uuid())
+  key              String    @unique
+  label            String
+  targetUsers      Int       @map("target_users")
+  /// Total UP airdrop pool, stored units (display = /100).
+  rewardPool       BigInt    @map("reward_pool")
+  sortOrder        Int       @map("sort_order")
+  status           String    @default("active") // active | completed
+  reachedUserCount Int?      @map("reached_user_count")
+  completedAt      DateTime? @map("completed_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  @@map("milestones")
+}
+
 /// One-time / per-key UP airdrops (20-bet reward, community milestones, …).
 /// The unique (wallet, type) makes every grant idempotent — safe to retry.
 model RewardGrant {

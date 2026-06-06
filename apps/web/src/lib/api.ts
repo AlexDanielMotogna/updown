@@ -491,6 +491,33 @@ export async function fetchReferralLeaderboard(wallet?: string): Promise<Referra
   return fetchApi<ReferralLeaderboardEntry[]>(`/api/referrals/leaderboard${q}`) as Promise<ReferralLeaderboardResponse>;
 }
 
+export interface MilestoneTier {
+  key: string;
+  label: string;
+  targetUsers: number;
+  rewardPool: number; // display UP
+  status: 'active' | 'completed';
+  completedAt: string | null;
+}
+export interface MilestoneContributor {
+  rank: number;
+  walletAddress: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  settledBets: number;
+}
+export interface MilestoneState {
+  totalUsers: number;
+  activeThreshold: number;
+  milestones: MilestoneTier[];
+  contributors: MilestoneContributor[];
+  self: { settledBets: number; qualified: boolean } | null;
+}
+export async function fetchMilestones(wallet?: string): Promise<ApiResponse<MilestoneState>> {
+  const q = wallet ? `?wallet=${encodeURIComponent(wallet)}` : '';
+  return fetchApi<MilestoneState>(`/api/milestones${q}`);
+}
+
 export async function registerUser(
   walletAddress: string,
 ): Promise<ApiResponse<UserProfile>> {
