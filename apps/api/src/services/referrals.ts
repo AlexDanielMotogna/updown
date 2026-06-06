@@ -5,6 +5,63 @@ import { prisma } from '../db';
 import { getConnection, getUsdcMint, getAuthorityKeypair } from '../utils/solana';
 import { getLevelForXp, getXpForLevel } from '../utils/levels';
 import { emitUserReward } from '../websocket';
+import { ACTIVE_BET_THRESHOLD } from '../utils/testing';
+
+export interface ReferralRank {
+  rank: number;
+  walletAddress: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  validReferrals: number;
+  totalReferrals: number;
+}
+
+/**
+ * Rank referrers by VALID referrals (referred user active >= ACTIVE_BET_THRESHOLD
+ * and the referral not flagged suspect). Shared by the public leaderboard and
+ * the admin prize distribution so both agree.
+ */
+export async function getReferralLeaderboard(): Promise<ReferralRank[]> {
+  const referrals = await prisma.referral.findMany({
+    select: { referrerWallet: true, referredWallet: true, suspect: true },
+  });
+  const referredWallets = Array.from(new Set(referrals.map(r => r.referredWallet)));
+  const activeRows = await prisma.user.findMany({
+    where: { walletAddress: { in: referredWallets }, settledBets: { gte: ACTIVE_BET_THRESHOLD } },
+    select: { walletAddress: true },
+  });
+  const activeSet = new Set(activeRows.map(u => u.walletAddress));
+
+  const counts = new Map<string, { valid: number; total: number }>();
+  for (const r of referrals) {
+    const e = counts.get(r.referrerWallet) ?? { valid: 0, total: 0 };
+    e.total += 1;
+    if (!r.suspect && activeSet.has(r.referredWallet)) e.valid += 1;
+    counts.set(r.referrerWallet, e);
+  }
+
+  const referrerWallets = [...counts.keys()];
+  const users = await prisma.user.findMany({
+    where: { walletAddress: { in: referrerWallets } },
+    select: { walletAddress: true, displayName: true, avatarUrl: true },
+  });
+  const byWallet = new Map(users.map(u => [u.walletAddress, u]));
+
+  return [...counts.entries()]
+    .map(([w, c]) => ({ w, valid: c.valid, total: c.total }))
+    .sort((a, b) => (b.valid - a.valid) || (b.total - a.total))
+    .map((e, i) => {
+      const u = byWallet.get(e.w);
+      return {
+        rank: i + 1,
+        walletAddress: e.w,
+        displayName: u?.displayName ?? null,
+        avatarUrl: u?.avatarUrl ?? null,
+        validReferrals: e.valid,
+        totalReferrals: e.total,
+      };
+    });
+}
 
 const COMMISSION_BPS = 100; // 1% of bet amount
 const REFERRAL_XP_REWARD = 500n;

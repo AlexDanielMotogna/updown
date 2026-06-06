@@ -1,8 +1,9 @@
 import { Router, type Router as RouterType } from 'express';
 import { z } from 'zod';
 import { prisma } from '../../db';
-import { ACTIVE_BET_THRESHOLD } from '../../utils/testing';
+import { ACTIVE_BET_THRESHOLD, referralPrizeForRank } from '../../utils/testing';
 import { grantReferrerReward } from '../../services/rewards';
+import { getReferralLeaderboard } from '../../services/referrals';
 
 export const adminReferralsRouter: RouterType = Router();
 
@@ -115,5 +116,59 @@ adminReferralsRouter.post('/:id/review', async (req, res) => {
   } catch (error) {
     console.error('[Admin] referral review error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to update referral' } });
+  }
+});
+
+/**
+ * Distribute the top-20 referral prizes (campaign end). Idempotent per wallet
+ * via RewardGrant 'REFERRAL_PRIZE' — re-running never double-pays. Pass
+ * { dryRun: true } to preview the payout table without crediting anything.
+ */
+adminReferralsRouter.post('/distribute-prizes', async (req, res) => {
+  try {
+    const dryRun = z.object({ dryRun: z.boolean().optional() }).parse(req.body ?? {}).dryRun ?? false;
+    const board = await getReferralLeaderboard();
+
+    const results: Array<{ rank: number; walletAddress: string; displayName: string | null; validReferrals: number; prize: number; status: string }> = [];
+    let paid = 0;
+    let alreadyPaid = 0;
+
+    for (const e of board) {
+      const prize = referralPrizeForRank(e.rank); // display UP
+      if (prize <= 0) continue; // outside top tiers
+      if (e.validReferrals <= 0) continue; // no valid referrals → no prize
+      const amount = BigInt(prize) * 100n; // stored units
+
+      if (dryRun) {
+        results.push({ rank: e.rank, walletAddress: e.walletAddress, displayName: e.displayName, validReferrals: e.validReferrals, prize, status: 'preview' });
+        continue;
+      }
+      try {
+        await prisma.rewardGrant.create({
+          data: { walletAddress: e.walletAddress, type: 'REFERRAL_PRIZE', amount, meta: { rank: e.rank, validReferrals: e.validReferrals } },
+        });
+      } catch (err) {
+        if ((err as { code?: string }).code === 'P2002') {
+          alreadyPaid++;
+          results.push({ rank: e.rank, walletAddress: e.walletAddress, displayName: e.displayName, validReferrals: e.validReferrals, prize, status: 'already_paid' });
+          continue;
+        }
+        throw err;
+      }
+      await prisma.user.update({
+        where: { walletAddress: e.walletAddress },
+        data: { coinsBalance: { increment: amount }, coinsLifetime: { increment: amount } },
+      });
+      await prisma.eventLog.create({
+        data: { eventType: 'REFERRAL_PRIZE_PAID', entityType: 'user', entityId: e.walletAddress, payload: { rank: e.rank, prize, validReferrals: e.validReferrals } },
+      }).catch(() => { /* best-effort */ });
+      paid++;
+      results.push({ rank: e.rank, walletAddress: e.walletAddress, displayName: e.displayName, validReferrals: e.validReferrals, prize, status: 'paid' });
+    }
+
+    res.json({ success: true, data: { dryRun, paid, alreadyPaid, count: results.length, results } });
+  } catch (error) {
+    console.error('[Admin] distribute prizes error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to distribute prizes' } });
   }
 });

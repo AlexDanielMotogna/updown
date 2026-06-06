@@ -40,6 +40,14 @@ interface GrowthData {
     referrers: Referrer[];
   };
 }
+interface PrizeRow {
+  rank: number;
+  walletAddress: string;
+  displayName: string | null;
+  validReferrals: number;
+  prize: number;
+  status: string;
+}
 
 function ActivePill({ active }: { active: boolean }) {
   return (
@@ -60,6 +68,9 @@ export function GrowthOverview() {
     queryFn: () => adminFetch<GrowthData>('/referrals'),
     refetchInterval: POLL_MEDIUM_MS,
   });
+  const [prizeRows, setPrizeRows] = useState<PrizeRow[] | null>(null);
+  const [prizeBusy, setPrizeBusy] = useState(false);
+  const [prizeDryRun, setPrizeDryRun] = useState(true);
 
   if (isLoading) return <LoadingState variant="block" />;
   if (error) {
@@ -71,6 +82,21 @@ export function GrowthOverview() {
   const review = async (referralId: string, suspect: boolean) => {
     await adminFetch(`/referrals/${referralId}/review`, { method: 'POST', body: JSON.stringify({ suspect }) });
     refetch();
+  };
+
+  const runPrizes = async (dryRun: boolean) => {
+    if (!dryRun && !window.confirm('Distribute referral prizes now? This credits UP and cannot be undone.')) return;
+    setPrizeBusy(true);
+    try {
+      const r = await adminFetch<{ data: { dryRun: boolean; results: PrizeRow[] } }>('/referrals/distribute-prizes', {
+        method: 'POST', body: JSON.stringify({ dryRun }),
+      });
+      setPrizeRows(r.data.results);
+      setPrizeDryRun(r.data.dryRun);
+      if (!dryRun) refetch();
+    } finally {
+      setPrizeBusy(false);
+    }
   };
 
   return (
@@ -163,6 +189,51 @@ export function GrowthOverview() {
               </TableBody>
             </Table>
           </TableContainer>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Referral prizes (top 20)">
+        <Box sx={{ display: 'flex', gap: 1, mb: prizeRows ? 2 : 0, flexWrap: 'wrap' }}>
+          <Box component="button" disabled={prizeBusy} onClick={() => runPrizes(true)}
+            sx={{ px: 2, py: 0.8, borderRadius: 1, fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', border: `1px solid ${t.border.medium}`, bgcolor: t.bg.surfaceAlt, color: t.text.primary, '&:hover': { borderColor: t.border.strong } }}>
+            Preview payout
+          </Box>
+          <Box component="button" disabled={prizeBusy} onClick={() => runPrizes(false)}
+            sx={{ px: 2, py: 0.8, borderRadius: 1, fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer', border: 'none', bgcolor: t.success, color: '#000', opacity: prizeBusy ? 0.6 : 1, '&:hover': { filter: 'brightness(1.1)' } }}>
+            Distribute now
+          </Box>
+        </Box>
+        {prizeRows && (
+          prizeRows.length === 0 ? (
+            <EmptyState title="No eligible referrers for prizes" />
+          ) : (
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell align="right"><Label>#</Label></TableCell>
+                    <TableCell><Label>Referrer</Label></TableCell>
+                    <TableCell align="right"><Label>Valid</Label></TableCell>
+                    <TableCell align="right"><Label>Prize (UP)</Label></TableCell>
+                    <TableCell><Label>Status</Label></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {prizeRows.map((p) => (
+                    <TableRow key={p.walletAddress}>
+                      <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{p.rank}</TableCell>
+                      <TableCell>{p.displayName ?? <IdCell value={p.walletAddress} />}</TableCell>
+                      <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{p.validReferrals}</TableCell>
+                      <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', color: t.gold, fontWeight: 700 }}>{p.prize.toLocaleString()}</TableCell>
+                      <TableCell sx={{ color: p.status === 'paid' ? t.success : p.status === 'already_paid' ? t.text.tertiary : t.text.secondary, fontSize: '0.75rem', fontWeight: 700 }}>
+                        {prizeDryRun ? 'preview' : p.status}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )
         )}
       </SectionCard>
     </Box>
