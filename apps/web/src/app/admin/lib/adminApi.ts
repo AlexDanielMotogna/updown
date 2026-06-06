@@ -125,7 +125,7 @@ export async function verifyKey(key: string): Promise<boolean> {
 /**
  * Verify the admin key against /admin/verify with a richer result so the
  * login form can distinguish 'server unreachable' from '401 invalid' and
- * 'rate limited'. Phase 6 polish — Plan §Phase 6.
+ * 'rate limited'. Phase 6 polish - Plan §Phase 6.
  */
 export type VerifyResult =
   | { kind: 'ok' }
@@ -140,7 +140,7 @@ export async function verifyKeyDetailed(key: string): Promise<VerifyResult> {
     });
     if (res.ok) return { kind: 'ok' };
     if (res.status === 429) {
-      return { kind: 'rate-limited', message: 'Too many attempts — wait a minute and try again.' };
+      return { kind: 'rate-limited', message: 'Too many attempts - wait a minute and try again.' };
     }
     if (res.status === 401) {
       return { kind: 'invalid', message: 'Invalid API key.' };

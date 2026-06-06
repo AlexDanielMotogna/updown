@@ -76,7 +76,7 @@ export function TransactionModal({
   const isComplete = status === 'success' || status === 'error';
   const activeStageIdx = statusToStageIndex(status);
 
-  // Confetti on success — single fire per cycle (resets on status change).
+  // Confetti on success - single fire per cycle (resets on status change).
   const firedRef = useRef(false);
   useEffect(() => {
     if (status === 'success' && !firedRef.current) {
@@ -86,7 +86,7 @@ export function TransactionModal({
     if (status !== 'success') firedRef.current = false;
   }, [status]);
 
-  // Friendly error breakdown — falls back to the raw text if we don't recognise it.
+  // Friendly error breakdown - falls back to the raw text if we don't recognise it.
   const friendly = useMemo(() => (error ? mapTxError(error) : null), [error]);
   const [showDetail, setShowDetail] = useState(false);
   useEffect(() => {
@@ -140,7 +140,7 @@ export function TransactionModal({
 
       {/* Body */}
       <Box sx={{ px: 3, pt: 3, pb: 2 }}>
-        {/* Stepper — hidden on error so it doesn't compete with the error card */}
+        {/* Stepper - hidden on error so it doesn't compete with the error card */}
         {status !== 'error' && (
           <Stepper
             stages={STAGES}

@@ -103,7 +103,7 @@ export function Countdown({ targetDate, label, onComplete, compact = false, comp
   const isExpired = timeLeft.total <= 0;
 
   // Hours are only shown when the remaining time actually rolls into an
-  // hour-or-more block (or above — days). Sub-hour countdowns render as
+  // hour-or-more block (or above - days). Sub-hour countdowns render as
   // MM:SS so a 3-minute crypto round reads "03:00" instead of the noisier
   // "00:03:00". Days follows the same auto-hide rule it already had.
   const showHours = timeLeft.days > 0 || timeLeft.hours > 0;

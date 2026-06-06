@@ -229,7 +229,7 @@ export function OverviewTab({ walletAddress, userProfile, onViewTab }: OverviewT
         pb: 2,
       }}
     >
-      {/* Full-width unlock strip — sits above the rest of the grid so the
+      {/* Full-width unlock strip - sits above the rest of the grid so the
           user sees the long-term ladder before the per-category breakdown.
           gridColumn: '1 / -1' spans every column at every breakpoint. */}
       <Box sx={{ gridColumn: '1 / -1' }}>

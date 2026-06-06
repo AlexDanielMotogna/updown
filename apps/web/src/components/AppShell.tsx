@@ -98,7 +98,7 @@ export function AppShell({ children, centered = false, topBar }: { children: Rea
   const isDetailPage = pathname.startsWith('/pool/') || pathname.startsWith('/match/');
   // Trending and detail pages skip the left filter sidebar - both are
   // cross-category / single-market views, no filter rail needed. The landing
-  // (`/` with no ?type) IS Trending, so treat a missing type as TRENDING —
+  // (`/` with no ?type) IS Trending, so treat a missing type as TRENDING -
   // otherwise the empty sidebar gutter would show and squeeze the content.
   const marketTypeParam = searchParams.get('type') ?? 'TRENDING';
   const hideMarketSidebar =

@@ -3,7 +3,7 @@
 /**
  * One chip primitive for every status in the admin. Two separately-
  * defined `StatusChip` components and a `statusChip()` function used to
- * live in SystemHealth, CategoryManagement, and MatchExplorer — all gone
+ * live in SystemHealth, CategoryManagement, and MatchExplorer - all gone
  * now. Pick a semantic `status` and the colour is fixed via STATUS_PALETTE.
  *
  * See PLAN-ADMIN-REFACTOR.md Phase 2.

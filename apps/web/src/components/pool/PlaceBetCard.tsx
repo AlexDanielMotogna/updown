@@ -90,7 +90,7 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
   const canInteract = isPoolOpen && connected && !isSubmitting;
   const canBet = canInteract && parseFloat(amount) > 0;
 
-  // Phase 1A — time-weighted payout snapshot. MUST be called before the
+  // Phase 1A - time-weighted payout snapshot. MUST be called before the
   // early returns below so the hook order stays stable across renders.
   // Originally I parked this next to the payout-estimate math down at
   // line ~130, but the early returns for CANCELLED / hasWinner /
@@ -136,7 +136,7 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
   // Time-weighted payout. `weighting` was fetched by the hook at the top
   // of the component (kept above the early returns to keep hook order
   // stable). The program now enforces this weighting on-chain at claim,
-  // so this is the REAL payout — not an advisory preview. We fall back to
+  // so this is the REAL payout - not an advisory preview. We fall back to
   // the plain parimutuel estimate only while the /weighting snapshot is
   // still loading (first ~3s), which is a close approximation.
   const weightedProjection = weighting && amountNum > 0
@@ -284,7 +284,7 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
            weighted payout side-by-side with the raw parimutuel one
            so users see what's coming when Phase 1B/2 makes it the
            canonical formula. Multiplier is the live currentMultiplier
-           from /weighting — drops as lockTime approaches. */}
+           from /weighting - drops as lockTime approaches. */}
       {weighting && (
         <Box
           sx={{
@@ -475,7 +475,7 @@ function CancelledCard({ pool, hasUserPosition }: { pool: PoolDetail; hasUserPos
 
 /**
  * True when the wallet has any bet on this pool. We look at total bets
- * on either side that the current user contributed to — the API doesn't
+ * on either side that the current user contributed to - the API doesn't
  * expose per-user totals on the pool detail directly, but the bet form
  * caller already gates rendering by `pool.status`, so by the time we're
  * here we only need a yes/no answer for the cancelled copy variant.
@@ -483,7 +483,7 @@ function CancelledCard({ pool, hasUserPosition }: { pool: PoolDetail; hasUserPos
  * Best signal we have without extra plumbing: PoolDetail surfaces the
  * user's own bet via the betsByPool map upstream; the form passes that
  * down as `userBet`. If the type ever stops carrying it, defaulting to
- * `false` keeps the public-read copy (which is the safer fallback —
+ * `false` keeps the public-read copy (which is the safer fallback -
  * never says "your refund landed" without knowing).
  */
 function hasUserBet(pool: PoolDetail): boolean {

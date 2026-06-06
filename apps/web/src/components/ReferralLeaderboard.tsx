@@ -66,7 +66,7 @@ export function ReferralLeaderboard() {
             <UpIcon size={14} />
           </Box>
         ) : (
-          <Typography sx={{ fontSize: '0.78rem', color: t.text.quaternary }}>—</Typography>
+          <Typography sx={{ fontSize: '0.78rem', color: t.text.quaternary }}>-</Typography>
         )}
       </Box>
     </Box>
@@ -96,7 +96,7 @@ export function ReferralLeaderboard() {
         {isLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}><CircularProgress size={22} sx={{ color: t.text.dimmed }} /></Box>
         ) : entries.length === 0 ? (
-          <Typography sx={{ fontSize: '0.82rem', color: t.text.tertiary, textAlign: 'center', py: 6 }}>No referrers yet — invite friends to climb the board</Typography>
+          <Typography sx={{ fontSize: '0.82rem', color: t.text.tertiary, textAlign: 'center', py: 6 }}>No referrers yet - invite friends to climb the board</Typography>
         ) : (
           <>
             <Box>{entries.map(e => row(e, e.walletAddress === walletAddress))}</Box>

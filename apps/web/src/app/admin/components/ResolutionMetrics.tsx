@@ -79,7 +79,7 @@ const BUCKET_KIND: Record<RecentRow['bucket'], StatusKind> = {
  * "2m 14s" reads naturally next to "3h 7m" without an extra mental step.
  */
 function formatLatency(ms: number | null): string {
-  if (ms == null) return '—';
+  if (ms == null) return '-';
   if (ms < 1000) return `${ms}ms`;
   const s = Math.round(ms / 1000);
   if (s < 60) return `${s}s`;
@@ -188,7 +188,7 @@ export function ResolutionMetrics() {
       {/* ─── Latency percentiles ───────────────────────────────────── */}
       <SectionCard
         title="Resolution latency"
-        subtitle="Time from endTime → state flip (CLAIMABLE / RESOLVED only — CANCELLED skews the tail). Lower is better; >5min on sports usually means a livescore lag."
+        subtitle="Time from endTime → state flip (CLAIMABLE / RESOLVED only - CANCELLED skews the tail). Lower is better; >5min on sports usually means a livescore lag."
       >
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2 }}>
           <StatCard label="p50 (median)" value={formatLatency(overall.p50LatencyMs)} color={latencyColor(overall.p50LatencyMs)} />
@@ -277,11 +277,11 @@ export function ResolutionMetrics() {
                       <IdCell value={r.poolId} truncate={10} href={`/match/${r.poolId}`} external />
                     </TableCell>
                     <TableCell sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.72rem' }}>
-                      {r.code ?? '—'}
+                      {r.code ?? '-'}
                     </TableCell>
                     <TableCell sx={{ maxWidth: 260 }}>
                       <Box sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.78rem' }}>
-                        {r.awayTeam ? `${r.homeTeam} vs ${r.awayTeam}` : r.homeTeam ?? '—'}
+                        {r.awayTeam ? `${r.homeTeam} vs ${r.awayTeam}` : r.homeTeam ?? '-'}
                       </Box>
                     </TableCell>
                     <TableCell><TimeCell value={r.endTime} mode="datetime" /></TableCell>

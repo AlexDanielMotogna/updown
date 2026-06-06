@@ -22,7 +22,7 @@ interface FinanceData {
     totalPayouts: string;
     totalFeesCollected: string;
     totalBets: number;
-    // Plan §3.5 — flagged as 'never read by the UI'. Backend still ships
+    // Plan §3.5 - flagged as 'never read by the UI'. Backend still ships
     // them; we just stop pretending we use them. authorityUsdcDisplay is
     // the human-formatted string the StatCard binds against.
     authorityUsdcDisplay: string | null;
@@ -109,7 +109,7 @@ export function FinancialOverview() {
         <StatCard label="Total bets" value={f.totalBets.toLocaleString()} />
         <StatCard
           label="Authority USDC (on-chain)"
-          value={f.authorityUsdcDisplay ?? '—'}
+          value={f.authorityUsdcDisplay ?? '-'}
           color={t.warning}
           hint="Fee wallet balance on the active cluster"
         />
@@ -200,8 +200,8 @@ export function FinancialOverview() {
                       <TableRow key={c.id} hover>
                         <TableCell sx={{ whiteSpace: 'nowrap' }}><TimeCell value={c.closedAt} mode="datetime" /></TableCell>
                         <TableCell><IdCell value={c.poolId} truncate={10} /></TableCell>
-                        <TableCell>{c.payload.asset ?? '—'}</TableCell>
-                        <TableCell>{c.payload.interval ?? '—'}</TableCell>
+                        <TableCell>{c.payload.asset ?? '-'}</TableCell>
+                        <TableCell>{c.payload.interval ?? '-'}</TableCell>
                         <TableCell sx={{ fontVariantNumeric: 'tabular-nums' }}>{c.payload.totalPool ? formatUsdc(c.payload.totalPool) : '0'}</TableCell>
                         <TableCell>{c.payload.betCount ?? '0'}</TableCell>
                         <TableCell>
@@ -210,7 +210,7 @@ export function FinancialOverview() {
                               status={c.payload.winner === 'UP' ? 'ok' : c.payload.winner === 'DOWN' ? 'error' : 'warning'}
                               label={c.payload.winner}
                             />
-                          ) : '—'}
+                          ) : '-'}
                         </TableCell>
                         <TableCell sx={{ color: t.success, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
                           {c.payload.rentReclaimedSol ?? '0'} SOL
@@ -221,7 +221,7 @@ export function FinancialOverview() {
                               // Cluster comes from getExplorerTxUrl, which
                               // reads SOLANA_CLUSTER from env. The previous
                               // hardcoded ?cluster=devnet broke explorer
-                              // links on mainnet — Plan §3.5.
+                              // links on mainnet - Plan §3.5.
                               href={getExplorerTxUrl(c.payload.txSignature)}
                               target="_blank"
                               rel="noopener noreferrer"
@@ -229,7 +229,7 @@ export function FinancialOverview() {
                             >
                               {c.payload.txSignature.slice(0, 8)}…
                             </a>
-                          ) : '—'}
+                          ) : '-'}
                         </TableCell>
                         <TableCell>
                           <StatusChip

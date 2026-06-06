@@ -63,9 +63,9 @@ function Side({ side, t, teamName }: { side: SideLineup | null; t: ReturnType<ty
   );
 }
 
-/** Bare two-column Home/Away lineup grid (no card wrapper) — used inside the
+/** Bare two-column Home/Away lineup grid (no card wrapper) - used inside the
  *  MatchInsights tab. homeName/awayName come from the match (the data's strTeam
- *  is the player's CLUB, wrong for internationals — e.g. "Lazio" for Albania). */
+ *  is the player's CLUB, wrong for internationals - e.g. "Lazio" for Albania). */
 export function LineupGrid({ lineup, homeName, awayName }: { lineup: EventLineup; homeName?: string | null; awayName?: string | null }) {
   const t = useThemeTokens();
   return (

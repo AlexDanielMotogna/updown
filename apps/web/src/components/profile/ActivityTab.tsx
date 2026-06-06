@@ -89,7 +89,7 @@ export function ActivityTab({ bets, betsLoading }: ActivityTabProps) {
   }
 
   if (entries.length === 0) {
-    return <EmptyMessage py={8}>No activity yet — your bets and payouts will appear here.</EmptyMessage>;
+    return <EmptyMessage py={8}>No activity yet - your bets and payouts will appear here.</EmptyMessage>;
   }
 
   return (

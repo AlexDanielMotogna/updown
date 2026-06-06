@@ -28,7 +28,7 @@ import { useLiveScore, isMatchActive, isMatchFinished, formatLiveStatus, isAwait
 import { useCategoryMap } from '@/hooks/useCategories';
 import { getIcon } from '@/lib/icon-registry';
 
-// Filter dropdown options — same set the home page uses so MarketFilter
+// Filter dropdown options - same set the home page uses so MarketFilter
 // renders consistently. Changes navigate back to /.
 const ASSET_FILTERS = [
   { value: 'ALL', label: 'All', icon: <GridView sx={{ fontSize: 16 }} /> },
@@ -134,7 +134,7 @@ export default function MatchDetailPage() {
 
   const pool = poolData?.data;
 
-  // Crypto pools live at /pool/[id] — the surface here is built around
+  // Crypto pools live at /pool/[id] - the surface here is built around
   // sports / PM markets (home vs away team, kickoffs, FT pills). Landing
   // a crypto pool here used to render HOM/AWA placeholders and an "FT"
   // pill, which looked like the pool had vanished. Bounce to the right
@@ -151,7 +151,7 @@ export default function MatchDetailPage() {
   const isResolved = pool ? (pool.status === 'CLAIMABLE' || pool.status === 'RESOLVED') : false;
   // CANCELLED pools (PM markets retired by Polymarket where neither
   // Gamma nor CTF could resolve, or sports pools admin-cancelled) need
-  // their own surface — without this flag the page falls through to
+  // their own surface - without this flag the page falls through to
   // DeterminingCard and the user sees "Hold on, determining winner…"
   // forever for a market that will never resolve.
   const isCancelled = pool ? pool.status === 'CANCELLED' : false;
@@ -171,7 +171,7 @@ export default function MatchDetailPage() {
   // sitting on Polymarket / UMA to confirm the outcome. The generic
   // `awaitingFinalFeed` path keys on startTime + a sports duration which
   // doesn't translate cleanly to PM markets (their startTime is when the
-  // market opened, which can be days ago — `+2h` always reads as "past
+  // market opened, which can be days ago - `+2h` always reads as "past
   // expected end"). We also need the loader to keep showing while the
   // pool sits in RESOLVED/CLAIMABLE without a `winner` field yet, which
   // happens during the brief window between the scheduler flipping the
@@ -276,7 +276,7 @@ export default function MatchDetailPage() {
     resetDeposit();
   };
 
-  // Category navbar — flips back to the home grid on any change, so the
+  // Category navbar - flips back to the home grid on any change, so the
   // filter strip stays sticky-present the way /pool/[id] does.
   const goToHome = useCallback((key: string, value: string) => {
     const params = new URLSearchParams();
@@ -377,7 +377,7 @@ export default function MatchDetailPage() {
 
   // ── Header + score-row derivation ────────────────────────────────────────
   // Short status word for the breadcrumb pill in MatchHeader. PM markets
-  // don't have halves / full-time / kickoffs — they have a market endDate,
+  // don't have halves / full-time / kickoffs - they have a market endDate,
   // so we use "ENDED" / "CLOSING" instead of sports terminology. Sports
   // and crypto keep the FT / LIVE pill they always had.
   const endedLabel = isPrediction ? 'ENDED' : 'FT';
@@ -408,7 +408,7 @@ export default function MatchDetailPage() {
   // lags behind by minutes and still reports "2H" while our scheduler has
   // already pulled the final score and resolved the pool. Always defer to
   // the pool's own state before falling back to feed-driven status.
-  // PM markets close at a fixed endDate — use "Market closed" instead of
+  // PM markets close at a fixed endDate - use "Market closed" instead of
   // sports-y "Full Time", and "Closes" instead of "Kickoff" pre-close.
   const endedStatusText = isPrediction ? 'Market closed' : 'Full Time';
   const preStartText = isPrediction ? `Closes ${kickoff}` : `Kickoff ${kickoff}`;
@@ -456,7 +456,7 @@ export default function MatchDetailPage() {
             breadcrumbs={breadcrumbs}
             title={pool.awayTeam ? `${pool.homeTeam} vs ${pool.awayTeam}` : pool.homeTeam || catLabel}
             // PM markets carry the question thumbnail in homeTeamCrest, so it
-            // takes priority over the category badge — the user wants the
+            // takes priority over the category badge - the user wants the
             // visual identity to come from the question itself, falling back
             // to the league badge / filter icon only when no image exists.
             leagueBadgeUrl={(isPrediction ? pool.homeTeamCrest : null) || catBadge}
@@ -519,7 +519,7 @@ export default function MatchDetailPage() {
             {/* Prediction markets: keep the standalone OddsChart + rules tabs.
                 We pass seedDefault so a fresh PM market with no Polymarket
                 history yet still renders a flat baseline instead of the
-                "No market data" placeholder — the UpDown bet stream
+                "No market data" placeholder - the UpDown bet stream
                 backfills on top once /bets-odds-history responds. Icons +
                 labels match the cards (Yes/No glyph when there's no
                 awayTeam, question banner otherwise). */}
@@ -624,7 +624,7 @@ export default function MatchDetailPage() {
             // cards only render once startTime is in the past.
             const metaPrefix = isPrediction ? 'Closed' : 'Kickoff';
             const meta = pool.startTime ? `${metaPrefix} ${kickoff}` : undefined;
-            // The DeterminingCard's generic body line is too vague for PM —
+            // The DeterminingCard's generic body line is too vague for PM -
             // operators have asked us to surface BOTH the source we're
             // waiting on AND a realistic timing window. Sports get a much
             // tighter copy because TheSportsDB / Odds API confirm within

@@ -112,7 +112,7 @@ export function MatchExplorer() {
     queryFn: () => adminFetch<{ success: true; data: League[] }>('/sports/leagues').then(r => r.data),
   });
 
-  // Live-coverage whitelist — drives the "Live ✓ / No feed ✗" badges
+  // Live-coverage whitelist - drives the "Live ✓ / No feed ✗" badges
   // next to each league row + disables Add as match for matches whose
   // sport isn't in the set. Mirrors the server-side guard in
   // /sports/create-pool so the UI doesn't tempt the operator with an
@@ -120,7 +120,7 @@ export function MatchExplorer() {
   const coverageQ = useQuery({
     queryKey: ['admin-sports-coverage'],
     queryFn: () => adminFetch<{ success: true; data: { liveCovered: string[]; knownSports: string[] } }>('/sports/coverage').then(r => r.data),
-    staleTime: 60 * 60_000, // 1h — coverage list changes via env, not via runtime data
+    staleTime: 60 * 60_000, // 1h - coverage list changes via env, not via runtime data
   });
   const liveCoveredSet = new Set(coverageQ.data?.liveCovered ?? []);
 
@@ -183,7 +183,7 @@ export function MatchExplorer() {
   });
 
   // The backfill mutation calls PUT /categories/:id which needs the
-  // category's UUID — we don't get it from /sports/leagues today. Fetch it
+  // category's UUID - we don't get it from /sports/leagues today. Fetch it
   // lazily from /categories on demand. (Going through PUT is preferable to
   // adding a new dedicated endpoint just for this single column write.)
   const categoriesIdsQ = useQuery({
@@ -200,7 +200,7 @@ export function MatchExplorer() {
     if (!l.externalLeagueId || !categoryIdByCode) return;
     const categoryId = categoryIdByCode.get(l.code);
     if (!categoryId) {
-      setFeedback({ type: 'error', message: 'Category id not loaded yet — try again in a sec.' });
+      setFeedback({ type: 'error', message: 'Category id not loaded yet - try again in a sec.' });
       return;
     }
     setBackfillingCode(l.code);
@@ -223,7 +223,7 @@ export function MatchExplorer() {
 
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '320px 1fr' }, gap: 2 }}>
-      {/* Left rail — leagues */}
+      {/* Left rail - leagues */}
       <Card sx={{ p: 0, border: `1px solid ${t.border.medium}`, bgcolor: t.bg.surface, height: 'fit-content', position: { md: 'sticky' }, top: { md: 16 }, maxHeight: { md: 'calc(100vh - 32px)' }, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <Box sx={{ p: 1.5, borderBottom: `1px solid ${t.border.subtle}` }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
@@ -316,7 +316,7 @@ export function MatchExplorer() {
                 </Box>
                 <Typography sx={{ fontSize: '0.78rem', fontWeight: 500, color: t.text.primary, lineHeight: 1.3 }}>{l.label}</Typography>
                 <Box sx={{ display: 'flex', gap: 1, mt: 0.5, fontSize: '0.65rem', color: t.text.tertiary, fontVariantNumeric: 'tabular-nums', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span>id={l.externalLeagueId ?? '—'}</span>
+                  <span>id={l.externalLeagueId ?? '-'}</span>
                   <span>·</span>
                   <span>{l.poolCount} pools</span>
                   <span>·</span>
@@ -348,7 +348,7 @@ export function MatchExplorer() {
         </Box>
       </Card>
 
-      {/* Right — matches table */}
+      {/* Right - matches table */}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
         {feedback && (
           <Alert severity={feedback.type} onClose={() => setFeedback(null)} sx={{ fontSize: '0.8rem' }}>
@@ -394,7 +394,7 @@ export function MatchExplorer() {
                   <Box sx={{ display: 'flex', gap: 1.5, mt: 0.5, fontSize: '0.72rem', color: t.text.tertiary }}>
                     <span>code <strong>{selected.code}</strong></span>
                     <span>sport <strong>{selected.sport}</strong></span>
-                    <span>SDB id <strong>{selected.externalLeagueId ?? '—'}</strong></span>
+                    <span>SDB id <strong>{selected.externalLeagueId ?? '-'}</strong></span>
                     {selected.poolOpenDaysBefore != null && (
                       <span>window <strong>{selected.poolOpenDaysBefore}d</strong></span>
                     )}
@@ -627,7 +627,7 @@ function BrowseSdbModal({ open, onClose, onAdded }: { open: boolean; onClose: ()
                         <Typography sx={{ fontSize: '0.78rem' }}>{l.name}</Typography>
                         {l.alternate && <Typography sx={{ fontSize: '0.65rem', color: t.text.tertiary }}>{l.alternate}</Typography>}
                       </TableCell>
-                      <TableCell><Chip label={l.sport || '—'} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: withAlpha(SPORT_COLORS[l.sport.toUpperCase()] || t.text.tertiary, 0.15) }} /></TableCell>
+                      <TableCell><Chip label={l.sport || '-'} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: withAlpha(SPORT_COLORS[l.sport.toUpperCase()] || t.text.tertiary, 0.15) }} /></TableCell>
                       <TableCell align="right">
                         {l.inUse ? (
                           <Chip label={`in use as ${l.categoryCode}`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: withAlpha(t.gain, 0.15), color: t.gain }} />
@@ -700,7 +700,7 @@ function AddCategoryDialog({ league, existingCodes, onClose, onSuccess }: {
 
   // Pre-fetch the rich SDB record so the create payload includes badgeUrl
   // and the operator gets a visual confirmation BEFORE submitting. Falls
-  // through to a null badge if SDB doesn't ship one for this league —
+  // through to a null badge if SDB doesn't ship one for this league -
   // category still creates, just without a badge column.
   const detailQ = useQuery({
     queryKey: ['admin-sdb-league-detail', league.id],
@@ -740,7 +740,7 @@ function AddCategoryDialog({ league, existingCodes, onClose, onSuccess }: {
       const type = isSoccer ? 'FOOTBALL_LEAGUE' : 'SPORTSDB_SPORT';
       const config: Record<string, unknown> = { externalLeagueId: league.id };
       if (!isSoccer) {
-        // SDB sport name is already the v1 livescore query string — the
+        // SDB sport name is already the v1 livescore query string - the
         // old SPORT_TO_QUERY map mapped every key to itself, so it was
         // pure noise (Plan §3.10).
         config.sportQuery = league.sport;
@@ -762,7 +762,7 @@ function AddCategoryDialog({ league, existingCodes, onClose, onSuccess }: {
         config,
         parentCode,
       };
-      // Include badgeUrl when SDB gave us one — categories created from
+      // Include badgeUrl when SDB gave us one - categories created from
       // the Browse SDB flow now ship with the league logo already wired.
       if (badge) body.badgeUrl = badge;
       // The auto-detected background preference lets white-on-transparent
@@ -790,7 +790,7 @@ function AddCategoryDialog({ league, existingCodes, onClose, onSuccess }: {
             width: 44, height: 44, flexShrink: 0,
             borderRadius: 1,
             // Use the auto-detected preference so the preview matches what
-            // the public app will actually render — a white badge shows
+            // the public app will actually render - a white badge shows
             // on dark, a coloured badge on light.
             bgcolor: badge ? resolveBadgeBackground(badgeBgColor) : t.bg.surface,
             border: `1px solid ${t.border.subtle}`,
@@ -808,7 +808,7 @@ function AddCategoryDialog({ league, existingCodes, onClose, onSuccess }: {
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
               <Box>SDB id <strong>{league.id}</strong></Box>
-              <Box>sport <strong>{league.sport || '—'}</strong></Box>
+              <Box>sport <strong>{league.sport || '-'}</strong></Box>
               {country && <Box>country <strong>{country}</strong></Box>}
             </Box>
             <Typography sx={{ fontSize: '0.78rem', mt: 0.5, color: t.text.primary }}>{league.name}</Typography>

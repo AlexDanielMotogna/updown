@@ -35,7 +35,7 @@ export interface OddsChartIdentity {
   labels: { up?: string; down?: string; draw?: string };
   icons: { up?: string | null; down?: string | null; draw?: string | null };
   threeWay: boolean;
-  /** True when we want the chart to default to the "live" liveness pulse — used by
+  /** True when we want the chart to default to the "live" liveness pulse - used by
    *  callers that lock the source toggle to UpDown so the header shows LIVE. */
   isPrediction: boolean;
   isCrypto: boolean;
@@ -65,7 +65,7 @@ export function resolveOddsChartIdentity(pool: PoolLike): OddsChartIdentity {
   } else if (isYesNoPm) {
     labels = { up: 'Yes', down: 'No' };
   } else if (isUpDownPm) {
-    // Use the stored casing rather than forcing UPPERCASE — Polymarket
+    // Use the stored casing rather than forcing UPPERCASE - Polymarket
     // ships "Up" / "Down" and that reads cleaner than "UP" / "DOWN".
     labels = { up: pool.homeTeam ?? 'Up', down: pool.awayTeam ?? 'Down' };
   } else if (isPrediction) {
@@ -86,7 +86,7 @@ export function resolveOddsChartIdentity(pool: PoolLike): OddsChartIdentity {
   } else if (isYesNoPm) {
     icons = { up: YES_ICON, down: NO_ICON };
   } else if (isPrediction) {
-    // Question-thumbnail style PM with answer-pair sides — show the same
+    // Question-thumbnail style PM with answer-pair sides - show the same
     // banner on both halves so the user still recognises the market.
     icons = { up: pool.homeTeamCrest ?? null, down: pool.homeTeamCrest ?? null };
   } else {

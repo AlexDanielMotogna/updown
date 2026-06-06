@@ -7,7 +7,7 @@ import { getSocket, connectSocket } from '@/lib/socket';
  * Subscribe to the `pool:bet-placed` socket channel and emit a short-lived
  * "flash" object every time a bet lands on the given pool. The card / chart
  * panel renders a pill, fades it out after FLASH_LIFETIME_MS, and then
- * drops it. Multiple bets in flight stack — each gets its own entry with
+ * drops it. Multiple bets in flight stack - each gets its own entry with
  * a unique key so the framer-motion AnimatePresence can transition them
  * out independently.
  *
@@ -16,7 +16,7 @@ import { getSocket, connectSocket } from '@/lib/socket';
  * what the user picked over coalescing.
  */
 export interface BetFlash {
-  /** Unique key for AnimatePresence — server timestamp + side avoids
+  /** Unique key for AnimatePresence - server timestamp + side avoids
    *  clashes when the same wallet hedges. */
   key: string;
   side: 'UP' | 'DOWN' | 'DRAW';
@@ -29,7 +29,7 @@ const FLASH_LIFETIME_MS = 2000;
 // Drop bets older than the lifetime if they land late (e.g. ws reconnect
 // replayed an old payload). Bumped from 5s to 30s because the prod
 // debug session on 2026-06-04 revealed every live event was being
-// silently rejected — the client's clock was running ~7-12s behind
+// silently rejected - the client's clock was running ~7-12s behind
 // Railway's NTP-synced clock, so Date.now() - data.at consistently
 // exceeded the old 5s window. 30s is generous enough to absorb any
 // reasonable clock skew without showing genuinely-replayed events on
@@ -43,7 +43,7 @@ const DEBUG = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_BET
 
 export function useBetFlash(poolId: string | undefined): BetFlash[] {
   const [flashes, setFlashes] = useState<BetFlash[]>([]);
-  // Track timers so unmount can cancel them — otherwise React 18 strict
+  // Track timers so unmount can cancel them - otherwise React 18 strict
   // mode double-fires effects and we get phantom pills on remount.
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 

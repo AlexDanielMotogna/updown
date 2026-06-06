@@ -2,7 +2,7 @@
 
 /**
  * Empty state for tables, lists, and sidebars. Replaces five different
- * verbal templates that drifted in the wild ("No X — all caught up." /
+ * verbal templates that drifted in the wild ("No X - all caught up." /
  * silent tbody / centered <Typography> / instructional card).
  *
  * UX rule: when there is a next action, name it in `hint` and pass the

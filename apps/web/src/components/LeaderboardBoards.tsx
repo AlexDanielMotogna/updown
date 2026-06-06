@@ -98,7 +98,7 @@ function Board({ title, icon, sort, wallet, isLast, value }: BoardProps) {
 }
 
 /**
- * Three all-time leaderboards side by side — Profit, Volume and Predictions.
+ * Three all-time leaderboards side by side - Profit, Volume and Predictions.
  * XP/levels remain the progression system elsewhere; these rank the metrics
  * that actually matter for a predictor.
  */

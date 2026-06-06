@@ -5,7 +5,7 @@
  * couple to MUI icon imports in places that don't otherwise need them.
  *
  * Crypto pools already have proper PNGs at /assets/up-icon-64x64.png
- * and /assets/down-icon-64x64.png — those are re-exported here as
+ * and /assets/down-icon-64x64.png - those are re-exported here as
  * UP_ICON / DOWN_ICON so every "outcome icon" import in the app comes
  * from a single place.
  */

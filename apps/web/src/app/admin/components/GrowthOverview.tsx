@@ -163,8 +163,8 @@ export function GrowthOverview() {
                                   <Box sx={{ minWidth: 0 }}>
                                     {u.displayName ?? <IdCell value={u.walletAddress} />}
                                     <Box sx={{ display: 'flex', gap: 1.5, mt: 0.2, fontSize: '0.68rem', color: t.text.tertiary, fontFamily: 'monospace' }}>
-                                      <Box component="span" title={u.signupIp ?? 'no IP captured'}>IP {u.signupIp ?? '—'}</Box>
-                                      <Box component="span" title={u.deviceFingerprint ?? 'no fingerprint captured'}>FP {u.deviceFingerprint ?? '—'}</Box>
+                                      <Box component="span" title={u.signupIp ?? 'no IP captured'}>IP {u.signupIp ?? '-'}</Box>
+                                      <Box component="span" title={u.deviceFingerprint ?? 'no fingerprint captured'}>FP {u.deviceFingerprint ?? '-'}</Box>
                                     </Box>
                                   </Box>
                                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>

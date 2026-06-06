@@ -97,7 +97,7 @@ function jobStatusKind(job: JobInfo): StatusKind {
   return job.lastRunAt ? 'error' : 'pending';
 }
 
-// Plan §3.9 §3 — drop the hardcoded credits-low threshold (was `< 200`).
+// Plan §3.9 §3 - drop the hardcoded credits-low threshold (was `< 200`).
 // Below ~10% of a daily 1000-credit budget is "low"; backend should
 // eventually ship the threshold itself, but for now compute defensively
 // against `null`.
@@ -178,7 +178,7 @@ function LegendDot({ color }: { color: string }) {
 // ─── LivescoreHealth ─────────────────────────────────────────────────────
 function LivescoreHealth() {
   // Plan §3.9: keepPreviousData prevents the null-flash on every 15s
-  // refetch — the panel kept blanking back to "no data" between polls.
+  // refetch - the panel kept blanking back to "no data" between polls.
   const { data, isLoading } = useQuery({
     queryKey: ['admin-livescore-health'],
     queryFn: () => adminFetch<LivescoreMetricsData>('/health/livescore'),
@@ -224,7 +224,7 @@ function LivescoreHealth() {
         <Box>
           <Label>Odds API credits</Label>
           <Box sx={{ fontSize: '1.2rem', fontWeight: 700, color: creditsKind === 'error' ? t.error : creditsKind === 'ok' ? t.gain : t.text.tertiary, mt: 0.5 }}>
-            {m.oddsApiCreditsRemaining != null ? m.oddsApiCreditsRemaining.toLocaleString() : '—'}
+            {m.oddsApiCreditsRemaining != null ? m.oddsApiCreditsRemaining.toLocaleString() : '-'}
           </Box>
           {creditsKind === 'error' && <Meta sx={{ display: 'block', color: t.error }}>Low credits</Meta>}
         </Box>
@@ -305,7 +305,7 @@ function LivescoreHealth() {
                 ODDS_API_ERROR: t.error,
                 MIDNIGHT_BOUNDARY: t.prediction,
               };
-              // Plan §3.9 — use a stable key. timestamp+type+detailsHead
+              // Plan §3.9 - use a stable key. timestamp+type+detailsHead
               // is sufficient (multiple incidents at the same ms with the
               // same type/details would collide, but that's safe to merge).
               const key = `${inc.timestamp}-${inc.type}-${inc.details.slice(0, 32)}`;
@@ -358,7 +358,7 @@ export function SystemHealth() {
       {/* ─── Alerts ────────────────────────────────────────────────── */}
       {h.stuckPools > 0 && (
         <SectionCard dense accentColor={t.error} title={`${h.stuckPools} stuck pool${h.stuckPools === 1 ? '' : 's'}`}>
-          <Meta>Past endTime but still JOINING / ACTIVE — open the Pools tab to resolve them.</Meta>
+          <Meta>Past endTime but still JOINING / ACTIVE - open the Pools tab to resolve them.</Meta>
         </SectionCard>
       )}
       {failingJobs.length > 0 && (
@@ -386,7 +386,7 @@ export function SystemHealth() {
 
         <SectionCard dense title="Authority SOL">
           <Box sx={{ fontSize: '1.2rem', fontWeight: 700, color: h.authorityBalance != null && h.authorityBalance < 0.1 ? t.error : t.text.primary }}>
-            {h.authorityBalance != null ? h.authorityBalance.toFixed(4) : '—'}
+            {h.authorityBalance != null ? h.authorityBalance.toFixed(4) : '-'}
           </Box>
           {h.authorityBalance != null && h.authorityBalance < 0.1 && (
             <Meta sx={{ display: 'block', color: t.error }}>Low balance</Meta>
@@ -407,7 +407,7 @@ export function SystemHealth() {
         }
       >
         {h.jobs.length === 0 ? (
-          <EmptyState title="No jobs registered" hint="Scheduler probably hasn’t finished bootstrapping yet — wait a moment." />
+          <EmptyState title="No jobs registered" hint="Scheduler probably hasn’t finished bootstrapping yet - wait a moment." />
         ) : (
           <TableContainer>
             <Table size="small">
@@ -440,7 +440,7 @@ export function SystemHealth() {
                           <Tooltip title={job.lastError} arrow>
                             <Box sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.lastError}</Box>
                           </Tooltip>
-                        ) : '—'}
+                        ) : '-'}
                       </TableCell>
                     </TableRow>
                   );
@@ -462,7 +462,7 @@ export function SystemHealth() {
         </Box>
         <Box sx={{ mt: 2 }}>
           <Label sx={{ display: 'block', mb: 0.25 }}>Authority pubkey</Label>
-          {/* Plan §3.9 — long pubkey now uses IdCell so the admin can copy
+          {/* Plan §3.9 - long pubkey now uses IdCell so the admin can copy
               it cleanly; previous code dumped 44 chars and broke layout. */}
           <IdCell value={h.scheduler.authority} truncate={20} />
         </Box>

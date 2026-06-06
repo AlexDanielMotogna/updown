@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Polymarket admin explorer — mirror of MatchExplorer for prediction markets.
+ * Polymarket admin explorer - mirror of MatchExplorer for prediction markets.
  *
  *   ┌─────────────────────────┬──────────────────────────────────────────────┐
  *   │  Categories sidebar     │  Selected category header (refresh / browse) │
@@ -81,7 +81,7 @@ const MARKET_STATUS_KIND: Record<string, StatusKind> = {
   CANCELLED: 'error',
 };
 
-// PM admin uses a single accent color — matches the public app's `t.prediction`
+// PM admin uses a single accent color - matches the public app's `t.prediction`
 // purple, which is what the Polymarket bucket renders as.
 const PM_ACCENT = t.prediction;
 
@@ -353,12 +353,12 @@ export function PmExplorer() {
                           <TableCell>
                             {m.subcategory
                               ? <StatusChip status="info" label={m.subcategory} />
-                              : <Meta>—</Meta>}
+                              : <Meta>-</Meta>}
                           </TableCell>
                           <TableCell><TimeCell value={m.endDate} mode="datetime" /></TableCell>
                           <TableCell><StatusChip status={MARKET_STATUS_KIND[m.status] ?? 'neutral'} label={m.status} /></TableCell>
                           <TableCell sx={{ fontVariantNumeric: 'tabular-nums', fontSize: '0.78rem' }}>
-                            {m.marketOdds != null ? `${Math.round(m.marketOdds * 100)}%` : '—'}
+                            {m.marketOdds != null ? `${Math.round(m.marketOdds * 100)}%` : '-'}
                           </TableCell>
                           <TableCell>
                             {m.poolExists && m.poolId
@@ -420,7 +420,7 @@ export function PmExplorer() {
             Will create a 2-way pool from the Polymarket market{' '}
             <Box component="strong" sx={{ color: t.text.primary }}>{createTarget.question}</Box>{' '}
             in category <Box component="strong" sx={{ color: t.text.primary }}>{selected.code}</Box>.
-            Pool is on-chain and cannot be undone — to remove later, use the Pools tab's Refund flow.
+            Pool is on-chain and cannot be undone - to remove later, use the Pools tab's Refund flow.
           </>
         ) : ''}
       />
@@ -525,7 +525,7 @@ function BrowseGammaTagsModal({ open, onClose }: { open: boolean; onClose: () =>
         {tagsQ.isLoading ? (
           <LoadingState variant="block" />
         ) : filtered.length === 0 ? (
-          <EmptyState title="No tags match" hint="Clear the filter or refresh — Gamma has 1200+ active tags." />
+          <EmptyState title="No tags match" hint="Clear the filter or refresh - Gamma has 1200+ active tags." />
         ) : (
           <TableContainer sx={{ maxHeight: 460 }}>
             <Table size="small" stickyHeader>
@@ -552,7 +552,7 @@ function BrowseGammaTagsModal({ open, onClose }: { open: boolean; onClose: () =>
                     <TableCell>
                       {tg.inUse
                         ? <StatusChip status="ok" label={tg.categoryCode ?? 'used'} />
-                        : <Meta>—</Meta>}
+                        : <Meta>-</Meta>}
                     </TableCell>
                   </TableRow>
                 ))}

@@ -16,7 +16,7 @@ interface PoolPageHeaderProps {
   interval: string;
   startTime: string;
   endTime: string;
-  /** Used to scope the "next pool" lookup — picks the JOINING pool with
+  /** Used to scope the "next pool" lookup - picks the JOINING pool with
    *  the same asset+interval whose startTime sits right after this one. */
   poolId: string;
 }
@@ -40,7 +40,7 @@ export function PoolPageHeader({ asset, interval, startTime, endTime, poolId }: 
   // Polymarket-style "next pool" navigation: hop straight to the upcoming
   // pool for the same asset+interval. We reuse the same /pools query the
   // right-rail sidebar fires, so this is a cache hit and adds no extra
-  // request. JOINING-only because ACTIVE pools have already started — the
+  // request. JOINING-only because ACTIVE pools have already started - the
   // "next" the user wants is the one that opens after this one closes.
   const { data: poolsData } = usePools({
     type: 'CRYPTO',
@@ -121,7 +121,7 @@ export function PoolPageHeader({ asset, interval, startTime, endTime, poolId }: 
 
       {/* Share / embed / bookmark - mirror the icons in the Polymarket header. */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0, mt: { xs: 0.5, md: 1 } }}>
-        {/* "Next pool" — simple labelled pill that jumps to the upcoming
+        {/* "Next pool" - simple labelled pill that jumps to the upcoming
             pool for the same asset+interval. Hidden when nothing is queued
             yet (rather than rendered disabled) so the slot doesn't look
             broken; it reappears the moment the cron lands the next one. */}

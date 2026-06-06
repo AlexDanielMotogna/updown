@@ -116,7 +116,7 @@ export function StuckPmPools() {
               {pools.map(p => (
                 <TableRow key={p.id} hover>
                   <TableCell sx={{ maxWidth: 380 }}>
-                    <Tooltip title={`matchId=${p.matchId ?? '—'}`}>
+                    <Tooltip title={`matchId=${p.matchId ?? '-'}`}>
                       <Body sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: t.text.primary }}>
                         {p.homeTeam || '(no question)'}
                       </Body>
@@ -133,7 +133,7 @@ export function StuckPmPools() {
                     />
                   </TableCell>
                   <TableCell>
-                    <Chip size="small" label={p.league || '—'} sx={{ height: 22, fontSize: '0.7rem', borderRadius: 1, bgcolor: t.hover.medium, color: t.text.primary }} />
+                    <Chip size="small" label={p.league || '-'} sx={{ height: 22, fontSize: '0.7rem', borderRadius: 1, bgcolor: t.hover.medium, color: t.text.primary }} />
                     {p.subcategory && (
                       <Chip size="small" label={p.subcategory} variant="outlined" sx={{ ml: 0.5, height: 22, fontSize: '0.7rem', borderRadius: 1 }} />
                     )}
@@ -149,7 +149,7 @@ export function StuckPmPools() {
                       ? <StatusChip status="error" label="DELISTED" />
                       : p.gammaDelisted === false
                         ? <StatusChip status="ok" label="exists" />
-                        : <StatusChip status="neutral" label="—" />}
+                        : <StatusChip status="neutral" label="-" />}
                   </TableCell>
                   <TableCell align="right">
                     <ActionButton
@@ -171,7 +171,7 @@ export function StuckPmPools() {
           </Table>
           {truncated && (
             <Meta sx={{ mt: 1, display: 'block' }}>
-              Showing 20 of {totalCount} — run the sweep to bulk-cancel 0-bet pools, then refresh.
+              Showing 20 of {totalCount} - run the sweep to bulk-cancel 0-bet pools, then refresh.
             </Meta>
           )}
         </>

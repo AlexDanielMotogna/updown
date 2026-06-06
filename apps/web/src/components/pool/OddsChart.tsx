@@ -57,11 +57,11 @@ interface OddsChartProps {
   /** When the pool has no bets yet, seed a gentle baseline curve so the
    *  chart still renders instead of an empty-state placeholder. */
   seedDefault?: boolean;
-  /** 3-way pool (sports home/draw/away) — render a third area for draw. */
+  /** 3-way pool (sports home/draw/away) - render a third area for draw. */
   threeWay?: boolean;
   /** Inline labels next to each outcome on the legend. */
   labels?: { up?: string; down?: string; draw?: string };
-  /** Crests / icon URLs to render inside the hover tooltip — team
+  /** Crests / icon URLs to render inside the hover tooltip - team
    *  badges for sports, the question thumbnail for PM, an asset icon
    *  for crypto. Each side is optional; missing icons render a coloured
    *  dot fallback so the tooltip never breaks. */
@@ -69,7 +69,7 @@ interface OddsChartProps {
   /** Background colour the chart is rendered on top of. Used by the
    *  "future dim" hover overlay, the crosshair marker cutout and the
    *  loading/empty overlays so they blend into the surrounding surface.
-   *  Defaults to the page background (t.bg.app) — the /match page case.
+   *  Defaults to the page background (t.bg.app) - the /match page case.
    *  The trending hero card sits on t.bg.surface and passes that so the
    *  hover shadow matches its own card colour instead of the page. */
   surfaceColor?: string;
@@ -124,7 +124,7 @@ export function OddsChart({
   const [settingsAnchor, setSettingsAnchor] = useState<HTMLElement | null>(null);
   // Pixel-Y of each visible series' last data point, recomputed any time
   // Pixel coords of each series' last data point ("the tip of the line")
-  // plus its X — used to render the per-line endpoint badges. The y-axis
+  // plus its X - used to render the per-line endpoint badges. The y-axis
   // never collides with the badge because `timeScale.rightOffset` is set
   // high enough to keep the line tip permanently away from the right
   // edge; we don't need any flip/clamp gymnastics on the badge itself.
@@ -135,13 +135,13 @@ export function OddsChart({
     draw?: number;
   }>({});
 
-  // Width / height of the chart's axis gutters — used to constrain the
+  // Width / height of the chart's axis gutters - used to constrain the
   // "future dim" hover overlay so it only covers the plot area (the
   // canvas) and never bleeds over the y-axis tick labels on the right or
   // the x-axis tick labels at the bottom.
   const [axisInsets, setAxisInsets] = useState<{ right: number; bottom: number }>({ right: 0, bottom: 0 });
 
-  // Hover state — per-line Y at the cursor X (so each line can paint its
+  // Hover state - per-line Y at the cursor X (so each line can paint its
   // own little badge stuck to its own curve, not a single combined card).
   // We pre-compute every Y inside the crosshair callback because LWC's
   // priceToCoordinate isn't reactive and we want the badges to track the
@@ -211,7 +211,7 @@ export function OddsChart({
         }
       })
       .catch(() => {
-        // API down / CORS / network error — still draw a baseline if the
+        // API down / CORS / network error - still draw a baseline if the
         // caller opted in. Without this the chart used to render as an
         // empty box on offline / cold-API loads.
         if (!cancelled && seedDefault) seedFlat();
@@ -243,7 +243,7 @@ export function OddsChart({
           const replaced = prev.slice(0, -1).concat([point]);
           return replaced;
         }
-        // Also dedupe by value when nothing materially changed — there's
+        // Also dedupe by value when nothing materially changed - there's
         // no point appending a third 50% on a quiet market.
         if (Math.abs(last.p - pUp) < 0.001) return prev;
       }
@@ -273,7 +273,7 @@ export function OddsChart({
   // upstream API down), silently render the UpDown bet stream so the
   // chart never sits empty just because one of the two sources came
   // back blank. Same trick the other way around. useMemo is mandatory
-  // here — without it `history` is a fresh array reference every render
+  // here - without it `history` is a fresh array reference every render
   // and the upData/downData memos thrash, which in turn re-fires the
   // setData effect and quietly tanks the chart.
   const history = useMemo<OddsPoint[]>(() => {
@@ -317,7 +317,7 @@ export function OddsChart({
     }
     // Extend the line all the way to "now" by repeating the last value at
     // the current timestamp. Without this, the chart dead-ends at the
-    // last bet's time and the right half of the panel looks empty —
+    // last bet's time and the right half of the panel looks empty -
     // Polymarket holds the line flat to "now" so the reading always
     // matches the current displayed percentage.
     if (out.length > 0) {
@@ -350,7 +350,7 @@ export function OddsChart({
         textColor: t.text.dimmed,
         fontFamily: 'var(--font-satoshi), "Satoshi", -apple-system, BlinkMacSystemFont, sans-serif',
         fontSize: 10,
-        // Drop the TradingView attribution badge — Polymarket / Kalshi
+        // Drop the TradingView attribution badge - Polymarket / Kalshi
         // ship a clean chart, ours should too.
         attributionLogo: false,
       },
@@ -367,7 +367,7 @@ export function OddsChart({
           return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
         },
       },
-      // Grid off — Polymarket / Kalshi don't draw vertical or horizontal
+      // Grid off - Polymarket / Kalshi don't draw vertical or horizontal
       // gridlines on their probability charts. The y-axis tick labels are
       // enough of an anchor for the eye.
       grid: {
@@ -376,7 +376,7 @@ export function OddsChart({
       },
       crosshair: {
         // Normal mode hugs the actual cursor rather than snapping to the
-        // nearest bar — feels less twitchy on a thin probability series
+        // nearest bar - feels less twitchy on a thin probability series
         // with only a handful of points.
         mode: CrosshairMode.Normal,
         vertLine: {
@@ -394,7 +394,7 @@ export function OddsChart({
         },
       },
       rightPriceScale: {
-        // Borderless price axis — the labels alone do the work, no rule.
+        // Borderless price axis - the labels alone do the work, no rule.
         borderVisible: false,
         // Generous top/bottom margins so the lines never kiss the edges
         // and the area gradient has room to fade out cleanly.
@@ -413,11 +413,11 @@ export function OddsChart({
         rightOffset: 80,
         // Lighter labels (every other tick) to match the Polymarket pace.
         minBarSpacing: 4,
-        // Tick label formatter — LWC defaults to UTC for the X axis ticks
+        // Tick label formatter - LWC defaults to UTC for the X axis ticks
         // even when localization.timeFormatter is set (that one only
         // affects the crosshair label). Without this override the bottom
         // axis would render UTC times while the hover tooltip showed
-        // local time — confusing and inconsistent. We branch on tick type
+        // local time - confusing and inconsistent. We branch on tick type
         // so "MMM d" reads as a day at long zoom-out and "HH:mm" reads as
         // a time at intra-day zoom.
         tickMarkFormatter: (time: number, tickMarkType: number) => {
@@ -522,38 +522,38 @@ export function OddsChart({
     const chart = chartRef.current;
     if (!chart) return;
 
-    // Shared options for every probability series — Kalshi/Polymarket
+    // Shared options for every probability series - Kalshi/Polymarket
     // signature is the stairs-shaped step line (each trade is a discrete
     // jump, not a smoothed curve), the percent-formatted axis tag at the
     // endpoint, and the continuous last-value pulse for liveness.
     //
     // priceFormat MUST be 'custom' here, not 'percent'. LWC's 'percent'
     // type means "percent change from the first bar" (a TradingView-style
-    // PnL formatter) — passing it 0..1 probability values made the axis
+    // PnL formatter) - passing it 0..1 probability values made the axis
     // tag and crosshair label render NaN. The custom formatter just
-    // multiplies the raw probability by 100 and rounds — exactly what
+    // multiplies the raw probability by 100 and rounds - exactly what
     // every Polymarket/Kalshi chart does.
     const pctFormatter = (p: number) => `${Math.round(p * 100)}%`;
     const probSeriesOptions = (color: string) => ({
       lineColor: color,
-      // Two-stop gradient that fades to nothing at the bottom — the
+      // Two-stop gradient that fades to nothing at the bottom - the
       // signature soft glow you see on Limitless / Polymarket charts.
       // Heavier top (alpha 33 ≈ 0.20) keeps the leading edge readable,
       // bottom (alpha 00) lets the surface bleed through.
       topColor: `${color}33`,
       bottomColor: `${color}00`,
       lineWidth: 2 as const,
-      // Step lines — the Kalshi / Polymarket signature. Every bet is a
+      // Step lines - the Kalshi / Polymarket signature. Every bet is a
       // discrete event so the curve should jump vertically at the
       // moment a trade lands rather than interpolate smoothly across the
       // gap. Reads as a "ledger of decisions" rather than a continuous
       // flow.
       lineType: LineType.WithSteps,
-      // No title / lastValueVisible — we render our own endpoint badges
+      // No title / lastValueVisible - we render our own endpoint badges
       // in HTML so we can put a team crest next to the percentage.
       priceLineVisible: false,
       lastValueVisible: false,
-      // Hollow marker dot with a cutout border in the chart background —
+      // Hollow marker dot with a cutout border in the chart background -
       // the dot reads as a punched hole on the line rather than a blob.
       crosshairMarkerVisible: true,
       crosshairMarkerRadius: 5,
@@ -615,7 +615,7 @@ export function OddsChart({
     }
 
     // Extend the visible X range from the first data point to *now*.
-    // fitContent() ends at the last data point — when Polymarket's last
+    // fitContent() ends at the last data point - when Polymarket's last
     // tick is a few hours old (their CLOB returns one row per hour), the
     // chart used to dead-end mid-screen and look "half-empty". Anchoring
     // the right edge to nowSec instead matches Polymarket / Kalshi's
@@ -650,10 +650,10 @@ export function OddsChart({
       try { chartRef.current?.timeScale().fitContent(); } catch { /* ignore */ }
     }
 
-    // Pixel-Y of each line's last point — computed via the series'
+    // Pixel-Y of each line's last point - computed via the series'
     // priceToCoordinate. LWC computes the price scale lazily after
     // setData, and on larger series (e.g. 700+ Polymarket points) the
-    // first RAF is too early — priceToCoordinate returns null and the
+    // first RAF is too early - priceToCoordinate returns null and the
     // endpoint badges never appear. We schedule TWO measure passes: one
     // on the next frame for the seed/short-data path, and a backup at
     // 200ms for the heavy data path. Each pass overwrites the previous
@@ -711,7 +711,7 @@ export function OddsChart({
     };
   }, [upData, downData, drawData]);
 
-  // Recompute endpoint coords on container resize — the chart re-lays-out
+  // Recompute endpoint coords on container resize - the chart re-lays-out
   // internally, so our pixel coords are stale until we ask again.
   useEffect(() => {
     const el = containerRef.current;
@@ -855,15 +855,15 @@ export function OddsChart({
         </Box>
       )}
 
-      {/* Chart canvas — the container ALWAYS mounts so LWC can create the
+      {/* Chart canvas - the container ALWAYS mounts so LWC can create the
           chart on first paint; the "no data" placeholder layers on top via
           absolute positioning until the first datapoint lands. Mounting the
           ref conditionally was the bug behind "trending sports renders an
-          empty box" — the chart-creation effect ran once on mount, found a
+          empty box" - the chart-creation effect ran once on mount, found a
           null ref, and never re-ran when history later filled. */}
       <Box sx={{ width: '100%', height: CHART_H, position: 'relative' }}>
         <Box ref={containerRef} sx={{ width: '100%', height: '100%' }} />
-        {/* "Future dim" overlay — Polymarket / Kalshi style. Paints a
+        {/* "Future dim" overlay - Polymarket / Kalshi style. Paints a
             semi-transparent gradient over the chart area FROM the cursor
             X to the right edge, so the user reads "the past is what I'm
             inspecting (vivid), the future relative to this hover point
@@ -889,7 +889,7 @@ export function OddsChart({
             }}
           />
         )}
-        {/* Endpoint badges — pinned to the *tip of each line* (X coord
+        {/* Endpoint badges - pinned to the *tip of each line* (X coord
             of the last data point via timeToCoordinate, Y from each
             series' priceToCoordinate). On hover we hide the endpoint
             badges and let the per-line cursor badges below take over,
@@ -918,7 +918,7 @@ export function OddsChart({
             />
           ))
         }
-        {/* Per-line hover badges — one per series, each anchored to its
+        {/* Per-line hover badges - one per series, each anchored to its
             own curve at the snapped X. Lets users read both outcomes at
             once without parsing a stacked tooltip card. */}
         {hoverState && history.length > 0 &&
@@ -973,7 +973,7 @@ export function OddsChart({
             }}
           >
             <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: t.text.muted }}>
-              {source === 'updown' ? 'No predictions yet — be the first!' : 'No market data available'}
+              {source === 'updown' ? 'No predictions yet - be the first!' : 'No market data available'}
             </Typography>
           </Box>
         )}
@@ -985,7 +985,7 @@ export function OddsChart({
 /**
  * Per-line tip badge: icon + percentage in a colour-bordered pill, painted
  * at (x, y) inside the chart container. Used both for the static endpoint
- * (last datapoint) and the dynamic hover-tracking badge — same component
+ * (last datapoint) and the dynamic hover-tracking badge - same component
  * so the two states are visually identical.
  *
  * Auto-flips left of the X anchor when there isn't horizontal room (e.g.
@@ -1028,7 +1028,7 @@ function LineEndBadge({
         // Bumped to 10 so LWC's own axis labels never paint over the
         // badge. The canvas itself is z-index 0 but LWC ships a small DOM
         // sublayer for the price scale that defaults to a higher stack
-        // order — 10 puts us safely above either.
+        // order - 10 puts us safely above either.
         zIndex: 10,
         fontFamily: 'var(--font-satoshi), "Satoshi", -apple-system, BlinkMacSystemFont, sans-serif',
       }}

@@ -27,7 +27,7 @@ import type { CategoryConfig } from '@/hooks/useCategories';
 function relTime(iso: string): string {
   const diff = new Date(iso).getTime() - Date.now();
   if (diff < 0) return 'In play';
-  // Under an hour we surface seconds — short crypto rounds (3m/5m/15m)
+  // Under an hour we surface seconds - short crypto rounds (3m/5m/15m)
   // need the seconds digit to feel "live" rather than tick by minute.
   if (diff < 60 * 60_000) {
     const totalSec = Math.floor(diff / 1000);
@@ -83,7 +83,7 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
   const isResolved = pool.status === 'CLAIMABLE' || pool.status === 'RESOLVED';
   const isLocked = !isResolved && !!pool.lockTime && new Date(pool.lockTime).getTime() < Date.now();
   // "NEW" badge: surfaces pools created in the last 2h so users can spot
-  // freshly-listed markets in the grid. Excluded for crypto — those pools
+  // freshly-listed markets in the grid. Excluded for crypto - those pools
   // are minted every few minutes by the scheduler so a NEW pill would be
   // background noise; only meaningful for sports / PM where listings are
   // sparse and human-driven. Stops showing once the pool resolves.
@@ -91,7 +91,7 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
   const isNew = !isCrypto && !isResolved && createdMs > 0 && Date.now() - createdMs < 2 * 60 * 60 * 1000;
 
   const matchFinished = !isResolved && liveScore != null && isMatchFinished(liveScore.status);
-  // Phase B: past expected match end but feed hasn't reported FT yet — we
+  // Phase B: past expected match end but feed hasn't reported FT yet - we
   // stop showing the live timer and surface an "Awaiting result" badge.
   // Only relevant on sports pools (PM markets don't have a notion of FT).
   // Computed before `matchLive` so a stuck "2H 95'" feed state doesn't keep
@@ -145,7 +145,7 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
   const showFinalScore = !showLiveScore && pool.homeScore != null && pool.awayScore != null;
   const homeScoreLabel = showLiveScore ? liveHomeScore! : showFinalScore ? pool.homeScore! : null;
   const awayScoreLabel = showLiveScore ? liveAwayScore! : showFinalScore ? pool.awayScore! : null;
-  // Crypto title merges the asset prompt with the strike — once a pool is
+  // Crypto title merges the asset prompt with the strike - once a pool is
   // live the strike doesn't change, so it reads as part of the headline
   // rather than a separate metadata row.
   const cryptoTitle = pool.strikePrice
@@ -238,7 +238,7 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
 
   const canClaim = isResolved && userBet?.isWinner && !userBet.claimed && userBet.betId && onClaim;
 
-  // BetFlash overlay — subscribes to pool:bet-placed and renders a
+  // BetFlash overlay - subscribes to pool:bet-placed and renders a
   // 2-second pill in the centre of the card every time a fresh bet
   // lands. Hook is idempotent and bails when poolId is falsy, so it's
   // safe even on placeholder cards.
@@ -277,14 +277,14 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
       />
       {/* Header: category chip + right meta (Popular pill + live/time-to-close).
           PM cards skip this row entirely so the question sits flush at the top
-          edge of the card — the question + thumbnail are enough context, and
+          edge of the card - the question + thumbnail are enough context, and
           the sidebar filter tells the user which bucket they're in. PM's meta
           is rendered inline next to the title further down. */}
       {!isPrediction && (
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6, minWidth: 0 }}>
             {isCrypto ? (
-              // Per-asset round Pacifica token SVG — same identity the asset
+              // Per-asset round Pacifica token SVG - same identity the asset
               // tile uses on /pool/[id] and in the sidebar market list, so the
               // visual reads consistently across every crypto surface.
               <AssetIcon asset={pool.asset} size={18} />

@@ -1,12 +1,12 @@
 'use client';
 
 /**
- * Gamified cumulative P&L chart — a custom neon SVG built from scratch.
+ * Gamified cumulative P&L chart - a custom neon SVG built from scratch.
  *
  * Replaces the lightweight-charts version with an arcade look: a glowing
  * draw-in line over a gradient area, a count-up "score" header, and milestone
  * flags planted on the curve (🏆 all-time peak, 🔥 current win streak). Pure
- * SVG + an HTML overlay for the flags/tooltip — no charting lib.
+ * SVG + an HTML overlay for the flags/tooltip - no charting lib.
  *
  * Data shaping is per-pool (one cumulative step per resolved pool at its
  * endTime) so a hedged pool that writes a winner + loser row doesn't spike
@@ -172,7 +172,7 @@ export function PnLChart({ bets }: PnLChartProps) {
   useEffect(() => {
     let raf = 0;
     // Animate from the currently-shown value (not 0) so switching range
-    // doesn't flash through $0 — which changed the number's width and made
+    // doesn't flash through $0 - which changed the number's width and made
     // the range selector on the right jump for an instant.
     const from = shownRef.current, to = latestPnl, dur = 650;
     let startTs = 0;

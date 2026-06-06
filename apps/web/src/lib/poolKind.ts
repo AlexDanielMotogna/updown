@@ -3,7 +3,7 @@
  *
  * Polymarket pools are migrating from `poolType: 'SPORTS'` + `league` starting
  * `PM_` to a first-class `poolType: 'POLYMARKET'`. `kindOf` accepts either
- * signal, so it's correct during AND after that migration — replace ad-hoc
+ * signal, so it's correct during AND after that migration - replace ad-hoc
  * `poolType !== 'SPORTS'` (crypto) and `league.startsWith('PM_')` (pm) checks
  * with it.
  */

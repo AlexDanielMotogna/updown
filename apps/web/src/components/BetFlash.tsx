@@ -17,7 +17,7 @@
  *                   right edge or the legend at the top
  *
  * For sports markets the icon is the actual team crest, not the
- * UP/DOWN arrow — the caller passes `sideIcon` with crest URLs so the
+ * UP/DOWN arrow - the caller passes `sideIcon` with crest URLs so the
  * flash matches the rest of the card's iconography (same source as the
  * outcome rows).
  */
@@ -39,7 +39,7 @@ interface BetFlashProps {
    *  Yes/No glyphs. Ignored when `sideIcon` provides an explicit URL. */
   prediction?: boolean;
   /** Optional explicit labels keyed by side. Overrides the default
-   *  Up/Down/Yes/No copy — used for sports to show team names. */
+   *  Up/Down/Yes/No copy - used for sports to show team names. */
   sideLabel?: Partial<Record<SideKey, string>>;
   /** Optional explicit icon URLs keyed by side. Wins over the default
    *  Yes/No / Up/Down assets. Pass team crests here on sports cards so
@@ -99,7 +99,7 @@ export function BetFlash({ flashes, variant = 'card', prediction = false, sideIc
           const colour = flash.side === 'UP' ? t.up : flash.side === 'DOWN' ? t.down : t.draw;
           // Explicit per-side icon (sports crest) wins; otherwise we
           // fall back to the prediction Yes/No glyph or the crypto
-          // Up/Down arrow. null means "no icon" — render text-only.
+          // Up/Down arrow. null means "no icon" - render text-only.
           const explicit = sideIcon?.[flash.side];
           const fallback = prediction
             ? (flash.side === 'UP' ? YES_ICON : NO_ICON)
@@ -122,7 +122,7 @@ export function BetFlash({ flashes, variant = 'card', prediction = false, sideIc
                   display: 'flex',
                   alignItems: 'center',
                   gap: 0.65,
-                  // No background, no border, no shadow — Polymarket
+                  // No background, no border, no shadow - Polymarket
                   // "live tape" style. The colour comes from the side
                   // tint on the amount text.
                 }}

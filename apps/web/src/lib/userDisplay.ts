@@ -2,14 +2,14 @@ import { getAvatarUrl } from './constants';
 
 /**
  * Shared fallbacks for any place that renders another user's identity.
- * We never trust the wallet truncation directly inline anymore — every
+ * We never trust the wallet truncation directly inline anymore - every
  * surface should go through these so a profile rename instantly flows to
  * leaderboards, activity feeds, squads, tournaments, referrals and
  * notifications without re-deriving the ternary by hand.
  *
  * `displayName` / `avatarUrl` are accepted as `null | undefined | ''` so
  * callers can pass server responses straight through without normalising
- * — empty strings count as "not set" the same as null.
+ * - empty strings count as "not set" the same as null.
  */
 
 export interface UserIdentity {

@@ -31,7 +31,7 @@ const PM_COLOR_KEYS: Record<string, 'politics' | 'geopolitics' | 'culture' | 'fi
 /**
  * One expandable row per pool, not per bet. Because a wallet can hold bets on
  * BOTH sides of a market (you can predict every outcome), "won / lost" stops
- * being meaningful at the pool level — you can win one side and lose another
+ * being meaningful at the pool level - you can win one side and lose another
  * at once. So the row headline is a NET figure:
  *
  *   • Active pools  → a scenario split ("If Up wins +$5.20 · If Down −$3.10"),
@@ -181,7 +181,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
   const stopToggle = (e: React.MouseEvent) => e.stopPropagation();
 
   // ── Cells ──────────────────────────────────────────────────────────────
-  // Claim button for the (rare) auto-payout-failed bet — shown inline in the
+  // Claim button for the (rare) auto-payout-failed bet - shown inline in the
   // payout cell so the row is actionable without expanding.
   const claimBtn = anyFailed && failedBet && onClaim ? (
     <Button
@@ -243,7 +243,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
     </Typography>
   );
 
-  // Active headline: the scenario split — net P&L per possible winning side.
+  // Active headline: the scenario split - net P&L per possible winning side.
   const scenarioCell = (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.2, alignItems: 'flex-end' }}>
       {scenarios.map(s => (
@@ -260,7 +260,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
     </Box>
   );
 
-  // Closed payout cell — total payout + PnL delta (this IS the result, so the
+  // Closed payout cell - total payout + PnL delta (this IS the result, so the
   // old separate "Result" column was dropped as duplicate). Special states
   // (failed / pending / refunded) take over the cell when they apply.
   const payoutCell = (
@@ -399,7 +399,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
       transition: 'background 0.12s ease, border-color 0.12s ease',
       '&:hover': { background: t.hover.default, borderColor: t.border.medium },
     }}>
-      {/* ── Desktop collapsed header — no Result column (PnL lives in Payout). ── */}
+      {/* ── Desktop collapsed header - no Result column (PnL lives in Payout). ── */}
       <Box
         onClick={() => setExpanded(e => !e)}
         sx={{
@@ -414,7 +414,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
         <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>{chevron}</Box>
       </Box>
 
-      {/* ── Mobile collapsed header — market on top, stake / result row below. ── */}
+      {/* ── Mobile collapsed header - market on top, stake / result row below. ── */}
       <Box sx={{ display: { xs: 'block', md: 'none' } }}>
         <Box
           onClick={() => setExpanded(e => !e)}

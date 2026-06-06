@@ -28,7 +28,7 @@ const TABS = ['Health', 'Resolution', 'Pools', 'Zombies', 'Payouts', 'Finance', 
 // Detect which environment the admin is pointing at, so a single misclick
 // between the dev / prod browser tabs is obvious. Reads NEXT_PUBLIC_ENV
 // if explicitly set; otherwise infers from NEXT_PUBLIC_API_URL.
-// Phase 6 polish — see PLAN-ADMIN-REFACTOR.md §Phase 6.
+// Phase 6 polish - see PLAN-ADMIN-REFACTOR.md §Phase 6.
 type EnvKind = 'LOCAL' | 'DEV' | 'PROD' | 'UNKNOWN';
 function detectEnv(): EnvKind {
   const explicit = (process.env.NEXT_PUBLIC_ENV || '').toUpperCase();
@@ -51,7 +51,7 @@ export default function AdminPage() {
   // `null` = haven't checked yet (initial mount), `true`/`false` = verified.
   // We re-verify the cached key against the backend on mount instead of
   // trusting that "key exists in sessionStorage" means "key is still valid"
-  // — the previous behaviour left admins staring at error toasts in every
+  // - the previous behaviour left admins staring at error toasts in every
   // tab after a key rotation. See PLAN-ADMIN-REFACTOR.md Phase 1 #16.
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [tab, setTab] = useState(0);
@@ -92,7 +92,7 @@ export default function AdminPage() {
   //
   // sessionStorage is per-tab, so admin-key lives in each tab independently.
   // The `storage` event still fires for sessionStorage writes in other
-  // browsing contexts that share the same origin/window — modern browsers
+  // browsing contexts that share the same origin/window - modern browsers
   // route it both ways. When another tab clears the key (logout) we drop
   // back to the login screen; when another tab adopts a fresh key we
   // re-verify silently and stay in sync.
@@ -101,11 +101,11 @@ export default function AdminPage() {
     const handler = (e: StorageEvent) => {
       if (e.key !== 'admin-key' || e.storageArea !== sessionStorage) return;
       if (e.newValue === null) {
-        // Other tab logged out — mirror it.
+        // Other tab logged out - mirror it.
         setAuthed(false);
         return;
       }
-      // Other tab logged in — re-verify the new value before adopting.
+      // Other tab logged in - re-verify the new value before adopting.
       const next = e.newValue;
       void verifyKey(next).then(ok => {
         if (!ok) return;
@@ -118,7 +118,7 @@ export default function AdminPage() {
   }, []);
 
   if (authed === null) {
-    // Brief verification flash on mount. No spinner — the admin shell
+    // Brief verification flash on mount. No spinner - the admin shell
     // shouldn't blink full-screen for a single 50ms re-verify call.
     return null;
   }
@@ -133,7 +133,7 @@ export default function AdminPage() {
   };
 
   return (
-    // ToastProvider is part of Phase 2's primitives module — wraps the
+    // ToastProvider is part of Phase 2's primitives module - wraps the
     // whole admin shell so any tab can call useToast()/useMutationFeedback()
     // without remounting its own provider. Phase 3 tabs adopt it.
     <ToastProvider>
@@ -143,7 +143,7 @@ export default function AdminPage() {
             <Typography variant="h5" fontWeight={600} sx={{ fontSize: { xs: '1.05rem', sm: '1.25rem' } }}>
               UpDown Admin
             </Typography>
-            {/* Environment badge — gives an at-a-glance signal so the
+            {/* Environment badge - gives an at-a-glance signal so the
                 operator never confuses the LOCAL tab with the PROD tab
                 during a multi-deploy session. */}
             <Box

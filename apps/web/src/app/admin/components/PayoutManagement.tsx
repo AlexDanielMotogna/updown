@@ -150,7 +150,7 @@ export function PayoutManagement() {
     }
   };
 
-  // Wallet health colouring — same thresholds as the strategy doc.
+  // Wallet health colouring - same thresholds as the strategy doc.
   const sol = balanceData ? parseFloat(balanceData.data.solBalance) : 0;
   const walletAccent = sol < 0.1 ? t.error : sol < 0.5 ? t.warning : t.gain;
   const balance = balanceData?.data;
@@ -201,7 +201,7 @@ export function PayoutManagement() {
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)', md: 'repeat(5, 1fr)' }, gap: 2 }}>
           <StatCard label="Paid (24h)" value={stats.last24h.paid} color={t.gain} />
           <StatCard label="Failed (24h)" value={stats.last24h.failed} color={stats.last24h.failed > 0 ? t.error : t.text.primary} />
-          <StatCard label="Success rate (24h)" value={stats.last24h.successRate ?? '—'} unit={stats.last24h.successRate !== null ? '%' : undefined} />
+          <StatCard label="Success rate (24h)" value={stats.last24h.successRate ?? '-'} unit={stats.last24h.successRate !== null ? '%' : undefined} />
           <StatCard label="Pending (now)" value={stats.pending} />
           <StatCard label="Failed outstanding" value={stats.failedOutstanding} color={stats.failedOutstanding > 0 ? t.error : t.text.primary} />
         </Box>
@@ -299,7 +299,7 @@ export function PayoutManagement() {
                     <TableCell>
                       <StatusChip
                         status={pool.winner === 'UP' ? 'ok' : pool.winner === 'DOWN' ? 'error' : 'neutral'}
-                        label={pool.winner ?? '—'}
+                        label={pool.winner ?? '-'}
                       />
                     </TableCell>
                     <TableCell align="right">{pool.pendingCount}</TableCell>
@@ -316,7 +316,7 @@ export function PayoutManagement() {
       <SectionCard
         accentColor={t.warning}
         title="Historical migration"
-        subtitle="One-shot job that scans CLAIMABLE pools with a winner from the last N days and pays any remaining winning-side bets. Idempotent — safe to re-run."
+        subtitle="One-shot job that scans CLAIMABLE pools with a winner from the last N days and pays any remaining winning-side bets. Idempotent - safe to re-run."
         actions={
           <ActionButton
             kind="secondary"
@@ -365,7 +365,7 @@ export function PayoutManagement() {
             <Box sx={{ p: 1.25, borderRadius: 1.5, bgcolor: t.bg.surfaceAlt, border: `1px solid ${t.border.subtle}` }}>
               <Body>
                 Would pay <Box component="strong" sx={{ fontWeight: 700, color: t.text.primary }}>{previewMut.data.data.totalBets}</Box> bet(s)
-                across <Box component="strong" sx={{ fontWeight: 700, color: t.text.primary }}>{previewMut.data.data.totalPools}</Box> pool(s) —
+                across <Box component="strong" sx={{ fontWeight: 700, color: t.text.primary }}>{previewMut.data.data.totalPools}</Box> pool(s) -
                 total <Box component="strong" sx={{ fontWeight: 700, color: t.text.primary }}>${fmtUsdc(previewMut.data.data.totalAmountUsdcRaw)}</Box>.
               </Body>
             </Box>
@@ -379,7 +379,7 @@ export function PayoutManagement() {
               ))}
             </Box>
           )}
-          <Meta>The job is idempotent — if it stops mid-run, just retry from the same N.</Meta>
+          <Meta>The job is idempotent - if it stops mid-run, just retry from the same N.</Meta>
         </Stack>
       </AdminDialog>
     </Box>

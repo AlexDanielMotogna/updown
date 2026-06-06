@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Single stat tile — label, big number, optional unit + trend + hint.
+ * Single stat tile - label, big number, optional unit + trend + hint.
  * Replaces three incompatible versions (Finance, Payouts, Health).
  */
 import { Box, type BoxProps } from '@mui/material';

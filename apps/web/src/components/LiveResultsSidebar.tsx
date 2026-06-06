@@ -50,7 +50,7 @@ export function LiveResultsSidebar() {
   const pools = (() => {
     const all = data?.data ?? [];
     // Active sports pools with live scores go first
-    // matchId is the only safe key — the team-name fallback was dropped
+    // matchId is the only safe key - the team-name fallback was dropped
     // from useLiveScores so this `.has(matchId)` is the canonical check.
     const activeSports = all.filter(p => p.poolType === 'SPORTS' && p.status === 'ACTIVE' && p.matchId && liveScores.has(p.matchId));
     // Then resolved/claimable pools (last 48h only)

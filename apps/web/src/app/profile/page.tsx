@@ -100,7 +100,7 @@ export default function MyBetsPage() {
 
   // Live totals: subscribe to the pools backing the user's ACTIVE positions
   // and patch the cached bets in place so the scenario P&L updates as new bets
-  // land — no refetch. The hook is reusable for other live-pool surfaces.
+  // land - no refetch. The hook is reusable for other live-pool surfaces.
   const queryClient = useQueryClient();
   const activePoolIds = useMemo(() => {
     const ids = new Set<string>();

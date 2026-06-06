@@ -72,7 +72,7 @@ function getEffectiveLeague(sport: string, league: string) {
 }
 
 // Map tournament status to StatusKind for <StatusChip>. Single source of
-// truth — no per-row sx={{ bgcolor: STATUS_COLORS[...] }} anywhere.
+// truth - no per-row sx={{ bgcolor: STATUS_COLORS[...] }} anywhere.
 const STATUS_TO_KIND: Record<string, StatusKind> = {
   REGISTERING: 'ok',     // signups open
   ACTIVE: 'warning',     // in-progress
@@ -206,7 +206,7 @@ export function TournamentManagement() {
         asset: editType === 'CRYPTO' ? editAsset : editSport,
         sport: editType === 'SPORTS' ? editSport : null,
         league: editType === 'SPORTS' ? effectiveLeague : null,
-        // PR 1 (Phase 1 #3) fixed this — 'SPORTS' not 'PREDICT_MATCHDAY'.
+        // PR 1 (Phase 1 #3) fixed this - 'SPORTS' not 'PREDICT_MATCHDAY'.
         // Keep the explicit map so the value is impossible to typo.
         tournamentType: editType === 'SPORTS' ? 'SPORTS' : 'CRYPTO',
         entryFee: Math.round(parseFloat(editEntryFee) * USDC_DIVISOR),
@@ -223,7 +223,7 @@ export function TournamentManagement() {
   });
 
   // Upcoming matches for the assign dialog. Switched from raw fetch (which
-  // bypassed adminFetch's 401 handling) to adminFetch — see PLAN-ADMIN-
+  // bypassed adminFetch's 401 handling) to adminFetch - see PLAN-ADMIN-
   // REFACTOR.md §3.1.
   const { data: upcomingData, isLoading: upcomingLoading } = useQuery({
     queryKey: ['admin-upcoming-matches', assignDialog?.league, assignDialog?.sport],
@@ -242,7 +242,7 @@ export function TournamentManagement() {
   });
 
   // Bracket query for the resolve dialog. Public endpoint (no admin auth),
-  // so it's fine to use raw fetch here — but going through adminFetch
+  // so it's fine to use raw fetch here - but going through adminFetch
   // gives consistent error handling.
   const { data: bracketData } = useQuery({
     queryKey: ['admin-bracket', resolveDialog?.id],
@@ -280,7 +280,7 @@ export function TournamentManagement() {
     onError: () => setConfirmAction(null),
   });
 
-  // Submit helpers — funnel everything through useMutationFeedback so the
+  // Submit helpers - funnel everything through useMutationFeedback so the
   // toast queue handles success/error consistently. No more setResult
   // Alert in the page.
   const submitCreate = () => {
@@ -335,7 +335,7 @@ export function TournamentManagement() {
   };
   const submitResolve = () => {
     if (!resolveDialog) return;
-    // Reject blank inputs — previously parseInt('', 10) → NaN, then we
+    // Reject blank inputs - previously parseInt('', 10) → NaN, then we
     // coerced via || '0' which silently turned every empty field into a
     // 0-0 DRAW. The admin must enter real numbers per fixture.
     // See PLAN-ADMIN-REFACTOR.md §3.1.
@@ -760,7 +760,7 @@ export function TournamentManagement() {
       <AdminDialog
         open={!!resolveDialog}
         onClose={() => setResolveDialog(null)}
-        title={`Resolve Round ${resolveDialog?.round ?? ''} — enter scores`}
+        title={`Resolve Round ${resolveDialog?.round ?? ''} - enter scores`}
         maxWidth="sm"
         loading={resolveMutation.isPending}
         footer={

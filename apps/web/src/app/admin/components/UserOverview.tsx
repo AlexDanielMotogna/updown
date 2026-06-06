@@ -202,7 +202,7 @@ export function UserOverview() {
                             : <StatusChip status="pending" label={b.pool.status} />
                           }
                         </TableCell>
-                        <TableCell sx={{ fontVariantNumeric: 'tabular-nums' }}>{b.payoutAmount ? formatUsdc(b.payoutAmount) : '—'}</TableCell>
+                        <TableCell sx={{ fontVariantNumeric: 'tabular-nums' }}>{b.payoutAmount ? formatUsdc(b.payoutAmount) : '-'}</TableCell>
                         <TableCell>{b.claimed ? 'Yes' : 'No'}</TableCell>
                       </TableRow>
                     ))}

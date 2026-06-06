@@ -41,7 +41,7 @@ export function ActionButton({ kind, label, icon, loading, disabled, sx, ...rest
   // Visual rules per PLAN-ADMIN-REFACTOR.md Phase 2b §7. `t.success` (not
   // `t.gain`) for the primary CTA so the semantic and the swatch line up
   // with the public app's TransactionModal "Done" button. `t.successDark`
-  // on hover instead of a brightness filter — single source of truth in
+  // on hover instead of a brightness filter - single source of truth in
   // the theme. Secondary mirrors the public app's footer-cancel pattern.
   const baseSx =
     kind === 'primary' ? {
@@ -82,7 +82,7 @@ export function ActionButton({ kind, label, icon, loading, disabled, sx, ...rest
         px: kind === 'tertiary' ? 1.25 : 2,
         py: 0.625,
         minWidth: 0,
-        // No drop-shadow, no gradient — Phase 2b §1.
+        // No drop-shadow, no gradient - Phase 2b §1.
         boxShadow: 'none',
         ...baseSx,
         ...sx,

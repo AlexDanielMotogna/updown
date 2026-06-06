@@ -89,7 +89,7 @@ export function useNotifications() {
       const won = !!data.winner && userBets.some((b) => b.side === data.winner);
 
       // Since a wallet can hold both sides, "won/lost" isn't meaningful per
-      // pool — report the NET result. Net = time-weighted payout of the bets on
+      // pool - report the NET result. Net = time-weighted payout of the bets on
       // the winning side (mirrors the on-chain claim) minus total stake.
       const p = userBet.pool;
       const totalStake = userBets.reduce((a, b) => a + Number(b.amount), 0);
@@ -120,7 +120,7 @@ export function useNotifications() {
         net: netStr,
       };
 
-      // One net notification per pool — no contradictory won+lost pair for hedgers.
+      // One net notification per pool - no contradictory won+lost pair for hedgers.
       if (data.status === 'RESOLVED' && data.winner) {
         push(buildNotification(net > 0 ? 'POOL_WON' : 'POOL_LOST', ctx));
       }

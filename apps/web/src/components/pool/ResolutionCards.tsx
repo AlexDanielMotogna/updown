@@ -4,18 +4,18 @@
  * End-of-pool surfaces shared by crypto pools (PlaceBetCard) and sports /
  * PM pages (/match/[id]). Two variants on the same shell:
  *
- *   - DeterminingCard: spinner + "Hold on, determining winner…" — shown
+ *   - DeterminingCard: spinner + "Hold on, determining winner…" - shown
  *     between the moment the market closes and the on-chain resolution
  *     committing the winner.
  *
- *   - OutcomeCard: large filled check tile + "Outcome: {label}" — final
+ *   - OutcomeCard: large filled check tile + "Outcome: {label}" - final
  *     state once `pool.winner` is set.
  *
  *   - CancelledCard: "Market cancelled" + refund explainer. Shown when
  *     pool.status === 'CANCELLED' (Polymarket retired the listing AND
  *     our oracle layer couldn't recover the resolution from CTF, or the
  *     pool stuck > UMA grace window). Any user position is refunded
- *     on-chain — we surface that fact instead of leaving the user
+ *     on-chain - we surface that fact instead of leaving the user
  *     staring at the determining spinner forever.
  *
  * All three wrap the same EndedCard shell so the border / padding /
@@ -202,7 +202,7 @@ interface CancelledCardProps {
   meta?: string;
   /** When true, the body line acknowledges the user's position and tells
    *  them the refund has landed. When false (or omitted), the generic
-   *  no-position copy is shown — useful for the public read-only state.
+   *  no-position copy is shown - useful for the public read-only state.
    *
    *  The match page doesn't yet wire per-user bet status into this
    *  surface, so this prop is opt-in; PlaceBetCard (crypto) does have
@@ -221,11 +221,11 @@ export function CancelledCard({
 }: CancelledCardProps) {
   const t = useThemeTokens();
   // Cancellation copy. We avoid using the word "refund" when there's no
-  // position — for a 0-bet pool the surface is informational, not a
+  // position - for a 0-bet pool the surface is informational, not a
   // status update on the viewer's money.
   const body = bodyText
     ?? (hasUserPosition
-      ? 'This market could not be resolved on the source feed and has been cancelled. Your position has been refunded automatically to your wallet — no action needed.'
+      ? 'This market could not be resolved on the source feed and has been cancelled. Your position has been refunded automatically to your wallet - no action needed.'
       : 'This market could not be resolved on the source feed and has been cancelled. Any positions that had been opened on it were refunded automatically.');
   return (
     <EndedShell subtitle={subtitle} meta={meta}>

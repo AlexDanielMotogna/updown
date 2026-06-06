@@ -1,7 +1,7 @@
 /**
  * Lightweight device fingerprint for referral anti-cheat.
  *
- * Deterministic for a given browser/device — derived from stable signals (UA,
+ * Deterministic for a given browser/device - derived from stable signals (UA,
  * language, timezone, screen, hardware, a canvas hash). Intentionally NOT
  * cached in localStorage so clearing storage doesn't reset it. It's a signal,
  * not proof: combined server-side with IP to FLAG (never ban) likely

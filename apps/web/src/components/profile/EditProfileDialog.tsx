@@ -22,7 +22,7 @@ import { updateUserProfile, type UserProfile } from '@/lib/api';
 
 // Cloudinary's upload widget is attached to window when their CDN script
 // loads. We don't want a hard dependency on @types/cloudinary, so this is a
-// minimal local typing — only the calls we actually use.
+// minimal local typing - only the calls we actually use.
 type CloudinaryUploadWidget = {
   open: () => void;
   close: () => void;
@@ -94,7 +94,7 @@ export function EditProfileDialog({ open, onClose, walletAddress, profile }: Edi
       // invalidate to trigger a background refetch that picks up any derived
       // fields the server might recompute (rank, level, milestones). Without
       // the setQueryData step the header would briefly keep showing the old
-      // wallet truncation until the refetch lands — and on slow links that
+      // wallet truncation until the refetch lands - and on slow links that
       // briefly was several seconds long.
       if (response.success && response.data) {
         queryClient.setQueryData(['userProfile', walletAddress], response);
@@ -114,7 +114,7 @@ export function EditProfileDialog({ open, onClose, walletAddress, profile }: Edi
     }
     const refSlot = target === 'avatar' ? avatarWidgetRef : bannerWidgetRef;
     if (!refSlot.current) {
-      // Reuse the same widget instance across opens — Cloudinary caches the
+      // Reuse the same widget instance across opens - Cloudinary caches the
       // user's last choice on the same instance, which feels nicer than
       // re-instantiating a fresh widget on every click.
       refSlot.current = window.cloudinary.createUploadWidget(
@@ -285,7 +285,7 @@ export function EditProfileDialog({ open, onClose, walletAddress, profile }: Edi
 
             {!cloudinaryEnabled && (
               <Typography sx={{ fontSize: '0.7rem', color: t.text.quaternary }}>
-                Image upload not configured — set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME +
+                Image upload not configured - set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME +
                 NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET to enable the in-app uploader.
               </Typography>
             )}

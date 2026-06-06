@@ -18,7 +18,7 @@ export interface LivePoolTotals {
  * Subscribe to live `pool:updated` events for a set of pools and call
  * `onUpdate` with the fresh totals as bets land. Handles the socket lifecycle
  * (connect + per-pool subscribe/unsubscribe); the caller decides what to do
- * with each update — patch a react-query cache, set local state, etc.
+ * with each update - patch a react-query cache, set local state, etc.
  *
  * Reusable across any surface that renders live pool numbers (profile
  * positions, market cards, match page, …). `onUpdate` is held in a ref so it

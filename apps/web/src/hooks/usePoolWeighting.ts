@@ -8,12 +8,12 @@ import { API_BASE_URL } from '@/lib/constants';
  * that show "x0.87 weight right now" and the projected weighted payout
  * for a fresh bet.
  *
- * Polls every POLL_MS — fast enough that the multiplier countdown
+ * Polls every POLL_MS - fast enough that the multiplier countdown
  * doesn't visibly stutter, slow enough that we're not hammering the
  * API. Pauses once the pool is no longer JOINING (the form is gone by
  * then anyway).
  *
- * Phase 1A — advisory only. On-chain payouts still use plain
+ * Phase 1A - advisory only. On-chain payouts still use plain
  * parimutuel until the Phase 1B auto-claim rerouting lands.
  */
 export interface PoolWeighting {
@@ -22,7 +22,7 @@ export interface PoolWeighting {
   /** Multiplier you would get RIGHT NOW. Floats in [0.1, 1.0]. */
   currentMultiplier: number;
   config: { floor: number; exponent: number };
-  /** Full window length in ms — lockTime − startTime. */
+  /** Full window length in ms - lockTime − startTime. */
   windowMs: number;
   /** Countdown to lock in ms (0 when locked). */
   msUntilLock: number;
@@ -47,7 +47,7 @@ export function usePoolWeighting(poolId: string | undefined, enabled = true) {
     },
     enabled: !!poolId && enabled,
     refetchInterval: (q) => {
-      // Stop polling once we know the pool isn't JOINING anymore — the
+      // Stop polling once we know the pool isn't JOINING anymore - the
       // bet form will have unmounted by then. queryFn returns null when
       // the request errors, so guard for that too.
       const data = q.state.data as PoolWeighting | null | undefined;
@@ -63,10 +63,10 @@ export function usePoolWeighting(poolId: string | undefined, enabled = true) {
  * you'll get $X" alongside the existing plain-parimutuel estimate so
  * the user sees both worlds during Phase 1A.
  *
- *   weighting   — latest /weighting snapshot from the hook
- *   amount      — micro-USDC the user is about to bet
- *   side        — UP / DOWN (DRAW supported for 3-way pools)
- *   feePercent  — taken off the gross payout (matches current code)
+ *   weighting   - latest /weighting snapshot from the hook
+ *   amount      - micro-USDC the user is about to bet
+ *   side        - UP / DOWN (DRAW supported for 3-way pools)
+ *   feePercent  - taken off the gross payout (matches current code)
  */
 export function projectWeightedPayout(args: {
   weighting: PoolWeighting;
@@ -85,7 +85,7 @@ export function projectWeightedPayout(args: {
   const winningSide = side;
   // Losing side total = sum of raw stakes on every side that isn't the
   // candidate winner. The user's own amount only joins the winning side
-  // — it doesn't count as losing-side stake.
+  // - it doesn't count as losing-side stake.
   const stakeUp = BigInt(weighting.stakes.up);
   const stakeDown = BigInt(weighting.stakes.down);
   const stakeDraw = BigInt(weighting.stakes.draw);

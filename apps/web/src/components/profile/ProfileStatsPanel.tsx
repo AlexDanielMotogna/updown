@@ -13,7 +13,7 @@ interface Props {
 
 /**
  * The four north-star metrics, stacked VERTICALLY to sit beside the P&L chart
- * (chart 70% / this 30%). Same numbers the header used to show horizontally —
+ * (chart 70% / this 30%). Same numbers the header used to show horizontally -
  * moved here so the header strip can host the level-milestone icons instead.
  */
 export function ProfileStatsPanel({ userProfile }: Props) {

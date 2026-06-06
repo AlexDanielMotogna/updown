@@ -33,7 +33,7 @@ const LOG_COLORS: Record<string, string> = {
 
 // Per PLAN-ADMIN-REFACTOR.md §3.8: the previous layout coloured every
 // "danger zone" card with a red border whether the action was destructive
-// or routine. Group by intent instead — destructive cards use the
+// or routine. Group by intent instead - destructive cards use the
 // destructive ActionButton variant + ConfirmDialog severity, neutral
 // cards (Restart scheduler, Create pool) get no accent.
 type ActionDef = {
@@ -105,7 +105,7 @@ export function ManualActions() {
   const runConfirmed = () => {
     if (!confirmAction) return;
     if (confirmAction.label.toLowerCase().includes('orphan')) {
-      // SSE — keep its own loop; the toast fires from startRecovery.
+      // SSE - keep its own loop; the toast fires from startRecovery.
       void confirmAction.fn();
       return;
     }

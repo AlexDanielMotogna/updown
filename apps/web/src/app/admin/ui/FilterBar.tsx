@@ -2,7 +2,7 @@
 
 /**
  * Search + active-filter-chip primitive for list-style tabs. Three search
- * patterns in the wild (instant local / instant remote / on-submit) — this
+ * patterns in the wild (instant local / instant remote / on-submit) - this
  * standardises on debounced text with optional chip row underneath.
  *
  * - debounceMs > 0: emits onChange after the debounce window

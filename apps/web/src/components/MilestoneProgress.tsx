@@ -15,7 +15,7 @@ function truncate(a: string): string {
 }
 
 /**
- * Community milestones — a shared goal (user count) that airdrops UP to all
+ * Community milestones - a shared goal (user count) that airdrops UP to all
  * qualified players when reached. Shows the tier track, progress to the next
  * tier, and the effort leaderboard (top contributors by real predictions).
  */

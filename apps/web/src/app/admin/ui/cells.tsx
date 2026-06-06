@@ -7,7 +7,7 @@
  *
  * Compact absolute time is the default for tables (sortable, locale-
  * neutral); pass `mode="relative"` for "2m ago" / "3h ago" feedback in
- * activity logs. The same helper drives both — components don't compute
+ * activity logs. The same helper drives both - components don't compute
  * times themselves.
  */
 import { useState } from 'react';
@@ -51,9 +51,9 @@ function formatDateTime(d: Date): string {
 }
 
 export function formatTime(iso: string | Date | null | undefined, mode: TimeMode = 'absolute'): string {
-  if (iso == null) return '—';
+  if (iso == null) return '-';
   const d = iso instanceof Date ? iso : new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
+  if (Number.isNaN(d.getTime())) return '-';
   switch (mode) {
     case 'relative': return formatRelative(d);
     case 'datetime': return formatDateTime(d);
@@ -70,9 +70,9 @@ export interface TimeCellProps {
 }
 
 export function TimeCell({ value, mode = 'absolute', tooltip = true }: TimeCellProps) {
-  if (value == null) return <Meta component="span">—</Meta>;
+  if (value == null) return <Meta component="span">-</Meta>;
   const d = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(d.getTime())) return <Meta component="span">—</Meta>;
+  if (Number.isNaN(d.getTime())) return <Meta component="span">-</Meta>;
   const label = formatTime(d, mode);
   if (!tooltip) return <Box component="span" sx={{ fontSize: '0.75rem', color: t.text.secondary, fontVariantNumeric: 'tabular-nums' }}>{label}</Box>;
   return (
@@ -154,7 +154,7 @@ export interface WalletCellProps {
 }
 
 export function WalletCell({ address, length = 4, copyable = true }: WalletCellProps) {
-  if (!address) return <Meta component="span">—</Meta>;
+  if (!address) return <Meta component="span">-</Meta>;
   const display = address.length > length * 2 + 1
     ? `${address.slice(0, length)}…${address.slice(-length)}`
     : address;

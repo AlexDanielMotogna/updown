@@ -46,7 +46,7 @@ export function ConfirmDialog({
 
   // Both severities render the contained "primary" shape; destructive
   // swaps the background to t.error via confirmSx. This is the only
-  // place in the admin where a contained-error button is allowed — every
+  // place in the admin where a contained-error button is allowed - every
   // other destructive action surfaces as a row-level outlined button
   // wrapping a confirm dialog.
   const confirmSx = severity === 'destructive' ? {

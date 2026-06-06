@@ -60,7 +60,7 @@ export function Header() {
         }}
       >
         {/* Left: Logo + nav links (Markets / Profile / Leaderboard). The
-            nav row only shows on desktop — mobile keeps the MobileBottomNav
+            nav row only shows on desktop - mobile keeps the MobileBottomNav
             below as the primary navigation surface. */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: { md: 2.5, lg: 3.5 }, minWidth: 0 }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>

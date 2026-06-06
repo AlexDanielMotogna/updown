@@ -56,7 +56,7 @@ export default function MarketsPage() {
   const intervalValues = INTERVAL_FILTERS.map(f => f.value);
   const rawType = searchParams.get('type');
   // Accept any type that starts with PM_ or is CRYPTO/SPORTS (dynamic from DB).
-  // Default is TRENDING — the Markets landing surfaces the Polymarket /
+  // Default is TRENDING - the Markets landing surfaces the Polymarket /
   // Kalshi-style mix of hottest crypto + sports + PM, and category-specific
   // grids live behind ?type=CRYPTO / SPORTS / PM_* once the user filters.
   const marketType: MarketType = rawType && (rawType === 'TRENDING' || rawType === 'CRYPTO' || rawType === 'SPORTS' || rawType.startsWith('PM_')) ? rawType : 'TRENDING';
@@ -70,7 +70,7 @@ export default function MarketsPage() {
   const assetFilter = assetValues.includes(searchParams.get('asset') ?? '') ? searchParams.get('asset')! : 'ALL';
   const intervalFilter = intervalValues.includes(searchParams.get('interval') ?? '') ? searchParams.get('interval')! : 'ALL';
   const leagueFilter = searchParams.get('league') ?? 'ALL';
-  // Secondary sort/filter selector — see SORT_OPTIONS in MarketFilter for
+  // Secondary sort/filter selector - see SORT_OPTIONS in MarketFilter for
   // the full set (newest, oldest, volume, live, starting_soon, ended).
   const rawSort = searchParams.get('sort') ?? 'DEFAULT';
   const sortFilter: SortFilter = (
@@ -258,7 +258,7 @@ export default function MarketsPage() {
     const allSports = sortedPools.filter(p => kindOf(p) === 'sports');
     let filtered = allSports;
 
-    // Sport filter — three modes driven by the SPORT_GROUP hierarchy:
+    // Sport filter - three modes driven by the SPORT_GROUP hierarchy:
     //   ALL                          → no filter
     //   <SPORT_GROUP code>           → every pool whose league is a child
     //                                  of that group (parentCode === group)
@@ -320,7 +320,7 @@ export default function MarketsPage() {
       marketType={marketType}
       onMarketTypeChange={(v: MarketType) => {
         const params = new URLSearchParams();
-        // Only the *default* type (TRENDING) is left out of the URL —
+        // Only the *default* type (TRENDING) is left out of the URL -
         // every other tab (CRYPTO / SPORTS / PM_*) must carry an explicit
         // ?type param, otherwise navigating "to CRYPTO" silently lands
         // back on the trending landing because that's what /  resolves to.
@@ -406,7 +406,7 @@ export default function MarketsPage() {
                     <Box
                       sx={{
                         display: 'grid',
-                        // Fixed 2 cols on desktop — keeps cards readable at
+                        // Fixed 2 cols on desktop - keeps cards readable at
                         // every viewport instead of squeezing to 3 on wide
                         // monitors. Matches Kalshi/Polymarket density.
                         gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
@@ -462,7 +462,7 @@ export default function MarketsPage() {
                     <Box
                       sx={{
                         display: 'grid',
-                        // Fixed 2 cols on desktop — keeps cards readable at
+                        // Fixed 2 cols on desktop - keeps cards readable at
                         // every viewport instead of squeezing to 3 on wide
                         // monitors. Matches Kalshi/Polymarket density.
                         gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },

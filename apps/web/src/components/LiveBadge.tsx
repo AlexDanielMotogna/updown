@@ -8,7 +8,7 @@ interface LiveBadgeProps {
 }
 
 /**
- * "● LIVE" indicator — just a pulsing green dot + the word LIVE in green,
+ * "● LIVE" indicator - just a pulsing green dot + the word LIVE in green,
  * no background pill / border. Progress text ("2nd Inning IN2'", "45'",
  * "Q3 8:42") is rendered by the caller as a separate sibling so it sits
  * naturally with the rest of the meta row and isn't visually trapped

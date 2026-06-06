@@ -21,10 +21,10 @@ import {
  * match duration is past with no live-score row.
  *
  * Each row gives the operator two actions:
- *   • Refund — only when betCount > 0. Uses the existing
+ *   • Refund - only when betCount > 0. Uses the existing
  *     /actions/refund-pool endpoint so the same on-chain unwind path
  *     runs (per-bet authority transfer + close).
- *   • Delete — always. Removes the pool from the DB (and its bets +
+ *   • Delete - always. Removes the pool from the DB (and its bets +
  *     snapshots) without touching the chain. For 0-bet zombies this
  *     is the typical action; the on-chain rent is reclaimed via the
  *     orphan-recovery sweep later.
@@ -60,7 +60,7 @@ export function ZombiePools() {
   const total = data?.meta?.count ?? zombies.length;
 
   // Reuse the same endpoints PoolManagement uses. Keeps the on-chain
-  // path identical across surfaces — admin sees the same outcome no
+  // path identical across surfaces - admin sees the same outcome no
   // matter where they triggered the action from.
   const refundMut = useMutation({
     mutationFn: (poolId: string) => adminPost('/actions/refund-pool', { poolId }),
@@ -101,7 +101,7 @@ export function ZombiePools() {
           <LoadingState variant="block" />
         ) : zombies.length === 0 ? (
           <EmptyState
-            title="No zombies — clean."
+            title="No zombies - clean."
             hint="The scheduler audit runs every 30 min and re-checks all open sports pools. New zombies surface here automatically."
           />
         ) : (
@@ -123,10 +123,10 @@ export function ZombiePools() {
                 {zombies.map(z => (
                   <TableRow key={z.id}>
                     <TableCell><IdCell value={z.id} truncate={10} /></TableCell>
-                    <TableCell><Meta>{z.league ?? '—'}</Meta></TableCell>
+                    <TableCell><Meta>{z.league ?? '-'}</Meta></TableCell>
                     <TableCell>
-                      <Body>{z.homeTeam ?? '—'}</Body>
-                      <Meta>vs {z.awayTeam ?? '—'}</Meta>
+                      <Body>{z.homeTeam ?? '-'}</Body>
+                      <Meta>vs {z.awayTeam ?? '-'}</Meta>
                     </TableCell>
                     <TableCell><StatusChip status="warning" label={z.status} /></TableCell>
                     <TableCell><TimeCell value={z.startTime} mode="datetime" /></TableCell>
@@ -169,7 +169,7 @@ export function ZombiePools() {
         consequences={confirmAction
           ? confirmAction.kind === 'refund'
             ? <>This will refund every bet on the zombie pool <b>{confirmAction.pool.homeTeam ?? confirmAction.pool.matchId}</b> on-chain and close the pool. Each refund is a separate transaction and cannot be undone.</>
-            : <>This removes the pool row + every bet + every price snapshot from the database. <b>It does NOT touch the on-chain PDA</b> — you reclaim rent separately via the orphan-recovery sweep, or leave the lamports on-chain. Cannot be undone.</>
+            : <>This removes the pool row + every bet + every price snapshot from the database. <b>It does NOT touch the on-chain PDA</b> - you reclaim rent separately via the orphan-recovery sweep, or leave the lamports on-chain. Cannot be undone.</>
           : ''
         }
       />

@@ -22,7 +22,7 @@ export interface Pool {
   asset: string;
   interval: string;
   durationSeconds: number;
-  // CANCELLED added 2026-06-03 — PM pools that couldn't be resolved
+  // CANCELLED added 2026-06-03 - PM pools that couldn't be resolved
   // (Polymarket retired the market AND neither Gamma nor CTF could give
   // an outcome) end up here. winner stays null; bets refunded on-chain
   // or 0-bet → account closed. The web surface routes this through
@@ -117,7 +117,7 @@ export interface Bet {
     totalUp?: string;
     totalDown?: string;
     totalDraw?: string;
-    // Per-side time-weight sums — used to project a weighted potential
+    // Per-side time-weight sums - used to project a weighted potential
     // payout for active positions (matches the on-chain claim formula).
     weightedUp?: string | null;
     weightedDown?: string | null;
@@ -396,7 +396,7 @@ export interface UserProfile {
   rank: number | null;
   totalUsers: number | null;
   /** Server-computed level unlock milestones. Each entry comes pre-flagged
-   *  with whether the user has already reached the level — the UI just
+   *  with whether the user has already reached the level - the UI just
    *  picks the right colour/icon and renders the strip. */
   milestones: Array<{
     level: number;

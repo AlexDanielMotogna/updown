@@ -19,7 +19,7 @@ interface EmptyMessageProps {
  * Shared empty-state message for "No predictions yet", "No notifications",
  * "No activity", etc.
  *
- * The whole point of this component is the typography weight — every
+ * The whole point of this component is the typography weight - every
  * empty-state Typography in the app used to inherit the default 400 weight
  * which read as "AI-generated thin text" in user feedback. Centralising
  * here means a future rebrand only touches one file.

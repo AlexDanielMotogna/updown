@@ -21,7 +21,7 @@ const KNOWN: Array<{ match: RegExp; headline: string; hint?: string }> = [
   {
     match: /Me:\s*Unexpected error|Privy.*rejected|user rejected/i,
     headline: 'Wallet rejected the transaction',
-    hint: 'You can try again — no funds were moved.',
+    hint: 'You can try again - no funds were moved.',
   },
   {
     match: /SESSION_EXPIRED|session expired/i,
@@ -43,7 +43,7 @@ const KNOWN: Array<{ match: RegExp; headline: string; hint?: string }> = [
   {
     match: /blockhash not found|block height exceeded/i,
     headline: 'Network was slow to confirm',
-    hint: 'The blockhash expired before the tx landed — please retry.',
+    hint: 'The blockhash expired before the tx landed - please retry.',
   },
   {
     match: /Custom":\s*2006|ConstraintSeeds/i,
@@ -63,7 +63,7 @@ const KNOWN: Array<{ match: RegExp; headline: string; hint?: string }> = [
   {
     match: /not confirmed|timeout|taking longer/i,
     headline: 'Transaction taking longer than expected',
-    hint: 'It may still land — check the explorer in a minute.',
+    hint: 'It may still land - check the explorer in a minute.',
   },
 
   // ── Backend ──────────────────────────────────────────────────────────

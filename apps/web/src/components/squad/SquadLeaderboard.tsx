@@ -221,7 +221,7 @@ function LeaderboardRow({ entry, index, isMe }: { entry: SquadLeaderboardEntry; 
 export function SquadLeaderboard({ entries, currentWallet }: SquadLeaderboardProps) {
   const t = useThemeTokens();
   if (!entries || entries.length === 0) {
-    return <EmptyMessage py={8}>No data yet — play some rounds!</EmptyMessage>;
+    return <EmptyMessage py={8}>No data yet - play some rounds!</EmptyMessage>;
   }
 
   return (

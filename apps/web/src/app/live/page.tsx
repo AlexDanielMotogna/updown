@@ -77,7 +77,7 @@ export default function LivePage() {
               <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: t.down, animation: 'livePulse 1.4s infinite', '@keyframes livePulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.3 } } }} />
               <Typography sx={{ fontSize: { xs: '1.2rem', md: '1.5rem' }, fontWeight: 900, color: t.text.primary, letterSpacing: 0.5 }}>LIVE MARKETS</Typography>
             </Box>
-            <Typography sx={{ fontSize: '0.8rem', color: t.text.tertiary }}>Active markets open for betting — find the action.</Typography>
+            <Typography sx={{ fontSize: '0.8rem', color: t.text.tertiary }}>Active markets open for betting - find the action.</Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 3 }}>
             <Box sx={{ textAlign: 'right' }}>
@@ -85,7 +85,7 @@ export default function LivePage() {
               <Typography sx={{ fontSize: '0.7rem', color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Active markets</Typography>
             </Box>
             <Box sx={{ textAlign: 'right' }}>
-              <Typography sx={{ fontSize: { xs: '1.3rem', md: '1.6rem' }, fontWeight: 900, color: t.gain, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>${formatUSDC(meta?.wageredToday ?? '0', { min: 0 })}</Typography>
+              <Typography sx={{ fontSize: { xs: '1.3rem', md: '1.6rem' }, fontWeight: 900, color: t.gain, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{formatUSDC(meta?.wageredToday ?? '0', { min: 0 })}</Typography>
               <Typography sx={{ fontSize: '0.7rem', color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Wagered (24h)</Typography>
             </Box>
           </Box>

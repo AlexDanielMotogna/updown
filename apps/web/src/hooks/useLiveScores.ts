@@ -54,7 +54,7 @@ export function isMatchFinished(status: string): boolean {
 
 /** Human-readable label for TheSportsDB status codes */
 const STATUS_LABELS: Record<string, string> = {
-  // Phase D belt-and-suspenders: when only Odds API has the event (rare —
+  // Phase D belt-and-suspenders: when only Odds API has the event (rare -
   // a league SDB doesn't cover), the poller writes status='LIVE' with no
   // progress. Without this entry the match page would render the stutter
   // "LIVE · LIVE". 'In Play' reads cleanly alongside the existing prefix.
@@ -87,7 +87,7 @@ const STATUS_LABELS: Record<string, string> = {
 const NO_PROGRESS_STATUSES = new Set([
   ...FINISHED_STATUSES, 'HT', 'BT', 'NS', 'TBD',
   'PST', 'POST', 'CANC', 'ABD', 'AWD', 'AW', 'WO', 'SUSP', 'INT', 'INTR',
-  // Generic 'LIVE' has no meaningful minute (Phase D — see STATUS_LABELS).
+  // Generic 'LIVE' has no meaningful minute (Phase D - see STATUS_LABELS).
   'LIVE',
 ]);
 
@@ -113,18 +113,18 @@ export function formatLiveStatus(status: string, progress?: string): string {
 // ─── Phase B (PLAN-LIVESCORE-SOURCE-SPLIT) ─────────────────────────────────
 // Wall-clock duration after which a match is "expected to be over". Mirrors
 // the backend's EXPECTED_MATCH_DURATION_MS in `livescore/types.ts`. Used by
-// the "Awaiting result" UI state — when the pool is past this window but the
+// the "Awaiting result" UI state - when the pool is past this window but the
 // livescore feed still hasn't marked it FT/AET/PEN, we show a placeholder
 // instead of pretending the match is still live. For knockout leagues
 // (CL, EL) we leave the window long enough to cover extra time + penalties.
 const EXPECTED_MATCH_DURATION_MS: Record<string, number> = {
-  // Soccer regular season — 90 reg + 15 break + 10 stoppage buffer
+  // Soccer regular season - 90 reg + 15 break + 10 stoppage buffer
   BSA: 115 * 60_000, PL: 115 * 60_000, PD: 115 * 60_000, SA: 115 * 60_000,
   BL1: 115 * 60_000, FL1: 115 * 60_000, ELC: 115 * 60_000,
   DED: 115 * 60_000, PPL: 115 * 60_000,
-  // Soccer knockouts — allow ET + pens
+  // Soccer knockouts - allow ET + pens
   CL: 155 * 60_000, EL: 155 * 60_000,
-  // US sports — timeouts/commercials inflate wall time
+  // US sports - timeouts/commercials inflate wall time
   NBA: 150 * 60_000, NHL: 150 * 60_000, NFL: 210 * 60_000,
   MMA: 180 * 60_000, MLB: 210 * 60_000,
 };
@@ -152,9 +152,9 @@ export function isAwaitingFinalResult(
   if (!pool) return false;
   // Already done one way or the other.
   if (pool.status === 'RESOLVED' || pool.status === 'CLAIMABLE' || pool.status === 'CANCELLED') return false;
-  // Feed already says finished — handled by the existing `matchFinished` path.
+  // Feed already says finished - handled by the existing `matchFinished` path.
   if (liveScoreStatus && FINISHED_STATUSES.has(liveScoreStatus)) return false;
-  // Feed is actively reporting an in-play status (1H/2H/HT/ET…) — the match is
+  // Feed is actively reporting an in-play status (1H/2H/HT/ET…) - the match is
   // still going (e.g. stoppage time at 90+3), so it's NOT "awaiting the final
   // whistle". Without this guard the expected-end clock fired during stoppage
   // and the header showed "Full Time" while the match was still live.
@@ -185,7 +185,7 @@ export function useLiveScores() {
             // Key by eventId ONLY. The previous codepath ALSO indexed by
             // a normalised homeTeam ("manchesterunited") as a fallback for
             // football pools whose matchId came from football-data.org
-            // and didn't line up with the SDB eventId — but that fallback
+            // and didn't line up with the SDB eventId - but that fallback
             // had the exact same cross-day collision bug as the backend
             // odds-api gap-fill (2026-06-03 Rays/Tigers incident): when
             // the same team plays back-to-back days, the second day's

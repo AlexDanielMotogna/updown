@@ -175,7 +175,7 @@ export function ProfileHeader({
               {/* position:relative + z-index here are *required* because the
                   banner is now position:relative too (it hosts the absolute
                   Edit pill). Without an explicit positioning context on this
-                  row, the banner — a positioned earlier sibling — paints on
+                  row, the banner - a positioned earlier sibling - paints on
                   top in the same stacking context and the displayName /
                   wallet got visually buried behind the banner image. */}
               <Box

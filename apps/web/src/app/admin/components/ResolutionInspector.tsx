@@ -86,7 +86,7 @@ export function ResolutionInspector() {
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2, fontSize: '0.78rem', color: t.text.secondary }}>
             <span><Label>Type</Label> {data.pool.poolType}</span>
             <span><Label>Status</Label> {data.pool.status}</span>
-            <span><Label>Winner</Label> {data.pool.winner ?? '—'}</span>
+            <span><Label>Winner</Label> {data.pool.winner ?? '-'}</span>
             <span><Label>Ended</Label> {data.pool.ended ? 'yes' : 'no'}</span>
             {data.pool.matchId && <span><Label>matchId</Label> {data.pool.matchId}</span>}
           </Box>

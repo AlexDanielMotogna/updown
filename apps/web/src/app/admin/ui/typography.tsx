@@ -3,7 +3,7 @@
 /**
  * Typography atoms. Six-step scale taken straight from the public-app's
  * design language so admin pages don't drift into MUI defaults. Locked
- * sizes / weights — components should never inline `<Typography sx={{
+ * sizes / weights - components should never inline `<Typography sx={{
  * fontSize: ... }}>` once these are available.
  *
  * Phase 2b will revisit weights / letter-spacing; sizes won't change.

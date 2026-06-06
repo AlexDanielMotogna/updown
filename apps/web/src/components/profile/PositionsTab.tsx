@@ -33,7 +33,7 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim, hasMor
   const [sub, setSub] = useState<SubTab>('active');
   const [query, setQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
-  // Show fewer rows up front, then "Load more" — 5 on mobile, 10 on desktop.
+  // Show fewer rows up front, then "Load more" - 5 on mobile, 10 on desktop.
   const isMobile = useMediaQuery('(max-width: 899px)');
   const pageSize = isMobile ? 5 : 10;
   const [visibleCount, setVisibleCount] = useState(pageSize);
@@ -139,7 +139,7 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim, hasMor
 
       {/* Column headers (desktop only). Active shows a PnL-per-scenario split;
           Closed shows total payout with its PnL delta (no separate Result
-          column — that was duplicate). */}
+          column - that was duplicate). */}
       <Box sx={{
         display: { xs: 'none', md: 'grid' },
         gridTemplateColumns: sub === 'active'

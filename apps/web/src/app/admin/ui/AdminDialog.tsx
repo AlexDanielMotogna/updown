@@ -3,7 +3,7 @@
 /**
  * Standard dialog shell. Header with optional icon + close X, body slot,
  * optional sticky footer. Auto-blocks backdrop dismiss + escape when
- * `loading` is true — the previous pattern was every component
+ * `loading` is true - the previous pattern was every component
  * remembering to write `onClose={busy ? undefined : onClose}` (and
  * forgetting half the time). Width and padding match the public app's
  * TransactionModal redesign (commit 27be579).

@@ -5,7 +5,7 @@
  * and lets the user flip between the line (Robinhood-style area) and the
  * candlestick (Binance-style OHLC) view. Rendering is delegated to a
  * single TradingView Lightweight Charts component that handles both modes
- * — see components/pool/chart/PriceChart.tsx.
+ * - see components/pool/chart/PriceChart.tsx.
  *
  * The toggle, loader, and error pane stay here so the live-price + strike
  * props can flow through without coupling the chart implementation to the

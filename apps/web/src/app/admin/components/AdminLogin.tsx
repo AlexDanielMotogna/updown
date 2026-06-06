@@ -14,7 +14,7 @@ import { ActionButton, ErrorAlert, Body, Meta } from '../ui';
  *
  * Phase 6 additions:
  *  - 'Show key' eye toggle (auth-friendly: the operator sees what they
- *    typed before submitting — sessionStorage already keeps the plaintext
+ *    typed before submitting - sessionStorage already keeps the plaintext
  *    after login, so hiding it on the input is theatre).
  *  - Distinct messages for 'invalid' / 'rate-limited' / 'unreachable' so
  *    the operator can react to 'API down' differently from 'wrong key'.

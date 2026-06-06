@@ -56,7 +56,7 @@ export function PoolManagement() {
   const [selectedPoolId, setSelectedPoolId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   // Confirmation gate for irreversible on-chain actions. Per
-  // PLAN-ADMIN-REFACTOR.md §3.3: Resolve/Refund had NO confirmation —
+  // PLAN-ADMIN-REFACTOR.md §3.3: Resolve/Refund had NO confirmation -
   // a single misclick burned a transaction. Same gate now also covers
   // Close (reclaims rent) and Delete (DB-only forced removal).
   const [confirmAction, setConfirmAction] = useState<{ kind: 'resolve' | 'refund' | 'close' | 'delete'; poolId: string; asset: string } | null>(null);
@@ -105,7 +105,7 @@ export function PoolManagement() {
 
   // Close reclaims the on-chain rent (vault + pool PDA → authority).
   // Server gates it: only CLAIMABLE pools with zero unclaimed bets, OR
-  // any CLAIMABLE pool when force=true. Surfaced here without force —
+  // any CLAIMABLE pool when force=true. Surfaced here without force -
   // the admin can use the CLI if they want to override.
   const closeMut = useMutation({
     mutationFn: (poolId: string) => adminPost('/actions/close-pool', { poolId }),
@@ -160,12 +160,12 @@ export function PoolManagement() {
   };
   const confirmLoading = resolveMut.isPending || refundMut.isPending || closeMut.isPending || deleteMut.isPending;
 
-  // Predicate helpers — keep the row-menu visibility rules in one
+  // Predicate helpers - keep the row-menu visibility rules in one
   // place so the inline JSX stays readable.
   const canResolve = (p: PoolRow) => (p.status === 'JOINING' || p.status === 'ACTIVE') && new Date(p.endTime).getTime() <= Date.now();
   const canRefund = (p: PoolRow) => p.betCount > 0 && (p.status === 'JOINING' || p.status === 'ACTIVE' || p.status === 'RESOLVED');
   const canClose = (p: PoolRow) => p.status === 'CLAIMABLE';
-  // Delete is always available — DB only, the operator owns the
+  // Delete is always available - DB only, the operator owns the
   // on-chain consequence either way.
 
   return (
@@ -284,7 +284,7 @@ export function PoolManagement() {
                     <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                       {/* Inline buttons (not a popover menu) so every
                           available action is visible without an extra
-                          click — same pattern Stuck pools uses up top.
+                          click - same pattern Stuck pools uses up top.
                           Each predicate hides the irrelevant action
                           (Resolve only when past endTime, Refund only
                           when there are bets, Close only when CLAIMABLE).
@@ -343,9 +343,9 @@ export function PoolManagement() {
               <Label>Asset</Label><Body>{detailData.data.asset}</Body>
               <Label>Interval</Label><Body>{detailData.data.interval}</Body>
               <Label>Status</Label><StatusChip status={STATUS_TO_KIND[detailData.data.status] ?? 'neutral'} label={detailData.data.status} />
-              <Label>Winner</Label><Body>{detailData.data.winner ?? '—'}</Body>
-              <Label>Strike</Label><Body>{detailData.data.strikePrice ?? '—'}</Body>
-              <Label>Final</Label><Body>{detailData.data.finalPrice ?? '—'}</Body>
+              <Label>Winner</Label><Body>{detailData.data.winner ?? '-'}</Body>
+              <Label>Strike</Label><Body>{detailData.data.strikePrice ?? '-'}</Body>
+              <Label>Final</Label><Body>{detailData.data.finalPrice ?? '-'}</Body>
             </Box>
             {detailData.data.bets.length > 0 && (
               <>
@@ -409,7 +409,7 @@ export function PoolManagement() {
             ? <>This will refund every bet on <b>{confirmAction.asset}</b> and close the pool. Each refund is a separate on-chain transaction and cannot be undone.</>
           : confirmAction.kind === 'close'
             ? <>This closes the on-chain pool PDA for <b>{confirmAction.asset}</b> and returns the rent (vault + pool account lamports) to the authority wallet. Server-side gate: pool must be CLAIMABLE with 0 unclaimed bets.</>
-          : <>This removes the pool row + every bet + every price snapshot from the database. <b>It does NOT touch the on-chain PDA</b> — you reclaim rent separately via Close, or leave the lamports on-chain. Cannot be undone.</>
+          : <>This removes the pool row + every bet + every price snapshot from the database. <b>It does NOT touch the on-chain PDA</b> - you reclaim rent separately via Close, or leave the lamports on-chain. Cannot be undone.</>
           : ''
         }
       />

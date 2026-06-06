@@ -228,7 +228,7 @@ export default function PoolDetailPage() {
             finalPrice={pool.finalPrice}
             isLive={isLive}
           />
-          {/* BetFlash anchored to the top-left of the chart panel — same
+          {/* BetFlash anchored to the top-left of the chart panel - same
               social-proof signal we render on the card grid, just sitting
               over the price chart on the detail page. position: relative
               on the wrapper is what BetFlash needs to anchor its absolute

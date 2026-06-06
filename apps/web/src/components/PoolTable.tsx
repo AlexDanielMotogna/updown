@@ -41,7 +41,7 @@ export function PoolTable({ pools, userBetByPoolId, getPrice, isPlaceholderData,
     <Box
       sx={{
         display: 'grid',
-        // Fixed 2 cols on desktop — keeps cards readable at every viewport
+        // Fixed 2 cols on desktop - keeps cards readable at every viewport
         // width instead of jumping to a denser 3-col grid on wide monitors.
         gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
         gap: { xs: 1.5, md: 2 },

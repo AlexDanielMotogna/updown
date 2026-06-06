@@ -186,7 +186,7 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
                       {identity ? getDisplayName(identity) : ''}
                     </Typography>
                     {/* Show the wallet under the display name when the user
-                        has customised their identity — the wallet is still
+                        has customised their identity - the wallet is still
                         useful in this menu (copy button below it) but it
                         shouldn't be the primary identifier anymore. */}
                     {userProfile?.displayName && walletAddress && (

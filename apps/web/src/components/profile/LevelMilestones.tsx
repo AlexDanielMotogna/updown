@@ -55,8 +55,8 @@ function MetaRow({ label, value, valueColor }: {
  * (lower fee + higher coin multiplier). Locked tiers render desaturated
  * with a padlock; unlocked tiers light up with the user's tier colour.
  *
- * Server is the source of truth for which tiers are unlocked — see
- * serializeUserProfile in apps/api/src/utils/serializers.ts — so a tuning
+ * Server is the source of truth for which tiers are unlocked - see
+ * serializeUserProfile in apps/api/src/utils/serializers.ts - so a tuning
  * pass on the XP curve or fee table updates both sides without a UI bump.
  */
 export function LevelMilestones({ userProfile }: LevelMilestonesProps) {
@@ -92,7 +92,7 @@ export function LevelMilestones({ userProfile }: LevelMilestonesProps) {
       {milestones.map((m) => {
         // Pick a colour from the existing 10-stop level tier palette so
         // the milestones strip lives in the same visual language as the
-        // avatar ring + level badge — no new accent colours introduced.
+        // avatar ring + level badge - no new accent colours introduced.
         const tierIndex = Math.min(Math.floor((m.level - 1) / 4), 9);
         const tierColor = t.levelTiers[tierIndex];
         const titleColor = m.unlocked ? t.text.primary : t.text.tertiary;

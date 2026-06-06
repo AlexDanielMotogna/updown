@@ -247,7 +247,7 @@ export function MarketFilter({
         icon: buildIcon(c, 18),
         comingSoon: !c.enabled && c.comingSoon,
       })),
-      // Legacy top-level leagues still show — parentCode null shouldn't
+      // Legacy top-level leagues still show - parentCode null shouldn't
       // hide a category from the user just because it pre-dates the
       // hierarchy migration.
       ...orphanLeagues.map(c => ({
@@ -280,7 +280,7 @@ export function MarketFilter({
         value: c.code,
         label: c.shortLabel || c.label,
         img: c.badgeUrl,
-        // Pre-resolve the bg so the dropdown renderer stays dumb — the
+        // Pre-resolve the bg so the dropdown renderer stays dumb - the
         // helper falls back to the historical white when the category
         // hasn't been analyzed yet.
         imgBg: resolveBadgeBackground(c.badgeBgColor),
@@ -298,7 +298,7 @@ export function MarketFilter({
   const currentTab = tabs.find(tab => tab.key === marketType) || tabs[0];
   const tabColor = currentTab.color;
   const isPM = marketType.startsWith('PM_');
-  // Hide the secondary filter row only on the Trending landing — every
+  // Hide the secondary filter row only on the Trending landing - every
   // category grid (crypto, sports, PM_*) gets the row so users can sort
   // / filter the cards (newest, ended, live, starting soon, volume, …).
   // PM used to be excluded but a sort selector makes sense there too;

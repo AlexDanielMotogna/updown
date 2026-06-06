@@ -4,7 +4,7 @@
  * stay dumb. Phase 2b will overlay the visual rules from the public app's
  * design language; the constants themselves don't change.
  *
- * Source of truth — do not duplicate these maps in individual tabs.
+ * Source of truth - do not duplicate these maps in individual tabs.
  * See PLAN-ADMIN-REFACTOR.md Phase 2.
  */
 import { darkTokens as t } from '@/lib/theme';
@@ -41,7 +41,7 @@ export const CATEGORY_TYPE_COLORS: Record<string, string> = {
 
 // ─── Status palette (StatusChip single source) ──────────────────────────
 // Every status string in the admin maps to one of these six semantic
-// buckets. Individual components don't choose colors — they pick a status
+// buckets. Individual components don't choose colors - they pick a status
 // and let StatusChip render it.
 export type StatusKind = 'ok' | 'pending' | 'warning' | 'error' | 'neutral' | 'info';
 
@@ -50,7 +50,7 @@ export const STATUS_PALETTE: Record<StatusKind, { fg: string; bg: string; label:
   pending: { fg: t.text.tertiary, bg: t.text.tertiary, label: 'Pending' },
   warning: { fg: t.warning, bg: t.warning, label: 'Warning' },
   error: { fg: t.error, bg: t.error, label: 'Error' },
-  neutral: { fg: t.text.secondary, bg: t.text.secondary, label: '—' },
+  neutral: { fg: t.text.secondary, bg: t.text.secondary, label: '-' },
   info: { fg: t.info, bg: t.info, label: 'Info' },
 };
 
@@ -59,21 +59,21 @@ export const STATUS_PALETTE: Record<StatusKind, { fg: string; bg: string; label:
 // Phase 2b §4.
 export const LAYOUT_TOKENS = {
   // Inline (within a single row of controls)
-  inlineIconGap: 0.5,    // 4px  — icon next to label
-  inlineButtonGap: 1,    // 8px  — adjacent buttons
+  inlineIconGap: 0.5,    // 4px  - icon next to label
+  inlineButtonGap: 1,    // 8px  - adjacent buttons
   // Stacks (within a card)
-  fieldStackGap: 1.5,    // 12px — form fields
-  cardSectionGap: 2,     // 16px — sub-sections inside a card
+  fieldStackGap: 1.5,    // 12px - form fields
+  cardSectionGap: 2,     // 16px - sub-sections inside a card
   // Page-level
-  cardToCardGap: 2,      // 16px — sibling cards
-  pageSectionGap: 3,     // 24px — top-level page sections
+  cardToCardGap: 2,      // 16px - sibling cards
+  pageSectionGap: 3,     // 24px - top-level page sections
   // Card padding
-  cardPaddingDense: 2,   // 16px — single-purpose card
-  cardPaddingDefault: 2.5, // 20px — multi-section card
+  cardPaddingDense: 2,   // 16px - single-purpose card
+  cardPaddingDefault: 2.5, // 20px - multi-section card
   // Radius (matches the main app's scale)
-  radiusChip: 1,         // 8px  — chips, pills
-  radiusInput: 1.5,      // 12px — text fields
-  radiusCard: 2,         // 16px — cards, dialog paper
+  radiusChip: 1,         // 8px  - chips, pills
+  radiusInput: 1.5,      // 12px - text fields
+  radiusCard: 2,         // 16px - cards, dialog paper
 } as const;
 
 // ─── Polling cadence ─────────────────────────────────────────────────────

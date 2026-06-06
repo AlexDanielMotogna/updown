@@ -147,7 +147,7 @@ export function MarketSearch() {
               </Typography>
             ) : (
               <>
-                {/* Section header — tells the user where the rows come
+                {/* Section header - tells the user where the rows come
                     from. Hidden once they type 2+ chars so the dropdown
                     reads as pure search results. */}
                 {!isSearchMode && (
@@ -172,7 +172,7 @@ export function MarketSearch() {
                   onClick={() => navigate(r)}
                   sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 1.5, py: 1.1, cursor: 'pointer', '&:hover': { bgcolor: t.hover.default } }}
                 >
-                  {/* Icon priority — crypto gets the Pacifica token SVG
+                  {/* Icon priority - crypto gets the Pacifica token SVG
                       via AssetIcon (same identity the cards use), sports
                       / PM keep the homeTeamCrest. Falls back to a coloured
                       initial when neither path resolves. */}

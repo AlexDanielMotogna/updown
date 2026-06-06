@@ -5,8 +5,8 @@
 // ─── Font family constants ────────────────────────────────────────────────
 // CSS variable names match the keys declared in layout.tsx via next/font.
 // Use FONT_SANS as the body/UI default (it's already wired into the MUI
-// theme) and FONT_MONO only on dense numerical surfaces — prices, %, USDC
-// balances, XP counters — where digit alignment is the whole point.
+// theme) and FONT_MONO only on dense numerical surfaces - prices, %, USDC
+// balances, XP counters - where digit alignment is the whole point.
 //
 // Usage:   sx={{ fontFamily: FONT_MONO, fontVariantNumeric: 'tabular-nums' }}
 // Or via:  sx={monoNumSx}  for the common preset.
@@ -377,7 +377,7 @@ export const lightTokens: ThemeTokens = {
   },
 
   // User feedback: light mode was reading as washed-out slate grey, especially
-  // for labels and "muted" text — hard to read against the off-white app bg.
+  // for labels and "muted" text - hard to read against the off-white app bg.
   // Whole text scale pulled darker so contrast against #F5F7FA / #FFFFFF stays
   // above WCAG AA at every tier.
   text: {
@@ -397,7 +397,7 @@ export const lightTokens: ThemeTokens = {
   },
 
   // Stronger card border + shadow combination so surfaces don't blend into
-  // the app bg. The border was 0.18 — at 0.28 it reads cleanly without
+  // the app bg. The border was 0.18 - at 0.28 it reads cleanly without
   // looking like a stroked outline.
   surfaceBorder: '1px solid rgba(15,23,42,0.28)',
   surfaceShadow: '0 2px 10px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.10)',

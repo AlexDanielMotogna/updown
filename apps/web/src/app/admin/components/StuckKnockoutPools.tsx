@@ -63,7 +63,7 @@ export function StuckKnockoutPools() {
     <SectionCard
       dense
       title="Stuck knockout pools (CL / EL)"
-      subtitle="Champions League / Europa League knockouts past expected end. The auto-resolver waits on SDB indefinitely so a 1-1 regulation → 2-1 ET tie doesn’t mis-resolve to the ET winner — admin enters the regulation result manually."
+      subtitle="Champions League / Europa League knockouts past expected end. The auto-resolver waits on SDB indefinitely so a 1-1 regulation → 2-1 ET tie doesn’t mis-resolve to the ET winner - admin enters the regulation result manually."
       actions={<RefreshButton onRefresh={() => refetch()} isFetching={isFetching} />}
     >
       {isLoading ? (
@@ -210,7 +210,7 @@ function ResolveKnockoutDialog({ pool, onClose, onResolved }: {
 
         <Box sx={{ p: 1, borderRadius: 1.5, bgcolor: t.bg.surfaceAlt, border: `1px solid ${t.border.subtle}` }}>
           <Body sx={{ fontSize: '0.78rem' }}>
-            Regulation-time rules: the bet resolves on the <Box component="strong" sx={{ color: t.text.primary }}>90'</Box> result. If the match went to extra time / penalties, regulation was a draw — pick <Box component="strong" sx={{ color: t.text.primary }}>DRAW</Box> even if a team eventually won.
+            Regulation-time rules: the bet resolves on the <Box component="strong" sx={{ color: t.text.primary }}>90'</Box> result. If the match went to extra time / penalties, regulation was a draw - pick <Box component="strong" sx={{ color: t.text.primary }}>DRAW</Box> even if a team eventually won.
           </Body>
         </Box>
 
@@ -229,7 +229,7 @@ function ResolveKnockoutDialog({ pool, onClose, onResolved }: {
           </ToggleButtonGroup>
           {draw && (
             <Meta sx={{ display: 'block', mt: 0.5 }}>
-              Use this for ties that went to ET or penalties — the bet still resolves to DRAW.
+              Use this for ties that went to ET or penalties - the bet still resolves to DRAW.
             </Meta>
           )}
         </Box>
@@ -246,7 +246,7 @@ function ResolveKnockoutDialog({ pool, onClose, onResolved }: {
               inputProps={{ min: 0, max: 99 }}
               sx={{ width: 120 }}
             />
-            <Meta>—</Meta>
+            <Meta>-</Meta>
             <TextField
               size="small"
               type="number"
@@ -264,7 +264,7 @@ function ResolveKnockoutDialog({ pool, onClose, onResolved }: {
           )}
           {neitherFilled && (
             <Meta sx={{ display: 'block', mt: 0.5 }}>
-              Leave blank to skip — the public match page won't show a score.
+              Leave blank to skip - the public match page won't show a score.
             </Meta>
           )}
         </Box>

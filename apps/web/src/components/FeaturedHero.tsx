@@ -139,7 +139,7 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentId, t.up, t.down, t.draw]);
 
-  // Live score for the featured sports pool — must be called every
+  // Live score for the featured sports pool - must be called every
   // render (rules of hooks), so we resolve it BEFORE the count-zero
   // early return. Falls back to null when the current pool is crypto or
   // PM, which the hook handles without firing a request.
@@ -165,18 +165,18 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
   // Sized for the chip itself (~26px) so it actually reads as imagery and
   // not a tiny tag dot. Crypto pulls the Pacifica token SVG, PM markets
   // pull the question's own banner thumbnail, sports fall back to the
-  // category badge — same identity rules as the card list.
+  // category badge - same identity rules as the card list.
   const catIcon: ReactNode = isCrypto
     ? <AssetIcon asset={pool.asset} size={30} />
     : isPrediction && pool.homeTeamCrest
       ? <Box component="img" src={pool.homeTeamCrest} alt="" sx={{ width: 30, height: 30, borderRadius: 1, objectFit: 'cover', flexShrink: 0 }} />
       : category?.badgeUrl
         // Dark pad: the Champions League badge is white/silver on transparent
-        // — a white pad made it disappear; dark keeps it readable everywhere.
+        // - a white pad made it disappear; dark keeps it readable everywhere.
         ? <Box component="img" src={category.badgeUrl} alt="" sx={{ width: 30, height: 30, objectFit: 'contain', flexShrink: 0, ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(13,18,25,0.92)', borderRadius: '50%', p: '2px' }) }} />
         : CatIcon ? <CatIcon sx={{ fontSize: 26 }} /> : !isPrediction ? <SportsSoccer sx={{ fontSize: 26 }} /> : null;
 
-  // Title for sports is just "Home vs Away" — the score itself is shown
+  // Title for sports is just "Home vs Away" - the score itself is shown
   // next to each team in the outcomes column below, same as MarketCard.
   // Stuffing it into the title duplicated the info and made the header
   // read like a sentence.
@@ -221,7 +221,7 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
           { name: pool.awayTeam || 'Away', color: t.down, pct: pct(totalDown, isTwoWay ? 50 : 33), crest: pool.awayTeamCrest, ...(awayScoreLabel != null && { score: awayScoreLabel }) },
         ];
 
-  // Single source of truth for the chart's endpoint icons — shared with
+  // Single source of truth for the chart's endpoint icons - shared with
   // /match/[id] and any future surface via lib/oddsChartProps. Labels are
   // built locally in `chartLabels` below because the hero card's outcome
   // column is narrower than the match page's and needs the short form.
@@ -299,7 +299,7 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
           the chart height so its content can spread (title at top, volume at bottom). */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '300px 1fr' }, gap: { xs: 2, md: 3 }, alignItems: 'stretch' }}>
         <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          {/* Title + live progress in the same row — the progress text
+          {/* Title + live progress in the same row - the progress text
               floats to the right edge of the outcomes column (not the
               full card width) so it sits flush with the percentage column
               below. Wraps on tight viewports without overflowing. */}
@@ -351,7 +351,7 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
               </Box>
             ))}
           </Box>
-          {/* News — click to expand. The clamped/expanded state lives on
+          {/* News - click to expand. The clamped/expanded state lives on
               `newsExpanded`; we render the same Typography either fully or
               clipped to 3 lines so a long PM rules blob stays readable
               without rebuilding the layout. The "Show less" hint only

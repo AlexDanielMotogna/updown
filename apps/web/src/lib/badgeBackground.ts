@@ -2,7 +2,7 @@
  * Resolve a category's badgeBgColor field to an actual CSS background.
  *
  * Most TheSportsDB league badges have transparent backgrounds with mid-
- * tone colourful content — they look good on the historical light bg.
+ * tone colourful content - they look good on the historical light bg.
  * But some leagues ship white-on-transparent logos (CL trophy outline,
  * MLS shield, some basketball leagues). Those vanish on a white surface
  * and need a dark background.

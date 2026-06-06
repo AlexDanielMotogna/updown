@@ -5,7 +5,7 @@
  * SnakeLineChart + CandlesChart pair.
  *
  * The old implementation paid every price tick in React re-renders over
- * hundreds of `<path>` nodes — that's where the "jitter" the user
+ * hundreds of `<path>` nodes - that's where the "jitter" the user
  * reported was coming from. LWC paints on canvas, animates the y-scale
  * transitions on its own, and exposes `series.update()` so a single
  * incoming tick costs one frame instead of a full reconcile.
@@ -19,7 +19,7 @@
  *    casing (`addAreaSeries({...})` → `series.AreaSeries`). We're on v5;
  *    the imports below come from the v5 API.
  *  - LWC keeps its own time axis, scale, crosshair, tooltip. Don't try
- *    to overlay our own — they will fight for paints.
+ *    to overlay our own - they will fight for paints.
  */
 
 import { useEffect, useMemo, useRef } from 'react';
@@ -49,7 +49,7 @@ interface PriceChartProps {
    *  on every render so the chart visibly tracks the websocket feed. */
   livePrice: number | null;
   /** Strike line for resolution-style pools (USDC scale already applied
-   *  by the caller — InlineChart divides by USDC_DIVISOR before passing). */
+   *  by the caller - InlineChart divides by USDC_DIVISOR before passing). */
   strikePrice: number | null;
 }
 
@@ -64,7 +64,7 @@ export function PriceChart({ candles, mode, livePrice, strikePrice }: PriceChart
   const areaSeriesRef = useRef<ISeriesApi<'Area'> | null>(null);
   const strikeLineRef = useRef<IPriceLine | null>(null);
 
-  // Memoised data — derived once per candles array, reused across mode
+  // Memoised data - derived once per candles array, reused across mode
   // switches so we don't refetch or recompute on every toggle.
   const candleData = useMemo<CandlestickData[]>(
     () =>
@@ -92,7 +92,7 @@ export function PriceChart({ candles, mode, livePrice, strikePrice }: PriceChart
         textColor: t.text.tertiary,
         fontFamily: 'var(--font-satoshi), "Satoshi", -apple-system, BlinkMacSystemFont, sans-serif',
         fontSize: 11,
-        // Drop the TradingView attribution badge — already off on
+        // Drop the TradingView attribution badge - already off on
         // OddsChart, parity for the crypto candle/area view.
         attributionLogo: false,
       },
@@ -105,7 +105,7 @@ export function PriceChart({ candles, mode, livePrice, strikePrice }: PriceChart
           return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
         },
       },
-      // Grid off — same minimalist look as OddsChart. The axis tick
+      // Grid off - same minimalist look as OddsChart. The axis tick
       // labels are enough of a visual anchor on a clean canvas.
       grid: {
         vertLines: { visible: false },
@@ -117,7 +117,7 @@ export function PriceChart({ candles, mode, livePrice, strikePrice }: PriceChart
         horzLine: { color: t.border.medium, width: 1, style: LineStyle.Dashed, labelBackgroundColor: t.bg.surfaceAlt },
       },
       rightPriceScale: {
-        // No border line down the right edge — the tick labels alone do
+        // No border line down the right edge - the tick labels alone do
         // the work, no rule needed (same as OddsChart).
         borderVisible: false,
         scaleMargins: { top: 0.1, bottom: 0.1 },
@@ -129,7 +129,7 @@ export function PriceChart({ candles, mode, livePrice, strikePrice }: PriceChart
         secondsVisible: false,
         rightOffset: 4,
         // X-axis tick labels in the user's timezone. LWC defaults to UTC
-        // for tick ticks even when localization.timeFormatter is set —
+        // for tick ticks even when localization.timeFormatter is set -
         // that one only covers the crosshair label. Branching on
         // tickMarkType keeps "HH:mm" for intra-day zoom and falls back to
         // "MMM d" / "MMM" / "YYYY" at coarser scales.
@@ -164,7 +164,7 @@ export function PriceChart({ candles, mode, livePrice, strikePrice }: PriceChart
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Theme propagation — runs on every theme change without dropping the
+  // Theme propagation - runs on every theme change without dropping the
   // chart instance.
   useEffect(() => {
     const chart = chartRef.current;
@@ -176,7 +176,7 @@ export function PriceChart({ candles, mode, livePrice, strikePrice }: PriceChart
         vertLines: { visible: false },
         horzLines: { visible: false },
       },
-      // Keep the axis borders hidden across theme swaps — otherwise a
+      // Keep the axis borders hidden across theme swaps - otherwise a
       // dark↔light flip would silently turn the rule back on with the
       // new colour.
       rightPriceScale: { borderVisible: false },
@@ -184,7 +184,7 @@ export function PriceChart({ candles, mode, livePrice, strikePrice }: PriceChart
     });
   }, [t.text.tertiary, t.border.subtle]);
 
-  // Mode swap — remove the inactive series, attach the active one, push
+  // Mode swap - remove the inactive series, attach the active one, push
   // the current dataset, and fit the visible range.
   useEffect(() => {
     const chart = chartRef.current;

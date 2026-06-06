@@ -27,13 +27,13 @@ export function ThreeWaySelector({ side, onSideChange, totalUp, totalDown, total
   //
   //   • Yes/No        → cyan ✓ / red ✗ glyph (US×Iran-style questions).
   //   • Up/Down       → green ▲ / red ▼ glyph (same PNGs the crypto bet
-  //                     card uses — Polymarket calls these "price-move"
+  //                     card uses - Polymarket calls these "price-move"
   //                     style markets, e.g. "Bitcoin Up or Down by X?").
   //   • Answer pair   → no icon, just the team / answer text.
   //
   // The match page hands us literal "Yes"/"No" strings for Yes/No PM
   // pools because pool.homeTeam stores the question, not an answer.
-  // For Up/Down PM pools the storage is the opposite — homeTeam/awayTeam
+  // For Up/Down PM pools the storage is the opposite - homeTeam/awayTeam
   // hold "Up"/"Down" directly. We accept both casings.
   const lc = (s?: string) => s?.toLowerCase();
   const isYesNo =

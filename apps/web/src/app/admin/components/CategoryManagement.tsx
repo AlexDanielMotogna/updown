@@ -462,7 +462,7 @@ function EditDialog({ cat, isNew, open, parents, onClose, onSave }: {
     setConfigLeagueFilter(typeof cfg.leagueFilter === 'string' ? cfg.leagueFilter : '');
     // Read both keys for backward compat with rows persisted under the
     // legacy name. The save path (handleSave) writes the canonical
-    // `externalLeagueId` only — see PLAN-ADMIN-REFACTOR.md Phase 1 #1.
+    // `externalLeagueId` only - see PLAN-ADMIN-REFACTOR.md Phase 1 #1.
     setConfigLeagueId(
       typeof cfg.externalLeagueId === 'string' ? cfg.externalLeagueId
         : typeof cfg.theSportsDbLeagueId === 'string' ? cfg.theSportsDbLeagueId
@@ -478,7 +478,7 @@ function EditDialog({ cat, isNew, open, parents, onClose, onSave }: {
     // Preserve the original config so any keys the dialog doesn't render
     // (e.g. `matchDurationHours`, future fields, hand-edited rows) survive
     // the save. The previous implementation rebuilt config from scratch
-    // and silently dropped those keys on every edit — see
+    // and silently dropped those keys on every edit - see
     // PLAN-ADMIN-REFACTOR.md Phase 1 #2. The typed fields below overlay
     // the original via spread; the legacy `theSportsDbLeagueId` key is
     // also stripped here so the canonical `externalLeagueId` is the
@@ -499,7 +499,7 @@ function EditDialog({ cat, isNew, open, parents, onClose, onSave }: {
       if (configSportQuery) config.sportQuery = configSportQuery;
       if (configLeagueFilter) config.leagueFilter = configLeagueFilter;
     } else if (type === 'FOOTBALL_LEAGUE') {
-      // Canonical key — `theSportsDbLeagueId` was the legacy alias the
+      // Canonical key - `theSportsDbLeagueId` was the legacy alias the
       // admin used to read/write; the rest of the codebase (fixture
       // sync, sports-explorer, getFootballConfigs) only knows
       // `externalLeagueId`. See Phase 1 #1.
@@ -544,7 +544,7 @@ function EditDialog({ cat, isNew, open, parents, onClose, onSave }: {
             </FormControl>
           </Box>
         )}
-        {/* Parent picker — only meaningful for sport-typed leagues. SPORT_GROUP
+        {/* Parent picker - only meaningful for sport-typed leagues. SPORT_GROUP
             and POLYMARKET rows are always top-level, so the picker is hidden
             for them to keep the form short. */}
         {(form.type === 'FOOTBALL_LEAGUE' || form.type === 'SPORTSDB_SPORT') && (
@@ -555,13 +555,13 @@ function EditDialog({ cat, isNew, open, parents, onClose, onSave }: {
               value={form.parentCode ?? ''}
               onChange={e => setForm(f => ({ ...f, parentCode: e.target.value === '' ? null : e.target.value }))}
               renderValue={(v) => {
-                if (!v) return <Box sx={{ color: dt.text.tertiary }}>(none — top-level)</Box>;
+                if (!v) return <Box sx={{ color: dt.text.tertiary }}>(none - top-level)</Box>;
                 const p = parents.find(c => c.code === v);
                 const Ic = p?.iconKey ? ICON_REGISTRY[p.iconKey] : null;
                 return <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>{Ic ? <Ic sx={{ fontSize: 18, color: p?.color || dt.text.tertiary }} /> : null}{p?.label ?? v}</Box>;
               }}
             >
-              <MenuItem value=""><em>(none — top-level)</em></MenuItem>
+              <MenuItem value=""><em>(none - top-level)</em></MenuItem>
               {parents.map(p => {
                 const Ic = p.iconKey ? ICON_REGISTRY[p.iconKey] : null;
                 return (
@@ -588,7 +588,7 @@ function EditDialog({ cat, isNew, open, parents, onClose, onSave }: {
         {/* Auto-detected by the backend when the badge comes from SDB
             (services/sports/badge-analyzer.ts samples pixel luminance and
             picks 'light' for dark badges, 'dark' for white-on-transparent
-            badges). The operator can override here — useful for hand-
+            badges). The operator can override here - useful for hand-
             uploaded badge URLs or when the analyzer's mid-zone classifies
             null and the result looks wrong on the public app. */}
         <FormControl size="small">
@@ -606,7 +606,7 @@ function EditDialog({ cat, isNew, open, parents, onClose, onSave }: {
           >
             <MenuItem value=""><em>Auto / Light (default)</em></MenuItem>
             <MenuItem value="light">Light (white-tinted)</MenuItem>
-            <MenuItem value="dark">Dark (slate-tinted) — for white badges</MenuItem>
+            <MenuItem value="dark">Dark (slate-tinted) - for white badges</MenuItem>
           </Select>
         </FormControl>
         <FormControl size="small">
@@ -785,7 +785,7 @@ export function CategoryManagement() {
                   onToggle={() => feedback.run(toggleMutation, cat.id, { success: `${cat.label} ${cat.enabled ? 'disabled' : 'enabled'}` })}
                   onToggleComingSoon={() => feedback.run(comingSoonMutation, cat.id, { success: 'Coming-soon flag updated' })}
                   onEdit={() => { setCreating(false); setEditCat(cat); }}
-                  // Replaces window.confirm — now uses ConfirmDialog with
+                  // Replaces window.confirm - now uses ConfirmDialog with
                   // severity=destructive and the live pool count in the
                   // consequence copy (Plan §3.2).
                   onDelete={() => setDeleteTarget({ cat, poolCount: poolCounts[cat.code] ?? 0 })}
@@ -811,7 +811,7 @@ export function CategoryManagement() {
         }}
       />
 
-      {/* Delete confirmation — destructive, with the live pool count
+      {/* Delete confirmation - destructive, with the live pool count
           spelled out. The backend (PR 3) ALSO refuses to delete a
           category with live pools, but surfacing the count up-front
           avoids the round-trip. */}

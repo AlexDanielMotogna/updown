@@ -6,7 +6,7 @@
  *
  * Used by the toast queue (`useMutationFeedback`) so any mutation error
  * surfaces as `<headline> + <hint>` instead of a raw stack trace. Add a
- * new entry whenever a backend route starts emitting a new error code —
+ * new entry whenever a backend route starts emitting a new error code -
  * do NOT silently re-throw raw `err.message` into the UI.
  *
  * See PLAN-ADMIN-REFACTOR.md Phase 2b §9.
@@ -60,14 +60,14 @@ const KNOWN: Array<{ match: RegExp; headline: string; hint?: string }> = [
   {
     match: /NOT_FOUND|P2025/i,
     headline: 'Not found',
-    hint: 'It may have been removed already — refresh the page.',
+    hint: 'It may have been removed already - refresh the page.',
   },
 
   // ── Solana / RPC (admin sometimes proxies on-chain calls) ────────────
   {
     match: /blockhash not found|block height exceeded/i,
     headline: 'Network was slow to confirm',
-    hint: 'Retry — the blockhash expired before the tx landed.',
+    hint: 'Retry - the blockhash expired before the tx landed.',
   },
   {
     match: /insufficient.*funds|insufficient.*lamports|InsufficientFunds/i,
