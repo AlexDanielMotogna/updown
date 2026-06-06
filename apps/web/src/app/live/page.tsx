@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Box, Typography, Container, CircularProgress } from '@mui/material';
+import { Whatshot, MonetizationOn, Casino, RocketLaunch, Bolt } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { AppShell } from '@/components';
 import { MarketCard } from '@/components/MarketCard';
@@ -14,12 +15,13 @@ import { formatUSDC } from '@/lib/format';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 
+const ICON_SX = { fontSize: 16 } as const;
 const SORTS = [
-  { key: 'trending', label: '🔥 Trending' },
-  { key: 'volume', label: '💰 Highest Volume' },
-  { key: 'bets', label: '🎲 Most Bets' },
-  { key: 'new', label: '🚀 New' },
-  { key: 'ending', label: '⚡ Ending Soon' },
+  { key: 'trending', label: 'Trending', icon: <Whatshot sx={ICON_SX} /> },
+  { key: 'volume', label: 'Highest Volume', icon: <MonetizationOn sx={ICON_SX} /> },
+  { key: 'bets', label: 'Most Bets', icon: <Casino sx={ICON_SX} /> },
+  { key: 'new', label: 'New', icon: <RocketLaunch sx={ICON_SX} /> },
+  { key: 'ending', label: 'Ending Soon', icon: <Bolt sx={ICON_SX} /> },
 ];
 const CATEGORIES = [
   { key: 'all', label: 'All' },
@@ -45,12 +47,13 @@ export default function LivePage() {
   const pools = data?.data ?? [];
   const meta = data?.meta;
 
-  const chip = (active: boolean, label: string, onClick: () => void) => (
+  const chip = (active: boolean, label: string, onClick: () => void, icon?: React.ReactNode) => (
     <Box
       key={label}
       component="button"
       onClick={onClick}
       sx={{
+        display: 'inline-flex', alignItems: 'center', gap: 0.6,
         px: 1.75, py: 0.75, borderRadius: '999px', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
         whiteSpace: 'nowrap', fontFamily: 'inherit', flexShrink: 0,
         border: `1px solid ${active ? 'transparent' : t.border.subtle}`,
@@ -59,6 +62,7 @@ export default function LivePage() {
         '&:hover': active ? {} : { color: t.text.primary, borderColor: t.border.medium },
       }}
     >
+      {icon}
       {label}
     </Box>
   );
@@ -89,7 +93,7 @@ export default function LivePage() {
 
         {/* Sort tabs */}
         <Box sx={{ display: 'flex', gap: 1, overflowX: 'auto', pb: 1, mb: 1, '&::-webkit-scrollbar': { display: 'none' }, scrollbarWidth: 'none' }}>
-          {SORTS.map(s => chip(sort === s.key, s.label, () => setSort(s.key)))}
+          {SORTS.map(s => chip(sort === s.key, s.label, () => setSort(s.key), s.icon))}
         </Box>
         {/* Category chips */}
         <Box sx={{ display: 'flex', gap: 1, overflowX: 'auto', pb: 1, mb: 3, '&::-webkit-scrollbar': { display: 'none' }, scrollbarWidth: 'none' }}>
