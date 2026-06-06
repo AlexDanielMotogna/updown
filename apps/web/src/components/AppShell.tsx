@@ -102,7 +102,8 @@ export function AppShell({ children, centered = false, topBar }: { children: Rea
   // otherwise the empty sidebar gutter would show and squeeze the content.
   const marketTypeParam = searchParams.get('type') ?? 'TRENDING';
   const hideMarketSidebar =
-    (isMarkets && marketTypeParam === 'TRENDING') || isDetailPage || pathname === '/live';
+    (isMarkets && marketTypeParam === 'TRENDING') || isDetailPage
+    || pathname === '/live' || pathname === '/leaderboard';
   return (
     <Box
       sx={{
