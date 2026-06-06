@@ -136,8 +136,11 @@ export function PnLChart({ bets }: PnLChartProps) {
       const p1 = coords[i];
       const p2 = coords[i + 1];
       const p3 = coords[i + 2] || p2;
-      const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
-      const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
+      // Clamp control points' X within the segment so the curve never goes
+      // backward in X (which makes the bezier self-cross into a loop when two
+      // pools resolved at nearly the same time). Y stays free for smoothness.
+      const c1x = Math.max(p1.x, Math.min(p2.x, p1.x + (p2.x - p0.x) / 6)), c1y = p1.y + (p2.y - p0.y) / 6;
+      const c2x = Math.max(p1.x, Math.min(p2.x, p2.x - (p3.x - p1.x) / 6)), c2y = p2.y - (p3.y - p1.y) / 6;
       line += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
     }
     const bottom = PAD.top + plotH;
@@ -150,10 +153,14 @@ export function PnLChart({ bets }: PnLChartProps) {
     for (let i = 0; i <= 3; i++) { const v = minY + (maxY - minY) * (i / 3); yTicks.push({ v, y: sy(v) }); }
     const xTicks: Array<{ t: number; x: number }> = [];
     const xn = Math.min(4, coords.length);
+    const dayKey = (ms: number) => new Date(ms).toDateString();
     if (xn === 1) xTicks.push({ t: coords[0].t, x: coords[0].x });
     else for (let i = 0; i < xn; i++) {
       const idx = Math.round((coords.length - 1) * (i / (xn - 1)));
-      xTicks.push({ t: coords[idx].t, x: coords[idx].x });
+      const cand = { t: coords[idx].t, x: coords[idx].x };
+      // Skip ticks that land on the same day as the previous one (avoids the
+      // "jun jun jun" overlap when several pools resolved close together).
+      if (xTicks.length === 0 || dayKey(cand.t) !== dayKey(xTicks[xTicks.length - 1].t)) xTicks.push(cand);
     }
     return { coords, line, area, bottom, zeroY, plotW, yTicks, xTicks };
   }, [points, w]);
