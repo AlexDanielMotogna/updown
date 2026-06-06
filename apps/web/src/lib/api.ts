@@ -475,6 +475,22 @@ export interface LeaderboardEntry {
 
 export type LeaderboardSort = 'xp' | 'coins' | 'level' | 'profit' | 'volume' | 'predictions';
 
+export interface ReferralLeaderboardEntry {
+  rank: number;
+  walletAddress: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  validReferrals: number;
+  totalReferrals: number;
+  prize: number;
+}
+export type ReferralLeaderboardResponse = ApiResponse<ReferralLeaderboardEntry[]> & { self?: ReferralLeaderboardEntry | null };
+
+export async function fetchReferralLeaderboard(wallet?: string): Promise<ReferralLeaderboardResponse> {
+  const q = wallet ? `?wallet=${encodeURIComponent(wallet)}` : '';
+  return fetchApi<ReferralLeaderboardEntry[]>(`/api/referrals/leaderboard${q}`) as Promise<ReferralLeaderboardResponse>;
+}
+
 export async function registerUser(
   walletAddress: string,
 ): Promise<ApiResponse<UserProfile>> {

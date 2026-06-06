@@ -24,3 +24,19 @@ export const BET_MILESTONE_TYPE = 'BET_MILESTONE_20';
  */
 export const REFERRER_REWARD = 100_000n;
 export const REFERRER_REWARD_TYPE = 'REFERRAL_ACTIVATED';
+
+/**
+ * Referral-prize leaderboard — UP awarded to the top 20 referrers by VALID
+ * referrals (active + not suspect) at campaign end. Index 0 = rank 1. Display
+ * UP (not stored units). Placeholder amounts — tune freely.
+ */
+export const REFERRAL_PRIZES: number[] = [
+  50000, 30000, 20000, 15000, 12000,
+  10000, 9000, 8000, 7000, 6000,
+  5000, 4500, 4000, 3500, 3000,
+  2500, 2000, 1500, 1200, 1000,
+];
+/** Prize (display UP) for a 1-based rank, or 0 if outside the prize tiers. */
+export function referralPrizeForRank(rank: number): number {
+  return REFERRAL_PRIZES[rank - 1] ?? 0;
+}

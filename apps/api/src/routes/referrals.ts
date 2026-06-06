@@ -9,10 +9,72 @@ import {
   getReferralPayouts,
   claimReferralPayout,
 } from '../services/referrals';
+import { ACTIVE_BET_THRESHOLD, referralPrizeForRank } from '../utils/testing';
 
 export const referralsRouter: RouterType = Router();
 
 const walletSchema = z.string().min(32).max(44);
+
+/**
+ * GET /leaderboard — top referrers by VALID referrals (referred user active,
+ * i.e. settledBets >= threshold, and the referral not flagged suspect). Top 20
+ * carry a prize. `?wallet` adds the caller's own ranked entry.
+ */
+referralsRouter.get('/leaderboard', async (req, res) => {
+  try {
+    const wallet = typeof req.query.wallet === 'string' ? req.query.wallet : null;
+    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 50));
+
+    const referrals = await prisma.referral.findMany({
+      select: { referrerWallet: true, referredWallet: true, suspect: true },
+    });
+    const referredWallets = Array.from(new Set(referrals.map(r => r.referredWallet)));
+    const activeRows = await prisma.user.findMany({
+      where: { walletAddress: { in: referredWallets }, settledBets: { gte: ACTIVE_BET_THRESHOLD } },
+      select: { walletAddress: true },
+    });
+    const activeSet = new Set(activeRows.map(u => u.walletAddress));
+
+    const counts = new Map<string, { valid: number; total: number }>();
+    for (const r of referrals) {
+      const e = counts.get(r.referrerWallet) ?? { valid: 0, total: 0 };
+      e.total += 1;
+      if (!r.suspect && activeSet.has(r.referredWallet)) e.valid += 1;
+      counts.set(r.referrerWallet, e);
+    }
+
+    const referrerWallets = [...counts.keys()];
+    const referrerUsers = await prisma.user.findMany({
+      where: { walletAddress: { in: referrerWallets } },
+      select: { walletAddress: true, displayName: true, avatarUrl: true },
+    });
+    const byWallet = new Map(referrerUsers.map(u => [u.walletAddress, u]));
+
+    const ranked = [...counts.entries()]
+      .map(([w, c]) => ({ w, valid: c.valid, total: c.total }))
+      .sort((a, b) => (b.valid - a.valid) || (b.total - a.total))
+      .map((e, i) => {
+        const u = byWallet.get(e.w);
+        const rank = i + 1;
+        return {
+          rank,
+          walletAddress: e.w,
+          displayName: u?.displayName ?? null,
+          avatarUrl: u?.avatarUrl ?? null,
+          validReferrals: e.valid,
+          totalReferrals: e.total,
+          prize: referralPrizeForRank(rank),
+        };
+      });
+
+    const self = wallet ? ranked.find(r => r.walletAddress === wallet) ?? null : null;
+
+    res.json({ success: true, data: ranked.slice(0, limit), self, meta: { total: ranked.length } });
+  } catch (error) {
+    console.error('[Referrals] leaderboard error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load referral leaderboard' } });
+  }
+});
 
 /**
  * GET /resolve?code=X

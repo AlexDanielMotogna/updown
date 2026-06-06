@@ -31,4 +31,5 @@ export { RewardPopup } from './RewardPopup';
 export { UserProfilePanel } from './UserProfilePanel';
 export { LeaderboardTable } from './LeaderboardTable';
 export { LeaderboardBoards } from './LeaderboardBoards';
+export { ReferralLeaderboard } from './ReferralLeaderboard';
 export { InlineChart } from './pool/InlineChart';
