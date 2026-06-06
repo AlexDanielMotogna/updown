@@ -222,7 +222,12 @@ export function GrowthOverview() {
                   {prizeRows.map((p) => (
                     <TableRow key={p.walletAddress}>
                       <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{p.rank}</TableCell>
-                      <TableCell>{p.displayName ?? <IdCell value={p.walletAddress} />}</TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.2 }}>
+                          {p.displayName && <Box sx={{ fontSize: '0.82rem', fontWeight: 600, color: t.text.primary }}>{p.displayName}</Box>}
+                          <IdCell value={p.walletAddress} />
+                        </Box>
+                      </TableCell>
                       <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{p.validReferrals}</TableCell>
                       <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', color: t.gold, fontWeight: 700 }}>{p.prize.toLocaleString()}</TableCell>
                       <TableCell sx={{ color: p.status === 'paid' ? t.success : p.status === 'already_paid' ? t.text.tertiary : t.text.secondary, fontSize: '0.75rem', fontWeight: 700 }}>
