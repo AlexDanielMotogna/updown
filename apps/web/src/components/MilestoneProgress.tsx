@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Typography, Avatar } from '@mui/material';
-import { CheckCircle, Lock } from '@mui/icons-material';
+import { CheckCircle } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useThemeTokens } from '@/app/providers';
@@ -67,18 +67,31 @@ export function MilestoneProgress() {
         {milestones.map(m => {
           const done = m.status === 'completed';
           const isNext = m.key === next?.key;
-          const color = done ? t.gain : isNext ? t.gold : t.text.quaternary;
+          const locked = !done && !isNext;
           return (
             <Box key={m.key} sx={{
-              flex: '1 0 auto', minWidth: 96, textAlign: 'center', px: 1, py: 1.25, borderRadius: 1.5,
+              flex: '1 0 auto', minWidth: 100, textAlign: 'center', px: 1, py: 1.25, borderRadius: 1.5,
               bgcolor: isNext ? withAlpha(t.gold, 0.08) : 'transparent',
               border: `1px solid ${isNext ? withAlpha(t.gold, 0.4) : t.border.subtle}`,
-              opacity: !done && !isNext ? 0.6 : 1,
             }}>
-              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 0.3, color }}>
-                {done ? <CheckCircle sx={{ fontSize: 18 }} /> : isNext ? null : <Lock sx={{ fontSize: 16 }} />}
+              <Box sx={{ position: 'relative', display: 'flex', justifyContent: 'center', mb: 0.4 }}>
+                {m.icon && (
+                  <Box
+                    component="img"
+                    src={m.icon}
+                    alt={m.label}
+                    sx={{
+                      width: 56, height: 56, objectFit: 'contain',
+                      filter: locked ? 'grayscale(1) brightness(0.7)' : isNext ? `drop-shadow(0 0 6px ${withAlpha(t.gold, 0.5)})` : 'none',
+                      opacity: locked ? 0.5 : 1,
+                    }}
+                  />
+                )}
+                {done && (
+                  <CheckCircle sx={{ position: 'absolute', top: -2, right: 'calc(50% - 34px)', fontSize: 16, color: t.gain, bgcolor: t.bg.surface, borderRadius: '50%' }} />
+                )}
               </Box>
-              <Typography sx={{ fontSize: '0.8rem', fontWeight: 800, color: t.text.primary }}>{m.label}</Typography>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 800, color: locked ? t.text.tertiary : t.text.primary }}>{m.label}</Typography>
               <Typography sx={{ fontSize: '0.66rem', fontWeight: 600, color: t.text.tertiary, fontVariantNumeric: 'tabular-nums' }}>
                 {m.targetUsers.toLocaleString()} users
               </Typography>

@@ -141,6 +141,7 @@ export async function getMilestoneState(wallet?: string | null): Promise<unknown
       rewardPool: (Number(m.rewardPool) / 100), // display UP
       status: m.status,
       completedAt: m.completedAt ? m.completedAt.toISOString() : null,
+      icon: MILESTONES.find(c => c.key === m.key)?.icon ?? null,
     })),
     contributors,
     self,

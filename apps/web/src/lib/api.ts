@@ -498,6 +498,7 @@ export interface MilestoneTier {
   rewardPool: number; // display UP
   status: 'active' | 'completed';
   completedAt: string | null;
+  icon: string | null;
 }
 export interface MilestoneContributor {
   rank: number;

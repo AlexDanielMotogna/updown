@@ -48,10 +48,10 @@ export function referralPrizeForRank(rank: number): number {
  * flagged suspect. Keepable in production.
  */
 export const MILESTONE_POOL = 10_000_000n; // 100,000 UP (stored units)
-export const MILESTONES: Array<{ key: string; label: string; targetUsers: number }> = [
-  { key: 'stone', label: 'Stone', targetUsers: 200 },
-  { key: 'iron', label: 'Iron', targetUsers: 400 },
-  { key: 'steel', label: 'Steel', targetUsers: 600 },
-  { key: 'titanium', label: 'Titanium', targetUsers: 800 },
-  { key: 'diamond', label: 'Diamond', targetUsers: 1000 },
+export const MILESTONES: Array<{ key: string; label: string; targetUsers: number; icon: string }> = [
+  { key: 'ember', label: 'Ember', targetUsers: 200, icon: '/milestione-icons/Milestone-Icons-01.png' },
+  { key: 'amethyst', label: 'Amethyst', targetUsers: 400, icon: '/milestione-icons/Milestone-Icons-02.png' },
+  { key: 'ruby', label: 'Ruby', targetUsers: 600, icon: '/milestione-icons/Milestone-Icons-03.png' },
+  { key: 'diamond', label: 'Diamond', targetUsers: 800, icon: '/milestione-icons/Milestone-Icons-04.png' },
+  { key: 'celestial', label: 'Celestial', targetUsers: 1000, icon: '/milestione-icons/Milestone-Icons-05.png' },
 ];
