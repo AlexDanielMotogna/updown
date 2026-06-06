@@ -27,6 +27,9 @@ import { initPriceHistoryPersistence, hydratePriceHistory } from './services/pri
 dotenv.config();
 
 const app: Express = express();
+// Behind Railway's proxy — trust X-Forwarded-For so req.ip is the real client
+// IP (needed for referral anti-cheat / activity signals), not the LB address.
+app.set('trust proxy', true);
 const httpServer = createServer(app);
 const PORT = process.env.PORT || 3002;
 

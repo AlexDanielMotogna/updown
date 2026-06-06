@@ -72,6 +72,7 @@ referralsRouter.post('/accept', async (req, res) => {
     const schema = z.object({
       walletAddress: walletSchema,
       referralCode: z.string().min(1).max(20),
+      deviceFingerprint: z.string().max(128).optional(),
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) {
@@ -81,7 +82,10 @@ referralsRouter.post('/accept', async (req, res) => {
       });
     }
 
-    const result = await acceptReferral(parsed.data.walletAddress, parsed.data.referralCode);
+    const result = await acceptReferral(parsed.data.walletAddress, parsed.data.referralCode, {
+      ip: req.ip ?? null,
+      deviceFingerprint: parsed.data.deviceFingerprint ?? null,
+    });
 
     if (!result.success) {
       return res.status(400).json({

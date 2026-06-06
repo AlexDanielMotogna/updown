@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useWalletBridge } from './useWalletBridge';
 import { resolveReferralCode, acceptReferralApi } from '@/lib/api';
+import { getDeviceFingerprint } from '@/lib/fingerprint';
 
 const STORAGE_KEY = 'updown_pending_ref';
 
@@ -78,7 +79,7 @@ export function useReferral() {
     if (!walletAddress || !pendingCode) return;
     setLoading(true);
     try {
-      const res = await acceptReferralApi(walletAddress, pendingCode);
+      const res = await acceptReferralApi(walletAddress, pendingCode, getDeviceFingerprint());
       if (res.success) {
         localStorage.removeItem(STORAGE_KEY);
         setPendingCode(null);

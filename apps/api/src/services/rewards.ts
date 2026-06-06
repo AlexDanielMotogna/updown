@@ -217,9 +217,10 @@ export async function grantReferrerReward(referredWallet: string, referredSettle
   if (!TESTING_MODE || referredSettledBets < ACTIVE_BET_THRESHOLD) return;
   const ref = await prisma.referral.findUnique({
     where: { referredWallet },
-    select: { referrerWallet: true },
+    select: { referrerWallet: true, suspect: true },
   });
   if (!ref) return;
+  if (ref.suspect) return; // flagged by anti-cheat — no referrer reward
   const type = `${REFERRER_REWARD_TYPE}:${referredWallet}`;
   try {
     await prisma.rewardGrant.create({

@@ -1,6 +1,8 @@
 import { Router, type Router as RouterType } from 'express';
+import { z } from 'zod';
 import { prisma } from '../../db';
 import { ACTIVE_BET_THRESHOLD } from '../../utils/testing';
+import { grantReferrerReward } from '../../services/rewards';
 
 export const adminReferralsRouter: RouterType = Router();
 
@@ -13,7 +15,10 @@ export const adminReferralsRouter: RouterType = Router();
 adminReferralsRouter.get('/', async (_req, res) => {
   try {
     const referrals = await prisma.referral.findMany({
-      select: { referrerWallet: true, referredWallet: true, createdAt: true },
+      select: {
+        id: true, referrerWallet: true, referredWallet: true, createdAt: true,
+        suspect: true, suspectReason: true, reviewed: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -25,23 +30,27 @@ adminReferralsRouter.get('/', async (_req, res) => {
     const byWallet = new Map(users.map(u => [u.walletAddress, u]));
     const isActive = (w: string) => (byWallet.get(w)?.settledBets ?? 0) >= ACTIVE_BET_THRESHOLD;
 
-    const grouped = new Map<string, string[]>();
+    const grouped = new Map<string, typeof referrals>();
     for (const r of referrals) {
       const arr = grouped.get(r.referrerWallet);
-      if (arr) arr.push(r.referredWallet);
-      else grouped.set(r.referrerWallet, [r.referredWallet]);
+      if (arr) arr.push(r);
+      else grouped.set(r.referrerWallet, [r]);
     }
 
-    const referrers = [...grouped.entries()].map(([referrerWallet, referredWallets]) => {
-      const referred = referredWallets.map(w => {
-        const u = byWallet.get(w);
+    const referrers = [...grouped.entries()].map(([referrerWallet, refs]) => {
+      const referred = refs.map(r => {
+        const u = byWallet.get(r.referredWallet);
         return {
-          walletAddress: w,
+          referralId: r.id,
+          walletAddress: r.referredWallet,
           displayName: u?.displayName ?? null,
           settledBets: u?.settledBets ?? 0,
           totalBets: u?.totalBets ?? 0,
           lastActiveDate: u?.lastActiveDate ? u.lastActiveDate.toISOString() : null,
-          active: isActive(w),
+          active: isActive(r.referredWallet),
+          suspect: r.suspect,
+          suspectReason: r.suspectReason,
+          reviewed: r.reviewed,
         };
       });
       const refUser = byWallet.get(referrerWallet);
@@ -50,6 +59,7 @@ adminReferralsRouter.get('/', async (_req, res) => {
         displayName: refUser?.displayName ?? null,
         referredCount: referred.length,
         activeReferredCount: referred.filter(r => r.active).length,
+        suspectCount: referred.filter(r => r.suspect).length,
         referred,
       };
     }).sort((a, b) => b.referredCount - a.referredCount);
@@ -59,6 +69,7 @@ adminReferralsRouter.get('/', async (_req, res) => {
       prisma.user.count({ where: { settledBets: { gte: ACTIVE_BET_THRESHOLD } } }),
     ]);
     const activeReferred = referrers.reduce((a, r) => a + r.activeReferredCount, 0);
+    const suspectReferred = referrals.filter(r => r.suspect).length;
 
     res.json({
       success: true,
@@ -68,6 +79,7 @@ adminReferralsRouter.get('/', async (_req, res) => {
           activeUsers,
           totalReferred: referrals.length,
           activeReferred,
+          suspectReferred,
           activeThreshold: ACTIVE_BET_THRESHOLD,
         },
         referrers,
@@ -76,5 +88,32 @@ adminReferralsRouter.get('/', async (_req, res) => {
   } catch (error) {
     console.error('[Admin] referrals error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load referral activity' } });
+  }
+});
+
+/** Admin override of a referral's suspect flag. */
+adminReferralsRouter.post('/:id/review', async (req, res) => {
+  try {
+    const parsed = z.object({ suspect: z.boolean() }).safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'suspect (boolean) required' } });
+    }
+    const ref = await prisma.referral.update({
+      where: { id: req.params.id },
+      data: { suspect: parsed.data.suspect, reviewed: true },
+      select: { referredWallet: true, suspect: true },
+    }).catch(() => null);
+    if (!ref) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Referral not found' } });
+
+    // Cleared a flag and the referred user is already activated → pay the
+    // referrer now (idempotent).
+    if (!ref.suspect) {
+      const u = await prisma.user.findUnique({ where: { walletAddress: ref.referredWallet }, select: { settledBets: true } });
+      if (u) grantReferrerReward(ref.referredWallet, u.settledBets).catch(() => { /* best-effort */ });
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Admin] referral review error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to update referral' } });
   }
 });

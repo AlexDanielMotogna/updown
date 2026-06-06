@@ -549,10 +549,11 @@ export async function resolveReferralCode(
 export async function acceptReferralApi(
   walletAddress: string,
   referralCode: string,
+  deviceFingerprint?: string,
 ): Promise<ApiResponse<{ status: string }>> {
   return fetchApi('/api/referrals/accept', {
     method: 'POST',
-    body: JSON.stringify({ walletAddress, referralCode }),
+    body: JSON.stringify({ walletAddress, referralCode, deviceFingerprint }),
   });
 }
 

@@ -322,10 +322,23 @@ model Referral {
   referredWallet String   @unique @map("referred_wallet")
   createdAt      DateTime @default(now()) @map("created_at")
 
+  // Anti-cheat signals captured when the referral is accepted.
+  signupIp          String? @map("signup_ip")
+  deviceFingerprint String? @map("device_fingerprint")
+  // Flagged (not banned) when it looks like a sybil/self-referral — e.g. the
+  // same device/IP as another referral from this referrer. Suspect referrals
+  // are excluded from referrer rewards + the referral-prize leaderboard until
+  // an admin reviews them.
+  suspect       Boolean @default(false)
+  suspectReason String? @map("suspect_reason")
+  reviewed      Boolean @default(false)
+
   referrer User @relation("referrer", fields: [referrerWallet], references: [walletAddress])
   referred User @relation("referred", fields: [referredWallet], references: [walletAddress])
 
   @@index([referrerWallet, createdAt])
+  @@index([deviceFingerprint])
+  @@index([signupIp])
   @@map("referrals")
 }
 

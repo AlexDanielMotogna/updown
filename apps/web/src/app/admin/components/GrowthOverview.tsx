@@ -15,23 +15,28 @@ import {
 } from '../ui';
 
 interface ReferredUser {
+  referralId: string;
   walletAddress: string;
   displayName: string | null;
   settledBets: number;
   totalBets: number;
   lastActiveDate: string | null;
   active: boolean;
+  suspect: boolean;
+  suspectReason: string | null;
+  reviewed: boolean;
 }
 interface Referrer {
   referrerWallet: string;
   displayName: string | null;
   referredCount: number;
   activeReferredCount: number;
+  suspectCount: number;
   referred: ReferredUser[];
 }
 interface GrowthData {
   data: {
-    summary: { totalUsers: number; activeUsers: number; totalReferred: number; activeReferred: number; activeThreshold: number };
+    summary: { totalUsers: number; activeUsers: number; totalReferred: number; activeReferred: number; suspectReferred: number; activeThreshold: number };
     referrers: Referrer[];
   };
 }
@@ -63,13 +68,19 @@ export function GrowthOverview() {
 
   const { summary, referrers } = data!.data;
 
+  const review = async (referralId: string, suspect: boolean) => {
+    await adminFetch(`/referrals/${referralId}/review`, { method: 'POST', body: JSON.stringify({ suspect }) });
+    refetch();
+  };
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(5, 1fr)' }, gap: 2 }}>
         <StatCard label="Total users" value={summary.totalUsers.toLocaleString()} />
         <StatCard label="Active users" value={summary.activeUsers.toLocaleString()} color={t.success} hint={`≥${summary.activeThreshold} real predictions`} />
         <StatCard label="Referred users" value={summary.totalReferred.toLocaleString()} />
         <StatCard label="Active referred" value={summary.activeReferred.toLocaleString()} color={t.success} />
+        <StatCard label="Suspect referred" value={summary.suspectReferred.toLocaleString()} color={summary.suspectReferred > 0 ? t.error : undefined} hint="Flagged sybil/self-referrals" />
       </Box>
 
       <SectionCard title="Referrers">
@@ -97,7 +108,14 @@ export function GrowthOverview() {
                         onClick={() => setExpanded(open ? null : r.referrerWallet)}
                       >
                         <TableCell>
-                          {r.displayName ?? <IdCell value={r.referrerWallet} />}
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {r.displayName ?? <IdCell value={r.referrerWallet} />}
+                            {r.suspectCount > 0 && (
+                              <Box component="span" sx={{ fontSize: '0.68rem', fontWeight: 700, color: t.error }}>
+                                {r.suspectCount} suspect
+                              </Box>
+                            )}
+                          </Box>
                         </TableCell>
                         <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{r.referredCount}</TableCell>
                         <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', color: r.activeReferredCount > 0 ? t.success : t.text.tertiary }}>
@@ -119,7 +137,19 @@ export function GrowthOverview() {
                                       {u.settledBets} settled / {u.totalBets} bets
                                     </Box>
                                     {u.lastActiveDate ? <TimeCell value={u.lastActiveDate} /> : <Box sx={{ fontSize: '0.72rem', color: t.text.tertiary }}>never</Box>}
+                                    {u.suspect && (
+                                      <Box component="span" title={u.suspectReason ?? 'Flagged'} sx={{ px: 0.8, py: 0.2, borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700, color: t.error, bgcolor: `${t.error}22`, cursor: 'help' }}>
+                                        Suspect
+                                      </Box>
+                                    )}
                                     <ActivePill active={u.active} />
+                                    <Box
+                                      component="button"
+                                      onClick={() => review(u.referralId, !u.suspect)}
+                                      sx={{ px: 1, py: 0.3, borderRadius: '4px', fontSize: '0.68rem', fontWeight: 700, cursor: 'pointer', border: `1px solid ${t.border.subtle}`, bgcolor: 'transparent', color: t.text.secondary, '&:hover': { color: t.text.primary, borderColor: t.border.medium } }}
+                                    >
+                                      {u.suspect ? 'Clear' : 'Flag'}
+                                    </Box>
                                   </Box>
                                 </Box>
                               ))}

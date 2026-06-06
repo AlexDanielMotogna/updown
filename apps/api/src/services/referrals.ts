@@ -59,6 +59,7 @@ export async function resolveReferralCode(code: string): Promise<string | null> 
 export async function acceptReferral(
   referredWallet: string,
   referralCode: string,
+  signals?: { ip?: string | null; deviceFingerprint?: string | null },
 ): Promise<{ success: boolean; error?: string }> {
   const referrer = await prisma.user.findFirst({
     where: { referralCode: referralCode },
@@ -78,11 +79,37 @@ export async function acceptReferral(
   if (!referred) return { success: false, error: 'User not found' };
   if (referred.referredBy) return { success: false, error: 'Already has a referrer' };
 
+  // Anti-cheat: flag (don't ban) when this referrer already invited someone
+  // from the same device or IP — the classic self-referral / sybil signal.
+  const fp = signals?.deviceFingerprint ?? null;
+  const ip = signals?.ip ?? null;
+  let suspect = false;
+  let suspectReason: string | null = null;
+  const ors: Array<Record<string, string>> = [];
+  if (fp) ors.push({ deviceFingerprint: fp });
+  if (ip) ors.push({ signupIp: ip });
+  if (ors.length > 0) {
+    const collision = await prisma.referral.findFirst({
+      where: { referrerWallet: referrer.walletAddress, OR: ors },
+      select: { deviceFingerprint: true },
+    });
+    if (collision) {
+      suspect = true;
+      suspectReason = fp && collision.deviceFingerprint === fp
+        ? 'Same device as another referral from this referrer'
+        : 'Same IP as another referral from this referrer';
+    }
+  }
+
   await prisma.$transaction(async (tx) => {
     await tx.referral.create({
       data: {
         referrerWallet: referrer.walletAddress,
         referredWallet,
+        signupIp: ip,
+        deviceFingerprint: fp,
+        suspect,
+        suspectReason,
       },
     });
     await tx.user.update({
