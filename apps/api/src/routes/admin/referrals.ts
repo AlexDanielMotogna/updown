@@ -19,6 +19,7 @@ adminReferralsRouter.get('/', async (_req, res) => {
       select: {
         id: true, referrerWallet: true, referredWallet: true, createdAt: true,
         suspect: true, suspectReason: true, reviewed: true,
+        signupIp: true, deviceFingerprint: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -52,6 +53,8 @@ adminReferralsRouter.get('/', async (_req, res) => {
           suspect: r.suspect,
           suspectReason: r.suspectReason,
           reviewed: r.reviewed,
+          signupIp: r.signupIp,
+          deviceFingerprint: r.deviceFingerprint,
         };
       });
       const refUser = byWallet.get(referrerWallet);

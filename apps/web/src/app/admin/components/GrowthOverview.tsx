@@ -25,6 +25,8 @@ interface ReferredUser {
   suspect: boolean;
   suspectReason: string | null;
   reviewed: boolean;
+  signupIp: string | null;
+  deviceFingerprint: string | null;
 }
 interface Referrer {
   referrerWallet: string;
@@ -157,7 +159,13 @@ export function GrowthOverview() {
                             <Box sx={{ px: 2, py: 1.5, bgcolor: t.bg.app }}>
                               {r.referred.map((u) => (
                                 <Box key={u.walletAddress} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 0.6 }}>
-                                  <Box sx={{ minWidth: 0 }}>{u.displayName ?? <IdCell value={u.walletAddress} />}</Box>
+                                  <Box sx={{ minWidth: 0 }}>
+                                    {u.displayName ?? <IdCell value={u.walletAddress} />}
+                                    <Box sx={{ display: 'flex', gap: 1.5, mt: 0.2, fontSize: '0.68rem', color: t.text.tertiary, fontFamily: 'monospace' }}>
+                                      <Box component="span" title={u.signupIp ?? 'no IP captured'}>IP {u.signupIp ?? '—'}</Box>
+                                      <Box component="span" title={u.deviceFingerprint ?? 'no fingerprint captured'}>FP {u.deviceFingerprint ?? '—'}</Box>
+                                    </Box>
+                                  </Box>
                                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
                                     <Box sx={{ fontSize: '0.75rem', color: t.text.secondary, fontVariantNumeric: 'tabular-nums' }}>
                                       {u.settledBets} settled / {u.totalBets} bets
