@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Typography, Avatar } from '@mui/material';
-import { CheckCircle } from '@mui/icons-material';
+import { CheckCircle, CardGiftcard } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useThemeTokens } from '@/app/providers';
@@ -102,12 +102,16 @@ export function MilestoneProgress() {
       </Box>
 
       {self && (
-        <Typography sx={{ fontSize: '0.74rem', color: t.text.secondary, mb: 1.5 }}>
-          You: <b>{self.settledBets}</b> predictions ·{' '}
-          <Box component="span" sx={{ color: self.qualified ? t.gain : t.text.tertiary, fontWeight: 700 }}>
-            {self.qualified ? 'qualified for airdrops' : `${activeThreshold - self.settledBets} more to qualify`}
-          </Box>
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1.5, px: 1.25, py: 0.75, borderRadius: 1, bgcolor: self.qualified ? withAlpha(t.gain, 0.1) : t.hover.light }}>
+          {self.qualified
+            ? <CheckCircle sx={{ fontSize: 16, color: t.gain }} />
+            : <CardGiftcard sx={{ fontSize: 16, color: t.gold }} />}
+          <Typography sx={{ fontSize: '0.76rem', color: t.text.secondary }}>
+            {self.qualified
+              ? <>You <b style={{ color: t.gain }}>qualify</b> for milestone airdrops ({self.settledBets} predictions)</>
+              : <>Make <b style={{ color: t.gold }}>{activeThreshold - self.settledBets} more predictions</b> to qualify for milestone airdrops</>}
+          </Typography>
+        </Box>
       )}
 
       {/* Effort leaderboard */}
