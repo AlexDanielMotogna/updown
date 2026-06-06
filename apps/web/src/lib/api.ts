@@ -519,6 +519,30 @@ export async function fetchMilestones(wallet?: string): Promise<ApiResponse<Mile
   return fetchApi<MilestoneState>(`/api/milestones${q}`);
 }
 
+export interface LineupPlayer {
+  id: string | null;
+  name: string;
+  number: string | null;
+  position: string | null;
+  positionShort: string | null;
+  cutout: string | null;
+  substitute: boolean;
+}
+export interface SideLineup {
+  team: string | null;
+  formation: string | null;
+  starters: LineupPlayer[];
+  subs: LineupPlayer[];
+}
+export interface EventLineup {
+  hasData: boolean;
+  home: SideLineup | null;
+  away: SideLineup | null;
+}
+export async function fetchLineup(matchId: string): Promise<ApiResponse<EventLineup>> {
+  return fetchApi<EventLineup>(`/api/lineups/${encodeURIComponent(matchId)}`);
+}
+
 export async function registerUser(
   walletAddress: string,
 ): Promise<ApiResponse<UserProfile>> {
