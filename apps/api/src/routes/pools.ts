@@ -14,7 +14,7 @@ const poolFilterSchema = z.object({
   asset: z.string().optional(),
   interval: z.string().optional(),
   status: z.string().optional(), // Single status or comma-separated list (e.g. "JOINING,ACTIVE")
-  type: z.enum(['CRYPTO', 'SPORTS']).optional(), // Pool type filter
+  type: z.enum(['CRYPTO', 'SPORTS', 'POLYMARKET']).optional(), // Pool type filter
   league: z.string().optional(), // League/category code (e.g. "PL", "PM_POLITICS")
   tag: z.string().optional(), // Subcategory tag filter (PM pools)
   page: z.coerce.number().min(1).default(1),

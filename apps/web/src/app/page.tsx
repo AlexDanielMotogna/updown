@@ -93,7 +93,7 @@ export default function MarketsPage() {
   const filters = useMemo(() => ({
     asset: assetFilter === 'ALL' ? undefined : assetFilter,
     interval: intervalFilter === 'ALL' ? undefined : intervalFilter,
-    type: isPM ? 'SPORTS' : (marketType === 'TRENDING' ? undefined : marketType),
+    type: isPM ? 'POLYMARKET' : (marketType === 'TRENDING' ? undefined : marketType),
     league: isPM ? marketType : undefined,
     tag: isPM && pmTagFilter !== 'ALL' ? pmTagFilter : undefined,
     status: marketType === 'SPORTS' || isPM ? 'JOINING,ACTIVE,CLAIMABLE,RESOLVED' : 'JOINING',
