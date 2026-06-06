@@ -71,7 +71,11 @@ export async function getEventLineup(matchId: string): Promise<EventLineup> {
   let data: EventLineup = { hasData: false, home: null, away: null };
   try {
     const res = await sportsDbFetchV2(`lookup/event_lineup/${matchId}`);
-    const rows: any[] = Array.isArray(res?.lookup) ? res.lookup : [];
+    const all: any[] = Array.isArray(res?.lookup) ? res.lookup : [];
+    // Only trust rows whose idEvent matches the requested match — guards against
+    // ever showing a different/previous fixture's lineup (sports that play the
+    // next day have bitten us before with stale cross-match data).
+    const rows = all.filter(r => String(r.idEvent) === String(matchId));
     if (rows.length > 0) {
       const home = buildSide(rows.filter(r => r.strHome === 'Yes'));
       const away = buildSide(rows.filter(r => r.strHome === 'No'));
