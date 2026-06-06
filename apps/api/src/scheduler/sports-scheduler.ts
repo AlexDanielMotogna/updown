@@ -128,8 +128,10 @@ async function _createMatchPoolsInner(): Promise<void> {
       const maxHours = cat.maxDaysAhead * 24;
 
       for (const match of matches) {
+        // Match on matchId only — catches both legacy PM pools (poolType SPORTS)
+        // and new ones (poolType POLYMARKET) so we never double-create.
         const existing = await prisma.pool.findFirst({
-          where: { matchId: match.id, poolType: 'SPORTS' },
+          where: { matchId: match.id },
         });
         if (existing) continue;
 
@@ -413,13 +415,32 @@ export async function createSportsPool(match: Match, leagueCode: string): Promis
   const kickoff = match.kickoff;
   const durationHours = await getMatchDurationHours(leagueCode);
   const durationMs = durationHours * 60 * 60 * 1000;
-  const lockTime = isPolymarket
-    ? new Date(kickoff.getTime() - 60 * 60 * 1000) // PM: lock 1h before endDate
-    : new Date(kickoff.getTime() - 60 * 1000);      // Sports: lock 1min before kickoff
-  const startTime = kickoff;
-  const endTime = new Date(kickoff.getTime() + durationMs);
-  const durationSeconds = durationHours * 60 * 60;
   const interval = isPolymarket ? 'prediction' : 'match';
+
+  let startTime: Date, lockTime: Date, endTime: Date, durationSeconds: number;
+  if (isPolymarket) {
+    // PM time model: bet from NOW → lock shortly before the market's deadline
+    // (endDate) → pool ends at the deadline; resolution happens after, on-chain
+    // via CTF. The old model set startTime = endDate, which put lockTime
+    // (endDate−1h) BEFORE startTime — an inverted, nonsensical window.
+    const endDate = kickoff; // cache.kickoff == market.endDate for PM
+    const now = new Date();
+    const PM_LOCK_BUFFER_MS = 60 * 60 * 1000; // close betting 1h before the deadline
+    startTime = now;
+    lockTime = new Date(endDate.getTime() - PM_LOCK_BUFFER_MS);
+    endTime = endDate;
+    durationSeconds = Math.max(1, Math.floor((endTime.getTime() - startTime.getTime()) / 1000));
+    if (lockTime.getTime() <= now.getTime()) {
+      // Deadline is within the lock buffer — no meaningful betting window left.
+      console.warn(`[PM] Skipping ${match.id}: endDate too close (lockTime <= now)`);
+      return null;
+    }
+  } else {
+    lockTime = new Date(kickoff.getTime() - 60 * 1000); // Sports: lock 1min before kickoff
+    startTime = kickoff;
+    endTime = new Date(kickoff.getTime() + durationMs);
+    durationSeconds = durationHours * 60 * 60;
+  }
 
   try {
     const connection = getConnection();
@@ -451,7 +472,7 @@ export async function createSportsPool(match: Match, leagueCode: string): Promis
         totalDown: BigInt(0),
         totalDraw: BigInt(0),
         numSides: adapter.numSides,
-        poolType: 'SPORTS',
+        poolType: isPolymarket ? 'POLYMARKET' : 'SPORTS',
         matchId: match.id,
         homeTeam: match.homeTeam,
         awayTeam: match.awayTeam,
