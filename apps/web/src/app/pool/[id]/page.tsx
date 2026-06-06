@@ -18,6 +18,7 @@ import {
   AiAnalyzerBot,
 } from '@/components';
 import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter';
+import { kindOf } from '@/lib/poolKind';
 import { useThemeTokens } from '@/app/providers';
 import { PlaceBetCard } from '@/components/pool/PlaceBetCard';
 import { InlineChart } from '@/components/pool/InlineChart';
@@ -65,7 +66,7 @@ export default function PoolDetailPage() {
 
   // Sports / PM pools live at /match - bounce there if someone deep-links to /pool.
   useEffect(() => {
-    if (pool?.poolType === 'SPORTS') {
+    if (pool && kindOf(pool) !== 'crypto') {
       router.replace(`/match/${pool.id}`);
     }
   }, [pool, router]);

@@ -16,6 +16,7 @@ import { OddsChart } from '@/components/pool/OddsChart';
 import { useLiveScore, isMatchActive, isMatchFinished, formatLiveStatus } from '@/hooks/useLiveScores';
 import { LiveBadge } from '@/components/LiveBadge';
 import type { Pool } from '@/lib/api';
+import { kindOf } from '@/lib/poolKind';
 import type { CategoryConfig } from '@/hooks/useCategories';
 import { getAssetName } from '@/lib/assets';
 
@@ -143,7 +144,7 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
   // early return. Falls back to null when the current pool is crypto or
   // PM, which the hook handles without firing a request.
   const currentPool = count > 0 ? pools[safeIndex] : null;
-  const currentIsSports = currentPool != null && currentPool.poolType === 'SPORTS' && !currentPool.league?.startsWith('PM_');
+  const currentIsSports = currentPool != null && kindOf(currentPool) === 'sports';
   const liveScore = useLiveScore(currentIsSports ? currentPool!.id : null);
   const matchLive = liveScore != null && isMatchActive(liveScore);
   const matchFinished = liveScore != null && isMatchFinished(liveScore.status);
@@ -151,8 +152,8 @@ export function FeaturedHero({ pools, categoryMap, onSelect }: Props) {
   if (count === 0) return null;
   const pool = pools[safeIndex];
 
-  const isPrediction = !!pool.league?.startsWith('PM_');
-  const isCrypto = pool.poolType !== 'SPORTS';
+  const isPrediction = kindOf(pool) === 'pm';
+  const isCrypto = kindOf(pool) === 'crypto';
   const isTwoWay = isCrypto || isPrediction || pool.numSides === 2;
 
   // Category chip

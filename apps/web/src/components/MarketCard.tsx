@@ -16,6 +16,7 @@ import { getIcon } from '@/lib/icon-registry';
 import { YES_ICON, NO_ICON } from '@/lib/predictionIcons';
 import { INTERVAL_LABELS } from '@/lib/constants';
 import { formatPredictionWindow } from '@/lib/format';
+import { kindOf } from '@/lib/poolKind';
 import { getAssetName } from '@/lib/assets';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
@@ -75,8 +76,9 @@ interface MarketCardProps {
 export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScore, isPopular }: MarketCardProps) {
   const t = useThemeTokens();
 
-  const isPrediction = !!pool.league?.startsWith('PM_');
-  const isCrypto = pool.poolType !== 'SPORTS';
+  const kind = kindOf(pool);
+  const isPrediction = kind === 'pm';
+  const isCrypto = kind === 'crypto';
   const isTwoWay = isCrypto || isPrediction || pool.numSides === 2;
   const isResolved = pool.status === 'CLAIMABLE' || pool.status === 'RESOLVED';
   const isLocked = !isResolved && !!pool.lockTime && new Date(pool.lockTime).getTime() < Date.now();
@@ -94,7 +96,7 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
   // Only relevant on sports pools (PM markets don't have a notion of FT).
   // Computed before `matchLive` so a stuck "2H 95'" feed state doesn't keep
   // the LIVE indicator pulsing past the grace window.
-  const awaitingFinalFeed = pool.poolType === 'SPORTS' && !isPrediction
+  const awaitingFinalFeed = kind === 'sports'
     && isAwaitingFinalResult({ startTime: pool.startTime, status: pool.status, league: pool.league }, liveScore?.status);
   const matchLive = !isResolved && liveScore != null && isMatchActive(liveScore) && !awaitingFinalFeed;
 

@@ -7,6 +7,7 @@ import { getIcon } from '@/lib/icon-registry';
 import { useThemeTokens } from '@/app/providers';
 import { MarketCard } from './MarketCard';
 import type { Pool } from '@/lib/api';
+import { kindOf } from '@/lib/poolKind';
 import type { CategoryConfig } from '@/hooks/useCategories';
 import type { LiveScore } from '@/hooks/useLiveScores';
 
@@ -34,7 +35,8 @@ export function MarketSections({ pools, categoryMap, liveScores, userBetByPoolId
 
   const grouped = new Map<string, Pool[]>();
   for (const p of pools) {
-    const key = p.poolType !== 'SPORTS' ? 'CRYPTO' : p.league?.startsWith('PM_') ? p.league! : 'SPORTS';
+    const k = kindOf(p);
+    const key = k === 'crypto' ? 'CRYPTO' : k === 'pm' ? p.league! : 'SPORTS';
     const arr = grouped.get(key);
     if (arr) arr.push(p);
     else grouped.set(key, [p]);

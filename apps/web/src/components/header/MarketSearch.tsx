@@ -6,6 +6,7 @@ import { Search, Close } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { searchPools, fetchTrendingPools, type PoolSearchResult } from '@/lib/api';
+import { kindOf } from '@/lib/poolKind';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import { AssetIcon } from '@/components/AssetIcon';
@@ -16,7 +17,7 @@ function resultLabel(r: PoolSearchResult): string {
   // Crypto rows reuse the same headline the cards use ("Bitcoin Up or
   // Down · 5m") instead of the bare "BTC · 5m" so the dropdown reads
   // like a real market list rather than an asset ticker.
-  if (r.poolType !== 'SPORTS') {
+  if (kindOf(r) === 'crypto') {
     const intervalLabel = INTERVAL_LABELS[r.interval] || r.interval;
     return `${getAssetName(r.asset)} Up or Down · ${intervalLabel}`;
   }
@@ -25,7 +26,7 @@ function resultLabel(r: PoolSearchResult): string {
 }
 
 function resultCategory(r: PoolSearchResult): string {
-  if (r.poolType !== 'SPORTS') return 'Crypto';
+  if (kindOf(r) === 'crypto') return 'Crypto';
   if (r.league?.startsWith('PM_')) {
     return r.league.slice(3).replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
   }
@@ -84,7 +85,7 @@ export function MarketSearch() {
   const isFetching = isSearchMode ? searchFetching : trendingFetching;
 
   const navigate = (r: PoolSearchResult) => {
-    router.push(r.poolType !== 'SPORTS' ? `/pool/${r.id}` : `/match/${r.id}`);
+    router.push(kindOf(r) === 'crypto' ? `/pool/${r.id}` : `/match/${r.id}`);
     setOpen(false);
     setValue('');
   };
@@ -175,7 +176,7 @@ export function MarketSearch() {
                       via AssetIcon (same identity the cards use), sports
                       / PM keep the homeTeamCrest. Falls back to a coloured
                       initial when neither path resolves. */}
-                  {r.poolType !== 'SPORTS' ? (
+                  {kindOf(r) === 'crypto' ? (
                     <Box sx={{ flexShrink: 0, display: 'flex' }}>
                       <AssetIcon asset={r.asset} size={22} />
                     </Box>

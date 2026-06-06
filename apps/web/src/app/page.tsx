@@ -27,6 +27,7 @@ import { MarketFilter, type MarketType, type SortFilter } from '@/components/spo
 import { useQuery } from '@tanstack/react-query';
 import { useMarketsLiveSync } from '@/hooks/useMarketsLiveSync';
 import { fetchPools } from '@/lib/api';
+import { kindOf } from '@/lib/poolKind';
 import { useThemeTokens } from '@/app/providers';
 
 const ASSET_FILTERS = [
@@ -252,9 +253,9 @@ export default function MarketsPage() {
   }, [sortFilter, getPoolLiveScore, FINISHED_STATUSES]);
 
   // Split pools by type for conditional rendering
-  const cryptoPools = useMemo(() => applySortFilter(sortedPools.filter(p => p.poolType !== 'SPORTS')), [sortedPools, applySortFilter]);
+  const cryptoPools = useMemo(() => applySortFilter(sortedPools.filter(p => kindOf(p) === 'crypto')), [sortedPools, applySortFilter]);
   const sportsPools = useMemo(() => {
-    const allSports = sortedPools.filter(p => p.poolType === 'SPORTS' && !p.league?.startsWith('PM_'));
+    const allSports = sortedPools.filter(p => kindOf(p) === 'sports');
     let filtered = allSports;
 
     // Sport filter — three modes driven by the SPORT_GROUP hierarchy:
@@ -289,7 +290,7 @@ export default function MarketsPage() {
   }, [sortedPools, sportFilter, leagueFilter, categoryMap, applySortFilter]);
   const predictionPools = useMemo(() => {
     if (!isPM) return [];
-    return applySortFilter(sortedPools.filter(p => p.poolType === 'SPORTS' && p.league === marketType));
+    return applySortFilter(sortedPools.filter(p => kindOf(p) === 'pm' && p.league === marketType));
   }, [sortedPools, marketType, isPM, applySortFilter]);
 
   const CARDS_PER_PAGE = 12;
@@ -359,7 +360,7 @@ export default function MarketsPage() {
                   <FeaturedHero
                     pools={heroPools}
                     categoryMap={categoryMap}
-                    onSelect={(pool) => router.push(pool.poolType !== 'SPORTS' ? `/pool/${pool.id}` : `/match/${pool.id}`)}
+                    onSelect={(pool) => router.push(kindOf(pool) === 'crypto' ? `/pool/${pool.id}` : `/match/${pool.id}`)}
                   />
                   <MarketSections
                     pools={homePools}
@@ -368,7 +369,7 @@ export default function MarketsPage() {
                     userBetByPoolId={userBetByPoolId}
                     onClaim={(poolId, betId) => claim(poolId, betId)}
                     onSeeAll={goToType}
-                    onCardClick={(pool) => router.push(pool.poolType !== 'SPORTS' ? `/pool/${pool.id}` : `/match/${pool.id}`)}
+                    onCardClick={(pool) => router.push(kindOf(pool) === 'crypto' ? `/pool/${pool.id}` : `/match/${pool.id}`)}
                   />
                 </>
               )

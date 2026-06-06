@@ -10,9 +10,10 @@ import { INTERVAL_LABELS } from '@/lib/constants';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import { getAssetName } from '@/lib/assets';
+import { kindOf } from '@/lib/poolKind';
 
 function poolTitle(p: Pool): string {
-  if (p.poolType !== 'SPORTS') return `${getAssetName(p.asset)} ${INTERVAL_LABELS[p.interval] || p.interval}`;
+  if (kindOf(p) === 'crypto') return `${getAssetName(p.asset)} ${INTERVAL_LABELS[p.interval] || p.interval}`;
   if (p.awayTeam) return `${p.homeTeam} vs ${p.awayTeam}`;
   return p.homeTeam || 'Market';
 }
@@ -55,7 +56,7 @@ export function MarketsRightRail({ onClose }: { onClose?: () => void }) {
   const highestVol = [...active].sort((a, b) => Number(b.totalPool) - Number(a.totalPool)).slice(0, 6);
   const newest = [...active].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 6);
 
-  const go = (p: Pool) => router.push(p.poolType !== 'SPORTS' ? `/pool/${p.id}` : `/match/${p.id}`);
+  const go = (p: Pool) => router.push(kindOf(p) === 'crypto' ? `/pool/${p.id}` : `/match/${p.id}`);
 
   const List = ({ title, icon, color, pools, metric }: { title: string; icon: ReactNode; color: string; pools: Pool[]; metric: (p: Pool) => string | null }) => {
     if (pools.length === 0) return null;

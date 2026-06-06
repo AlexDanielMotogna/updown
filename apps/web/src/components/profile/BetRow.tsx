@@ -24,6 +24,7 @@ import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import { Countdown, AssetIcon } from '@/components';
 import type { Bet } from '@/lib/api';
+import { kindOf } from '@/lib/poolKind';
 const PM_MUI_ICONS: Record<string, React.ReactNode> = {
   PM_POLITICS: <Gavel sx={{ fontSize: 28 }} />,
   PM_GEO: <Public sx={{ fontSize: 28 }} />,
@@ -59,9 +60,10 @@ export function BetRow({
   const isResolving = bet.pool.status === 'ACTIVE' && new Date(bet.pool.endTime).getTime() <= Date.now();
   const statusStyle = statusStyles[bet.pool.status] || statusStyles.UPCOMING;
   const sideColor = bet.side === 'UP' ? t.up : t.down;
-  const isSports = bet.pool.poolType === 'SPORTS';
-  const isPM = bet.pool.league?.startsWith('PM_');
-  const poolLink = isSports ? `/match/${bet.pool.id}` : `/pool/${bet.pool.id}`;
+  const kind = kindOf(bet.pool);
+  const isSports = kind === 'sports';
+  const isPM = kind === 'pm';
+  const poolLink = kind === 'crypto' ? `/pool/${bet.pool.id}` : `/match/${bet.pool.id}`;
   const poolName = isPM
     ? (bet.pool.homeTeam || bet.pool.asset).slice(0, 40)
     : isSports
@@ -72,8 +74,8 @@ export function BetRow({
     : isSports
     ? (bet.side === 'UP' ? (bet.pool.homeTeam || 'Home') : bet.side === 'DOWN' ? (bet.pool.awayTeam || 'Away') : 'Draw')
     : bet.side;
-  const boxImageUrl = isSports ? null : getBoxImage(bet.pool.asset, bet.pool.interval);
-  const teamCrest = isSports && !isPM ? bet.pool.homeTeamCrest : null;
+  const boxImageUrl = kind === 'crypto' ? getBoxImage(bet.pool.asset, bet.pool.interval) : null;
+  const teamCrest = isSports ? bet.pool.homeTeamCrest : null;
 
   // Result chip - the auto-payout flow surfaces three new states between
   // "Won" and "Claimed": Paying soon (pending the scheduler), Paid (auto-

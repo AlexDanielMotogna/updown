@@ -11,6 +11,7 @@ import { getBoxImage } from '@/lib/constants';
 import { AssetIcon, EmptyMessage } from '@/components';
 import { OpenInNew } from '@mui/icons-material';
 import type { Bet } from '@/lib/api';
+import { kindOf } from '@/lib/poolKind';
 
 type ActivityType = 'BET' | 'PAID' | 'REFUND';
 
@@ -147,11 +148,12 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
   const t = useThemeTokens();
   const info = getTypeInfo(entry.type, t);
   const bet = entry.bet;
-  const isSports = bet.pool.poolType === 'SPORTS';
-  const isPM = bet.pool.league?.startsWith('PM_');
+  const kind = kindOf(bet.pool);
+  const isSports = kind === 'sports';
+  const isPM = kind === 'pm';
   const sideColor = bet.side === 'UP' ? t.up : bet.side === 'DOWN' ? t.down : t.draw;
-  const boxImageUrl = !isSports ? getBoxImage(bet.pool.asset, bet.pool.interval) : null;
-  const teamCrest = isSports && !isPM ? bet.pool.homeTeamCrest : null;
+  const boxImageUrl = kind === 'crypto' ? getBoxImage(bet.pool.asset, bet.pool.interval) : null;
+  const teamCrest = isSports ? bet.pool.homeTeamCrest : null;
   const sideLabel = isPM
     ? (bet.side === 'UP' ? 'Yes' : 'No')
     : isSports
@@ -162,7 +164,7 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
     : isSports
     ? `${bet.pool.homeTeam || ''} vs ${bet.pool.awayTeam || ''}`.trim()
     : `${bet.pool.asset}/USD`;
-  const poolLink = isSports ? `/match/${bet.pool.id}` : `/pool/${bet.pool.id}`;
+  const poolLink = kind === 'crypto' ? `/pool/${bet.pool.id}` : `/match/${bet.pool.id}`;
   const amountColor = entry.type === 'PAID' || entry.type === 'REFUND' ? t.gain : t.text.primary;
 
   return (
