@@ -73,6 +73,10 @@ interface OddsChartProps {
    *  The trending hero card sits on t.bg.surface and passes that so the
    *  hover shadow matches its own card colour instead of the page. */
   surfaceColor?: string;
+  /** Spread the series edge-to-edge (fitContent) instead of anchoring the
+   *  right edge to "now". Used by the wide trending hero so the line fills
+   *  the full chart width instead of leaving a flat seeded gap on the left. */
+  fitData?: boolean;
 }
 
 const CHART_H = 300;
@@ -98,6 +102,7 @@ export function OddsChart({
   labels,
   icons,
   surfaceColor,
+  fitData,
 }: OddsChartProps) {
   const t = useThemeTokens();
   // The colour the chart blends into (hover dim, crosshair cutout, overlays).
@@ -620,7 +625,19 @@ export function OddsChart({
     try {
       const chart = chartRef.current;
       const firstTime = upData[0]?.time;
-      if (chart && firstTime != null) {
+      if (chart && fitData) {
+        // Wide hero: skip the flat seeded lead-in (no bets yet) and spread the
+        // real movement edge-to-edge so the line fills the whole width.
+        const base = upData[0]?.value;
+        const moveIdx = upData.findIndex(p => p.value !== base);
+        const from = moveIdx > 0 ? upData[moveIdx - 1].time : upData[0]?.time;
+        const to = upData[upData.length - 1]?.time;
+        if (from != null && to != null && Number(to) > Number(from)) {
+          chart.timeScale().setVisibleRange({ from, to });
+        } else {
+          chart.timeScale().fitContent();
+        }
+      } else if (chart && firstTime != null) {
         const nowSec = Math.floor(Date.now() / 1000) as UTCTimestamp;
         if (Number(nowSec) > Number(firstTime)) {
           chart.timeScale().setVisibleRange({ from: firstTime, to: nowSec });
