@@ -5,6 +5,7 @@ import { sportsDbFetch } from '../../services/sports/api-sports-fetch';
 import { readCtfResolution } from '../../services/polymarket/ctf-resolver';
 import { isFinishedStatus } from '../../services/sports/livescore';
 import { getCachedFixtureResults } from '../../services/sports/fixture-cache';
+import { fetchFinalResultFromChatGPT } from '../../services/sports/llm-result';
 
 export const adminResolutionInspectorRouter: RouterType = Router();
 
@@ -166,5 +167,43 @@ adminResolutionInspectorRouter.get('/', async (req, res) => {
   } catch (error) {
     console.error('[Admin] resolution-inspector error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to inspect resolution' } });
+  }
+});
+
+/**
+ * GET /admin/resolution-inspector/llm?poolId=X
+ * Ask ChatGPT for the FINAL result of a stuck sports pool's match. Read-only —
+ * returns a SUGGESTION (score + winner + confidence) for the admin to verify;
+ * never resolves anything.
+ */
+adminResolutionInspectorRouter.get('/llm', async (req, res) => {
+  try {
+    const q = String(req.query.poolId ?? '').trim();
+    if (!q) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'poolId required' } });
+    const pool = await prisma.pool.findFirst({
+      where: { OR: [{ id: q }, { poolId: q }] },
+      select: { homeTeam: true, awayTeam: true, league: true, startTime: true, poolType: true },
+    });
+    if (!pool) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Pool not found' } });
+    if (pool.poolType !== 'SPORTS' || !pool.homeTeam || !pool.awayTeam) {
+      return res.status(400).json({ success: false, error: { code: 'NOT_SUPPORTED', message: 'LLM result lookup is for sports pools with two teams' } });
+    }
+
+    const date = pool.startTime.toISOString().slice(0, 10);
+    const payload = await fetchFinalResultFromChatGPT({
+      homeTeam: pool.homeTeam, awayTeam: pool.awayTeam, date, league: pool.league ?? 'football',
+    });
+
+    // Map the suggested score to our 3-way winner (home=UP, away=DOWN, draw).
+    let suggestedWinner: 'UP' | 'DOWN' | 'DRAW' | null = null;
+    const r = payload.result;
+    if (r && r.homeScore != null && r.awayScore != null) {
+      suggestedWinner = r.homeScore > r.awayScore ? 'UP' : r.awayScore > r.homeScore ? 'DOWN' : 'DRAW';
+    }
+
+    res.json({ success: true, data: { ...payload, suggestedWinner } });
+  } catch (error) {
+    console.error('[Admin] llm result error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch LLM result' } });
   }
 });

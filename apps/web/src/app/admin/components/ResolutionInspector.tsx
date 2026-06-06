@@ -15,6 +15,13 @@ interface InspectData {
   };
   checks: Check[];
 }
+interface LlmData {
+  sent: { homeTeam: string; awayTeam: string; date: string; league: string };
+  model: string;
+  result: { homeScore: number | null; awayScore: number | null; finished: boolean; confident: boolean; note?: string } | null;
+  error?: string;
+  suggestedWinner: 'UP' | 'DOWN' | 'DRAW' | null;
+}
 
 function Badge({ resolved }: { resolved: boolean | null }) {
   const [label, color] = resolved === true ? ['RESOLVED', t.success]
@@ -32,11 +39,13 @@ export function ResolutionInspector() {
   const [data, setData] = useState<InspectData | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [llm, setLlm] = useState<LlmData | null>(null);
+  const [llmLoading, setLlmLoading] = useState(false);
 
   const run = async () => {
     const q = poolId.trim();
     if (!q) return;
-    setLoading(true); setErr(null);
+    setLoading(true); setErr(null); setLlm(null);
     try {
       const r = await adminFetch<{ data: InspectData }>(`/resolution-inspector?poolId=${encodeURIComponent(q)}`);
       setData(r.data);
@@ -44,6 +53,20 @@ export function ResolutionInspector() {
       setErr((e as Error).message); setData(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const askLlm = async () => {
+    const q = poolId.trim();
+    if (!q) return;
+    setLlmLoading(true); setLlm(null);
+    try {
+      const r = await adminFetch<{ data: LlmData }>(`/resolution-inspector/llm?poolId=${encodeURIComponent(q)}`);
+      setLlm(r.data);
+    } catch (e) {
+      setLlm({ sent: { homeTeam: '', awayTeam: '', date: '', league: '' }, model: '', result: null, error: (e as Error).message, suggestedWinner: null });
+    } finally {
+      setLlmLoading(false);
     }
   };
 
@@ -70,6 +93,14 @@ export function ResolutionInspector() {
             sx={{ px: 2.5, py: 1, borderRadius: 1, fontSize: '0.85rem', fontWeight: 800, cursor: 'pointer', border: 'none', bgcolor: t.success, color: '#000', opacity: loading ? 0.6 : 1 }}
           >
             Check
+          </Box>
+          <Box
+            component="button"
+            onClick={askLlm}
+            disabled={llmLoading}
+            sx={{ px: 2, py: 1, borderRadius: 1, fontSize: '0.85rem', fontWeight: 800, cursor: 'pointer', border: `1px solid ${t.border.medium}`, bgcolor: 'transparent', color: t.text.primary, opacity: llmLoading ? 0.6 : 1 }}
+          >
+            {llmLoading ? 'Asking…' : 'Ask ChatGPT'}
           </Box>
         </Box>
         <Box sx={{ mt: 1, fontSize: '0.72rem', color: t.text.tertiary }}>
@@ -108,6 +139,36 @@ export function ResolutionInspector() {
               </Box>
             ))}
           </Box>
+        </SectionCard>
+      )}
+
+      {llm && (
+        <SectionCard title="ChatGPT result suggestion">
+          <Box sx={{ fontSize: '0.72rem', color: t.text.tertiary, mb: 1.5 }}>
+            Suggestion only - verify against a real source before resolving. Never auto-applied.
+          </Box>
+          {llm.sent.homeTeam && (
+            <Box sx={{ fontSize: '0.76rem', color: t.text.secondary, mb: 1 }}>
+              <Label>Asked</Label> {llm.sent.homeTeam} vs {llm.sent.awayTeam} · {llm.sent.date} · {llm.sent.league} <span style={{ opacity: 0.6 }}>({llm.model})</span>
+            </Box>
+          )}
+          {llm.error ? (
+            <Box sx={{ color: t.error, fontSize: '0.82rem' }}>Error: {llm.error}</Box>
+          ) : llm.result ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+              <Box sx={{ fontSize: '1rem', fontWeight: 800, color: t.text.primary }}>
+                {llm.sent.homeTeam} {llm.result.homeScore ?? '?'} - {llm.result.awayScore ?? '?'} {llm.sent.awayTeam}
+              </Box>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', fontSize: '0.8rem', color: t.text.secondary }}>
+                <span><Label>Winner</Label> <b style={{ color: t.text.primary }}>{llm.suggestedWinner ?? '-'}</b></span>
+                <span><Label>Finished</Label> {llm.result.finished ? 'yes' : 'no'}</span>
+                <span><Label>Confident</Label> <b style={{ color: llm.result.confident ? t.success : t.warning }}>{llm.result.confident ? 'yes' : 'no'}</b></span>
+              </Box>
+              {llm.result.note && <Box sx={{ fontSize: '0.76rem', color: t.text.tertiary, fontStyle: 'italic' }}>{llm.result.note}</Box>}
+            </Box>
+          ) : (
+            <Box sx={{ color: t.text.tertiary, fontSize: '0.82rem' }}>No result returned.</Box>
+          )}
         </SectionCard>
       )}
     </Box>
