@@ -10,6 +10,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import { useRouter } from 'next/navigation';
 import {
   useNotificationStore,
@@ -34,6 +35,7 @@ function getSeverityIcon(severity: NotificationSeverity, type: string) {
   if (type === 'POOL_WON' || type === 'POOL_CLAIMABLE' || type === 'BET_PAID') return <EmojiEventsIcon sx={{ fontSize: 22, color: GAIN_COLOR }} />;
   if (type === 'TOURNAMENT_ENTRY_PAID' || type === 'DEPOSIT_SUCCESS') return <Typography sx={{ fontSize: 18, fontWeight: 800, color: GAIN_COLOR, width: 22, textAlign: 'center' }}>$</Typography>;
   if (type === 'CLAIM_SUCCESS' || type === 'REFUND_RECEIVED') return <Box component="img" src="/coins/usdc-coin.png" alt="USDC" sx={{ width: 22, height: 22 }} />;
+  if (type === 'POOL_LOST') return <TrendingDownIcon sx={{ fontSize: 22, color: DOWN_COLOR }} />;
   switch (severity) {
     case 'success':
       return <CheckCircleOutlineIcon sx={{ fontSize: 22, color: GAIN_COLOR }} />;

@@ -19,6 +19,7 @@ import {
   WarningAmber,
   InfoOutlined,
   EmojiEvents,
+  TrendingDown,
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 import { useNotificationStore, type Notification, type NotificationSeverity } from '@/stores/notificationStore';
@@ -36,6 +37,8 @@ function getSeverityIcon(severity: NotificationSeverity, type: string) {
     return <Typography sx={{ fontSize: 16, fontWeight: 800, color: GAIN_COLOR, width: 18, textAlign: 'center' }}>$</Typography>;
   if (type === 'CLAIM_SUCCESS' || type === 'REFUND_RECEIVED')
     return <Box component="img" src="/coins/usdc-coin.png" alt="USDC" sx={{ width: 18, height: 18 }} />;
+  if (type === 'POOL_LOST')
+    return <TrendingDown sx={{ fontSize: 18, color: DOWN_COLOR }} />;
   switch (severity) {
     case 'success': return <CheckCircleOutline sx={{ fontSize: 18, color: GAIN_COLOR }} />;
     case 'info': return <InfoOutlined sx={{ fontSize: 18, color: ACCENT_COLOR }} />;
