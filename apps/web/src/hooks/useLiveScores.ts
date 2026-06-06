@@ -154,7 +154,12 @@ export function isAwaitingFinalResult(
   if (pool.status === 'RESOLVED' || pool.status === 'CLAIMABLE' || pool.status === 'CANCELLED') return false;
   // Feed already says finished — handled by the existing `matchFinished` path.
   if (liveScoreStatus && FINISHED_STATUSES.has(liveScoreStatus)) return false;
-  // Past expected end → awaiting.
+  // Feed is actively reporting an in-play status (1H/2H/HT/ET…) — the match is
+  // still going (e.g. stoppage time at 90+3), so it's NOT "awaiting the final
+  // whistle". Without this guard the expected-end clock fired during stoppage
+  // and the header showed "Full Time" while the match was still live.
+  if (liveScoreStatus && liveScoreStatus !== 'NS' && liveScoreStatus !== 'TBD') return false;
+  // No live status / feed went silent past expected end → awaiting.
   return Date.now() > expectedMatchEndMs(pool.startTime, pool.league);
 }
 
