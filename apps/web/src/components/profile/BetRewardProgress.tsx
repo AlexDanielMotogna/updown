@@ -5,6 +5,7 @@ import { CardGiftcard } from '@mui/icons-material';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import type { UserProfile } from '@/lib/api';
+import { UpIcon } from '@/components/UpIcon';
 
 /**
  * Testing-campaign nudge: progress toward the one-time UP reward at 20 real
@@ -27,7 +28,7 @@ export function BetRewardProgress({ reward }: { reward: UserProfile['testingRewa
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: t.text.primary }}>
           {remaining} more prediction{remaining === 1 ? '' : 's'} to earn{' '}
-          <Box component="span" sx={{ color: t.gold, fontWeight: 800 }}>{reward.amount.toLocaleString()} UP</Box>
+          <Box component="span" sx={{ color: t.gold, fontWeight: 800 }}>{reward.amount.toLocaleString()} <UpIcon size={14} sx={{ ml: 0.2 }} /></Box>
         </Typography>
         <Box sx={{ mt: 0.6, height: 6, borderRadius: 3, bgcolor: t.hover.medium, overflow: 'hidden' }}>
           <Box sx={{ width: `${pct}%`, height: '100%', bgcolor: t.gold, transition: 'width 0.3s ease' }} />

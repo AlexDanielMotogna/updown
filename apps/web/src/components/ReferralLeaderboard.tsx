@@ -8,6 +8,7 @@ import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import { getAvatarUrl } from '@/lib/constants';
 import { fetchReferralLeaderboard, type ReferralLeaderboardEntry } from '@/lib/api';
+import { UpIcon } from './UpIcon';
 
 function truncate(a: string): string {
   return `${a.slice(0, 4)}…${a.slice(-4)}`;
@@ -58,9 +59,12 @@ export function ReferralLeaderboard() {
       </Typography>
       <Box sx={{ flexShrink: 0, minWidth: 78, textAlign: 'right' }}>
         {e.prize > 0 ? (
-          <Typography sx={{ fontSize: '0.82rem', fontWeight: 800, color: t.gold, fontVariantNumeric: 'tabular-nums' }}>
-            {e.prize.toLocaleString()} UP
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.4 }}>
+            <Typography sx={{ fontSize: '0.82rem', fontWeight: 800, color: t.gold, fontVariantNumeric: 'tabular-nums' }}>
+              {e.prize.toLocaleString()}
+            </Typography>
+            <UpIcon size={14} />
+          </Box>
         ) : (
           <Typography sx={{ fontSize: '0.78rem', color: t.text.quaternary }}>—</Typography>
         )}

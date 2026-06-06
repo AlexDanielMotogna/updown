@@ -8,6 +8,7 @@ import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import { getAvatarUrl } from '@/lib/constants';
 import { fetchMilestones } from '@/lib/api';
+import { UpIcon } from './UpIcon';
 
 function truncate(a: string): string {
   return `${a.slice(0, 4)}…${a.slice(-4)}`;
@@ -50,7 +51,7 @@ export function MilestoneProgress() {
         <Box sx={{ mb: 2 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
             <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: t.text.secondary }}>
-              Next: <Box component="span" sx={{ color: t.gold }}>{next.label}</Box> · {next.rewardPool.toLocaleString()} UP airdrop
+              Next: <Box component="span" sx={{ color: t.gold }}>{next.label}</Box> · {next.rewardPool.toLocaleString()} <UpIcon size={14} sx={{ mx: 0.2 }} /> airdrop
             </Typography>
             <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: t.text.secondary, fontVariantNumeric: 'tabular-nums' }}>
               {totalUsers.toLocaleString()} / {next.targetUsers.toLocaleString()}
@@ -95,7 +96,10 @@ export function MilestoneProgress() {
               <Typography sx={{ fontSize: '0.66rem', fontWeight: 600, color: t.text.tertiary, fontVariantNumeric: 'tabular-nums' }}>
                 {m.targetUsers.toLocaleString()} users
               </Typography>
-              <Typography sx={{ fontSize: '0.66rem', fontWeight: 700, color: t.gold }}>{m.rewardPool / 1000}k UP</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.3, mt: 0.1 }}>
+                <Typography sx={{ fontSize: '0.66rem', fontWeight: 700, color: t.gold }}>{m.rewardPool / 1000}k</Typography>
+                <UpIcon size={14} />
+              </Box>
             </Box>
           );
         })}

@@ -9,6 +9,7 @@ import { ExpandMore } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { adminFetch } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
+import { UpIcon } from '@/components/UpIcon';
 import {
   SectionCard, StatCard, LoadingState, EmptyState, ErrorState,
   IdCell, TimeCell, Label, POLL_MEDIUM_MS,
@@ -237,7 +238,12 @@ export function GrowthOverview() {
                         </Box>
                       </TableCell>
                       <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{p.validReferrals}</TableCell>
-                      <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', color: t.gold, fontWeight: 700 }}>{p.prize.toLocaleString()}</TableCell>
+                      <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', color: t.gold, fontWeight: 700 }}>
+                        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.4 }}>
+                          {p.prize.toLocaleString()}
+                          <UpIcon size={14} />
+                        </Box>
+                      </TableCell>
                       <TableCell sx={{ color: p.status === 'paid' ? t.success : p.status === 'already_paid' ? t.text.tertiary : t.text.secondary, fontSize: '0.75rem', fontWeight: 700 }}>
                         {prizeDryRun ? 'preview' : p.status}
                       </TableCell>

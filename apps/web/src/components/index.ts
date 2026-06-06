@@ -33,4 +33,5 @@ export { LeaderboardTable } from './LeaderboardTable';
 export { LeaderboardBoards } from './LeaderboardBoards';
 export { ReferralLeaderboard } from './ReferralLeaderboard';
 export { MilestoneProgress } from './MilestoneProgress';
+export { UpIcon } from './UpIcon';
 export { InlineChart } from './pool/InlineChart';
