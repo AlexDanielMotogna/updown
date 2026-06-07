@@ -95,6 +95,9 @@ export function Header() {
                 >
                   <Box
                     sx={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 0.6,
                       px: { md: 1.25, lg: 1.5 },
                       py: 0.75,
                       borderRadius: '6px',
@@ -109,6 +112,20 @@ export function Header() {
                     }}
                   >
                     {item.label}
+                    {item.href === '/live' && (
+                      <Box
+                        component="span"
+                        sx={{
+                          width: 7,
+                          height: 7,
+                          borderRadius: '50%',
+                          bgcolor: t.down,
+                          flexShrink: 0,
+                          animation: 'navLivePulse 1.4s ease-in-out infinite',
+                          '@keyframes navLivePulse': { '0%,100%': { opacity: 1, transform: 'scale(1)' }, '50%': { opacity: 0.3, transform: 'scale(0.8)' } },
+                        }}
+                      />
+                    )}
                   </Box>
                 </Link>
               );
