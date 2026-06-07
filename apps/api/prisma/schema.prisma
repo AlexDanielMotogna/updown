@@ -719,3 +719,30 @@ model ResolutionSuggestion {
   @@index([status])
   @@map("resolution_suggestions")
 }
+
+// Single-row config for the testnet/mainnet liquidity bot. Everything tunable
+// from the admin panel — no hardcoded caps. Private keys live in env only
+// (TREASURY_SECRET_KEY, LIQUIDITY_BOT_KEYS); never stored here. All USDC amounts
+// are micro-USDC (6 decimals, e.g. 5 USDC = 5_000_000).
+model LiquidityBotConfig {
+  id                String   @id @default("default")
+  enabled           Boolean  @default(false)            // master on/off (kill switch)
+  perPoolCap        BigInt   @default(5000000)          // max bot stake per pool (5 USDC)
+  perCycleCap       BigInt   @default(20000000)         // max bot stake per cycle (20 USDC)
+  maxTotalExposure  BigInt   @default(200000000)        // max open bot stake across all pools (200 USDC)
+  treasuryFloor     BigInt   @default(25000000)         // stop funding/betting below this treasury balance (25 USDC)
+  betMin            BigInt   @default(500000)           // min single bet (0.5 USDC)
+  betMax            BigInt   @default(3000000)          // max single bet (3 USDC)
+  intervalSeconds   Int      @default(20)               // job cadence
+  lockMarginSeconds Int      @default(15)               // skip pools locking within this window
+  walletUsdcTopup   BigInt   @default(50000000)         // top a bot wallet up to this USDC when low (50 USDC)
+  walletSolTopup    Int      @default(50000000)         // SOL lamports to keep a bot wallet funded (0.05 SOL)
+  poolTypesCrypto   Boolean  @default(true)
+  poolTypesSports   Boolean  @default(true)
+  poolTypesPm       Boolean  @default(true)
+  sideStrategy      String   @default("balanced")       // balanced | skew
+  updatedAt         DateTime @updatedAt
+  createdAt         DateTime @default(now())
+
+  @@map("liquidity_bot_config")
+}

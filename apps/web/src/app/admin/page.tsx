@@ -23,8 +23,9 @@ import { ResolutionMetrics } from './components/ResolutionMetrics';
 import { GrowthOverview } from './components/GrowthOverview';
 import { ResolutionInspector } from './components/ResolutionInspector';
 import { ResolutionSuggestions } from './components/ResolutionSuggestions';
+import { LiquidityBot } from './components/LiquidityBot';
 
-const TABS = ['Health', 'Resolution', 'Pools', 'Zombies', 'Payouts', 'Finance', 'Users', 'Events', 'Actions', 'Tournaments', 'Matches', 'Predictions', 'Categories', 'Growth', 'Inspect', 'Review'] as const;
+const TABS = ['Health', 'Resolution', 'Pools', 'Zombies', 'Payouts', 'Finance', 'Users', 'Events', 'Actions', 'Tournaments', 'Matches', 'Predictions', 'Categories', 'Growth', 'Inspect', 'Review', 'Liquidity'] as const;
 
 // Detect which environment the admin is pointing at, so a single misclick
 // between the dev / prod browser tabs is obvious. Reads NEXT_PUBLIC_ENV
@@ -192,6 +193,7 @@ export default function AdminPage() {
           {tab === 13 && <GrowthOverview />}
           {tab === 14 && <ResolutionInspector />}
           {tab === 15 && <ResolutionSuggestions />}
+          {tab === 16 && <LiquidityBot />}
         </Box>
       </Box>
     </ToastProvider>
