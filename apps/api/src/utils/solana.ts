@@ -7,44 +7,79 @@ import { PublicKey, Connection, Keypair } from '@solana/web3.js';
  */
 let _connectionManager: RpcConnectionManager | null = null;
 
+const maskUrl = (url: string) => url.replace(/([?&]api-key=|\/v2\/|\/v1\/)([^&/]+)/, '$1***');
+const rpcSleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+
 class RpcConnectionManager {
   private endpoints: string[];
-  private connections: Connection[];
   private currentIndex = 0;
   private failCounts: number[];
+  private connection: Connection;
 
   constructor(endpoints: string[]) {
     this.endpoints = endpoints;
-    this.connections = endpoints.map(url => new Connection(url, 'confirmed'));
     this.failCounts = endpoints.map(() => 0);
     console.log(`[RPC] Initialized with ${endpoints.length} endpoint(s):`);
-    endpoints.forEach((url, i) => {
-      // Mask API keys in logs
-      const masked = url.replace(/([?&]api-key=|\/v2\/|\/v1\/)([^&/]+)/, '$1***');
-      console.log(`[RPC]   ${i + 1}. ${masked}`);
+    endpoints.forEach((url, i) => console.log(`[RPC]   ${i + 1}. ${maskUrl(url)}`));
+    // A single Connection whose fetch dynamically targets the ACTIVE endpoint
+    // and rotates to the next on 429 / 5xx / network error (with backoff). This
+    // makes failover transparent to every caller — no need to swap the
+    // Connection instance or wrap individual RPC calls.
+    this.connection = new Connection(endpoints[0], {
+      commitment: 'confirmed',
+      fetch: this.fetchWithFailover.bind(this),
     });
   }
 
-  /** Get current active connection */
-  get(): Connection {
-    return this.connections[this.currentIndex];
+  private rotate() {
+    this.failCounts[this.currentIndex]++;
+    const prev = this.currentIndex;
+    this.currentIndex = (this.currentIndex + 1) % this.endpoints.length;
+    if (this.endpoints.length > 1) {
+      console.warn(`[RPC] endpoint ${prev + 1} (${maskUrl(this.endpoints[prev])}) rate-limited/failed → switching to ${this.currentIndex + 1}`);
+    }
   }
 
-  /** Report a failure on the current endpoint and rotate to next */
+  /** fetch that rotates endpoints on rate-limit / transient failure. */
+  private async fetchWithFailover(_input: unknown, init?: RequestInit): Promise<Response> {
+    const maxAttempts = this.endpoints.length + 2;
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const url = this.endpoints[this.currentIndex];
+      try {
+        const res = await fetch(url, init);
+        if (res.status === 429 || res.status === 502 || res.status === 503) {
+          this.rotate();
+          await rpcSleep(Math.min(2000, 250 * 2 ** attempt));
+          continue;
+        }
+        return res;
+      } catch (e) {
+        lastErr = e;
+        this.rotate();
+        await rpcSleep(Math.min(2000, 250 * 2 ** attempt));
+      }
+    }
+    // Exhausted retries: surface the real error / final response to the caller.
+    if (lastErr) throw lastErr;
+    return fetch(this.endpoints[this.currentIndex], init);
+  }
+
+  /** Get the (single, self-failing-over) connection */
+  get(): Connection {
+    return this.connection;
+  }
+
+  /** Manual rotate (failover is also automatic in the fetch layer). */
   reportFailure(): Connection {
-    const failed = this.endpoints[this.currentIndex];
-    const masked = failed.replace(/([?&]api-key=|\/v2\/|\/v1\/)([^&/]+)/, '$1***');
-    this.failCounts[this.currentIndex]++;
-    const prevIndex = this.currentIndex;
-    this.currentIndex = (this.currentIndex + 1) % this.endpoints.length;
-    console.warn(`[RPC] Endpoint ${prevIndex + 1} failed (${masked}), switching to endpoint ${this.currentIndex + 1}`);
-    return this.connections[this.currentIndex];
+    this.rotate();
+    return this.connection;
   }
 
   /** Get stats for health monitoring */
   getStats() {
     return this.endpoints.map((url, i) => ({
-      endpoint: url.replace(/([?&]api-key=|\/v2\/|\/v1\/)([^&/]+)/, '$1***'),
+      endpoint: maskUrl(url),
       active: i === this.currentIndex,
       failures: this.failCounts[i],
     }));
