@@ -2,11 +2,12 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Box, Typography, CircularProgress } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { GridView, Speed, Timer, AvTimer, Schedule, ExpandMore, ExpandLess, CurrencyBitcoin } from '@mui/icons-material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AppShell } from '@/components';
 import { MarketCard } from '@/components/MarketCard';
+import { MarketCardSkeleton } from '@/components/MarketCardSkeleton';
 import { AssetIcon } from '@/components/AssetIcon';
 import { MarketsRightRail } from '@/components/sidebar/MarketsRightRail';
 import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter';
@@ -200,7 +201,9 @@ export default function LivePage() {
           </Box>
 
           {isLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress size={26} sx={{ color: t.text.dimmed }} /></Box>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gridAutoRows: '1fr', gap: 2 }}>
+              {Array.from({ length: 6 }).map((_, i) => <MarketCardSkeleton key={i} />)}
+            </Box>
           ) : pools.length === 0 ? (
             <Typography sx={{ textAlign: 'center', color: t.text.tertiary, py: 8 }}>Nothing live today in this filter.</Typography>
           ) : (

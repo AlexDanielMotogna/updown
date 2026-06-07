@@ -21,6 +21,7 @@ import { useLiveScores } from '@/hooks/useLiveScores';
 import { useCategoryMap } from '@/hooks/useCategories';
 import { AppShell } from '@/components';
 import { MarketCard } from '@/components/MarketCard';
+import { MarketCardSkeleton } from '@/components/MarketCardSkeleton';
 import { MarketSections } from '@/components/MarketSections';
 import { FeaturedHero } from '@/components/FeaturedHero';
 import { MarketFilter, type MarketType, type SortFilter } from '@/components/sports/MarketFilter';
@@ -352,8 +353,8 @@ export default function MarketsPage() {
             {/* Trending / Home - pools grouped into Kalshi-style category sections. */}
             {isTrending && (
               homeLoading && homePools.length === 0 ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                  <CircularProgress size={32} sx={{ color: t.accent }} />
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gridAutoRows: '1fr', gap: 2 }}>
+                  {Array.from({ length: 9 }).map((_, i) => <MarketCardSkeleton key={i} />)}
                 </Box>
               ) : (
                 <>
@@ -392,8 +393,8 @@ export default function MarketsPage() {
 
             {/* Loading State */}
             {!isTrending && isLoading && (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                <CircularProgress size={32} sx={{ color: t.up }} />
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gridAutoRows: '1fr', gap: 2 }}>
+                {Array.from({ length: 9 }).map((_, i) => <MarketCardSkeleton key={i} />)}
               </Box>
             )}
 
