@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useMemo } from 'react';
-import { Box, Typography, IconButton, Collapse, Popover, Chip } from '@mui/material';
+import { Box, Typography, IconButton, Collapse, Popover, Chip, Skeleton } from '@mui/material';
 import { ShowChart, FilterList, KeyboardArrowDown, Schedule, GridView, SportsSoccer, LocalFireDepartment, Sort, FiberManualRecord, NewReleases, History, BarChart, Timer, CheckCircleOutline } from '@mui/icons-material';
 import { useCategories, type CategoryConfig } from '@/hooks/useCategories';
 import { getIcon } from '@/lib/icon-registry';
@@ -144,7 +144,7 @@ export function MarketFilter({
 }: Props) {
   const t = useThemeTokens();
   const [showFilters, setShowFilters] = useState(false);
-  const { data: categories } = useCategories();
+  const { data: categories, isLoading: catsLoading } = useCategories();
 
   // Horizontal tabs overflow on narrow widths. No visible arrows - instead
   // make the row drag-to-scroll (mouse + touch) and translate the vertical
@@ -358,6 +358,10 @@ export function MarketFilter({
               </Box>
             );
           })}
+          {/* PM topics load dynamically — show pills while categories fetch. */}
+          {catsLoading && Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={`tab-sk-${i}`} variant="rounded" width={84} height={26} sx={{ borderRadius: '6px', flexShrink: 0, mx: 1, my: 'auto', bgcolor: t.border.subtle }} />
+          ))}
         </Box>
         {!hideFilters && (
           <IconButton

@@ -8,6 +8,7 @@ import {
   Typography,
   Alert,
   CircularProgress,
+  Skeleton,
 } from '@mui/material';
 import {
   GridView,
@@ -353,9 +354,13 @@ export default function MarketsPage() {
             {/* Trending / Home - pools grouped into Kalshi-style category sections. */}
             {isTrending && (
               homeLoading && homePools.length === 0 ? (
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gridAutoRows: '1fr', gap: 2 }}>
-                  {Array.from({ length: 9 }).map((_, i) => <MarketCardSkeleton key={i} />)}
-                </Box>
+                <>
+                  {/* Hero placeholder (trending shows a FeaturedHero on top) */}
+                  <Skeleton variant="rounded" height={300} sx={{ borderRadius: 2, mb: 3, bgcolor: t.border.subtle }} />
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gridAutoRows: '1fr', gap: 2 }}>
+                    {Array.from({ length: 9 }).map((_, i) => <MarketCardSkeleton key={i} />)}
+                  </Box>
+                </>
               ) : (
                 <>
                   <FeaturedHero

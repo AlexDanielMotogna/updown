@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Box, Typography, Chip } from '@mui/material';
+import { Box, Typography, Chip, Skeleton } from '@mui/material';
 import { ShowChart, SportsSoccer, GridView, Schedule, Bolt, Speed, Timer, ExpandMore, ExpandLess } from '@mui/icons-material';
 import { SvgIcon } from '@mui/material';
 
@@ -237,8 +237,19 @@ export function MarketSidebar() {
       scrollbarWidth: 'none',
       '&::-webkit-scrollbar': { display: 'none' },
     }}>
+      {/* Loading — categories drive every section (incl. dynamic PM topics). */}
+      {!categories && (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, px: 0.5 }}>
+          {Array.from({ length: 7 }).map((_, i) => (
+            <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 1.5, py: 1 }}>
+              <Skeleton variant="circular" width={18} height={18} sx={{ bgcolor: t.border.subtle, flexShrink: 0 }} />
+              <Skeleton variant="text" width={`${45 + (i % 4) * 15}%`} height={14} sx={{ bgcolor: t.border.subtle, flex: 1 }} />
+            </Box>
+          ))}
+        </Box>
+      )}
       {/* Crypto filters */}
-      {isCrypto && (
+      {isCrypto && categories && (
         <>
           <SidebarSection>
             {ASSET_OPTIONS.map(o => (
@@ -273,7 +284,7 @@ export function MarketSidebar() {
       )}
 
       {/* Sports filters — leagues nest under their sport group (dropdown). */}
-      {isSports && (
+      {isSports && categories && (
         <SidebarSection>
           {sportOptions.map(o => {
             const expanded = sportFilter === o.value;
@@ -310,7 +321,7 @@ export function MarketSidebar() {
       )}
 
       {/* PM subcategory filters - admin-managed via config.subcategories */}
-      {isPM && pmSubcategories.length > 0 && (
+      {isPM && categories && pmSubcategories.length > 0 && (
         <SidebarSection>
           <SidebarItem
             label="All"
