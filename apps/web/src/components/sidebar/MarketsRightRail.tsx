@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, Skeleton } from '@mui/material';
 import { Close, LocalFireDepartment, BarChart, FiberNew } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
@@ -36,13 +36,13 @@ export function MarketsRightRail({ onClose }: { onClose?: () => void }) {
   const t = useThemeTokens();
   const router = useRouter();
 
-  const { data: trendingRes } = useQuery({
+  const { data: trendingRes, isLoading: trendingLoading } = useQuery({
     queryKey: ['trending-pools'],
     queryFn: fetchTrendingPools,
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
-  const { data: activeRes } = useQuery({
+  const { data: activeRes, isLoading: activeLoading } = useQuery({
     queryKey: ['rail-active'],
     // Limit 500 (the route's max) so older but high-volume pools aren't cut off
     // by the createdAt-desc order - the rail ranks by volume client-side.
@@ -58,8 +58,8 @@ export function MarketsRightRail({ onClose }: { onClose?: () => void }) {
 
   const go = (p: Pool) => router.push(kindOf(p) === 'crypto' ? `/pool/${p.id}` : `/match/${p.id}`);
 
-  const List = ({ title, icon, color, pools, metric }: { title: string; icon: ReactNode; color: string; pools: Pool[]; metric: (p: Pool) => string | null }) => {
-    if (pools.length === 0) return null;
+  const List = ({ title, icon, color, pools, metric, loading }: { title: string; icon: ReactNode; color: string; pools: Pool[]; metric: (p: Pool) => string | null; loading?: boolean }) => {
+    if (pools.length === 0 && !loading) return null;
     return (
       <Box sx={{ mb: 2.5 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6, mb: 1 }}>
@@ -67,7 +67,15 @@ export function MarketsRightRail({ onClose }: { onClose?: () => void }) {
           <Typography sx={{ fontSize: '0.78rem', fontWeight: 800, color: t.text.primary }}>{title}</Typography>
         </Box>
         <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-          {pools.map((p, i) => {
+          {pools.length === 0 && loading ? (
+            Array.from({ length: 5 }).map((_, i) => (
+              <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.6, px: 0.5 }}>
+                <Skeleton variant="text" width={10} height={14} sx={{ bgcolor: t.border.subtle, flexShrink: 0 }} />
+                <Skeleton variant="text" width={`${50 + (i % 3) * 15}%`} height={14} sx={{ bgcolor: t.border.subtle, flex: 1 }} />
+                <Skeleton variant="text" width={28} height={14} sx={{ bgcolor: t.border.subtle, flexShrink: 0 }} />
+              </Box>
+            ))
+          ) : pools.map((p, i) => {
             const m = metric(p);
             return (
               <Box
@@ -114,9 +122,9 @@ export function MarketsRightRail({ onClose }: { onClose?: () => void }) {
         </Box>
       </Box>
 
-      <List title="Trending" icon={<LocalFireDepartment sx={{ fontSize: 15 }} />} color={t.accent} pools={trending} metric={(p) => { const v = leadPct(p); return v != null ? `${v}%` : null; }} />
-      <List title="Highest volume" icon={<BarChart sx={{ fontSize: 15 }} />} color={t.gain} pools={highestVol} metric={(p) => compactUsd(p.totalPool)} />
-      <List title="New" icon={<FiberNew sx={{ fontSize: 16 }} />} color={t.up} pools={newest} metric={(p) => { const v = leadPct(p); return v != null ? `${v}%` : null; }} />
+      <List title="Trending" icon={<LocalFireDepartment sx={{ fontSize: 15 }} />} color={t.accent} pools={trending} loading={trendingLoading} metric={(p) => { const v = leadPct(p); return v != null ? `${v}%` : null; }} />
+      <List title="Highest volume" icon={<BarChart sx={{ fontSize: 15 }} />} color={t.gain} pools={highestVol} loading={activeLoading} metric={(p) => compactUsd(p.totalPool)} />
+      <List title="New" icon={<FiberNew sx={{ fontSize: 16 }} />} color={t.up} pools={newest} loading={activeLoading} metric={(p) => { const v = leadPct(p); return v != null ? `${v}%` : null; }} />
     </Box>
   );
 }
