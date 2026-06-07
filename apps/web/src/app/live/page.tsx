@@ -106,7 +106,7 @@ export default function LivePage() {
         ) : pools.length === 0 ? (
           <Typography sx={{ textAlign: 'center', color: t.text.tertiary, py: 8 }}>No active markets in this filter right now.</Typography>
         ) : (
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 2 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gridAutoRows: '1fr', gap: 2 }}>
             {pools.map(p => (
               <MarketCard
                 key={p.id}

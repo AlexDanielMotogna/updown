@@ -256,6 +256,7 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
         display: 'flex',
         flexDirection: 'column',
         gap: 1,
+        height: '100%', // fill the grid cell so cards in a row match height
         cursor: onClick ? 'pointer' : 'default',
         transition: 'border-color 0.15s, background 0.15s',
         '&:hover': { borderColor: t.border.medium, bgcolor: t.hover.subtle },
@@ -283,20 +284,24 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
       {!isPrediction && (
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6, minWidth: 0 }}>
-            {isCrypto ? (
-              // Per-asset round Pacifica token SVG - same identity the asset
-              // tile uses on /pool/[id] and in the sidebar market list, so the
-              // visual reads consistently across every crypto surface.
-              <AssetIcon asset={pool.asset} size={18} />
-            ) : catBadge ? (
-              // Dark pad so the Champions League badge (whitish silver star)
-              // still reads against the card bg - white pad made it invisible.
-              <Box component="img" src={catBadge} alt="" sx={{ width: 18, height: 18, objectFit: 'contain', ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(13,18,25,0.92)', borderRadius: '50%', p: '1px' }) }} />
-            ) : CatIcon ? (
-              <CatIcon sx={{ fontSize: 16, color: catColor }} />
-            ) : (
-              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: catColor }} />
-            )}
+            {/* Identity icon — fixed 18x18 box so every card type's top-left
+                image renders at exactly the same dimensions. */}
+            <Box sx={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {isCrypto ? (
+                // Per-asset round Pacifica token SVG - same identity the asset
+                // tile uses on /pool/[id] and in the sidebar market list, so the
+                // visual reads consistently across every crypto surface.
+                <AssetIcon asset={pool.asset} size={18} />
+              ) : catBadge ? (
+                // Dark pad so the Champions League badge (whitish silver star)
+                // still reads against the card bg - white pad made it invisible.
+                <Box component="img" src={catBadge} alt="" sx={{ width: 18, height: 18, objectFit: 'contain', ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(13,18,25,0.92)', borderRadius: '50%', p: '1px' }) }} />
+              ) : CatIcon ? (
+                <CatIcon sx={{ fontSize: 16, color: catColor }} />
+              ) : (
+                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: catColor }} />
+              )}
+            </Box>
             <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, color: catColor, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {catLabel}
             </Typography>
@@ -431,8 +436,8 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
         })}
       </Box>
 
-      {/* Footer: volume + meta / claim */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pt: 0.75, borderTop: `1px solid ${t.border.subtle}` }}>
+      {/* Footer: volume + meta / claim — pinned to the bottom of the card */}
+      <Box sx={{ mt: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', pt: 0.75, borderTop: `1px solid ${t.border.subtle}` }}>
         <Typography component="span" sx={{ fontSize: '0.72rem', fontWeight: 700, color: flash ? t.gain : t.text.tertiary, fontVariantNumeric: 'tabular-nums', px: 0.5, borderRadius: 0.75, bgcolor: flash ? withAlpha(t.gain, 0.15) : 'transparent', transition: 'background-color 0.4s ease, color 0.4s ease' }}>
           <AnimatedValue usdcValue={livePoolStr} prefix="$" /> Vol.
         </Typography>
