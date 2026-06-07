@@ -190,6 +190,17 @@ httpServer.listen(PORT, async () => {
   }
 });
 
+// Safety net: a transient RPC error (e.g. 429 Too Many Requests from the Solana
+// RPC) inside a fire-and-forget promise must NOT crash the whole API. Log and
+// keep the process alive — the affected operation retries on its next cycle.
+process.on('unhandledRejection', (reason) => {
+  const msg = reason instanceof Error ? reason.message : String(reason);
+  console.error('[unhandledRejection] (kept alive):', msg);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException] (kept alive):', err?.message || err);
+});
+
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down...');

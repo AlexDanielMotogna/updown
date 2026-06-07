@@ -134,6 +134,9 @@ export async function runLiquidityBotCycle(): Promise<{ placed: number; spent: b
       } catch (e) {
         console.warn(`[LiquidityBot] deposit failed pool=${pool.id.slice(0, 8)}:`, e instanceof Error ? e.message : e);
       }
+      // Throttle: space out the RPC-heavy fund+deposit+confirm calls so the bot
+      // doesn't burst hundreds of requests per cycle and trigger 429s.
+      await new Promise(r => setTimeout(r, 400));
     }
   }
 
