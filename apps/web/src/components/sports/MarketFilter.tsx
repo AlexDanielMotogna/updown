@@ -3,6 +3,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Box, Typography, IconButton, Collapse, Popover, Chip, Skeleton } from '@mui/material';
 import { ShowChart, FilterList, KeyboardArrowDown, Schedule, GridView, SportsSoccer, LocalFireDepartment, Sort, FiberManualRecord, NewReleases, History, BarChart, Timer, CheckCircleOutline } from '@mui/icons-material';
+import { useRouter, usePathname } from 'next/navigation';
 import { useCategories, type CategoryConfig } from '@/hooks/useCategories';
 import { getIcon } from '@/lib/icon-registry';
 import { useThemeTokens } from '@/app/providers';
@@ -145,6 +146,9 @@ export function MarketFilter({
   const t = useThemeTokens();
   const [showFilters, setShowFilters] = useState(false);
   const { data: categories, isLoading: catsLoading } = useCategories();
+  const router = useRouter();
+  const pathname = usePathname();
+  const onLivePage = pathname === '/live';
 
   // Horizontal tabs overflow on narrow widths. No visible arrows - instead
   // make the row drag-to-scroll (mouse + touch) and translate the vertical
@@ -210,7 +214,9 @@ export function MarketFilter({
     const pmComingSoon = cats.filter(c => c.type === 'POLYMARKET' && !c.enabled && c.comingSoon);
 
     // Tabs: CRYPTO + SPORTS + enabled PM categories + coming soon PM
-    const tabs: Array<{ key: string; label: string; icon: React.ReactNode; color: string; comingSoon?: boolean }> = [
+    const tabs: Array<{ key: string; label: string; icon: React.ReactNode; color: string; comingSoon?: boolean; isLive?: boolean }> = [
+      { key: 'LIVE', label: 'Live', color: t.down, isLive: true,
+        icon: <FiberManualRecord sx={{ fontSize: 11, animation: 'mfLivePulse 1.4s ease-in-out infinite', '@keyframes mfLivePulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.3 } } }} /> },
       { key: 'TRENDING', label: 'Trending', icon: <LocalFireDepartment sx={{ fontSize: 16 }} />, color: t.accent },
       { key: 'CRYPTO', label: 'Crypto', icon: <ShowChart sx={{ fontSize: 16 }} />, color: t.up },
       { key: 'SPORTS', label: 'Sports', icon: <SportsSoccer sx={{ fontSize: 16 }} />, color: t.draw },
@@ -297,7 +303,7 @@ export function MarketFilter({
   // selected sport has at least one child league (or is "All").
   const showLeagueFilter = sportFilter === 'ALL' || leagueOptions.length > 1;
 
-  const currentTab = tabs.find(tab => tab.key === marketType) || tabs[0];
+  const currentTab = tabs.find(tab => tab.key === marketType) || tabs.find(tab => tab.key === 'TRENDING') || tabs[0];
   const tabColor = currentTab.color;
   const isPM = marketType.startsWith('PM_');
   // Hide the secondary filter row only on the Trending landing - every
@@ -330,11 +336,16 @@ export function MarketFilter({
           }}
         >
           {tabs.map((tab) => {
-            const active = marketType === tab.key;
+            const active = tab.isLive ? onLivePage : (!onLivePage && marketType === tab.key);
             return (
               <Box
                 key={tab.key}
-                onClick={() => { if (!tab.comingSoon) { onMarketTypeChange(tab.key); setShowFilters(false); } }}
+                onClick={() => {
+                  if (tab.comingSoon) return;
+                  setShowFilters(false);
+                  if (tab.isLive) { router.push('/live'); return; }
+                  onMarketTypeChange(tab.key);
+                }}
                 sx={{
                   display: 'flex', alignItems: 'center', gap: 0.75,
                   px: { xs: 1.25, md: 2 }, py: 1,
@@ -358,9 +369,13 @@ export function MarketFilter({
               </Box>
             );
           })}
-          {/* PM topics load dynamically — show pills while categories fetch. */}
+          {/* PM topics load dynamically — placeholder tabs use the SAME padding/gap
+              as a real tab so positions match and nothing shifts on load. */}
           {catsLoading && Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={`tab-sk-${i}`} variant="rounded" width={84} height={26} sx={{ borderRadius: '6px', flexShrink: 0, mx: 1, my: 'auto', bgcolor: t.border.subtle }} />
+            <Box key={`tab-sk-${i}`} sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: { xs: 1.25, md: 2 }, py: 1, flexShrink: 0 }}>
+              <Skeleton variant="circular" width={16} height={16} sx={{ bgcolor: t.border.subtle }} />
+              <Skeleton variant="text" width={48 + (i % 3) * 14} height={14} sx={{ bgcolor: t.border.subtle }} />
+            </Box>
           ))}
         </Box>
         {!hideFilters && (

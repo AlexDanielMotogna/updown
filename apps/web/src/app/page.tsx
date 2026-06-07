@@ -355,10 +355,38 @@ export default function MarketsPage() {
             {isTrending && (
               homeLoading && homePools.length === 0 ? (
                 <>
-                  {/* Hero placeholder (trending shows a FeaturedHero on top) */}
-                  <Skeleton variant="rounded" height={300} sx={{ borderRadius: 2, mb: 3, bgcolor: t.border.subtle }} />
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gridAutoRows: '1fr', gap: 2 }}>
-                    {Array.from({ length: 9 }).map((_, i) => <MarketCardSkeleton key={i} />)}
+                  {/* Hero placeholder — mirrors FeaturedHero's structure so the
+                      height matches (header + 300px info column + chart). */}
+                  <Box sx={{ bgcolor: t.bg.surface, border: t.surfaceBorder, borderRadius: 2, p: { xs: 1.75, md: 2.5 }, mb: { xs: 3, md: 4 } }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                      <Skeleton variant="text" width={130} height={18} sx={{ bgcolor: t.border.subtle }} />
+                      <Skeleton variant="text" width={60} height={18} sx={{ bgcolor: t.border.subtle }} />
+                    </Box>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '300px 1fr' }, gap: { xs: 2, md: 3 }, alignItems: 'stretch' }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        <Skeleton variant="text" width="85%" height={22} sx={{ bgcolor: t.border.default }} />
+                        {Array.from({ length: 3 }).map((_, i) => (
+                          <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5 }}>
+                            <Skeleton variant="circular" width={28} height={28} sx={{ bgcolor: t.border.subtle, flexShrink: 0 }} />
+                            <Skeleton variant="text" height={16} sx={{ bgcolor: t.border.subtle, flex: 1 }} />
+                            <Skeleton variant="rounded" width={50} height={26} sx={{ bgcolor: t.border.subtle, borderRadius: '999px', flexShrink: 0 }} />
+                          </Box>
+                        ))}
+                        <Skeleton variant="text" width="45%" height={14} sx={{ bgcolor: t.border.subtle, mt: 'auto' }} />
+                      </Box>
+                      <Skeleton variant="rounded" sx={{ bgcolor: t.border.subtle, borderRadius: 1, height: 300 }} />
+                    </Box>
+                  </Box>
+                  {/* Category sections: topic title + 2-column grid (matches MarketSections) */}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 3, md: 4 } }}>
+                    {Array.from({ length: 3 }).map((_, s) => (
+                      <Box key={s}>
+                        <Skeleton variant="text" width={150} height={22} sx={{ mb: 1.5, bgcolor: t.border.default }} />
+                        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gridAutoRows: '1fr', gap: { xs: 1.5, md: 2 } }}>
+                          {Array.from({ length: 4 }).map((_, i) => <MarketCardSkeleton key={i} />)}
+                        </Box>
+                      </Box>
+                    ))}
                   </Box>
                 </>
               ) : (
@@ -398,8 +426,8 @@ export default function MarketsPage() {
 
             {/* Loading State */}
             {!isTrending && isLoading && (
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gridAutoRows: '1fr', gap: 2 }}>
-                {Array.from({ length: 9 }).map((_, i) => <MarketCardSkeleton key={i} />)}
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gridAutoRows: '1fr', gap: { xs: 1.5, md: 2 } }}>
+                {Array.from({ length: 8 }).map((_, i) => <MarketCardSkeleton key={i} />)}
               </Box>
             )}
 

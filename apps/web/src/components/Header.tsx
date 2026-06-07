@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Typography, IconButton } from '@mui/material';
+import { Box, Typography, IconButton, Skeleton } from '@mui/material';
 import { AttachMoney, LightMode, DarkMode } from '@mui/icons-material';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -21,7 +21,7 @@ import { useThemeTokens, useThemeMode } from '@/app/providers';
 // dropdown + mobile bottom nav.
 const HEADER_NAV = [
   { label: 'Markets', href: '/' },
-  { label: 'Live', href: '/live' },
+  // 'Live' moved into the MarketFilter tabs (first tab, before Trending).
   { label: 'Profile', href: '/profile' },
   { label: 'Leaderboard', href: '/leaderboard' },
 ] as const;
@@ -112,20 +112,6 @@ export function Header() {
                     }}
                   >
                     {item.label}
-                    {item.href === '/live' && (
-                      <Box
-                        component="span"
-                        sx={{
-                          width: 7,
-                          height: 7,
-                          borderRadius: '50%',
-                          bgcolor: t.down,
-                          flexShrink: 0,
-                          animation: 'navLivePulse 1.4s ease-in-out infinite',
-                          '@keyframes navLivePulse': { '0%,100%': { opacity: 1, transform: 'scale(1)' }, '50%': { opacity: 0.3, transform: 'scale(0.8)' } },
-                        }}
-                      />
-                    )}
                   </Box>
                 </Link>
               );
@@ -159,38 +145,38 @@ export function Header() {
                 }}
               >
                 {/* Level icon - desktop only */}
-                {userProfile && (
-                  <Box
-                    sx={{
-                      display: { xs: 'none', sm: 'flex' },
-                      alignItems: 'center',
-                      px: { sm: 1 },
-                      height: '100%',
-                      borderRight: `1px solid ${t.border.default}`,
-                    }}
-                  >
-                    <UserLevelBadge level={userProfile.level} title={userProfile.title} size="sm" variant="icon-only" />
-                  </Box>
-                )}
+                <Box
+                  sx={{
+                    display: { xs: 'none', sm: 'flex' },
+                    alignItems: 'center',
+                    px: { sm: 1 },
+                    height: '100%',
+                    borderRight: `1px solid ${t.border.default}`,
+                  }}
+                >
+                  {userProfile
+                    ? <UserLevelBadge level={userProfile.level} title={userProfile.title} size="sm" variant="icon-only" />
+                    : <Skeleton variant="circular" width={22} height={22} sx={{ bgcolor: t.border.default }} />}
+                </Box>
 
                 {/* UP Coins - desktop only */}
-                {userProfile && (
+                <Box
+                  sx={{
+                    display: { xs: 'none', sm: 'flex' },
+                    alignItems: 'center',
+                    gap: 0.5,
+                    px: { sm: 1.25 },
+                    height: '100%',
+                    borderRight: `1px solid ${t.border.default}`,
+                  }}
+                >
                   <Box
-                    sx={{
-                      display: { xs: 'none', sm: 'flex' },
-                      alignItems: 'center',
-                      gap: 0.5,
-                      px: { sm: 1.25 },
-                      height: '100%',
-                      borderRight: `1px solid ${t.border.default}`,
-                    }}
-                  >
-                    <Box
-                      component="img"
-                      src="/token/Token_16px_Gold.png"
-                      alt="UP Coin"
-                      sx={{ width: 14, height: 14 }}
-                    />
+                    component="img"
+                    src="/token/Token_16px_Gold.png"
+                    alt="UP Coin"
+                    sx={{ width: 14, height: 14 }}
+                  />
+                  {userProfile ? (
                     <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
                       {(() => {
                         const num = Number(userProfile.coinsBalance) / UP_COINS_DIVISOR;
@@ -199,8 +185,10 @@ export function Header() {
                           : num.toFixed(1);
                       })()}
                     </Typography>
-                  </Box>
-                )}
+                  ) : (
+                    <Skeleton variant="text" width={30} height={16} sx={{ bgcolor: t.border.default }} />
+                  )}
+                </Box>
 
                 {/* USDC Balance */}
                 <Box
@@ -213,9 +201,13 @@ export function Header() {
                   }}
                 >
                   <AttachMoney sx={{ fontSize: 14, color: t.gain }} />
-                  <Typography sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem' }, fontWeight: 600, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
-                    {balance ? balance.uiAmount.toFixed(2) : '0.00'}
-                  </Typography>
+                  {balance ? (
+                    <Typography sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem' }, fontWeight: 600, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
+                      {balance.uiAmount.toFixed(2)}
+                    </Typography>
+                  ) : (
+                    <Skeleton variant="text" width={36} height={16} sx={{ bgcolor: t.border.default }} />
+                  )}
                 </Box>
               </Box>
 
