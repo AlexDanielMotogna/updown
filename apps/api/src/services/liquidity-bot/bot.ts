@@ -74,7 +74,7 @@ export async function runLiquidityBotCycle(): Promise<{ placed: number; spent: b
   const pools = await prisma.pool.findMany({
     where: { squadId: null, status: { in: ['JOINING', 'ACTIVE'] }, lockTime: { gt: lockCutoff }, poolType: { in: types } },
     select: { id: true, startTime: true, lockTime: true, numSides: true },
-    orderBy: { lockTime: 'asc' },
+    orderBy: { createdAt: 'desc' }, // freshest pools first = highest time-weight
     take: 60,
   });
 
@@ -88,37 +88,48 @@ export async function runLiquidityBotCycle(): Promise<{ placed: number; spent: b
       where: { poolId: pool.id, walletAddress: { in: botAddrs } },
       select: { amount: true, side: true, walletAddress: true },
     });
-    const poolStake = poolBets.reduce((s, b) => s + b.amount, 0n);
+    let poolStake = poolBets.reduce((s, b) => s + b.amount, 0n);
     if (poolStake >= cfg.perPoolCap) continue;
 
-    // Balanced: pick the side with the least bot stake.
+    // Cover EVERY side this pass — whichever wins, the bot recaptures the pot
+    // (minus fee) instead of losing a one-sided position. perPoolCap is split
+    // evenly across sides. Pools are processed freshest-first so these bets land
+    // with the highest possible time-weight.
     const sides: Side[] = pool.numSides === 3 ? ['UP', 'DOWN', 'DRAW'] : ['UP', 'DOWN'];
+    const perSideTarget = cfg.perPoolCap / BigInt(sides.length);
     const stakeBySide = new Map<Side, bigint>(sides.map(s => [s, 0n]));
-    for (const b of poolBets) stakeBySide.set(b.side as Side, (stakeBySide.get(b.side as Side) ?? 0n) + b.amount);
-    let side: Side = sides[0];
-    for (const s of sides) if ((stakeBySide.get(s) ?? 0n) < (stakeBySide.get(side) ?? 0n)) side = s;
+    const walletsBySide = new Map<Side, Set<string>>(sides.map(s => [s, new Set<string>()]));
+    for (const b of poolBets) {
+      stakeBySide.set(b.side as Side, (stakeBySide.get(b.side as Side) ?? 0n) + b.amount);
+      walletsBySide.get(b.side as Side)?.add(b.walletAddress);
+    }
 
-    // Distinct bettors per side: pick a RANDOM wallet not already on this side
-    // in this pool (random, not first-match, so bets spread across all wallets
-    // instead of always hitting wallets[0]). Skip if every wallet is already on
-    // this side here.
-    const onSide = new Set(poolBets.filter(b => b.side === side).map(b => b.walletAddress));
-    const eligible = wallets.filter(w => !onSide.has(w.publicKey.toBase58()));
-    if (eligible.length === 0) continue;
-    const wallet = eligible[Math.floor(Math.random() * eligible.length)];
+    for (const side of sides) {
+      if (cycleSpent >= cfg.perCycleCap || exposure >= cfg.maxTotalExposure || poolStake >= cfg.perPoolCap) break;
+      const sideStake = stakeBySide.get(side) ?? 0n;
+      if (sideStake >= perSideTarget) continue;
 
-    let amount = randBigInt(cfg.betMin, cfg.betMax);
-    amount = minBig(amount, cfg.perPoolCap - poolStake, cfg.perCycleCap - cycleSpent, cfg.maxTotalExposure - exposure);
-    if (amount <= 0n) continue;
+      // Random eligible wallet (not already on this side here) for distinct bettors.
+      const onSide = walletsBySide.get(side) ?? new Set<string>();
+      const eligible = wallets.filter(w => !onSide.has(w.publicKey.toBase58()));
+      if (eligible.length === 0) continue;
+      const wallet = eligible[Math.floor(Math.random() * eligible.length)];
 
-    try {
-      await fundBotWallet(wallet.publicKey, cfg.walletUsdcTopup, cfg.walletSolTopup);
-      const sig = await placeBotDeposit(pool, wallet, side, amount);
-      await recordConfirmedBet({ pool, walletAddress: wallet.publicKey.toBase58(), side, betAmount: amount, txSignature: sig });
-      cycleSpent += amount; exposure += amount; placed++;
-      console.log(`[LiquidityBot] +${Number(amount) / 1e6} USDC ${side} pool=${pool.id.slice(0, 8)} wallet=${wallet.publicKey.toBase58().slice(0, 6)}`);
-    } catch (e) {
-      console.warn(`[LiquidityBot] deposit failed pool=${pool.id.slice(0, 8)}:`, e instanceof Error ? e.message : e);
+      let amount = randBigInt(cfg.betMin, cfg.betMax);
+      amount = minBig(amount, perSideTarget - sideStake, cfg.perPoolCap - poolStake, cfg.perCycleCap - cycleSpent, cfg.maxTotalExposure - exposure);
+      if (amount <= 0n) continue;
+
+      try {
+        await fundBotWallet(wallet.publicKey, cfg.walletUsdcTopup, cfg.walletSolTopup);
+        const sig = await placeBotDeposit(pool, wallet, side, amount);
+        await recordConfirmedBet({ pool, walletAddress: wallet.publicKey.toBase58(), side, betAmount: amount, txSignature: sig });
+        cycleSpent += amount; exposure += amount; poolStake += amount; placed++;
+        stakeBySide.set(side, sideStake + amount);
+        onSide.add(wallet.publicKey.toBase58());
+        console.log(`[LiquidityBot] +${Number(amount) / 1e6} USDC ${side} pool=${pool.id.slice(0, 8)} wallet=${wallet.publicKey.toBase58().slice(0, 6)}`);
+      } catch (e) {
+        console.warn(`[LiquidityBot] deposit failed pool=${pool.id.slice(0, 8)}:`, e instanceof Error ? e.message : e);
+      }
     }
   }
 
