@@ -98,9 +98,14 @@ export async function runLiquidityBotCycle(): Promise<{ placed: number; spent: b
     let side: Side = sides[0];
     for (const s of sides) if ((stakeBySide.get(s) ?? 0n) < (stakeBySide.get(side) ?? 0n)) side = s;
 
-    // Prefer a wallet not yet on this side (more distinct bettors); else top up the first.
+    // Distinct bettors per side: pick a RANDOM wallet not already on this side
+    // in this pool (random, not first-match, so bets spread across all wallets
+    // instead of always hitting wallets[0]). Skip if every wallet is already on
+    // this side here.
     const onSide = new Set(poolBets.filter(b => b.side === side).map(b => b.walletAddress));
-    const wallet = wallets.find(w => !onSide.has(w.publicKey.toBase58())) ?? wallets[0];
+    const eligible = wallets.filter(w => !onSide.has(w.publicKey.toBase58()));
+    if (eligible.length === 0) continue;
+    const wallet = eligible[Math.floor(Math.random() * eligible.length)];
 
     let amount = randBigInt(cfg.betMin, cfg.betMax);
     amount = minBig(amount, cfg.perPoolCap - poolStake, cfg.perCycleCap - cycleSpent, cfg.maxTotalExposure - exposure);
