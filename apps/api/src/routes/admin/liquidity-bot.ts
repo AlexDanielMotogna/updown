@@ -108,8 +108,11 @@ adminLiquidityBotRouter.get('/status', async (_req, res) => {
     const recent = botAddrs.length > 0
       ? await prisma.bet.findMany({
           where: { walletAddress: { in: botAddrs } },
-          orderBy: { createdAt: 'desc' }, take: 12,
-          select: { id: true, poolId: true, side: true, amount: true, createdAt: true, walletAddress: true },
+          orderBy: { createdAt: 'desc' }, take: 40,
+          select: {
+            id: true, poolId: true, side: true, amount: true, createdAt: true, walletAddress: true,
+            pool: { select: { asset: true, interval: true, poolType: true, homeTeam: true, awayTeam: true, status: true } },
+          },
         })
       : [];
 

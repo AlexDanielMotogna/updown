@@ -21,7 +21,10 @@ interface BotStatus {
   walletCount: number;
   wallets: { pubkey: string; usdc: string; sol: number }[];
   openExposure: string;
-  recentBets: { id: string; poolId: string; side: string; amount: string; createdAt: string; walletAddress: string }[];
+  recentBets: {
+    id: string; poolId: string; side: string; amount: string; createdAt: string; walletAddress: string;
+    pool: { asset: string; interval: string | null; poolType: string; homeTeam: string | null; awayTeam: string | null; status: string } | null;
+  }[];
 }
 
 const USDC = (micro: string) => (Number(micro) / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -156,14 +159,41 @@ export function LiquidityBot() {
             ))}
           </Box>
         )}
-        {status && status.recentBets.length > 0 && (
-          <Box sx={{ mt: 1 }}>
-            <Box sx={{ fontSize: '0.72rem', color: t.text.tertiary, mb: 0.5 }}>Recent bot bets</Box>
-            {status.recentBets.map(b => (
-              <Box key={b.id} sx={{ fontSize: '0.72rem', color: t.text.secondary }}>
-                {USDC(b.amount)} {b.side} · pool {b.poolId.slice(0, 8)} · {b.walletAddress.slice(0, 6)}…
-              </Box>
-            ))}
+      </SectionCard>
+
+      {/* Bot bets - clean table */}
+      <SectionCard title={`Bot bets${status ? ` (${status.recentBets.length})` : ''}`}>
+        {!status || status.recentBets.length === 0 ? (
+          <Box sx={{ fontSize: '0.82rem', color: t.text.tertiary }}>No bets yet.</Box>
+        ) : (
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            {/* Header */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1.6fr 0.6fr 0.7fr 0.8fr 0.7fr', gap: 1, px: 1, py: 0.75, borderBottom: `1px solid ${t.border.subtle}`, fontSize: '0.7rem', fontWeight: 800, color: t.text.tertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              <Box>Market</Box>
+              <Box>Side</Box>
+              <Box sx={{ textAlign: 'right' }}>Amount</Box>
+              <Box>Wallet</Box>
+              <Box sx={{ textAlign: 'right' }}>Time</Box>
+            </Box>
+            {/* Rows */}
+            {status.recentBets.map((b, i) => {
+              const p = b.pool;
+              const market = p?.homeTeam && p?.awayTeam ? `${p.homeTeam} vs ${p.awayTeam}` : (p?.asset || b.poolId.slice(0, 10));
+              const sub = [p?.poolType, p?.interval].filter(Boolean).join(' · ');
+              const sideColor = b.side === 'UP' ? t.success : b.side === 'DOWN' ? t.error : t.text.secondary;
+              return (
+                <Box key={b.id} sx={{ display: 'grid', gridTemplateColumns: '1.6fr 0.6fr 0.7fr 0.8fr 0.7fr', gap: 1, px: 1, py: 0.85, alignItems: 'center', bgcolor: i % 2 ? 'transparent' : t.bg.app, borderRadius: 0.5, fontSize: '0.78rem', color: t.text.secondary }}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Box sx={{ color: t.text.primary, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{market}</Box>
+                    {sub && <Box sx={{ fontSize: '0.68rem', color: t.text.tertiary }}>{sub}</Box>}
+                  </Box>
+                  <Box sx={{ fontWeight: 800, color: sideColor }}>{b.side}</Box>
+                  <Box sx={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: t.text.primary }}>{USDC(b.amount)}</Box>
+                  <Box sx={{ fontFamily: 'monospace', fontSize: '0.72rem' }}>{b.walletAddress.slice(0, 4)}…{b.walletAddress.slice(-4)}</Box>
+                  <Box sx={{ textAlign: 'right', fontSize: '0.72rem', color: t.text.tertiary }}>{new Date(b.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Box>
+                </Box>
+              );
+            })}
           </Box>
         )}
       </SectionCard>
