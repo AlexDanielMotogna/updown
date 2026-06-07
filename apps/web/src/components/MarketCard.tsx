@@ -283,23 +283,20 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
           is rendered inline next to the title further down. */}
       {!isPrediction && (
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6, minWidth: 0 }}>
-            {/* Identity icon — fixed 18x18 box so every card type's top-left
-                image renders at exactly the same dimensions. */}
-            <Box sx={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+            {/* Identity thumbnail — 36x36, same size as the PM title image.
+                Crypto = token, sports = league badge / home crest. */}
+            <Box sx={{ width: 36, height: 36, borderRadius: 1, flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: isCrypto ? 'transparent' : withAlpha(catColor, 0.1) }}>
               {isCrypto ? (
-                // Per-asset round Pacifica token SVG - same identity the asset
-                // tile uses on /pool/[id] and in the sidebar market list, so the
-                // visual reads consistently across every crypto surface.
-                <AssetIcon asset={pool.asset} size={18} />
+                <AssetIcon asset={pool.asset} size={36} />
               ) : catBadge ? (
-                // Dark pad so the Champions League badge (whitish silver star)
-                // still reads against the card bg - white pad made it invisible.
-                <Box component="img" src={catBadge} alt="" sx={{ width: 18, height: 18, objectFit: 'contain', ...(category?.type === 'FOOTBALL_LEAGUE' && { bgcolor: 'rgba(13,18,25,0.92)', borderRadius: '50%', p: '1px' }) }} />
+                <Box component="img" src={catBadge} alt="" sx={{ width: 28, height: 28, objectFit: 'contain' }} />
+              ) : pool.homeTeamCrest ? (
+                <Box component="img" src={pool.homeTeamCrest} alt="" sx={{ width: 28, height: 28, objectFit: 'contain' }} />
               ) : CatIcon ? (
-                <CatIcon sx={{ fontSize: 16, color: catColor }} />
+                <CatIcon sx={{ fontSize: 20, color: catColor }} />
               ) : (
-                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: catColor }} />
+                <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: catColor }} />
               )}
             </Box>
             <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, color: catColor, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -339,6 +336,8 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
           to the top-right of the title row so the question sits flush at the
           top of the card). */}
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, minHeight: '2.4em' }}>
+        {/* PM keeps its market image in the title row (crypto/sports show their
+            36x36 identity badge in the header instead). */}
         {isPrediction && pool.homeTeamCrest && (
           <Box component="img" src={pool.homeTeamCrest} alt="" sx={{ width: 36, height: 36, borderRadius: 1, objectFit: 'cover', flexShrink: 0 }} />
         )}
@@ -378,8 +377,10 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
         )}
       </Box>
 
-      {/* Outcomes */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+      {/* Outcomes — grow to fill the card and center vertically so 2-outcome
+          cards (Yes/No) don't leave a void: the spare height splits evenly
+          above/below instead of pooling above the footer. */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 0.25, flex: 1 }}>
         {outcomes.map((o) => {
           const isWinner = isResolved && pool.winner === o.side;
           return (
