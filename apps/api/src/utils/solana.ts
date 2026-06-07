@@ -121,6 +121,12 @@ export function getAuthorityKeypair(): Keypair {
  * — a misconfigured RPC must NOT be treated as devnet).
  */
 export function getCluster(): 'devnet' | 'mainnet' {
+  // Explicit override wins — RPC hostnames don't always contain "devnet"
+  // (Helius/QuickNode custom endpoints), so prod can force the cluster.
+  const override = (process.env.SOLANA_CLUSTER || '').toLowerCase().trim();
+  if (override === 'devnet' || override === 'testnet') return 'devnet';
+  if (override === 'mainnet' || override === 'mainnet-beta') return 'mainnet';
+
   const rpc = (process.env.SOLANA_RPC_URL || process.env.SOLANA_RPC_URLS || 'https://api.devnet.solana.com').toLowerCase();
   if (rpc.includes('devnet') || rpc.includes('testnet') || rpc.includes('localhost') || rpc.includes('127.0.0.1')) {
     return 'devnet';
