@@ -243,7 +243,9 @@ export function MarketFilter({
       { value: 'ALL', label: 'All Sports', icon: <GridView sx={{ fontSize: 18 }} /> },
       ...groups.map(c => ({
         value: c.code,
-        label: c.shortLabel || c.label,
+        // Sport GROUPS use the full sport name (Baseball), not shortLabel
+        // (which is often the flagship league, e.g. "MLB").
+        label: c.label || c.shortLabel || c.code,
         icon: buildIcon(c, 18),
         comingSoon: !c.enabled && c.comingSoon,
       })),

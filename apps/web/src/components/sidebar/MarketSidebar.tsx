@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { Box, Typography, Chip } from '@mui/material';
-import { ShowChart, SportsSoccer, GridView, Schedule, Bolt, Speed, Timer } from '@mui/icons-material';
+import { ShowChart, SportsSoccer, GridView, Schedule, Bolt, Speed, Timer, ExpandMore, ExpandLess } from '@mui/icons-material';
 import { SvgIcon } from '@mui/material';
 
 function AllIcon(props: React.ComponentProps<typeof SvgIcon>) {
@@ -51,8 +51,9 @@ function SidebarSection({ children }: { children: React.ReactNode }) {
   );
 }
 
-function SidebarItem({ label, active, color, icon, comingSoon, onClick }: {
+function SidebarItem({ label, active, color, icon, comingSoon, onClick, indent, expandable, expanded }: {
   label: string; active: boolean; color: string; icon?: React.ReactNode; comingSoon?: boolean; onClick: () => void;
+  indent?: boolean; expandable?: boolean; expanded?: boolean;
 }) {
   const t = useThemeTokens();
   return (
@@ -60,7 +61,7 @@ function SidebarItem({ label, active, color, icon, comingSoon, onClick }: {
       onClick={comingSoon ? undefined : onClick}
       sx={{
         display: 'flex', alignItems: 'center', gap: 1.25,
-        px: 1.5, py: 1,
+        pl: indent ? 3.5 : 1.5, pr: 1.5, py: 1,
         borderRadius: 1,
         cursor: comingSoon ? 'default' : 'pointer',
         bgcolor: active ? withAlpha(color, 0.1) : 'transparent',
@@ -71,12 +72,13 @@ function SidebarItem({ label, active, color, icon, comingSoon, onClick }: {
       }}
     >
       {icon}
-      <Typography sx={{ fontSize: '0.85rem', fontWeight: active ? 700 : 500, flex: 1 }}>
+      <Typography sx={{ fontSize: '0.85rem', fontWeight: active ? 700 : 500, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {label}
       </Typography>
       {comingSoon && (
         <Chip label="Soon" size="small" sx={{ height: 14, fontSize: '0.45rem', fontWeight: 700, bgcolor: t.border.default, color: t.text.dimmed }} />
       )}
+      {expandable && (expanded ? <ExpandLess sx={{ fontSize: 18 }} /> : <ExpandMore sx={{ fontSize: 18 }} />)}
     </Box>
   );
 }
@@ -123,19 +125,23 @@ export function MarketSidebar() {
         && !c.parentCode)
       .sort(sortByOrder);
 
-    const sportOptions: Array<{ value: string; label: string; icon?: React.ReactNode; comingSoon?: boolean }> = [
-      { value: 'ALL', label: 'All Sports', icon: <GridView sx={{ fontSize: 14 }} /> },
+    const sportOptions: Array<{ value: string; label: string; icon?: React.ReactNode; comingSoon?: boolean; isGroup?: boolean }> = [
+      { value: 'ALL', label: 'All Sports', icon: <GridView sx={{ fontSize: 14 }} />, isGroup: false },
       ...groups.map(c => ({
         value: c.code,
-        label: c.shortLabel || c.label,
+        // Sport GROUPS use the full sport name (Baseball), not shortLabel
+        // (which is often the flagship league, e.g. "MLB").
+        label: c.label || c.shortLabel || c.code,
         icon: buildIcon(c, 14),
         comingSoon: !c.enabled && c.comingSoon,
+        isGroup: true,
       })),
       ...orphanLeagues.map(c => ({
         value: c.code,
         label: c.shortLabel || c.label,
         icon: buildIcon(c, 14),
         comingSoon: !c.enabled && c.comingSoon,
+        isGroup: false,
       })),
     ];
 
@@ -245,43 +251,41 @@ export function MarketSidebar() {
         </>
       )}
 
-      {/* Sports filters */}
+      {/* Sports filters — leagues nest under their sport group (dropdown). */}
       {isSports && (
-        <>
-          <SidebarSection>
-            {sportOptions.map(o => (
-              <SidebarItem
-                key={o.value}
-                label={o.label}
-                active={sportFilter === o.value}
-                color={t.draw}
-                icon={o.icon}
-                comingSoon={o.comingSoon}
-                onClick={() => updateParam('sport', o.value)}
-              />
-            ))}
-          </SidebarSection>
-          {/* League sub-section: ALL surfaces every league; a SPORT_GROUP
-              selection surfaces its children; a specific-league sport
-              selection collapses to just 'All Leagues' so we hide it. */}
-          {leagueOptions.length > 1 && (
-            <SidebarSection>
-              {leagueOptions.map(o => (
+        <SidebarSection>
+          {sportOptions.map(o => {
+            const expanded = sportFilter === o.value;
+            return (
+              <Box key={o.value} sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                 <SidebarItem
-                  key={o.value}
                   label={o.label}
-                  active={leagueFilter === o.value}
+                  active={sportFilter === o.value}
                   color={t.draw}
-                  icon={o.img ? (
-                    <Box component="img" src={o.img} alt="" sx={{ width: 18, height: 18, objectFit: 'contain', bgcolor: o.imgBg ?? resolveBadgeBackground(null), borderRadius: '50%', p: '1px' }} />
-                  ) : <AllIcon sx={{ fontSize: 16 }} />}
+                  icon={o.icon}
                   comingSoon={o.comingSoon}
-                  onClick={() => updateParam('league', o.value)}
+                  expandable={o.isGroup}
+                  expanded={expanded}
+                  onClick={() => updateParam('sport', o.value)}
                 />
-              ))}
-            </SidebarSection>
-          )}
-        </>
+                {expanded && o.isGroup && leagueOptions.length > 1 && leagueOptions.map(l => (
+                  <SidebarItem
+                    key={l.value}
+                    indent
+                    label={l.label}
+                    active={leagueFilter === l.value}
+                    color={t.draw}
+                    icon={l.img ? (
+                      <Box component="img" src={l.img} alt="" sx={{ width: 18, height: 18, objectFit: 'contain', bgcolor: l.imgBg ?? resolveBadgeBackground(null), borderRadius: '50%', p: '1px' }} />
+                    ) : <AllIcon sx={{ fontSize: 16 }} />}
+                    comingSoon={l.comingSoon}
+                    onClick={() => updateParam('league', l.value)}
+                  />
+                ))}
+              </Box>
+            );
+          })}
+        </SidebarSection>
       )}
 
       {/* PM subcategory filters - admin-managed via config.subcategories */}
