@@ -2,7 +2,7 @@ import { Transaction, type Keypair } from '@solana/web3.js';
 import { getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
 import { getPoolPDA, getVaultPDA, getUserBetPDA, buildDepositIx } from 'solana-client';
 import { prisma } from '../../db';
-import { getConnection, getUsdcMint, derivePoolSeed, getLiquidityBotKeypairs } from '../../utils/solana';
+import { getConnection, getUsdcMint, derivePoolSeed, getLiquidityBotKeypairs, isDevnet } from '../../utils/solana';
 import { getLiquidityBotConfig } from './config';
 import { fundBotWallet, getUsdcBalance, getFunderKeypair } from './funding';
 import { recordConfirmedBet } from '../bet-recording';
@@ -50,9 +50,13 @@ export async function runLiquidityBotCycle(): Promise<{ placed: number; spent: b
 
   const funder = getFunderKeypair();
   if (!funder) { console.warn('[LiquidityBot] no funder (set TREASURY_SECRET_KEY on mainnet)'); return { placed: 0, spent: 0n }; }
-  // Treasury floor guard (funder USDC must stay above the floor).
-  const funderUsdc = await getUsdcBalance(funder.publicKey);
-  if (funderUsdc < cfg.treasuryFloor) { console.warn('[LiquidityBot] funder below treasuryFloor, skipping'); return { placed: 0, spent: 0n }; }
+  // Treasury floor guard — only on mainnet (real, finite USDC). On devnet the
+  // funder is the mint authority (unlimited mint, doesn't hold USDC), so the
+  // floor check would wrongly block the bot.
+  if (!isDevnet()) {
+    const funderUsdc = await getUsdcBalance(funder.publicKey);
+    if (funderUsdc < cfg.treasuryFloor) { console.warn('[LiquidityBot] funder below treasuryFloor, skipping'); return { placed: 0, spent: 0n }; }
+  }
 
   const botAddrs = wallets.map(w => w.publicKey.toBase58());
 
