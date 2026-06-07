@@ -15,6 +15,7 @@ function AllIcon(props: React.ComponentProps<typeof SvgIcon>) {
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { useCategories, type CategoryConfig } from '@/hooks/useCategories';
+import { fetchPools } from '@/lib/api';
 import { getIcon } from '@/lib/icon-registry';
 import { resolveBadgeBackground } from '@/lib/badgeBackground';
 import { useThemeTokens } from '@/app/providers';
@@ -90,6 +91,16 @@ export function MarketSidebar() {
   const searchParams = useSearchParams();
   const { data: categories } = useCategories();
 
+  // Open sports pools — used to show only sports/leagues that actually have
+  // markets in the filter (so empty sports like Fighting/Rugby don't clutter it).
+  const { data: openSportsRes } = useQuery({
+    queryKey: ['sidebar-open-sports'],
+    queryFn: () => fetchPools({ type: 'SPORTS', status: 'JOINING,ACTIVE', limit: 500 }),
+    enabled: (searchParams.get('type') ?? 'TRENDING') === 'SPORTS',
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
   // Only show on pages with market filters
   if (pathname !== '/' && pathname !== '/tournaments') return null;
 
@@ -117,12 +128,22 @@ export function MarketSidebar() {
     const visible = (c: CategoryConfig) => c.enabled || c.comingSoon;
     const sortByOrder = (a: CategoryConfig, b: CategoryConfig) => a.sortOrder - b.sortOrder;
 
+    // Only surface sports/leagues that actually have open pools (once loaded).
+    // While the query is loading, openLeagues is undefined -> show everything.
+    const openLeagues = openSportsRes?.data?.map(p => p.league).filter(Boolean) as string[] | undefined;
+    const filterByPools = openLeagues != null;
+    const presentLeagues = new Set(openLeagues ?? []);
+    const presentGroups = new Set<string>();
+    for (const lg of presentLeagues) { const c = cats.find(x => x.code === lg); presentGroups.add(c?.parentCode || lg); }
+    const groupHasPools = (code: string) => !filterByPools || presentGroups.has(code);
+    const leaguePresent = (code: string) => !filterByPools || presentLeagues.has(code);
+
     // Sport dropdown = SPORT_GROUP rows + any legacy league without a parent.
-    const groups = cats.filter(c => c.type === 'SPORT_GROUP' && visible(c)).sort(sortByOrder);
+    const groups = cats.filter(c => c.type === 'SPORT_GROUP' && visible(c) && groupHasPools(c.code)).sort(sortByOrder);
     const orphanLeagues = cats
       .filter(c => visible(c)
         && (c.type === 'FOOTBALL_LEAGUE' || c.type === 'SPORTSDB_SPORT')
-        && !c.parentCode)
+        && !c.parentCode && leaguePresent(c.code))
       .sort(sortByOrder);
 
     const sportOptions: Array<{ value: string; label: string; icon?: React.ReactNode; comingSoon?: boolean; isGroup?: boolean }> = [
@@ -150,11 +171,11 @@ export function MarketSidebar() {
     const leaguesForSport = (sportCode: string): CategoryConfig[] => {
       if (sportCode === 'ALL') {
         return cats
-          .filter(c => visible(c) && (c.type === 'FOOTBALL_LEAGUE' || c.type === 'SPORTSDB_SPORT'))
+          .filter(c => visible(c) && (c.type === 'FOOTBALL_LEAGUE' || c.type === 'SPORTSDB_SPORT') && leaguePresent(c.code))
           .sort(sortByOrder);
       }
       return cats
-        .filter(c => visible(c) && c.parentCode === sportCode)
+        .filter(c => visible(c) && c.parentCode === sportCode && leaguePresent(c.code))
         .sort(sortByOrder);
     };
 
@@ -171,7 +192,7 @@ export function MarketSidebar() {
     ];
 
     return { sportOptions, leagueOptions };
-  }, [categories, sportFilter]);
+  }, [categories, sportFilter, openSportsRes]);
 
   const isSports = marketType === 'SPORTS';
   const isCrypto = marketType === 'CRYPTO';
