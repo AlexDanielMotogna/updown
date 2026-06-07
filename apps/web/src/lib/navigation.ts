@@ -1,4 +1,4 @@
-import { ShowChart, AccountCircle, EmojiEvents, MenuBook, AccountBalanceWallet, PeopleOutline, Groups, MilitaryTech } from '@mui/icons-material';
+import { ShowChart, AccountCircle, EmojiEvents, MenuBook, AccountBalanceWallet, PeopleOutline } from '@mui/icons-material';
 import type { SvgIconComponent } from '@mui/icons-material';
 
 export interface NavItem {
@@ -9,8 +9,10 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Markets', href: '/', icon: ShowChart },
-  { label: 'Tournaments', href: '/tournaments', icon: MilitaryTech },
-  { label: 'Squads', href: '/squads', icon: Groups },
+  // Tournaments + Squads temporarily disabled (under construction) — also
+  // redirected to / in next.config.js. Re-add here to re-enable.
+  // { label: 'Tournaments', href: '/tournaments', icon: MilitaryTech },
+  // { label: 'Squads', href: '/squads', icon: Groups },
   { label: 'Profile', href: '/profile', icon: AccountCircle },
   { label: 'Referrals', href: '/referrals', icon: PeopleOutline },
   { label: 'Leaderboard', href: '/leaderboard', icon: EmojiEvents },
