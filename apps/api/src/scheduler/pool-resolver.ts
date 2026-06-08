@@ -217,6 +217,8 @@ export class PoolResolver {
           closedAt: null,
         },
         select: { id: true, poolId: true, winner: true },
+        orderBy: { updatedAt: 'asc' }, // oldest backlog first
+        take: 20, // batch per run — closing the whole backlog at once storms RPC
       });
 
       const connection = getConnection();
@@ -247,7 +249,13 @@ export class PoolResolver {
             const vaultBalance = await connection.getTokenAccountBalance(closureVaultPda);
             const vaultAmount = Number(vaultBalance.value.amount);
             if (vaultAmount > 0) {
+              // Time-weighted payouts leave a few micro-USDC of rounding dust
+              // in the vault, so it never reaches 0 and close_pool (which needs
+              // vault.amount == 0) keeps reverting. Back off for the retry delay
+              // instead of re-checking (1 RPC each) every 10s — that was part of
+              // the 429 storm. A real fix needs a dust sweep / close tolerance.
               console.warn(`[Scheduler] Pool ${pool.id} vault still has ${vaultAmount} tokens - skipping close`);
+              this.closeFailures.set(pool.id, Date.now());
               continue;
             }
           } catch {
