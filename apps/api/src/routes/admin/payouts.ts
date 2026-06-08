@@ -343,18 +343,25 @@ adminPayoutsRouter.get('/stats', async (_req, res) => {
   try {
     const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    const [paidLast24h, failedLast24h, pending, failedOutstanding] = await Promise.all([
+    const [paidLast24h, failedLast24h, failedOutstanding] = await Promise.all([
       prisma.eventLog.count({
         where: { eventType: 'BET_AUTO_PAID', createdAt: { gte: dayAgo } },
       }),
       prisma.eventLog.count({
         where: { eventType: 'BET_AUTO_PAYOUT_FAILED', createdAt: { gte: dayAgo } },
       }),
-      prisma.bet.count({
-        where: { claimed: false, payoutFailed: false, pool: { status: 'CLAIMABLE', winner: { not: null } } },
-      }),
       prisma.bet.count({ where: { payoutFailed: true, claimed: false } }),
     ]);
+
+    // Pending = unpaid WINNING-side bets only. Losing bets are never claimed, so
+    // the old "any unclaimed bet in a CLAIMABLE pool" count was hugely inflated
+    // (it counted every loser too — e.g. 3333 shown vs ~123 real winners pending).
+    const pendingPerSide = await Promise.all(
+      (['UP', 'DOWN', 'DRAW'] as const).map(side =>
+        prisma.bet.count({ where: { side, claimed: false, payoutFailed: false, pool: { status: 'CLAIMABLE', winner: side } } }),
+      ),
+    );
+    const pending = pendingPerSide.reduce((a, b) => a + b, 0);
 
     const total24h = paidLast24h + failedLast24h;
     const successRate = total24h === 0 ? null : Math.round((paidLast24h / total24h) * 1000) / 10;
