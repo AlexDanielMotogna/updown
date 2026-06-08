@@ -33,6 +33,20 @@ export async function forceRefundPool(
   const pool = await deps.prisma.pool.findUnique({ where: { id: poolId } });
   if (!pool) throw new Error('Pool not found');
 
+  // GUARD: the on-chain `refund` instruction is WINNER-TAKE-ALL — it resolves
+  // the pool with a synthetic winner and pays that side its stake + the losing
+  // side's stake. On a pool with bets on MORE THAN ONE side that is destructive
+  // (the tie-break winner robs the other side; the loser can never be refunded
+  // because `require!(user_bet.side == winner)` reverts). Refuse it. A fair
+  // per-bettor refund needs a new on-chain instruction. For a multi-sided stuck
+  // pool, resolve it with the REAL winner instead.
+  const sidesFunded = [pool.totalUp, pool.totalDown, pool.totalDraw ?? 0n].filter(v => v > 0n).length;
+  if (sidesFunded > 1) {
+    throw new Error(
+      `Force-refund refused for pool ${poolId}: bets exist on ${sidesFunded} sides and the on-chain refund is winner-take-all (would pay one side the others' funds and leave losers unrefundable). Resolve with the real winner instead, or wait for the per-bettor refund instruction.`,
+    );
+  }
+
   const bets = await deps.prisma.bet.findMany({
     where: { poolId, claimed: false },
   });

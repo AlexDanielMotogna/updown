@@ -216,7 +216,7 @@ export class PoolResolver {
           // would cycle here forever via processClaimableTransitions.
           closedAt: null,
         },
-        select: { id: true, poolId: true },
+        select: { id: true, poolId: true, winner: true },
       });
 
       const connection = getConnection();
@@ -225,10 +225,16 @@ export class PoolResolver {
         const lastFailure = this.closeFailures.get(pool.id);
         if (lastFailure && Date.now() - lastFailure < PoolResolver.CLOSE_RETRY_DELAY_MS) continue;
 
-        const unclaimed = await this.deps.prisma.bet.count({
-          where: { poolId: pool.id, claimed: false },
-        });
-        if (unclaimed > 0) continue;
+        // Only WINNING-side bets still owed a payout should block closing.
+        // Losing bets are never claimed (nothing to claim), so counting all
+        // unclaimed bets kept every 2-sided pool open forever. The on-chain
+        // vault-empty check below remains the real safety gate.
+        const unpaidWinners = pool.winner
+          ? await this.deps.prisma.bet.count({
+              where: { poolId: pool.id, side: pool.winner as 'UP' | 'DOWN' | 'DRAW', claimed: false, payoutFailed: false },
+            })
+          : await this.deps.prisma.bet.count({ where: { poolId: pool.id, claimed: false } });
+        if (unpaidWinners > 0) continue;
 
         const poolData = await this.deps.prisma.pool.findUnique({ where: { id: pool.id } });
         const betCount = await this.deps.prisma.bet.count({ where: { poolId: pool.id } });
