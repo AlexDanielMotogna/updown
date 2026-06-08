@@ -5,7 +5,7 @@ import {
   Box, TextField, Select, MenuItem, FormControl, InputLabel,
 } from '@mui/material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { adminPost, adminPostSSE } from '../lib/adminApi';
+import { adminPost, adminPostSSE, adminGet } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
 import {
   SectionCard, ConfirmDialog, ActionButton,
@@ -74,12 +74,11 @@ export function ManualActions() {
     if (atBottomRef.current) logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [recoveryLogs]);
 
-  const startRecovery = async () => {
-    setRecoveryRunning(true);
-    setRecoveryLogs([]);
+  // Subscribe to the (server-side, background) recovery job's SSE stream. The
+  // server replays buffered logs + streams new ones; leaving the page only
+  // unsubscribes — the scan keeps running and we reconnect on return.
+  const subscribeRecovery = async () => {
     setRecoveryError(null);
-    setConfirmAction(null);
-
     try {
       await adminPostSSE('/actions/recover-orphaned-pools', undefined, (event) => {
         setRecoveryLogs(prev => [...prev, event as LogLine]);
@@ -94,6 +93,31 @@ export function ManualActions() {
     qc.invalidateQueries({ queryKey: ['admin-health'] });
     qc.invalidateQueries({ queryKey: ['admin-finance'] });
   };
+
+  const startRecovery = async () => {
+    setRecoveryRunning(true);
+    setRecoveryLogs([]);
+    setConfirmAction(null);
+    await subscribeRecovery();
+  };
+
+  // Reconnect to an already-running recovery job (e.g. you navigated away and
+  // came back) — it keeps running server-side regardless of this page.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await adminGet<{ data: { running: boolean } }>('/actions/recovery-status');
+        if (!cancelled && r.data?.running) {
+          setRecoveryRunning(true);
+          setRecoveryLogs([]); // server replays its buffer on connect
+          subscribeRecovery();
+        }
+      } catch { /* not running / unauthorized — ignore */ }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const execMutation = useMutation({
     mutationFn: (fn: () => Promise<unknown>) => fn(),

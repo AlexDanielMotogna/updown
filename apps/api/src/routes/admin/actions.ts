@@ -203,54 +203,91 @@ adminActionsRouter.post('/restart-scheduler', async (_req, res) => {
   }
 });
 
-// POST /actions/recover-orphaned-pools (SSE streaming)
-let recoveryAbort: (() => void) | null = null;
+// ── Orphan recovery (decoupled background job) ───────────────────────────────
+// The scan runs server-side independent of any client connection, buffering its
+// log lines. The SSE endpoint only SUBSCRIBES (replays the buffer + streams new
+// events); disconnecting (leaving the admin tab) does NOT stop the job, and the
+// client can reconnect to see live progress.
+type RecoveryEvent = Record<string, unknown>;
+interface RecoveryJob {
+  running: boolean;
+  aborted: boolean;
+  startedAt: number;
+  logs: RecoveryEvent[];
+  subscribers: Set<(e: RecoveryEvent) => void>;
+}
+let recoveryJob: RecoveryJob | null = null;
 
-adminActionsRouter.post('/recover-orphaned-pools', async (_req, res) => {
+function startRecoveryJob(): RecoveryJob {
+  if (recoveryJob?.running) return recoveryJob;
+  const job: RecoveryJob = { running: true, aborted: false, startedAt: Date.now(), logs: [], subscribers: new Set() };
+  recoveryJob = job;
+  const emit = (e: RecoveryEvent) => {
+    job.logs.push(e);
+    for (const sub of job.subscribers) { try { sub(e); } catch { /* dead socket */ } }
+  };
+  (async () => {
+    try {
+      const resolver = getScheduler().getResolver();
+      const result = await resolver.recoverOrphanedPools((event) => emit(event), () => job.aborted);
+      await logAdminEvent('ADMIN_RECOVER_ORPHANS', 'system', {
+        totalOnChain: result.totalOnChain.toString(),
+        orphaned: result.orphaned.toString(),
+        closed: result.closed.toString(),
+        skipped: result.skipped.toString(),
+        failed: result.failed.toString(),
+        totalRentReclaimed: result.totalRentReclaimed,
+      });
+      emit({ type: 'done', ...result });
+    } catch (error) {
+      emit({ type: 'error', message: error instanceof Error ? error.message : 'Recovery failed' });
+    } finally {
+      job.running = false;
+    }
+  })();
+  return job;
+}
+
+// POST /actions/recover-orphaned-pools — start (if idle) + stream (replay + live).
+adminActionsRouter.post('/recover-orphaned-pools', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders();
 
-  const send = (data: Record<string, unknown>) => {
-    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  const job = startRecoveryJob();
+  const send = (e: RecoveryEvent) => { try { res.write(`data: ${JSON.stringify(e)}\n\n`); } catch { /* socket closed */ } };
+
+  // Replay everything buffered so far so a reconnecting client catches up.
+  for (const e of job.logs) send(e);
+  if (!job.running) { res.end(); return; } // already finished — replay included done/error
+
+  const sub = (e: RecoveryEvent) => {
+    send(e);
+    if (e.type === 'done' || e.type === 'error') { job.subscribers.delete(sub); res.end(); }
   };
-
-  // Abort signal for stopping mid-scan
-  let aborted = false;
-  recoveryAbort = () => { aborted = true; };
-
-  try {
-    const scheduler = getScheduler();
-    const resolver = scheduler.getResolver();
-    const result = await resolver.recoverOrphanedPools(
-      (event) => { send(event); },
-      () => aborted,
-    );
-
-    await logAdminEvent('ADMIN_RECOVER_ORPHANS', 'system', {
-      totalOnChain: result.totalOnChain.toString(),
-      orphaned: result.orphaned.toString(),
-      closed: result.closed.toString(),
-      skipped: result.skipped.toString(),
-      failed: result.failed.toString(),
-      totalRentReclaimed: result.totalRentReclaimed,
-    });
-
-    send({ type: 'done', ...result });
-  } catch (error) {
-    send({ type: 'error', message: error instanceof Error ? error.message : 'Recovery failed' });
-  }
-  recoveryAbort = null;
-  res.end();
+  job.subscribers.add(sub);
+  // Leaving the page just unsubscribes — the job keeps running server-side.
+  req.on('close', () => { job.subscribers.delete(sub); });
 });
 
-// POST /actions/stop-recovery
+// GET /actions/recovery-status — lets the client detect a job already running
+// (e.g. after navigating back) and reconnect to the stream.
+adminActionsRouter.get('/recovery-status', (_req, res) => {
+  res.json({
+    success: true,
+    data: {
+      running: !!recoveryJob?.running,
+      logCount: recoveryJob?.logs.length ?? 0,
+      startedAt: recoveryJob?.startedAt ?? null,
+    },
+  });
+});
+
+// POST /actions/stop-recovery — signals the background job to abort.
 adminActionsRouter.post('/stop-recovery', async (_req, res) => {
-  // PR 18 / Phase 5 — uniform envelope: `data` carries the flag so the
-  // client knows whether anything was actually stopped.
-  if (recoveryAbort) {
-    recoveryAbort();
+  if (recoveryJob?.running) {
+    recoveryJob.aborted = true;
     res.json({ success: true, data: { stopped: true }, message: 'Stop signal sent' });
   } else {
     res.json({ success: true, data: { stopped: false }, message: 'No recovery running' });

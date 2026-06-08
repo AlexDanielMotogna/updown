@@ -64,6 +64,10 @@ export async function adminPost<T = unknown>(endpoint: string, body?: unknown): 
   });
 }
 
+export async function adminGet<T = unknown>(endpoint: string): Promise<T> {
+  return adminFetch<T>(endpoint, { method: 'GET' });
+}
+
 export async function adminPostSSE(
   endpoint: string,
   body?: unknown,
