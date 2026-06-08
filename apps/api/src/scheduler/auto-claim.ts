@@ -264,6 +264,19 @@ export async function autoClaimBets(
           },
         }).catch(() => { /* ignore - best-effort attempt counter */ });
 
+        // Terminal failure: the on-chain user_bet account no longer exists.
+        // This happens when the position was already settled — e.g. the pool
+        // was refunded/cancelled from admin, or the bet was already claimed.
+        // Retrying can NEVER succeed, so stop now instead of looping every
+        // cycle (which spammed 0xbc4 simulation errors and wasted RPC).
+        const accountGone = lastError.includes('AccountNotInitialized')
+          || lastError.includes('0xbc4')
+          || lastError.includes('Error Number: 3012');
+        if (accountGone) {
+          console.warn(`[AutoClaim] bet ${bet.id}: on-chain user_bet account gone (already settled / refunded) — marking terminal, not retrying`);
+          break;
+        }
+
         if (attempt < AUTO_CLAIM_MAX_RETRIES) {
           await new Promise(r => setTimeout(r, 2000 * attempt));
         }
