@@ -65,9 +65,13 @@ export function ManualActions() {
   const [recoveryLogs, setRecoveryLogs] = useState<LogLine[]>([]);
   const [recoveryError, setRecoveryError] = useState<unknown | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const atBottomRef = useRef(true);
 
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Only auto-scroll to the newest line if the user is already at the bottom,
+    // so scrolling up to read earlier logs isn't yanked back down every tick.
+    if (atBottomRef.current) logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [recoveryLogs]);
 
   const startRecovery = async () => {
@@ -168,6 +172,11 @@ export function ManualActions() {
         ) : null}
         {recoveryLogs.length > 0 && (
           <Box
+            ref={scrollRef}
+            onScroll={(e) => {
+              const el = e.currentTarget;
+              atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+            }}
             sx={{
               bgcolor: t.bg.surfaceAlt,
               border: `1px solid ${t.border.subtle}`,
