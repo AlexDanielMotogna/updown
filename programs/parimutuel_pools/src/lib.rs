@@ -66,6 +66,12 @@ pub mod parimutuel_pools {
         instructions::close_losing_bet::handler(ctx, side)
     }
 
+    /// Sweep rounding dust from a resolved pool's vault to the authority so the
+    /// pool can be closed (authority only).
+    pub fn sweep_vault_dust(ctx: Context<SweepVaultDust>) -> Result<()> {
+        instructions::sweep_vault_dust::handler(ctx)
+    }
+
     /// Close a resolved pool and reclaim rent (authority only)
     pub fn close_pool(ctx: Context<ClosePool>) -> Result<()> {
         instructions::close_pool::handler(ctx)

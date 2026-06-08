@@ -44,6 +44,7 @@ const RESOLVE_WITH_WINNER_DISC = Buffer.from([200, 87, 85, 170, 63, 238, 116, 50
 const CLAIM_DISC = Buffer.from([62, 198, 214, 193, 213, 159, 108, 210]);
 const REFUND_DISC = Buffer.from([2, 96, 183, 251, 63, 208, 46, 46]);
 const CLOSE_LOSING_BET_DISC = Buffer.from([80, 132, 195, 35, 207, 61, 209, 137]);
+const SWEEP_VAULT_DUST_DISC = Buffer.from([90, 110, 177, 60, 25, 214, 170, 48]);
 const CLOSE_POOL_DISC = Buffer.from([140, 189, 209, 23, 239, 62, 239, 11]);
 
 // ── Instruction Builders ───────────────────────────────────────────────────────
@@ -267,6 +268,29 @@ export function buildCloseLosingBetIx(
   ];
 
   return new TransactionInstruction({ keys, programId: PROGRAM_ID, data });
+}
+
+/**
+ * Build `sweep_vault_dust` TransactionInstruction.
+ * Authority-signed sweep of rounding dust from a resolved pool's vault to the
+ * authority so the vault hits 0 and the pool can be closed. Accounts: pool,
+ * vault, authorityTokenAccount, authority, tokenProgram.
+ */
+export function buildSweepVaultDustIx(
+  pool: PublicKey,
+  vault: PublicKey,
+  authorityTokenAccount: PublicKey,
+  authority: PublicKey,
+): TransactionInstruction {
+  const keys = [
+    { pubkey: pool, isSigner: false, isWritable: false },
+    { pubkey: vault, isSigner: false, isWritable: true },
+    { pubkey: authorityTokenAccount, isSigner: false, isWritable: true },
+    { pubkey: authority, isSigner: true, isWritable: true },
+    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+  ];
+
+  return new TransactionInstruction({ keys, programId: PROGRAM_ID, data: SWEEP_VAULT_DUST_DISC });
 }
 
 /**

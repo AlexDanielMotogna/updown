@@ -6,7 +6,7 @@ import { derivePoolSeed, getConnection } from '../utils/solana';
 import { getVaultPDA } from 'solana-client';
 import { ResolverDeps, logEvent, handleRpcError } from './resolver-types';
 import { resolvePool } from './resolve-logic';
-import { closePoolOnChain, resolvePoolOnChain, closeLosingBetOnChain } from './onchain-tx';
+import { closePoolOnChain, resolvePoolOnChain, closeLosingBetOnChain, sweepVaultDustOnChain } from './onchain-tx';
 import { autoClaimBets } from './auto-claim';
 import { autoPayoutEnabledFor } from '../utils/auto-payout-flag';
 import {
@@ -289,14 +289,27 @@ export class PoolResolver {
             const vaultBalance = await connection.getTokenAccountBalance(closureVaultPda);
             const vaultAmount = Number(vaultBalance.value.amount);
             if (vaultAmount > 0) {
-              // Time-weighted payouts leave a few micro-USDC of rounding dust
-              // in the vault, so it never reaches 0 and close_pool (which needs
-              // vault.amount == 0) keeps reverting. Back off for the retry delay
-              // instead of re-checking (1 RPC each) every 10s — that was part of
-              // the 429 storm. A real fix needs a dust sweep / close tolerance.
-              console.warn(`[Scheduler] Pool ${pool.id} vault still has ${vaultAmount} tokens - skipping close`);
-              this.closeFailures.set(pool.id, Date.now());
-              continue;
+              // Time-weighted payouts leave a few micro-USDC of rounding dust in
+              // the vault, so it never reaches 0 and close_pool (needs amount==0)
+              // reverts. When the sweep instruction is deployed (gated by
+              // CLOSE_LOSING_BETS=on), sweep dust (<= 1000 = 0.001 USDC) to the
+              // authority and fall through to close. Real funds (> dust) always
+              // back off so pending winners are never swept.
+              if (process.env.CLOSE_LOSING_BETS === 'on' && vaultAmount <= 1000) {
+                try {
+                  await sweepVaultDustOnChain(this.deps, pool.id);
+                  // vault is now 0 — fall through to close below
+                } catch (e) {
+                  handleRpcError(e);
+                  console.warn(`[Scheduler] dust sweep failed for ${pool.id}:`, e instanceof Error ? e.message : e);
+                  this.closeFailures.set(pool.id, Date.now());
+                  continue;
+                }
+              } else {
+                console.warn(`[Scheduler] Pool ${pool.id} vault still has ${vaultAmount} tokens - skipping close`);
+                this.closeFailures.set(pool.id, Date.now());
+                continue;
+              }
             }
           } catch {
             // Vault account might not exist (already closed) - that's fine, proceed
