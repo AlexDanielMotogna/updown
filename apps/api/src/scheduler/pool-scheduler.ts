@@ -95,6 +95,15 @@ export class PoolScheduler {
     this.initJobHealth('transitions', '*/10 * * * * *');
     console.log('[Scheduler] Scheduled transition & resolution job: every 10 seconds');
 
+    // Retry auto-payout for CLAIMABLE pools with unpaid winners (drains any
+    // backlog left by failed one-shot payouts; batch-limited inside).
+    const retryPayoutJob = cron.schedule('*/60 * * * * *', () => {
+      this.runTracked('retry-unpaid-payouts', () => this.resolver.retryUnpaidClaimable());
+    });
+    this.jobs.push(retryPayoutJob);
+    this.initJobHealth('retry-unpaid-payouts', '*/60 * * * * *');
+    console.log('[Scheduler] Scheduled unpaid-payout retry sweep: every 60 seconds');
+
     // Periodic dedup cleanup (every 30 seconds)
     const dedupJob = cron.schedule('*/30 * * * * *', () => {
       this.runTracked('dedup-cleanup', () => this.creator.cleanupDuplicateJoiningPools(config.templates));

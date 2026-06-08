@@ -105,6 +105,36 @@ export class PoolResolver {
   }
 
   /**
+   * Retry auto-payout for CLAIMABLE pools whose winners were never paid.
+   *
+   * The one-shot auto-payout fired at the RESOLVED→CLAIMABLE transition can
+   * fail wholesale during an RPC outage (429 storm) or a process crash,
+   * orphaning every winner in CLAIMABLE forever (there was no retry). This
+   * sweep re-runs autoClaimBets on a small batch of such pools each tick so
+   * the backlog drains and never accumulates again. Batch-limited to keep RPC
+   * pressure sane; autoClaimBets is idempotent (optimistic-locked per bet).
+   */
+  async retryUnpaidClaimable(): Promise<void> {
+    const pools = await this.deps.prisma.pool.findMany({
+      where: {
+        status: PoolStatus.CLAIMABLE,
+        closedAt: null,
+        winner: { not: null },
+        bets: { some: { claimed: false, payoutFailed: false } },
+      },
+      select: { id: true, asset: true, poolType: true, winner: true, homeTeam: true, awayTeam: true, league: true },
+      orderBy: { updatedAt: 'asc' }, // oldest backlog first
+      take: 8,
+    });
+    for (const pool of pools) {
+      if (!(await autoPayoutEnabledFor(pool))) continue;
+      await autoClaimBets(this.deps, pool).catch(err => {
+        console.error(`[Scheduler] retryUnpaidClaimable autoClaimBets crashed for pool ${pool.id}:`, err);
+      });
+    }
+  }
+
+  /**
    * Delete resolved/claimable pools that had zero participants.
    */
   async cleanupEmptyPools(): Promise<number> {
