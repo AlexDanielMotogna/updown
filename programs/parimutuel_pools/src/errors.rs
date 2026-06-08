@@ -84,4 +84,7 @@ pub enum PoolError {
 
     #[msg("Tournament vault still has tokens")]
     TournamentVaultNotEmpty,
+
+    #[msg("Bet is on the winning side - use claim, not close")]
+    IsWinner,
 }

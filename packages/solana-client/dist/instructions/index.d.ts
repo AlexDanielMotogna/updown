@@ -39,6 +39,12 @@ export declare function buildClaimIx(pool: PublicKey, userBet: PublicKey, vault:
  */
 export declare function buildRefundIx(pool: PublicKey, userBet: PublicKey, vault: PublicKey, userTokenAccount: PublicKey, user: PublicKey, authority: PublicKey, side: 0 | 1 | 2): TransactionInstruction;
 /**
+ * Build `close_losing_bet` TransactionInstruction.
+ * Authority-signed close of a LOSING bet's account, returning its rent to the
+ * bettor. No USDC transfer. Accounts: pool, userBet, user, authority.
+ */
+export declare function buildCloseLosingBetIx(pool: PublicKey, userBet: PublicKey, user: PublicKey, authority: PublicKey, side: 0 | 1 | 2): TransactionInstruction;
+/**
  * Build `close_pool` TransactionInstruction.
  * Closes a resolved pool + empty vault, reclaiming rent to authority.
  * Accounts: pool, vault, authority, tokenProgram

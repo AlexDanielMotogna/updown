@@ -1,6 +1,6 @@
 import { PublicKey, Transaction } from '@solana/web3.js';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
-import { getPoolPDA, getVaultPDA, getUserBetPDA, buildResolveIx, buildRefundIx, buildClosePoolIx, sideToIndex, type SideLabel } from 'solana-client';
+import { getPoolPDA, getVaultPDA, getUserBetPDA, buildResolveIx, buildRefundIx, buildCloseLosingBetIx, buildClosePoolIx, sideToIndex, type SideLabel } from 'solana-client';
 import { derivePoolSeed, getUsdcMint, getConnection } from '../utils/solana';
 import { emitRefund } from '../websocket';
 import { ResolverDeps, REFUND_MAX_RETRIES, logEvent, handleRpcError } from './resolver-types';
@@ -149,6 +149,49 @@ export async function refundBetOnChain(
   }
 
   console.log(`[Scheduler] refund tx confirmed: ${signature}`);
+  return signature;
+}
+
+/**
+ * Close a single LOSING bet on-chain, returning its rent (~0.0009 SOL) to the
+ * bettor. Authority signs; no USDC moves (the loser forfeits only their stake).
+ * Requires the `close_losing_bet` program instruction to be deployed.
+ */
+export async function closeLosingBetOnChain(
+  deps: ResolverDeps,
+  poolId: string,
+  walletAddress: string,
+  side: string,
+): Promise<string> {
+  const connection = getConnection();
+  const seed = derivePoolSeed(poolId);
+  const [poolPda] = getPoolPDA(seed);
+  const user = new PublicKey(walletAddress);
+  const sideIdx = sideToIndex(side as SideLabel);
+  const [userBetPda] = getUserBetPDA(poolPda, user, sideIdx);
+
+  const ix = buildCloseLosingBetIx(poolPda, userBetPda, user, deps.wallet.publicKey, sideIdx);
+
+  const transaction = new Transaction().add(ix);
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = deps.wallet.publicKey;
+  transaction.sign(deps.wallet);
+
+  const signature = await connection.sendRawTransaction(transaction.serialize(), {
+    skipPreflight: false,
+    preflightCommitment: 'confirmed',
+  });
+
+  const confirmation = await connection.confirmTransaction(
+    { signature, blockhash, lastValidBlockHeight },
+    'confirmed',
+  );
+
+  if (confirmation.value.err) {
+    throw new Error(`close_losing_bet tx failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
+  }
+
   return signature;
 }
 

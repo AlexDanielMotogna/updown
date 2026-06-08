@@ -6,7 +6,7 @@ import { derivePoolSeed, getConnection } from '../utils/solana';
 import { getVaultPDA } from 'solana-client';
 import { ResolverDeps, logEvent, handleRpcError } from './resolver-types';
 import { resolvePool } from './resolve-logic';
-import { closePoolOnChain, resolvePoolOnChain } from './onchain-tx';
+import { closePoolOnChain, resolvePoolOnChain, closeLosingBetOnChain } from './onchain-tx';
 import { autoClaimBets } from './auto-claim';
 import { autoPayoutEnabledFor } from '../utils/auto-payout-flag';
 import {
@@ -131,6 +131,46 @@ export class PoolResolver {
       await autoClaimBets(this.deps, pool).catch(err => {
         console.error(`[Scheduler] retryUnpaidClaimable autoClaimBets crashed for pool ${pool.id}:`, err);
       });
+    }
+  }
+
+  /**
+   * Return the rent of LOSING bets back to their bettors by closing their
+   * on-chain user_bet accounts. Losers forfeit only their USDC stake, not the
+   * ~0.0009 SOL rent. Gated behind CLOSE_LOSING_BETS=on because it needs the
+   * `close_losing_bet` program instruction deployed; until then it's a no-op.
+   * Batch-limited + throttled to keep RPC pressure sane.
+   */
+  async closeLosingBets(): Promise<void> {
+    if (process.env.CLOSE_LOSING_BETS !== 'on') return;
+    const sides = ['UP', 'DOWN', 'DRAW'] as const;
+    for (const side of sides) {
+      const others = sides.filter(s => s !== side);
+      const losers = await this.deps.prisma.bet.findMany({
+        where: {
+          side,
+          claimed: false,
+          payoutFailed: false,
+          pool: { status: PoolStatus.CLAIMABLE, closedAt: null, winner: { in: [...others] } },
+        },
+        select: { id: true, poolId: true, walletAddress: true, side: true },
+        orderBy: { createdAt: 'asc' },
+        take: 10,
+      });
+      for (const bet of losers) {
+        try {
+          const sig = await closeLosingBetOnChain(this.deps, bet.poolId, bet.walletAddress, bet.side);
+          await this.deps.prisma.bet.updateMany({
+            where: { id: bet.id, claimed: false },
+            data: { claimed: true, claimTx: sig },
+          });
+          console.log(`[Scheduler] closed losing bet ${bet.id} — rent returned to ${bet.walletAddress.slice(0, 6)}`);
+        } catch (e) {
+          handleRpcError(e);
+          console.warn(`[Scheduler] close losing bet ${bet.id} failed:`, e instanceof Error ? e.message : e);
+        }
+        await new Promise(r => setTimeout(r, 400));
+      }
     }
   }
 

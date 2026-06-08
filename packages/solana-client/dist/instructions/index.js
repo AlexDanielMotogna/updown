@@ -6,6 +6,7 @@ exports.buildResolveIx = buildResolveIx;
 exports.buildResolveWithWinnerIx = buildResolveWithWinnerIx;
 exports.buildClaimIx = buildClaimIx;
 exports.buildRefundIx = buildRefundIx;
+exports.buildCloseLosingBetIx = buildCloseLosingBetIx;
 exports.buildClosePoolIx = buildClosePoolIx;
 exports.buildForceClosePoolIx = buildForceClosePoolIx;
 exports.buildInitializeTournamentIx = buildInitializeTournamentIx;
@@ -47,6 +48,7 @@ const RESOLVE_DISC = Buffer.from([246, 150, 236, 206, 108, 63, 58, 10]);
 const RESOLVE_WITH_WINNER_DISC = Buffer.from([200, 87, 85, 170, 63, 238, 116, 50]);
 const CLAIM_DISC = Buffer.from([62, 198, 214, 193, 213, 159, 108, 210]);
 const REFUND_DISC = Buffer.from([2, 96, 183, 251, 63, 208, 46, 46]);
+const CLOSE_LOSING_BET_DISC = Buffer.from([80, 132, 195, 35, 207, 61, 209, 137]);
 const CLOSE_POOL_DISC = Buffer.from([140, 189, 209, 23, 239, 62, 239, 11]);
 // ── Instruction Builders ───────────────────────────────────────────────────────
 /**
@@ -176,6 +178,24 @@ function buildRefundIx(pool, userBet, vault, userTokenAccount, user, authority, 
         { pubkey: user, isSigner: false, isWritable: true },
         { pubkey: authority, isSigner: true, isWritable: true },
         { pubkey: spl_token_1.TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    ];
+    return new web3_js_1.TransactionInstruction({ keys, programId: accounts_1.PROGRAM_ID, data });
+}
+/**
+ * Build `close_losing_bet` TransactionInstruction.
+ * Authority-signed close of a LOSING bet's account, returning its rent to the
+ * bettor. No USDC transfer. Accounts: pool, userBet, user, authority.
+ */
+function buildCloseLosingBetIx(pool, userBet, user, authority, side) {
+    const data = Buffer.concat([
+        CLOSE_LOSING_BET_DISC,
+        Buffer.from([side]), // enum Side { Up=0, Down=1, Draw=2 }
+    ]);
+    const keys = [
+        { pubkey: pool, isSigner: false, isWritable: false },
+        { pubkey: userBet, isSigner: false, isWritable: true },
+        { pubkey: user, isSigner: false, isWritable: true },
+        { pubkey: authority, isSigner: true, isWritable: true },
     ];
     return new web3_js_1.TransactionInstruction({ keys, programId: accounts_1.PROGRAM_ID, data });
 }

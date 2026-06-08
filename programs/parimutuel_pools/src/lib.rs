@@ -60,6 +60,12 @@ pub mod parimutuel_pools {
         instructions::refund::handler(ctx, side)
     }
 
+    /// Close a LOSING bet's account, returning its rent to the bettor (authority
+    /// only). Losers forfeit only their USDC stake, not the SOL rent.
+    pub fn close_losing_bet(ctx: Context<CloseLosingBet>, side: Side) -> Result<()> {
+        instructions::close_losing_bet::handler(ctx, side)
+    }
+
     /// Close a resolved pool and reclaim rent (authority only)
     pub fn close_pool(ctx: Context<ClosePool>) -> Result<()> {
         instructions::close_pool::handler(ctx)

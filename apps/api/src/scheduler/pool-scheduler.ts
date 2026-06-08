@@ -104,6 +104,14 @@ export class PoolScheduler {
     this.initJobHealth('retry-unpaid-payouts', '*/60 * * * * *');
     console.log('[Scheduler] Scheduled unpaid-payout retry sweep: every 60 seconds');
 
+    // Return rent of losing bets to bettors (no-op unless CLOSE_LOSING_BETS=on,
+    // which requires the close_losing_bet program instruction deployed).
+    const closeLosersJob = cron.schedule('*/60 * * * * *', () => {
+      this.runTracked('close-losing-bets', () => this.resolver.closeLosingBets());
+    });
+    this.jobs.push(closeLosersJob);
+    this.initJobHealth('close-losing-bets', '*/60 * * * * *');
+
     // Periodic dedup cleanup (every 30 seconds)
     const dedupJob = cron.schedule('*/30 * * * * *', () => {
       this.runTracked('dedup-cleanup', () => this.creator.cleanupDuplicateJoiningPools(config.templates));
