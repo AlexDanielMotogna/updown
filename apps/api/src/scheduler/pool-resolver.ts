@@ -167,7 +167,16 @@ export class PoolResolver {
           console.log(`[Scheduler] closed losing bet ${bet.id} — rent returned to ${bet.walletAddress.slice(0, 6)}`);
         } catch (e) {
           handleRpcError(e);
-          console.warn(`[Scheduler] close losing bet ${bet.id} failed:`, e instanceof Error ? e.message : e);
+          const msg = e instanceof Error ? e.message : String(e);
+          // Pool (or user_bet) account gone = the pool was already closed before
+          // we reached this loser. The rent can no longer be reclaimed on-chain;
+          // mark it settled so we stop retrying it every cycle.
+          if (msg.includes('AccountNotInitialized') || msg.includes('0xbc4') || msg.includes('Error Number: 3012')) {
+            await this.deps.prisma.bet.updateMany({ where: { id: bet.id, claimed: false }, data: { claimed: true } }).catch(() => {});
+            console.warn(`[Scheduler] losing bet ${bet.id}: pool already closed — rent unrecoverable, marking settled`);
+          } else {
+            console.warn(`[Scheduler] close losing bet ${bet.id} failed:`, msg);
+          }
         }
         await new Promise(r => setTimeout(r, 400));
       }
@@ -271,12 +280,18 @@ export class PoolResolver {
         // Losing bets are never claimed (nothing to claim), so counting all
         // unclaimed bets kept every 2-sided pool open forever. The on-chain
         // vault-empty check below remains the real safety gate.
-        const unpaidWinners = pool.winner
-          ? await this.deps.prisma.bet.count({
-              where: { poolId: pool.id, side: pool.winner as 'UP' | 'DOWN' | 'DRAW', claimed: false, payoutFailed: false },
-            })
-          : await this.deps.prisma.bet.count({ where: { poolId: pool.id, claimed: false } });
-        if (unpaidWinners > 0) continue;
+        // When loser-rent recovery is ON, require ALL bets settled (winners paid
+        // AND losers closed by closeLosingBets) before closing — otherwise the
+        // pool PDA gets removed before a loser's rent can be returned, orphaning
+        // it (close_losing_bet then fails with pool AccountNotInitialized). When
+        // OFF, only unpaid winners block (losers never claim).
+        const cleanupOn = process.env.CLOSE_LOSING_BETS === 'on';
+        const blocking = cleanupOn
+          ? await this.deps.prisma.bet.count({ where: { poolId: pool.id, claimed: false, payoutFailed: false } })
+          : pool.winner
+            ? await this.deps.prisma.bet.count({ where: { poolId: pool.id, side: pool.winner as 'UP' | 'DOWN' | 'DRAW', claimed: false, payoutFailed: false } })
+            : await this.deps.prisma.bet.count({ where: { poolId: pool.id, claimed: false } });
+        if (blocking > 0) continue;
 
         const poolData = await this.deps.prisma.pool.findUnique({ where: { id: pool.id } });
         const betCount = await this.deps.prisma.bet.count({ where: { poolId: pool.id } });
