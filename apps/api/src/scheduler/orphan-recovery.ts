@@ -3,6 +3,25 @@ import { PROGRAM_ID, buildResolveIx, buildResolveWithWinnerIx, buildClosePoolIx,
 import { getConnection } from '../utils/solana';
 import { ResolverDeps, logEvent } from './resolver-types';
 
+/** Minimal base58 encoder (for the getProgramAccounts memcmp filter bytes). */
+function toBase58(bytes: number[] | Uint8Array): string {
+  const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+  const digits: number[] = [0];
+  for (const byte of bytes) {
+    let carry = byte;
+    for (let j = 0; j < digits.length; j++) {
+      carry += digits[j] << 8;
+      digits[j] = carry % 58;
+      carry = (carry / 58) | 0;
+    }
+    while (carry > 0) { digits.push(carry % 58); carry = (carry / 58) | 0; }
+  }
+  let str = '';
+  for (const b of bytes) { if (b === 0) str += '1'; else break; }
+  for (let k = digits.length - 1; k >= 0; k--) str += ALPHABET[digits[k]];
+  return str;
+}
+
 /**
  * Scan on-chain for orphaned pools (exist on-chain but deleted from DB).
  * Resolves and closes them to reclaim rent back to the authority wallet.
@@ -30,13 +49,20 @@ export async function recoverOrphanedPools(
   };
   const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-  // 1. Scan on-chain
-  emit('info', 'Scanning all program accounts on-chain...');
-  const allAccounts = await connection.getProgramAccounts(PROGRAM_ID);
-  const poolAccounts = allAccounts.filter(a => {
-    if (a.account.data.length < 8) return false;
-    return POOL_DISC.every((b, i) => a.account.data[i] === b);
-  });
+  // 1. Scan on-chain — filter to POOL accounts server-side (memcmp on the
+  // 8-byte discriminator). Without the filter getProgramAccounts also returns
+  // every user_bet PDA (thousands once the bot has run), which makes the RPC
+  // time out / hang ("Scanning..." never finishes).
+  emit('info', 'Scanning pool accounts on-chain...');
+  let poolAccounts;
+  try {
+    poolAccounts = await connection.getProgramAccounts(PROGRAM_ID, {
+      filters: [{ memcmp: { offset: 0, bytes: toBase58(POOL_DISC) } }],
+    });
+  } catch (e) {
+    emit('error', `Failed to scan program accounts: ${e instanceof Error ? e.message : String(e)}`);
+    throw e;
+  }
 
   // 2. Get DB pool PDAs
   const dbPools = await deps.prisma.pool.findMany({ select: { poolId: true } });
