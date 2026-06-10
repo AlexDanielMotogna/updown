@@ -43,7 +43,9 @@ export async function recoverOrphanedPools(
   const connection = getConnection();
   const POOL_DISC = [241, 154, 109, 4, 17, 177, 109, 188];
   const STATUS_NAMES = ['Upcoming', 'Joining', 'Active', 'Resolved'];
-  const RPC_DELAY = 1000; // 1s between pool operations to avoid 429s
+  // Pause between pools to avoid 429s. 1s × thousands of orphans = hours, so with
+  // the multi-RPC failover now in place we default much lower; tune via env.
+  const RPC_DELAY = Number(process.env.RECOVERY_RPC_DELAY_MS) || 200;
   const emit = (type: string, message: string, extra?: Record<string, unknown>) => {
     onProgress?.({ type, message, ...extra });
   };
