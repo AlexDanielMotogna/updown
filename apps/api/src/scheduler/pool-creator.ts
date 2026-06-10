@@ -178,12 +178,27 @@ export class PoolCreator {
           usdcMint, poolPda, vaultPda,
         );
       } catch (chainError) {
-        // On-chain failed - roll back DB to prevent stale DB-only pool
-        await this.deps.prisma.priceSnapshot.deleteMany({ where: { poolId: pool.id } }).catch(e => console.warn('[Scheduler] rollback priceSnapshot failed:', e instanceof Error ? e.message : e));
-        await this.deps.prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: pool.id } }).catch(e => console.warn('[Scheduler] rollback eventLog failed:', e instanceof Error ? e.message : e));
-        await this.deps.prisma.pool.delete({ where: { id: pool.id } }).catch(e => console.warn('[Scheduler] rollback pool failed:', e instanceof Error ? e.message : e));
-        console.warn(`[Scheduler] On-chain creation failed, rolled back DB row ${pool.id}`);
-        throw chainError;
+        // The init tx may have actually LANDED on-chain even though confirmation
+        // threw (429 / timeout under RPC load). Rolling back the DB row in that
+        // case orphans the pool (chain pool with no DB row) — the exact bug that
+        // accumulated thousands of orphans. So verify on-chain FIRST: only roll
+        // back when the pool truly does not exist; if it exists (or the RPC can't
+        // tell), keep the DB row and treat it as created.
+        let existsOnChain = true; // default: assume landed (don't risk orphaning)
+        try {
+          existsOnChain = (await getConnection().getAccountInfo(poolPda)) !== null;
+        } catch { /* RPC unsure — keep the row to be safe */ }
+
+        if (!existsOnChain) {
+          await this.deps.prisma.priceSnapshot.deleteMany({ where: { poolId: pool.id } }).catch(e => console.warn('[Scheduler] rollback priceSnapshot failed:', e instanceof Error ? e.message : e));
+          await this.deps.prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: pool.id } }).catch(e => console.warn('[Scheduler] rollback eventLog failed:', e instanceof Error ? e.message : e));
+          await this.deps.prisma.pool.delete({ where: { id: pool.id } }).catch(e => console.warn('[Scheduler] rollback pool failed:', e instanceof Error ? e.message : e));
+          console.warn(`[Scheduler] On-chain creation failed (pool not on-chain), rolled back DB row ${pool.id}`);
+          throw chainError;
+        }
+        // Pool IS on-chain — confirmation just failed. Keep the DB row (no orphan)
+        // and fall through so the rest of creation (snapshot, emit) proceeds.
+        console.warn(`[Scheduler] init confirmation errored but pool ${pool.id} exists on-chain — keeping DB row to avoid orphan`);
       }
 
       // Create STRIKE PriceSnapshot at creation time
