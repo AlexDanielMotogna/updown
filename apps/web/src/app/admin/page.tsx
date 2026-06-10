@@ -11,14 +11,13 @@ import { ADMIN_AUTH_EXPIRED_EVENT, verifyKey } from './lib/adminApi';
 import { ToastProvider } from './ui';
 import { SystemHealth } from './components/SystemHealth';
 import { PoolManagement } from './components/PoolManagement';
-import { ZombiePools } from './components/ZombiePools';
-import { FinancialOverview } from './components/FinancialOverview';
+import { NeedsAttention } from './components/NeedsAttention';
+import { FinanceSection } from './components/FinanceSection';
 import { UserOverview } from './components/UserOverview';
 import { EventLog } from './components/EventLog';
 import { ManualActions } from './components/ManualActions';
 import { TournamentManagement } from './components/TournamentManagement';
 import { CategoryManagement } from './components/CategoryManagement';
-import { PayoutManagement } from './components/PayoutManagement';
 import { MatchExplorer } from './components/MatchExplorer';
 import { PmExplorer } from './components/PmExplorer';
 import { ResolutionMetrics } from './components/ResolutionMetrics';
@@ -35,14 +34,13 @@ type NavEntry = { id: string; label: string; Component: ComponentType };
 const NAV_GROUPS: { group: string; items: NavEntry[] }[] = [
   { group: 'Monitor', items: [
     { id: 'health', label: 'Health', Component: SystemHealth },
-    { id: 'finance', label: 'Finance', Component: FinancialOverview },
-    { id: 'payouts', label: 'Payouts', Component: PayoutManagement },
+    { id: 'finance', label: 'Finance', Component: FinanceSection },
     { id: 'users', label: 'Users', Component: UserOverview },
     { id: 'events', label: 'Events', Component: EventLog },
   ] },
   { group: 'Pools', items: [
     { id: 'pools', label: 'Browse', Component: PoolManagement },
-    { id: 'attention', label: 'Needs Attention', Component: ZombiePools },
+    { id: 'attention', label: 'Needs Attention', Component: NeedsAttention },
   ] },
   { group: 'Resolution', items: [
     { id: 'metrics', label: 'Metrics', Component: ResolutionMetrics },
