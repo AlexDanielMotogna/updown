@@ -24,6 +24,8 @@ export interface DataTableProps<T> {
   rows: T[];
   getRowKey: (row: T, index: number) => string;
   onRowClick?: (row: T) => void;
+  /** Per-row sx (e.g. tint failing rows). */
+  rowSx?: (row: T) => SxProps<Theme>;
 }
 
 /**
@@ -31,7 +33,7 @@ export interface DataTableProps<T> {
  * (TableContainer/Head/Body/Row/Cell). Each column carries its own header and
  * per-row render, so callers describe data instead of re-typing table markup.
  */
-export function DataTable<T>({ columns, rows, getRowKey, onRowClick }: DataTableProps<T>) {
+export function DataTable<T>({ columns, rows, getRowKey, onRowClick, rowSx }: DataTableProps<T>) {
   return (
     <TableContainer>
       <Table size="small">
@@ -48,7 +50,7 @@ export function DataTable<T>({ columns, rows, getRowKey, onRowClick }: DataTable
               key={getRowKey(row, i)}
               hover
               onClick={onRowClick ? () => onRowClick(row) : undefined}
-              sx={onRowClick ? { cursor: 'pointer' } : undefined}
+              sx={{ ...(onRowClick ? { cursor: 'pointer' } : {}), ...(rowSx ? (rowSx(row) as Record<string, unknown>) : {}) }}
             >
               {columns.map(c => (
                 <TableCell
