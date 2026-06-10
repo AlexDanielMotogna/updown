@@ -518,10 +518,18 @@ export async function createSportsPool(match: Match, leagueCode: string): Promis
 
       await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
     } catch (chainError) {
-      // On-chain failed - roll back DB to prevent stale DB-only pool
-      await prisma.pool.delete({ where: { id: poolId } }).catch(e => console.warn('[Sports] DB rollback failed:', e instanceof Error ? e.message : e));
-      console.warn(`[Sports] On-chain creation failed, rolled back DB row ${poolId}`);
-      throw chainError;
+      // The init tx may have LANDED on-chain even though confirmation threw
+      // (429 / timeout). Rolling back then would orphan the pool. Verify on-chain
+      // first: only roll back the DB row if the pool truly is not on-chain.
+      let existsOnChain = true;
+      try { existsOnChain = (await connection.getAccountInfo(poolPda)) !== null; }
+      catch { /* RPC unsure — keep the row to be safe */ }
+      if (!existsOnChain) {
+        await prisma.pool.delete({ where: { id: poolId } }).catch(e => console.warn('[Sports] DB rollback failed:', e instanceof Error ? e.message : e));
+        console.warn(`[Sports] On-chain creation failed (pool not on-chain), rolled back DB row ${poolId}`);
+        throw chainError;
+      }
+      console.warn(`[Sports] init confirmation errored but pool ${poolId} exists on-chain — keeping DB row to avoid orphan`);
     }
 
     console.log(`[Sports] Created pool for ${match.homeTeam} vs ${match.awayTeam} (${leagueCode}, kickoff: ${kickoff.toISOString()})`);
