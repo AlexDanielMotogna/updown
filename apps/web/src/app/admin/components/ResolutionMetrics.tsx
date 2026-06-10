@@ -1,10 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  Box, ToggleButtonGroup, ToggleButton,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-} from '@mui/material';
+import { Box, ToggleButtonGroup, ToggleButton } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { adminFetch } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
@@ -12,6 +9,7 @@ import {
   SectionCard, StatCard, StatusChip, RefreshButton,
   LoadingState, EmptyState, ErrorState,
   IdCell, TimeCell, Label, Meta,
+  DataTable, type Column,
   POLL_MEDIUM_MS,
   type StatusKind,
 } from '../ui';
@@ -105,6 +103,50 @@ function latencyColor(ms: number | null): string | undefined {
   if (ms < 6 * 60 * 60_000) return t.warning;     // <6h
   return t.error;                                  // 6h+
 }
+
+const NUM = { fontVariantNumeric: 'tabular-nums' } as const;
+
+const CATEGORY_COLUMNS: Column<CategoryStat>[] = [
+  { key: 'code', header: 'Code', render: c => {
+    const rate = c.total > 0 ? (c.resolved / c.total) * 100 : 0;
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+        <Box sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.78rem', color: t.text.primary }}>{c.code}</Box>
+        {rate >= 80 && <StatusChip status="ok" label={`${rate.toFixed(0)}%`} />}
+        {rate < 80 && rate >= 50 && <StatusChip status="warning" label={`${rate.toFixed(0)}%`} />}
+        {rate < 50 && c.total > 0 && <StatusChip status="error" label={`${rate.toFixed(0)}%`} />}
+      </Box>
+    );
+  } },
+  { key: 'total', header: 'Total', align: 'right', cellSx: NUM, render: c => c.total },
+  { key: 'resolved', header: 'Resolved', align: 'right', cellSx: NUM, render: c => <Box component="span" sx={{ color: c.resolved > 0 ? t.gain : undefined }}>{c.resolved}</Box> },
+  { key: 'cancelled', header: 'Cancelled', align: 'right', cellSx: NUM, render: c => <Box component="span" sx={{ color: c.cancelled > 0 ? t.warning : undefined }}>{c.cancelled}</Box> },
+  { key: 'stuck', header: 'Stuck', align: 'right', cellSx: NUM, render: c => <Box component="span" sx={{ color: c.stuck > 0 ? t.error : undefined }}>{c.stuck}</Box> },
+  { key: 'pending', header: 'Pending', align: 'right', cellSx: { ...NUM, color: t.text.tertiary }, render: c => c.pending },
+  { key: 'p50', header: 'p50', align: 'right', cellSx: NUM, render: c => <Box component="span" sx={{ color: latencyColor(c.p50LatencyMs) }}>{formatLatency(c.p50LatencyMs)}</Box> },
+  { key: 'p90', header: 'p90', align: 'right', cellSx: NUM, render: c => <Box component="span" sx={{ color: latencyColor(c.p90LatencyMs) }}>{formatLatency(c.p90LatencyMs)}</Box> },
+  { key: 'avg', header: 'Avg', align: 'right', cellSx: NUM, render: c => <Box component="span" sx={{ color: latencyColor(c.avgLatencyMs) }}>{formatLatency(c.avgLatencyMs)}</Box> },
+];
+
+const RECENT_COLUMNS: Column<RecentRow>[] = [
+  { key: 'pool', header: 'Pool', render: r => <IdCell value={r.poolId} truncate={10} href={`/match/${r.poolId}`} external /> },
+  { key: 'category', header: 'Category', cellSx: { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.72rem' }, render: r => r.code ?? '-' },
+  { key: 'match', header: 'Match', cellSx: { maxWidth: 260 }, render: r => (
+    <Box sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.78rem' }}>
+      {r.awayTeam ? `${r.homeTeam} vs ${r.awayTeam}` : r.homeTeam ?? '-'}
+    </Box>
+  ) },
+  { key: 'end', header: 'End', render: r => <TimeCell value={r.endTime} mode="datetime" /> },
+  { key: 'resolved', header: 'Resolved', render: r => <TimeCell value={r.resolvedAt} mode="datetime" /> },
+  { key: 'latency', header: 'Latency', align: 'right', cellSx: { ...NUM, fontWeight: 600 }, render: r => <Box component="span" sx={{ color: latencyColor(r.latencyMs) }}>{formatLatency(r.latencyMs)}</Box> },
+  { key: 'outcome', header: 'Outcome', render: r => (
+    <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+      <StatusChip status={BUCKET_KIND[r.bucket]} label={r.bucket} />
+      {r.winner && <Meta>{r.winner}</Meta>}
+    </Box>
+  ) },
+  { key: 'bets', header: 'Bets', align: 'right', cellSx: NUM, render: r => r.betCount },
+];
 
 export function ResolutionMetrics() {
   const [windowSel, setWindowSel] = useState<Window>('7d');
@@ -203,48 +245,7 @@ export function ResolutionMetrics() {
         {perCategory.length === 0 ? (
           <EmptyState title="No pools yet" hint={`No pools created in the ${windowSel === 'all' ? 'history' : windowSel + ' window'}.`} />
         ) : (
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell><Label>Code</Label></TableCell>
-                  <TableCell align="right"><Label>Total</Label></TableCell>
-                  <TableCell align="right"><Label>Resolved</Label></TableCell>
-                  <TableCell align="right"><Label>Cancelled</Label></TableCell>
-                  <TableCell align="right"><Label>Stuck</Label></TableCell>
-                  <TableCell align="right"><Label>Pending</Label></TableCell>
-                  <TableCell align="right"><Label>p50</Label></TableCell>
-                  <TableCell align="right"><Label>p90</Label></TableCell>
-                  <TableCell align="right"><Label>Avg</Label></TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {perCategory.map(c => {
-                  const rate = c.total > 0 ? (c.resolved / c.total) * 100 : 0;
-                  return (
-                    <TableRow key={c.code} hover>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                          <Box sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.78rem', color: t.text.primary }}>{c.code}</Box>
-                          {rate >= 80 && <StatusChip status="ok" label={`${rate.toFixed(0)}%`} />}
-                          {rate < 80 && rate >= 50 && <StatusChip status="warning" label={`${rate.toFixed(0)}%`} />}
-                          {rate < 50 && c.total > 0 && <StatusChip status="error" label={`${rate.toFixed(0)}%`} />}
-                        </Box>
-                      </TableCell>
-                      <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{c.total}</TableCell>
-                      <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', color: c.resolved > 0 ? t.gain : undefined }}>{c.resolved}</TableCell>
-                      <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', color: c.cancelled > 0 ? t.warning : undefined }}>{c.cancelled}</TableCell>
-                      <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', color: c.stuck > 0 ? t.error : undefined }}>{c.stuck}</TableCell>
-                      <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', color: t.text.tertiary }}>{c.pending}</TableCell>
-                      <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', color: latencyColor(c.p50LatencyMs) }}>{formatLatency(c.p50LatencyMs)}</TableCell>
-                      <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', color: latencyColor(c.p90LatencyMs) }}>{formatLatency(c.p90LatencyMs)}</TableCell>
-                      <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', color: latencyColor(c.avgLatencyMs) }}>{formatLatency(c.avgLatencyMs)}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <DataTable columns={CATEGORY_COLUMNS} rows={perCategory} getRowKey={c => c.code} />
         )}
       </SectionCard>
 
@@ -256,51 +257,7 @@ export function ResolutionMetrics() {
         {recent.length === 0 ? (
           <EmptyState title="No resolutions yet" hint="When the pipeline starts flipping pools, they show up here in real time." />
         ) : (
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell><Label>Pool</Label></TableCell>
-                  <TableCell><Label>Category</Label></TableCell>
-                  <TableCell><Label>Match</Label></TableCell>
-                  <TableCell><Label>End</Label></TableCell>
-                  <TableCell><Label>Resolved</Label></TableCell>
-                  <TableCell align="right"><Label>Latency</Label></TableCell>
-                  <TableCell><Label>Outcome</Label></TableCell>
-                  <TableCell align="right"><Label>Bets</Label></TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {recent.map(r => (
-                  <TableRow key={r.poolId} hover>
-                    <TableCell>
-                      <IdCell value={r.poolId} truncate={10} href={`/match/${r.poolId}`} external />
-                    </TableCell>
-                    <TableCell sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.72rem' }}>
-                      {r.code ?? '-'}
-                    </TableCell>
-                    <TableCell sx={{ maxWidth: 260 }}>
-                      <Box sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.78rem' }}>
-                        {r.awayTeam ? `${r.homeTeam} vs ${r.awayTeam}` : r.homeTeam ?? '-'}
-                      </Box>
-                    </TableCell>
-                    <TableCell><TimeCell value={r.endTime} mode="datetime" /></TableCell>
-                    <TableCell><TimeCell value={r.resolvedAt} mode="datetime" /></TableCell>
-                    <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', color: latencyColor(r.latencyMs), fontWeight: 600 }}>
-                      {formatLatency(r.latencyMs)}
-                    </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                        <StatusChip status={BUCKET_KIND[r.bucket]} label={r.bucket} />
-                        {r.winner && <Meta>{r.winner}</Meta>}
-                      </Box>
-                    </TableCell>
-                    <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{r.betCount}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <DataTable columns={RECENT_COLUMNS} rows={recent} getRowKey={r => r.poolId} />
         )}
       </SectionCard>
     </Box>

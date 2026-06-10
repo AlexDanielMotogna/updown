@@ -15,6 +15,8 @@ export interface Column<T> {
   render: (row: T) => ReactNode;
   cellSx?: SxProps<Theme>;
   nowrap?: boolean;
+  /** Text alignment, applied to both the header and body cells. */
+  align?: 'left' | 'right' | 'center';
 }
 
 export interface DataTableProps<T> {
@@ -36,7 +38,7 @@ export function DataTable<T>({ columns, rows, getRowKey, onRowClick }: DataTable
         <TableHead>
           <TableRow>
             {columns.map(c => (
-              <TableCell key={c.key}><Label>{c.header}</Label></TableCell>
+              <TableCell key={c.key} align={c.align}><Label>{c.header}</Label></TableCell>
             ))}
           </TableRow>
         </TableHead>
@@ -51,6 +53,7 @@ export function DataTable<T>({ columns, rows, getRowKey, onRowClick }: DataTable
               {columns.map(c => (
                 <TableCell
                   key={c.key}
+                  align={c.align}
                   sx={{ ...(c.nowrap ? { whiteSpace: 'nowrap' } : {}), ...(c.cellSx as Record<string, unknown>) }}
                 >
                   {c.render(row)}
