@@ -1,10 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  Box, TextField,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-} from '@mui/material';
+import { Box, TextField } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import { useQuery } from '@tanstack/react-query';
 import { adminFetch } from '../lib/adminApi';
@@ -13,6 +10,7 @@ import {
   SectionCard, StatCard, StatusChip, ActionButton,
   LoadingState, EmptyState, ErrorAlert,
   WalletCell, TimeCell, Body, Meta, Label,
+  DataTable, type Column,
   POLL_MEDIUM_MS,
 } from '../ui';
 
@@ -72,9 +70,24 @@ interface UserSearchData {
   };
 }
 
+type RecentBet = UserSearchData['data']['recentBets'][number];
+
 function formatUsdc(raw: string): string {
   return (Number(raw) / 1e6).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+
+const RECENT_BET_COLUMNS: Column<RecentBet>[] = [
+  { key: 'date', header: 'Date', render: b => <TimeCell value={b.createdAt} mode="datetime" /> },
+  { key: 'asset', header: 'Asset', render: b => b.pool.asset },
+  { key: 'interval', header: 'Interval', render: b => b.pool.interval },
+  { key: 'side', header: 'Side', render: b => <StatusChip status={b.side === 'UP' ? 'ok' : b.side === 'DOWN' ? 'error' : 'warning'} label={b.side} /> },
+  { key: 'amount', header: 'Amount', cellSx: { fontVariantNumeric: 'tabular-nums' }, render: b => formatUsdc(b.amount) },
+  { key: 'result', header: 'Result', render: b => b.pool.winner
+      ? <StatusChip status={b.isWinner ? 'ok' : 'error'} label={b.isWinner ? 'Won' : 'Lost'} />
+      : <StatusChip status="pending" label={b.pool.status} /> },
+  { key: 'payout', header: 'Payout', cellSx: { fontVariantNumeric: 'tabular-nums' }, render: b => b.payoutAmount ? formatUsdc(b.payoutAmount) : '-' },
+  { key: 'claimed', header: 'Claimed', render: b => b.claimed ? 'Yes' : 'No' },
+];
 
 export function UserOverview() {
   const [searchInput, setSearchInput] = useState('');
@@ -169,46 +182,7 @@ export function UserOverview() {
           {searchResult.data.recentBets.length > 0 ? (
             <>
               <Label sx={{ display: 'block', mb: 1 }}>Recent bets ({searchResult.data.recentBets.length})</Label>
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell><Label>Date</Label></TableCell>
-                      <TableCell><Label>Asset</Label></TableCell>
-                      <TableCell><Label>Interval</Label></TableCell>
-                      <TableCell><Label>Side</Label></TableCell>
-                      <TableCell><Label>Amount</Label></TableCell>
-                      <TableCell><Label>Result</Label></TableCell>
-                      <TableCell><Label>Payout</Label></TableCell>
-                      <TableCell><Label>Claimed</Label></TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {searchResult.data.recentBets.map(b => (
-                      <TableRow key={b.id} hover>
-                        <TableCell><TimeCell value={b.createdAt} mode="datetime" /></TableCell>
-                        <TableCell>{b.pool.asset}</TableCell>
-                        <TableCell>{b.pool.interval}</TableCell>
-                        <TableCell>
-                          <StatusChip
-                            status={b.side === 'UP' ? 'ok' : b.side === 'DOWN' ? 'error' : 'warning'}
-                            label={b.side}
-                          />
-                        </TableCell>
-                        <TableCell sx={{ fontVariantNumeric: 'tabular-nums' }}>{formatUsdc(b.amount)}</TableCell>
-                        <TableCell>
-                          {b.pool.winner
-                            ? <StatusChip status={b.isWinner ? 'ok' : 'error'} label={b.isWinner ? 'Won' : 'Lost'} />
-                            : <StatusChip status="pending" label={b.pool.status} />
-                          }
-                        </TableCell>
-                        <TableCell sx={{ fontVariantNumeric: 'tabular-nums' }}>{b.payoutAmount ? formatUsdc(b.payoutAmount) : '-'}</TableCell>
-                        <TableCell>{b.claimed ? 'Yes' : 'No'}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+              <DataTable columns={RECENT_BET_COLUMNS} rows={searchResult.data.recentBets} getRowKey={b => b.id} />
             </>
           ) : (
             <EmptyState title="No bets yet" hint="This wallet has registered but hasn’t placed a bet." />
@@ -287,28 +261,16 @@ function TopUsersTable<U extends { walletAddress: string }>({
 }) {
   if (users.length === 0) return <EmptyState title="No data" hint="No users in this ranking yet." />;
   return (
-    <TableContainer>
-      <Table size="small">
-        <TableHead>
-          <TableRow>{columns.map(c => <TableCell key={c.label}><Label>{c.label}</Label></TableCell>)}</TableRow>
-        </TableHead>
-        <TableBody>
-          {users.map(u => (
-            <TableRow
-              key={u.walletAddress}
-              hover
-              sx={{ cursor: 'pointer' }}
-              onClick={() => onPickWallet(u.walletAddress)}
-            >
-              {columns.map(c => (
-                <TableCell key={c.label} sx={c.numeric ? { fontVariantNumeric: 'tabular-nums' } : undefined}>
-                  {c.render(u)}
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+    <DataTable
+      rows={users}
+      getRowKey={u => u.walletAddress}
+      onRowClick={u => onPickWallet(u.walletAddress)}
+      columns={columns.map((c, i) => ({
+        key: String(i),
+        header: c.label,
+        render: c.render,
+        cellSx: c.numeric ? { fontVariantNumeric: 'tabular-nums' } : undefined,
+      }))}
+    />
   );
 }
