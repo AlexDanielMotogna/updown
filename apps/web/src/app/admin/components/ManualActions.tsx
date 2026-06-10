@@ -12,8 +12,6 @@ import {
   ErrorAlert, useMutationFeedback, useToast,
   Body, Meta, H2,
 } from '../ui';
-import { StuckPmPools } from './StuckPmPools';
-import { StuckKnockoutPools } from './StuckKnockoutPools';
 
 interface LogLine {
   type: string;
@@ -158,10 +156,7 @@ export function ManualActions() {
         subtitle="These actions are irreversible and may trigger on-chain transactions. Every action goes through a confirmation dialog."
       >{null}</SectionCard>
 
-      {/* ─── Stuck markets (PM + knockouts) ────────────────────────── */}
-      <H2>Stuck markets</H2>
-      <StuckPmPools />
-      <StuckKnockoutPools />
+      {/* Stuck PM + knockout queues moved to Pools › Needs Attention. */}
 
       {/* ─── Recovery + restart ────────────────────────────────────── */}
       <H2>Recovery &amp; sync</H2>

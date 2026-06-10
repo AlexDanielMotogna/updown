@@ -1,16 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  Box, TextField,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-} from '@mui/material';
+import { Box, TextField } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { adminFetch } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
 import {
   SectionCard, AdminDialog, ActionButton, LoadingState, EmptyState,
   IdCell, TimeCell, Meta, Label, Body,
+  DataTable, type Column, Paginator,
   POLL_FAST_MS,
 } from '../ui';
 
@@ -45,6 +43,22 @@ export function EventLog() {
 
   const rows = data?.data ?? [];
 
+  const columns: Column<EventRow>[] = [
+    { key: 'time', header: 'Time', nowrap: true, render: e => <TimeCell value={e.createdAt} mode="datetime" /> },
+    { key: 'event', header: 'Event', render: e => <Body sx={{ fontSize: '0.78rem', color: t.text.primary }}>{e.eventType}</Body> },
+    { key: 'entity', header: 'Entity', render: e => <Meta>{e.entityType}</Meta> },
+    { key: 'entityId', header: 'Entity ID', render: e => <IdCell value={e.entityId} truncate={12} /> },
+    {
+      key: 'payload', header: 'Payload',
+      cellSx: {
+        fontSize: '0.7rem', maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+        color: t.text.tertiary,
+      },
+      render: e => JSON.stringify(e.payload),
+    },
+  ];
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <SectionCard
@@ -78,50 +92,10 @@ export function EventLog() {
             hint="Clear the Event type / Entity type fields to see all recent events."
           />
         ) : (
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell><Label>Time</Label></TableCell>
-                  <TableCell><Label>Event</Label></TableCell>
-                  <TableCell><Label>Entity</Label></TableCell>
-                  <TableCell><Label>Entity ID</Label></TableCell>
-                  <TableCell><Label>Payload</Label></TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {rows.map(e => (
-                  <TableRow key={e.id} hover>
-                    <TableCell sx={{ whiteSpace: 'nowrap' }}><TimeCell value={e.createdAt} mode="datetime" /></TableCell>
-                    <TableCell><Body sx={{ fontSize: '0.78rem', color: t.text.primary }}>{e.eventType}</Body></TableCell>
-                    <TableCell><Meta>{e.entityType}</Meta></TableCell>
-                    <TableCell><IdCell value={e.entityId} truncate={12} /></TableCell>
-                    <TableCell
-                      onClick={() => setOpenPayload(e)}
-                      sx={{
-                        fontSize: '0.7rem', maxWidth: 320, overflow: 'hidden',
-                        textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                        color: t.text.tertiary, cursor: 'pointer',
-                        '&:hover': { color: t.text.primary, bgcolor: t.hover.subtle },
-                      }}
-                    >
-                      {JSON.stringify(e.payload)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <DataTable columns={columns} rows={rows} getRowKey={e => e.id} onRowClick={setOpenPayload} />
         )}
 
-        {data?.meta && data.meta.totalPages > 1 && (
-          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', alignItems: 'center', mt: 2 }}>
-            <ActionButton kind="secondary" label="Previous" disabled={page <= 1} onClick={() => setPage(p => p - 1)} />
-            <Meta>{page} / {data.meta.totalPages}</Meta>
-            <ActionButton kind="secondary" label="Next" disabled={page >= data.meta.totalPages} onClick={() => setPage(p => p + 1)} />
-          </Box>
-        )}
+        <Paginator page={page} totalPages={data?.meta?.totalPages ?? 1} onChange={setPage} />
       </SectionCard>
 
       <AdminDialog

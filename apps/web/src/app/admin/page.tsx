@@ -1,22 +1,23 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
-import { Box, Tabs, Tab, Typography, Button } from '@mui/material';
+import { useMemo, useState, useEffect, type ComponentType } from 'react';
+import { Box, Typography, Button, Drawer, IconButton } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
+import MenuIcon from '@mui/icons-material/Menu';
 import { darkTokens as t } from '@/lib/theme';
+import { AdminSidebar } from './components/AdminSidebar';
 import { AdminLogin } from './components/AdminLogin';
 import { ADMIN_AUTH_EXPIRED_EVENT, verifyKey } from './lib/adminApi';
 import { ToastProvider } from './ui';
 import { SystemHealth } from './components/SystemHealth';
 import { PoolManagement } from './components/PoolManagement';
-import { ZombiePools } from './components/ZombiePools';
-import { FinancialOverview } from './components/FinancialOverview';
+import { NeedsAttention } from './components/NeedsAttention';
+import { FinanceSection } from './components/FinanceSection';
 import { UserOverview } from './components/UserOverview';
 import { EventLog } from './components/EventLog';
 import { ManualActions } from './components/ManualActions';
 import { TournamentManagement } from './components/TournamentManagement';
 import { CategoryManagement } from './components/CategoryManagement';
-import { PayoutManagement } from './components/PayoutManagement';
 import { MatchExplorer } from './components/MatchExplorer';
 import { PmExplorer } from './components/PmExplorer';
 import { ResolutionMetrics } from './components/ResolutionMetrics';
@@ -25,7 +26,43 @@ import { ResolutionInspector } from './components/ResolutionInspector';
 import { ResolutionSuggestions } from './components/ResolutionSuggestions';
 import { LiquidityBot } from './components/LiquidityBot';
 
-const TABS = ['Health', 'Resolution', 'Pools', 'Zombies', 'Payouts', 'Finance', 'Users', 'Events', 'Actions', 'Tournaments', 'Matches', 'Predictions', 'Categories', 'Growth', 'Inspect', 'Review', 'Liquidity'] as const;
+// Grouped navigation (Phase 1 of PLAN-ADMIN-RESTRUCTURE): the flat 17-tab bar
+// becomes 5 sidebar groups. Components are unchanged — only relocated. Later
+// phases merge Finance+Payouts, unify the stuck-pool queues under Pools, and
+// dissolve Actions into contextual buttons + Health/System.
+type NavEntry = { id: string; label: string; Component: ComponentType };
+const NAV_GROUPS: { group: string; items: NavEntry[] }[] = [
+  { group: 'Monitor', items: [
+    { id: 'health', label: 'Health', Component: SystemHealth },
+    { id: 'finance', label: 'Finance', Component: FinanceSection },
+    { id: 'users', label: 'Users', Component: UserOverview },
+    { id: 'events', label: 'Events', Component: EventLog },
+  ] },
+  { group: 'Pools', items: [
+    { id: 'pools', label: 'Browse', Component: PoolManagement },
+    { id: 'attention', label: 'Needs Attention', Component: NeedsAttention },
+  ] },
+  { group: 'Resolution', items: [
+    { id: 'metrics', label: 'Metrics', Component: ResolutionMetrics },
+    { id: 'inspector', label: 'Inspector', Component: ResolutionInspector },
+    { id: 'review', label: 'Review', Component: ResolutionSuggestions },
+  ] },
+  { group: 'Markets', items: [
+    { id: 'sports', label: 'Sports', Component: MatchExplorer },
+    { id: 'predictions', label: 'Predictions', Component: PmExplorer },
+    { id: 'tournaments', label: 'Tournaments', Component: TournamentManagement },
+    { id: 'categories', label: 'Categories', Component: CategoryManagement },
+    { id: 'actions', label: 'Actions', Component: ManualActions },
+  ] },
+  { group: 'Economy', items: [
+    { id: 'growth', label: 'Growth', Component: GrowthOverview },
+    { id: 'liquidity', label: 'Liquidity', Component: LiquidityBot },
+  ] },
+];
+
+const ALL_ITEMS = NAV_GROUPS.flatMap(g => g.items);
+const SIDEBAR_GROUPS = NAV_GROUPS.map(g => ({ group: g.group, items: g.items.map(({ id, label }) => ({ id, label })) }));
+const ACTIVE_TAB_KEY = 'admin-active-tab';
 
 // Detect which environment the admin is pointing at, so a single misclick
 // between the dev / prod browser tabs is obvious. Reads NEXT_PUBLIC_ENV
@@ -56,8 +93,22 @@ export default function AdminPage() {
   // - the previous behaviour left admins staring at error toasts in every
   // tab after a key rotation. See PLAN-ADMIN-REFACTOR.md Phase 1 #16.
   const [authed, setAuthed] = useState<boolean | null>(null);
-  const [tab, setTab] = useState(0);
+  const [activeId, setActiveId] = useState<string>('health');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const env = useMemo<EnvKind>(() => detectEnv(), []);
+
+  // Restore the last-open section across reloads (stable id, not a numeric index).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = sessionStorage.getItem(ACTIVE_TAB_KEY);
+    if (saved && ALL_ITEMS.some(i => i.id === saved)) setActiveId(saved);
+  }, []);
+
+  const selectTab = (id: string) => {
+    setActiveId(id);
+    setMobileNavOpen(false);
+    try { sessionStorage.setItem(ACTIVE_TAB_KEY, id); } catch { /* read-only */ }
+  };
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -134,6 +185,8 @@ export default function AdminPage() {
     setAuthed(false);
   };
 
+  const ActiveComponent = (ALL_ITEMS.find(i => i.id === activeId) ?? ALL_ITEMS[0]).Component;
+
   return (
     // ToastProvider is part of Phase 2's primitives module - wraps the
     // whole admin shell so any tab can call useToast()/useMutationFeedback()
@@ -142,6 +195,9 @@ export default function AdminPage() {
       <Box sx={{ minHeight: '100vh', bgcolor: t.bg.app, p: { xs: 1.5, sm: 3 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, gap: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
+            <IconButton onClick={() => setMobileNavOpen(true)} size="small" sx={{ display: { md: 'none' }, color: t.text.secondary, mr: -0.5 }}>
+              <MenuIcon />
+            </IconButton>
             <Typography variant="h5" fontWeight={600} sx={{ fontSize: { xs: '1.05rem', sm: '1.25rem' } }}>
               UpDown Admin
             </Typography>
@@ -165,35 +221,36 @@ export default function AdminPage() {
           </Button>
         </Box>
 
-        <Tabs
-          value={tab}
-          onChange={(_, v) => setTab(v)}
-          variant="scrollable"
-          scrollButtons="auto"
-          allowScrollButtonsMobile
-          sx={{ mb: 3, borderBottom: `1px solid ${t.border.medium}` }}
-        >
-          {TABS.map(label => <Tab key={label} label={label} />)}
-        </Tabs>
+        <Box sx={{ display: 'flex', gap: { xs: 0, md: 3 } }}>
+          {/* Desktop sidebar */}
+          <Box
+            sx={{
+              display: { xs: 'none', md: 'block' },
+              width: 210, flexShrink: 0,
+              borderRight: `1px solid ${t.border.medium}`,
+              alignSelf: 'flex-start',
+              position: 'sticky', top: 12,
+              maxHeight: 'calc(100vh - 90px)', overflowY: 'auto',
+            }}
+          >
+            <AdminSidebar groups={SIDEBAR_GROUPS} activeId={activeId} onSelect={selectTab} />
+          </Box>
 
-        <Box>
-          {tab === 0 && <SystemHealth />}
-          {tab === 1 && <ResolutionMetrics />}
-          {tab === 2 && <PoolManagement />}
-          {tab === 3 && <ZombiePools />}
-          {tab === 4 && <PayoutManagement />}
-          {tab === 5 && <FinancialOverview />}
-          {tab === 6 && <UserOverview />}
-          {tab === 7 && <EventLog />}
-          {tab === 8 && <ManualActions />}
-          {tab === 9 && <TournamentManagement />}
-          {tab === 10 && <MatchExplorer />}
-          {tab === 11 && <PmExplorer />}
-          {tab === 12 && <CategoryManagement />}
-          {tab === 13 && <GrowthOverview />}
-          {tab === 14 && <ResolutionInspector />}
-          {tab === 15 && <ResolutionSuggestions />}
-          {tab === 16 && <LiquidityBot />}
+          {/* Mobile drawer */}
+          <Drawer
+            open={mobileNavOpen}
+            onClose={() => setMobileNavOpen(false)}
+            sx={{ display: { md: 'none' } }}
+            PaperProps={{ sx: { bgcolor: t.bg.surface, width: 250, borderRight: `1px solid ${t.border.medium}` } }}
+          >
+            <Box sx={{ px: 1.5, pt: 1.5, fontSize: '0.8rem', fontWeight: 700, color: t.text.secondary }}>Navigation</Box>
+            <AdminSidebar groups={SIDEBAR_GROUPS} activeId={activeId} onSelect={selectTab} />
+          </Drawer>
+
+          {/* Active section */}
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <ActiveComponent />
+          </Box>
         </Box>
       </Box>
     </ToastProvider>

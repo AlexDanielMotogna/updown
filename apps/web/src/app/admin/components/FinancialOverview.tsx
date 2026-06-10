@@ -2,10 +2,7 @@
 
 import { useState } from 'react';
 import { getExplorerTxUrl } from '@/lib/format';
-import {
-  Box,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-} from '@mui/material';
+import { Box } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { adminFetch } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
@@ -13,6 +10,7 @@ import {
   SectionCard, StatCard, StatusChip, ActionButton,
   LoadingState, EmptyState, ErrorState,
   IdCell, TimeCell, Label,
+  DataTable, type Column, Paginator,
   POLL_MEDIUM_MS,
 } from '../ui';
 
@@ -61,6 +59,23 @@ function formatUsdc(raw: string): string {
   const n = Number(raw) / 1e6;
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+
+const CLOSURE_COLUMNS: Column<ClosureRow>[] = [
+  { key: 'closedAt', header: 'Closed at', nowrap: true, render: c => <TimeCell value={c.closedAt} mode="datetime" /> },
+  { key: 'poolId', header: 'Pool ID', render: c => <IdCell value={c.poolId} truncate={10} /> },
+  { key: 'asset', header: 'Asset', render: c => c.payload.asset ?? '-' },
+  { key: 'interval', header: 'Interval', render: c => c.payload.interval ?? '-' },
+  { key: 'totalPool', header: 'Total pool', cellSx: { fontVariantNumeric: 'tabular-nums' }, render: c => c.payload.totalPool ? formatUsdc(c.payload.totalPool) : '0' },
+  { key: 'bets', header: 'Bets', render: c => c.payload.betCount ?? '0' },
+  { key: 'winner', header: 'Winner', render: c => (c.payload.winner && c.payload.winner !== 'none')
+      ? <StatusChip status={c.payload.winner === 'UP' ? 'ok' : c.payload.winner === 'DOWN' ? 'error' : 'warning'} label={c.payload.winner} />
+      : '-' },
+  { key: 'rent', header: 'Rent reclaimed', cellSx: { color: t.success, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }, render: c => `${c.payload.rentReclaimedSol ?? '0'} SOL` },
+  { key: 'tx', header: 'TX', render: c => c.payload.txSignature
+      ? <a href={getExplorerTxUrl(c.payload.txSignature)} target="_blank" rel="noopener noreferrer" style={{ color: t.info, textDecoration: 'none', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.7rem' }}>{c.payload.txSignature.slice(0, 8)}…</a>
+      : '-' },
+  { key: 'source', header: 'Source', render: c => <StatusChip status={c.payload.source === 'admin' ? 'warning' : 'neutral'} label={c.payload.source === 'admin' ? 'Admin' : 'Auto'} /> },
+];
 
 export function FinancialOverview() {
   const [closuresPage, setClosuresPage] = useState(1);
@@ -179,76 +194,8 @@ export function FinancialOverview() {
             <EmptyState title="No closures yet" hint="Pools show up here once the scheduler closes them on-chain." />
           ) : (
             <>
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell><Label>Closed at</Label></TableCell>
-                      <TableCell><Label>Pool ID</Label></TableCell>
-                      <TableCell><Label>Asset</Label></TableCell>
-                      <TableCell><Label>Interval</Label></TableCell>
-                      <TableCell><Label>Total pool</Label></TableCell>
-                      <TableCell><Label>Bets</Label></TableCell>
-                      <TableCell><Label>Winner</Label></TableCell>
-                      <TableCell><Label>Rent reclaimed</Label></TableCell>
-                      <TableCell><Label>TX</Label></TableCell>
-                      <TableCell><Label>Source</Label></TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {(closuresData?.data ?? []).map(c => (
-                      <TableRow key={c.id} hover>
-                        <TableCell sx={{ whiteSpace: 'nowrap' }}><TimeCell value={c.closedAt} mode="datetime" /></TableCell>
-                        <TableCell><IdCell value={c.poolId} truncate={10} /></TableCell>
-                        <TableCell>{c.payload.asset ?? '-'}</TableCell>
-                        <TableCell>{c.payload.interval ?? '-'}</TableCell>
-                        <TableCell sx={{ fontVariantNumeric: 'tabular-nums' }}>{c.payload.totalPool ? formatUsdc(c.payload.totalPool) : '0'}</TableCell>
-                        <TableCell>{c.payload.betCount ?? '0'}</TableCell>
-                        <TableCell>
-                          {c.payload.winner && c.payload.winner !== 'none' ? (
-                            <StatusChip
-                              status={c.payload.winner === 'UP' ? 'ok' : c.payload.winner === 'DOWN' ? 'error' : 'warning'}
-                              label={c.payload.winner}
-                            />
-                          ) : '-'}
-                        </TableCell>
-                        <TableCell sx={{ color: t.success, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
-                          {c.payload.rentReclaimedSol ?? '0'} SOL
-                        </TableCell>
-                        <TableCell>
-                          {c.payload.txSignature ? (
-                            <a
-                              // Cluster comes from getExplorerTxUrl, which
-                              // reads SOLANA_CLUSTER from env. The previous
-                              // hardcoded ?cluster=devnet broke explorer
-                              // links on mainnet - Plan §3.5.
-                              href={getExplorerTxUrl(c.payload.txSignature)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ color: t.info, textDecoration: 'none', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.7rem' }}
-                            >
-                              {c.payload.txSignature.slice(0, 8)}…
-                            </a>
-                          ) : '-'}
-                        </TableCell>
-                        <TableCell>
-                          <StatusChip
-                            status={c.payload.source === 'admin' ? 'warning' : 'neutral'}
-                            label={c.payload.source === 'admin' ? 'Admin' : 'Auto'}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-              {closuresData?.meta && closuresData.meta.totalPages > 1 && (
-                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', alignItems: 'center', mt: 2 }}>
-                  <ActionButton kind="secondary" label="Previous" disabled={closuresPage <= 1} onClick={() => setClosuresPage(p => p - 1)} />
-                  <Label>{closuresPage} / {closuresData.meta.totalPages}</Label>
-                  <ActionButton kind="secondary" label="Next" disabled={closuresPage >= closuresData.meta.totalPages} onClick={() => setClosuresPage(p => p + 1)} />
-                </Box>
-              )}
+              <DataTable columns={CLOSURE_COLUMNS} rows={closuresData?.data ?? []} getRowKey={c => c.id} />
+              <Paginator page={closuresPage} totalPages={closuresData?.meta?.totalPages ?? 1} onChange={setClosuresPage} />
             </>
           )}
         </SectionCard>
