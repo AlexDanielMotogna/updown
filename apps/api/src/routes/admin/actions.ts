@@ -253,10 +253,24 @@ adminActionsRouter.post('/recover-orphaned-pools', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
+  // Stop proxies (Railway/nginx) from buffering the stream, and disable Nagle so
+  // small single-event writes flush immediately instead of being held until a
+  // larger payload accumulates — that buffering made the live view look frozen
+  // (it only updated on refresh, when the whole buffer replayed at once).
+  res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders();
+  res.socket?.setNoDelay(true);
+  // Prime the stream so the first bytes go out right away.
+  res.write(': connected\n\n');
 
   const job = startRecoveryJob();
-  const send = (e: RecoveryEvent) => { try { res.write(`data: ${JSON.stringify(e)}\n\n`); } catch { /* socket closed */ } };
+  const send = (e: RecoveryEvent) => {
+    try {
+      res.write(`data: ${JSON.stringify(e)}\n\n`);
+      // Force the chunk out past any buffering layer.
+      (res as unknown as { flush?: () => void }).flush?.();
+    } catch { /* socket closed */ }
+  };
 
   // Replay everything buffered so far so a reconnecting client catches up.
   for (const e of job.logs) send(e);
