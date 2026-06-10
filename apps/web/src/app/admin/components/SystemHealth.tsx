@@ -1,9 +1,6 @@
 'use client';
 
-import {
-  Box, Chip, Tooltip,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-} from '@mui/material';
+import { Box, Chip, Tooltip } from '@mui/material';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { adminFetch } from '../lib/adminApi';
 import { darkTokens as t, withAlpha } from '@/lib/theme';
@@ -11,6 +8,7 @@ import {
   SectionCard, StatCard, StatusChip, ActionButton, RefreshButton,
   LoadingState, EmptyState, ErrorState,
   IdCell, TimeCell, Label, Meta,
+  DataTable, type Column,
   POLL_FAST_MS,
   type StatusKind,
 } from '../ui';
@@ -96,6 +94,31 @@ function jobStatusKind(job: JobInfo): StatusKind {
   if (job.healthy) return 'ok';
   return job.lastRunAt ? 'error' : 'pending';
 }
+
+const NUM = { fontVariantNumeric: 'tabular-nums' } as const;
+
+const MISSING_EVENT_COLUMNS: Column<MissingEvent>[] = [
+  { key: 'match', header: 'Match', cellSx: { fontSize: '0.78rem' }, render: ev => `${ev.homeTeam} vs ${ev.awayTeam}` },
+  { key: 'sport', header: 'Sport', cellSx: { fontSize: '0.78rem' }, render: ev => ev.sport },
+  { key: 'missing', header: 'Missing', cellSx: { fontSize: '0.78rem' }, render: ev => `${Math.round((Date.now() - ev.missingSince) / 60000)}m` },
+  { key: 'reason', header: 'Reason', render: ev => <StatusChip status="warning" label={ev.reason} /> },
+  { key: 'gpt', header: 'GPT', cellSx: { fontSize: '0.78rem' }, render: ev => ev.chatgptAttempted ? 'Yes' : 'No' },
+];
+
+const JOB_COLUMNS: Column<JobInfo>[] = [
+  { key: 'job', header: 'Job', cellSx: { fontSize: '0.78rem', fontWeight: 500 }, render: j => j.name },
+  { key: 'schedule', header: 'Schedule', cellSx: { fontSize: '0.75rem', color: t.text.tertiary }, render: j => j.schedule },
+  { key: 'status', header: 'Status', render: j => {
+    const kind = jobStatusKind(j);
+    return <StatusChip status={kind} label={kind === 'ok' ? 'OK' : kind === 'error' ? 'Error' : 'Pending'} />;
+  } },
+  { key: 'lastRun', header: 'Last run', render: j => <TimeCell value={j.lastRunAt} mode="relative" /> },
+  { key: 'runs', header: 'Runs', cellSx: NUM, render: j => j.runCount },
+  { key: 'errors', header: 'Errors', cellSx: NUM, render: j => <Box component="span" sx={{ color: j.errorCount > 0 ? t.error : undefined }}>{j.errorCount}</Box> },
+  { key: 'lastError', header: 'Last error', cellSx: { maxWidth: 220, fontSize: '0.7rem' }, render: j => j.lastError
+      ? <Tooltip title={j.lastError} arrow><Box sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{j.lastError}</Box></Tooltip>
+      : '-' },
+];
 
 // Plan §3.9 §3 - drop the hardcoded credits-low threshold (was `< 200`).
 // Below ~10% of a daily 1000-credit budget is "low"; backend should
@@ -256,30 +279,7 @@ function LivescoreHealth() {
       {m.missingEvents.length > 0 && (
         <Box sx={{ mb: 2 }}>
           <Label sx={{ color: t.warning, display: 'block', mb: 0.5 }}>Missing events ({m.missingEvents.length})</Label>
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell><Label>Match</Label></TableCell>
-                  <TableCell><Label>Sport</Label></TableCell>
-                  <TableCell><Label>Missing</Label></TableCell>
-                  <TableCell><Label>Reason</Label></TableCell>
-                  <TableCell><Label>GPT</Label></TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {m.missingEvents.map(ev => (
-                  <TableRow key={ev.eventId}>
-                    <TableCell sx={{ fontSize: '0.78rem' }}>{ev.homeTeam} vs {ev.awayTeam}</TableCell>
-                    <TableCell sx={{ fontSize: '0.78rem' }}>{ev.sport}</TableCell>
-                    <TableCell sx={{ fontSize: '0.78rem' }}>{Math.round((Date.now() - ev.missingSince) / 60000)}m</TableCell>
-                    <TableCell><StatusChip status="warning" label={ev.reason} /></TableCell>
-                    <TableCell sx={{ fontSize: '0.78rem' }}>{ev.chatgptAttempted ? 'Yes' : 'No'}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <DataTable columns={MISSING_EVENT_COLUMNS} rows={m.missingEvents} getRowKey={ev => ev.eventId} />
         </Box>
       )}
 
@@ -409,45 +409,12 @@ export function SystemHealth() {
         {h.jobs.length === 0 ? (
           <EmptyState title="No jobs registered" hint="Scheduler probably hasn’t finished bootstrapping yet - wait a moment." />
         ) : (
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell><Label>Job</Label></TableCell>
-                  <TableCell><Label>Schedule</Label></TableCell>
-                  <TableCell><Label>Status</Label></TableCell>
-                  <TableCell><Label>Last run</Label></TableCell>
-                  <TableCell><Label>Runs</Label></TableCell>
-                  <TableCell><Label>Errors</Label></TableCell>
-                  <TableCell><Label>Last error</Label></TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {h.jobs.map(job => {
-                  const kind = jobStatusKind(job);
-                  return (
-                    <TableRow key={job.name} sx={{ bgcolor: kind === 'error' ? withAlpha(t.error, 0.05) : undefined }}>
-                      <TableCell sx={{ fontSize: '0.78rem', fontWeight: 500 }}>{job.name}</TableCell>
-                      <TableCell sx={{ fontSize: '0.75rem', color: t.text.tertiary }}>{job.schedule}</TableCell>
-                      <TableCell>
-                        <StatusChip status={kind} label={kind === 'ok' ? 'OK' : kind === 'error' ? 'Error' : 'Pending'} />
-                      </TableCell>
-                      <TableCell><TimeCell value={job.lastRunAt} mode="relative" /></TableCell>
-                      <TableCell sx={{ fontVariantNumeric: 'tabular-nums' }}>{job.runCount}</TableCell>
-                      <TableCell sx={{ fontVariantNumeric: 'tabular-nums', color: job.errorCount > 0 ? t.error : undefined }}>{job.errorCount}</TableCell>
-                      <TableCell sx={{ maxWidth: 220, fontSize: '0.7rem' }}>
-                        {job.lastError ? (
-                          <Tooltip title={job.lastError} arrow>
-                            <Box sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.lastError}</Box>
-                          </Tooltip>
-                        ) : '-'}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <DataTable
+            columns={JOB_COLUMNS}
+            rows={h.jobs}
+            getRowKey={j => j.name}
+            rowSx={j => ({ bgcolor: jobStatusKind(j) === 'error' ? withAlpha(t.error, 0.05) : undefined })}
+          />
         )}
       </SectionCard>
 
