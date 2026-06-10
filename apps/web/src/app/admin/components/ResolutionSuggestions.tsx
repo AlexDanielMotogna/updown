@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import { Box } from '@mui/material';
 import { adminFetch } from '../lib/adminApi';
+import { useAdminResource } from '../lib/useAdminResource';
 import { darkTokens as t } from '@/lib/theme';
 import { SectionCard, LoadingState, Label, EmptyState } from '../ui';
 
@@ -25,32 +26,16 @@ interface Suggestion {
 }
 
 export function ResolutionSuggestions() {
-  const [items, setItems] = useState<Suggestion[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
+  const { data: items = [], loading, error: err, setError: setErr, reload } = useAdminResource<Suggestion[]>('/resolution-suggestions');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true); setErr(null);
-    try {
-      const r = await adminFetch<{ data: Suggestion[] }>('/resolution-suggestions');
-      setItems(r.data ?? []);
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   const act = async (id: string, action: 'apply' | 'dismiss') => {
     setBusyId(id); setErr(null);
     try {
       await adminFetch(`/resolution-suggestions/${id}/${action}`, { method: 'POST' });
       setConfirmId(null);
-      await load();
+      await reload();
     } catch (e) {
       setErr((e as Error).message);
     } finally {

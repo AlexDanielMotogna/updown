@@ -37,6 +37,8 @@ export { TimeCell, IdCell, WalletCell, formatTime, type TimeCellProps, type Time
 
 // Lists
 export { FilterBar, type FilterBarProps, type FilterChip } from './FilterBar';
+export { DataTable, type Column, type DataTableProps } from './DataTable';
+export { Paginator, type PaginatorProps } from './Paginator';
 
 // Toast queue
 export {
