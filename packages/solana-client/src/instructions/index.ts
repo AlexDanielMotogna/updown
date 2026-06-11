@@ -43,6 +43,7 @@ const RESOLVE_DISC = Buffer.from([246, 150, 236, 206, 108, 63, 58, 10]);
 const RESOLVE_WITH_WINNER_DISC = Buffer.from([200, 87, 85, 170, 63, 238, 116, 50]);
 const CLAIM_DISC = Buffer.from([62, 198, 214, 193, 213, 159, 108, 210]);
 const REFUND_DISC = Buffer.from([2, 96, 183, 251, 63, 208, 46, 46]);
+const REFUND_BETTOR_DISC = Buffer.from([233, 73, 18, 55, 201, 188, 234, 163]);
 const CLOSE_LOSING_BET_DISC = Buffer.from([80, 132, 195, 35, 207, 61, 209, 137]);
 const SWEEP_VAULT_DUST_DISC = Buffer.from([90, 110, 177, 60, 25, 214, 170, 48]);
 const CLOSE_POOL_DISC = Buffer.from([140, 189, 209, 23, 239, 62, 239, 11]);
@@ -227,6 +228,38 @@ export function buildRefundIx(
 ): TransactionInstruction {
   const data = Buffer.concat([
     REFUND_DISC,
+    Buffer.from([side]),          // enum Side { Up=0, Down=1, Draw=2 }
+  ]);
+
+  const keys = [
+    { pubkey: pool, isSigner: false, isWritable: true },
+    { pubkey: userBet, isSigner: false, isWritable: true },
+    { pubkey: vault, isSigner: false, isWritable: true },
+    { pubkey: userTokenAccount, isSigner: false, isWritable: true },
+    { pubkey: user, isSigner: false, isWritable: true },
+    { pubkey: authority, isSigner: true, isWritable: true },
+    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+  ];
+
+  return new TransactionInstruction({ keys, programId: PROGRAM_ID, data });
+}
+
+/**
+ * Build `refund_bettor` TransactionInstruction — VOID refund of a bettor's own
+ * stake (any side) for a cancelled/void pool. Same accounts as `refund`.
+ * Accounts: pool, userBet, vault, userTokenAccount, user (not signer), authority, tokenProgram
+ */
+export function buildRefundBettorIx(
+  pool: PublicKey,
+  userBet: PublicKey,
+  vault: PublicKey,
+  userTokenAccount: PublicKey,
+  user: PublicKey,
+  authority: PublicKey,
+  side: 0 | 1 | 2, // side being refunded - must match the userBet PDA's side seed
+): TransactionInstruction {
+  const data = Buffer.concat([
+    REFUND_BETTOR_DISC,
     Buffer.from([side]),          // enum Side { Up=0, Down=1, Draw=2 }
   ]);
 

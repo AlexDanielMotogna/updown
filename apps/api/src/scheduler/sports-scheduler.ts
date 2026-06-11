@@ -4,8 +4,10 @@ import { getAdapter } from '../services/sports';
 import type { Match } from '../services/sports/types';
 import { notifyPoolResolved } from '../services/notifications';
 import { getCachedUpcomingFixtures, getCachedFixtureResults, isFixtureCacheReady } from '../services/sports/fixture-cache';
-import { getPoolPDA, getVaultPDA, buildInitializePoolIx, buildResolveWithWinnerIx } from 'solana-client';
+import { getPoolPDA, getVaultPDA, buildInitializePoolIx, buildResolveWithWinnerIx, buildClosePoolIx } from 'solana-client';
 import { derivePoolSeed, getUsdcMint, getConnection, getAuthorityKeypair } from '../utils/solana';
+import { refundBettorOnChain } from './onchain-tx';
+import { logEvent } from './resolver-types';
 import { Transaction } from '@solana/web3.js';
 import crypto from 'crypto';
 import { emitPoolStatus } from '../websocket';
@@ -252,6 +254,72 @@ async function sweepUnresolvedPools(): Promise<void> {
  * Check finished matches and resolve their pools.
  * Runs every 2 minutes. Does NOT rely on endTime - only checks the real match result from API.
  */
+/**
+ * Void a sports pool whose match was cancelled / postponed / abandoned: refund
+ * every bettor their OWN stake (via refund_bettor — fair for multi-side pools),
+ * then mark the pool CANCELLED and best-effort reclaim its rent on-chain.
+ * Aborts (and retries next cycle) if any refund can't land, so we never mark a
+ * pool CANCELLED with bettors still unpaid.
+ */
+async function voidSportsPool(
+  pool: { id: string; homeTeam: string | null; awayTeam: string | null },
+  reason: string,
+): Promise<void> {
+  const bets = await prisma.bet.findMany({
+    where: { poolId: pool.id, claimed: false },
+    select: { id: true, walletAddress: true, side: true, amount: true },
+  });
+
+  const wallet = getAuthorityKeypair();
+  const connection = getConnection();
+  const deps = { prisma, connection, wallet, priceProvider: null as any };
+
+  // 1) Refund each bettor their principal.
+  for (const bet of bets) {
+    try {
+      const sig = await refundBettorOnChain(deps, pool.id, bet.walletAddress, bet.side);
+      await prisma.bet.update({ where: { id: bet.id }, data: { claimed: true, payoutAmount: bet.amount, claimTx: sig } });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes('AlreadyClaimed') || msg.includes('0xbc4') || msg.includes('AccountNotInitialized')) {
+        // Already refunded / closed — treat as settled and continue.
+        await prisma.bet.updateMany({ where: { id: bet.id, claimed: false }, data: { claimed: true } });
+      } else {
+        console.warn(`[Sports] void refund failed for bet ${bet.id} (${pool.id}) — will retry:`, msg);
+        return; // don't mark CANCELLED while a bettor is still owed
+      }
+    }
+    await new Promise(r => setTimeout(r, TX_DELAY_MS));
+  }
+
+  // 2) Best-effort rent reclaim: resolve (arbitrary) then close the now-empty
+  //    pool. Non-fatal — orphan recovery can sweep the husk later.
+  const seed = derivePoolSeed(pool.id);
+  const [poolPda] = getPoolPDA(seed);
+  const [vaultPda] = getVaultPDA(seed);
+  const sendIx = async (ix: import('@solana/web3.js').TransactionInstruction) => {
+    const tx = new Transaction().add(ix);
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+    tx.recentBlockhash = blockhash;
+    tx.feePayer = wallet.publicKey;
+    tx.sign(wallet);
+    const sig = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: false, preflightCommitment: 'confirmed' });
+    await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
+  };
+  try {
+    await sendIx(buildResolveWithWinnerIx(poolPda, wallet.publicKey, 0));
+    await sendIx(buildClosePoolIx(poolPda, vaultPda, wallet.publicKey));
+  } catch (e) {
+    console.warn(`[Sports] void: rent reclaim deferred for ${pool.id}:`, e instanceof Error ? e.message : e);
+  }
+
+  // 3) Mark CANCELLED (null winner so the UI shows "cancelled", not a win/loss).
+  await prisma.pool.update({ where: { id: pool.id }, data: { status: 'CANCELLED', winner: null, finalPrice: BigInt(0) } });
+  emitPoolStatus(pool.id, { id: pool.id, status: 'CANCELLED' });
+  await logEvent(prisma, 'POOL_VOID_REFUNDED', 'pool', pool.id, { reason, bets: bets.length.toString() });
+  console.log(`[Sports] VOID + refunded ${bets.length} bet(s): ${pool.homeTeam} vs ${pool.awayTeam} (${reason})`);
+}
+
 export async function resolveMatchPools(): Promise<void> {
   const unresolved = await prisma.pool.findMany({
     where: {
@@ -268,12 +336,30 @@ export async function resolveMatchPools(): Promise<void> {
   const matchIds = [...new Set(unresolved.map((p: { matchId: string | null }) => p.matchId!).filter(Boolean))] as string[];
   const resultMap = await getCachedFixtureResults(matchIds);
 
+  // Also read the raw cache status so we can VOID (cancel + refund) pools whose
+  // match was cancelled / postponed / abandoned — those never produce a FINISHED
+  // result, so without this they'd sit open forever and become zombies.
+  const statusRows = await prisma.sportsFixtureCache.findMany({
+    where: { externalId: { in: matchIds } },
+    select: { externalId: true, status: true },
+  });
+  const statusByMatch = new Map(statusRows.map(r => [r.externalId, r.status]));
+
   for (const pool of unresolved) {
     if (!pool.matchId) continue;
 
     try {
       const result = resultMap.get(pool.matchId);
-      if (!result) continue; // Match not finished yet - skip
+      if (!result) {
+        // No finished result — void the pool if the match was cancelled /
+        // postponed / abandoned (mapped to CANCELLED/POSTPONED at ingest).
+        const matchStatus = statusByMatch.get(pool.matchId);
+        if (matchStatus === 'CANCELLED' || matchStatus === 'POSTPONED') {
+          await voidSportsPool(pool, matchStatus).catch(e =>
+            console.warn(`[Sports] void failed for ${pool.id}:`, e instanceof Error ? e.message : e));
+        }
+        continue; // Match not finished yet (or just voided) - skip
+      }
 
       const adapter = getAdapterForLeague(pool.league);
       const winnerSide = adapter.resolveWinner(result);
