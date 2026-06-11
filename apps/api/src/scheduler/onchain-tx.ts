@@ -1,7 +1,8 @@
-import { PublicKey, Transaction } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { getPoolPDA, getVaultPDA, getUserBetPDA, buildResolveIx, buildRefundIx, buildRefundBettorIx, buildCloseLosingBetIx, buildSweepVaultDustIx, buildClosePoolIx, sideToIndex, type SideLabel } from 'solana-client';
 import { derivePoolSeed, getUsdcMint, getConnection } from '../utils/solana';
+import { sendAndConfirm } from '../utils/onchain';
 import { emitRefund } from '../websocket';
 import { ResolverDeps, REFUND_MAX_RETRIES, logEvent, handleRpcError } from './resolver-types';
 
@@ -14,7 +15,6 @@ export async function resolvePoolOnChain(
   strikePrice: bigint,
   finalPrice: bigint,
 ): Promise<string> {
-  const connection = getConnection();
   const seed = derivePoolSeed(poolId);
   const [poolPda] = getPoolPDA(seed);
 
@@ -23,33 +23,9 @@ export async function resolvePoolOnChain(
   console.log(`[Scheduler]   Strike: ${strikePrice}`);
   console.log(`[Scheduler]   Final: ${finalPrice}`);
 
-  const ix = buildResolveIx(
-    poolPda,
-    deps.wallet.publicKey,
-    strikePrice,
-    finalPrice,
-  );
+  const ix = buildResolveIx(poolPda, deps.wallet.publicKey, strikePrice, finalPrice);
 
-  const transaction = new Transaction().add(ix);
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-  transaction.recentBlockhash = blockhash;
-  transaction.feePayer = deps.wallet.publicKey;
-  transaction.sign(deps.wallet);
-
-  const signature = await connection.sendRawTransaction(transaction.serialize(), {
-    skipPreflight: false,
-    preflightCommitment: 'confirmed',
-  });
-
-  const confirmation = await connection.confirmTransaction(
-    { signature, blockhash, lastValidBlockHeight },
-    'confirmed',
-  );
-
-  if (confirmation.value.err) {
-    throw new Error(`resolve tx failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
-  }
-
+  const signature = await sendAndConfirm(ix, deps.wallet, { label: 'resolve' });
   console.log(`[Scheduler] resolve tx confirmed: ${signature}`);
   return signature;
 }
@@ -69,25 +45,7 @@ export async function closePoolOnChain(
 
   const ix = buildClosePoolIx(poolPda, vaultPda, deps.wallet.publicKey);
 
-  const transaction = new Transaction().add(ix);
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-  transaction.recentBlockhash = blockhash;
-  transaction.feePayer = deps.wallet.publicKey;
-  transaction.sign(deps.wallet);
-
-  const signature = await connection.sendRawTransaction(transaction.serialize(), {
-    skipPreflight: false,
-    preflightCommitment: 'confirmed',
-  });
-
-  const confirmation = await connection.confirmTransaction(
-    { signature, blockhash, lastValidBlockHeight },
-    'confirmed',
-  );
-
-  if (confirmation.value.err) {
-    throw new Error(`close_pool tx failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
-  }
+  const signature = await sendAndConfirm(ix, deps.wallet, { label: 'close_pool' });
 
   // Verify the pool account is actually closed on-chain
   const poolAccount = await connection.getAccountInfo(poolPda);
@@ -109,7 +67,6 @@ export async function refundBetOnChain(
   walletAddress: string,
   side: string,
 ): Promise<string> {
-  const connection = getConnection();
   const seed = derivePoolSeed(poolId);
   const [poolPda] = getPoolPDA(seed);
   const [vaultPda] = getVaultPDA(seed);
@@ -118,36 +75,9 @@ export async function refundBetOnChain(
   const [userBetPda] = getUserBetPDA(poolPda, user, sideIdx);
   const userTokenAccount = await getAssociatedTokenAddress(getUsdcMint(), user);
 
-  const ix = buildRefundIx(
-    poolPda,
-    userBetPda,
-    vaultPda,
-    userTokenAccount,
-    user,
-    deps.wallet.publicKey,
-    sideIdx,
-  );
+  const ix = buildRefundIx(poolPda, userBetPda, vaultPda, userTokenAccount, user, deps.wallet.publicKey, sideIdx);
 
-  const transaction = new Transaction().add(ix);
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-  transaction.recentBlockhash = blockhash;
-  transaction.feePayer = deps.wallet.publicKey;
-  transaction.sign(deps.wallet);
-
-  const signature = await connection.sendRawTransaction(transaction.serialize(), {
-    skipPreflight: false,
-    preflightCommitment: 'confirmed',
-  });
-
-  const confirmation = await connection.confirmTransaction(
-    { signature, blockhash, lastValidBlockHeight },
-    'confirmed',
-  );
-
-  if (confirmation.value.err) {
-    throw new Error(`refund tx failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
-  }
-
+  const signature = await sendAndConfirm(ix, deps.wallet, { label: 'refund' });
   console.log(`[Scheduler] refund tx confirmed: ${signature}`);
   return signature;
 }
@@ -165,7 +95,6 @@ export async function refundBettorOnChain(
   walletAddress: string,
   side: string,
 ): Promise<string> {
-  const connection = getConnection();
   const seed = derivePoolSeed(poolId);
   const [poolPda] = getPoolPDA(seed);
   const [vaultPda] = getVaultPDA(seed);
@@ -176,24 +105,7 @@ export async function refundBettorOnChain(
 
   const ix = buildRefundBettorIx(poolPda, userBetPda, vaultPda, userTokenAccount, user, deps.wallet.publicKey, sideIdx);
 
-  const transaction = new Transaction().add(ix);
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-  transaction.recentBlockhash = blockhash;
-  transaction.feePayer = deps.wallet.publicKey;
-  transaction.sign(deps.wallet);
-
-  const signature = await connection.sendRawTransaction(transaction.serialize(), {
-    skipPreflight: false,
-    preflightCommitment: 'confirmed',
-  });
-  const confirmation = await connection.confirmTransaction(
-    { signature, blockhash, lastValidBlockHeight },
-    'confirmed',
-  );
-  if (confirmation.value.err) {
-    throw new Error(`refund_bettor tx failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
-  }
-
+  const signature = await sendAndConfirm(ix, deps.wallet, { label: 'refund_bettor' });
   console.log(`[Scheduler] refund_bettor tx confirmed: ${signature}`);
   return signature;
 }
@@ -209,7 +121,6 @@ export async function closeLosingBetOnChain(
   walletAddress: string,
   side: string,
 ): Promise<string> {
-  const connection = getConnection();
   const seed = derivePoolSeed(poolId);
   const [poolPda] = getPoolPDA(seed);
   const user = new PublicKey(walletAddress);
@@ -218,27 +129,7 @@ export async function closeLosingBetOnChain(
 
   const ix = buildCloseLosingBetIx(poolPda, userBetPda, user, deps.wallet.publicKey, sideIdx);
 
-  const transaction = new Transaction().add(ix);
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-  transaction.recentBlockhash = blockhash;
-  transaction.feePayer = deps.wallet.publicKey;
-  transaction.sign(deps.wallet);
-
-  const signature = await connection.sendRawTransaction(transaction.serialize(), {
-    skipPreflight: false,
-    preflightCommitment: 'confirmed',
-  });
-
-  const confirmation = await connection.confirmTransaction(
-    { signature, blockhash, lastValidBlockHeight },
-    'confirmed',
-  );
-
-  if (confirmation.value.err) {
-    throw new Error(`close_losing_bet tx failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
-  }
-
-  return signature;
+  return await sendAndConfirm(ix, deps.wallet, { label: 'close_losing_bet' });
 }
 
 /**
@@ -250,7 +141,6 @@ export async function sweepVaultDustOnChain(
   deps: ResolverDeps,
   poolId: string,
 ): Promise<string> {
-  const connection = getConnection();
   const seed = derivePoolSeed(poolId);
   const [poolPda] = getPoolPDA(seed);
   const [vaultPda] = getVaultPDA(seed);
@@ -258,27 +148,7 @@ export async function sweepVaultDustOnChain(
 
   const ix = buildSweepVaultDustIx(poolPda, vaultPda, authorityTokenAccount, deps.wallet.publicKey);
 
-  const transaction = new Transaction().add(ix);
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-  transaction.recentBlockhash = blockhash;
-  transaction.feePayer = deps.wallet.publicKey;
-  transaction.sign(deps.wallet);
-
-  const signature = await connection.sendRawTransaction(transaction.serialize(), {
-    skipPreflight: false,
-    preflightCommitment: 'confirmed',
-  });
-
-  const confirmation = await connection.confirmTransaction(
-    { signature, blockhash, lastValidBlockHeight },
-    'confirmed',
-  );
-
-  if (confirmation.value.err) {
-    throw new Error(`sweep_vault_dust tx failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
-  }
-
-  return signature;
+  return await sendAndConfirm(ix, deps.wallet, { label: 'sweep_vault_dust' });
 }
 
 /**
