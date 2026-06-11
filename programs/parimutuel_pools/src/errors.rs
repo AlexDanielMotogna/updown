@@ -87,4 +87,7 @@ pub enum PoolError {
 
     #[msg("Bet is on the winning side - use claim, not close")]
     IsWinner,
+
+    #[msg("Pool already has a winner - cannot void-refund a resolved pool")]
+    AlreadyResolved,
 }

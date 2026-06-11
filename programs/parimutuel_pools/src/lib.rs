@@ -60,6 +60,12 @@ pub mod parimutuel_pools {
         instructions::refund::handler(ctx, side)
     }
 
+    /// Void-refund a bettor their own stake regardless of side (authority only),
+    /// for a cancelled / postponed / abandoned match. Fair for multi-side pools.
+    pub fn refund_bettor(ctx: Context<RefundBettor>, side: Side) -> Result<()> {
+        instructions::refund_bettor::handler(ctx, side)
+    }
+
     /// Close a LOSING bet's account, returning its rent to the bettor (authority
     /// only). Losers forfeit only their USDC stake, not the SOL rent.
     pub fn close_losing_bet(ctx: Context<CloseLosingBet>, side: Side) -> Result<()> {

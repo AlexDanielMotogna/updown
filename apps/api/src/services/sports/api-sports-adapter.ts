@@ -18,8 +18,12 @@ function mapStatus(status: string | null): MatchStatus {
   const s = status.toLowerCase();
   if (s === 'not started' || s === 'ns' || s === '') return 'SCHEDULED';
   if (s === 'match finished' || s === 'ft' || s === 'finished' || s === 'aet' || s === 'ap') return 'FINISHED';
-  if (s === 'postponed' || s === 'pst') return 'POSTPONED';
-  if (s === 'cancelled' || s === 'canc') return 'CANCELLED';
+  if (s.includes('postpon') || s === 'pst') return 'POSTPONED';
+  // Cancelled / abandoned / "awarded"-with-no-play → void & refund. Abandoned
+  // (match stopped and not resumed) has no valid result, so we treat it the
+  // same as cancelled. Suspended is intentionally left as LIVE — it usually
+  // resumes the same day; if it never does, the zombie sweep surfaces it.
+  if (s.includes('cancel') || s === 'canc' || s.includes('abandon') || s === 'aban' || s === 'abd') return 'CANCELLED';
   return 'LIVE';
 }
 
