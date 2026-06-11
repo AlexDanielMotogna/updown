@@ -7,6 +7,7 @@ import { getCachedUpcomingFixtures, getCachedFixtureResults, isFixtureCacheReady
 import { getPoolPDA, getVaultPDA, buildInitializePoolIx, buildResolveWithWinnerIx, buildClosePoolIx } from 'solana-client';
 import { derivePoolSeed, getUsdcMint, getConnection, getAuthorityKeypair } from '../utils/solana';
 import { refundBettorOnChain } from './onchain-tx';
+import { sendAndConfirm } from '../utils/onchain';
 import { logEvent } from './resolver-types';
 import { Transaction } from '@solana/web3.js';
 import crypto from 'crypto';
@@ -297,18 +298,9 @@ async function voidSportsPool(
   const seed = derivePoolSeed(pool.id);
   const [poolPda] = getPoolPDA(seed);
   const [vaultPda] = getVaultPDA(seed);
-  const sendIx = async (ix: import('@solana/web3.js').TransactionInstruction) => {
-    const tx = new Transaction().add(ix);
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-    tx.recentBlockhash = blockhash;
-    tx.feePayer = wallet.publicKey;
-    tx.sign(wallet);
-    const sig = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: false, preflightCommitment: 'confirmed' });
-    await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
-  };
   try {
-    await sendIx(buildResolveWithWinnerIx(poolPda, wallet.publicKey, 0));
-    await sendIx(buildClosePoolIx(poolPda, vaultPda, wallet.publicKey));
+    await sendAndConfirm(buildResolveWithWinnerIx(poolPda, wallet.publicKey, 0), wallet, { label: 'resolve(void)' });
+    await sendAndConfirm(buildClosePoolIx(poolPda, vaultPda, wallet.publicKey), wallet, { label: 'close_pool(void)' });
   } catch (e) {
     console.warn(`[Sports] void: rent reclaim deferred for ${pool.id}:`, e instanceof Error ? e.message : e);
   }

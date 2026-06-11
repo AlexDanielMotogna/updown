@@ -43,4 +43,7 @@ No es un rewrite: son refactors incrementales en PRs pequeños, cada uno con typ
 ---
 
 ## Execution log
-- **P1.1 (en curso):** `sendAndConfirm` creado en `apps/api/src/utils/onchain.ts`; adoptado en `scheduler/onchain-tx.ts` (6 funciones). Pendiente: los otros 14 archivos.
+- **P1.1 (en curso):** `sendAndConfirm` creado en `apps/api/src/utils/onchain.ts`.
+  - ✅ Adoptado en `scheduler/onchain-tx.ts` (6 funciones, ~100 líneas de boilerplate eliminadas).
+  - ✅ Adoptado en `scheduler/sports-scheduler.ts` (`voidSportsPool`, quitado el `sendIx` inline).
+  - ⏳ Pendiente: `pm-cancel.ts`, `auto-claim.ts`, `pool-creator.ts`, `orphan-recovery.ts`, `routes/admin/sports-explorer.ts`, `services/{liquidity-bot,polymarket,squad-pools,tournament,referrals}`, `routes/{faucet,tournament-actions}.ts` (~13 archivos).
