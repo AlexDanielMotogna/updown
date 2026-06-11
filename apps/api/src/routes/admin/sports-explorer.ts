@@ -7,6 +7,7 @@ import { createSportsPool } from '../../scheduler/sports-scheduler';
 import { sportsDbFetch } from '../../services/sports/api-sports-fetch';
 import { getPoolPDA, buildResolveWithWinnerIx } from 'solana-client';
 import { derivePoolSeed, getConnection, getAuthorityKeypair } from '../../utils/solana';
+import { sendAndConfirm } from '../../utils/onchain';
 import { emitPoolStatus } from '../../websocket';
 import { KNOCKOUT_DISABLE_ODDS_FALLBACK, EXPECTED_MATCH_DURATION_MS, DEFAULT_EXPECTED_DURATION_MS, ODDS_API_FT_FALLBACK_GRACE_MS } from '../../services/sports/livescore/types';
 import { classifyBadgeBackground } from '../../services/sports/badge-analyzer';
@@ -646,14 +647,7 @@ adminSportsRouter.post('/resolve-knockout', async (req, res) => {
     // PM cancel + sports scheduler use elsewhere.
     let onChainResolved = false;
     try {
-      const ix = buildResolveWithWinnerIx(poolPda, wallet.publicKey, WINNER_TO_INDEX[winner]);
-      const tx = new Transaction().add(ix);
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-      tx.recentBlockhash = blockhash;
-      tx.feePayer = wallet.publicKey;
-      tx.sign(wallet);
-      const sig = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: false, preflightCommitment: 'confirmed' });
-      await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
+      await sendAndConfirm(buildResolveWithWinnerIx(poolPda, wallet.publicKey, WINNER_TO_INDEX[winner]), wallet, { label: 'resolve_with_winner' });
       onChainResolved = true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

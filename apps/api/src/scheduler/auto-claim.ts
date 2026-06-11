@@ -24,6 +24,7 @@ import {
   type SideLabel,
 } from 'solana-client';
 import { derivePoolSeed, getUsdcMint, getConnection } from '../utils/solana';
+import { sendAndConfirm } from '../utils/onchain';
 import { resolveFeeBps, calculateWeightedPayout } from '../utils/payout';
 import { readOnchainClaimPayout } from '../utils/claim-payout';
 import { getDistinctBettorWallets } from '../utils/bets';
@@ -85,27 +86,7 @@ export async function claimBetOnChain(
     sideIdx,
   );
 
-  const transaction = new Transaction().add(ix);
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-  transaction.recentBlockhash = blockhash;
-  transaction.feePayer = deps.wallet.publicKey;
-  transaction.sign(deps.wallet);
-
-  const signature = await connection.sendRawTransaction(transaction.serialize(), {
-    skipPreflight: false,
-    preflightCommitment: 'confirmed',
-  });
-
-  const confirmation = await connection.confirmTransaction(
-    { signature, blockhash, lastValidBlockHeight },
-    'confirmed',
-  );
-
-  if (confirmation.value.err) {
-    throw new Error(`claim tx failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
-  }
-
-  return signature;
+  return await sendAndConfirm(ix, deps.wallet, { label: 'claim' });
 }
 
 export interface AutoClaimResult {

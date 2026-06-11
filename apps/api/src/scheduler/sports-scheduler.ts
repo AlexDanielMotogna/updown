@@ -382,17 +382,7 @@ export async function resolveMatchPools(): Promise<void> {
         let onChainResolved = false;
 
         try {
-          const ix = buildResolveWithWinnerIx(poolPda, wallet.publicKey, winnerSide as 0 | 1 | 2);
-          const tx = new Transaction().add(ix);
-          const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-          tx.recentBlockhash = blockhash;
-          tx.feePayer = wallet.publicKey;
-          tx.sign(wallet);
-
-          const signature = await connection.sendRawTransaction(tx.serialize(), {
-            skipPreflight: false, preflightCommitment: 'confirmed',
-          });
-          await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
+          await sendAndConfirm(buildResolveWithWinnerIx(poolPda, wallet.publicKey, winnerSide as 0 | 1 | 2), wallet, { label: 'resolve_with_winner' });
           onChainResolved = true;
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
@@ -427,18 +417,9 @@ export async function resolveMatchPools(): Promise<void> {
       const [poolPda] = getPoolPDA(seed);
 
       const ix = buildResolveWithWinnerIx(poolPda, wallet.publicKey, winnerSide as 0 | 1 | 2);
-      const tx = new Transaction().add(ix);
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-      tx.recentBlockhash = blockhash;
-      tx.feePayer = wallet.publicKey;
-      tx.sign(wallet);
 
       try {
-        const signature = await connection.sendRawTransaction(tx.serialize(), {
-          skipPreflight: false,
-          preflightCommitment: 'confirmed',
-        });
-        await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
+        await sendAndConfirm(ix, wallet, { label: 'resolve_with_winner' });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         if (msg.includes('InvalidPoolStatus') || msg.includes('0x177a') || msg.includes('AccountNotInitialized')) {
@@ -582,19 +563,8 @@ export async function createSportsPool(match: Match, leagueCode: string): Promis
       adapter.numSides,
     );
 
-    const tx = new Transaction().add(ix);
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-    tx.recentBlockhash = blockhash;
-    tx.feePayer = wallet.publicKey;
-    tx.sign(wallet);
-
     try {
-      const signature = await connection.sendRawTransaction(tx.serialize(), {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
-      });
-
-      await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
+      await sendAndConfirm(ix, wallet, { label: 'initialize_pool(sports)' });
     } catch (chainError) {
       // The init tx may have LANDED on-chain even though confirmation threw
       // (429 / timeout). Rolling back then would orphan the pool. Verify on-chain

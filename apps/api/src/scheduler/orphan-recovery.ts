@@ -1,6 +1,7 @@
 import { PublicKey, Transaction } from '@solana/web3.js';
 import { PROGRAM_ID, buildResolveIx, buildResolveWithWinnerIx, buildClosePoolIx, buildForceClosePoolIx } from 'solana-client';
 import { getConnection } from '../utils/solana';
+import { sendAndConfirm } from '../utils/onchain';
 import { ResolverDeps, logEvent } from './resolver-types';
 
 /** Minimal base58 encoder (for the getProgramAccounts memcmp filter bytes). */
@@ -153,18 +154,7 @@ export async function recoverOrphanedPools(
         // Strategy 1: resolve by price (crypto pools)
         try {
           const resolveIx = buildResolveIx(account.pubkey, deps.wallet.publicKey, BigInt(1000), BigInt(1000));
-          const resolveTx = new Transaction().add(resolveIx);
-          const { blockhash: rb, lastValidBlockHeight: rvbh } = await connection.getLatestBlockhash();
-          resolveTx.recentBlockhash = rb;
-          resolveTx.feePayer = deps.wallet.publicKey;
-          resolveTx.sign(deps.wallet);
-
-          const resolveSig = await connection.sendRawTransaction(resolveTx.serialize(), {
-            skipPreflight: false, preflightCommitment: 'confirmed',
-          });
-          await connection.confirmTransaction(
-            { signature: resolveSig, blockhash: rb, lastValidBlockHeight: rvbh }, 'confirmed',
-          );
+          const resolveSig = await sendAndConfirm(resolveIx, deps.wallet, { label: 'resolve' });
           emit('info', `  Resolved (by price): ${resolveSig.slice(0, 20)}...`);
           resolved = true;
         } catch (resolveErr) {
@@ -182,18 +172,7 @@ export async function recoverOrphanedPools(
 
             try {
               const resolveIx2 = buildResolveWithWinnerIx(account.pubkey, deps.wallet.publicKey, 0);
-              const resolveTx2 = new Transaction().add(resolveIx2);
-              const { blockhash: rb2, lastValidBlockHeight: rvbh2 } = await connection.getLatestBlockhash();
-              resolveTx2.recentBlockhash = rb2;
-              resolveTx2.feePayer = deps.wallet.publicKey;
-              resolveTx2.sign(deps.wallet);
-
-              const resolveSig2 = await connection.sendRawTransaction(resolveTx2.serialize(), {
-                skipPreflight: false, preflightCommitment: 'confirmed',
-              });
-              await connection.confirmTransaction(
-                { signature: resolveSig2, blockhash: rb2, lastValidBlockHeight: rvbh2 }, 'confirmed',
-              );
+              const resolveSig2 = await sendAndConfirm(resolveIx2, deps.wallet, { label: 'resolve_with_winner' });
               emit('info', `  Resolved (with winner): ${resolveSig2.slice(0, 20)}...`);
               resolved = true;
             } catch (resolveErr2) {
@@ -230,18 +209,7 @@ export async function recoverOrphanedPools(
       try {
         const balanceBefore = await connection.getBalance(deps.wallet.publicKey);
         const closeIx = buildClosePoolIx(account.pubkey, vaultPda, deps.wallet.publicKey);
-        const closeTx = new Transaction().add(closeIx);
-        const { blockhash: cb, lastValidBlockHeight: cvbh } = await connection.getLatestBlockhash();
-        closeTx.recentBlockhash = cb;
-        closeTx.feePayer = deps.wallet.publicKey;
-        closeTx.sign(deps.wallet);
-
-        const closeSig = await connection.sendRawTransaction(closeTx.serialize(), {
-          skipPreflight: false, preflightCommitment: 'confirmed',
-        });
-        await connection.confirmTransaction(
-          { signature: closeSig, blockhash: cb, lastValidBlockHeight: cvbh }, 'confirmed',
-        );
+        const closeSig = await sendAndConfirm(closeIx, deps.wallet, { label: 'close_pool' });
 
         const balanceAfter = await connection.getBalance(deps.wallet.publicKey);
         const rentReclaimed = balanceAfter - balanceBefore;
@@ -265,18 +233,7 @@ export async function recoverOrphanedPools(
           await delay(RPC_DELAY);
 
           const forceIx = buildForceClosePoolIx(account.pubkey, deps.wallet.publicKey);
-          const forceTx = new Transaction().add(forceIx);
-          const { blockhash: fb, lastValidBlockHeight: fvbh } = await connection.getLatestBlockhash();
-          forceTx.recentBlockhash = fb;
-          forceTx.feePayer = deps.wallet.publicKey;
-          forceTx.sign(deps.wallet);
-
-          const forceSig = await connection.sendRawTransaction(forceTx.serialize(), {
-            skipPreflight: false, preflightCommitment: 'confirmed',
-          });
-          await connection.confirmTransaction(
-            { signature: forceSig, blockhash: fb, lastValidBlockHeight: fvbh }, 'confirmed',
-          );
+          const forceSig = await sendAndConfirm(forceIx, deps.wallet, { label: 'force_close' });
 
           const balanceAfterForce = await connection.getBalance(deps.wallet.publicKey);
           emit('success', `  FORCE CLOSED (tx: ${forceSig.slice(0, 20)}...)`, { poolPda: poolPdaStr, txSignature: forceSig });

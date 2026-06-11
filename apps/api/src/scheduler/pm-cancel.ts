@@ -1,7 +1,7 @@
-import { Transaction } from '@solana/web3.js';
 import { getPoolPDA, getVaultPDA, buildResolveWithWinnerIx, buildClosePoolIx, buildForceClosePoolIx } from 'solana-client';
 import { prisma } from '../db';
 import { derivePoolSeed, getConnection, getAuthorityKeypair } from '../utils/solana';
+import { sendAndConfirm } from '../utils/onchain';
 import { emitPoolStatus } from '../websocket';
 import { polymarketFetch } from '../services/sports/polymarket-fetch';
 import { readCtfResolution } from '../services/polymarket/ctf-resolver';
@@ -130,7 +130,6 @@ export async function cancelPmPool(
 
   // 0-bet pools: resolve on-chain with arbitrary winner (0/UP) to flip status,
   // then close to reclaim rent. Mirrors the empty-pool path in resolveMatchPools.
-  const connection = getConnection();
   const wallet = getAuthorityKeypair();
   const seed = derivePoolSeed(poolId);
   const [poolPda] = getPoolPDA(seed);
@@ -145,16 +144,7 @@ export async function cancelPmPool(
   let resolveOk = false;
   let needsForceClose = false;
   try {
-    const ix = buildResolveWithWinnerIx(poolPda, wallet.publicKey, 0);
-    const tx = new Transaction().add(ix);
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-    tx.recentBlockhash = blockhash;
-    tx.feePayer = wallet.publicKey;
-    tx.sign(wallet);
-    const sig = await connection.sendRawTransaction(tx.serialize(), {
-      skipPreflight: false, preflightCommitment: 'confirmed',
-    });
-    await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
+    await sendAndConfirm(buildResolveWithWinnerIx(poolPda, wallet.publicKey, 0), wallet, { label: 'resolve' });
     resolveOk = true;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -177,16 +167,7 @@ export async function cancelPmPool(
   //   - either fallback → force_close, then accept "resolved-only" state
   const tryForceClose = async (): Promise<boolean> => {
     try {
-      const ix = buildForceClosePoolIx(poolPda, wallet.publicKey);
-      const tx = new Transaction().add(ix);
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-      tx.recentBlockhash = blockhash;
-      tx.feePayer = wallet.publicKey;
-      tx.sign(wallet);
-      const sig = await connection.sendRawTransaction(tx.serialize(), {
-        skipPreflight: false, preflightCommitment: 'confirmed',
-      });
-      await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
+      await sendAndConfirm(buildForceClosePoolIx(poolPda, wallet.publicKey), wallet, { label: 'force_close' });
       return true;
     } catch {
       return false;
@@ -197,16 +178,7 @@ export async function cancelPmPool(
     await tryForceClose();
   } else if (resolveOk) {
     try {
-      const ix = buildClosePoolIx(poolPda, vaultPda, wallet.publicKey);
-      const tx = new Transaction().add(ix);
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-      tx.recentBlockhash = blockhash;
-      tx.feePayer = wallet.publicKey;
-      tx.sign(wallet);
-      const sig = await connection.sendRawTransaction(tx.serialize(), {
-        skipPreflight: false, preflightCommitment: 'confirmed',
-      });
-      await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
+      await sendAndConfirm(buildClosePoolIx(poolPda, vaultPda, wallet.publicKey), wallet, { label: 'close_pool' });
     } catch {
       // Fall back to force_close; if that fails the pool stays resolved on-chain
       // and orphan recovery can sweep the rent later.

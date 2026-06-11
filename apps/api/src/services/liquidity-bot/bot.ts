@@ -3,6 +3,7 @@ import { getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
 import { getPoolPDA, getVaultPDA, getUserBetPDA, buildDepositIx } from 'solana-client';
 import { prisma } from '../../db';
 import { getConnection, getUsdcMint, derivePoolSeed, getLiquidityBotKeypairs, isDevnet } from '../../utils/solana';
+import { sendAndConfirm } from '../../utils/onchain';
 import { getLiquidityBotConfig } from './config';
 import { fundBotWallet, getUsdcBalance, getFunderKeypair } from './funding';
 import { recordConfirmedBet } from '../bet-recording';
@@ -29,12 +30,7 @@ async function placeBotDeposit(
   const ata = await getOrCreateAssociatedTokenAccount(conn, wallet, getUsdcMint(), wallet.publicKey);
 
   const ix = buildDepositIx(poolPda, userBet, vault, ata.address, wallet.publicKey, idx, amount);
-  const tx = new Transaction().add(ix);
-  const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash();
-  tx.recentBlockhash = blockhash; tx.feePayer = wallet.publicKey; tx.sign(wallet);
-  const sig = await conn.sendRawTransaction(tx.serialize(), { preflightCommitment: 'confirmed' });
-  await conn.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
-  return sig;
+  return await sendAndConfirm(ix, wallet, { label: 'bot-deposit' });
 }
 
 /**
