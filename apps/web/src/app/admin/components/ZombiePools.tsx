@@ -6,6 +6,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { adminFetch, adminPost } from '../lib/adminApi';
+import { ResolveSportsDialog } from './ResolveSportsDialog';
 import {
   SectionCard, StatusChip, ActionButton, LoadingState, EmptyState,
   IdCell, TimeCell, ConfirmDialog,
@@ -49,6 +50,7 @@ export function ZombiePools() {
   const qc = useQueryClient();
   const feedback = useMutationFeedback();
   const [confirmAction, setConfirmAction] = useState<{ kind: 'refund' | 'delete'; pool: ZombiePool } | null>(null);
+  const [resolving, setResolving] = useState<ZombiePool | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-zombie-sports-pools'],
@@ -136,6 +138,11 @@ export function ZombiePools() {
                     <TableCell>{z.betCount}</TableCell>
                     <TableCell align="right">
                       <Box sx={{ display: 'inline-flex', gap: 0.75, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        <ActionButton
+                          kind="primary"
+                          label="Resolve"
+                          onClick={() => setResolving(z)}
+                        />
                         {z.betCount > 0 && (
                           <ActionButton
                             kind="destructive"
@@ -157,6 +164,18 @@ export function ZombiePools() {
           </TableContainer>
         )}
       </SectionCard>
+
+      {resolving && (
+        <ResolveSportsDialog
+          pool={resolving}
+          onClose={() => setResolving(null)}
+          onResolved={() => {
+            setResolving(null);
+            qc.invalidateQueries({ queryKey: ['admin-zombie-sports-pools'] });
+            qc.invalidateQueries({ queryKey: ['admin-pools'] });
+          }}
+        />
+      )}
 
       <ConfirmDialog
         open={!!confirmAction}

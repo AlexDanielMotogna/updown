@@ -623,8 +623,12 @@ adminSportsRouter.post('/resolve-knockout', async (req, res) => {
 
     const pool = await prisma.pool.findUnique({ where: { id: poolId } });
     if (!pool) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Pool not found' } });
-    if (pool.poolType !== 'SPORTS' || !pool.league || !KNOCKOUT_DISABLE_ODDS_FALLBACK.has(pool.league)) {
-      return res.status(400).json({ success: false, error: { code: 'NOT_KNOCKOUT', message: 'This endpoint is only for CL/EL knockout pools' } });
+    // Manual winner-resolution works for ANY stuck sports pool, not just CL/EL
+    // knockouts: a friendly / non-covered league that finished without a feed
+    // (e.g. an "IF" international friendly) gets stuck the same way and needs the
+    // same resolve_with_winner path. The on-chain + DB logic below is generic.
+    if (pool.poolType !== 'SPORTS') {
+      return res.status(400).json({ success: false, error: { code: 'NOT_SPORTS', message: 'Only SPORTS pools can be resolved with a winner' } });
     }
     if (pool.status === 'RESOLVED' || pool.status === 'CLAIMABLE') {
       return res.status(409).json({ success: false, error: { code: 'ALREADY_RESOLVED', message: `Pool is already ${pool.status}` } });
