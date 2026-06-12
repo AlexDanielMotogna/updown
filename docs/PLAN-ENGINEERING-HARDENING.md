@@ -49,4 +49,10 @@ No es un rewrite: son refactors incrementales en PRs pequeños, cada uno con typ
   - routes: `admin/sports-explorer`, `faucet`, `tournament-actions` (1).
   - **Excepciones intencionales** (NO encajan — el usuario co-firma; authority `partialSign` + user feePayer): `routes/claims.ts`, `tournament-actions` (winner-claim), `squad-pools` (deposit). Documentadas, no forzadas.
   - Typecheck limpio. Semántica por call-site preservada (try/catch return vs throw, skipPreflight, fire-and-forget→ahora confirma en tournament-init).
-- **Siguiente:** P1.2 (partir `resolveMatchPools` 165L + god-functions).
+- **P1.2 — 🟡 EN PROGRESO.** Partido `resolveMatchPools` (145L) en `sports-scheduler.ts`:
+  - `resolveMatchPools()` ahora es solo orquestador (~50L): query + batch-read cache → dispatch a void / resolve.
+  - `resolveFinishedPool(pool, result)`: score update + betCount → close (empty) o resolve-on-chain (bets) + XP.
+  - `closeEmptyResolvedPool(pool, result, winnerSide, winnerLabel)`: rama empty (reclaim rent / stale-layout tolerante).
+  - **Cero cambio de comportamiento** (verificado por diff línea-a-línea): `continue`→`return`, `throw` sigue propagando al catch del orquestador, mismas tx/DB-writes en el mismo orden. Único cleanup: eliminado `const connection = getConnection()` (dead code tras P1.1). Typecheck limpio.
+  - **Falta:** partir el resto de `sports-scheduler.ts` (718L) en módulos por responsabilidad (creación / resolución / sweep / void).
+- **Siguiente:** terminar P1.2 (modularizar el archivo) o P1.3 (eliminar `any`).

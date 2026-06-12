@@ -1,7 +1,7 @@
 import { prisma } from '../db';
 import { suggestStuckPoolResults } from './result-suggestions';
 import { getAdapter } from '../services/sports';
-import type { Match } from '../services/sports/types';
+import type { Match, MatchResult } from '../services/sports/types';
 import { notifyPoolResolved } from '../services/notifications';
 import { getCachedUpcomingFixtures, getCachedFixtureResults, isFixtureCacheReady } from '../services/sports/fixture-cache';
 import { getPoolPDA, getVaultPDA, buildInitializePoolIx, buildResolveWithWinnerIx, buildClosePoolIx } from 'solana-client';
@@ -312,6 +312,14 @@ async function voidSportsPool(
   console.log(`[Sports] VOID + refunded ${bets.length} bet(s): ${pool.homeTeam} vs ${pool.awayTeam} (${reason})`);
 }
 
+/** One row from the unresolved-pools query (full Prisma Pool). */
+type SportsPool = Awaited<ReturnType<typeof prisma.pool.findMany>>[number];
+
+/**
+ * Orchestrator: find SPORTS pools whose kickoff has passed, batch-read their
+ * results from cache (0 API calls), then dispatch each to void (cancelled /
+ * postponed) or resolve (finished). One pool failing never blocks the rest.
+ */
 export async function resolveMatchPools(): Promise<void> {
   const unresolved = await prisma.pool.findMany({
     where: {
@@ -353,110 +361,135 @@ export async function resolveMatchPools(): Promise<void> {
         continue; // Match not finished yet (or just voided) - skip
       }
 
-      const adapter = getAdapterForLeague(pool.league);
-      const winnerSide = adapter.resolveWinner(result);
-      const winnerLabel = (['UP', 'DOWN', 'DRAW'] as const)[winnerSide];
-
-      // Always update scores immediately so the UI shows the final result
-      await prisma.pool.update({
-        where: { id: pool.id },
-        data: { homeScore: result.homeScore, awayScore: result.awayScore },
-      });
-
-      // Check if pool has any bets
-      const betCount = await prisma.bet.count({ where: { poolId: pool.id } });
-
-      const connection = getConnection();
-      const wallet = getAuthorityKeypair();
-
-      if (betCount === 0) {
-        // Resolve on-chain so close_pool can reclaim rent (prevents orphans)
-        const seed = derivePoolSeed(pool.id);
-        const [poolPda] = getPoolPDA(seed);
-        // Whether we managed to flip the on-chain account to Resolved. False
-        // when the on-chain account uses a stale Pool struct layout (a few
-        // legacy pools from the devnet broken-binary window — see
-        // `bug_program_regression_per_side`); in that case we still mark the
-        // DB row as RESOLVED with the off-chain result, and orphan recovery
-        // reclaims the rent from the on-chain husk later.
-        let onChainResolved = false;
-
-        try {
-          await sendAndConfirm(buildResolveWithWinnerIx(poolPda, wallet.publicKey, winnerSide as 0 | 1 | 2), wallet, { label: 'resolve_with_winner' });
-          onChainResolved = true;
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          if (msg.includes('InvalidPoolStatus') || msg.includes('0x177a') || msg.includes('AccountNotInitialized')) {
-            // Already resolved / already closed on-chain — proceed to DB update.
-            onChainResolved = true;
-          } else if (msg.includes('AccountDidNotSerialize') || msg.includes('0xbbc')) {
-            // Stale Pool struct layout — the on-chain account was created by
-            // an older program version whose serialization doesn't match the
-            // current one. No funds at risk (0 bets, vault empty), so we
-            // mark the DB row RESOLVED so the UI shows the result; the
-            // on-chain husk gets cleaned up by recoverOrphanedPools later
-            // (admin → Manual Actions → Recover Orphaned Pools).
-            console.warn(`[Sports] Empty pool ${pool.id} has stale on-chain layout — resolving in DB only (orphan recovery will reclaim rent)`);
-          } else {
-            console.warn(`[Sports] Failed to resolve empty pool ${pool.id} on-chain - will retry:`, msg);
-            continue; // Don't mark as RESOLVED, will retry next cycle
-          }
-        }
-
-        await prisma.pool.update({
-          where: { id: pool.id },
-          data: { status: 'RESOLVED', winner: winnerLabel, finalPrice: BigInt(0) },
-        });
-        emitPoolStatus(pool.id, { id: pool.id, status: 'RESOLVED', winner: winnerLabel });
-        console.log(`[Sports] Resolved (empty${onChainResolved ? '' : ', DB-only stale-layout'}) ${pool.homeTeam} vs ${pool.awayTeam}: ${result.homeScore}-${result.awayScore} → ${winnerLabel}`);
-        continue;
-      }
-
-      // Pool has bets - resolve on-chain
-      const seed = derivePoolSeed(pool.id);
-      const [poolPda] = getPoolPDA(seed);
-
-      const ix = buildResolveWithWinnerIx(poolPda, wallet.publicKey, winnerSide as 0 | 1 | 2);
-
-      try {
-        await sendAndConfirm(ix, wallet, { label: 'resolve_with_winner' });
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (msg.includes('InvalidPoolStatus') || msg.includes('0x177a') || msg.includes('AccountNotInitialized')) {
-          // Already resolved on-chain (a previous tick succeeded but DB
-          // update raced) — fall through to DB write below to sync state.
-        } else if (msg.includes('AccountDidNotSerialize') || msg.includes('0xbbc')) {
-          // Stale Pool struct layout on a pool WITH bets: do NOT auto-resolve.
-          // Funds are in the vault; admin needs to refund via admin → Manual
-          // Actions → Force Refund Pool, which uses synthetic prices and the
-          // existing autoRefundBets path. Log loudly so it shows up in
-          // monitoring.
-          console.error(`[Sports] STALE-LAYOUT pool with bets needs admin refund: ${pool.id} (${pool.homeTeam} vs ${pool.awayTeam}, ${betCount} bets)`);
-          continue;
-        } else {
-          throw err; // Unknown error — let outer catch log it and try next pool.
-        }
-      }
-
-      await prisma.pool.update({
-        where: { id: pool.id },
-        data: { status: 'RESOLVED', winner: winnerLabel, finalPrice: BigInt(0) },
-      });
-
-      emitPoolStatus(pool.id, { id: pool.id, status: 'RESOLVED', winner: winnerLabel });
-      notifyPoolResolved({ ...pool, winner: winnerLabel }).catch(() => {});
-
-      // Award participation XP to every bettor of this resolved match. Outcome is
-      // real-world (not farmable). Mirrors the crypto resolver.
-      const xpBettors = await prisma.bet.findMany({ where: { poolId: pool.id }, select: { walletAddress: true } });
-      const xpWallets = [...new Set(xpBettors.map((b) => b.walletAddress))];
-      await Promise.all(xpWallets.map((wallet) => awardBetResolution(wallet)));
-
-      console.log(`[Sports] Resolved ${pool.homeTeam} vs ${pool.awayTeam}: ${result.homeScore}-${result.awayScore} → ${winnerLabel} (${betCount} bets)`);
+      await resolveFinishedPool(pool, result);
     } catch (error) {
       console.error(`[Sports] Failed to resolve pool ${pool.id}:`, error);
     }
   }
+}
+
+/**
+ * Resolve a single pool whose match has FINISHED: write the final score, then
+ * either close it (no bets → reclaim rent) or resolve it on-chain (has bets →
+ * unlock payouts + award XP). Throws on unknown on-chain errors so the caller's
+ * per-pool catch logs them and moves on.
+ */
+async function resolveFinishedPool(pool: SportsPool, result: MatchResult): Promise<void> {
+  const adapter = getAdapterForLeague(pool.league);
+  const winnerSide = adapter.resolveWinner(result);
+  const winnerLabel = (['UP', 'DOWN', 'DRAW'] as const)[winnerSide];
+
+  // Always update scores immediately so the UI shows the final result
+  await prisma.pool.update({
+    where: { id: pool.id },
+    data: { homeScore: result.homeScore, awayScore: result.awayScore },
+  });
+
+  // Check if pool has any bets
+  const betCount = await prisma.bet.count({ where: { poolId: pool.id } });
+  const wallet = getAuthorityKeypair();
+
+  if (betCount === 0) {
+    await closeEmptyResolvedPool(pool, result, winnerSide, winnerLabel);
+    return;
+  }
+
+  // Pool has bets - resolve on-chain
+  const seed = derivePoolSeed(pool.id);
+  const [poolPda] = getPoolPDA(seed);
+
+  const ix = buildResolveWithWinnerIx(poolPda, wallet.publicKey, winnerSide as 0 | 1 | 2);
+
+  try {
+    await sendAndConfirm(ix, wallet, { label: 'resolve_with_winner' });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('InvalidPoolStatus') || msg.includes('0x177a') || msg.includes('AccountNotInitialized')) {
+      // Already resolved on-chain (a previous tick succeeded but DB
+      // update raced) — fall through to DB write below to sync state.
+    } else if (msg.includes('AccountDidNotSerialize') || msg.includes('0xbbc')) {
+      // Stale Pool struct layout on a pool WITH bets: do NOT auto-resolve.
+      // Funds are in the vault; admin needs to refund via admin → Manual
+      // Actions → Force Refund Pool, which uses synthetic prices and the
+      // existing autoRefundBets path. Log loudly so it shows up in
+      // monitoring.
+      console.error(`[Sports] STALE-LAYOUT pool with bets needs admin refund: ${pool.id} (${pool.homeTeam} vs ${pool.awayTeam}, ${betCount} bets)`);
+      return;
+    } else {
+      throw err; // Unknown error — let outer catch log it and try next pool.
+    }
+  }
+
+  await prisma.pool.update({
+    where: { id: pool.id },
+    data: { status: 'RESOLVED', winner: winnerLabel, finalPrice: BigInt(0) },
+  });
+
+  emitPoolStatus(pool.id, { id: pool.id, status: 'RESOLVED', winner: winnerLabel });
+  notifyPoolResolved({ ...pool, winner: winnerLabel }).catch(() => {});
+
+  // Award participation XP to every bettor of this resolved match. Outcome is
+  // real-world (not farmable). Mirrors the crypto resolver.
+  const xpBettors = await prisma.bet.findMany({ where: { poolId: pool.id }, select: { walletAddress: true } });
+  const xpWallets = [...new Set(xpBettors.map((b) => b.walletAddress))];
+  await Promise.all(xpWallets.map((wallet) => awardBetResolution(wallet)));
+
+  console.log(`[Sports] Resolved ${pool.homeTeam} vs ${pool.awayTeam}: ${result.homeScore}-${result.awayScore} → ${winnerLabel} (${betCount} bets)`);
+}
+
+/**
+ * Close a finished pool that has NO bets: resolve it on-chain so close_pool can
+ * reclaim rent (prevents orphans), then mark RESOLVED in the DB. Tolerates a
+ * stale on-chain layout by marking the DB row RESOLVED anyway (orphan recovery
+ * sweeps the husk later); on an unknown on-chain error it skips the DB update so
+ * the next cycle retries.
+ */
+async function closeEmptyResolvedPool(
+  pool: SportsPool,
+  result: MatchResult,
+  winnerSide: number,
+  winnerLabel: 'UP' | 'DOWN' | 'DRAW',
+): Promise<void> {
+  const wallet = getAuthorityKeypair();
+  // Resolve on-chain so close_pool can reclaim rent (prevents orphans)
+  const seed = derivePoolSeed(pool.id);
+  const [poolPda] = getPoolPDA(seed);
+  // Whether we managed to flip the on-chain account to Resolved. False
+  // when the on-chain account uses a stale Pool struct layout (a few
+  // legacy pools from the devnet broken-binary window — see
+  // `bug_program_regression_per_side`); in that case we still mark the
+  // DB row as RESOLVED with the off-chain result, and orphan recovery
+  // reclaims the rent from the on-chain husk later.
+  let onChainResolved = false;
+
+  try {
+    await sendAndConfirm(buildResolveWithWinnerIx(poolPda, wallet.publicKey, winnerSide as 0 | 1 | 2), wallet, { label: 'resolve_with_winner' });
+    onChainResolved = true;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('InvalidPoolStatus') || msg.includes('0x177a') || msg.includes('AccountNotInitialized')) {
+      // Already resolved / already closed on-chain — proceed to DB update.
+      onChainResolved = true;
+    } else if (msg.includes('AccountDidNotSerialize') || msg.includes('0xbbc')) {
+      // Stale Pool struct layout — the on-chain account was created by
+      // an older program version whose serialization doesn't match the
+      // current one. No funds at risk (0 bets, vault empty), so we
+      // mark the DB row RESOLVED so the UI shows the result; the
+      // on-chain husk gets cleaned up by recoverOrphanedPools later
+      // (admin → Manual Actions → Recover Orphaned Pools).
+      console.warn(`[Sports] Empty pool ${pool.id} has stale on-chain layout — resolving in DB only (orphan recovery will reclaim rent)`);
+    } else {
+      console.warn(`[Sports] Failed to resolve empty pool ${pool.id} on-chain - will retry:`, msg);
+      return; // Don't mark as RESOLVED, will retry next cycle
+    }
+  }
+
+  await prisma.pool.update({
+    where: { id: pool.id },
+    data: { status: 'RESOLVED', winner: winnerLabel, finalPrice: BigInt(0) },
+  });
+  emitPoolStatus(pool.id, { id: pool.id, status: 'RESOLVED', winner: winnerLabel });
+  console.log(`[Sports] Resolved (empty${onChainResolved ? '' : ', DB-only stale-layout'}) ${pool.homeTeam} vs ${pool.awayTeam}: ${result.homeScore}-${result.awayScore} → ${winnerLabel}`);
 }
 
 /**
