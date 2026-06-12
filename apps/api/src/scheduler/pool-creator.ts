@@ -6,6 +6,7 @@ import { getPoolPDA, getVaultPDA, buildInitializePoolIx } from 'solana-client';
 import { PoolTemplate } from './config';
 import { emitNewPool, ensurePriceStreams } from '../websocket';
 import { getUsdcMint, derivePoolSeed, getConnection, rotateConnection } from '../utils/solana';
+import { sendAndConfirm } from '../utils/onchain';
 
 export interface CreatorDeps {
   prisma: PrismaClient;
@@ -287,25 +288,7 @@ export class PoolCreator {
       strikePrice,
     );
 
-    const transaction = new Transaction().add(ix);
-    const { blockhash, lastValidBlockHeight } = await getConnection().getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = this.deps.wallet.publicKey;
-    transaction.sign(this.deps.wallet);
-
-    const signature = await getConnection().sendRawTransaction(transaction.serialize(), {
-      skipPreflight: true,
-    });
-
-    const confirmation = await getConnection().confirmTransaction(
-      { signature, blockhash, lastValidBlockHeight },
-      'confirmed',
-    );
-
-    if (confirmation.value.err) {
-      throw new Error(`initializePool tx failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
-    }
-
+    const signature = await sendAndConfirm(ix, this.deps.wallet, { label: 'initialize_pool', skipPreflight: true });
     console.log(`[Scheduler] initializePool tx confirmed: ${signature}`);
     return signature;
   }

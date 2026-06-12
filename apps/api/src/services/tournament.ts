@@ -4,6 +4,7 @@ import { generateRoundMatchesTx } from './tournament-bracket';
 import { assignMatchdayToRound } from './tournament-sports';
 import { getTournamentPDA, getTournamentVaultPDA, buildInitializeTournamentIx } from 'solana-client';
 import { deriveTournamentSeed, getUsdcMint, getConnection, getAuthorityKeypair } from '../utils/solana';
+import { sendAndConfirm } from '../utils/onchain';
 
 // Re-export everything from tournament-bracket so existing imports keep working
 export {
@@ -85,13 +86,7 @@ export async function createTournament(data: {
       seed, entryFee, size,
     );
 
-    const tx = new Transaction().add(ix);
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-    tx.recentBlockhash = blockhash;
-    tx.feePayer = authority.publicKey;
-    tx.sign(authority);
-
-    await connection.sendRawTransaction(tx.serialize(), { skipPreflight: false, preflightCommitment: 'confirmed' });
+    await sendAndConfirm(ix, authority, { label: 'initialize_tournament' });
 
     await prisma.tournament.update({
       where: { id: tournament.id },

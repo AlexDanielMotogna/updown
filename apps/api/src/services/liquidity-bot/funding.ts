@@ -6,6 +6,7 @@ import {
 import {
   getConnection, getUsdcMint, getAuthorityKeypair, getTreasuryKeypair, isDevnet,
 } from '../../utils/solana';
+import { sendAndConfirm } from '../../utils/onchain';
 
 export async function getUsdcBalance(owner: PublicKey): Promise<bigint> {
   try {
@@ -66,13 +67,10 @@ export async function fundBotWallet(
     const funderSol = await conn.getBalance(funder.publicKey);
     // Keep a 0.2 SOL reserve on the funder for its own fees.
     if (funderSol > need + 0.2 * LAMPORTS_PER_SOL) {
-      const tx = new Transaction().add(
+      await sendAndConfirm(
         SystemProgram.transfer({ fromPubkey: funder.publicKey, toPubkey: target, lamports: need }),
+        funder, { label: 'fund-sol' },
       );
-      const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash();
-      tx.recentBlockhash = blockhash; tx.feePayer = funder.publicKey; tx.sign(funder);
-      const sig = await conn.sendRawTransaction(tx.serialize(), { preflightCommitment: 'confirmed' });
-      await conn.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
       solFunded = need;
     } else {
       console.warn('[LiquidityBot] funder SOL too low to top up wallet');

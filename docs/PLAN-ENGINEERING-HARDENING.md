@@ -43,7 +43,10 @@ No es un rewrite: son refactors incrementales en PRs pequeños, cada uno con typ
 ---
 
 ## Execution log
-- **P1.1 (en curso):** `sendAndConfirm` creado en `apps/api/src/utils/onchain.ts`.
-  - ✅ Adoptado en `scheduler/onchain-tx.ts` (6 funciones, ~100 líneas de boilerplate eliminadas).
-  - ✅ Adoptado en `scheduler/sports-scheduler.ts` (`voidSportsPool`, quitado el `sendIx` inline).
-  - ⏳ Pendiente: `pm-cancel.ts`, `auto-claim.ts`, `pool-creator.ts`, `orphan-recovery.ts`, `routes/admin/sports-explorer.ts`, `services/{liquidity-bot,polymarket,squad-pools,tournament,referrals}`, `routes/{faucet,tournament-actions}.ts` (~13 archivos).
+- **P1.1 — ✅ COMPLETADO.** `sendAndConfirm` en `apps/api/src/utils/onchain.ts`, adoptado en **13 archivos / ~30 copias**, **−~320 líneas** de boilerplate:
+  - scheduler: `onchain-tx` (6), `sports-scheduler` (4), `pm-cancel` (3), `orphan-recovery` (4), `auto-claim` (1), `pool-creator` (1).
+  - services: `polymarket/resolver`, `referrals`, `tournament`, `squad-pools` (3), `liquidity-bot/{bot,funding}`.
+  - routes: `admin/sports-explorer`, `faucet`, `tournament-actions` (1).
+  - **Excepciones intencionales** (NO encajan — el usuario co-firma; authority `partialSign` + user feePayer): `routes/claims.ts`, `tournament-actions` (winner-claim), `squad-pools` (deposit). Documentadas, no forzadas.
+  - Typecheck limpio. Semántica por call-site preservada (try/catch return vs throw, skipPreflight, fire-and-forget→ahora confirma en tournament-init).
+- **Siguiente:** P1.2 (partir `resolveMatchPools` 165L + god-functions).
