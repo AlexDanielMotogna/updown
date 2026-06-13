@@ -29,6 +29,8 @@ No es un rewrite: son refactors incrementales en PRs pequeños, cada uno con typ
 - **P1.1 — Extraer capa de envío de tx on-chain (DRY).** El patrón `new Transaction().add(ix) → getLatestBlockhash → sign → sendRawTransaction → confirmTransaction → check err` está copiado en **15 archivos**. → `sendAndConfirm(ixs, signer, opts)` único. **← EMPEZAMOS AQUÍ.**
 - **P1.2 — Partir god-functions del money-path.** `resolveMatchPools()` (165 L) → `resolveFinished()` / `voidCancelled()` / `closeEmptyPool()`. `sports-scheduler.ts` (718 L) en módulos por responsabilidad.
 - **P1.3 — Eliminar `any` en la capa on-chain/pagos** (72 `any` en api+admin; el peor es `priceProvider: null as any` propagado por el money-path).
+  - **Money-path `any` — ✅ (commits `05bcf3d`, `204a8e4`).** (1) El peor: split de tipos `OnChainDeps` (prisma/connection/wallet) ⊂ `ResolverDeps` (+priceProvider); las 7 helpers de `onchain-tx` toman `OnChainDeps`; `voidSportsPool` construye un `OnChainDeps` tipado sin cast → `null as any` eliminado. (2) `resolveFeeBps` en `utils/payout.ts` tipado (no más `args: any`); +`payout.test.ts` (7 tests) para `calculatePayout`/`calculateWeightedPayout`.
+  - **Pendiente:** quedan ~69 `any` NO-money-path (forma de datos / JSON): `category-config` 17, `tournaments` 10, `serializers` 6, `polymarket-explorer` 5… Retorno decreciente; barrido cuando convenga.
 
 ### 🟡 P2 — Mantenibilidad
 - **P2.1 — Partir mega-componentes:** TournamentManagement (937), polymarket-sync (891), MatchExplorer (847), CategoryManagement (838) → feature-folders (form / table / dialog / hook).
@@ -63,5 +65,5 @@ No es un rewrite: son refactors incrementales en PRs pequeños, cada uno con typ
   - `resolveFinishedPool(pool, result)`: score update + betCount → close (empty) o resolve-on-chain (bets) + XP.
   - `closeEmptyResolvedPool(pool, result, winnerSide, winnerLabel)`: rama empty (reclaim rent / stale-layout tolerante).
   - **Cero cambio de comportamiento** (verificado por diff línea-a-línea): `continue`→`return`, `throw` sigue propagando al catch del orquestador, mismas tx/DB-writes en el mismo orden. Único cleanup: eliminado `const connection = getConnection()` (dead code tras P1.1). Typecheck limpio.
-  - **Falta:** partir el resto de `sports-scheduler.ts` (718L) en módulos por responsabilidad (creación / resolución / sweep / void).
-- **Siguiente:** terminar P1.2 (modularizar el archivo) o P1.3 (eliminar `any`).
+  - **P1.2 modularización — ✅ (commit `1ee3c99`).** `sports-scheduler.ts` 714L → 6 archivos (DAG sin ciclos): `sports-shared` (23), `sports-pool-creation` (315), `sports-pool-resolution` (188), `sports-pool-void` (66), `sports-sweep` (55), `sports-scheduler` (89, lifecycle + **barrel re-export** para no romper imports externos). Move puro, sin cambio de comportamiento; eliminado import muerto `Transaction`. Typecheck + tests verdes.
+- **P1.2 — ✅ COMPLETO.**
