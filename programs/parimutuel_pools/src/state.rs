@@ -123,6 +123,38 @@ impl Pool {
         }
     }
 
+    /// Time-weighted winnings for ONE winning bet: its share of the losing
+    /// pool, paid ON TOP of the returned principal. Single source of truth for
+    /// the payout math — `claim` calls this so it can be unit-tested directly
+    /// (see `tests/money_math.rs`) without spinning up a validator.
+    ///
+    ///   winnings = bet_weight × (total_pool − winning_side_stake)
+    ///                          / total_weighted_winning
+    ///
+    /// `bet_weight` is the caller's `UserBet::weight`. `winner` must be the
+    /// resolved winning side. Errors on a winning side with zero stake/weight
+    /// (NoWinningBets) or on arithmetic overflow.
+    pub fn winnings_for(&self, bet_weight: u64, winner: Side) -> Result<u64> {
+        let total_pool = self.total_pool()?;
+        let total_winning_side = self.total_for_side(winner);
+        let total_weighted_winning = self.weighted_for_side(winner);
+
+        require!(total_winning_side > 0, crate::errors::PoolError::NoWinningBets);
+        require!(total_weighted_winning > 0, crate::errors::PoolError::NoWinningBets);
+
+        let losing_stake = total_pool
+            .checked_sub(total_winning_side)
+            .ok_or_else(|| error!(crate::errors::PoolError::Overflow))?;
+
+        let winnings = (bet_weight as u128)
+            .checked_mul(losing_stake as u128)
+            .ok_or_else(|| error!(crate::errors::PoolError::Overflow))?
+            .checked_div(total_weighted_winning as u128)
+            .ok_or_else(|| error!(crate::errors::PoolError::Overflow))? as u64;
+
+        Ok(winnings)
+    }
+
     /// Compute the current time-weight multiplier in basis points
     /// (10_000 == 1.0). Linear decay with a floor:
     ///

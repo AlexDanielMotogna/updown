@@ -84,23 +84,9 @@ pub fn handler(ctx: Context<Claim>, fee_bps: u16, _side: Side) -> Result<()> {
     //   winnings  = (bet.weight / Σ weight_winners) × Σ losing_stake
     //   payout    = bet.amount + winnings
     //
-    // Conservation holds — see PLAN-TIME-WEIGHTED-PAYOUTS.md.
-    let total_pool = pool.total_pool()?;
-    let total_winning_side = pool.total_for_side(winner);
-    let total_weighted_winning = pool.weighted_for_side(winner);
-
-    require!(total_winning_side > 0, PoolError::NoWinningBets);
-    require!(total_weighted_winning > 0, PoolError::NoWinningBets);
-
-    let losing_stake = total_pool
-        .checked_sub(total_winning_side)
-        .ok_or(PoolError::Overflow)?;
-
-    let winnings = (user_bet.weight as u128)
-        .checked_mul(losing_stake as u128)
-        .ok_or(PoolError::Overflow)?
-        .checked_div(total_weighted_winning as u128)
-        .ok_or(PoolError::Overflow)? as u64;
+    // Conservation holds — see PLAN-TIME-WEIGHTED-PAYOUTS.md. The share math
+    // lives in `Pool::winnings_for` so it can be unit-tested directly.
+    let winnings = pool.winnings_for(user_bet.weight, winner)?;
 
     let gross_payout = user_bet.amount
         .checked_add(winnings)
