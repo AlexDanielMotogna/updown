@@ -34,6 +34,7 @@ No es un rewrite: son refactors incrementales en PRs pequeños, cada uno con typ
 
 ### 🟡 P2 — Mantenibilidad
 - **P2.1 — Partir mega-componentes:** TournamentManagement (937), polymarket-sync (891), MatchExplorer (847), CategoryManagement (838) → feature-folders (form / table / dialog / hook).
+  - **TournamentManagement — 🟡 parcial (commit `c682649`).** 937 → 723L. Extraídos `tournament-config.ts` (101, tipos+constantes+helpers) y `TournamentRow.tsx` (134). Move puro, typecheck limpio. **Falta** (más riesgoso, sin tests de front): extraer los diálogos Create/Edit/Assign/Resolve del componente principal. Pendientes los otros 3 mega-componentes.
 - **P2.2 — Centralizar tipos** en `types/` derivados de Prisma + IDL (hoy `ZombiePool`, `StuckKnockout`, `RecentBet`… duplicados).
 - **P2.3 — Adoptar `useAdminResource`/`DataTable`/`Paginator`** en el resto; eliminar los **8 `fetch()` crudos** de CategoryManagement.
 - **P2.4 — Generar discriminadores del IDL** en `solana-client`, no a mano (`[233,73,...]`).
