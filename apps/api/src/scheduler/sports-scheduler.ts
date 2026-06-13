@@ -262,7 +262,7 @@ async function sweepUnresolvedPools(): Promise<void> {
  * Aborts (and retries next cycle) if any refund can't land, so we never mark a
  * pool CANCELLED with bettors still unpaid.
  */
-async function voidSportsPool(
+export async function voidSportsPool(
   pool: { id: string; homeTeam: string | null; awayTeam: string | null },
   reason: string,
 ): Promise<void> {
