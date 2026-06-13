@@ -172,6 +172,28 @@ fn conservation_exact_split() {
     assert_eq!(total_paid, p.total_pool().unwrap());
 }
 
+// ── refund payout (refund.rs shares winnings_for, no fee) ─────────────────
+
+#[test]
+fn refund_returns_exactly_principal_when_no_counterparty() {
+    // The void / single-bettor unwind: everyone is on the winning side, so
+    // losing_stake == 0 → winnings == 0 → payout == principal. No fee on refund.
+    let p = mk_pool(0, 1, 1_000, 0, 0, 1_000, 0, 0);
+    let principal = 250u64;
+    let payout = principal + p.winnings_for(250, Side::Up).unwrap();
+    assert_eq!(payout, principal, "a refund with no losing pool returns exactly the stake");
+}
+
+#[test]
+fn refund_pays_principal_plus_weighted_share() {
+    // Refund uses the same share as claim but skips the fee, so a winner gets
+    // their stake plus the full (un-feed) weighted share of the losing pool.
+    let p = mk_pool(0, 1, 1_000, 500, 0, 1_000, 0, 0);
+    let principal = 200u64;
+    let payout = principal + p.winnings_for(200, Side::Up).unwrap();
+    assert_eq!(payout, 200 + 100); // 200 stake + 200/1000 * 500 losing
+}
+
 #[test]
 fn conservation_never_overpays_with_rounding_dust() {
     // Weights that DON'T divide evenly: integer division floors each share, so
