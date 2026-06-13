@@ -84,7 +84,7 @@ export function calculateWeightedPayout({
  * Looks up the user's level; falls back to default fee if not found.
  */
 export async function resolveFeeBps(
-  prisma: { user: { findUnique: (args: any) => Promise<{ level: number } | null> } },
+  prisma: { user: { findUnique: (args: { where: { walletAddress: string } }) => Promise<{ level: number } | null> } },
   walletAddress: string,
 ): Promise<number> {
   const user = await prisma.user.findUnique({ where: { walletAddress } });
