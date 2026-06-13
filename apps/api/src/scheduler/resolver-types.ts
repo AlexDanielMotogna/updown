@@ -3,10 +3,20 @@ import { Connection, Keypair } from '@solana/web3.js';
 import { PacificaProvider } from 'market-data';
 import { rotateConnection } from '../utils/solana';
 
-export interface ResolverDeps {
+/**
+ * Dependencies for the on-chain settlement helpers (resolve / refund / close).
+ * None of these need a price feed — they act on already-decided outcomes — so
+ * callers on the void/refund path (e.g. cancelled sports pools) can build this
+ * without a PacificaProvider instead of passing `null as any`.
+ */
+export interface OnChainDeps {
   prisma: PrismaClient;
   connection: Connection;
   wallet: Keypair;
+}
+
+/** OnChainDeps plus the price feed, for the crypto resolver that reads spot. */
+export interface ResolverDeps extends OnChainDeps {
   priceProvider: PacificaProvider;
 }
 

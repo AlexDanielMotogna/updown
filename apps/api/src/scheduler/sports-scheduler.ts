@@ -8,7 +8,7 @@ import { getPoolPDA, getVaultPDA, buildInitializePoolIx, buildResolveWithWinnerI
 import { derivePoolSeed, getUsdcMint, getConnection, getAuthorityKeypair } from '../utils/solana';
 import { refundBettorOnChain } from './onchain-tx';
 import { sendAndConfirm } from '../utils/onchain';
-import { logEvent } from './resolver-types';
+import { logEvent, type OnChainDeps } from './resolver-types';
 import { Transaction } from '@solana/web3.js';
 import crypto from 'crypto';
 import { emitPoolStatus } from '../websocket';
@@ -273,7 +273,8 @@ export async function voidSportsPool(
 
   const wallet = getAuthorityKeypair();
   const connection = getConnection();
-  const deps = { prisma, connection, wallet, priceProvider: null as any };
+  // refund_bettor needs no price feed, so OnChainDeps (no PacificaProvider).
+  const deps: OnChainDeps = { prisma, connection, wallet };
 
   // 1) Refund each bettor their principal.
   for (const bet of bets) {

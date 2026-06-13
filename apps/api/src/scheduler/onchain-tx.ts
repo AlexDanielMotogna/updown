@@ -4,13 +4,13 @@ import { getPoolPDA, getVaultPDA, getUserBetPDA, buildResolveIx, buildRefundIx, 
 import { derivePoolSeed, getUsdcMint, getConnection } from '../utils/solana';
 import { sendAndConfirm } from '../utils/onchain';
 import { emitRefund } from '../websocket';
-import { ResolverDeps, REFUND_MAX_RETRIES, logEvent, handleRpcError } from './resolver-types';
+import { OnChainDeps, REFUND_MAX_RETRIES, logEvent, handleRpcError } from './resolver-types';
 
 /**
  * Send on-chain resolve instruction.
  */
 export async function resolvePoolOnChain(
-  deps: ResolverDeps,
+  deps: OnChainDeps,
   poolId: string,
   strikePrice: bigint,
   finalPrice: bigint,
@@ -35,7 +35,7 @@ export async function resolvePoolOnChain(
  * Verifies the pool account is actually closed after confirmation.
  */
 export async function closePoolOnChain(
-  deps: ResolverDeps,
+  deps: OnChainDeps,
   poolId: string,
 ): Promise<string> {
   const connection = getConnection();
@@ -62,7 +62,7 @@ export async function closePoolOnChain(
  * Authority signs - no user signature needed.
  */
 export async function refundBetOnChain(
-  deps: ResolverDeps,
+  deps: OnChainDeps,
   poolId: string,
   walletAddress: string,
   side: string,
@@ -90,7 +90,7 @@ export async function refundBetOnChain(
  * winner yet. Returns the tx signature.
  */
 export async function refundBettorOnChain(
-  deps: ResolverDeps,
+  deps: OnChainDeps,
   poolId: string,
   walletAddress: string,
   side: string,
@@ -116,7 +116,7 @@ export async function refundBettorOnChain(
  * Requires the `close_losing_bet` program instruction to be deployed.
  */
 export async function closeLosingBetOnChain(
-  deps: ResolverDeps,
+  deps: OnChainDeps,
   poolId: string,
   walletAddress: string,
   side: string,
@@ -138,7 +138,7 @@ export async function closeLosingBetOnChain(
  * `sweep_vault_dust` program instruction to be deployed.
  */
 export async function sweepVaultDustOnChain(
-  deps: ResolverDeps,
+  deps: OnChainDeps,
   poolId: string,
 ): Promise<string> {
   const seed = derivePoolSeed(poolId);
@@ -156,7 +156,7 @@ export async function sweepVaultDustOnChain(
  * Retries up to REFUND_MAX_RETRIES times per bet. Returns true if ALL bets were refunded.
  */
 export async function autoRefundBets(
-  deps: ResolverDeps,
+  deps: OnChainDeps,
   poolId: string,
   bets: Array<{ id: string; walletAddress: string; side: string; amount: bigint; claimed: boolean }>,
 ): Promise<boolean> {
