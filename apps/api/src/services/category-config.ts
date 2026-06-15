@@ -22,6 +22,31 @@ export interface PoolCategoryConfig {
   parentCode: string | null;
 }
 
+/**
+ * Known shape of the `poolCategory.config` JSON column. All fields optional —
+ * a category only carries the keys relevant to its type (sports vs Polymarket).
+ * Replaces the `(c.config as any)?.x` accesses sprinkled through this file.
+ */
+interface CategoryConfigJson {
+  sportQuery?: string;
+  leagueFilter?: string;
+  externalLeagueId?: string;
+  tags?: string[];
+  tagIds?: Array<string | number>;
+  minVolume24h?: number;
+  maxDaysAhead?: number;
+  matchPriority?: number;
+  maxMarkets?: number;
+  maxSubmarketsPerEvent?: number;
+  matchDurationHours?: number;
+  subcategories?: unknown;
+}
+
+/** Read a category's JSON config as the known shape (empty object if null). */
+function asConfig(config: Record<string, unknown> | null | undefined): CategoryConfigJson {
+  return (config ?? {}) as CategoryConfigJson;
+}
+
 // ── In-memory fallback, derived from the single canonical default list ──────
 // Used only until the DB (poolCategory) is populated (auto-seeded on boot).
 
@@ -51,7 +76,9 @@ let cachedCategories: PoolCategoryConfig[] = FALLBACK;
 let lastFetchedAt = 0;
 const CACHE_TTL_MS = 60_000;
 
-function mapRow(row: any): PoolCategoryConfig {
+type PoolCategoryRow = Awaited<ReturnType<typeof prisma.poolCategory.findMany>>[number];
+
+function mapRow(row: PoolCategoryRow): PoolCategoryConfig {
   return {
     code: row.code,
     type: row.type,
@@ -140,11 +167,11 @@ export async function getSportsDbConfigs(): Promise<SportsDbConfig[]> {
   const cats = await getEnabledCategories('SPORTSDB_SPORT');
   return cats.map(c => ({
     sport: c.code,
-    sportQuery: (c.config as any)?.sportQuery || c.code,
+    sportQuery: asConfig(c.config).sportQuery || c.code,
     numSides: c.numSides,
     sideLabels: c.sideLabels,
-    leagueFilter: (c.config as any)?.leagueFilter || c.code,
-    leagueId: (c.config as any)?.externalLeagueId,
+    leagueFilter: asConfig(c.config).leagueFilter || c.code,
+    leagueId: asConfig(c.config).externalLeagueId,
   }));
 }
 
@@ -152,13 +179,13 @@ export async function getSportsDbConfigs(): Promise<SportsDbConfig[]> {
 export async function getFootballConfigs(): Promise<SportsDbConfig[]> {
   const cats = await getEnabledCategories('FOOTBALL_LEAGUE');
   return cats
-    .filter(c => (c.config as any)?.externalLeagueId) // only leagues with a TheSportsDB ID
+    .filter(c => asConfig(c.config).externalLeagueId) // only leagues with a TheSportsDB ID
     .map(c => ({
       sport: c.code,         // CL, PL, EL, etc. - used as adapter key
       sportQuery: 'Soccer',
       numSides: c.numSides,
       sideLabels: c.sideLabels,
-      leagueId: (c.config as any).externalLeagueId,
+      leagueId: asConfig(c.config).externalLeagueId,
     }));
 }
 
@@ -180,19 +207,19 @@ export async function getPolymarketCategories(): Promise<PolymarketCategoryConfi
     .map(c => ({
       code: c.code,
       name: c.label,
-      tags: (c.config as any)?.tags || [],
+      tags: asConfig(c.config).tags || [],
       // Gamma API tag_ids for direct per-tag fetch (full inventory, not the
       // global top-100-by-volume). Resolve via /tags/slug/{slug} if you add tags.
-      tagIds: ((c.config as any)?.tagIds || []).map((t: any) => String(t)),
-      minVolume24h: (c.config as any)?.minVolume24h || 5000,
-      maxDaysAhead: (c.config as any)?.maxDaysAhead || 90,
+      tagIds: (asConfig(c.config).tagIds || []).map(t => String(t)),
+      minVolume24h: asConfig(c.config).minVolume24h || 5000,
+      maxDaysAhead: asConfig(c.config).maxDaysAhead || 90,
       // Lower = matched first. Defaults to sortOrder; set high for the generic
       // "Politics" catch-all so specific categories (Geo, Finance, ...) win when
       // an event carries both a specific tag AND the broad "Politics" tag.
-      matchPriority: (c.config as any)?.matchPriority ?? c.sortOrder,
+      matchPriority: asConfig(c.config).matchPriority ?? c.sortOrder,
       // Per-category import caps (admin-tunable). Default to the legacy globals.
-      maxMarkets: (c.config as any)?.maxMarkets || 50,
-      maxSubmarketsPerEvent: (c.config as any)?.maxSubmarketsPerEvent || 1,
+      maxMarkets: asConfig(c.config).maxMarkets || 50,
+      maxSubmarketsPerEvent: asConfig(c.config).maxSubmarketsPerEvent || 1,
     }))
     .sort((a, b) => a.matchPriority - b.matchPriority);
 }
@@ -230,7 +257,7 @@ export function isOperationalTag(tag: string): boolean {
 export async function getCategorySubcategories(code: string): Promise<string[]> {
   await refreshCache();
   const cat = cachedCategories.find(c => c.code === code);
-  const subs = (cat?.config as any)?.subcategories;
+  const subs = asConfig(cat?.config).subcategories;
   return Array.isArray(subs) ? subs.filter((s): s is string => typeof s === 'string') : [];
 }
 
@@ -242,7 +269,7 @@ export async function getCategorySubcategories(code: string): Promise<string[]> 
 export async function getCategoryParentTags(code: string): Promise<string[]> {
   await refreshCache();
   const cat = cachedCategories.find(c => c.code === code);
-  const tags = (cat?.config as any)?.tags;
+  const tags = asConfig(cat?.config).tags;
   return Array.isArray(tags) ? tags.filter((t): t is string => typeof t === 'string') : [];
 }
 
@@ -269,7 +296,7 @@ export async function getDisabledPolymarketTags(): Promise<Set<string>> {
   const disabled = cachedCategories.filter(c => c.type === 'POLYMARKET' && !c.enabled);
   const tags = new Set<string>();
   for (const c of disabled) {
-    for (const t of (c.config as any)?.tags || []) tags.add(t);
+    for (const t of asConfig(c.config).tags || []) tags.add(t);
   }
   return tags;
 }
@@ -280,7 +307,7 @@ const DEFAULT_MATCH_DURATION_HOURS = 4; // fallback if not configured
 export async function getMatchDurationHours(leagueCode: string): Promise<number> {
   await refreshCache();
   const cat = cachedCategories.find(c => c.code === leagueCode);
-  return (cat?.config as any)?.matchDurationHours ?? DEFAULT_MATCH_DURATION_HOURS;
+  return asConfig(cat?.config).matchDurationHours ?? DEFAULT_MATCH_DURATION_HOURS;
 }
 
 export function invalidateCache(): void {
