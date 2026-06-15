@@ -31,59 +31,12 @@ import {
   FilterBar, TimeCell, IdCell, Body, Meta, Label,
   useMutationFeedback,
   POLL_MEDIUM_MS,
-  type StatusKind,
 } from '../ui';
-
-// ─── Types ───────────────────────────────────────────────────────────────
-interface PmCategory {
-  code: string;
-  label: string;
-  tagIds: string[];
-  tags: string[];
-  minVolume24h: number;
-  maxDaysAhead: number;
-  maxMarkets: number;
-  maxSubmarketsPerEvent: number;
-  matchPriority: number;
-  poolCount: number;
-  cachedMarketCount: number;
-  lastBulkSyncAt: string | null;
-}
-
-interface PmTag {
-  id: string;
-  label: string;
-  slug: string;
-  count: number;
-  inUse: boolean;
-  categoryCode: string | null;
-}
-
-interface PmMarketRow {
-  externalId: string;
-  question: string;
-  opponent: string | null;
-  image: string | null;
-  endDate: string;
-  status: string;
-  subcategory: string | null;
-  marketOdds: number | null;
-  poolExists: boolean;
-  poolId: string | null;
-  poolStatus: string | null;
-  lastSyncedAt: string;
-}
-
-const MARKET_STATUS_KIND: Record<string, StatusKind> = {
-  SCHEDULED: 'info',
-  LIVE: 'warning',
-  FINISHED: 'neutral',
-  CANCELLED: 'error',
-};
-
-// PM admin uses a single accent color - matches the public app's `t.prediction`
-// purple, which is what the Polymarket bucket renders as.
-const PM_ACCENT = t.prediction;
+import {
+  type PmCategory, type PmMarketRow,
+  MARKET_STATUS_KIND, PM_ACCENT,
+} from './pm-explorer-config';
+import { BrowseGammaTagsModal } from './PmExplorerDialogs';
 
 export function PmExplorer() {
   const qc = useQueryClient();
@@ -480,87 +433,5 @@ export function PmExplorer() {
         </Box>
       </AdminDialog>
     </Box>
-  );
-}
-
-// ─── Browse Gamma tags modal ────────────────────────────────────────────
-function BrowseGammaTagsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [tagFilter, setTagFilter] = useState('');
-  const tagsQ = useQuery({
-    queryKey: ['admin-pm-tags'],
-    queryFn: () => adminFetch<{ data: PmTag[] }>('/polymarket/tags'),
-    enabled: open,
-  });
-  const tags = tagsQ.data?.data ?? [];
-
-  const filtered = useMemo(() => {
-    const q = tagFilter.trim().toLowerCase();
-    if (!q) return tags;
-    return tags.filter(t0 =>
-      t0.label.toLowerCase().includes(q) ||
-      t0.slug.toLowerCase().includes(q) ||
-      t0.id.includes(q),
-    );
-  }, [tags, tagFilter]);
-
-  return (
-    <AdminDialog
-      open={open}
-      onClose={onClose}
-      title="Browse Gamma tags"
-      maxWidth="md"
-      footer={<ActionButton kind="secondary" label="Close" onClick={onClose} />}
-    >
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-        <Meta>
-          Active Polymarket tags aggregated from the top-volume events (1h cache).
-          Tags wired to a UpDown category show a check; pick an unused tag to add to a
-          category from the Categories tab.
-        </Meta>
-        <FilterBar
-          value={tagFilter}
-          onChange={setTagFilter}
-          placeholder="Filter by label, slug, or id…"
-        />
-        {tagsQ.isLoading ? (
-          <LoadingState variant="block" />
-        ) : filtered.length === 0 ? (
-          <EmptyState title="No tags match" hint="Clear the filter or refresh - Gamma has 1200+ active tags." />
-        ) : (
-          <TableContainer sx={{ maxHeight: 460 }}>
-            <Table size="small" stickyHeader>
-              <TableHead>
-                <TableRow>
-                  <TableCell><Label>Tag</Label></TableCell>
-                  <TableCell><Label>Slug</Label></TableCell>
-                  <TableCell><Label>ID</Label></TableCell>
-                  <TableCell align="right"><Label>Events</Label></TableCell>
-                  <TableCell><Label>Wired to</Label></TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filtered.map(tg => (
-                  <TableRow key={tg.id} hover>
-                    <TableCell>
-                      <Body sx={{ fontSize: '0.82rem', color: t.text.primary }}>{tg.label}</Body>
-                    </TableCell>
-                    <TableCell sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.7rem', color: t.text.tertiary }}>
-                      {tg.slug}
-                    </TableCell>
-                    <TableCell><IdCell value={tg.id} truncate={12} /></TableCell>
-                    <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{tg.count}</TableCell>
-                    <TableCell>
-                      {tg.inUse
-                        ? <StatusChip status="ok" label={tg.categoryCode ?? 'used'} />
-                        : <Meta>-</Meta>}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-      </Box>
-    </AdminDialog>
   );
 }
