@@ -34,7 +34,12 @@ No es un rewrite: son refactors incrementales en PRs pequeños, cada uno con typ
 
 ### 🟡 P2 — Mantenibilidad
 - **P2.1 — Partir mega-componentes:** TournamentManagement (937), polymarket-sync (891), MatchExplorer (847), CategoryManagement (838) → feature-folders (form / table / dialog / hook).
-  - **TournamentManagement — 🟡 parcial (commit `c682649`).** 937 → 723L. Extraídos `tournament-config.ts` (101, tipos+constantes+helpers) y `TournamentRow.tsx` (134). Move puro, typecheck limpio. **Falta** (más riesgoso, sin tests de front): extraer los diálogos Create/Edit/Assign/Resolve del componente principal. Pendientes los otros 3 mega-componentes.
+  - **✅ 4 mega-componentes partidos (commits `c682649`, `3332d5a`, `1a385e6`, `fe9983c`).** Todos move puro, typecheck limpio, imports huérfanos eliminados:
+    - TournamentManagement 937 → 723 (`tournament-config.ts` + `TournamentRow.tsx`). _Falta opcional: extraer los diálogos Create/Edit/Assign/Resolve._
+    - MatchExplorer 847 → 464 (`match-explorer-config.ts` + `MatchExplorerDialogs.tsx` con BrowseSdb/AddCategory).
+    - CategoryManagement 838 → 187 (`category-management-config.ts` + `CategoryCard.tsx` + `CategoryEditDialog.tsx`).
+    - PmExplorer 566 → 437 (`pm-explorer-config.ts` + `PmExplorerDialogs.tsx`). _Diálogos create/resolve se quedan (cierran sobre estado del padre)._
+    - Patrón: módulo `*-config.ts` (tipos+constantes+helpers, sin acoplar a React) que comparten padre e hijos para evitar ciclos; sub-componentes props-driven a su archivo. Verificación: solo `tsc` (el front no tiene tests).
 - **P2.2 — Centralizar tipos** en `types/` derivados de Prisma + IDL (hoy `ZombiePool`, `StuckKnockout`, `RecentBet`… duplicados).
 - **P2.3 — Adoptar `useAdminResource`/`DataTable`/`Paginator`** en el resto; eliminar los **8 `fetch()` crudos** de CategoryManagement.
 - **P2.4 — Generar discriminadores del IDL** en `solana-client`, no a mano (`[233,73,...]`).
