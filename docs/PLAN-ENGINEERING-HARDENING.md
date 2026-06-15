@@ -43,6 +43,7 @@ No es un rewrite: son refactors incrementales en PRs pequeños, cada uno con typ
 - **P2.2 — Centralizar tipos** en `types/` derivados de Prisma + IDL (hoy `ZombiePool`, `StuckKnockout`, `RecentBet`… duplicados).
 - **P2.3 — Adoptar `useAdminResource`/`DataTable`/`Paginator`** en el resto; eliminar los **8 `fetch()` crudos** de CategoryManagement.
 - **P2.4 — Generar discriminadores del IDL** en `solana-client`, no a mano (`[233,73,...]`).
+  - **✅ Resuelto vía test de drift (commit `648e94b`), no reemplazo en runtime.** Reemplazar los 17 discriminadores a mano por valores del IDL en runtime es un edit del money-path arriesgado; en su lugar `apps/api/src/onchain-discriminators.test.ts` (20 tests) construye cada instrucción y verifica que sus 8 bytes == `sha256("global:<name>")[0..8]` (la derivación canónica de Anchor), cross-checkea el IDL y fija los 3 que faltan en el IDL. Corre contra `dist` (lo que despliega la API). **Hallazgo:** el IDL JSON commiteado está **stale** — no incluye `close_losing_bet`/`refund_bettor`/`sweep_vault_dust` (del rent-recovery); regenerar con `anchor build` cuando se actualice el programa.
 
 ### 🟢 P3 — Performance / pulido
 - Virtualización de tablas grandes (EventLog, closures, pools).
