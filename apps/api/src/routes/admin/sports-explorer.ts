@@ -177,7 +177,7 @@ adminSportsRouter.get('/sdb-league/:id', async (req, res) => {
       return res.json({ success: true, data: cached.data, cached: true });
     }
 
-    const data = await sportsDbFetch(`lookupleague.php?id=${encodeURIComponent(id)}`);
+    const data = await sportsDbFetch<{ leagues?: Array<{ idLeague?: string | null; strLeague?: string | null; strSport?: string | null; strBadge?: string | null; strLogo?: string | null; strCountry?: string | null }> }>(`lookupleague.php?id=${encodeURIComponent(id)}`);
     const row = Array.isArray(data?.leagues) && data.leagues.length > 0 ? data.leagues[0] : null;
     if (!row || !row.idLeague) {
       return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: `SDB has no league with id=${id}` } });
@@ -191,7 +191,7 @@ adminSportsRouter.get('/sdb-league/:id', async (req, res) => {
     const badgeBgColor = badge ? await classifyBadgeBackground(badge) : null;
     const detail: SdbLeagueDetail = {
       id: String(row.idLeague),
-      name: row.strLeague,
+      name: row.strLeague as string,
       sport: row.strSport || '',
       badge,
       logo: row.strLogo || null,
@@ -466,9 +466,9 @@ adminSportsRouter.get('/sdb-leagues', async (_req, res) => {
   try {
     const now = Date.now();
     if (!sdbLeaguesCache || now - sdbLeaguesCache.ts > SDB_LEAGUES_TTL_MS) {
-      const data = await sportsDbFetch('all_leagues.php');
+      const data = await sportsDbFetch<{ leagues?: Array<{ idLeague: string; strLeague: string; strSport: string; strLeagueAlternate?: string }> }>('all_leagues.php');
       const rows: Array<{ id: string; name: string; sport: string; alternate: string }> = [];
-      for (const l of (data?.leagues || []) as Array<{ idLeague: string; strLeague: string; strSport: string; strLeagueAlternate?: string }>) {
+      for (const l of (data?.leagues || [])) {
         if (!l.idLeague || !l.strLeague) continue;
         rows.push({
           id: String(l.idLeague),

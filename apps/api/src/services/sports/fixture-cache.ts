@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../db';
 import type { Match, MatchResult, MatchStatus } from './types';
 import { sportsDbFetchV2 } from './api-sports-fetch';
@@ -166,7 +167,17 @@ export async function getCachedFixtureResults(
   const toFetch = missing2.slice(0, API_LOOKUP_LIMIT);
   for (const eventId of toFetch) {
     try {
-      const data = await sportsDbFetchV2(`lookup/event/${eventId}`);
+      const data = await sportsDbFetchV2<{ lookup?: Array<{
+        strStatus?: string | null;
+        intHomeScore?: string | number | null;
+        intAwayScore?: string | number | null;
+        strSport?: string | null;
+        strLeague?: string | null;
+        strHomeTeam?: string | null;
+        strAwayTeam?: string | null;
+        strHomeTeamBadge?: string | null;
+        strAwayTeamBadge?: string | null;
+      }> }>(`lookup/event/${eventId}`);
       const evt = data?.lookup?.[0];
       if (!evt) continue;
       const rawStatus = (evt.strStatus || '').trim();
@@ -207,7 +218,7 @@ export async function getCachedMatchdayFixtures(
   league: string,
   matchday?: number,
 ): Promise<Match[]> {
-  const where: any = { sport, league };
+  const where: Prisma.SportsFixtureCacheWhereInput = { sport, league };
   if (matchday != null) where.matchday = matchday;
   else {
     where.status = { in: ['SCHEDULED', 'LIVE'] };

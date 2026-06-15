@@ -16,10 +16,10 @@ interface TagRec { id: string; label: string; slug: string }
 const labelCache = new Map<string, TagRec>();                       // id -> tag (labels are stable)
 const relatedCache = new Map<string, { at: number; data: Array<TagRec & { rank: number }> }>();
 
-async function gget(path: string): Promise<any> {
+async function gget<T = unknown>(path: string): Promise<T> {
   const res = await fetch(`${GAMMA}${path}`, { headers: { 'User-Agent': 'updown-admin' } });
   if (!res.ok) throw new Error(`Gamma ${res.status} ${res.statusText}`);
-  return res.json();
+  return res.json() as Promise<T>;
 }
 
 export function slugify(name: string): string {
@@ -30,9 +30,9 @@ export async function resolveTagById(id: string): Promise<TagRec | null> {
   const key = String(id);
   if (labelCache.has(key)) return labelCache.get(key)!;
   try {
-    const t = await gget(`/tags/${key}`);
+    const t = await gget<{ id?: string | number; label?: string; slug?: string }>(`/tags/${key}`);
     if (!t?.id) return null;
-    const rec: TagRec = { id: String(t.id), label: t.label, slug: t.slug };
+    const rec: TagRec = { id: String(t.id), label: t.label as string, slug: t.slug as string };
     labelCache.set(rec.id, rec);
     return rec;
   } catch {
@@ -43,9 +43,9 @@ export async function resolveTagById(id: string): Promise<TagRec | null> {
 /** Resolve a category tag by typed name (slugified). Returns null if PM has no such tag. */
 export async function tagBySlug(name: string): Promise<TagRec | null> {
   try {
-    const t = await gget(`/tags/slug/${slugify(name)}`);
+    const t = await gget<{ id?: string | number; label?: string; slug?: string }>(`/tags/slug/${slugify(name)}`);
     if (!t?.id) return null;
-    const rec: TagRec = { id: String(t.id), label: t.label, slug: t.slug };
+    const rec: TagRec = { id: String(t.id), label: t.label as string, slug: t.slug as string };
     labelCache.set(rec.id, rec);
     return rec;
   } catch {
@@ -61,7 +61,7 @@ export async function getRelatedTags(tagId: string): Promise<Array<TagRec & { ra
 
   let rels: Array<{ relatedTagID: number; rank: number }>;
   try {
-    rels = await gget(`/tags/${key}/related-tags`);
+    rels = await gget<Array<{ relatedTagID: number; rank: number }>>(`/tags/${key}/related-tags`);
   } catch {
     return [];
   }
@@ -91,9 +91,10 @@ export async function getActiveTags(): Promise<Array<TagRec & { count: number }>
   const byId = new Map<string, TagRec & { count: number }>();
   let offset = 0;
   for (let i = 0; i < 4; i++) {
-    let page: any;
+    type GammaEventTags = { tags?: Array<{ id?: string | number; label?: string; slug?: string }> };
+    let page: GammaEventTags[] | undefined;
     try {
-      page = await gget(`/events?active=true&closed=false&order=volume&ascending=false&limit=100&offset=${offset}`);
+      page = await gget<GammaEventTags[]>(`/events?active=true&closed=false&order=volume&ascending=false&limit=100&offset=${offset}`);
     } catch {
       break;
     }

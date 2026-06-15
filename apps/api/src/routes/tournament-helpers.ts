@@ -1,4 +1,5 @@
 // Shared helpers used by both tournament route files
+import type { Request, Response } from 'express';
 
 // BigInt can't be JSON.stringify'd - convert to string
 export function serializeBigInt(data: unknown) {
@@ -8,7 +9,7 @@ export function serializeBigInt(data: unknown) {
 }
 
 // Admin auth helper
-export function requireAdmin(req: any, res: any): boolean {
+export function requireAdmin(req: Request, res: Response): boolean {
   const adminKey = process.env.ADMIN_API_KEY;
   if (!adminKey) {
     res.status(503).json({ success: false, error: { code: 'NOT_CONFIGURED', message: 'Admin not configured' } });

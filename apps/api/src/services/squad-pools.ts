@@ -372,7 +372,7 @@ export async function cancelSquadPool(params: {
   const event = await prisma.eventLog.findFirst({
     where: { entityId: poolId, eventType: 'SQUAD_POOL_CREATED' },
   });
-  const creator = (event?.payload as any)?.creatorWallet;
+  const creator = (event?.payload as { creatorWallet?: string } | null)?.creatorWallet;
   if (creator !== wallet) throw new Error('NOT_CREATOR');
 
   // Check no bets

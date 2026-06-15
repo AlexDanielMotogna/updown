@@ -234,7 +234,7 @@ configRouter.get('/pm-tag', async (req, res) => {
 // GET /api/config/sportsdb-sports - list available sports from TheSportsDB
 configRouter.get('/sportsdb-sports', async (_req, res) => {
   try {
-    const data = await sportsDbFetch('all_sports.php');
+    const data = await sportsDbFetch<{ sports?: Array<{ strSport: string }> }>('all_sports.php');
     const sports = (data?.sports || []).map((s: { strSport: string }) => s.strSport).filter(Boolean);
     res.json({ success: true, data: sports });
   } catch {
@@ -247,7 +247,7 @@ configRouter.get('/sportsdb-leagues', async (req, res) => {
   try {
     const sport = req.query.sport as string;
     if (!sport) return res.json({ success: true, data: [] });
-    const data = await sportsDbFetch(`search_all_leagues.php?s=${encodeURIComponent(sport)}`);
+    const data = await sportsDbFetch<{ countrys?: Array<{ idLeague: string; strLeague: string }>; leagues?: Array<{ idLeague: string; strLeague: string }> }>(`search_all_leagues.php?s=${encodeURIComponent(sport)}`);
     const leagues = (data?.countrys || data?.leagues || [])
       .map((l: { idLeague: string; strLeague: string }) => ({ id: l.idLeague, name: l.strLeague }))
       .filter((l: { name: string }) => l.name);

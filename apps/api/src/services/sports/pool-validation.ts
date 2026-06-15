@@ -203,9 +203,17 @@ export type RevalidationResult =
  * avoid races with the bulk sync that might bring the event back.
  */
 export async function revalidateSdbEventBeforeCreation(eventId: string): Promise<RevalidationResult> {
-  let evt: any;
+  type SdbLookupEvent = {
+    strStatus?: string | null;
+    intHomeScore?: string | number | null;
+    intAwayScore?: string | number | null;
+    strTimestamp?: string | null;
+    dateEvent?: string | null;
+    strEventTime?: string | null;
+  };
+  let evt: SdbLookupEvent | undefined;
   try {
-    const data = await sportsDbFetchV2(`lookup/event/${eventId}`);
+    const data = await sportsDbFetchV2<{ lookup?: SdbLookupEvent[] }>(`lookup/event/${eventId}`);
     evt = data?.lookup?.[0];
   } catch (err) {
     // Network / rate-limit error — be conservative. We don't want a

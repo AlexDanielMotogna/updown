@@ -1,4 +1,5 @@
 import { Router, type Router as RouterType } from 'express';
+import { Prisma } from '@prisma/client';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { prisma } from '../../db';
 import { getLiquidityBotConfig } from '../../services/liquidity-bot/config';
@@ -43,7 +44,7 @@ adminLiquidityBotRouter.get('/', async (_req, res) => {
 adminLiquidityBotRouter.put('/', async (req, res) => {
   try {
     const b = req.body ?? {};
-    const data: any = {};
+    const data: Record<string, bigint | number | boolean | string> = {};
     const bigFields = ['perPoolCap', 'perCycleCap', 'maxTotalExposure', 'treasuryFloor', 'betMin', 'betMax', 'walletUsdcTopup'];
     for (const f of bigFields) {
       if (b[f] != null && b[f] !== '') {
@@ -59,7 +60,7 @@ adminLiquidityBotRouter.put('/', async (req, res) => {
     if (typeof b.sideStrategy === 'string' && ['balanced', 'skew'].includes(b.sideStrategy)) data.sideStrategy = b.sideStrategy;
 
     await getLiquidityBotConfig(); // ensure row exists
-    const updated = await prisma.liquidityBotConfig.update({ where: { id: 'default' }, data });
+    const updated = await prisma.liquidityBotConfig.update({ where: { id: 'default' }, data: data as Prisma.LiquidityBotConfigUpdateInput });
     res.json({ success: true, data: serializeConfig(updated) });
   } catch (e) {
     console.error('[Admin] liquidity-bot update error:', e);

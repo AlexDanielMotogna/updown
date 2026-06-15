@@ -26,6 +26,36 @@ import type { Match } from '../../services/sports/types';
  *
  * See PLAN-ADMIN-REFACTOR.md Phase 4.
  */
+// Minimal shapes for the Polymarket Gamma `/events` response — only the fields
+// this explorer reads. Upstream JSON is loosely typed, so all are optional.
+interface GammaTag {
+  id?: string | number;
+  label?: string;
+  slug?: string;
+}
+interface GammaMarket {
+  id?: string | number;
+  question?: string;
+  outcomes?: string | null;
+  outcomePrices?: string | null;
+  endDate?: string | null;
+  closed?: boolean;
+  active?: boolean;
+  image?: string | null;
+  icon?: string | null;
+}
+interface GammaEvent {
+  id?: string | number;
+  title?: string;
+  description?: string | null;
+  image?: string | null;
+  icon?: string | null;
+  volume24hr?: number;
+  endDate?: string | null;
+  tags?: GammaTag[];
+  markets?: GammaMarket[];
+}
+
 export const adminPolymarketRouter: RouterType = Router();
 
 // ── GET /admin/polymarket/categories ─────────────────────────────────────
@@ -136,7 +166,7 @@ adminPolymarketRouter.get('/events', async (req, res) => {
     const days = Math.max(1, Math.min(180, Number(req.query.days) || 30));
     const limit = Math.max(1, Math.min(100, Number(req.query.limit) || 50));
 
-    const events = await polymarketFetch(`/events?closed=false&tag_id=${tagId}&limit=${limit}`);
+    const events = await polymarketFetch<GammaEvent[]>(`/events?closed=false&tag_id=${tagId}&limit=${limit}`);
     const horizon = Date.now() + days * 24 * 60 * 60 * 1000;
 
     // Collect all market ids so we can answer poolExists in one query.
@@ -152,12 +182,12 @@ adminPolymarketRouter.get('/events', async (req, res) => {
     });
     const poolByMatchId = new Map(existingPools.map(p => [p.matchId, p]));
 
-    const data = (events ?? []).map((ev: any) => {
-      const tags = (ev.tags || []).map((t: any) => ({ id: String(t.id), label: t.label, slug: t.slug }));
+    const data = (events ?? []).map((ev: GammaEvent) => {
+      const tags = (ev.tags || []).map((t: GammaTag) => ({ id: String(t.id), label: t.label, slug: t.slug }));
       const markets = (ev.markets || [])
-        .filter((m: any) => m?.id && m.outcomes && m.endDate)
-        .filter((m: any) => new Date(m.endDate).getTime() <= horizon)
-        .map((m: any) => {
+        .filter((m: GammaMarket) => m?.id && m.outcomes && m.endDate)
+        .filter((m: GammaMarket) => new Date(m.endDate as string).getTime() <= horizon)
+        .map((m: GammaMarket) => {
           const existing = poolByMatchId.get(String(m.id));
           return {
             id: String(m.id),

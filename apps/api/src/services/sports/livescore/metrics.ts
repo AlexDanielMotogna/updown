@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../../db';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -350,7 +351,7 @@ function addIncident(type: IncidentType, eventId: string | undefined, details: s
         eventType: 'LIVESCORE_INCIDENT',
         entityType: 'livescore',
         entityId: eventId || 'system',
-        payload: { type, details, timestamp: Date.now() } as any,
+        payload: { type, details, timestamp: Date.now() } as Prisma.InputJsonValue,
       },
     }).catch(() => {});
   }

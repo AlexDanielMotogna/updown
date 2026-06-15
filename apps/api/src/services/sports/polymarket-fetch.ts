@@ -11,7 +11,7 @@ function sleep(ms: number): Promise<void> {
  * Fetch from Polymarket Gamma API with rate limiting.
  * No auth required - Gamma is public for reads.
  */
-export async function polymarketFetch(path: string): Promise<any> {
+export async function polymarketFetch<T = unknown>(path: string): Promise<T> {
   // Rate limit: wait if needed
   const elapsed = Date.now() - lastCallAt;
   if (elapsed < RATE_LIMIT_MS) {
@@ -24,7 +24,7 @@ export async function polymarketFetch(path: string): Promise<any> {
   const res = await fetch(url);
 
   if (res.ok) {
-    return res.json();
+    return res.json() as Promise<T>;
   }
 
   if (res.status === 429) {
@@ -33,7 +33,7 @@ export async function polymarketFetch(path: string): Promise<any> {
     await sleep(10_000);
     lastCallAt = Date.now();
     const retry = await fetch(url);
-    if (retry.ok) return retry.json();
+    if (retry.ok) return retry.json() as Promise<T>;
     throw new Error(`Polymarket API 429 after retry: ${retry.statusText}`);
   }
 

@@ -11,6 +11,42 @@ import { createMatchPools } from './sports-scheduler';
 const API_SOURCE = 'predictions';
 const RATE_LIMIT_MS = 3_000;
 
+// Minimal shapes for the Polymarket Gamma `/events` response. Only the fields
+// this module actually reads are declared; everything is optional because the
+// upstream JSON is loosely typed.
+interface GammaTag {
+  label?: string;
+  slug?: string;
+}
+interface GammaMarket {
+  id?: string;
+  question?: string;
+  description?: string | null;
+  outcomes?: string | null;
+  outcomePrices?: string | null;
+  endDate?: string | null;
+  startDate?: string | null;
+  closed?: boolean;
+  active?: boolean;
+  image?: string | null;
+  icon?: string | null;
+  groupItemTitle?: string | null;
+  clobTokenIds?: string | null;
+  questionID?: string | null;
+  conditionId?: string | null;
+  umaResolutionStatus?: string | null;
+}
+interface GammaEvent {
+  id?: string | number;
+  title?: string;
+  description?: string | null;
+  image?: string | null;
+  icon?: string | null;
+  volume24hr?: number;
+  tags?: GammaTag[];
+  markets?: GammaMarket[];
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -128,11 +164,11 @@ export async function bulkSync(): Promise<void> {
     return;
   }
   const maxPagesPerTag = Number(process.env.POLYMARKET_MAX_PAGES_PER_TAG) || 4;
-  const eventsById = new Map<string, any>();
+  const eventsById = new Map<string, GammaEvent>();
   for (const tagId of tagIds) {
     let offset = 0;
     while (offset < maxPagesPerTag * 100) {
-      let page: any = null;
+      let page: GammaEvent[] | null = null;
       for (let attempt = 0; attempt < 2 && page === null; attempt++) {
         try {
           page = await polymarketFetch(`/events?closed=false&tag_id=${tagId}&limit=100&offset=${offset}`);
@@ -230,7 +266,9 @@ export async function bulkSync(): Promise<void> {
       // fall back to the event image. Stored as homeTeamCrest (the pool badge field).
       const crest: string | null = market.image || market.icon || event.image || event.icon || null;
       const tagLabels: string[] = Array.isArray(event.tags)
-        ? event.tags.map((t: any) => t.label || t).filter(Boolean)
+        ? (event.tags as Array<GammaTag | string>)
+            .map(t => (typeof t === 'string' ? t : t.label || t))
+            .filter(Boolean) as string[]
         : [];
       const tags: string | null = tagLabels.length > 0 ? JSON.stringify(tagLabels) : null;
       // Resolve the single subcategory bucket (exact-match filter key) from the
@@ -361,11 +399,11 @@ export async function syncCategory(code: string): Promise<{ tagIds: string[]; ev
   }
 
   const maxPagesPerTag = Number(process.env.POLYMARKET_MAX_PAGES_PER_TAG) || 4;
-  const eventsById = new Map<string, any>();
+  const eventsById = new Map<string, GammaEvent>();
   for (const tagId of cat.tagIds) {
     let offset = 0;
     while (offset < maxPagesPerTag * 100) {
-      let page: any = null;
+      let page: GammaEvent[] | null = null;
       for (let attempt = 0; attempt < 2 && page === null; attempt++) {
         try {
           page = await polymarketFetch(`/events?closed=false&tag_id=${tagId}&limit=100&offset=${offset}`);
@@ -433,7 +471,9 @@ export async function syncCategory(code: string): Promise<{ tagIds: string[]; ev
       const clobTokenIds: string | null = market.clobTokenIds || null;
       const crest: string | null = market.image || market.icon || event.image || event.icon || null;
       const tagLabels: string[] = Array.isArray(event.tags)
-        ? event.tags.map((t: any) => t.label || t).filter(Boolean)
+        ? (event.tags as Array<GammaTag | string>)
+            .map(t => (typeof t === 'string' ? t : t.label || t))
+            .filter(Boolean) as string[]
         : [];
       const tags: string | null = tagLabels.length > 0 ? JSON.stringify(tagLabels) : null;
       const subcategory = await pickSubcategory(code, tagLabels);
@@ -608,7 +648,7 @@ async function pollPolymarketMarket(
     // 'unknown' / 'rpc-error' → fall through to Gamma.
   }
 
-  const data = await polymarketFetch(`/markets?id=${marketId}`);
+  const data = await polymarketFetch<GammaMarket[] | GammaMarket>(`/markets?id=${marketId}`);
   // Gamma returns [] when the market has been delisted (editorial). This is
   // NEVER terminal while we hold a conditionId: the market is still resolvable
   // on-chain via CTF, so we keep the pool open (pending) and let CTF settle it

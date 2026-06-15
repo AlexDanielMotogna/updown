@@ -114,8 +114,7 @@ export async function cancelPmPool(
   if (betCount > 0) {
     const connection = getConnection();
     const wallet = getAuthorityKeypair();
-    const priceProvider = null as any; // unused on refund path
-    await forceRefundPool({ prisma, connection, wallet, priceProvider }, poolId);
+    await forceRefundPool({ prisma, connection, wallet }, poolId);
     await prisma.pool.update({
       where: { id: poolId },
       data: { status: PoolStatus.CANCELLED, winner: null, finalPrice: BigInt(0) },

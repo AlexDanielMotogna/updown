@@ -105,8 +105,8 @@ faucetRouter.post('/faucet', async (req, res) => {
       solTxSignature,
       walletAddress,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[Faucet] error:', err);
-    return res.status(500).json({ error: err.message || 'Failed to mint USDC' });
+    return res.status(500).json({ error: (err instanceof Error ? err.message : '') || 'Failed to mint USDC' });
   }
 });
