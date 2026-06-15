@@ -78,13 +78,13 @@ describe('committed IDL is consistent with the built instructions', () => {
     }
   });
 
-  it('documents which built instructions are missing from the committed IDL (IDL lag)', () => {
+  it('the committed IDL covers every built instruction (no lag)', () => {
+    // The IDL was re-synced from `anchor build` output, so it now includes the
+    // rent-recovery instructions (close_losing_bet / refund_bettor /
+    // sweep_vault_dust). If a future instruction is added to solana-client but
+    // the IDL isn't regenerated, this fails and prompts a re-sync.
     const idlNames = new Set(idl.instructions.map(i => i.name));
     const missing = CASES.map(([name]) => name).filter(n => !idlNames.has(n));
-    // The IDL JSON predates the rent-recovery instructions; this is a known lag,
-    // not a discriminator bug (the sighash tests above cover these). Pinned so a
-    // future `anchor build` that regenerates the IDL trips this and prompts an
-    // update of the expectation.
-    expect(missing.sort()).toEqual(['close_losing_bet', 'refund_bettor', 'sweep_vault_dust']);
+    expect(missing).toEqual([]);
   });
 });
