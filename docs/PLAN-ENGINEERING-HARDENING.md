@@ -43,15 +43,18 @@ No es un rewrite: son refactors incrementales en PRs pequeños, cada uno con typ
     - PmExplorer 566 → 437 (`pm-explorer-config.ts` + `PmExplorerDialogs.tsx`). _Diálogos create/resolve se quedan (cierran sobre estado del padre)._
     - Patrón: módulo `*-config.ts` (tipos+constantes+helpers, sin acoplar a React) que comparten padre e hijos para evitar ciclos; sub-componentes props-driven a su archivo. Verificación: solo `tsc` (el front no tiene tests).
 - **P2.2 — Centralizar tipos** en `types/` derivados de Prisma + IDL (hoy `ZombiePool`, `StuckKnockout`, `RecentBet`… duplicados).
+  - **Revisado:** los tipos duplicados ya no existen (`ZombiePool` aparece una sola vez). No-op.
 - **P2.3 — Adoptar `useAdminResource`/`DataTable`/`Paginator`** en el resto; eliminar los **8 `fetch()` crudos** de CategoryManagement.
+  - **✅ Revisado → NO aplica / sería regresión.** (1) Los `fetch()` crudos pegan a endpoints **públicos** (`/api/config/*`, `/api/tournaments/*`); `adminFetch` reescribe a `/api/admin${endpoint}` → migrarlos los **rompería**; están correctos. (2) `useAdminResource` es un hook anterior (one-shot, sin polling); **28 componentes ya usan `react-query` `useQuery`** (caché + polling en vivo) y solo 1 usa el hook viejo. Migrar `useQuery`→`useAdminResource` perdería el auto-refresh = regresión. react-query ES el estándar adoptado, y mejor. No se migra.
+- **P1.3 `any` — ✅ COMPLETO.** Todo el `any` de código real eliminado: api 45→0 (commit `1cc775c`, 24 archivos), web 5→0 (commit `9d00870`). Solo quedan menciones en comentarios. (Detalle de patrones en el execution log.)
 - **P2.4 — Generar discriminadores del IDL** en `solana-client`, no a mano (`[233,73,...]`).
   - **✅ Resuelto vía test de drift (commit `648e94b`), no reemplazo en runtime.** Reemplazar los 17 discriminadores a mano por valores del IDL en runtime es un edit del money-path arriesgado; en su lugar `apps/api/src/onchain-discriminators.test.ts` (20 tests) construye cada instrucción y verifica que sus 8 bytes == `sha256("global:<name>")[0..8]` (la derivación canónica de Anchor), cross-checkea el IDL y fija los 3 que faltan en el IDL. Corre contra `dist` (lo que despliega la API). **Hallazgo:** el IDL JSON commiteado está **stale** — no incluye `close_losing_bet`/`refund_bettor`/`sweep_vault_dust` (del rent-recovery); regenerar con `anchor build` cuando se actualice el programa.
 
 ### 🟢 P3 — Performance / pulido
-- Virtualización de tablas grandes (EventLog, closures, pools).
-- Auditar `getProgramAccounts` → `dataSlice` + filtros memcmp en todos los paths.
-- Batching de tx en bucles de refund.
-- Lazy-load / code-split de los mega-componentes del admin.
+- **Lazy-load / code-split de los mega-componentes del admin — ✅ (commit `89ec318`).** Los 5 más pesados (PoolManagement, TournamentManagement, CategoryManagement, MatchExplorer, PmExplorer) pasados a `next/dynamic` (ssr:false, fallback `LoadingState`) → fuera del bundle inicial, cargan al abrir su tab.
+- **Auditar `getProgramAccounts` → `dataSlice` + memcmp — ✅ revisado, ya óptimo.** Único uso (orphan-recovery) ya tiene el filtro memcmp del discriminador (lo crítico: evita devolver miles de user_bet PDAs). `dataSlice` NO aplica: el código parsea el account completo (seed/asset/authority...). Nada que cambiar.
+- **Virtualización de tablas grandes (EventLog, closures, pools) — ⏸️ diferido.** Requiere una lib de virtualización (react-window/virtuoso) + medición; behavior-affecting y el front no tiene tests. Hacerlo a ciegas no compensa el riesgo; abordar con medición real.
+- **Batching de tx en bucles de refund — ⏸️ diferido (a propósito).** El patrón secuencial con `TX_DELAY_MS` (2s entre tx) es **intencional** para no disparar 429s del RPC (ver `project_rpc_and_local_env`); batchear arriesga re-romper eso y cambia la atomicidad por bettor. No tocar sin validador/load-test.
 
 ---
 
