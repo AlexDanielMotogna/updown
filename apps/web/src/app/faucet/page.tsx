@@ -42,8 +42,8 @@ export default function FaucetPage() {
       setAmount(data.amount);
       setSolAmount(data.solAmount || 0);
       setStatus('success');
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
       setStatus('error');
     }
   };

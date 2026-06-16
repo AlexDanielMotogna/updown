@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getSocket, connectSocket } from '@/lib/socket';
-import { useNotificationStore } from '@/stores/notificationStore';
+import { useNotificationStore, type NotificationType, type NotificationSeverity } from '@/stores/notificationStore';
 import { buildNotification } from '@/lib/notifications';
 import { showRewardPopup } from '@/components/RewardPopup';
 import { fireWinConfetti } from '@/lib/confetti';
@@ -43,10 +43,10 @@ export function useNotifications() {
       for (const dbNotif of res.data) {
         if (existingIds.has(dbNotif.id)) continue;
         store.push({
-          type: dbNotif.type as any,
+          type: dbNotif.type as NotificationType,
           title: dbNotif.title,
           message: dbNotif.message,
-          severity: dbNotif.severity as any,
+          severity: dbNotif.severity as NotificationSeverity,
           poolId: dbNotif.poolId ?? undefined,
           poolType: dbNotif.poolType ?? undefined,
           autoHideDuration: 0,
