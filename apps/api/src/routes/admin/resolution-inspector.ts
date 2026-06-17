@@ -68,7 +68,15 @@ adminResolutionInspectorRouter.get('/', async (req, res) => {
 
       // ── Polymarket (Gamma) ──────────────────────────────────────────────
       try {
-        const data = await polymarketFetch(`/markets?id=${pool.matchId}`);
+        type GammaMarketRow = {
+          conditionId?: string | null;
+          closed?: boolean;
+          umaResolutionStatus?: string | null;
+          outcomes?: unknown;
+          outcomePrices?: unknown;
+          endDate?: string | null;
+        };
+        const data = await polymarketFetch<GammaMarketRow[] | GammaMarketRow>(`/markets?id=${pool.matchId}`);
         const m = Array.isArray(data) ? data[0] : data;
         if (!m) {
           checks.push({ source: 'Polymarket (Gamma)', resolved: false, summary: `DELISTED from Gamma${conditionId ? ' (using cached conditionId for on-chain check)' : ''}`, data: { cacheStatus: cacheRow?.status ?? null, conditionId } });
@@ -131,7 +139,7 @@ adminResolutionInspectorRouter.get('/', async (req, res) => {
       }
       // Raw per-event lookup, shown only for reference (its status can lag).
       try {
-        const e = (await sportsDbFetch(`lookupevent.php?id=${pool.matchId}`))?.events?.[0];
+        const e = (await sportsDbFetch<{ events?: Array<{ strStatus?: string | null; intHomeScore?: string | number | null; intAwayScore?: string | number | null; strProgress?: string | null }> }>(`lookupevent.php?id=${pool.matchId}`))?.events?.[0];
         if (e) {
           const status: string = e.strStatus ?? '';
           checks.push({

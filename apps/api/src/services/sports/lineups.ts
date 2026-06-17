@@ -21,6 +21,20 @@ export interface EventLineup {
   away: SideLineup | null;
 }
 
+// Minimal shape of a TheSportsDB lineup row — only the fields read here.
+interface SportsDbLineupRow {
+  idPlayer?: string | null;
+  strPlayer?: string | null;
+  intSquadNumber?: string | null;
+  strPosition?: string | null;
+  strPositionShort?: string | null;
+  strCutout?: string | null;
+  strSubstitute?: string | null;
+  strTeam?: string | null;
+  idEvent?: string | number | null;
+  strHome?: string | null;
+}
+
 const POS_ORDER: Record<string, number> = { G: 0, D: 1, M: 2, F: 3 };
 
 /** Derive a soccer formation ("4-3-3") from the outfield starters' position
@@ -37,7 +51,7 @@ function deriveFormation(starters: LineupPlayer[]): string | null {
   return null;
 }
 
-function buildSide(rows: any[]): SideLineup | null {
+function buildSide(rows: SportsDbLineupRow[]): SideLineup | null {
   if (rows.length === 0) return null;
   const players: LineupPlayer[] = rows.map(r => ({
     id: r.idPlayer ?? null,
@@ -70,8 +84,8 @@ export async function getEventLineup(matchId: string): Promise<EventLineup> {
 
   let data: EventLineup = { hasData: false, home: null, away: null };
   try {
-    const res = await sportsDbFetchV2(`lookup/event_lineup/${matchId}`);
-    const all: any[] = Array.isArray(res?.lookup) ? res.lookup : [];
+    const res = await sportsDbFetchV2<{ lookup?: SportsDbLineupRow[] }>(`lookup/event_lineup/${matchId}`);
+    const all: SportsDbLineupRow[] = Array.isArray(res?.lookup) ? res.lookup : [];
     // Only trust rows whose idEvent matches the requested match — guards against
     // ever showing a different/previous fixture's lineup (sports that play the
     // next day have bitten us before with stale cross-match data).

@@ -68,7 +68,7 @@ export async function getFighterImage(name: string, sport: string): Promise<Figh
   // (SDB's convention) rather than %20 to maximise hit rate.
   let payload: { player?: Array<Record<string, unknown>> } | null = null;
   try {
-    payload = await sportsDbFetch(`searchplayers.php?p=${encodeURIComponent(name).replace(/%20/g, '+')}`);
+    payload = await sportsDbFetch<{ player?: Array<Record<string, unknown>> }>(`searchplayers.php?p=${encodeURIComponent(name).replace(/%20/g, '+')}`);
   } catch (err) {
     console.warn(`[FighterImages] SDB search failed for "${name}":`, err instanceof Error ? err.message : err);
     // Don't write the cache on transient errors — let the next sync retry.

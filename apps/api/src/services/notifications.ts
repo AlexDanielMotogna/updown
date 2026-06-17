@@ -1,3 +1,4 @@
+import { Side } from '@prisma/client';
 import { prisma } from '../db';
 import { autoPayoutEnabledFor } from '../utils/auto-payout-flag';
 import { calculateWeightedPayout, resolveFeeBps } from '../utils/payout';
@@ -149,7 +150,7 @@ export async function notifyPoolClaimable(pool: {
 
   try {
     const winningBets = await prisma.bet.findMany({
-      where: { poolId: pool.id, side: pool.winner as any, claimed: false },
+      where: { poolId: pool.id, side: pool.winner as Side, claimed: false },
       select: { walletAddress: true },
     });
 

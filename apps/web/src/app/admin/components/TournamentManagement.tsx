@@ -6,111 +6,21 @@ import {
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminFetch, adminPost } from '../lib/adminApi';
-import { darkTokens as dt, palette, withAlpha } from '@/lib/theme';
+import { darkTokens as dt, withAlpha } from '@/lib/theme';
 import {
   SectionCard, StatusChip, AdminDialog, ConfirmDialog,
   ActionButton, LoadingState, EmptyState, FilterBar,
   useMutationFeedback, useToast,
   H1, Meta, Body,
   POLL_FAST_MS,
-  type StatusKind, type FilterChip,
+  type FilterChip,
 } from '../ui';
-
-interface Tournament {
-  id: string;
-  name: string;
-  asset: string;
-  entryFee: string;
-  size: number;
-  matchDuration: number;
-  predictionWindow: number;
-  status: string;
-  currentRound: number;
-  totalRounds: number;
-  prizePool: string;
-  winnerWallet: string | null;
-  scheduledAt: string | null;
-  createdAt: string;
-  startedAt: string | null;
-  completedAt: string | null;
-  tournamentType: string;
-  sport: string | null;
-  league: string | null;
-  _count: { participants: number };
-  fixturesByRound?: Record<number, Array<{ footballMatchId: string; homeTeam: string; awayTeam: string; fixtureIndex: number; status: string }>>;
-}
-
-const SPORT_OPTIONS = [
-  { value: 'FOOTBALL', label: 'Soccer' },
-  { value: 'NBA', label: 'NBA' },
-  { value: 'NHL', label: 'NHL' },
-  { value: 'NFL', label: 'NFL' },
-  { value: 'MMA', label: 'UFC / MMA' },
-];
-
-// Sports that ARE their own league (no sub-league selection needed)
-const SINGLE_LEAGUE_SPORTS = new Set(['NBA', 'NHL', 'NFL', 'MMA']);
-
-const FOOTBALL_LEAGUES = [
-  { value: 'CL', label: 'Champions League' },
-  { value: 'PL', label: 'Premier League' },
-  { value: 'PD', label: 'La Liga' },
-  { value: 'SA', label: 'Serie A' },
-  { value: 'BL1', label: 'Bundesliga' },
-  { value: 'FL1', label: 'Ligue 1' },
-  { value: 'BSA', label: 'Brasileirao' },
-];
-
-function getLeaguesForSport(sport: string) {
-  if (sport === 'FOOTBALL') return FOOTBALL_LEAGUES;
-  return [];
-}
-
-function getEffectiveLeague(sport: string, league: string) {
-  if (SINGLE_LEAGUE_SPORTS.has(sport)) return sport;
-  return league;
-}
-
-// Map tournament status to StatusKind for <StatusChip>. Single source of
-// truth - no per-row sx={{ bgcolor: STATUS_COLORS[...] }} anywhere.
-const STATUS_TO_KIND: Record<string, StatusKind> = {
-  REGISTERING: 'ok',     // signups open
-  ACTIVE: 'warning',     // in-progress
-  COMPLETED: 'neutral',
-  CANCELLED: 'error',
-};
-
-// Anchor program currently only supports power-of-two brackets up to 32.
-// Tournament service validates server-side; we mirror here so the Select
-// only ever offers compatible sizes.
-const VALID_SIZES = [8, 16, 32];
-
-const USDC_DIVISOR = 1_000_000;
-
-type ActionKey = 'start' | 'cancel' | 'delete' | 'reset-round';
-
-const ACTION_META: Record<ActionKey, { severity: 'warning' | 'destructive'; verb: string; consequences: (name: string, round?: number) => string }> = {
-  start: {
-    severity: 'warning',
-    verb: 'Start',
-    consequences: (name) => `"${name}" will move from REGISTERING to ACTIVE and registration will close. This cannot be undone.`,
-  },
-  cancel: {
-    severity: 'destructive',
-    verb: 'Cancel',
-    consequences: (name) => `"${name}" will be cancelled. Entry fees will need to be refunded manually. This cannot be undone.`,
-  },
-  delete: {
-    severity: 'destructive',
-    verb: 'Delete',
-    consequences: (name) => `"${name}" will be permanently removed along with all its fixtures, matches, and participants. This cannot be undone.`,
-  },
-  'reset-round': {
-    severity: 'warning',
-    verb: 'Reset round',
-    consequences: (name, round) => `Round ${round} of "${name}" will be deleted and recreated. Players will have 5 minutes to re-predict. This cannot be undone.`,
-  },
-};
+import {
+  type Tournament, type ActionKey,
+  SPORT_OPTIONS, SINGLE_LEAGUE_SPORTS, getLeaguesForSport, getEffectiveLeague,
+  VALID_SIZES, USDC_DIVISOR, ACTION_META,
+} from './tournament-config';
+import { TournamentRow } from './TournamentRow';
 
 export function TournamentManagement() {
   const qc = useQueryClient();
@@ -811,127 +721,3 @@ export function TournamentManagement() {
 }
 
 // ─── Row sub-component ────────────────────────────────────────────────
-function TournamentRow({
-  tournament: t,
-  onEdit,
-  onAction,
-  onAssign,
-  onResolve,
-}: {
-  tournament: Tournament;
-  onEdit: () => void;
-  onAction: (action: ActionKey, round?: number) => void;
-  onAssign: (round: number) => void;
-  onResolve: () => void;
-}) {
-  const needsResolution =
-    t.status === 'ACTIVE' && t.tournamentType === 'SPORTS' &&
-    t.fixturesByRound?.[t.currentRound] &&
-    t.fixturesByRound[t.currentRound].some(f => f.status !== 'FINISHED');
-
-  const sportLabel = t.tournamentType === 'SPORTS'
-    ? SINGLE_LEAGUE_SPORTS.has(t.sport || '')
-      ? SPORT_OPTIONS.find(s => s.value === t.sport)?.label || t.sport
-      : `${SPORT_OPTIONS.find(s => s.value === t.sport)?.label || t.sport} · ${FOOTBALL_LEAGUES.find(l => l.value === t.league)?.label || t.league}`
-    : t.asset;
-
-  return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 1.5, bgcolor: dt.hover.subtle, borderRadius: 1, flexWrap: 'wrap' }}>
-      <Box sx={{ flex: 1, minWidth: 200 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-          <Box sx={{ fontSize: '0.85rem', fontWeight: 600 }}>{t.name}</Box>
-          <StatusChip status={STATUS_TO_KIND[t.status] ?? 'neutral'} label={t.status} />
-          {needsResolution && (
-            <Chip
-              label="Needs resolution"
-              size="small"
-              onClick={onResolve}
-              sx={{
-                height: 22, fontSize: '0.7rem', fontWeight: 700, borderRadius: 1,
-                bgcolor: withAlpha(dt.error, 0.15), color: dt.error, cursor: 'pointer',
-              }}
-            />
-          )}
-        </Box>
-        <Meta>
-          {sportLabel} · ${(Number(t.entryFee) / USDC_DIVISOR).toFixed(2)} entry · {t._count.participants}/{t.size} players · Round {t.currentRound}/{t.totalRounds}
-        </Meta>
-        {t.scheduledAt && <Meta sx={{ display: 'block', mt: 0.25 }}>Starts: {new Date(t.scheduledAt).toLocaleString()}</Meta>}
-
-        {t.tournamentType === 'SPORTS' && t.totalRounds > 0 && (
-          <Box sx={{ mt: 0.75, display: 'flex', flexDirection: 'column', gap: 0.25 }}>
-            {Array.from({ length: t.totalRounds }, (_, i) => i + 1).map(r => {
-              const fixtures = t.fixturesByRound?.[r];
-              const hasFixtures = !!fixtures && fixtures.length > 0;
-              const isCurrent = t.currentRound === r;
-              return (
-                <Box key={r} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                  <Box sx={{
-                    fontSize: '0.6rem', fontWeight: 700, width: 16, height: 16, borderRadius: '50%',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    bgcolor: hasFixtures ? withAlpha(dt.predict, 0.2) : isCurrent ? withAlpha(dt.accent, 0.2) : dt.hover.subtle,
-                    color: hasFixtures ? dt.predict : isCurrent ? dt.accent : dt.text.muted,
-                  }}>
-                    {hasFixtures ? '✓' : r}
-                  </Box>
-                  <Box sx={{ fontSize: '0.7rem', color: dt.text.tertiary }}>
-                    R{r}: {hasFixtures
-                      ? fixtures!.map(f => `${f.homeTeam} vs ${f.awayTeam}`).join(', ')
-                      : 'Not assigned'}
-                  </Box>
-                  {!hasFixtures && (
-                    <Box
-                      onClick={() => onAssign(r)}
-                      sx={{ fontSize: '0.7rem', color: dt.predict, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
-                    >
-                      assign
-                    </Box>
-                  )}
-                </Box>
-              );
-            })}
-          </Box>
-        )}
-      </Box>
-
-      <Box sx={{ fontSize: '0.85rem', fontWeight: 600, color: dt.up }}>
-        ${(Number(t.prizePool) / USDC_DIVISOR).toFixed(2)}
-      </Box>
-
-      <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-        {t.status === 'REGISTERING' && (
-          <>
-            {t.tournamentType === 'SPORTS' && (
-              <ActionButton kind="secondary" label="Setup matches" onClick={() => onAssign(1)} sx={{ bgcolor: withAlpha(dt.predict, 0.12), borderColor: withAlpha(dt.predict, 0.32), color: dt.predict }} />
-            )}
-            <ActionButton kind="secondary" label="Edit" onClick={onEdit} />
-            <ActionButton
-              kind="primary"
-              label="Start"
-              onClick={() => onAction('start')}
-              disabled={t._count.participants < 2}
-              sx={{ bgcolor: dt.accent, color: dt.text.contrast, '&:hover': { bgcolor: palette.amber600 } }}
-            />
-            <ActionButton kind="destructive" label="Cancel" onClick={() => onAction('cancel')} />
-            <ActionButton kind="destructive" label="Delete" onClick={() => onAction('delete')} />
-          </>
-        )}
-        {t.status === 'ACTIVE' && (
-          <>
-            {t.tournamentType === 'SPORTS' && (
-              <>
-                <ActionButton kind="secondary" label="Assign match" onClick={() => onAssign(Math.max(t.currentRound, 1))} sx={{ bgcolor: withAlpha(dt.predict, 0.12), borderColor: withAlpha(dt.predict, 0.32), color: dt.predict }} />
-                <ActionButton kind="primary" label="Resolve" onClick={onResolve} />
-              </>
-            )}
-            <ActionButton kind="secondary" label={`Reset R${t.currentRound}`} onClick={() => onAction('reset-round', t.currentRound)} />
-            <ActionButton kind="destructive" label="Cancel" onClick={() => onAction('cancel')} />
-          </>
-        )}
-        {t.winnerWallet && (
-          <Meta>Winner: {t.winnerWallet.slice(0, 4)}…{t.winnerWallet.slice(-4)}</Meta>
-        )}
-      </Box>
-    </Box>
-  );
-}

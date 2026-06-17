@@ -200,6 +200,7 @@ tournamentActionRouter.post('/:id/claim-prize', async (req, res) => {
     const prizeAmount = prizePool - feeAmount;
 
     const { getAuthorityKeypair, getUsdcMint, getConnection } = await import('../utils/solana');
+    const { sendAndConfirm } = await import('../utils/onchain');
     const { getAssociatedTokenAddress, createTransferInstruction, getAccount } = await import('@solana/spl-token');
     const { PublicKey, Transaction } = await import('@solana/web3.js');
 
@@ -253,14 +254,7 @@ tournamentActionRouter.post('/:id/claim-prize', async (req, res) => {
       }
 
       const ix = createTransferInstruction(authorityAta, winnerAta, authority.publicKey, BigInt(prizeAmount));
-      const tx = new Transaction().add(ix);
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-      tx.recentBlockhash = blockhash;
-      tx.feePayer = authority.publicKey;
-      tx.sign(authority);
-
-      signature = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: true });
-      await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
+      signature = await sendAndConfirm(ix, authority, { label: 'tournament-prize', skipPreflight: true });
     }
 
     // Mark as claimed

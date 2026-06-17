@@ -99,7 +99,7 @@ export async function fetchScoreFromChatGPT(
       return null;
     }
 
-    const data: any = await res.json();
+    const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
     const text = data.choices?.[0]?.message?.content;
     if (!text) {
       recordFailure();

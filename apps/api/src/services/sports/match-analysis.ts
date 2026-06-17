@@ -1,4 +1,5 @@
 import { sportsDbFetch } from './api-sports-fetch';
+import type { SportsDbEvent } from './api-sports-adapter';
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 
@@ -26,8 +27,8 @@ async function fetchH2HFromSportsDb(
 
   // Fetch both directions (home/away swap in different venues)
   const [dataAB, dataBA] = await Promise.all([
-    sportsDbFetch(`searchevents.php?e=${homeKey}_vs_${awayKey}`).catch(() => null),
-    sportsDbFetch(`searchevents.php?e=${awayKey}_vs_${homeKey}`).catch(() => null),
+    sportsDbFetch<{ event?: SportsDbEvent[] | null }>(`searchevents.php?e=${homeKey}_vs_${awayKey}`).catch(() => null),
+    sportsDbFetch<{ event?: SportsDbEvent[] | null }>(`searchevents.php?e=${awayKey}_vs_${homeKey}`).catch(() => null),
   ]);
 
   const eventsAB = dataAB?.event || [];
@@ -39,8 +40,8 @@ async function fetchH2HFromSportsDb(
   const matches: H2HMatch[] = [];
 
   for (const e of all) {
-    if (!e.idEvent || seenId.has(e.idEvent)) continue;
-    seenId.add(e.idEvent);
+    if (!e.idEvent || seenId.has(String(e.idEvent))) continue;
+    seenId.add(String(e.idEvent));
 
     // Only include finished games with scores
     const status = (e.strStatus || '').toLowerCase();
@@ -142,7 +143,7 @@ Write 2-3 sentences of factual analysis based ONLY on this data. Focus on the H2
 
   if (!res.ok) return '';
 
-  const data: any = await res.json();
+  const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
   return (data.choices?.[0]?.message?.content?.trim()) || '';
 }
 

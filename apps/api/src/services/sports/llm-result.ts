@@ -25,14 +25,15 @@ export interface LlmResultPayload {
 }
 
 /** Pull the assistant text out of a Responses API payload. */
-function extractResponsesText(data: any): string {
-  if (typeof data?.output_text === 'string' && data.output_text) return data.output_text;
-  const out = data?.output;
+function extractResponsesText(data: unknown): string {
+  const root = (data ?? {}) as { output_text?: unknown; output?: unknown };
+  if (typeof root.output_text === 'string' && root.output_text) return root.output_text;
+  const out = root.output;
   if (!Array.isArray(out)) return '';
   let text = '';
-  for (const item of out) {
+  for (const item of out as Array<{ type?: unknown; content?: unknown }>) {
     if (item?.type === 'message' && Array.isArray(item.content)) {
-      for (const c of item.content) {
+      for (const c of item.content as Array<{ type?: unknown; text?: unknown }>) {
         if ((c?.type === 'output_text' || c?.type === 'text') && typeof c.text === 'string') text += c.text;
       }
     }
@@ -41,7 +42,7 @@ function extractResponsesText(data: any): string {
 }
 
 /** Extract the first JSON object from the model's text (handles ``` fences). */
-function extractJson(text: string): any | null {
+function extractJson(text: string): Record<string, unknown> | null {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const candidate = fenced ? fenced[1] : text;
   const start = candidate.indexOf('{');
@@ -84,7 +85,7 @@ export async function fetchFinalResultFromChatGPT(p: {
       const errTxt = await res.text().catch(() => '');
       return { sent, model: baseModel, result: null, error: `OpenAI ${res.status} ${res.statusText}${errTxt ? ' · ' + errTxt.slice(0, 200) : ''}` };
     }
-    const data: any = await res.json();
+    const data: unknown = await res.json();
     const text = extractResponsesText(data);
     if (!text) return { sent, model: `${baseModel} + web_search`, result: null, error: 'Empty response' };
     const parsed = extractJson(text);

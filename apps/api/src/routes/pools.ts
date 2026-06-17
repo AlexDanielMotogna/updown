@@ -672,7 +672,7 @@ poolsRouter.get('/:id/odds-history', async (req, res) => {
       return res.json({ success: true, data: { history: [] } });
     }
 
-    const data: any = await clobRes.json();
+    const data = await clobRes.json() as { history?: unknown[] };
 
     res.json({
       success: true,

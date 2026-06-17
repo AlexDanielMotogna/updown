@@ -7,6 +7,7 @@ import { createSportsPool } from '../../scheduler/sports-scheduler';
 import { sportsDbFetch } from '../../services/sports/api-sports-fetch';
 import { getPoolPDA, buildResolveWithWinnerIx } from 'solana-client';
 import { derivePoolSeed, getConnection, getAuthorityKeypair } from '../../utils/solana';
+import { sendAndConfirm } from '../../utils/onchain';
 import { emitPoolStatus } from '../../websocket';
 import { KNOCKOUT_DISABLE_ODDS_FALLBACK, EXPECTED_MATCH_DURATION_MS, DEFAULT_EXPECTED_DURATION_MS, ODDS_API_FT_FALLBACK_GRACE_MS } from '../../services/sports/livescore/types';
 import { classifyBadgeBackground } from '../../services/sports/badge-analyzer';
@@ -176,7 +177,7 @@ adminSportsRouter.get('/sdb-league/:id', async (req, res) => {
       return res.json({ success: true, data: cached.data, cached: true });
     }
 
-    const data = await sportsDbFetch(`lookupleague.php?id=${encodeURIComponent(id)}`);
+    const data = await sportsDbFetch<{ leagues?: Array<{ idLeague?: string | null; strLeague?: string | null; strSport?: string | null; strBadge?: string | null; strLogo?: string | null; strCountry?: string | null }> }>(`lookupleague.php?id=${encodeURIComponent(id)}`);
     const row = Array.isArray(data?.leagues) && data.leagues.length > 0 ? data.leagues[0] : null;
     if (!row || !row.idLeague) {
       return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: `SDB has no league with id=${id}` } });
@@ -190,7 +191,7 @@ adminSportsRouter.get('/sdb-league/:id', async (req, res) => {
     const badgeBgColor = badge ? await classifyBadgeBackground(badge) : null;
     const detail: SdbLeagueDetail = {
       id: String(row.idLeague),
-      name: row.strLeague,
+      name: row.strLeague as string,
       sport: row.strSport || '',
       badge,
       logo: row.strLogo || null,
@@ -465,9 +466,9 @@ adminSportsRouter.get('/sdb-leagues', async (_req, res) => {
   try {
     const now = Date.now();
     if (!sdbLeaguesCache || now - sdbLeaguesCache.ts > SDB_LEAGUES_TTL_MS) {
-      const data = await sportsDbFetch('all_leagues.php');
+      const data = await sportsDbFetch<{ leagues?: Array<{ idLeague: string; strLeague: string; strSport: string; strLeagueAlternate?: string }> }>('all_leagues.php');
       const rows: Array<{ id: string; name: string; sport: string; alternate: string }> = [];
-      for (const l of (data?.leagues || []) as Array<{ idLeague: string; strLeague: string; strSport: string; strLeagueAlternate?: string }>) {
+      for (const l of (data?.leagues || [])) {
         if (!l.idLeague || !l.strLeague) continue;
         rows.push({
           id: String(l.idLeague),
@@ -646,14 +647,7 @@ adminSportsRouter.post('/resolve-knockout', async (req, res) => {
     // PM cancel + sports scheduler use elsewhere.
     let onChainResolved = false;
     try {
-      const ix = buildResolveWithWinnerIx(poolPda, wallet.publicKey, WINNER_TO_INDEX[winner]);
-      const tx = new Transaction().add(ix);
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-      tx.recentBlockhash = blockhash;
-      tx.feePayer = wallet.publicKey;
-      tx.sign(wallet);
-      const sig = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: false, preflightCommitment: 'confirmed' });
-      await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
+      await sendAndConfirm(buildResolveWithWinnerIx(poolPda, wallet.publicKey, WINNER_TO_INDEX[winner]), wallet, { label: 'resolve_with_winner' });
       onChainResolved = true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

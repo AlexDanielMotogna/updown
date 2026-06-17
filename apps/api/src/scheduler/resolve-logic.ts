@@ -9,6 +9,16 @@ import { getDistinctBettorWallets } from '../utils/bets';
 import { getPriceAtOrBefore } from '../services/price-history';
 
 /**
+ * The crypto pool winner rule: UP wins when finalPrice > strikePrice, otherwise
+ * DOWN — a tie (final == strike) goes to DOWN. Single source of truth so the
+ * rule can be unit-tested directly (see `resolve-logic.test.ts`) instead of
+ * living inline in `resolvePool`. Inverse of `pricesForSideWin`.
+ */
+export function winnerForPrices(strikePrice: bigint, finalPrice: bigint): Side {
+  return finalPrice > strikePrice ? Side.UP : Side.DOWN;
+}
+
+/**
  * Generate strike/final prices that make a given side win on-chain.
  * UP wins when finalPrice > strikePrice, DOWN wins when finalPrice <= strikePrice.
  */
@@ -416,15 +426,8 @@ export async function resolvePool(
       return;
     }
 
-    // Determine winner
-    let winner: Side;
-    if (finalPrice > strikePrice) {
-      winner = Side.UP;
-    } else if (finalPrice < strikePrice) {
-      winner = Side.DOWN;
-    } else {
-      winner = Side.DOWN; // Tie goes to DOWN
-    }
+    // Determine winner (UP if final > strike, else DOWN — tie goes to DOWN).
+    const winner: Side = winnerForPrices(strikePrice, finalPrice);
 
     // One-sided pool - resolve on-chain with prices that make the side-with-bets win, then auto-refund
     const winningSideTotal = winner === Side.UP ? pool.totalUp : pool.totalDown;

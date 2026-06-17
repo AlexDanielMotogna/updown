@@ -6,7 +6,7 @@ import { TESTING_MODE, ACTIVE_BET_THRESHOLD, BET_MILESTONE_REWARD } from './test
 
 /* ─── Pool Serializer ─── */
 
-export function serializePool(pool: Record<string, any> & {
+export function serializePool(pool: {
   id: string;
   poolId: string;
   asset: string;
@@ -23,6 +23,23 @@ export function serializePool(pool: Record<string, any> & {
   winner: string | null;
   createdAt: Date;
   updatedAt: Date;
+  // Optional sports/Polymarket fields — present on SPORTS/POLYMARKET pools,
+  // absent on crypto. Replaces the old `Record<string, any>` catch-all.
+  totalDraw?: bigint;
+  numSides?: number;
+  poolType?: string;
+  matchId?: string | null;
+  homeTeam?: string | null;
+  awayTeam?: string | null;
+  homeTeamCrest?: string | null;
+  awayTeamCrest?: string | null;
+  league?: string | null;
+  matchAnalysis?: string | null;
+  homeScore?: number | null;
+  awayScore?: number | null;
+  marketOdds?: unknown;
+  clobTokenIds?: unknown;
+  tags?: unknown;
 }) {
   const totalDraw = pool.totalDraw ?? 0n;
   return {
@@ -97,6 +114,13 @@ export function serializeBet(bet: {
     totalDown: bigint;
     totalDraw?: bigint;
     winner: Side | null;
+    // Optional sports/Polymarket fields (absent on crypto pools).
+    poolType?: string;
+    league?: string | null;
+    homeTeam?: string | null;
+    awayTeam?: string | null;
+    homeTeamCrest?: string | null;
+    awayTeamCrest?: string | null;
   };
 }, feeBps: number = DEFAULT_FEE_BPS, poolSideWeights?: { up: bigint; down: bigint; draw: bigint } | null) {
   const isWinner = bet.pool.winner === bet.side;
@@ -172,12 +196,12 @@ export function serializeBet(bet: {
       strikePrice: bet.pool.strikePrice?.toString() ?? null,
       finalPrice: bet.pool.finalPrice?.toString() ?? null,
       winner: bet.pool.winner,
-      poolType: (bet.pool as any).poolType ?? 'CRYPTO',
-      league: (bet.pool as any).league ?? null,
-      homeTeam: (bet.pool as any).homeTeam ?? null,
-      awayTeam: (bet.pool as any).awayTeam ?? null,
-      homeTeamCrest: (bet.pool as any).homeTeamCrest ?? null,
-      awayTeamCrest: (bet.pool as any).awayTeamCrest ?? null,
+      poolType: bet.pool.poolType ?? 'CRYPTO',
+      league: bet.pool.league ?? null,
+      homeTeam: bet.pool.homeTeam ?? null,
+      awayTeam: bet.pool.awayTeam ?? null,
+      homeTeamCrest: bet.pool.homeTeamCrest ?? null,
+      awayTeamCrest: bet.pool.awayTeamCrest ?? null,
       // Pool totals - exposed so the profile UI can compute a "potential
       // payout at current odds" hint for bets on active pools.
       totalUp: bet.pool.totalUp.toString(),

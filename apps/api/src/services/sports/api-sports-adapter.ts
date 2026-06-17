@@ -13,7 +13,7 @@ export interface SportsDbConfig {
   leagueId?: string;      // External league ID for eventsnextleague endpoint
 }
 
-function mapStatus(status: string | null): MatchStatus {
+function mapStatus(status: string | null | undefined): MatchStatus {
   if (!status) return 'SCHEDULED';
   const s = status.toLowerCase();
   if (s === 'not started' || s === 'ns' || s === '') return 'SCHEDULED';
@@ -58,7 +58,24 @@ function parseHeadlinerFromTitle(strEvent: string | null | undefined): { home: s
   return { home, away: right };
 }
 
-function mapEvent(e: any, sport: string, leagueOverride?: string): Match | null {
+// Minimal shape of a TheSportsDB event row — only the fields read here.
+export interface SportsDbEvent {
+  idEvent?: string | number | null;
+  strEvent?: string | null;
+  strHomeTeam?: string | null;
+  strAwayTeam?: string | null;
+  strLeague?: string | null;
+  strHomeTeamBadge?: string | null;
+  strAwayTeamBadge?: string | null;
+  dateEvent?: string | null;
+  strTime?: string | null;
+  strStatus?: string | null;
+  intHomeScore?: string | number | null;
+  intAwayScore?: string | number | null;
+  intRound?: string | number | null;
+}
+
+function mapEvent(e: SportsDbEvent, sport: string, leagueOverride?: string): Match | null {
   if (!e.idEvent) return null;
 
   // Combat sports: SDB leaves strHomeTeam/strAwayTeam null and stores the
@@ -157,10 +174,10 @@ export class SportsDbAdapter implements SportAdapter {
   async fetchUpcomingMatches(league: string): Promise<Match[]> {
     // Primary: use eventsnextleague when we have a league ID (returns ~25 upcoming events)
     if (this.config.leagueId) {
-      const data = await sportsDbFetch(`eventsnextleague.php?id=${this.config.leagueId}`);
+      const data = await sportsDbFetch<{ events?: SportsDbEvent[] | null }>(`eventsnextleague.php?id=${this.config.leagueId}`);
       const events = data?.events || [];
       return events
-        .map((e: any) => mapEvent(e, this.config.sport, league))
+        .map((e: SportsDbEvent) => mapEvent(e, this.config.sport, league))
         .filter((m: Match | null): m is Match => m !== null);
     }
 
@@ -171,7 +188,7 @@ export class SportsDbAdapter implements SportAdapter {
     for (let i = 0; i < DAYS_AHEAD; i++) {
       const date = formatDate(addDays(new Date(), i));
       try {
-        const data = await sportsDbFetch(`eventsday.php?d=${date}&s=${encodeURIComponent(this.config.sportQuery)}`);
+        const data = await sportsDbFetch<{ events?: SportsDbEvent[] | null }>(`eventsday.php?d=${date}&s=${encodeURIComponent(this.config.sportQuery)}`);
         const events = data?.events || [];
 
         for (const e of events) {
@@ -196,7 +213,7 @@ export class SportsDbAdapter implements SportAdapter {
   }
 
   async fetchMatchResult(matchId: string): Promise<MatchResult | null> {
-    const data = await sportsDbFetch(`lookupevent.php?id=${matchId}`);
+    const data = await sportsDbFetch<{ events?: SportsDbEvent[] | null }>(`lookupevent.php?id=${matchId}`);
     const e = data?.events?.[0];
     if (!e) return null;
 

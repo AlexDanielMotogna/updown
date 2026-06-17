@@ -1,5 +1,5 @@
 import { PoolStatus, Side } from '@prisma/client';
-import { ResolverDeps, logEvent } from './resolver-types';
+import { ResolverDeps, OnChainDeps, logEvent } from './resolver-types';
 import { resolvePool, pricesForSideWin } from './resolve-logic';
 import { resolvePoolOnChain, closePoolOnChain, autoRefundBets } from './onchain-tx';
 import { getConnection } from '../utils/solana';
@@ -27,7 +27,7 @@ export async function forceResolvePool(
  * Resolves on-chain with synthetic prices if needed, then auto-refunds all bets.
  */
 export async function forceRefundPool(
-  deps: ResolverDeps,
+  deps: OnChainDeps,
   poolId: string,
 ): Promise<void> {
   const pool = await deps.prisma.pool.findUnique({ where: { id: poolId } });

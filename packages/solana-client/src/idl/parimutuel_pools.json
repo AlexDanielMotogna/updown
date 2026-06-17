@@ -202,6 +202,53 @@
       "args": []
     },
     {
+      "name": "close_losing_bet",
+      "docs": [
+        "Close a LOSING bet's account, returning its rent to the bettor (authority",
+        "only). Losers forfeit only their USDC stake, not the SOL rent."
+      ],
+      "discriminator": [
+        80,
+        132,
+        195,
+        35,
+        207,
+        61,
+        209,
+        137
+      ],
+      "accounts": [
+        {
+          "name": "pool"
+        },
+        {
+          "name": "user_bet",
+          "writable": true
+        },
+        {
+          "name": "user",
+          "docs": [
+            "`close = user` and is used for PDA derivation / ownership checks."
+          ],
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "side",
+          "type": {
+            "defined": {
+              "name": "Side"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "close_pool",
       "docs": [
         "Close a resolved pool and reclaim rent (authority only)"
@@ -708,6 +755,65 @@
       ]
     },
     {
+      "name": "refund_bettor",
+      "docs": [
+        "Void-refund a bettor their own stake regardless of side (authority only),",
+        "for a cancelled / postponed / abandoned match. Fair for multi-side pools."
+      ],
+      "discriminator": [
+        233,
+        73,
+        18,
+        55,
+        201,
+        188,
+        234,
+        163
+      ],
+      "accounts": [
+        {
+          "name": "pool"
+        },
+        {
+          "name": "user_bet",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "user_token_account",
+          "writable": true
+        },
+        {
+          "name": "user",
+          "docs": [
+            "and the reclaimed rent via `close = user`."
+          ],
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "side",
+          "type": {
+            "defined": {
+              "name": "Side"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "refund_participant",
       "docs": [
         "Refund participant entry fee (cancelled tournaments, authority-signed)"
@@ -928,6 +1034,64 @@
           }
         }
       ]
+    },
+    {
+      "name": "sweep_vault_dust",
+      "docs": [
+        "Sweep rounding dust from a resolved pool's vault to the authority so the",
+        "pool can be closed (authority only)."
+      ],
+      "discriminator": [
+        90,
+        110,
+        177,
+        60,
+        25,
+        214,
+        170,
+        48
+      ],
+      "accounts": [
+        {
+          "name": "pool"
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool.pool_id",
+                "account": "Pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority_token_account",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -1277,6 +1441,16 @@
       "code": 6026,
       "name": "TournamentVaultNotEmpty",
       "msg": "Tournament vault still has tokens"
+    },
+    {
+      "code": 6027,
+      "name": "IsWinner",
+      "msg": "Bet is on the winning side - use claim, not close"
+    },
+    {
+      "code": 6028,
+      "name": "AlreadyResolved",
+      "msg": "Pool already has a winner - cannot void-refund a resolved pool"
     }
   ],
   "types": [

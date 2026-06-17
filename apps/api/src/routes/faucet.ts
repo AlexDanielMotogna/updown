@@ -2,6 +2,7 @@ import { Router, type Router as RouterType } from 'express';
 import { PublicKey, LAMPORTS_PER_SOL, SystemProgram, Transaction } from '@solana/web3.js';
 import { getOrCreateAssociatedTokenAccount, mintTo, getMint } from '@solana/spl-token';
 import { getConnection, getUsdcMint, getAuthorityKeypair } from '../utils/solana';
+import { sendAndConfirm } from '../utils/onchain';
 
 export const faucetRouter: RouterType = Router();
 
@@ -80,22 +81,10 @@ faucetRouter.post('/faucet', async (req, res) => {
       const authorityBalance = await connection.getBalance(authority.publicKey);
       // Only transfer if authority has enough (keep 0.5 SOL reserve for its own txs)
       if (authorityBalance > lamports + 0.5 * LAMPORTS_PER_SOL) {
-        const tx = new Transaction().add(
-          SystemProgram.transfer({
-            fromPubkey: authority.publicKey,
-            toPubkey: targetPubkey,
-            lamports,
-          }),
+        const sig = await sendAndConfirm(
+          SystemProgram.transfer({ fromPubkey: authority.publicKey, toPubkey: targetPubkey, lamports }),
+          authority, { label: 'faucet-sol' },
         );
-        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-        tx.recentBlockhash = blockhash;
-        tx.feePayer = authority.publicKey;
-        tx.sign(authority);
-        const sig = await connection.sendRawTransaction(tx.serialize(), {
-          skipPreflight: false,
-          preflightCommitment: 'confirmed',
-        });
-        await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
         solTxSignature = sig;
         solAmount = FAUCET_AMOUNT_SOL;
       } else {
@@ -116,8 +105,8 @@ faucetRouter.post('/faucet', async (req, res) => {
       solTxSignature,
       walletAddress,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[Faucet] error:', err);
-    return res.status(500).json({ error: err.message || 'Failed to mint USDC' });
+    return res.status(500).json({ error: (err instanceof Error ? err.message : '') || 'Failed to mint USDC' });
   }
 });

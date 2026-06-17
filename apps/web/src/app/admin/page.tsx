@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect, type ComponentType } from 'react';
+import dynamic from 'next/dynamic';
 import { Box, Typography, Button, Drawer, IconButton } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -8,19 +9,25 @@ import { darkTokens as t } from '@/lib/theme';
 import { AdminSidebar } from './components/AdminSidebar';
 import { AdminLogin } from './components/AdminLogin';
 import { ADMIN_AUTH_EXPIRED_EVENT, verifyKey } from './lib/adminApi';
-import { ToastProvider } from './ui';
+import { ToastProvider, LoadingState } from './ui';
 import { SystemHealth } from './components/SystemHealth';
-import { PoolManagement } from './components/PoolManagement';
 import { NeedsAttention } from './components/NeedsAttention';
 import { FinanceSection } from './components/FinanceSection';
 import { UserOverview } from './components/UserOverview';
 import { EventLog } from './components/EventLog';
 import { ManualActions } from './components/ManualActions';
-import { TournamentManagement } from './components/TournamentManagement';
-import { CategoryManagement } from './components/CategoryManagement';
-import { MatchExplorer } from './components/MatchExplorer';
-import { PmExplorer } from './components/PmExplorer';
 import { ResolutionMetrics } from './components/ResolutionMetrics';
+
+// Code-split the heaviest tab components (each pulls big MUI tables / forms):
+// they only render when their tab is opened, so deferring them out of the
+// initial admin bundle is a pure win. Admin is client-only behind auth, so
+// ssr:false is safe. Loading flashes a small spinner via the shared LoadingState.
+const DYN = { ssr: false as const, loading: () => <LoadingState /> };
+const PoolManagement = dynamic(() => import('./components/PoolManagement').then(m => m.PoolManagement), DYN);
+const TournamentManagement = dynamic(() => import('./components/TournamentManagement').then(m => m.TournamentManagement), DYN);
+const CategoryManagement = dynamic(() => import('./components/CategoryManagement').then(m => m.CategoryManagement), DYN);
+const MatchExplorer = dynamic(() => import('./components/MatchExplorer').then(m => m.MatchExplorer), DYN);
+const PmExplorer = dynamic(() => import('./components/PmExplorer').then(m => m.PmExplorer), DYN);
 import { GrowthOverview } from './components/GrowthOverview';
 import { ResolutionInspector } from './components/ResolutionInspector';
 import { ResolutionSuggestions } from './components/ResolutionSuggestions';

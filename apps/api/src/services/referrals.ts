@@ -3,6 +3,7 @@ import { PublicKey, Transaction } from '@solana/web3.js';
 import { getAssociatedTokenAddress, createTransferInstruction } from '@solana/spl-token';
 import { prisma } from '../db';
 import { getConnection, getUsdcMint, getAuthorityKeypair } from '../utils/solana';
+import { sendAndConfirm } from '../utils/onchain';
 import { getLevelForXp, getXpForLevel } from '../utils/levels';
 import { emitUserReward } from '../websocket';
 import { ACTIVE_BET_THRESHOLD } from '../utils/testing';
@@ -465,23 +466,10 @@ export async function claimReferralPayout(
 
   // Build and send transfer
   const ix = createTransferInstruction(authorityAta, userAta, authority.publicKey, amount);
-  const transaction = new Transaction().add(ix);
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-  transaction.recentBlockhash = blockhash;
-  transaction.feePayer = authority.publicKey;
-  transaction.sign(authority);
-
-  const txSignature = await connection.sendRawTransaction(transaction.serialize(), {
-    skipPreflight: false,
-    preflightCommitment: 'confirmed',
-  });
-
-  const confirmation = await connection.confirmTransaction(
-    { signature: txSignature, blockhash, lastValidBlockHeight },
-    'confirmed',
-  );
-
-  if (confirmation.value.err) {
+  let txSignature: string;
+  try {
+    txSignature = await sendAndConfirm(ix, authority, { label: 'referral-payout' });
+  } catch {
     return { success: false, error: 'Transfer failed on-chain' };
   }
 

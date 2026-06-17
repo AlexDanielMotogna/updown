@@ -4,7 +4,22 @@ import { SKIP_STATUSES, normalizeStatus } from './types';
 
 // ─── Raw event parser ────────────────────────────────────────────────────────
 
-function parseEvent(e: any): LiveScore | null {
+// Minimal shape of a TheSportsDB livescore/lookup event — only fields read here.
+interface SportsDbLiveEvent {
+  idEvent?: string | number | null;
+  strStatus?: string | null;
+  intHomeScore?: string | number | null;
+  intAwayScore?: string | number | null;
+  strProgress?: string | null;
+  strHomeTeam?: string | null;
+  strAwayTeam?: string | null;
+  strLeague?: string | null;
+  strSport?: string | null;
+  strHomeTeamBadge?: string | null;
+  strAwayTeamBadge?: string | null;
+}
+
+function parseEvent(e: SportsDbLiveEvent): LiveScore | null {
   if (!e.idEvent) return null;
   const rawStatus = (e.strStatus || '').trim();
   if (!rawStatus) return null;
@@ -34,7 +49,7 @@ function parseEvent(e: any): LiveScore | null {
  * Returns only active/finished events (SKIP_STATUSES filtered out).
  */
 export async function fetchLivescoreAll(): Promise<LiveScore[]> {
-  const data = await sportsDbFetchV2('livescore/all');
+  const data = await sportsDbFetchV2<{ livescore?: SportsDbLiveEvent[] }>('livescore/all');
   const events = data?.livescore || [];
   const results: LiveScore[] = [];
 
@@ -51,7 +66,7 @@ export async function fetchLivescoreAll(): Promise<LiveScore[]> {
  * Used as backup during midnight UTC boundary when /livescore/all drops games.
  */
 export async function fetchLivescoreBySport(sport: string): Promise<LiveScore[]> {
-  const data = await sportsDbFetchV2(`livescore/${encodeURIComponent(sport)}`);
+  const data = await sportsDbFetchV2<{ livescore?: SportsDbLiveEvent[] }>(`livescore/${encodeURIComponent(sport)}`);
   const events = data?.livescore || [];
   const results: LiveScore[] = [];
 
@@ -68,7 +83,7 @@ export async function fetchLivescoreBySport(sport: string): Promise<LiveScore[]>
  * Returns null if event not found or status is NS/TBD/skip.
  */
 export async function fetchEventLookup(eventId: string): Promise<LiveScore | null> {
-  const data = await sportsDbFetchV2(`lookup/event/${eventId}`);
+  const data = await sportsDbFetchV2<{ lookup?: SportsDbLiveEvent[] }>(`lookup/event/${eventId}`);
   const evt = data?.lookup?.[0];
   if (!evt) return null;
 

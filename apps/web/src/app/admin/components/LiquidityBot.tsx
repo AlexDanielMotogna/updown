@@ -77,7 +77,7 @@ export function LiquidityBot() {
     if (!cfg) return;
     setSaving(true); setErr(null); setMsg(null);
     try {
-      const body: any = {
+      const body: Record<string, unknown> = {
         enabled: cfg.enabled,
         intervalSeconds: cfg.intervalSeconds,
         lockMarginSeconds: cfg.lockMarginSeconds,

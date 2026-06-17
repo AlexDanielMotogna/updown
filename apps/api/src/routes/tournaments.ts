@@ -1,4 +1,5 @@
 import { Router, type Router as RouterType } from 'express';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../db';
 import {
@@ -36,9 +37,9 @@ tournamentRouter.get('/', async (req, res) => {
     }
 
     const { status, type } = parsed.data;
-    const where: any = {};
+    const where: Prisma.TournamentWhereInput = {};
     if (status) {
-      where.status = status.toUpperCase();
+      where.status = status.toUpperCase() as Prisma.TournamentWhereInput['status'];
     }
     if (type) {
       where.tournamentType = type;
@@ -78,7 +79,7 @@ tournamentRouter.get('/active-banner', async (_req, res) => {
   try {
     const banner = await getActiveBanner();
     if (banner && banner.tournamentType === 'SPORTS') {
-      (banner as any).sideLabels = getSideLabels(banner.sport);
+      (banner as typeof banner & { sideLabels?: string[] }).sideLabels = getSideLabels(banner.sport);
     }
     res.json({ success: true, data: banner ? serializeBigInt(banner) : null });
   } catch (error) {
@@ -185,18 +186,18 @@ tournamentRouter.get('/:id/bracket', async (req, res) => {
 
         if (isP1) {
           // Hide player2's prediction
-          (match as any).player2Prediction = null;
-          (match as any).player2PredictedAt = null;
+          match.player2Prediction = null;
+          match.player2PredictedAt = null;
         } else if (isP2) {
           // Hide player1's prediction
-          (match as any).player1Prediction = null;
-          (match as any).player1PredictedAt = null;
+          match.player1Prediction = null;
+          match.player1PredictedAt = null;
         } else {
           // Spectator - hide both
-          (match as any).player1Prediction = null;
-          (match as any).player2Prediction = null;
-          (match as any).player1PredictedAt = null;
-          (match as any).player2PredictedAt = null;
+          match.player1Prediction = null;
+          match.player2Prediction = null;
+          match.player1PredictedAt = null;
+          match.player2PredictedAt = null;
         }
       }
     }

@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 
 /**
  * Canonical default category list - the SINGLE source of truth shared by:
@@ -88,8 +88,7 @@ export async function seedCategories(prisma: PrismaClient): Promise<number> {
       adapterKey: cat.adapterKey,
       numSides: cat.numSides,
       sideLabels: cat.sideLabels,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      config: (cat.config ?? undefined) as any,
+      config: (cat.config ?? undefined) as Prisma.InputJsonValue | undefined,
       sortOrder: cat.sortOrder,
     };
     await prisma.poolCategory.upsert({

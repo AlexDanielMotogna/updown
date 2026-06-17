@@ -5,6 +5,7 @@ import { PacificaProvider } from 'market-data';
 import { getPoolPDA, getVaultPDA, buildInitializePoolIx, buildResolveIx, buildClosePoolIx } from 'solana-client';
 import { prisma } from '../db';
 import { getUsdcMint, getAuthorityKeypair, derivePoolSeed, getConnection, rotateConnection } from '../utils/solana';
+import { sendAndConfirm } from '../utils/onchain';
 import { emitNewPool } from '../websocket';
 
 // Lazy singleton for price provider
@@ -85,25 +86,7 @@ export async function createSquadPool(params: {
       seed, normalizedAsset, startTime, endTime, lockTime, strikePrice,
     );
 
-    const transaction = new Transaction().add(ix);
-    const { blockhash, lastValidBlockHeight } = await getConnection().getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = authority.publicKey;
-    transaction.sign(authority);
-
-    const signature = await getConnection().sendRawTransaction(transaction.serialize(), {
-      skipPreflight: true,
-    });
-
-    const confirmation = await getConnection().confirmTransaction(
-      { signature, blockhash, lastValidBlockHeight },
-      'confirmed',
-    );
-
-    if (confirmation.value.err) {
-      throw new Error(`initializePool tx failed: ${JSON.stringify(confirmation.value.err)}`);
-    }
-
+    const signature = await sendAndConfirm(ix, authority, { label: 'initialize_pool(squad)', skipPreflight: true });
     console.log(`[SquadPool] On-chain pool initialized: ${signature}`);
 
     // Create DB record
@@ -389,7 +372,7 @@ export async function cancelSquadPool(params: {
   const event = await prisma.eventLog.findFirst({
     where: { entityId: poolId, eventType: 'SQUAD_POOL_CREATED' },
   });
-  const creator = (event?.payload as any)?.creatorWallet;
+  const creator = (event?.payload as { creatorWallet?: string } | null)?.creatorWallet;
   if (creator !== wallet) throw new Error('NOT_CREATOR');
 
   // Check no bets
@@ -403,24 +386,10 @@ export async function cancelSquadPool(params: {
   const [vaultPda] = getVaultPDA(seed);
 
   // Resolve on-chain (synthetic - no real winner)
-  const resolveIx = buildResolveIx(poolPda, authority.publicKey, BigInt(1000), BigInt(1000));
-  const resolveTx = new Transaction().add(resolveIx);
-  const { blockhash: rb, lastValidBlockHeight: rvbh } = await connection.getLatestBlockhash();
-  resolveTx.recentBlockhash = rb;
-  resolveTx.feePayer = authority.publicKey;
-  resolveTx.sign(authority);
-  const resolveSig = await connection.sendRawTransaction(resolveTx.serialize(), { skipPreflight: false, preflightCommitment: 'confirmed' });
-  await connection.confirmTransaction({ signature: resolveSig, blockhash: rb, lastValidBlockHeight: rvbh }, 'confirmed');
+  await sendAndConfirm(buildResolveIx(poolPda, authority.publicKey, BigInt(1000), BigInt(1000)), authority, { label: 'resolve(squad)' });
 
   // Close pool - rent goes back to original feePayer (the creator)
-  const closeIx = buildClosePoolIx(poolPda, vaultPda, authority.publicKey);
-  const closeTx = new Transaction().add(closeIx);
-  const { blockhash: cb, lastValidBlockHeight: cvbh } = await connection.getLatestBlockhash();
-  closeTx.recentBlockhash = cb;
-  closeTx.feePayer = authority.publicKey;
-  closeTx.sign(authority);
-  const closeSig = await connection.sendRawTransaction(closeTx.serialize(), { skipPreflight: false, preflightCommitment: 'confirmed' });
-  await connection.confirmTransaction({ signature: closeSig, blockhash: cb, lastValidBlockHeight: cvbh }, 'confirmed');
+  await sendAndConfirm(buildClosePoolIx(poolPda, vaultPda, authority.publicKey), authority, { label: 'close_pool(squad)' });
 
   // Clean DB
   await prisma.priceSnapshot.deleteMany({ where: { poolId } });

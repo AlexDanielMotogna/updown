@@ -208,6 +208,53 @@ export type ParimutuelPools = {
       "args": []
     },
     {
+      "name": "closeLosingBet",
+      "docs": [
+        "Close a LOSING bet's account, returning its rent to the bettor (authority",
+        "only). Losers forfeit only their USDC stake, not the SOL rent."
+      ],
+      "discriminator": [
+        80,
+        132,
+        195,
+        35,
+        207,
+        61,
+        209,
+        137
+      ],
+      "accounts": [
+        {
+          "name": "pool"
+        },
+        {
+          "name": "userBet",
+          "writable": true
+        },
+        {
+          "name": "user",
+          "docs": [
+            "`close = user` and is used for PDA derivation / ownership checks."
+          ],
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "side",
+          "type": {
+            "defined": {
+              "name": "side"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "closePool",
       "docs": [
         "Close a resolved pool and reclaim rent (authority only)"
@@ -714,6 +761,65 @@ export type ParimutuelPools = {
       ]
     },
     {
+      "name": "refundBettor",
+      "docs": [
+        "Void-refund a bettor their own stake regardless of side (authority only),",
+        "for a cancelled / postponed / abandoned match. Fair for multi-side pools."
+      ],
+      "discriminator": [
+        233,
+        73,
+        18,
+        55,
+        201,
+        188,
+        234,
+        163
+      ],
+      "accounts": [
+        {
+          "name": "pool"
+        },
+        {
+          "name": "userBet",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "userTokenAccount",
+          "writable": true
+        },
+        {
+          "name": "user",
+          "docs": [
+            "and the reclaimed rent via `close = user`."
+          ],
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "side",
+          "type": {
+            "defined": {
+              "name": "side"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "refundParticipant",
       "docs": [
         "Refund participant entry fee (cancelled tournaments, authority-signed)"
@@ -934,6 +1040,64 @@ export type ParimutuelPools = {
           }
         }
       ]
+    },
+    {
+      "name": "sweepVaultDust",
+      "docs": [
+        "Sweep rounding dust from a resolved pool's vault to the authority so the",
+        "pool can be closed (authority only)."
+      ],
+      "discriminator": [
+        90,
+        110,
+        177,
+        60,
+        25,
+        214,
+        170,
+        48
+      ],
+      "accounts": [
+        {
+          "name": "pool"
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool.pool_id",
+                "account": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authorityTokenAccount",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -1283,6 +1447,16 @@ export type ParimutuelPools = {
       "code": 6026,
       "name": "tournamentVaultNotEmpty",
       "msg": "Tournament vault still has tokens"
+    },
+    {
+      "code": 6027,
+      "name": "isWinner",
+      "msg": "Bet is on the winning side - use claim, not close"
+    },
+    {
+      "code": 6028,
+      "name": "alreadyResolved",
+      "msg": "Pool already has a winner - cannot void-refund a resolved pool"
     }
   ],
   "types": [

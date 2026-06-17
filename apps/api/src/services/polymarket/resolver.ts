@@ -2,6 +2,7 @@ import { prisma } from '../../db';
 import { Transaction } from '@solana/web3.js';
 import { getPoolPDA, buildResolveWithWinnerIx } from 'solana-client';
 import { derivePoolSeed, getConnection, getAuthorityKeypair } from '../../utils/solana';
+import { sendAndConfirm } from '../../utils/onchain';
 import { emitPoolStatus } from '../../websocket';
 import { awardBetResolution } from '../rewards';
 import { getCachedFixtureResults } from '../sports/fixture-cache';
@@ -54,15 +55,8 @@ export async function resolvePolymarketPools(): Promise<void> {
       const seed = derivePoolSeed(pool.id);
       const [poolPda] = getPoolPDA(seed);
       const ix = buildResolveWithWinnerIx(poolPda, wallet.publicKey, winnerSide);
-      const tx = new Transaction().add(ix);
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-      tx.recentBlockhash = blockhash;
-      tx.feePayer = wallet.publicKey;
-      tx.sign(wallet);
-
       try {
-        const sig = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: false, preflightCommitment: 'confirmed' });
-        await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
+        await sendAndConfirm(ix, wallet, { label: 'resolve(pm)' });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         if (msg.includes('InvalidPoolStatus') || msg.includes('0x177a') || msg.includes('AccountNotInitialized')) {

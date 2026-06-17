@@ -17,7 +17,7 @@ function sleep(ms: number): Promise<void> {
 /**
  * Fetch from TheSportsDB V1 API (key in URL path).
  */
-export async function sportsDbFetch(path: string): Promise<any> {
+export async function sportsDbFetch<T = unknown>(path: string): Promise<T> {
   if (!API_KEY) {
     throw new Error('THESPORTSDB_KEY not configured');
   }
@@ -34,8 +34,8 @@ export async function sportsDbFetch(path: string): Promise<any> {
 
   if (res.ok) {
     const text = await res.text();
-    if (!text || text.trim() === '') return { events: null };
-    return JSON.parse(text);
+    if (!text || text.trim() === '') return { events: null } as T;
+    return JSON.parse(text) as T;
   }
 
   if (res.status === 429) {
@@ -50,7 +50,7 @@ export async function sportsDbFetch(path: string): Promise<any> {
 /**
  * Fetch from TheSportsDB V2 API (key in header).
  */
-export async function sportsDbFetchV2(path: string): Promise<any> {
+export async function sportsDbFetchV2<T = unknown>(path: string): Promise<T> {
   if (!API_KEY) {
     throw new Error('THESPORTSDB_KEY not configured');
   }
@@ -69,8 +69,8 @@ export async function sportsDbFetchV2(path: string): Promise<any> {
 
   if (res.ok) {
     const text = await res.text();
-    if (!text || text.trim() === '') return {};
-    return JSON.parse(text);
+    if (!text || text.trim() === '') return {} as T;
+    return JSON.parse(text) as T;
   }
 
   throw new Error(`SportsDB V2 error: ${res.status} ${res.statusText}`);

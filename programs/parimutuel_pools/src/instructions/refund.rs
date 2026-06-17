@@ -59,28 +59,13 @@ pub fn handler(ctx: Context<Refund>, _side: Side) -> Result<()> {
     let winner = pool.winner.ok_or(PoolError::NotResolved)?;
     require!(user_bet.side == winner, PoolError::NotWinner);
 
-    // Same time-weighted formula as claim, no fee taken. Refund is the
+    // Same time-weighted share as claim, no fee taken. Refund is the
     // authority's synthetic-price unwind path used for single-bettor
     // pools or admin force-refunds; in those cases losing_stake == 0
     // so winnings collapses to 0 and every winner gets exactly their
     // principal back — the weighted form is a strict superset of the
-    // plain one.
-    let total_pool = pool.total_pool()?;
-    let total_winning_side = pool.total_for_side(winner);
-    let total_weighted_winning = pool.weighted_for_side(winner);
-
-    require!(total_winning_side > 0, PoolError::NoWinningBets);
-    require!(total_weighted_winning > 0, PoolError::NoWinningBets);
-
-    let losing_stake = total_pool
-        .checked_sub(total_winning_side)
-        .ok_or(PoolError::Overflow)?;
-
-    let winnings = (user_bet.weight as u128)
-        .checked_mul(losing_stake as u128)
-        .ok_or(PoolError::Overflow)?
-        .checked_div(total_weighted_winning as u128)
-        .ok_or(PoolError::Overflow)? as u64;
+    // plain one. Shares the single source of truth `Pool::winnings_for`.
+    let winnings = pool.winnings_for(user_bet.weight, winner)?;
 
     let payout = user_bet.amount
         .checked_add(winnings)
