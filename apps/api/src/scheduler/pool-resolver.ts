@@ -264,10 +264,22 @@ export class PoolResolver {
           // any pool whose users all claimed (vault empty, PDA reclaimed)
           // would cycle here forever via processClaimableTransitions.
           closedAt: null,
+          // Only fetch CLOSEABLE pools. A pool with unclaimed bets still has
+          // funds in its vault (winner payouts pending), so close_pool reverts
+          // VaultNotEmpty — it can't be closed yet. Those are the OLDEST
+          // CLAIMABLE rows (stuck longest), so under the previous oldest-first
+          // `take` they permanently filled the batch and starved the thousands
+          // of empty pools behind them → nothing closed → on-chain pools + rent
+          // leaked indefinitely. Excluding them keeps the batch full of pools
+          // that can actually close; each re-enters automatically once its
+          // winners are paid/claimed (no unclaimed bets remain). The per-pool
+          // safety checks below still gate the real close.
+          bets: { none: { claimed: false } },
         },
         select: { id: true, poolId: true, winner: true },
         orderBy: { updatedAt: 'asc' }, // oldest backlog first
-        take: 20, // batch per run — closing the whole backlog at once storms RPC
+        take: 50, // batch per run (RPC has headroom now); the closeable-only
+                  // filter above means these are all real close candidates
       });
 
       const connection = getConnection();
