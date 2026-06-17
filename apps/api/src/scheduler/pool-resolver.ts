@@ -304,13 +304,18 @@ export class PoolResolver {
             const vaultBalance = await connection.getTokenAccountBalance(closureVaultPda);
             const vaultAmount = Number(vaultBalance.value.amount);
             if (vaultAmount > 0) {
-              // Time-weighted payouts leave a few micro-USDC of rounding dust in
-              // the vault, so it never reaches 0 and close_pool (needs amount==0)
-              // reverts. When the sweep instruction is deployed (gated by
-              // CLOSE_LOSING_BETS=on), sweep dust (<= 1000 = 0.001 USDC) to the
-              // authority and fall through to close. Real funds (> dust) always
-              // back off so pending winners are never swept.
-              if (process.env.CLOSE_LOSING_BETS === 'on' && vaultAmount <= 1000) {
+              // Time-weighted payouts (deployed 2026-06-05) leave a few micro-USDC
+              // of rounding dust in the vault, so it never reaches 0 and close_pool
+              // (needs amount==0) reverts — the pool can never close and its ~0.004
+              // SOL rent is stranded forever. `sweep_vault_dust` is deployed, so
+              // always sweep tiny dust (<= 1000 = 0.001 USDC) and fall through to
+              // close. This is decoupled from CLOSE_LOSING_BETS on purpose: dust-
+              // blocked closes were the main on-chain pool/rent leak (~half of the
+              // CLAIMABLE backlog had 1 micro-USDC vaults), and dust-sweeping is
+              // independently safe — real funds (> dust) always back off so pending
+              // winners are never swept. If the instruction somehow isn't deployed,
+              // the call reverts and we fall into the same retry-backoff as before.
+              if (vaultAmount <= 1000) {
                 try {
                   await sweepVaultDustOnChain(this.deps, pool.id);
                   // vault is now 0 — fall through to close below
