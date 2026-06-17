@@ -22,12 +22,14 @@ import { ResolutionMetrics } from './components/ResolutionMetrics';
 // they only render when their tab is opened, so deferring them out of the
 // initial admin bundle is a pure win. Admin is client-only behind auth, so
 // ssr:false is safe. Loading flashes a small spinner via the shared LoadingState.
-const DYN = { ssr: false as const, loading: () => <LoadingState /> };
-const PoolManagement = dynamic(() => import('./components/PoolManagement').then(m => m.PoolManagement), DYN);
-const TournamentManagement = dynamic(() => import('./components/TournamentManagement').then(m => m.TournamentManagement), DYN);
-const CategoryManagement = dynamic(() => import('./components/CategoryManagement').then(m => m.CategoryManagement), DYN);
-const MatchExplorer = dynamic(() => import('./components/MatchExplorer').then(m => m.MatchExplorer), DYN);
-const PmExplorer = dynamic(() => import('./components/PmExplorer').then(m => m.PmExplorer), DYN);
+// next/dynamic requires its options to be an inline object literal (the SWC
+// plugin parses them statically), so the { ssr, loading } block is repeated per
+// call rather than shared via a const.
+const PoolManagement = dynamic(() => import('./components/PoolManagement').then(m => m.PoolManagement), { ssr: false, loading: () => <LoadingState /> });
+const TournamentManagement = dynamic(() => import('./components/TournamentManagement').then(m => m.TournamentManagement), { ssr: false, loading: () => <LoadingState /> });
+const CategoryManagement = dynamic(() => import('./components/CategoryManagement').then(m => m.CategoryManagement), { ssr: false, loading: () => <LoadingState /> });
+const MatchExplorer = dynamic(() => import('./components/MatchExplorer').then(m => m.MatchExplorer), { ssr: false, loading: () => <LoadingState /> });
+const PmExplorer = dynamic(() => import('./components/PmExplorer').then(m => m.PmExplorer), { ssr: false, loading: () => <LoadingState /> });
 import { GrowthOverview } from './components/GrowthOverview';
 import { ResolutionInspector } from './components/ResolutionInspector';
 import { ResolutionSuggestions } from './components/ResolutionSuggestions';
