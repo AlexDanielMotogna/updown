@@ -82,7 +82,12 @@ export class HyperliquidSigner implements ExchangeSigner {
 
   async signAndSubmit(payload: UnsignedPayload, _wallet?: WalletSigner): Promise<OrderResult> {
     const client = this.requireClient();
-    const params = (payload.action as { params: OrderParams }).params;
+    let params = (payload.action as { params: OrderParams }).params;
+    // MARKET orders still need a price on HL (a slippage cap). Derive one from
+    // the current mid (±5%, crossing the spread) when the caller didn't pass one.
+    if (params.type === 'MARKET' && params.price == null) {
+      params = { ...params, price: await this.marketSlippagePrice(params.symbol, params.side) };
+    }
     const asset = await this.resolveAsset(params.symbol);
     const order = buildOrderRequest(params, asset.index, asset.szDecimals);
     const builder = this.builder
@@ -135,6 +140,15 @@ export class HyperliquidSigner implements ExchangeSigner {
       throw new Error('HyperliquidSigner has no account — construct with { privateKey } or { account }');
     }
     return this.client;
+  }
+
+  /** A slippage-capped price for a MARKET order, from the current mid (±5%). */
+  private async marketSlippagePrice(symbol: string, side: OrderParams['side']): Promise<string> {
+    const coin = toHlCoin(symbol);
+    const { mids } = await this.info.allMids();
+    const mid = Number(mids[coin]);
+    if (!mid) throw new Error(`No mid price for ${coin}`);
+    return String(mid * (side === 'BUY' ? 1.05 : 0.95));
   }
 
   private async resolveAsset(symbol: string): Promise<AssetInfo> {
