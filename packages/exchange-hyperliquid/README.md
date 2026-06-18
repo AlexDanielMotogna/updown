@@ -24,7 +24,9 @@ const a = new HyperliquidReadAdapter({ endpoint: TESTNET });
 |------|-------|
 | `HyperliquidReadAdapter` | ✅ implemented over the public `info` endpoint (markets, prices, orderbook, klines, recent trades, account, positions, open orders, trade history) |
 | `HyperliquidStream` | ✅ implemented over the WS (`l2Book`, `allMids`, `clearinghouseState`/`openOrders`/`userFills`) with reconnect + ref-counted subs |
-| `HyperliquidSigner` | ⛔ stub — Phase 1 step 2 (EIP-712 agent-wallet via a vetted TS SDK; needs a testnet key to verify) |
+| `HyperliquidSigner` | ✅ implemented via `@nktkas/hyperliquid` (EIP-712 agent-wallet): order, cancel, updateLeverage, approveAgent — **live-verified on testnet** (placed→read→cancelled a real order) |
+
+All three faces are complete and live-verified against HyperLiquid.
 
 ## Notes
 
