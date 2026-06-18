@@ -71,7 +71,7 @@ export function TerminalLayout({
               <HHandle />
               <Panel defaultSize={30} minSize={10}>
                 <div className="h-full overflow-auto">
-                  <PositionsPanel devEvm={devEvm} />
+                  <PositionsPanel devEvm={devEvm} devWallet={devWallet} />
                 </div>
               </Panel>
             </PanelGroup>
