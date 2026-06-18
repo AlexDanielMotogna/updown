@@ -21,9 +21,12 @@ import { decryptSecret, encryptSecret } from '../utils/exchange-keys';
 
 export type ExchangeName = 'hyperliquid';
 
+/**
+ * Endpoint is derived STRICTLY from the connection's network flag — never from a
+ * single shared URL env — so a mainnet connection can never accidentally route to
+ * testnet (or vice-versa). Custom endpoints, if ever needed, should be per-network.
+ */
 function hlEndpoint(isTestnet: boolean): HlEndpoint {
-  const url = process.env.HYPERLIQUID_API_URL;
-  if (url) return { apiUrl: url };
   return isTestnet ? TESTNET : MAINNET;
 }
 

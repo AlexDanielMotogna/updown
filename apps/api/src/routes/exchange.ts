@@ -18,6 +18,7 @@ import { z } from 'zod';
 import { prisma } from '../db';
 import {
   activateConnection,
+  buildHyperliquidSigner,
   createPendingAgentConnection,
   getConnection,
   serializeConnection,
@@ -47,6 +48,34 @@ const confirmSchema = z.object({
 const statusQuerySchema = z.object({
   wallet: solanaWallet,
   isTestnet: isTestnetFlag,
+});
+
+const orderSchema = z.object({
+  walletAddress: solanaWallet,
+  isTestnet: isTestnetFlag,
+  symbol: z.string().min(1).max(40),
+  side: z.enum(['BUY', 'SELL']),
+  type: z.enum([
+    'MARKET',
+    'LIMIT',
+    'STOP_MARKET',
+    'STOP_LIMIT',
+    'TAKE_PROFIT_MARKET',
+    'TAKE_PROFIT_LIMIT',
+  ]),
+  amount: z.string().min(1),
+  price: z.string().optional(),
+  triggerPrice: z.string().optional(),
+  timeInForce: z.enum(['GTC', 'IOC', 'FOK', 'POST_ONLY']).optional(),
+  reduceOnly: z.boolean().optional(),
+  clientOrderId: z.string().optional(),
+});
+
+const cancelSchema = z.object({
+  walletAddress: solanaWallet,
+  isTestnet: isTestnetFlag,
+  symbol: z.string().min(1).max(40),
+  orderId: z.union([z.string(), z.number()]),
 });
 
 function badRequest(res: Parameters<Parameters<typeof exchangeRouter.post>[1]>[1], message: string) {
@@ -142,5 +171,52 @@ exchangeRouter.delete('/connection', async (req, res) => {
   } catch (error) {
     console.error('[Exchange] connection delete error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to remove connection' } });
+  }
+});
+
+/** Place an order. The server signs with the user's decrypted agent key. */
+exchangeRouter.post('/order', async (req, res) => {
+  try {
+    const parsed = orderSchema.safeParse(req.body);
+    if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid body');
+
+    const { walletAddress, isTestnet, ...orderParams } = parsed.data;
+    const userId = await resolveUserId(walletAddress);
+    if (!userId) {
+      return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Unknown wallet' } });
+    }
+
+    const conn = await getConnection(userId, 'hyperliquid', isTestnet);
+    if (!conn || !conn.active) {
+      return res.status(409).json({ success: false, error: { code: 'NO_ACTIVE_CONNECTION', message: 'Connect and approve an agent first' } });
+    }
+
+    const signer = await buildHyperliquidSigner(userId, { isTestnet });
+    const result = await signer.signAndSubmit(signer.buildOrder(orderParams));
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('[Exchange] order error:', error);
+    // Surface the exchange's message (e.g. "Must deposit", "Insufficient margin").
+    res.status(502).json({ success: false, error: { code: 'ORDER_FAILED', message: (error as Error).message } });
+  }
+});
+
+/** Cancel an order by id. */
+exchangeRouter.post('/order/cancel', async (req, res) => {
+  try {
+    const parsed = cancelSchema.safeParse(req.body);
+    if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid body');
+
+    const userId = await resolveUserId(parsed.data.walletAddress);
+    if (!userId) {
+      return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Unknown wallet' } });
+    }
+
+    const signer = await buildHyperliquidSigner(userId, { isTestnet: parsed.data.isTestnet });
+    const result = await signer.cancel({ symbol: parsed.data.symbol, orderId: parsed.data.orderId });
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('[Exchange] order cancel error:', error);
+    res.status(502).json({ success: false, error: { code: 'CANCEL_FAILED', message: (error as Error).message } });
   }
 });
