@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { placeOrder } from '@/lib/api';
+import { AccountInfo } from './AccountInfo';
 import type { OrderSide, OrderType } from '@/lib/types';
 
 type Tab = 'MARKET' | 'LIMIT' | 'STOP' | 'STOP_LIMIT';
@@ -254,9 +255,8 @@ export function OrderEntry({
         <button className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800">↓ Deposit</button>
         <button className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800">↑ Withdraw</button>
       </div>
-      <div className="mt-2 flex justify-between border-t border-surface-800 pt-2 text-2xs text-surface-400">
-        <span>Account Info</span>
-        <span className="text-surface-200">{usd(available)}</span>
+      <div className="mt-2">
+        <AccountInfo evmAddress={evmAddress} />
       </div>
     </div>
   );
