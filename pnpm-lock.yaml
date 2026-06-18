@@ -68,6 +68,12 @@ importers:
       dotenv:
         specifier: ^16.3.0
         version: 16.6.1
+      exchange-core:
+        specifier: workspace:*
+        version: link:../../packages/exchange-core
+      exchange-hyperliquid:
+        specifier: workspace:*
+        version: link:../../packages/exchange-hyperliquid
       express:
         specifier: ^4.18.0
         version: 4.22.1
