@@ -35,6 +35,12 @@ export interface HyperliquidSignerOptions {
   account?: AgentAccount;
   /** Endpoint; testnet is inferred from the URL. Defaults to mainnet. */
   endpoint?: HlEndpoint;
+  /**
+   * Optional builder code: orders include a builder fee paid to `address`.
+   * `feeTenthsBps` is in 0.1bps (1 = 0.0001%); max 100 for perps (0.1%).
+   * Requires a one-time `approveBuilderFee` from the signing account first.
+   */
+  builder?: { address: `0x${string}`; feeTenthsBps: number };
   /** Override the InfoClient used to resolve asset indices (tests). */
   infoClient?: InfoClient;
   /** Inject a transport (tests). Overrides the default HttpTransport. */
@@ -52,11 +58,13 @@ export class HyperliquidSigner implements ExchangeSigner {
 
   private readonly client: ExchangeClient | null;
   private readonly info: InfoClient;
+  private readonly builder?: { address: `0x${string}`; feeTenthsBps: number };
   private assetMap?: Map<string, AssetInfo>;
 
   constructor(opts: HyperliquidSignerOptions = {}) {
     const endpoint = opts.endpoint ?? MAINNET;
     this.info = opts.infoClient ?? new InfoClient(endpoint);
+    this.builder = opts.builder;
 
     const account = opts.account ?? (opts.privateKey ? privateKeyToAccount(opts.privateKey) : null);
     if (account || opts.transport) {
@@ -77,7 +85,10 @@ export class HyperliquidSigner implements ExchangeSigner {
     const params = (payload.action as { params: OrderParams }).params;
     const asset = await this.resolveAsset(params.symbol);
     const order = buildOrderRequest(params, asset.index, asset.szDecimals);
-    const res = await client.order({ orders: [order], grouping: 'na' });
+    const builder = this.builder
+      ? { b: this.builder.address, f: this.builder.feeTenthsBps }
+      : undefined;
+    const res = await client.order({ orders: [order], grouping: 'na', ...(builder ? { builder } : {}) });
     return mapOrderResult(res);
   }
 
@@ -103,6 +114,19 @@ export class HyperliquidSigner implements ExchangeSigner {
   async approveAgent(agentAddress: `0x${string}`, agentName?: string): Promise<Result> {
     const client = this.requireClient();
     await client.approveAgent({ agentAddress, agentName: agentName ?? null });
+    return { success: true };
+  }
+
+  /**
+   * One-time `approveBuilderFee`: authorize a builder to charge up to
+   * `maxFeeRate` (a percent string like "0.05%"). Must be signed by the MAIN
+   * account before any builder-fee orders are accepted. HL-specific.
+   */
+  async approveBuilderFee(maxFeeRate: string, builderAddress?: `0x${string}`): Promise<Result> {
+    const client = this.requireClient();
+    const builder = builderAddress ?? this.builder?.address;
+    if (!builder) throw new Error('approveBuilderFee: no builder address (pass one or set opts.builder)');
+    await client.approveBuilderFee({ maxFeeRate, builder });
     return { success: true };
   }
 

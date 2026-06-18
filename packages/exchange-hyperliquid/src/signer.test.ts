@@ -83,6 +83,23 @@ describe('HyperliquidSigner', () => {
     expect(res.success).toBe(true);
   });
 
+  it('includes the builder fee in the order action when configured', async () => {
+    const captured: Captured[] = [];
+    const signer = new HyperliquidSigner({
+      privateKey: TEST_KEY,
+      endpoint: { apiUrl: 'https://api.hyperliquid-testnet.xyz' },
+      infoClient: fakeInfo(),
+      builder: { address: `0x${'a'.repeat(40)}`, feeTenthsBps: 50 },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      transport: fakeTransport(captured) as any,
+    });
+    await signer.signAndSubmit(
+      signer.buildOrder({ symbol: 'BTC-USD', side: 'BUY', type: 'LIMIT', amount: '0.001', price: '64000' })
+    );
+    const action = captured[0].action as { builder?: { b: string; f: number } };
+    expect(action.builder).toEqual({ b: `0x${'a'.repeat(40)}`, f: 50 });
+  });
+
   it('updates leverage (cross) for the resolved asset', async () => {
     const captured: Captured[] = [];
     const res = await makeSigner(captured).updateLeverage('BTC-USD', 5);
