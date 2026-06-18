@@ -9,29 +9,29 @@ import { useIdentity } from '@/hooks/useIdentity';
 const AgentSetup = dynamic(() => import('./AgentSetup').then((m) => m.AgentSetup), {
   ssr: false,
   loading: () => (
-    <div className="rounded border border-border bg-bg-surface p-3 text-sm text-muted">…</div>
+    <div className="card p-3 text-sm text-surface-400">…</div>
   ),
 });
 
-function WithIdentity({ symbol, devWallet }: { symbol: string; devWallet?: string }) {
-  const { walletAddress } = useIdentity();
+function WithIdentity({ symbol, devWallet, devEvm }: { symbol: string; devWallet?: string; devEvm?: string }) {
+  const { walletAddress, evmAddress } = useIdentity();
   return (
-    <div className="space-y-3">
-      <OrderEntry symbol={symbol} walletAddress={walletAddress ?? devWallet} />
+    <div className="space-y-1">
+      <OrderEntry symbol={symbol} walletAddress={walletAddress ?? devWallet} evmAddress={evmAddress ?? devEvm} />
       <AgentSetup />
     </div>
   );
 }
 
-/** Order entry + agent setup, identity from Privy (falls back to dev wallet). */
-export function OrderPanel({ symbol, devWallet }: { symbol: string; devWallet?: string }) {
+/** Order entry + agent setup, identity from Privy (falls back to dev wallets). */
+export function OrderPanel({ symbol, devWallet, devEvm }: { symbol: string; devWallet?: string; devEvm?: string }) {
   if (!process.env.NEXT_PUBLIC_PRIVY_APP_ID) {
     return (
-      <div className="space-y-3">
-        <OrderEntry symbol={symbol} walletAddress={devWallet} />
+      <div className="space-y-1">
+        <OrderEntry symbol={symbol} walletAddress={devWallet} evmAddress={devEvm} />
         <AgentSetup />
       </div>
     );
   }
-  return <WithIdentity symbol={symbol} devWallet={devWallet} />;
+  return <WithIdentity symbol={symbol} devWallet={devWallet} devEvm={devEvm} />;
 }

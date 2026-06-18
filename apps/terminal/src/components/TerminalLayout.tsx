@@ -11,7 +11,7 @@ import type { Ticker } from '@/lib/types';
 /** Vertical (column-splitting) drag handle. */
 function VHandle() {
   return (
-    <PanelResizeHandle className="group relative w-1 bg-surface-900 transition-colors data-[resize-handle-state=hover]:bg-primary-600 data-[resize-handle-state=drag]:bg-primary-500">
+    <PanelResizeHandle className="relative w-1 bg-surface-900 transition-colors data-[resize-handle-state=hover]:bg-primary-600 data-[resize-handle-state=drag]:bg-primary-500">
       <span className="absolute inset-y-0 -left-1 -right-1" />
     </PanelResizeHandle>
   );
@@ -19,17 +19,19 @@ function VHandle() {
 /** Horizontal (row-splitting) drag handle. */
 function HHandle() {
   return (
-    <PanelResizeHandle className="group relative h-1 bg-surface-900 transition-colors data-[resize-handle-state=hover]:bg-primary-600 data-[resize-handle-state=drag]:bg-primary-500">
+    <PanelResizeHandle className="relative h-1 bg-surface-900 transition-colors data-[resize-handle-state=hover]:bg-primary-600 data-[resize-handle-state=drag]:bg-primary-500">
       <span className="absolute inset-x-0 -top-1 -bottom-1" />
     </PanelResizeHandle>
   );
 }
 
 /**
- * Dockable/resizable trade workspace (TradingView/Bloomberg style). Dragging any
- * divider resizes neighbors and every widget adapts to its new size (the chart
- * re-fits via lightweight-charts autoSize). Panel sizes persist per user via
- * react-resizable-panels' autoSaveId (localStorage).
+ * Dockable/resizable trade workspace (TradingView/Bloomberg style). Outer split
+ * is horizontal: [ left work area | place-order ]. The place-order panel spans
+ * the FULL height; the left area is split vertically into [chart | order book]
+ * on top and the positions table below (so positions is only as wide as
+ * chart+orderbook, not under the order panel). Drag any divider — neighbors
+ * adapt, the chart re-fits (autoSize). Sizes persist via autoSaveId.
  */
 export function TerminalLayout({
   symbol,
@@ -47,36 +49,40 @@ export function TerminalLayout({
       <MarketHeader symbol={symbol} initial={initial} />
 
       <div className="min-h-0 flex-1">
-        <PanelGroup direction="vertical" autoSaveId="updown-terminal-rows">
-          {/* Top row: chart | order book | place order */}
-          <Panel defaultSize={72} minSize={35}>
-            <PanelGroup direction="horizontal" autoSaveId="updown-terminal-cols">
-              <Panel defaultSize={60} minSize={28}>
-                <div className="h-full overflow-hidden">
-                  <Chart symbol={symbol} />
-                </div>
+        <PanelGroup direction="horizontal" autoSaveId="updown-terminal-main">
+          {/* Left work area: (chart | orderbook) over positions */}
+          <Panel defaultSize={82} minSize={50}>
+            <PanelGroup direction="vertical" autoSaveId="updown-terminal-left-rows">
+              <Panel defaultSize={70} minSize={30}>
+                <PanelGroup direction="horizontal" autoSaveId="updown-terminal-top-cols">
+                  <Panel defaultSize={74} minSize={35}>
+                    <div className="h-full overflow-hidden">
+                      <Chart symbol={symbol} />
+                    </div>
+                  </Panel>
+                  <VHandle />
+                  <Panel defaultSize={26} minSize={16}>
+                    <div className="h-full overflow-hidden">
+                      <Orderbook symbol={symbol} />
+                    </div>
+                  </Panel>
+                </PanelGroup>
               </Panel>
-              <VHandle />
-              <Panel defaultSize={22} minSize={14}>
-                <div className="h-full overflow-hidden">
-                  <Orderbook symbol={symbol} />
-                </div>
-              </Panel>
-              <VHandle />
-              <Panel defaultSize={18} minSize={13}>
-                <div className="h-full overflow-y-auto">
-                  <OrderPanel symbol={symbol} devWallet={devWallet} />
+              <HHandle />
+              <Panel defaultSize={30} minSize={10}>
+                <div className="h-full overflow-auto">
+                  <PositionsPanel devEvm={devEvm} />
                 </div>
               </Panel>
             </PanelGroup>
           </Panel>
 
-          <HHandle />
+          <VHandle />
 
-          {/* Bottom row: positions / orders / trades / history */}
-          <Panel defaultSize={28} minSize={10}>
-            <div className="h-full overflow-auto">
-              <PositionsPanel devEvm={devEvm} />
+          {/* Right: place order — full height */}
+          <Panel defaultSize={18} minSize={13}>
+            <div className="h-full overflow-y-auto">
+              <OrderPanel symbol={symbol} devWallet={devWallet} devEvm={devEvm} />
             </div>
           </Panel>
         </PanelGroup>

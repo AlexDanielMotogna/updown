@@ -14,6 +14,7 @@ export interface PlaceOrderInput {
   type: OrderType;
   amount: string;
   price?: string;
+  triggerPrice?: string;
   timeInForce?: 'GTC' | 'IOC' | 'FOK' | 'POST_ONLY';
   reduceOnly?: boolean;
 }
