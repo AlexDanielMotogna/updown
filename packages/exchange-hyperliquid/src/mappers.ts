@@ -1,0 +1,221 @@
+/**
+ * Pure mappers: raw HyperLiquid shapes → exchange-core normalized types.
+ * No I/O. Numeric fields stay strings (precision); timestamps are epoch ms.
+ * Anything HL provides that doesn't fit goes into `metadata`.
+ */
+import type {
+  Account,
+  Candle,
+  Market,
+  Order,
+  Orderbook,
+  Position,
+  Price,
+  RecentTrade,
+  TradeHistoryItem,
+} from 'exchange-core';
+import { toNormalizedSymbol } from './symbols';
+import type {
+  HlAssetCtx,
+  HlCandle,
+  HlClearinghouseState,
+  HlL2Book,
+  HlOpenOrder,
+  HlPosition,
+  HlRecentTrade,
+  HlUniverseAsset,
+  HlUserFill,
+} from './raw-types';
+
+/** Perp price precision: at most (PERP_MAX_DECIMALS - szDecimals) decimals. */
+const PERP_MAX_DECIMALS = 6;
+
+/** 10^-n as a plain decimal string: 0 → "1", 5 → "0.00001". */
+function pow10Neg(n: number): string {
+  if (n <= 0) return '1';
+  return `0.${'0'.repeat(n - 1)}1`;
+}
+
+function safeDiv(a: string, b: string): string {
+  const nb = Number(b);
+  if (!nb) return '0';
+  return String(Number(a) / nb);
+}
+
+function pctChange(curr: string, prev: string): string {
+  const np = Number(prev);
+  if (!np) return '0';
+  return String(((Number(curr) - np) / np) * 100);
+}
+
+function sideFromSzi(szi: string): 'LONG' | 'SHORT' {
+  return szi.trim().startsWith('-') ? 'SHORT' : 'LONG';
+}
+
+function absStr(n: string): string {
+  return n.startsWith('-') ? n.slice(1) : n;
+}
+
+// --- Markets / prices ------------------------------------------------------
+
+export function mapMarket(asset: HlUniverseAsset, ctx: HlAssetCtx | undefined): Market {
+  const priceDecimals = Math.max(0, PERP_MAX_DECIMALS - asset.szDecimals);
+  return {
+    symbol: toNormalizedSymbol(asset.name),
+    baseAsset: asset.name,
+    quoteAsset: 'USD',
+    tickSize: pow10Neg(priceDecimals),
+    stepSize: pow10Neg(asset.szDecimals),
+    minOrderSize: '0',
+    maxOrderSize: '0',
+    minNotional: '10', // HL enforces a $10 minimum order value
+    maxLeverage: asset.maxLeverage,
+    fundingRate: ctx?.funding ?? '0',
+    fundingInterval: 1, // HL funding accrues hourly
+    metadata: {
+      szDecimals: asset.szDecimals,
+      onlyIsolated: asset.onlyIsolated ?? false,
+      isDelisted: asset.isDelisted ?? false,
+      marginMode: asset.marginMode,
+      openInterest: ctx?.openInterest,
+    },
+  };
+}
+
+export function mapMarkets(universe: HlUniverseAsset[], ctxs: HlAssetCtx[]): Market[] {
+  return universe.map((asset, i) => mapMarket(asset, ctxs[i]));
+}
+
+export function mapPrice(asset: HlUniverseAsset, ctx: HlAssetCtx, now: number): Price {
+  return {
+    symbol: toNormalizedSymbol(asset.name),
+    mark: ctx.markPx,
+    index: ctx.oraclePx,
+    last: ctx.midPx ?? ctx.markPx,
+    bid: ctx.impactPxs?.[0] ?? '0',
+    ask: ctx.impactPxs?.[1] ?? '0',
+    funding: ctx.funding,
+    volume24h: ctx.dayNtlVlm,
+    change24h: pctChange(ctx.markPx, ctx.prevDayPx),
+    timestamp: now,
+  };
+}
+
+export function mapPrices(universe: HlUniverseAsset[], ctxs: HlAssetCtx[], now: number): Price[] {
+  return universe.map((asset, i) => mapPrice(asset, ctxs[i], now)).filter((p) => p.mark != null);
+}
+
+// --- Orderbook / candles ---------------------------------------------------
+
+export function mapOrderbook(book: HlL2Book): Orderbook {
+  const [bids, asks] = book.levels;
+  return {
+    symbol: toNormalizedSymbol(book.coin),
+    bids: bids.map((l) => [l.px, l.sz] as [string, string]),
+    asks: asks.map((l) => [l.px, l.sz] as [string, string]),
+    timestamp: book.time,
+  };
+}
+
+export function mapCandle(c: HlCandle): Candle {
+  return { timestamp: c.t, open: c.o, high: c.h, low: c.l, close: c.c, volume: c.v };
+}
+
+export function mapRecentTrade(t: HlRecentTrade): RecentTrade {
+  return {
+    id: String(t.tid),
+    symbol: toNormalizedSymbol(t.coin),
+    side: t.side === 'B' ? 'BUY' : 'SELL',
+    price: t.px,
+    amount: t.sz,
+    timestamp: t.time,
+  };
+}
+
+// --- Account / positions ---------------------------------------------------
+
+export function mapPosition(p: HlPosition): Position {
+  return {
+    symbol: toNormalizedSymbol(p.coin),
+    side: sideFromSzi(p.szi),
+    amount: absStr(p.szi),
+    entryPrice: p.entryPx ?? '0',
+    markPrice: safeDiv(p.positionValue, absStr(p.szi)),
+    margin: p.marginUsed,
+    leverage: p.leverage.value,
+    unrealizedPnl: p.unrealizedPnl,
+    liquidationPrice: p.liquidationPx ?? '0',
+    funding: p.cumFunding?.sinceOpen ?? '0',
+    metadata: {
+      leverageType: p.leverage.type,
+      positionValue: p.positionValue,
+      returnOnEquity: p.returnOnEquity,
+      maxLeverage: p.maxLeverage,
+    },
+  };
+}
+
+export function mapPositions(state: HlClearinghouseState): Position[] {
+  return state.assetPositions.map((ap) => mapPosition(ap.position));
+}
+
+export function mapAccount(accountId: string, state: HlClearinghouseState): Account {
+  const unrealizedPnl = state.assetPositions.reduce(
+    (sum, ap) => sum + Number(ap.position.unrealizedPnl || 0),
+    0
+  );
+  return {
+    accountId,
+    balance: state.marginSummary.totalRawUsd,
+    accountEquity: state.marginSummary.accountValue,
+    availableToSpend: state.withdrawable,
+    marginUsed: state.marginSummary.totalMarginUsed,
+    unrealizedPnl: String(unrealizedPnl),
+    makerFee: '0', // not in clearinghouseState; populate from userFees later
+    takerFee: '0',
+    metadata: {
+      crossMaintenanceMarginUsed: state.crossMaintenanceMarginUsed,
+      totalNtlPos: state.marginSummary.totalNtlPos,
+      time: state.time,
+    },
+  };
+}
+
+// --- Orders / fills --------------------------------------------------------
+
+export function mapOpenOrder(o: HlOpenOrder): Order {
+  const amount = o.origSz ?? o.sz;
+  const filled = String(Number(amount) - Number(o.sz));
+  return {
+    orderId: o.oid,
+    clientOrderId: o.cloid,
+    symbol: toNormalizedSymbol(o.coin),
+    side: o.side === 'B' ? 'BUY' : 'SELL',
+    type: 'LIMIT',
+    price: o.limitPx,
+    amount,
+    filled,
+    remaining: o.sz,
+    status: Number(filled) > 0 ? 'PARTIALLY_FILLED' : 'OPEN',
+    timeInForce: 'GTC',
+    reduceOnly: o.reduceOnly ?? false,
+    createdAt: o.timestamp,
+    updatedAt: o.timestamp,
+    metadata: {},
+  };
+}
+
+export function mapFill(f: HlUserFill): TradeHistoryItem {
+  return {
+    historyId: String(f.tid),
+    orderId: f.oid,
+    symbol: toNormalizedSymbol(f.coin),
+    side: f.side === 'B' ? 'BUY' : 'SELL',
+    amount: f.sz,
+    price: f.px,
+    fee: f.fee,
+    pnl: f.closedPnl ?? null,
+    executedAt: f.time,
+    metadata: { hash: f.hash, dir: f.dir },
+  };
+}
