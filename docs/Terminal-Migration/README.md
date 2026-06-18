@@ -13,6 +13,8 @@ This doc set is a **complete, copy-paste-friendly specification for migrating th
 
 > ⚠️ **Start here:** Read **[01 – Overview & Architecture](./01-overview-architecture.md)** to understand the system, then keep **[20 – Migration Checklist & Gaps](./20-migration-checklist-gaps.md)** open as your running checklist and gap list.
 
+> 🏛️ **Where does the terminal live in UpDown?** See **[ADR-001 – Terminal Architecture](./ADR-001-terminal-architecture.md)** — the decision to build it as `apps/terminal` inside the UpDown monorepo with `packages/exchange-*` adapters (HyperLiquid first), rather than a route in `apps/web` or a separate repo.
+
 ## Reading order (recommended)
 
 `01` → `02` → `03` → `10` → `04` → `05` → `06` → `07` → `08` → `09` → `11` → `12` → `13` → `14` → `15` → `16` → `17` → `18` → `19` → `20`
@@ -24,6 +26,7 @@ This doc set is a **complete, copy-paste-friendly specification for migrating th
 | # | Doc | Description |
 | --- | --- | --- |
 | 00 | [README.md](./README.md) | This index. |
+| ADR | [ADR-001-terminal-architecture.md](./ADR-001-terminal-architecture.md) | Architecture decision: build the terminal as `apps/terminal` in the UpDown monorepo + `packages/exchange-*` adapters (3-faced adapter: read / signer / stream). Compares build-in-web vs separate-repo vs monorepo+packages; folder layout, migration path, risks. |
 | 01 | [01-overview-architecture.md](./01-overview-architecture.md) | Overview & Architecture — entry map: tech stack, data flow, full file inventory cross-linked to siblings. |
 | 02 | [02-design-tokens-css.md](./02-design-tokens-css.md) | Design Tokens & Global CSS — every CSS custom property, full color palette (hex), keyframes/animations, component & utility classes, scrollbars, base resets, TradingView theming. |
 | 03 | [03-tailwind-fonts-theme.md](./03-tailwind-fonts-theme.md) | Tailwind Config, Fonts & Theme — Tailwind 3 config, design-token palette in `theme.extend`, next/font + Google Fonts loading, animations, shadows, dark-mode model. |
