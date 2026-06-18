@@ -11,16 +11,16 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-surface-900 font-sans text-surface-100">
+      <body className="flex h-screen flex-col overflow-hidden bg-surface-900 font-sans text-surface-100">
         <Providers>
-          <header className="flex items-center justify-between border-b border-border px-4 h-12">
+          <header className="flex h-12 shrink-0 items-center justify-between border-b border-surface-800 px-4">
             <div className="flex items-center gap-2">
               <span className="font-bold tracking-tight">UpDown</span>
-              <span className="text-muted text-sm">Terminal</span>
+              <span className="text-sm text-surface-400">Terminal</span>
             </div>
             <ConnectButton />
           </header>
-          <main className="p-4">{children}</main>
+          <main className="min-h-0 flex-1 p-1">{children}</main>
         </Providers>
       </body>
     </html>
