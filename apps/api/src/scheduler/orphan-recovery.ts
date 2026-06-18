@@ -111,8 +111,15 @@ export async function recoverOrphanedPools(
     // vault pubkey (32 bytes) - read directly instead of deriving
     const vaultPubkey = new PublicKey(data.slice(offset, offset + 32));
     offset += 32;
-    // skip times(8*3) + prices(8*2) + totals(8*3) + num_sides(1)
-    offset += 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 1;
+    // skip times(8*3) + prices(8*2) + totals(8*3) + weighted(8*3) + num_sides(1)
+    // The weighted_up/down/draw fields (3x u64) were added to the Pool struct in
+    // the time-weighted payout upgrade (2026-06-05). Omitting them read the status
+    // byte 24 bytes too early -> garbage status ("Unknown(134)", false "Upcoming")
+    // -> already-Resolved pools were mis-routed to resolve (rejected
+    // InvalidPoolStatus) and SKIPPED instead of being closed. Current-layout pools
+    // (the recoverable ones) carry these fields; old-layout husks fail at the
+    // program level anyway (AccountDidNotDeserialize), so they're unaffected.
+    offset += (8 * 3) + (8 * 2) + (8 * 3) + (8 * 3) + 1;
     const statusByte = data[offset];
     const status = STATUS_NAMES[statusByte] || `Unknown(${statusByte})`;
 
