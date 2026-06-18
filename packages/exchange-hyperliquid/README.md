@@ -23,8 +23,8 @@ const a = new HyperliquidReadAdapter({ endpoint: TESTNET });
 | Face | State |
 |------|-------|
 | `HyperliquidReadAdapter` | ✅ implemented over the public `info` endpoint (markets, prices, orderbook, klines, recent trades, account, positions, open orders, trade history) |
-| `HyperliquidSigner` | ⛔ stub — Phase 1 step 2 (EIP-712 agent-wallet via a vetted TS SDK) |
-| `HyperliquidStream` | ⛔ stub — Phase 1 step 3 (WS subscriptions) |
+| `HyperliquidStream` | ✅ implemented over the WS (`l2Book`, `allMids`, `clearinghouseState`/`openOrders`/`userFills`) with reconnect + ref-counted subs |
+| `HyperliquidSigner` | ⛔ stub — Phase 1 step 2 (EIP-712 agent-wallet via a vetted TS SDK; needs a testnet key to verify) |
 
 ## Notes
 
