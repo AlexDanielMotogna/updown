@@ -240,6 +240,7 @@ model User {
   referralsGiven      Referral[]           @relation("referrer")
   referralsReceived   Referral[]           @relation("referred")
   exchangeConnections ExchangeConnection[]
+  walletLinks         WalletLink[]
 
   @@index([level])
   @@index([coinsLifetime])
@@ -280,6 +281,28 @@ model ExchangeConnection {
   @@unique([userId, exchange, isTestnet])
   @@index([accountAddress])
   @@map("exchange_connections")
+}
+
+/// Links an external wallet (any chain) to a User identity. One identity, many
+/// wallets (ADR-003): the Solana wallet is the betting identity; an EVM wallet
+/// links here so the terminal can resolve the same User from a Privy EVM login.
+/// `(chain, address)` is unique so a wallet maps to exactly one user.
+model WalletLink {
+  id        String  @id @default(uuid())
+  userId    String  @map("user_id")
+  chain     String // 'solana' | 'evm'
+  address   String // lowercased for evm
+  source    String? // 'phantom' | 'rabby' | 'metamask' | 'privy-embedded' | …
+  isPrimary Boolean @default(false) @map("is_primary")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chain, address])
+  @@index([userId])
+  @@map("wallet_links")
 }
 
 model RewardLog {

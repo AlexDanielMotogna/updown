@@ -23,6 +23,7 @@ import {
   getConnection,
   serializeConnection,
 } from '../services/exchange-connection';
+import { linkWallet, resolveUserByWallet } from '../services/wallet-link';
 
 export const exchangeRouter: RouterType = Router();
 
@@ -48,6 +49,18 @@ const confirmSchema = z.object({
 const statusQuerySchema = z.object({
   wallet: solanaWallet,
   isTestnet: isTestnetFlag,
+});
+
+const linkSchema = z.object({
+  walletAddress: solanaWallet, // the Solana identity to link the EVM wallet to
+  chain: z.enum(['solana', 'evm']).default('evm'),
+  address: z.string().min(1).max(64),
+  source: z.string().max(32).optional(),
+});
+
+const resolveQuerySchema = z.object({
+  chain: z.enum(['solana', 'evm']).default('evm'),
+  address: z.string().min(1).max(64),
 });
 
 const orderSchema = z.object({
@@ -86,6 +99,44 @@ async function resolveUserId(walletAddress: string): Promise<string | null> {
   const user = await prisma.user.findUnique({ where: { walletAddress }, select: { id: true } });
   return user?.id ?? null;
 }
+
+/** Link an EVM (or other) wallet to a Solana-identity user (ADR-003). */
+exchangeRouter.post('/link', async (req, res) => {
+  try {
+    const parsed = linkSchema.safeParse(req.body);
+    if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid body');
+
+    const userId = await resolveUserId(parsed.data.walletAddress);
+    if (!userId) {
+      return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Unknown wallet' } });
+    }
+
+    const link = await linkWallet({
+      userId,
+      chain: parsed.data.chain,
+      address: parsed.data.address,
+      source: parsed.data.source,
+    });
+    res.json({ success: true, data: { chain: link.chain, address: link.address } });
+  } catch (error) {
+    console.error('[Exchange] link error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to link wallet' } });
+  }
+});
+
+/** Resolve which user a linked wallet belongs to (terminal: Privy EVM → identity). */
+exchangeRouter.get('/resolve', async (req, res) => {
+  try {
+    const parsed = resolveQuerySchema.safeParse(req.query);
+    if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid query');
+
+    const user = await resolveUserByWallet(parsed.data.chain, parsed.data.address);
+    res.json({ success: true, data: user ? { walletAddress: user.walletAddress } : null });
+  } catch (error) {
+    console.error('[Exchange] resolve error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to resolve wallet' } });
+  }
+});
 
 /** Step 1 — generate a pending agent wallet, return its address for on-chain approval. */
 exchangeRouter.post('/agent/generate', async (req, res) => {
