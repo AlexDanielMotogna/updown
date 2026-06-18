@@ -145,7 +145,10 @@ export class HyperliquidSigner implements ExchangeSigner {
   /** A slippage-capped price for a MARKET order, from the current mid (±5%). */
   private async marketSlippagePrice(symbol: string, side: OrderParams['side']): Promise<string> {
     const coin = toHlCoin(symbol);
-    const { mids } = await this.info.allMids();
+    // REST /info allMids returns a flat { coin: price } map; the WS feed wraps it
+    // as { mids: {...} }. Handle both.
+    const resp = (await this.info.allMids()) as unknown as Record<string, unknown>;
+    const mids = ((resp.mids as Record<string, string>) ?? resp) as Record<string, string>;
     const mid = Number(mids[coin]);
     if (!mid) throw new Error(`No mid price for ${coin}`);
     return String(mid * (side === 'BUY' ? 1.05 : 0.95));
