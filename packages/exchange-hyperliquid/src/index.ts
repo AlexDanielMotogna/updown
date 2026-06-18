@@ -20,8 +20,12 @@ ExchangeProvider.register('hyperliquid', {
 });
 
 export { HyperliquidReadAdapter } from './read-adapter';
+export type { HyperliquidReadAdapterOptions } from './read-adapter';
 export { HyperliquidSigner } from './signer';
 export { HyperliquidStream } from './stream';
+export type { HyperliquidStreamOptions } from './stream';
+export { HyperliquidWsConnection, routingKey } from './ws-connection';
+export type { WsLike, WsFactory, Subscription } from './ws-connection';
 export { InfoClient, MAINNET, TESTNET } from './info-client';
 export type { HlEndpoint, FetchLike } from './info-client';
 export * as mappers from './mappers';
