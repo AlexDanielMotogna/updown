@@ -45,6 +45,7 @@ export async function getTickers(): Promise<Ticker[]> {
       mark: p.mark,
       change24h: p.change24h,
       volume24h: p.volume24h,
+      funding: p.funding,
       maxLeverage: lev.get(p.symbol) ?? null,
     }))
     .sort((x, y) => Number(y.volume24h) - Number(x.volume24h));

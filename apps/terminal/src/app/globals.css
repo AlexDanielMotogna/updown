@@ -1,13 +1,52 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=Roboto+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-html,
-body {
-  background: #0b0e11;
-  color: #e6e9ef;
+:root {
+  --background: #0c0c0e;
+  --foreground: #f4f4f5;
 }
 
 * {
-  scrollbar-width: thin;
+  box-sizing: border-box;
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
+html {
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  overflow-x: hidden;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer components {
+  /* Square, Bloomberg-style cards (ported from TFC). */
+  .card {
+    @apply bg-surface-850 border border-surface-800;
+  }
+  .card-elevated {
+    @apply bg-surface-800 border border-surface-800 shadow-card;
+  }
+  .input {
+    @apply w-full border border-surface-800 rounded px-3 py-2 text-surface-100;
+    background-color: #1c1c23;
+    @apply placeholder:text-surface-500 transition-colors duration-150;
+    @apply focus:outline-none focus:border-surface-500;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
 }

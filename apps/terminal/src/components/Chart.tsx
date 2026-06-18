@@ -87,8 +87,8 @@ export function Chart({ symbol }: { symbol: string }) {
   }, [symbol, interval]);
 
   return (
-    <div className="rounded border border-border bg-bg-surface">
-      <div className="flex items-center justify-between border-b border-border px-3 py-2 text-sm">
+    <div className="card flex h-full flex-col">
+      <div className="flex items-center justify-between border-b border-surface-800 px-3 py-2 text-sm">
         <span className="font-semibold">{symbol}</span>
         <div className="flex gap-1">
           {INTERVALS.map((i) => (
@@ -104,8 +104,8 @@ export function Chart({ symbol }: { symbol: string }) {
           ))}
         </div>
       </div>
-      <div className="relative">
-        <div ref={containerRef} className="h-[360px] w-full" />
+      <div className="relative min-h-0 flex-1">
+        <div ref={containerRef} className="h-full w-full" />
         {status !== 'ready' && (
           <div className="absolute inset-0 flex items-center justify-center text-sm text-muted">
             {status === 'loading' ? 'loading chart…' : 'failed to load chart'}

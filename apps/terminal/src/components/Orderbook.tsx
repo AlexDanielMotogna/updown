@@ -37,15 +37,15 @@ export function Orderbook({ symbol }: { symbol: string }) {
   }, [book]);
 
   return (
-    <div className="rounded border border-border bg-bg-surface text-xs">
-      <div className="flex items-center justify-between border-b border-border px-3 py-2 text-sm">
+    <div className="card flex h-full flex-col text-xs">
+      <div className="flex items-center justify-between border-b border-surface-800 px-3 py-2 text-sm">
         <span className="font-semibold">Order Book</span>
         <span className="text-muted">{symbol}</span>
       </div>
       {!book ? (
-        <div className="p-4 text-center text-muted">connecting…</div>
+        <div className="flex-1 p-4 text-center text-muted">connecting…</div>
       ) : (
-        <div className="px-2 py-1">
+        <div className="flex-1 overflow-y-auto px-2 py-1">
           <div className="flex justify-between px-1 pb-1 text-[10px] uppercase text-muted">
             <span>Price</span>
             <span>Size</span>

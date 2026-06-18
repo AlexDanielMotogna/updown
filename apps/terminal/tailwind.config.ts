@@ -1,23 +1,60 @@
 import type { Config } from 'tailwindcss';
 
 /**
- * Terminal design system. Pro/dense/dark — intentionally distinct from
- * apps/web's MUI look (ADR-002: "consistency at brand/shell, divergence at the
- * workspace"). Brand tokens will later be lifted to packages/ui-tokens.
+ * Terminal design system — ported from TradeFightClub (docs/Terminal-Migration
+ * 02/03). Bloomberg/TradingView-style neutral grays + warm teal/coral trading
+ * colors. The bg/up/down/muted aliases from the early scaffold are kept so
+ * existing components don't break while we migrate to the surface/win/loss scale.
  */
 const config: Config = {
   content: ['./src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
-        bg: { app: '#0b0e11', surface: '#141821', elevated: '#1b212c' },
-        border: { DEFAULT: '#232a36', strong: '#2f3847' },
-        up: '#16c784',
-        down: '#ea3943',
-        muted: '#8a94a6',
+        primary: {
+          50: '#eef6fc', 100: '#d5e8f7', 200: '#a8cfed', 300: '#7ab4de', 400: '#5196c9',
+          500: '#3a7db0', 600: '#2e6593', 700: '#254f75', 800: '#1c3d5a', 900: '#132c42',
+        },
+        accent: {
+          50: '#fafaf9', 100: '#f5f5f4', 200: '#e7e5e4', 300: '#d6d3d1', 400: '#a8a29e',
+          500: '#78716c', 600: '#57534e', 700: '#44403c', 800: '#292524', 900: '#1c1917',
+        },
+        surface: {
+          950: '#09090b', 900: '#0c0c0e', 850: '#111113', 800: '#18181b', 700: '#27272a',
+          600: '#3f3f46', 500: '#52525b', 400: '#71717a', 300: '#a1a1aa', 200: '#d4d4d8', 100: '#f4f4f5',
+        },
+        positive: { DEFAULT: '#26A69A', muted: '#00796B', subtle: 'rgba(38,166,154,0.1)' },
+        negative: { DEFAULT: '#EF5350', muted: '#C62828', subtle: 'rgba(239,83,80,0.1)' },
+        warning: { DEFAULT: '#FFA726', muted: '#EF6C00', subtle: 'rgba(255,167,38,0.1)' },
+        info: { DEFAULT: '#42A5F5', muted: '#1565C0', subtle: 'rgba(66,165,245,0.1)' },
+        win: { 400: '#4DB6AC', 500: '#26A69A', 600: '#00897B' },
+        loss: { 400: '#E57373', 500: '#EF5350', 600: '#E53935' },
+        // --- early-scaffold aliases (kept for compatibility) ---
+        bg: { app: '#0c0c0e', surface: '#111113', elevated: '#18181b' },
+        border: { DEFAULT: '#27272a', strong: '#3f3f46' },
+        up: '#26A69A',
+        down: '#EF5350',
+        muted: '#71717a',
       },
       fontFamily: {
-        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['Roboto Mono', 'monospace'],
+      },
+      fontSize: { '2xs': ['0.625rem', { lineHeight: '0.875rem' }] },
+      boxShadow: {
+        subtle: '0 1px 2px 0 rgba(0,0,0,0.3)',
+        card: '0 1px 3px 0 rgba(0,0,0,0.4), 0 1px 2px -1px rgba(0,0,0,0.4)',
+        elevated: '0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -2px rgba(0,0,0,0.4)',
+      },
+      animation: {
+        'fade-in': 'fadeIn 0.15s ease-out',
+        'slide-up': 'slideUp 0.2s ease-out',
+        'sheet-up': 'sheetUp 0.45s cubic-bezier(0.32,0.72,0,1)',
+      },
+      keyframes: {
+        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+        slideUp: { '0%': { transform: 'translateY(4px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
+        sheetUp: { '0%': { transform: 'translateY(100%)' }, '100%': { transform: 'translateY(0)' } },
       },
     },
   },

@@ -13,5 +13,6 @@ export interface Ticker {
   mark: string;
   change24h: string;
   volume24h: string;
+  funding: string;
   maxLeverage: number | null;
 }
