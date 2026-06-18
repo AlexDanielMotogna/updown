@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import type { Ticker } from '@/lib/types';
 
 function fmtPrice(s: string) {
@@ -63,7 +64,11 @@ export function MarketsTable({ initial }: { initial: Ticker[] }) {
             const chg = Number(t.change24h);
             return (
               <tr key={t.symbol} className="border-b border-border/50 hover:bg-bg-elevated">
-                <td className="px-3 py-1.5 text-left font-medium">{t.symbol}</td>
+                <td className="px-3 py-1.5 text-left font-medium">
+                  <Link href={`/market/${encodeURIComponent(t.symbol)}`} className="hover:text-up">
+                    {t.symbol}
+                  </Link>
+                </td>
                 <td className="px-3 py-1.5 text-right tabular-nums">{fmtPrice(t.mark)}</td>
                 <td className={`px-3 py-1.5 text-right tabular-nums ${chg >= 0 ? 'text-up' : 'text-down'}`}>
                   {chg >= 0 ? '+' : ''}
