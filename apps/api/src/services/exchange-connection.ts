@@ -62,22 +62,77 @@ export interface UpsertConnectionInput {
 }
 
 /** Create or replace a user's connection for an exchange + network. */
-export async function upsertConnection(input: UpsertConnectionInput) {
+export async function upsertConnection(input: UpsertConnectionInput & { active?: boolean }) {
   const exchange = input.exchange ?? 'hyperliquid';
   const isTestnet = input.isTestnet ?? false;
+  const active = input.active ?? true;
   const data = {
     accountAddress: input.accountAddress.toLowerCase(),
     agentAddress: input.agentAddress.toLowerCase(),
     agentName: input.agentName ?? null,
     encryptedKeyData: encryptSecret(input.agentPrivateKey),
-    approvedAt: input.approvedAt ?? new Date(),
-    active: true,
+    approvedAt: input.approvedAt ?? (active ? new Date() : null),
+    active,
   };
   return prisma.exchangeConnection.upsert({
     where: { userId_exchange_isTestnet: { userId: input.userId, exchange, isTestnet } },
     create: { userId: input.userId, exchange, isTestnet, ...data },
     update: data,
   });
+}
+
+/**
+ * Step 1 of the agent-wallet flow: generate a fresh agent keypair, store it as a
+ * PENDING (inactive) connection, and return the agent ADDRESS for the client to
+ * approve on-chain (`approveAgent`) with the user's main EVM wallet. The private
+ * key never leaves the server.
+ */
+export async function createPendingAgentConnection(input: {
+  userId: string;
+  accountAddress: string;
+  agentName?: string;
+  exchange?: ExchangeName;
+  isTestnet?: boolean;
+}): Promise<{ agentAddress: `0x${string}` }> {
+  const agent = generateAgentWallet();
+  await upsertConnection({
+    userId: input.userId,
+    exchange: input.exchange,
+    accountAddress: input.accountAddress,
+    agentPrivateKey: agent.privateKey,
+    agentAddress: agent.address,
+    agentName: input.agentName,
+    isTestnet: input.isTestnet,
+    active: false,
+  });
+  return { agentAddress: agent.address };
+}
+
+/** Step 2: mark the connection active once the client has approved the agent on-chain. */
+export async function activateConnection(
+  userId: string,
+  exchange: ExchangeName = 'hyperliquid',
+  isTestnet = false
+) {
+  return prisma.exchangeConnection.update({
+    where: { userId_exchange_isTestnet: { userId, exchange, isTestnet } },
+    data: { active: true, approvedAt: new Date() },
+  });
+}
+
+type ConnectionRow = NonNullable<Awaited<ReturnType<typeof getConnection>>>;
+
+/** Public-safe view of a connection — NEVER includes the encrypted key. */
+export function serializeConnection(conn: ConnectionRow) {
+  return {
+    exchange: conn.exchange,
+    accountAddress: conn.accountAddress,
+    agentAddress: conn.agentAddress,
+    agentName: conn.agentName,
+    isTestnet: conn.isTestnet,
+    active: conn.active,
+    approvedAt: conn.approvedAt,
+  };
 }
 
 export async function getConnection(
