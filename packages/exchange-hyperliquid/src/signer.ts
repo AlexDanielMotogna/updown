@@ -1,39 +1,151 @@
 /**
- * HyperliquidSigner — EIP-712 / agent-wallet signing (ADR-003).
+ * HyperliquidSigner — EIP-712 / agent-wallet signing (ADR-003), backed by the
+ * vetted @nktkas/hyperliquid SDK (the HL docs warn strongly against hand-rolling
+ * the msgpack/EIP-712 signing; the SDK does it correctly).
  *
- * STUB for Phase 1 step 1 (read adapter only). The next step implements this
- * via a vetted TS SDK (nktkas/hyperliquid): buildOrder → EIP-712 action,
- * signAndSubmit using the agent wallet, cancel, updateLeverage.
+ * The signing wallet (an agent key, per ADR-003) is bound at construction — HL
+ * orders are signed by the agent key the app holds, not via a per-order browser
+ * popup. The `wallet` param on the interface methods is therefore unused here
+ * (kept for contract compatibility / other chains); pass the agent account/key
+ * to the constructor instead.
  */
+import { ExchangeClient, HttpTransport } from '@nktkas/hyperliquid';
+import { privateKeyToAccount } from 'viem/accounts';
 import type {
   CancelParams,
   ExchangeSigner,
   OrderParams,
   OrderResult,
+  OrderStatus,
   Result,
   UnsignedPayload,
   WalletSigner,
 } from 'exchange-core';
+import { buildOrderRequest } from './formatting';
+import { InfoClient, MAINNET, type HlEndpoint } from './info-client';
+import { toHlCoin } from './symbols';
 
-const NOT_IMPL = 'HyperliquidSigner not implemented yet (Phase 1 step 2 — EIP-712 agent-wallet)';
+/** A viem local account (privateKeyToAccount output) or compatible signer. */
+export type AgentAccount = ReturnType<typeof privateKeyToAccount>;
+
+export interface HyperliquidSignerOptions {
+  /** Agent private key (0x…). Mutually exclusive with `account`. */
+  privateKey?: `0x${string}`;
+  /** A preconstructed viem/ethers account (e.g. from a browser wallet). */
+  account?: AgentAccount;
+  /** Endpoint; testnet is inferred from the URL. Defaults to mainnet. */
+  endpoint?: HlEndpoint;
+  /** Override the InfoClient used to resolve asset indices (tests). */
+  infoClient?: InfoClient;
+  /** Inject a transport (tests). Overrides the default HttpTransport. */
+  transport?: ConstructorParameters<typeof ExchangeClient>[0]['transport'];
+}
+
+interface AssetInfo {
+  index: number;
+  szDecimals: number;
+}
 
 export class HyperliquidSigner implements ExchangeSigner {
   readonly name = 'hyperliquid' as const;
   readonly chain = 'evm' as const;
 
-  buildOrder(_params: OrderParams): UnsignedPayload {
-    throw new Error(NOT_IMPL);
+  private readonly client: ExchangeClient | null;
+  private readonly info: InfoClient;
+  private assetMap?: Map<string, AssetInfo>;
+
+  constructor(opts: HyperliquidSignerOptions = {}) {
+    const endpoint = opts.endpoint ?? MAINNET;
+    this.info = opts.infoClient ?? new InfoClient(endpoint);
+
+    const account = opts.account ?? (opts.privateKey ? privateKeyToAccount(opts.privateKey) : null);
+    if (account || opts.transport) {
+      const transport =
+        opts.transport ?? new HttpTransport({ isTestnet: endpoint.apiUrl.includes('testnet') });
+      this.client = new ExchangeClient({ transport, wallet: account as AgentAccount });
+    } else {
+      this.client = null;
+    }
   }
 
-  signAndSubmit(_payload: UnsignedPayload, _wallet: WalletSigner): Promise<OrderResult> {
-    throw new Error(NOT_IMPL);
+  buildOrder(params: OrderParams): UnsignedPayload {
+    return { exchange: 'hyperliquid', chain: 'evm', action: { kind: 'order', params } };
   }
 
-  cancel(_params: CancelParams, _wallet: WalletSigner): Promise<Result> {
-    throw new Error(NOT_IMPL);
+  async signAndSubmit(payload: UnsignedPayload, _wallet?: WalletSigner): Promise<OrderResult> {
+    const client = this.requireClient();
+    const params = (payload.action as { params: OrderParams }).params;
+    const asset = await this.resolveAsset(params.symbol);
+    const order = buildOrderRequest(params, asset.index, asset.szDecimals);
+    const res = await client.order({ orders: [order], grouping: 'na' });
+    return mapOrderResult(res);
   }
 
-  updateLeverage(_symbol: string, _leverage: number, _wallet: WalletSigner): Promise<Result> {
-    throw new Error(NOT_IMPL);
+  async cancel(params: CancelParams, _wallet?: WalletSigner): Promise<Result> {
+    const client = this.requireClient();
+    const asset = await this.resolveAsset(params.symbol);
+    await client.cancel({ cancels: [{ a: asset.index, o: Number(params.orderId) }] });
+    return { success: true };
   }
+
+  async updateLeverage(symbol: string, leverage: number, _wallet?: WalletSigner): Promise<Result> {
+    const client = this.requireClient();
+    const asset = await this.resolveAsset(symbol);
+    await client.updateLeverage({ asset: asset.index, isCross: true, leverage });
+    return { success: true };
+  }
+
+  /**
+   * One-time `approveAgent` (ADR-003): authorize `agentAddress` to sign on behalf
+   * of the configured account. Sign with the MAIN account, then construct future
+   * signers with the agent key. Not part of ExchangeSigner — HL-specific.
+   */
+  async approveAgent(agentAddress: `0x${string}`, agentName?: string): Promise<Result> {
+    const client = this.requireClient();
+    await client.approveAgent({ agentAddress, agentName: agentName ?? null });
+    return { success: true };
+  }
+
+  private requireClient(): ExchangeClient {
+    if (!this.client) {
+      throw new Error('HyperliquidSigner has no account — construct with { privateKey } or { account }');
+    }
+    return this.client;
+  }
+
+  private async resolveAsset(symbol: string): Promise<AssetInfo> {
+    if (!this.assetMap) {
+      const meta = await this.info.meta();
+      this.assetMap = new Map(
+        meta.universe.map((a, i) => [a.name, { index: i, szDecimals: a.szDecimals }])
+      );
+    }
+    const coin = toHlCoin(symbol);
+    const info = this.assetMap.get(coin);
+    if (!info) throw new Error(`Unknown HyperLiquid asset: ${coin}`);
+    return info;
+  }
+}
+
+interface OrderStatusEntry {
+  resting?: { oid: number };
+  filled?: { oid: number; avgPx?: string; totalSz?: string };
+  error?: string;
+}
+
+interface OrderApiResponse {
+  response: { data: { statuses: OrderStatusEntry[] } };
+}
+
+function mapOrderResult(res: unknown): OrderResult {
+  const status = (res as OrderApiResponse).response?.data?.statuses?.[0];
+  if (!status) throw new Error('HyperLiquid order: empty status in response');
+  if (status.error) throw new Error(`HyperLiquid order rejected: ${status.error}`);
+  if (status.resting) {
+    return { orderId: status.resting.oid, status: 'OPEN' as OrderStatus, metadata: { ...status } };
+  }
+  if (status.filled) {
+    return { orderId: status.filled.oid, status: 'FILLED' as OrderStatus, metadata: { ...status } };
+  }
+  throw new Error(`HyperLiquid order: unrecognized status ${JSON.stringify(status)}`);
 }

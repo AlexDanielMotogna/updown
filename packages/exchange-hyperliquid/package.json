@@ -11,7 +11,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "exchange-core": "workspace:*"
+    "@nktkas/hyperliquid": "^0.32.2",
+    "exchange-core": "workspace:*",
+    "viem": "2.21.55"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
