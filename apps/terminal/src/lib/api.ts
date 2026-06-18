@@ -87,6 +87,11 @@ export async function getConnection(walletAddress: string): Promise<ConnectionSt
   }
 }
 
+/** Ensure a User exists for a Solana wallet (idempotent upsert). */
+export function registerUser(walletAddress: string) {
+  return post<unknown>('/api/users/register', { walletAddress });
+}
+
 /** Link an EVM wallet to a Solana identity (needs the Solana walletAddress). */
 export function linkEvm(walletAddress: string, evmAddress: string, source?: string) {
   return post<{ chain: string; address: string }>('/api/exchange/link', {

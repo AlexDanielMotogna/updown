@@ -1,25 +1,24 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { usePrivy } from '@privy-io/react-auth';
+import { useWallets } from '@privy-io/react-auth';
 import { ExchangeClient, HttpTransport } from '@nktkas/hyperliquid';
 import { createWalletClient, custom } from 'viem';
 import { useIdentity } from '@/hooks/useIdentity';
 import { IS_TESTNET, confirmAgent, generateAgent, getConnection, linkEvm, type ConnectionStatus } from '@/lib/api';
 
 /**
- * One-time trading setup (ADR-003 agent-wallet). Connect EVM wallet → (link to
- * UpDown identity) → generate agent → sign approveAgent in the browser → confirm.
- * After this, orders are placed by the server with the delegated agent key.
- *
- * Note: client-side approveAgent imports the HL SDK (acceptable here — setup
- * page, not the hot path) and signs with the Privy EVM wallet. Browser-verified
- * flow (needs a Privy app with EVM enabled + a funded testnet account).
+ * One-time trading setup (ADR-003 agent-wallet) over the shared Privy session
+ * (ADR-002 SSO). Identity (Solana) + EVM wallet come from the session — no
+ * pasting in the common case. Flow: connect EVM → generate agent → sign
+ * approveAgent in the browser → confirm. The server then signs orders with the
+ * delegated agent key. Browser-verified (needs Privy EVM + a funded testnet acct).
  */
 function Setup() {
-  const { ready, authenticated, login } = usePrivy();
+  const { ready, authenticated, login, linkWallet } = usePrivy();
   const { wallets } = useWallets();
-  const { evmAddress, walletAddress, linked } = useIdentity();
+  const { walletAddress, evmAddress } = useIdentity();
   const [conn, setConn] = useState<ConnectionStatus | null>(null);
   const [solInput, setSolInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -34,19 +33,28 @@ function Setup() {
   if (!authenticated) {
     return (
       <Card>
-        <p className="mb-2 text-muted">Connect your EVM wallet to trade on HyperLiquid.</p>
-        <button onClick={login} className="rounded bg-up px-3 py-1.5 font-semibold text-black">Connect wallet</button>
+        <p className="mb-2 text-muted">Sign in to trade on HyperLiquid.</p>
+        <button onClick={login} className="rounded bg-up px-3 py-1.5 font-semibold text-black">Sign in</button>
       </Card>
     );
   }
 
-  // Authenticated but the EVM wallet isn't linked to an UpDown identity yet.
-  if (!linked) {
+  // No EVM wallet in the session yet → connect/link one (Privy handles it).
+  if (!evmAddress) {
     return (
       <Card>
-        <p className="mb-2 text-muted">
-          Link this EVM wallet ({short(evmAddress)}) to your UpDown account.
-        </p>
+        <p className="mb-2 text-muted">Connect an EVM wallet for HyperLiquid.</p>
+        <button onClick={linkWallet} className="rounded bg-up px-3 py-1.5 font-semibold text-black">Connect EVM wallet</button>
+      </Card>
+    );
+  }
+
+  // EVM connected but no UpDown identity resolved (EVM-only session never linked)
+  // → last-resort manual link. The common case (Solana in session) skips this.
+  if (!walletAddress) {
+    return (
+      <Card>
+        <p className="mb-2 text-muted">Link this EVM wallet ({short(evmAddress)}) to your UpDown account.</p>
         <div className="flex gap-2">
           <input
             value={solInput}
@@ -55,9 +63,8 @@ function Setup() {
             className="flex-1 rounded border border-border bg-bg-app px-2 py-1.5 outline-none focus:border-strong"
           />
           <button
-            disabled={!solInput || !evmAddress || busy}
+            disabled={!solInput || busy}
             onClick={async () => {
-              if (!evmAddress) return;
               setBusy(true);
               const res = await linkEvm(solInput.trim(), evmAddress, 'privy');
               setBusy(false);
@@ -87,11 +94,9 @@ function Setup() {
     setBusy(true);
     setMsg(null);
     try {
-      // 1) server generates a pending agent
       const gen = await generateAgent(walletAddress, evmAddress);
       if (!gen.success || !gen.data) throw new Error(gen.error?.message ?? 'generate failed');
 
-      // 2) approve the agent on-chain, signed by the user's EVM wallet
       const wallet = wallets.find((w) => w.address === evmAddress);
       if (!wallet) throw new Error('EVM wallet not found');
       const provider = await wallet.getEthereumProvider();
@@ -99,7 +104,6 @@ function Setup() {
       const client = new ExchangeClient({ transport: new HttpTransport({ isTestnet: IS_TESTNET }), wallet: walletClient });
       await client.approveAgent({ agentAddress: gen.data.agentAddress, agentName: 'updown-terminal' });
 
-      // 3) activate the connection
       const confirmed = await confirmAgent(walletAddress);
       if (!confirmed.success) throw new Error(confirmed.error?.message ?? 'confirm failed');
       setConn(confirmed.data ?? null);
