@@ -138,6 +138,9 @@ importers:
 
   apps/terminal:
     dependencies:
+      '@nktkas/hyperliquid':
+        specifier: ^0.32.2
+        version: 0.32.2(typescript@5.9.3)
       '@privy-io/react-auth':
         specifier: ^2.12.1
         version: 2.25.0(@solana/kit@5.5.1)(@solana/spl-token@0.3.11)(@solana/web3.js@1.98.4)(@types/react@18.3.27)(bs58@6.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(react-dom@18.3.1)(react@18.3.1)(typescript@5.9.3)
@@ -159,6 +162,9 @@ importers:
       react-dom:
         specifier: ^18.2.0
         version: 18.3.1(react@18.3.1)
+      viem:
+        specifier: 2.21.55
+        version: 2.21.55(typescript@5.9.3)
     devDependencies:
       '@types/node':
         specifier: ^20.10.0

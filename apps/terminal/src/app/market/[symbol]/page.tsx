@@ -1,17 +1,16 @@
 import Link from 'next/link';
 import { Chart } from '@/components/Chart';
 import { Orderbook } from '@/components/Orderbook';
-import { OrderEntry } from '@/components/OrderEntry';
-import { Positions } from '@/components/Positions';
+import { OrderPanel } from '@/components/OrderPanel';
+import { PositionsPanel } from '@/components/PositionsPanel';
 
 export const dynamic = 'force-dynamic';
 
 export default function MarketPage({ params }: { params: { symbol: string } }) {
   const symbol = decodeURIComponent(params.symbol).toUpperCase();
-  // Dev identity injection until Privy SSO (ADR-002): Solana wallet for writes,
-  // EVM account for position reads.
+  // Dev fallbacks (used only when not connected via Privy / not yet linked).
   const devWallet = process.env.NEXT_PUBLIC_DEV_WALLET;
-  const devEvmAddress = process.env.NEXT_PUBLIC_DEV_EVM_ADDRESS;
+  const devEvm = process.env.NEXT_PUBLIC_DEV_EVM_ADDRESS;
 
   return (
     <div className="mx-auto max-w-6xl space-y-3">
@@ -25,10 +24,10 @@ export default function MarketPage({ params }: { params: { symbol: string } }) {
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_300px_280px]">
         <Chart symbol={symbol} />
         <Orderbook symbol={symbol} />
-        <OrderEntry symbol={symbol} walletAddress={devWallet} />
+        <OrderPanel symbol={symbol} devWallet={devWallet} />
       </div>
 
-      <Positions address={devEvmAddress} />
+      <PositionsPanel devEvm={devEvm} />
     </div>
   );
 }
