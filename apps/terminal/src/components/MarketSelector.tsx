@@ -110,7 +110,7 @@ export function MarketSelector({ symbol }: { symbol: string }) {
 
       {open && (
         <div className="absolute left-0 top-full z-50 mt-1 w-[820px] max-w-[94vw] card-elevated animate-fade-in">
-          <div className="flex items-center gap-2 border-b border-surface-800 p-2">
+          <div className="flex items-center gap-2 p-2">
             <div className="flex rounded bg-surface-900 p-0.5 text-xs">
               {(['favorites', 'all'] as const).map((tk) => (
                 <button

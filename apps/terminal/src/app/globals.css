@@ -33,12 +33,13 @@ body {
 }
 
 @layer components {
-  /* Square, Bloomberg-style cards (ported from TFC). */
+  /* Square, Bloomberg-style panels — no solid outline; separated by the dark
+     surface-900 gaps between resize handles. */
   .card {
-    @apply bg-surface-850 border border-surface-800;
+    @apply bg-surface-850;
   }
   .card-elevated {
-    @apply bg-surface-800 border border-surface-800 shadow-card;
+    @apply bg-surface-800 shadow-card;
   }
   .input {
     @apply w-full border border-surface-800 rounded px-3 py-2 text-surface-100;

@@ -58,7 +58,7 @@ export function AccountInfo({ evmAddress }: { evmAddress?: string }) {
   const crossLev = equity > 0 ? ntl / equity : 0;
 
   return (
-    <div className="border-t border-surface-800 pt-2 text-xs">
+    <div className="pt-2 text-xs">
       <button onClick={() => setOpen((v) => !v)} className="flex w-full items-center justify-between text-surface-400">
         <span>Account Info</span>
         <span className="flex items-center gap-1 text-surface-200">

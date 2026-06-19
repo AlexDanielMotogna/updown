@@ -319,7 +319,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
   return (
     <div className="card flex h-full flex-col">
       {/* Tabs */}
-      <div className="flex border-b border-surface-800 text-xs">
+      <div className="flex text-xs">
         {TABS.map((t) => (
           <button
             key={t.key}
@@ -644,7 +644,7 @@ function TpSlModal({ p, onConfirm, onCancel }: { p: Position; onConfirm: (tp?: s
         <RowKV label="Position" value={`${p.side} ${n(p.amount, 4)} ${base} · ${p.leverage}x`} />
         <RowKV label="Entry / Mark" value={`${px(p.entryPrice)} / ${px(p.markPrice)}`} />
 
-        <div className="grid grid-cols-2 gap-2 border-t border-surface-800 pt-2">
+        <div className="grid grid-cols-2 gap-2 pt-2">
           <Labeled label="TP Price"><Inp value={tp} onChange={onTp} /></Labeled>
           <Labeled label="Gain %"><Inp value={tpG} onChange={onTpG} /></Labeled>
           <Labeled label="SL Price"><Inp value={sl} onChange={onSl} /></Labeled>
@@ -743,7 +743,7 @@ function CloseModal({
                 </div>
               </label>
             )}
-            <div className="space-y-1 border-t border-surface-800 pt-2">
+            <div className="space-y-1 pt-2">
               <RowKV label="Closing" value={`${n(closeSize, 4)} ${base} (${pct.toFixed(0)}%)`} />
               <div className="flex justify-between">
                 <span className="text-surface-400">Est. Realized PnL</span>
@@ -781,7 +781,7 @@ function Table({ head, children }: { head: React.ReactNode[]; children: React.Re
   return (
     <table className="w-full text-xs">
       <thead className="sticky top-0 bg-surface-850 text-xs text-surface-300">
-        <tr className="border-b border-surface-800">
+        <tr>
           {head.map((h, i) => (
             <th key={i} className="px-3 py-2 text-left font-semibold">{h}</th>
           ))}

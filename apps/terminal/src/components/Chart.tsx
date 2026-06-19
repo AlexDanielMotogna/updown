@@ -128,7 +128,7 @@ export function Chart({ symbol }: { symbol: string }) {
   return (
     <div className="card flex h-full flex-col">
       {/* Toolbar */}
-      <div className="flex items-center gap-3 border-b border-surface-800 px-3 py-1.5 text-xs">
+      <div className="flex items-center gap-3 px-3 py-1.5 text-xs">
         <div className="flex items-center gap-0.5">
           {INTERVALS.map((i) => (
             <button

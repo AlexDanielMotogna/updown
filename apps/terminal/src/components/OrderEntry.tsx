@@ -272,7 +272,7 @@ export function OrderEntry({
       </div>
 
       {/* Order type tabs */}
-      <div className="mb-2 flex border-b border-surface-800 text-xs">
+      <div className="mb-2 flex text-xs">
         {TABS.map((t) => (
           <button
             key={t.key}

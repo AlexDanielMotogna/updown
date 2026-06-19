@@ -150,7 +150,7 @@ export function Orderbook({ symbol }: { symbol: string }) {
   return (
     <div className="card flex h-full flex-col text-xs">
       {/* Tabs + asset indicator */}
-      <div className="flex items-center justify-between border-b border-surface-800 px-2 py-1.5">
+      <div className="flex items-center justify-between px-2 py-1.5">
         <div className="flex gap-1">
           {(['book', 'trades'] as const).map((t) => (
             <button
@@ -170,7 +170,7 @@ export function Orderbook({ symbol }: { symbol: string }) {
       {tab === 'book' ? (
         <>
           {/* Tick selector */}
-          <div className="flex items-center justify-between border-b border-surface-800 px-3 py-1">
+          <div className="flex items-center justify-between px-3 py-1">
             <MiniDropdown
               label={fmtPx(tick)}
               prefix=""
@@ -200,7 +200,7 @@ export function Orderbook({ symbol }: { symbol: string }) {
               </div>
 
               {/* Spread */}
-              <div className="flex items-center justify-center gap-2 border-y border-surface-800 bg-surface-900/60 px-3 py-1 text-2xs">
+              <div className="flex items-center justify-center gap-2 bg-surface-900/60 px-3 py-1 text-2xs">
                 <span className="text-surface-400">Spread</span>
                 <span className="tabular text-surface-100">{spread != null ? fmtPx(spread) : '—'}</span>
                 <span className="text-surface-600">|</span>
@@ -215,7 +215,7 @@ export function Orderbook({ symbol }: { symbol: string }) {
               </div>
 
               {/* Footer: buy/sell ratio */}
-              <div className="mt-auto flex items-center gap-2 border-t border-surface-800 px-3 py-1.5">
+              <div className="mt-auto flex items-center gap-2 px-3 py-1.5">
                 <span className="text-2xs text-win-500">B {bidPct.toFixed(0)}%</span>
                 <div className="flex h-1.5 flex-1 overflow-hidden rounded-full">
                   <div className="h-full bg-win-500" style={{ width: `${bidPct}%` }} />

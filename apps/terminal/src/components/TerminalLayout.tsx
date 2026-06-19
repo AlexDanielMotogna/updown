@@ -45,48 +45,50 @@ export function TerminalLayout({
   devEvm?: string;
 }) {
   return (
-    <div className="flex h-full flex-col gap-1">
-      <MarketHeader symbol={symbol} initial={initial} />
-
-      <div className="min-h-0 flex-1">
-        <PanelGroup direction="horizontal" autoSaveId="updown-terminal-main">
-          {/* Left work area: (chart | orderbook) over positions */}
-          <Panel defaultSize={82} minSize={50}>
-            <PanelGroup direction="vertical" autoSaveId="updown-terminal-left-rows">
-              <Panel defaultSize={70} minSize={30}>
-                <PanelGroup direction="horizontal" autoSaveId="updown-terminal-top-cols">
-                  <Panel defaultSize={74} minSize={35}>
-                    <div className="h-full overflow-hidden">
+    <div className="h-full">
+      <PanelGroup direction="horizontal" autoSaveId="updown-terminal-main">
+        {/* Left work area: (chart | orderbook) over positions */}
+        <Panel defaultSize={82} minSize={50}>
+          <PanelGroup direction="vertical" autoSaveId="updown-terminal-left-rows">
+            <Panel defaultSize={70} minSize={30}>
+              <PanelGroup direction="horizontal" autoSaveId="updown-terminal-top-cols">
+                <Panel defaultSize={74} minSize={35}>
+                  {/* The market header sits above the chart only — so it's only
+                      as wide as the chart, and the order book / place-order
+                      panels rise to the top. */}
+                  <div className="flex h-full flex-col gap-1 overflow-hidden">
+                    <MarketHeader symbol={symbol} initial={initial} />
+                    <div className="min-h-0 flex-1 overflow-hidden">
                       <Chart symbol={symbol} />
                     </div>
-                  </Panel>
-                  <VHandle />
-                  <Panel defaultSize={26} minSize={16}>
-                    <div className="h-full overflow-hidden">
-                      <Orderbook symbol={symbol} />
-                    </div>
-                  </Panel>
-                </PanelGroup>
-              </Panel>
-              <HHandle />
-              <Panel defaultSize={30} minSize={10}>
-                <div className="h-full overflow-auto">
-                  <PositionsPanel devEvm={devEvm} devWallet={devWallet} />
-                </div>
-              </Panel>
-            </PanelGroup>
-          </Panel>
+                  </div>
+                </Panel>
+                <VHandle />
+                <Panel defaultSize={26} minSize={16}>
+                  <div className="h-full overflow-hidden">
+                    <Orderbook symbol={symbol} />
+                  </div>
+                </Panel>
+              </PanelGroup>
+            </Panel>
+            <HHandle />
+            <Panel defaultSize={30} minSize={10}>
+              <div className="h-full overflow-auto">
+                <PositionsPanel devEvm={devEvm} devWallet={devWallet} />
+              </div>
+            </Panel>
+          </PanelGroup>
+        </Panel>
 
-          <VHandle />
+        <VHandle />
 
-          {/* Right: place order — full height */}
-          <Panel defaultSize={18} minSize={13}>
-            <div className="h-full overflow-y-auto">
-              <OrderPanel symbol={symbol} devWallet={devWallet} devEvm={devEvm} />
-            </div>
-          </Panel>
-        </PanelGroup>
-      </div>
+        {/* Right: place order — full height */}
+        <Panel defaultSize={18} minSize={13}>
+          <div className="h-full overflow-y-auto">
+            <OrderPanel symbol={symbol} devWallet={devWallet} devEvm={devEvm} />
+          </div>
+        </Panel>
+      </PanelGroup>
     </div>
   );
 }

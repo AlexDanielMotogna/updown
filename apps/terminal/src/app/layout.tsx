@@ -14,7 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="flex h-screen flex-col overflow-hidden bg-surface-900 font-sans text-surface-100">
         <Providers>
-          <header className="flex h-12 shrink-0 items-center justify-between border-b border-surface-800 px-4">
+          <header className="flex h-12 shrink-0 items-center justify-between px-4">
             <div className="flex items-center gap-2">
               <span className="font-bold tracking-tight">UpDown</span>
               <span className="text-sm text-surface-400">Terminal</span>
