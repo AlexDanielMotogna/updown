@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { cancelOrder, placeOrder } from '@/lib/api';
+import { Modal } from './Modal';
+
+type CloseMode = 'market' | 'limit' | 'reverse';
 
 type Tab = 'positions' | 'orders' | 'trades' | 'funding' | 'orderhistory';
 const TABS: { key: Tab; label: string }[] = [
@@ -40,6 +43,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
   const [funding, setFunding] = useState<FundingItem[]>([]);
   const [orderHist, setOrderHist] = useState<OrderHistItem[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [closeTarget, setCloseTarget] = useState<{ p: Position; mode: CloseMode } | null>(null);
 
   const refresh = useCallback(async () => {
     if (!address) return;
@@ -78,17 +82,15 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
     refresh();
   }
 
-  type CloseMode = 'market' | 'limit' | 'reverse';
-  async function onClose(p: Position, mode: CloseMode) {
+  async function onClose(p: Position, mode: CloseMode, limitPrice?: string) {
     if (!walletAddress) return;
     const opp = p.side === 'LONG' ? 'SELL' : 'BUY';
     if (mode === 'reverse') {
       // Flip: market opposite for 2× size (close current + open the inverse).
       await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'MARKET', amount: String(Number(p.amount) * 2) });
     } else if (mode === 'limit') {
-      const price = window.prompt(`Limit close price for ${p.symbol}`, p.markPrice);
-      if (!price) return;
-      await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'LIMIT', amount: p.amount, price, reduceOnly: true, timeInForce: 'GTC' });
+      if (!limitPrice) return;
+      await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'LIMIT', amount: p.amount, price: limitPrice, reduceOnly: true, timeInForce: 'GTC' });
     } else {
       await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'MARKET', amount: p.amount, reduceOnly: true });
     }
@@ -166,7 +168,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
                         {(['limit', 'market', 'reverse'] as const).map((m) => (
                           <button
                             key={m}
-                            onClick={() => onClose(p, m)}
+                            onClick={() => setCloseTarget({ p, mode: m })}
                             disabled={!walletAddress}
                             className="rounded border border-surface-700 px-1.5 py-0.5 text-2xs capitalize text-surface-300 hover:bg-surface-800 disabled:opacity-40"
                           >
@@ -252,6 +254,69 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
           )
         )}
       </div>
+
+      {closeTarget && (
+        <CloseModal
+          target={closeTarget}
+          onCancel={() => setCloseTarget(null)}
+          onConfirm={async (limitPrice) => {
+            const { p, mode } = closeTarget;
+            setCloseTarget(null);
+            await onClose(p, mode, limitPrice);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+interface Position2 { symbol: string; side: 'LONG' | 'SHORT'; amount: string; markPrice: string }
+
+/** Confirmation modal for Market / Limit / Reverse close (HL-style). */
+function CloseModal({
+  target,
+  onConfirm,
+  onCancel,
+}: {
+  target: { p: Position2; mode: CloseMode };
+  onConfirm: (limitPrice?: string) => void;
+  onCancel: () => void;
+}) {
+  const { p, mode } = target;
+  const base = p.symbol.replace('-USD', '');
+  const [price, setPrice] = useState(p.markPrice);
+  const title = mode === 'reverse' ? 'Reverse Position' : mode === 'limit' ? 'Limit Close' : 'Market Close';
+  const opp = p.side === 'LONG' ? 'Sell' : 'Buy';
+
+  return (
+    <Modal open onClose={onCancel} title={title}>
+      <div className="space-y-2 text-sm">
+        <RowKV label="Market" value={p.symbol} />
+        <RowKV label="Position" value={`${p.side} ${n(p.amount, 4)} ${base}`} />
+        <RowKV label="Mark" value={n(p.markPrice)} />
+        <RowKV label="Action" value={mode === 'reverse' ? `${opp} ${n(Number(p.amount) * 2, 4)} ${base} (flip)` : `${opp} ${n(p.amount, 4)} ${base} reduce-only`} />
+        {mode === 'limit' && (
+          <label className="block">
+            <span className="text-xs text-surface-400">Limit Price</span>
+            <input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" className="input mt-1 tabular" />
+          </label>
+        )}
+        <button
+          onClick={() => onConfirm(mode === 'limit' ? price : undefined)}
+          className="mt-1 w-full rounded bg-win-500 py-2 font-semibold text-black"
+        >
+          Confirm {title}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function RowKV({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-surface-400">{label}</span>
+      <span className="tabular text-surface-100">{value}</span>
     </div>
   );
 }
