@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { cancelOrder, placeOrder } from '@/lib/api';
 
 type Tab = 'positions' | 'orders' | 'trades';
@@ -143,7 +143,18 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
                     </Td>
                     <Td className={fund >= 0 ? 'text-win-500' : 'text-loss-500'}>{fund >= 0 ? '' : '-'}${n(Math.abs(fund))}</Td>
                     <Td>
-                      <CloseMenu disabled={!walletAddress} onSelect={(m) => onClose(p, m)} />
+                      <div className="flex gap-1">
+                        {(['limit', 'market', 'reverse'] as const).map((m) => (
+                          <button
+                            key={m}
+                            onClick={() => onClose(p, m)}
+                            disabled={!walletAddress}
+                            className="rounded border border-surface-700 px-1.5 py-0.5 text-2xs capitalize text-surface-300 hover:bg-surface-800 disabled:opacity-40"
+                          >
+                            {m}
+                          </button>
+                        ))}
+                      </div>
                     </Td>
                     <Td className="text-2xs text-surface-500">-- / --</Td>
                   </tr>
@@ -216,42 +227,3 @@ function Td({ children, className = '' }: { children: React.ReactNode; className
   return <td className={`px-3 py-1.5 ${className}`}>{children}</td>;
 }
 
-/** Per-position close dropdown: Market / Limit / Reverse. */
-function CloseMenu({ disabled, onSelect }: { disabled: boolean; onSelect: (mode: 'market' | 'limit' | 'reverse') => void }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    function h(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, []);
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
-        className="rounded border border-surface-700 px-2 py-0.5 text-2xs text-surface-300 hover:bg-surface-800 disabled:opacity-40"
-      >
-        Close ▾
-      </button>
-      {open && (
-        <div className="absolute right-0 z-20 mt-1 w-24 card-elevated">
-          {(['market', 'limit', 'reverse'] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => {
-                setOpen(false);
-                onSelect(m);
-              }}
-              className="block w-full px-3 py-1.5 text-left text-2xs capitalize hover:bg-surface-800"
-            >
-              {m}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
