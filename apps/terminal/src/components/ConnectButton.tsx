@@ -25,9 +25,10 @@ function PrivyConnect() {
   return (
     <button
       onClick={logout}
-      className="rounded border border-strong px-3 py-1.5 text-sm hover:bg-bg-elevated"
+      className="flex items-center gap-2 rounded border border-surface-700 bg-surface-850 px-2.5 py-1 text-sm hover:bg-surface-800"
       title="Disconnect"
     >
+      <span className="h-4 w-4 rounded-full bg-gradient-to-br from-win-500 to-primary-500" />
       {short(addr) || 'Connected'}
     </button>
   );

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Providers } from './providers';
 import { ConnectButton } from '@/components/ConnectButton';
+import { HeaderBalance } from '@/components/HeaderBalance';
 
 export const metadata: Metadata = {
   title: 'UpDown Terminal',
@@ -18,7 +19,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <span className="font-bold tracking-tight">UpDown</span>
               <span className="text-sm text-surface-400">Terminal</span>
             </div>
-            <ConnectButton />
+            <div className="flex items-center gap-2">
+              <HeaderBalance />
+              <ConnectButton />
+            </div>
           </header>
           <main className="min-h-0 flex-1 p-1">{children}</main>
         </Providers>
