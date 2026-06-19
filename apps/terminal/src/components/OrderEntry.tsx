@@ -279,7 +279,7 @@ export function OrderEntry({
   return (
     <div className="card flex h-full flex-col p-3 text-sm">
       {/* Header */}
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         <span className="text-sm font-semibold text-surface-200">Place Order</span>
         <button
           onClick={() => { setPendingMode(marginMode); setShowMargin(true); }}
@@ -291,7 +291,7 @@ export function OrderEntry({
       </div>
 
       {/* Order type tabs */}
-      <div className="mb-2 flex text-xs">
+      <div className="mb-4 flex text-xs">
         {TABS.map((t) => (
           <button
             key={t.key}
@@ -304,7 +304,7 @@ export function OrderEntry({
       </div>
 
       {/* Buy / Sell */}
-      <div className="mb-3 grid grid-cols-2 gap-1">
+      <div className="mb-4 grid grid-cols-2 gap-1.5">
         <button
           onClick={() => setSide('BUY')}
           className={`rounded py-2 text-sm font-semibold ${buy ? 'bg-win-500 text-black' : 'bg-surface-800 text-surface-400 hover:text-surface-200'}`}
@@ -320,7 +320,7 @@ export function OrderEntry({
       </div>
 
       {/* Leverage — opens a confirmation modal (HL-style). */}
-      <div className="mb-3 flex items-center justify-between text-xs">
+      <div className="mb-4 flex items-center justify-between text-xs">
         <span className="text-surface-400">Leverage</span>
         <button
           onClick={() => { setPendingLev(leverage); setShowLeverage(true); }}
@@ -339,18 +339,18 @@ export function OrderEntry({
       {needsPrice && <Field label="Price" value={price} onChange={setPrice} suffix="USD" />}
 
       {/* Size dual input */}
-      <div className="mb-1 text-xs text-surface-400">Size</div>
-      <div className="mb-2 grid grid-cols-2 gap-1">
+      <div className="mb-1.5 text-xs text-surface-400">Size</div>
+      <div className="mb-3 grid grid-cols-2 gap-1.5">
         <InlineInput value={sizeBtc} onChange={setBtc} suffix={base} />
         <InlineInput value={sizeUsd} onChange={setUsd} suffix="USD" />
       </div>
-      <div className="mb-2 flex justify-between text-xs text-surface-400">
+      <div className="mb-3 flex justify-between text-xs text-surface-400">
         <span>Margin: {usd(marginUsd)}</span>
         <span>Max: {usd(maxUsd)} ({leverage}x)</span>
       </div>
 
       {/* % buttons */}
-      <div className="mb-3 grid grid-cols-4 gap-1">
+      <div className="mb-4 grid grid-cols-4 gap-1.5">
         {PCTS.map((p) => (
           <button key={p} onClick={() => setPct(p)} className="rounded bg-surface-800 py-1 text-xs text-surface-300 hover:bg-surface-700">
             {p}%
@@ -360,20 +360,22 @@ export function OrderEntry({
 
       {/* Toggles — Reduce Only closes a position, so TP/SL (which attach to a new
           entry) are mutually exclusive with it. */}
-      <Toggle
-        label="Reduce Only"
-        on={reduceOnly}
-        onClick={() => setReduceOnly((v) => { if (!v) setTpSl(false); return !v; })}
-      />
-      <Toggle
-        label="Take Profit / Stop Loss"
-        on={tpSl}
-        disabled={reduceOnly}
-        hint="off with Reduce Only"
-        onClick={() => setTpSl((v) => !v)}
-      />
+      <div className="mb-1 space-y-2.5">
+        <Toggle
+          label="Reduce Only"
+          on={reduceOnly}
+          onClick={() => setReduceOnly((v) => { if (!v) setTpSl(false); return !v; })}
+        />
+        <Toggle
+          label="Take Profit / Stop Loss"
+          on={tpSl}
+          disabled={reduceOnly}
+          hint="off with Reduce Only"
+          onClick={() => setTpSl((v) => !v)}
+        />
+      </div>
       {tpSl && !reduceOnly && (
-        <div className="mb-2 mt-1 space-y-2">
+        <div className="mb-2 mt-2 space-y-2.5">
           <div className="grid grid-cols-2 gap-1">
             <LabeledInput label="TP Price" value={tpPrice} onChange={onTpPrice} suffix="USD" />
             <LabeledInput label="Gain" value={tpGain} onChange={onTpGain} suffix="%" />
@@ -386,7 +388,7 @@ export function OrderEntry({
       )}
 
       {/* Info rows */}
-      <div className="my-2 space-y-1 text-xs">
+      <div className="my-4 space-y-2 text-xs">
         {/* Slippage: estimated vs max; click the value to adjust the max. */}
         <div className="flex justify-between">
           <span className="text-surface-400">Slippage</span>
@@ -407,7 +409,7 @@ export function OrderEntry({
       <button
         onClick={submit}
         disabled={!canSubmit}
-        className={`mt-1 w-full rounded py-2.5 font-semibold ${buy ? 'bg-win-500 text-black' : 'bg-loss-500 text-black'} disabled:cursor-not-allowed disabled:opacity-40`}
+        className={`w-full rounded py-2.5 font-semibold ${buy ? 'bg-win-500 text-black' : 'bg-loss-500 text-black'} disabled:cursor-not-allowed disabled:opacity-40`}
       >
         {busy ? 'Placing…' : !walletAddress ? 'Connect to trade' : buy ? `Buy / Long` : `Sell / Short`}
       </button>
@@ -415,11 +417,11 @@ export function OrderEntry({
       {msg && <div className={`mt-2 text-xs ${msg.ok ? 'text-win-500' : 'text-loss-500'}`}>{msg.text}</div>}
 
       {/* Deposit / Withdraw */}
-      <div className="mt-2 grid grid-cols-2 gap-1">
+      <div className="mt-4 grid grid-cols-2 gap-1.5">
         <button onClick={() => setShowDeposit(true)} className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800">↓ Deposit</button>
         <button onClick={() => setShowWithdraw(true)} className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800">↑ Withdraw</button>
       </div>
-      <div className="mt-2">
+      <div className="mt-4">
         <AccountInfo evmAddress={evmAddress} />
       </div>
 
@@ -530,8 +532,8 @@ export function OrderEntry({
 
 function Field({ label, value, onChange, suffix }: { label: string; value: string; onChange: (v: string) => void; suffix: string }) {
   return (
-    <div className="mb-2">
-      <div className="mb-1 text-xs text-surface-400">{label}</div>
+    <div className="mb-4">
+      <div className="mb-1.5 text-xs text-surface-400">{label}</div>
       <InlineInput value={value} onChange={onChange} suffix={suffix} />
     </div>
   );
@@ -539,7 +541,7 @@ function Field({ label, value, onChange, suffix }: { label: string; value: strin
 function LabeledInput({ label, value, onChange, suffix }: { label: string; value: string; onChange: (v: string) => void; suffix: string }) {
   return (
     <div>
-      <div className="mb-1 text-2xs text-surface-400">{label}</div>
+      <div className="mb-1.5 text-2xs text-surface-400">{label}</div>
       <InlineInput value={value} onChange={onChange} suffix={suffix} />
     </div>
   );
@@ -552,7 +554,7 @@ function InlineInput({ value, onChange, suffix }: { value: string; onChange: (v:
         onChange={(e) => onChange(e.target.value)}
         inputMode="decimal"
         placeholder="0.00"
-        className="w-full bg-transparent py-1.5 tabular outline-none placeholder:text-surface-500"
+        className="w-full bg-transparent py-2 tabular outline-none placeholder:text-surface-500"
       />
       <span className="text-xs text-surface-500">{suffix}</span>
     </div>
@@ -564,7 +566,7 @@ function Toggle({ label, on, onClick, disabled, hint }: { label: string; on: boo
       onClick={onClick}
       disabled={disabled}
       title={disabled ? hint : undefined}
-      className={`mb-1 flex w-full items-center gap-2 text-xs ${disabled ? 'cursor-not-allowed text-surface-500' : 'text-surface-300'}`}
+      className={`flex w-full items-center gap-2 text-xs ${disabled ? 'cursor-not-allowed text-surface-500' : 'text-surface-300'}`}
     >
       <span className={`flex h-4 w-7 items-center rounded-full px-0.5 transition-colors ${on ? 'bg-win-500' : 'bg-surface-700'} ${disabled ? 'opacity-50' : ''}`}>
         <span className={`h-3 w-3 rounded-full bg-white transition-transform ${on ? 'translate-x-3' : ''}`} />
