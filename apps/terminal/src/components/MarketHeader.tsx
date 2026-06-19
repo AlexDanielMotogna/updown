@@ -82,7 +82,7 @@ export function MarketHeader({ symbol, initial }: { symbol: string; initial?: Ti
   const oiUsd = t ? Number(t.openInterest) * mark : 0;
 
   return (
-    <div className="card flex flex-wrap items-center gap-x-6 gap-y-2 px-3 py-2">
+    <div className="card flex flex-wrap items-center gap-x-10 gap-y-2 px-3 py-2">
       <div className="flex items-center gap-2">
         <MarketSelector symbol={symbol} />
         <span className="rounded bg-surface-800 px-1.5 py-0.5 text-xs text-surface-300" title="Max leverage">
