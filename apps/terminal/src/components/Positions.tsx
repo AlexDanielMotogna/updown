@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { cancelOrder, placeOrder } from '@/lib/api';
 
 type Tab = 'positions' | 'orders' | 'trades';
@@ -65,18 +65,26 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
     refresh();
   }
 
-  async function onClose(p: Position) {
+  type CloseMode = 'market' | 'limit' | 'reverse';
+  async function onClose(p: Position, mode: CloseMode) {
     if (!walletAddress) return;
-    // Close = reduce-only market order on the opposite side for the full size.
-    await placeOrder({
-      walletAddress,
-      symbol: p.symbol,
-      side: p.side === 'LONG' ? 'SELL' : 'BUY',
-      type: 'MARKET',
-      amount: p.amount,
-      reduceOnly: true,
-    });
+    const opp = p.side === 'LONG' ? 'SELL' : 'BUY';
+    if (mode === 'reverse') {
+      // Flip: market opposite for 2× size (close current + open the inverse).
+      await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'MARKET', amount: String(Number(p.amount) * 2) });
+    } else if (mode === 'limit') {
+      const price = window.prompt(`Limit close price for ${p.symbol}`, p.markPrice);
+      if (!price) return;
+      await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'LIMIT', amount: p.amount, price, reduceOnly: true, timeInForce: 'GTC' });
+    } else {
+      await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'MARKET', amount: p.amount, reduceOnly: true });
+    }
     refresh();
+  }
+
+  async function onCloseAll() {
+    if (!walletAddress) return;
+    await Promise.all(positions.map((p) => onClose(p, 'market')));
   }
 
   const counts = { positions: positions.length, orders: orders.length, trades: trades.length };
@@ -104,7 +112,9 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
           <Empty>loading…</Empty>
         ) : tab === 'positions' ? (
           positions.length === 0 ? <Empty>No open positions.</Empty> : (
-            <Table head={['Coin', 'Size', 'Pos. Value', 'Entry', 'Mark', 'PnL (ROE %)', 'Liq. Price', 'Margin', 'Funding', 'Close', 'TP/SL']}>
+            <Table head={['Coin', 'Size', 'Pos. Value', 'Entry', 'Mark', 'PnL (ROE %)', 'Liq. Price', 'Margin', 'Funding',
+              <button key="closeall" onClick={onCloseAll} disabled={!walletAddress} className="text-2xs font-medium text-surface-300 hover:text-surface-100 disabled:opacity-40">Close All</button>,
+              'TP/SL']}>
               {positions.map((p) => {
                 const base = p.symbol.replace('-USD', '');
                 const long = p.side === 'LONG';
@@ -133,9 +143,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
                     </Td>
                     <Td className={fund >= 0 ? 'text-win-500' : 'text-loss-500'}>{fund >= 0 ? '' : '-'}${n(Math.abs(fund))}</Td>
                     <Td>
-                      <button onClick={() => onClose(p)} disabled={!walletAddress} className="rounded border border-surface-700 px-2 py-0.5 text-2xs text-surface-300 hover:bg-surface-800 disabled:opacity-40">
-                        Close
-                      </button>
+                      <CloseMenu disabled={!walletAddress} onSelect={(m) => onClose(p, m)} />
                     </Td>
                     <Td className="text-2xs text-surface-500">-- / --</Td>
                   </tr>
@@ -190,7 +198,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
 function Empty({ children }: { children: React.ReactNode }) {
   return <div className="p-4 text-sm text-surface-400">{children}</div>;
 }
-function Table({ head, children }: { head: string[]; children: React.ReactNode }) {
+function Table({ head, children }: { head: React.ReactNode[]; children: React.ReactNode }) {
   return (
     <table className="w-full text-xs">
       <thead className="sticky top-0 bg-surface-850 text-2xs uppercase text-surface-500">
@@ -206,4 +214,44 @@ function Table({ head, children }: { head: string[]; children: React.ReactNode }
 }
 function Td({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return <td className={`px-3 py-1.5 ${className}`}>{children}</td>;
+}
+
+/** Per-position close dropdown: Market / Limit / Reverse. */
+function CloseMenu({ disabled, onSelect }: { disabled: boolean; onSelect: (mode: 'market' | 'limit' | 'reverse') => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function h(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        disabled={disabled}
+        onClick={() => setOpen((v) => !v)}
+        className="rounded border border-surface-700 px-2 py-0.5 text-2xs text-surface-300 hover:bg-surface-800 disabled:opacity-40"
+      >
+        Close ▾
+      </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 w-24 card-elevated">
+          {(['market', 'limit', 'reverse'] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => {
+                setOpen(false);
+                onSelect(m);
+              }}
+              className="block w-full px-3 py-1.5 text-left text-2xs capitalize hover:bg-surface-800"
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
