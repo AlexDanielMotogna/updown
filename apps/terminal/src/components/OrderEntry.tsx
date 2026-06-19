@@ -45,6 +45,8 @@ export function OrderEntry({
   const [triggerPrice, setTriggerPrice] = useState('');
   const [reduceOnly, setReduceOnly] = useState(false);
   const [tpSl, setTpSl] = useState(false);
+  const [tpPrice, setTpPrice] = useState('');
+  const [slPrice, setSlPrice] = useState('');
   const [slippage, setSlippage] = useState('0.5');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -134,10 +136,24 @@ export function OrderEntry({
       reduceOnly,
       timeInForce: tab === 'LIMIT' ? 'GTC' : undefined,
     });
+    if (!res.success) {
+      setBusy(false);
+      setMsg({ ok: false, text: res.error?.message ?? 'Order failed' });
+      return;
+    }
+
+    // Attach TP/SL as reduce-only trigger orders on the opposite (closing) side.
+    if (tpSl && (tpPrice || slPrice)) {
+      const opp: OrderSide = side === 'BUY' ? 'SELL' : 'BUY';
+      const cap = (trigger: string) => String(Number(trigger) * (opp === 'BUY' ? 1.05 : 0.95));
+      if (tpPrice)
+        await placeOrder({ walletAddress, symbol, side: opp, type: 'TAKE_PROFIT_MARKET', amount: sizeBtc, triggerPrice: tpPrice, price: cap(tpPrice), reduceOnly: true });
+      if (slPrice)
+        await placeOrder({ walletAddress, symbol, side: opp, type: 'STOP_MARKET', amount: sizeBtc, triggerPrice: slPrice, price: cap(slPrice), reduceOnly: true });
+    }
+
     setBusy(false);
-    setMsg(res.success
-      ? { ok: true, text: `Order ${res.data?.status} · #${res.data?.orderId}` }
-      : { ok: false, text: res.error?.message ?? 'Order failed' });
+    setMsg({ ok: true, text: `Order ${res.data?.status} · #${res.data?.orderId}` });
   }
 
   const buy = side === 'BUY';
@@ -230,6 +246,12 @@ export function OrderEntry({
       {/* Toggles */}
       <Toggle label="Reduce Only" on={reduceOnly} onClick={() => setReduceOnly((v) => !v)} />
       <Toggle label="Take Profit / Stop Loss" on={tpSl} onClick={() => setTpSl((v) => !v)} />
+      {tpSl && (
+        <div className="mb-2 mt-1 grid grid-cols-2 gap-1">
+          <InlineInput value={tpPrice} onChange={setTpPrice} suffix="TP" />
+          <InlineInput value={slPrice} onChange={setSlPrice} suffix="SL" />
+        </div>
+      )}
 
       {/* Info rows */}
       <div className="my-2 space-y-1 text-xs">
