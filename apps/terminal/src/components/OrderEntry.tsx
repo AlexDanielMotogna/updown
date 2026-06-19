@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { placeOrder, setLeverage as setLeverageApi } from '@/lib/api';
 import { AccountInfo } from './AccountInfo';
 import { DepositModal } from './DepositModal';
+import { Modal } from './Modal';
 import type { OrderSide, OrderType } from '@/lib/types';
 
 // Lazy: WithdrawModal pulls the HL SDK (signed withdraw). Only under Privy.
@@ -56,7 +57,13 @@ export function OrderEntry({
   const [tpGain, setTpGain] = useState('');
   const [slLoss, setSlLoss] = useState('');
   const [slippage, setSlippage] = useState('8');
-  const [editSlip, setEditSlip] = useState(false);
+  // HL-style confirmation modals for the risk-bearing settings.
+  const [showLeverage, setShowLeverage] = useState(false);
+  const [showMargin, setShowMargin] = useState(false);
+  const [showSlippage, setShowSlippage] = useState(false);
+  const [pendingLev, setPendingLev] = useState(5);
+  const [pendingMode, setPendingMode] = useState<'cross' | 'isolated'>('cross');
+  const [pendingSlip, setPendingSlip] = useState('8');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [showDeposit, setShowDeposit] = useState(false);
@@ -93,6 +100,23 @@ export function OrderEntry({
     const text = res.error?.message ?? 'Leverage update failed';
     setLevMsg({ ok: false, text });
     return { ok: false, text };
+  }
+
+  // Modal confirm handlers — apply only on Confirm (HL-style).
+  async function confirmLeverage() {
+    setLeverage(pendingLev);
+    const r = await applyLeverage(pendingLev, marginMode === 'cross');
+    if (r.ok) setShowLeverage(false);
+  }
+  async function confirmMargin() {
+    setMarginMode(pendingMode);
+    const r = await applyLeverage(leverage, pendingMode === 'cross');
+    if (r.ok) setShowMargin(false);
+  }
+  function confirmSlippage() {
+    const v = Math.min(Math.max(Number(pendingSlip) || 0, 0), 50);
+    saveSlippage(String(v));
+    setShowSlippage(false);
   }
 
   // Live mark + max leverage for this market.
@@ -258,13 +282,9 @@ export function OrderEntry({
       <div className="mb-2 flex items-center justify-between">
         <span className="text-sm font-semibold text-surface-200">Place Order</span>
         <button
-          disabled={levBusy}
-          onClick={() => {
-            const next = marginMode === 'cross' ? 'isolated' : 'cross';
-            setMarginMode(next);
-            void applyLeverage(leverage, next === 'cross');
-          }}
-          className="rounded border border-surface-700 px-2 py-0.5 text-xs capitalize text-surface-300 hover:bg-surface-800 disabled:opacity-50"
+          onClick={() => { setPendingMode(marginMode); setShowMargin(true); }}
+          title="Margin mode"
+          className="rounded border border-surface-700 px-2 py-0.5 text-xs capitalize text-surface-300 hover:bg-surface-800"
         >
           {marginMode} ▾
         </button>
@@ -299,30 +319,16 @@ export function OrderEntry({
         </button>
       </div>
 
-      {/* Leverage */}
-      <div className="mb-3">
-        <div className="mb-1 flex items-center justify-between text-xs">
-          <span className="text-surface-400">Leverage</span>
-          <span className="font-semibold">{leverage}x</span>
-        </div>
-        <input
-          type="range" min={1} max={maxLev} step={1} value={leverage}
-          onChange={(e) => setLeverage(Number(e.target.value))}
-          onMouseUp={() => void applyLeverage(leverage, marginMode === 'cross')}
-          onTouchEnd={() => void applyLeverage(leverage, marginMode === 'cross')}
-          onKeyUp={() => void applyLeverage(leverage, marginMode === 'cross')}
-          disabled={levBusy}
-          className="w-full accent-win-500"
-        />
-        {levMsg && (
-          <div className={`mt-1 text-2xs ${levMsg.ok ? 'text-win-500' : 'text-loss-500'}`}>
-            {levBusy ? 'Updating leverage…' : levMsg.ok ? `Leverage set: ${levMsg.text}` : levMsg.text}
-          </div>
-        )}
-        {levBusy && !levMsg && <div className="mt-1 text-2xs text-surface-400">Updating leverage…</div>}
-        <div className="flex justify-between text-xs text-surface-500">
-          <span>1x</span><span>{Math.round(maxLev / 2)}x</span><span>{maxLev}x</span>
-        </div>
+      {/* Leverage — opens a confirmation modal (HL-style). */}
+      <div className="mb-3 flex items-center justify-between text-xs">
+        <span className="text-surface-400">Leverage</span>
+        <button
+          onClick={() => { setPendingLev(leverage); setShowLeverage(true); }}
+          title="Adjust leverage"
+          className="rounded border border-surface-700 px-2.5 py-1 font-semibold text-surface-100 hover:bg-surface-800"
+        >
+          {leverage}x ▾
+        </button>
       </div>
 
       {/* Trigger price (stop) */}
@@ -381,31 +387,16 @@ export function OrderEntry({
 
       {/* Info rows */}
       <div className="my-2 space-y-1 text-xs">
-        {/* Slippage: shows estimated vs max; click the value to adjust the max. */}
+        {/* Slippage: estimated vs max; click the value to adjust the max. */}
         <div className="flex justify-between">
           <span className="text-surface-400">Slippage</span>
-          {editSlip ? (
-            <span className="flex items-center gap-1">
-              <input
-                autoFocus
-                value={slippage}
-                onChange={(e) => saveSlippage(e.target.value)}
-                onBlur={() => setEditSlip(false)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setEditSlip(false); }}
-                inputMode="decimal"
-                className="w-16 rounded border border-surface-700 bg-[#1c1c23] px-1.5 py-0.5 text-right tabular outline-none focus:border-surface-500"
-              />
-              <span className="text-surface-400">%</span>
-            </span>
-          ) : (
-            <button
-              onClick={() => setEditSlip(true)}
-              title="click to adjust"
-              className="tabular text-surface-200 hover:text-surface-100"
-            >
-              Est: {trimNum(estSlip, 2) || '0'}% / Max: {Number(slippage).toFixed(2)}%
-            </button>
-          )}
+          <button
+            onClick={() => { setPendingSlip(slippage); setShowSlippage(true); }}
+            title="click to adjust"
+            className="tabular text-surface-200 hover:text-surface-100"
+          >
+            Est: {trimNum(estSlip, 2) || '0'}% / Max: {Number(slippage).toFixed(2)}%
+          </button>
         </div>
         <Row label="Est. Liq Price" value={estLiq ? usd(estLiq) : 'N/A'} />
         <Row label="Margin" value={marginUsd ? usd(marginUsd) : 'N/A'} />
@@ -435,6 +426,104 @@ export function OrderEntry({
       {/* Modals */}
       <DepositModal open={showDeposit} onClose={() => setShowDeposit(false)} evmAddress={evmAddress} />
       {HAS_PRIVY && <WithdrawModal open={showWithdraw} onClose={() => setShowWithdraw(false)} evmAddress={evmAddress} />}
+
+      {/* Adjust Leverage */}
+      <Modal open={showLeverage} onClose={() => setShowLeverage(false)} title="Adjust Leverage" size="sm">
+        <div className="mb-2 flex items-end justify-between">
+          <span className="text-xs text-surface-400">Leverage for {base}</span>
+          <span className="text-2xl font-semibold tabular text-surface-100">{pendingLev}x</span>
+        </div>
+        <input
+          type="range" min={1} max={maxLev} step={1} value={pendingLev}
+          onChange={(e) => setPendingLev(Number(e.target.value))}
+          className="w-full accent-win-500"
+        />
+        <div className="mb-3 flex justify-between text-2xs text-surface-500">
+          <span>1x</span><span>{Math.round(maxLev / 2)}x</span><span>{maxLev}x</span>
+        </div>
+        <div className="mb-3 flex gap-1">
+          {[2, 5, 10, 20, Math.min(50, maxLev), maxLev].filter((v, i, a) => v <= maxLev && a.indexOf(v) === i).map((v) => (
+            <button
+              key={v}
+              onClick={() => setPendingLev(v)}
+              className={`flex-1 rounded border py-1 text-xs ${pendingLev === v ? 'border-info text-info' : 'border-surface-700 text-surface-300 hover:bg-surface-800'}`}
+            >
+              {v}x
+            </button>
+          ))}
+        </div>
+        <p className="mb-3 text-2xs text-surface-500">
+          Setting a higher leverage increases the risk of liquidation. Max for {base} is {maxLev}x. This is a signed action on HyperLiquid.
+        </p>
+        {levMsg && !levMsg.ok && <p className="mb-2 text-2xs text-loss-500">{levMsg.text}</p>}
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={() => setShowLeverage(false)} className="rounded border border-surface-700 py-2 text-sm text-surface-300 hover:bg-surface-800">Cancel</button>
+          <button onClick={confirmLeverage} disabled={levBusy} className="rounded bg-win-500 py-2 text-sm font-semibold text-black disabled:opacity-50">
+            {levBusy ? 'Confirming…' : 'Confirm'}
+          </button>
+        </div>
+      </Modal>
+
+      {/* Margin Mode */}
+      <Modal open={showMargin} onClose={() => setShowMargin(false)} title="Margin Mode" size="sm">
+        <div className="mb-3 space-y-2">
+          {([
+            { key: 'cross', title: 'Cross', desc: 'All cross positions share a single margin balance. More margin-efficient, but a liquidation can affect all positions.' },
+            { key: 'isolated', title: 'Isolated', desc: 'Margin is restricted to this position. Limits losses to the assigned margin, but liquidates sooner.' },
+          ] as const).map((o) => (
+            <button
+              key={o.key}
+              onClick={() => setPendingMode(o.key)}
+              className={`block w-full rounded border p-3 text-left ${pendingMode === o.key ? 'border-info bg-surface-800' : 'border-surface-700 hover:bg-surface-800'}`}
+            >
+              <div className="text-sm font-semibold text-surface-100">{o.title}</div>
+              <div className="mt-0.5 text-2xs text-surface-400">{o.desc}</div>
+            </button>
+          ))}
+        </div>
+        <p className="mb-3 text-2xs text-surface-500">This is a signed action on HyperLiquid and applies to {base}.</p>
+        {levMsg && !levMsg.ok && <p className="mb-2 text-2xs text-loss-500">{levMsg.text}</p>}
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={() => setShowMargin(false)} className="rounded border border-surface-700 py-2 text-sm text-surface-300 hover:bg-surface-800">Cancel</button>
+          <button onClick={confirmMargin} disabled={levBusy} className="rounded bg-win-500 py-2 text-sm font-semibold text-black disabled:opacity-50">
+            {levBusy ? 'Confirming…' : 'Confirm'}
+          </button>
+        </div>
+      </Modal>
+
+      {/* Max Slippage */}
+      <Modal open={showSlippage} onClose={() => setShowSlippage(false)} title="Max Slippage" size="sm">
+        <label className="block">
+          <span className="text-xs text-surface-400">Maximum slippage (%)</span>
+          <div className="mt-1 flex items-center rounded border border-surface-700 bg-[#1c1c23] px-3">
+            <input
+              autoFocus
+              value={pendingSlip}
+              onChange={(e) => setPendingSlip(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && confirmSlippage()}
+              inputMode="decimal"
+              className="w-full bg-transparent py-2 tabular outline-none"
+            />
+            <span className="text-surface-400">%</span>
+          </div>
+        </label>
+        <div className="mb-3 mt-2 flex gap-1">
+          {['1', '3', '5', '8', '15'].map((v) => (
+            <button
+              key={v}
+              onClick={() => setPendingSlip(v)}
+              className={`flex-1 rounded border py-1 text-xs ${pendingSlip === v ? 'border-info text-info' : 'border-surface-700 text-surface-300 hover:bg-surface-800'}`}
+            >
+              {v}%
+            </button>
+          ))}
+        </div>
+        <p className="mb-3 text-2xs text-surface-500">Market orders won't fill beyond this slippage from the mid price. Saved locally.</p>
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={() => setShowSlippage(false)} className="rounded border border-surface-700 py-2 text-sm text-surface-300 hover:bg-surface-800">Cancel</button>
+          <button onClick={confirmSlippage} className="rounded bg-win-500 py-2 text-sm font-semibold text-black">Confirm</button>
+        </div>
+      </Modal>
     </div>
   );
 }
