@@ -52,6 +52,20 @@ interface AssetInfo {
   szDecimals: number;
 }
 
+/** Default slippage cap for market-type orders (±5%, crossing the book). */
+const DEFAULT_SLIPPAGE = 0.05;
+
+/** Resolve a max-slippage percent (e.g. 8) to a fraction, clamped to (0, 0.5]. */
+function slippageFraction(maxSlippagePct?: number): number {
+  if (maxSlippagePct == null || !Number.isFinite(maxSlippagePct) || maxSlippagePct <= 0) return DEFAULT_SLIPPAGE;
+  return Math.min(maxSlippagePct / 100, 0.5);
+}
+
+/** A worst-acceptable price `ref` crossed in the fill direction (buy up, sell down). */
+function crossPrice(ref: number, side: OrderParams['side'], slip: number): string {
+  return String(ref * (side === 'BUY' ? 1 + slip : 1 - slip));
+}
+
 export class HyperliquidSigner implements ExchangeSigner {
   readonly name = 'hyperliquid' as const;
   readonly chain = 'evm' as const;
@@ -83,10 +97,19 @@ export class HyperliquidSigner implements ExchangeSigner {
   async signAndSubmit(payload: UnsignedPayload, _wallet?: WalletSigner): Promise<OrderResult> {
     const client = this.requireClient();
     let params = (payload.action as { params: OrderParams }).params;
-    // MARKET orders still need a price on HL (a slippage cap). Derive one from
-    // the current mid (±5%, crossing the spread) when the caller didn't pass one.
-    if (params.type === 'MARKET' && params.price == null) {
-      params = { ...params, price: await this.marketSlippagePrice(params.symbol, params.side) };
+    // Market-type orders still need a price on HL (a slippage cap, crossing the
+    // book in the fill direction) when the caller didn't pass one:
+    //   - plain MARKET → cap off the current mid
+    //   - trigger-market (STOP_MARKET / TAKE_PROFIT_MARKET) → cap off the trigger
+    //     price, so it fills once triggered regardless of how far the trigger is.
+    if (params.price == null) {
+      const slip = slippageFraction(params.maxSlippagePct);
+      if (params.type === 'MARKET') {
+        params = { ...params, price: await this.marketSlippagePrice(params.symbol, params.side, slip) };
+      } else if (params.type === 'STOP_MARKET' || params.type === 'TAKE_PROFIT_MARKET') {
+        if (params.triggerPrice == null) throw new Error(`${params.type} requires triggerPrice`);
+        params = { ...params, price: crossPrice(Number(params.triggerPrice), params.side, slip) };
+      }
     }
     const asset = await this.resolveAsset(params.symbol);
     const order = buildOrderRequest(params, asset.index, asset.szDecimals);
@@ -143,7 +166,7 @@ export class HyperliquidSigner implements ExchangeSigner {
   }
 
   /** A slippage-capped price for a MARKET order, from the current mid (±5%). */
-  private async marketSlippagePrice(symbol: string, side: OrderParams['side']): Promise<string> {
+  private async marketSlippagePrice(symbol: string, side: OrderParams['side'], slip: number): Promise<string> {
     const coin = toHlCoin(symbol);
     // REST /info allMids returns a flat { coin: price } map; the WS feed wraps it
     // as { mids: {...} }. Handle both.
@@ -151,7 +174,7 @@ export class HyperliquidSigner implements ExchangeSigner {
     const mids = ((resp.mids as Record<string, string>) ?? resp) as Record<string, string>;
     const mid = Number(mids[coin]);
     if (!mid) throw new Error(`No mid price for ${coin}`);
-    return String(mid * (side === 'BUY' ? 1.05 : 0.95));
+    return crossPrice(mid, side, slip);
   }
 
   private async resolveAsset(symbol: string): Promise<AssetInfo> {

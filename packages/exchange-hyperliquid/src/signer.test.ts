@@ -74,6 +74,52 @@ describe('HyperliquidSigner', () => {
     expect(res).toEqual({ orderId: 123, status: 'OPEN', metadata: { resting: { oid: 123 } } });
   });
 
+  it('stop-limit: trigger order keeps its limit price + triggerPx (sl, not market)', async () => {
+    const captured: Captured[] = [];
+    await makeSigner(captured).signAndSubmit(
+      makeSigner(captured).buildOrder({
+        symbol: 'BTC-USD', side: 'SELL', type: 'STOP_LIMIT', amount: '0.01', price: '60000', triggerPrice: '61000',
+      })
+    );
+    const action = captured.at(-1)!.action as { orders: Array<{ p: string; t: unknown }> };
+    expect(action.orders[0].p).toBe('60000');
+    expect(action.orders[0].t).toEqual({ trigger: { isMarket: false, triggerPx: '61000', tpsl: 'sl' } });
+  });
+
+  it('stop-market: derives a slippage-cap price off the trigger (was missing → threw)', async () => {
+    const captured: Captured[] = [];
+    await makeSigner(captured).signAndSubmit(
+      makeSigner(captured).buildOrder({
+        symbol: 'BTC-USD', side: 'SELL', type: 'STOP_MARKET', amount: '0.01', triggerPrice: '60000',
+      })
+    );
+    const action = captured.at(-1)!.action as { orders: Array<{ p: string; t: unknown }> };
+    // SELL crosses down: 60000 * 0.95 = 57000
+    expect(action.orders[0].p).toBe('57000');
+    expect(action.orders[0].t).toEqual({ trigger: { isMarket: true, triggerPx: '60000', tpsl: 'sl' } });
+  });
+
+  it('honors maxSlippagePct when deriving the cap (stop-market)', async () => {
+    const captured: Captured[] = [];
+    await makeSigner(captured).signAndSubmit(
+      makeSigner(captured).buildOrder({
+        symbol: 'BTC-USD', side: 'SELL', type: 'STOP_MARKET', amount: '0.01', triggerPrice: '60000', maxSlippagePct: 10,
+      })
+    );
+    const action = captured.at(-1)!.action as { orders: Array<{ p: string }> };
+    // SELL, 10% slippage: 60000 * 0.90 = 54000
+    expect(action.orders[0].p).toBe('54000');
+  });
+
+  it('stop-market without a trigger price throws', async () => {
+    const captured: Captured[] = [];
+    await expect(
+      makeSigner(captured).signAndSubmit(
+        makeSigner(captured).buildOrder({ symbol: 'BTC-USD', side: 'SELL', type: 'STOP_MARKET', amount: '0.01' })
+      )
+    ).rejects.toThrow(/requires triggerPrice/);
+  });
+
   it('cancels by resolved asset index + numeric oid', async () => {
     const captured: Captured[] = [];
     const res = await makeSigner(captured).cancel({ symbol: 'ETH-USD', orderId: 555 });

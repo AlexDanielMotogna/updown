@@ -82,6 +82,7 @@ const orderSchema = z.object({
   timeInForce: z.enum(['GTC', 'IOC', 'FOK', 'POST_ONLY']).optional(),
   reduceOnly: z.boolean().optional(),
   clientOrderId: z.string().optional(),
+  maxSlippagePct: z.number().positive().max(50).optional(),
 });
 
 const cancelSchema = z.object({

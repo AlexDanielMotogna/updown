@@ -205,6 +205,9 @@ export interface OrderParams {
   timeInForce?: TimeInForce;
   reduceOnly?: boolean;
   clientOrderId?: string;
+  /** Max slippage for market-type orders, as a percent (e.g. 8 = 8%). The
+   * adapter derives the worst-acceptable price from this; defaults if omitted. */
+  maxSlippagePct?: number;
 }
 
 export interface CancelParams {

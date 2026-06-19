@@ -17,6 +17,7 @@ export interface PlaceOrderInput {
   triggerPrice?: string;
   timeInForce?: 'GTC' | 'IOC' | 'FOK' | 'POST_ONLY';
   reduceOnly?: boolean;
+  maxSlippagePct?: number;
 }
 
 export interface ApiResult<T> {

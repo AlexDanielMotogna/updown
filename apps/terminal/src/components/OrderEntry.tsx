@@ -253,6 +253,7 @@ export function OrderEntry({
       triggerPrice: needsTrigger ? triggerPrice : undefined,
       reduceOnly,
       timeInForce: tab === 'LIMIT' ? 'GTC' : undefined,
+      maxSlippagePct: Number(slippage) || undefined,
     });
     if (!res.success) {
       setBusy(false);
