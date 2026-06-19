@@ -19,12 +19,13 @@ import type {
   Orderbook,
   Position,
   Price,
+  RecentTrade,
   TradeHistoryItem,
   Unsubscribe,
 } from 'exchange-core';
 import { MAINNET, type HlEndpoint } from './info-client';
-import { mapFill, mapOpenOrder, mapOrderbook, mapPosition } from './mappers';
-import type { HlL2Book, HlOpenOrder, HlPosition, HlUserFill } from './raw-types';
+import { mapFill, mapOpenOrder, mapOrderbook, mapPosition, mapRecentTrade } from './mappers';
+import type { HlL2Book, HlOpenOrder, HlPosition, HlRecentTrade, HlUserFill } from './raw-types';
 import { toHlCoin, toNormalizedSymbol } from './symbols';
 import { HyperliquidWsConnection, type WsFactory } from './ws-connection';
 
@@ -117,6 +118,13 @@ export class HyperliquidStream implements ExchangeStream {
     return this.conn.subscribe({ type: 'l2Book', coin: toHlCoin(symbol) }, (data) =>
       cb(mapOrderbook(data as HlL2Book))
     );
+  }
+
+  subscribeTrades(symbol: string, cb: (trades: RecentTrade[]) => void): Unsubscribe {
+    return this.conn.subscribe({ type: 'trades', coin: toHlCoin(symbol) }, (data) => {
+      const raw = (Array.isArray(data) ? data : []) as HlRecentTrade[];
+      if (raw.length) cb(raw.map(mapRecentTrade));
+    });
   }
 
   subscribePrices(cb: (prices: Price[]) => void): Unsubscribe {

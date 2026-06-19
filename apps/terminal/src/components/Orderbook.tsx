@@ -90,18 +90,24 @@ export function Orderbook({ symbol }: { symbol: string }) {
     return unsub;
   }, [symbol]);
 
-  // Recent trades (poll while the Trades tab is active).
+  // Recent trades: REST snapshot for the initial fill, then live WS prepend.
   useEffect(() => {
     if (tab !== 'trades') return;
     let alive = true;
-    const load = () =>
-      fetch(`/api/recenttrades?symbol=${encodeURIComponent(symbol)}`, { cache: 'no-store' })
-        .then((r) => r.json())
-        .then((j) => { if (alive && j.success) setTrades(j.data); })
-        .catch(() => {});
-    load();
-    const id = window.setInterval(load, 2000);
-    return () => { alive = false; window.clearInterval(id); };
+    setTrades([]);
+    fetch(`/api/recenttrades?symbol=${encodeURIComponent(symbol)}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => { if (alive && j.success) setTrades((cur) => (cur.length ? cur : j.data)); })
+      .catch(() => {});
+    const unsub = getStream().subscribeTrades(symbol, (incoming) => {
+      if (!alive) return;
+      setTrades((cur) => {
+        const seen = new Set(cur.map((t) => t.id));
+        const fresh = incoming.filter((t) => !seen.has(t.id)).sort((a, b) => b.timestamp - a.timestamp);
+        return [...fresh, ...cur].slice(0, 60);
+      });
+    });
+    return () => { alive = false; unsub(); };
   }, [tab, symbol]);
 
   // Tick-size options derived from the real level spacing.

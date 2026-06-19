@@ -141,7 +141,9 @@ export class HyperliquidWsConnection {
     }
     if (!msg.channel || msg.channel === 'subscriptionResponse' || msg.channel === 'pong') return;
 
-    const data = msg.data as { coin?: unknown; user?: unknown } | undefined;
+    // `trades` delivers an array of trades; the coin lives on each element.
+    const raw0 = Array.isArray(msg.data) ? (msg.data[0] as { coin?: unknown } | undefined) : undefined;
+    const data = (raw0 ?? msg.data) as { coin?: unknown; user?: unknown } | undefined;
     const key = routingKey({ channel: msg.channel, coin: data?.coin, user: data?.user });
     const entry = this.entries.get(key);
     if (!entry) return;

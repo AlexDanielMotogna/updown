@@ -6,7 +6,7 @@
  * (no backend hop) for latency. Account streams are keyed by the real account
  * address (same rule as the read face).
  */
-import type { AccountEvent, ExchangeName, Orderbook, Price } from './types';
+import type { AccountEvent, ExchangeName, Orderbook, Price, RecentTrade } from './types';
 
 export type Unsubscribe = () => void;
 
@@ -16,4 +16,6 @@ export interface ExchangeStream {
   subscribeOrderbook(symbol: string, cb: (book: Orderbook) => void): Unsubscribe;
   subscribePrices(cb: (prices: Price[]) => void): Unsubscribe;
   subscribeAccount(accountId: string, cb: (event: AccountEvent) => void): Unsubscribe;
+  /** Live market trades, newest-first per batch. */
+  subscribeTrades(symbol: string, cb: (trades: RecentTrade[]) => void): Unsubscribe;
 }

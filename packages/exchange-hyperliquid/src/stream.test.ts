@@ -121,6 +121,29 @@ describe('HyperliquidStream', () => {
     expect(btc?.mark).toBe('64000');
   });
 
+  it('maps trades (array data) → RecentTrade[] and routes by coin', () => {
+    const stream = new HyperliquidStream({ wsFactory: factory });
+    const batches: Array<Array<{ symbol: string; side: string; price: string }>> = [];
+    stream.subscribeTrades('BTC-USD', (t) => batches.push(t));
+    const sock = sockets[0];
+    sock.open();
+    expect(sock.parsedSent()).toEqual([{ method: 'subscribe', subscription: { type: 'trades', coin: 'BTC' } }]);
+
+    sock.emit({
+      channel: 'trades',
+      data: [
+        { coin: 'BTC', side: 'B', px: '64000', sz: '0.5', time: 1, tid: 11 },
+        { coin: 'BTC', side: 'A', px: '63990', sz: '0.2', time: 2, tid: 12 },
+      ],
+    });
+    sock.emit({ channel: 'trades', data: [{ coin: 'ETH', side: 'B', px: '3000', sz: '1', time: 3, tid: 13 }] }); // other feed
+
+    expect(batches).toHaveLength(1);
+    expect(batches[0]).toHaveLength(2);
+    expect(batches[0][0]).toMatchObject({ symbol: 'BTC-USD', side: 'BUY', price: '64000' });
+    expect(batches[0][1].side).toBe('SELL');
+  });
+
   it('subscribeAccount emits account + positions from clearinghouseState', () => {
     const stream = new HyperliquidStream({ wsFactory: factory });
     const events: Array<{ kind: string }> = [];
