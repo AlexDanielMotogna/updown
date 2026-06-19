@@ -146,7 +146,7 @@ export function OrderEntry({
     <div className="card flex h-full flex-col p-3 text-sm">
       {/* Header */}
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide text-surface-300">Place Order</span>
+        <span className="text-sm font-semibold text-surface-200">Place Order</span>
         <button
           onClick={() => setMarginMode((m) => (m === 'cross' ? 'isolated' : 'cross'))}
           className="rounded border border-surface-700 px-2 py-0.5 text-xs capitalize text-surface-300 hover:bg-surface-800"

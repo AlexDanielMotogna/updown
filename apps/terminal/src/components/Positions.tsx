@@ -113,7 +113,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
         ) : tab === 'positions' ? (
           positions.length === 0 ? <Empty>No open positions.</Empty> : (
             <Table head={['Coin', 'Size', 'Pos. Value', 'Entry', 'Mark', 'PnL (ROE %)', 'Liq. Price', 'Margin', 'Funding',
-              <button key="closeall" onClick={onCloseAll} disabled={!walletAddress} className="text-2xs font-medium text-surface-300 hover:text-surface-100 disabled:opacity-40">Close All</button>,
+              <button key="closeall" onClick={onCloseAll} disabled={!walletAddress} className="font-semibold text-surface-300 hover:text-surface-100 disabled:opacity-40">Close All</button>,
               'TP/SL']}>
               {positions.map((p) => {
                 const base = p.symbol.replace('-USD', '');
@@ -212,10 +212,10 @@ function Empty({ children }: { children: React.ReactNode }) {
 function Table({ head, children }: { head: React.ReactNode[]; children: React.ReactNode }) {
   return (
     <table className="w-full text-xs">
-      <thead className="sticky top-0 bg-surface-850 text-2xs uppercase text-surface-500">
+      <thead className="sticky top-0 bg-surface-850 text-xs text-surface-300">
         <tr className="border-b border-surface-800">
           {head.map((h, i) => (
-            <th key={i} className={`px-3 py-1.5 font-medium ${i === 0 ? 'text-left' : 'text-left'}`}>{h}</th>
+            <th key={i} className="px-3 py-2 text-left font-semibold">{h}</th>
           ))}
         </tr>
       </thead>

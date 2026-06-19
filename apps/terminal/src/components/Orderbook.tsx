@@ -64,12 +64,12 @@ export function Orderbook({ symbol }: { symbol: string }) {
   return (
     <div className="card flex h-full flex-col text-xs">
       <div className="flex items-center justify-between border-b border-surface-800 px-3 py-2">
-        <span className="text-2xs font-semibold uppercase tracking-wide text-surface-300">Order Book</span>
-        <span className="text-2xs text-surface-500">{base}</span>
+        <span className="text-xs font-semibold text-surface-200">Order Book</span>
+        <span className="text-xs text-surface-400">{base}</span>
       </div>
 
       {/* Column headers */}
-      <div className="flex justify-between px-3 py-1 text-2xs uppercase text-surface-500">
+      <div className="flex justify-between px-3 py-1 text-xs font-medium text-surface-300">
         <span>Price</span>
         <span>Size ({base})</span>
         <span>Total</span>

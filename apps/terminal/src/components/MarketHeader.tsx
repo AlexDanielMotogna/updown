@@ -18,7 +18,7 @@ function fmtVol(s?: string) {
 function Stat({ label, value, cls }: { label: string; value: string; cls?: string }) {
   return (
     <div className="flex flex-col">
-      <span className="text-2xs uppercase tracking-wide text-surface-400">{label}</span>
+      <span className="text-xs text-surface-300">{label}</span>
       <span className={`tabular text-sm ${cls ?? 'text-surface-100'}`}>{value}</span>
     </div>
   );
