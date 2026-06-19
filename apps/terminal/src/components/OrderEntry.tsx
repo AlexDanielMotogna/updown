@@ -428,45 +428,45 @@ export function OrderEntry({
       {HAS_PRIVY && <WithdrawModal open={showWithdraw} onClose={() => setShowWithdraw(false)} evmAddress={evmAddress} />}
 
       {/* Adjust Leverage */}
-      <Modal open={showLeverage} onClose={() => setShowLeverage(false)} title="Adjust Leverage" size="sm">
-        <div className="mb-2 flex items-end justify-between">
-          <span className="text-xs text-surface-400">Leverage for {base}</span>
+      <Modal open={showLeverage} onClose={() => setShowLeverage(false)} title="Adjust Leverage" size="md">
+        <div className="mb-3 flex items-end justify-between">
+          <span className="text-sm text-surface-300">Leverage for {base}</span>
           <span className="text-2xl font-semibold tabular text-surface-100">{pendingLev}x</span>
         </div>
         <input
           type="range" min={1} max={maxLev} step={1} value={pendingLev}
           onChange={(e) => setPendingLev(Number(e.target.value))}
-          className="w-full accent-win-500"
+          className="w-full accent-surface-300"
         />
-        <div className="mb-3 flex justify-between text-2xs text-surface-500">
+        <div className="mb-4 flex justify-between text-xs text-surface-400">
           <span>1x</span><span>{Math.round(maxLev / 2)}x</span><span>{maxLev}x</span>
         </div>
-        <div className="mb-3 flex gap-1">
+        <div className="mb-4 flex gap-1.5">
           {[2, 5, 10, 20, Math.min(50, maxLev), maxLev].filter((v, i, a) => v <= maxLev && a.indexOf(v) === i).map((v) => (
             <button
               key={v}
               onClick={() => setPendingLev(v)}
-              className={`flex-1 rounded border py-1 text-xs ${pendingLev === v ? 'border-info text-info' : 'border-surface-700 text-surface-300 hover:bg-surface-800'}`}
+              className={`flex-1 rounded border py-1.5 text-sm ${pendingLev === v ? 'border-surface-400 bg-surface-700 text-surface-100' : 'border-surface-700 text-surface-300 hover:bg-surface-800'}`}
             >
               {v}x
             </button>
           ))}
         </div>
-        <p className="mb-3 text-2xs text-surface-500">
-          Setting a higher leverage increases the risk of liquidation. Max for {base} is {maxLev}x. This is a signed action on HyperLiquid.
+        <p className="mb-4 text-xs text-surface-300">
+          Higher leverage increases the risk of liquidation. Max for {base} is {maxLev}x. This is a signed action on HyperLiquid.
         </p>
-        {levMsg && !levMsg.ok && <p className="mb-2 text-2xs text-loss-500">{levMsg.text}</p>}
+        {levMsg && !levMsg.ok && <p className="mb-3 text-xs text-loss-500">{levMsg.text}</p>}
         <div className="grid grid-cols-2 gap-2">
-          <button onClick={() => setShowLeverage(false)} className="rounded border border-surface-700 py-2 text-sm text-surface-300 hover:bg-surface-800">Cancel</button>
-          <button onClick={confirmLeverage} disabled={levBusy} className="rounded bg-win-500 py-2 text-sm font-semibold text-black disabled:opacity-50">
+          <button onClick={() => setShowLeverage(false)} className="rounded border border-surface-700 py-2.5 text-sm text-surface-200 hover:bg-surface-800">Cancel</button>
+          <button onClick={confirmLeverage} disabled={levBusy} className="rounded bg-surface-100 py-2.5 text-sm font-semibold text-surface-900 hover:bg-surface-200 disabled:opacity-50">
             {levBusy ? 'Confirming…' : 'Confirm'}
           </button>
         </div>
       </Modal>
 
       {/* Margin Mode */}
-      <Modal open={showMargin} onClose={() => setShowMargin(false)} title="Margin Mode" size="sm">
-        <div className="mb-3 space-y-2">
+      <Modal open={showMargin} onClose={() => setShowMargin(false)} title="Margin Mode" size="md">
+        <div className="mb-4 space-y-2">
           {([
             { key: 'cross', title: 'Cross', desc: 'All cross positions share a single margin balance. More margin-efficient, but a liquidation can affect all positions.' },
             { key: 'isolated', title: 'Isolated', desc: 'Margin is restricted to this position. Limits losses to the assigned margin, but liquidates sooner.' },
@@ -474,54 +474,54 @@ export function OrderEntry({
             <button
               key={o.key}
               onClick={() => setPendingMode(o.key)}
-              className={`block w-full rounded border p-3 text-left ${pendingMode === o.key ? 'border-info bg-surface-800' : 'border-surface-700 hover:bg-surface-800'}`}
+              className={`block w-full rounded border p-3 text-left ${pendingMode === o.key ? 'border-surface-400 bg-surface-800' : 'border-surface-700 hover:bg-surface-800'}`}
             >
-              <div className="text-sm font-semibold text-surface-100">{o.title}</div>
-              <div className="mt-0.5 text-2xs text-surface-400">{o.desc}</div>
+              <div className="text-base font-semibold text-surface-100">{o.title}</div>
+              <div className="mt-1 text-xs text-surface-300">{o.desc}</div>
             </button>
           ))}
         </div>
-        <p className="mb-3 text-2xs text-surface-500">This is a signed action on HyperLiquid and applies to {base}.</p>
-        {levMsg && !levMsg.ok && <p className="mb-2 text-2xs text-loss-500">{levMsg.text}</p>}
+        <p className="mb-4 text-xs text-surface-300">This is a signed action on HyperLiquid and applies to {base}.</p>
+        {levMsg && !levMsg.ok && <p className="mb-3 text-xs text-loss-500">{levMsg.text}</p>}
         <div className="grid grid-cols-2 gap-2">
-          <button onClick={() => setShowMargin(false)} className="rounded border border-surface-700 py-2 text-sm text-surface-300 hover:bg-surface-800">Cancel</button>
-          <button onClick={confirmMargin} disabled={levBusy} className="rounded bg-win-500 py-2 text-sm font-semibold text-black disabled:opacity-50">
+          <button onClick={() => setShowMargin(false)} className="rounded border border-surface-700 py-2.5 text-sm text-surface-200 hover:bg-surface-800">Cancel</button>
+          <button onClick={confirmMargin} disabled={levBusy} className="rounded bg-surface-100 py-2.5 text-sm font-semibold text-surface-900 hover:bg-surface-200 disabled:opacity-50">
             {levBusy ? 'Confirming…' : 'Confirm'}
           </button>
         </div>
       </Modal>
 
       {/* Max Slippage */}
-      <Modal open={showSlippage} onClose={() => setShowSlippage(false)} title="Max Slippage" size="sm">
+      <Modal open={showSlippage} onClose={() => setShowSlippage(false)} title="Max Slippage" size="md">
         <label className="block">
-          <span className="text-xs text-surface-400">Maximum slippage (%)</span>
-          <div className="mt-1 flex items-center rounded border border-surface-700 bg-[#1c1c23] px-3">
+          <span className="text-sm text-surface-300">Maximum slippage (%)</span>
+          <div className="mt-1.5 flex items-center rounded border border-surface-700 bg-[#1c1c23] px-3">
             <input
               autoFocus
               value={pendingSlip}
               onChange={(e) => setPendingSlip(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && confirmSlippage()}
               inputMode="decimal"
-              className="w-full bg-transparent py-2 tabular outline-none"
+              className="w-full bg-transparent py-2.5 text-base tabular text-surface-100 outline-none"
             />
-            <span className="text-surface-400">%</span>
+            <span className="text-surface-300">%</span>
           </div>
         </label>
-        <div className="mb-3 mt-2 flex gap-1">
+        <div className="mb-4 mt-2.5 flex gap-1.5">
           {['1', '3', '5', '8', '15'].map((v) => (
             <button
               key={v}
               onClick={() => setPendingSlip(v)}
-              className={`flex-1 rounded border py-1 text-xs ${pendingSlip === v ? 'border-info text-info' : 'border-surface-700 text-surface-300 hover:bg-surface-800'}`}
+              className={`flex-1 rounded border py-1.5 text-sm ${pendingSlip === v ? 'border-surface-400 bg-surface-700 text-surface-100' : 'border-surface-700 text-surface-300 hover:bg-surface-800'}`}
             >
               {v}%
             </button>
           ))}
         </div>
-        <p className="mb-3 text-2xs text-surface-500">Market orders won't fill beyond this slippage from the mid price. Saved locally.</p>
+        <p className="mb-4 text-xs text-surface-300">Market orders won&apos;t fill beyond this slippage from the mid price. Saved locally.</p>
         <div className="grid grid-cols-2 gap-2">
-          <button onClick={() => setShowSlippage(false)} className="rounded border border-surface-700 py-2 text-sm text-surface-300 hover:bg-surface-800">Cancel</button>
-          <button onClick={confirmSlippage} className="rounded bg-win-500 py-2 text-sm font-semibold text-black">Confirm</button>
+          <button onClick={() => setShowSlippage(false)} className="rounded border border-surface-700 py-2.5 text-sm text-surface-200 hover:bg-surface-800">Cancel</button>
+          <button onClick={confirmSlippage} className="rounded bg-surface-100 py-2.5 text-sm font-semibold text-surface-900 hover:bg-surface-200">Confirm</button>
         </div>
       </Modal>
     </div>
