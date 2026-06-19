@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { cancelOrder, placeOrder } from '@/lib/api';
 
-type Tab = 'positions' | 'orders' | 'trades';
+type Tab = 'positions' | 'orders' | 'trades' | 'funding' | 'orderhistory';
 const TABS: { key: Tab; label: string }[] = [
   { key: 'positions', label: 'Positions' },
   { key: 'orders', label: 'Open Orders' },
   { key: 'trades', label: 'Trade History' },
+  { key: 'funding', label: 'Funding History' },
+  { key: 'orderhistory', label: 'Order History' },
 ];
 
 const n = (s: string | number, dp = 2) => Number(s).toLocaleString(undefined, { maximumFractionDigits: dp });
@@ -27,26 +29,37 @@ interface Position {
 }
 interface OpenOrder { orderId: string | number; symbol: string; side: 'BUY' | 'SELL'; type: string; price: string; amount: string; remaining: string }
 interface Fill { historyId: string; symbol: string; side: 'BUY' | 'SELL'; amount: string; price: string; pnl: string | null; executedAt: number }
+interface FundingItem { symbol: string; usdc: string; rate: string; time: number }
+interface OrderHistItem { orderId: string | number; symbol: string; side: 'BUY' | 'SELL'; price: string; amount: string; status: string; time: number }
 
 export function Positions({ address, walletAddress }: { address?: string; walletAddress?: string }) {
   const [tab, setTab] = useState<Tab>('positions');
   const [positions, setPositions] = useState<Position[]>([]);
   const [orders, setOrders] = useState<OpenOrder[]>([]);
   const [trades, setTrades] = useState<Fill[]>([]);
+  const [funding, setFunding] = useState<FundingItem[]>([]);
+  const [orderHist, setOrderHist] = useState<OrderHistItem[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!address) return;
+    const get = async (path: string) => (await fetch(`${path}?address=${address}`, { cache: 'no-store' })).json();
     try {
       if (tab === 'positions') {
-        const r = await (await fetch(`/api/positions?address=${address}`, { cache: 'no-store' })).json();
+        const r = await get('/api/positions');
         if (r.success) setPositions(r.data.positions);
       } else if (tab === 'orders') {
-        const r = await (await fetch(`/api/orders?address=${address}`, { cache: 'no-store' })).json();
+        const r = await get('/api/orders');
         if (r.success) setOrders(r.data);
-      } else {
-        const r = await (await fetch(`/api/trades?address=${address}`, { cache: 'no-store' })).json();
+      } else if (tab === 'trades') {
+        const r = await get('/api/trades');
         if (r.success) setTrades(r.data);
+      } else if (tab === 'funding') {
+        const r = await get('/api/funding');
+        if (r.success) setFunding(r.data);
+      } else {
+        const r = await get('/api/orderhistory');
+        if (r.success) setOrderHist(r.data);
       }
       setLoaded(true);
     } catch {/* keep */}
@@ -87,7 +100,13 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
     await Promise.all(positions.map((p) => onClose(p, 'market')));
   }
 
-  const counts = { positions: positions.length, orders: orders.length, trades: trades.length };
+  const counts: Record<Tab, number> = {
+    positions: positions.length,
+    orders: orders.length,
+    trades: trades.length,
+    funding: funding.length,
+    orderhistory: orderHist.length,
+  };
 
   return (
     <div className="card flex h-full flex-col">
@@ -185,21 +204,52 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
               ))}
             </Table>
           )
-        ) : trades.length === 0 ? (
-          <Empty>No trades yet.</Empty>
+        ) : tab === 'trades' ? (
+          trades.length === 0 ? <Empty>No trades yet.</Empty> : (
+            <Table head={['Time', 'Market', 'Side', 'Size', 'Price', 'PnL']}>
+              {trades.map((f) => (
+                <tr key={f.historyId} className="border-b border-surface-800/60 tabular">
+                  <Td className="text-surface-400">{new Date(f.executedAt).toLocaleTimeString()}</Td>
+                  <Td className="font-medium text-surface-100">{f.symbol}</Td>
+                  <Td className={f.side === 'BUY' ? 'text-win-500' : 'text-loss-500'}>{f.side}</Td>
+                  <Td className="text-surface-100">{n(f.amount, 4)}</Td>
+                  <Td className="text-surface-100">{n(f.price)}</Td>
+                  <Td className={f.pnl != null && Number(f.pnl) >= 0 ? 'text-win-500' : 'text-loss-500'}>{f.pnl != null ? n(f.pnl) : '—'}</Td>
+                </tr>
+              ))}
+            </Table>
+          )
+        ) : tab === 'funding' ? (
+          funding.length === 0 ? <Empty>No funding payments.</Empty> : (
+            <Table head={['Time', 'Market', 'Rate', 'Payment']}>
+              {funding.map((f, i) => {
+                const pay = Number(f.usdc);
+                return (
+                  <tr key={i} className="border-b border-surface-800/60 tabular">
+                    <Td className="text-surface-400">{new Date(f.time).toLocaleString()}</Td>
+                    <Td className="font-medium text-surface-100">{f.symbol}</Td>
+                    <Td className="text-surface-100">{(Number(f.rate) * 100).toFixed(4)}%</Td>
+                    <Td className={pay >= 0 ? 'text-win-500' : 'text-loss-500'}>{pay >= 0 ? '+' : '-'}${n(Math.abs(pay))}</Td>
+                  </tr>
+                );
+              })}
+            </Table>
+          )
         ) : (
-          <Table head={['Time', 'Market', 'Side', 'Size', 'Price', 'PnL']}>
-            {trades.map((f) => (
-              <tr key={f.historyId} className="border-b border-surface-800/60 tabular">
-                <Td className="text-surface-400">{new Date(f.executedAt).toLocaleTimeString()}</Td>
-                <Td className="font-medium">{f.symbol}</Td>
-                <Td className={f.side === 'BUY' ? 'text-win-500' : 'text-loss-500'}>{f.side}</Td>
-                <Td>{n(f.amount, 4)}</Td>
-                <Td>{n(f.price)}</Td>
-                <Td className={f.pnl != null && Number(f.pnl) >= 0 ? 'text-win-500' : 'text-loss-500'}>{f.pnl != null ? n(f.pnl) : '—'}</Td>
-              </tr>
-            ))}
-          </Table>
+          orderHist.length === 0 ? <Empty>No order history.</Empty> : (
+            <Table head={['Time', 'Market', 'Side', 'Price', 'Size', 'Status']}>
+              {orderHist.map((o, i) => (
+                <tr key={i} className="border-b border-surface-800/60 tabular">
+                  <Td className="text-surface-400">{o.time ? new Date(o.time).toLocaleString() : '—'}</Td>
+                  <Td className="font-medium text-surface-100">{o.symbol}</Td>
+                  <Td className={o.side === 'BUY' ? 'text-win-500' : 'text-loss-500'}>{o.side}</Td>
+                  <Td className="text-surface-100">{n(o.price)}</Td>
+                  <Td className="text-surface-100">{n(o.amount, 4)}</Td>
+                  <Td className="capitalize text-surface-400">{o.status}</Td>
+                </tr>
+              ))}
+            </Table>
+          )
         )}
       </div>
     </div>
