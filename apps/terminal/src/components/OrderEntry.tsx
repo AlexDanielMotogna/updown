@@ -235,7 +235,7 @@ export function OrderEntry({
     }
 
     // Attach TP/SL as reduce-only trigger orders on the opposite (closing) side.
-    if (tpSl && (tpPrice || slPrice)) {
+    if (tpSl && !reduceOnly && (tpPrice || slPrice)) {
       const opp: OrderSide = side === 'BUY' ? 'SELL' : 'BUY';
       const cap = (trigger: string) => String(Number(trigger) * (opp === 'BUY' ? 1.05 : 0.95));
       if (tpPrice)
@@ -353,10 +353,21 @@ export function OrderEntry({
         ))}
       </div>
 
-      {/* Toggles */}
-      <Toggle label="Reduce Only" on={reduceOnly} onClick={() => setReduceOnly((v) => !v)} />
-      <Toggle label="Take Profit / Stop Loss" on={tpSl} onClick={() => setTpSl((v) => !v)} />
-      {tpSl && (
+      {/* Toggles — Reduce Only closes a position, so TP/SL (which attach to a new
+          entry) are mutually exclusive with it. */}
+      <Toggle
+        label="Reduce Only"
+        on={reduceOnly}
+        onClick={() => setReduceOnly((v) => { if (!v) setTpSl(false); return !v; })}
+      />
+      <Toggle
+        label="Take Profit / Stop Loss"
+        on={tpSl}
+        disabled={reduceOnly}
+        hint="off with Reduce Only"
+        onClick={() => setTpSl((v) => !v)}
+      />
+      {tpSl && !reduceOnly && (
         <div className="mb-2 mt-1 space-y-2">
           <div className="grid grid-cols-2 gap-1">
             <LabeledInput label="TP Price" value={tpPrice} onChange={onTpPrice} suffix="USD" />
@@ -441,13 +452,19 @@ function InlineInput({ value, onChange, suffix }: { value: string; onChange: (v:
     </div>
   );
 }
-function Toggle({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
+function Toggle({ label, on, onClick, disabled, hint }: { label: string; on: boolean; onClick: () => void; disabled?: boolean; hint?: string }) {
   return (
-    <button onClick={onClick} className="mb-1 flex w-full items-center gap-2 text-xs text-surface-300">
-      <span className={`flex h-4 w-7 items-center rounded-full px-0.5 transition-colors ${on ? 'bg-win-500' : 'bg-surface-700'}`}>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={disabled ? hint : undefined}
+      className={`mb-1 flex w-full items-center gap-2 text-xs ${disabled ? 'cursor-not-allowed text-surface-500' : 'text-surface-300'}`}
+    >
+      <span className={`flex h-4 w-7 items-center rounded-full px-0.5 transition-colors ${on ? 'bg-win-500' : 'bg-surface-700'} ${disabled ? 'opacity-50' : ''}`}>
         <span className={`h-3 w-3 rounded-full bg-white transition-transform ${on ? 'translate-x-3' : ''}`} />
       </span>
       {label}
+      {disabled && hint ? <span className="ml-auto text-2xs text-surface-600">{hint}</span> : null}
     </button>
   );
 }
