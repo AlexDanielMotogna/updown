@@ -34,8 +34,7 @@ export function readAdapter(): ExchangeReadAdapter {
   return cached;
 }
 
-/** Normalized tickers (markets ⨝ prices), sorted by 24h volume desc. */
-export async function getTickers(): Promise<Ticker[]> {
+async function computeTickers(): Promise<Ticker[]> {
   const a = readAdapter();
   const [markets, prices] = await Promise.all([a.getMarkets(), a.getPrices()]);
   const lev = new Map(markets.map((m) => [m.symbol, m.maxLeverage]));
@@ -52,4 +51,25 @@ export async function getTickers(): Promise<Ticker[]> {
       maxLeverage: lev.get(p.symbol) ?? null,
     }))
     .sort((x, y) => Number(y.volume24h) - Number(x.volume24h));
+}
+
+// Short server-side cache: the header, market selector and other pollers all hit
+// /api/markets; without this each call fired two large metaAndAssetCtxs fetches.
+// In-flight de-dup so concurrent callers share one upstream request.
+const TICKERS_TTL_MS = 1500;
+let tickersCache: { data: Ticker[]; expires: number } | null = null;
+let tickersInFlight: Promise<Ticker[]> | null = null;
+
+/** Normalized tickers (markets ⨝ prices), sorted by 24h volume desc. Cached briefly. */
+export async function getTickers(): Promise<Ticker[]> {
+  const now = Date.now();
+  if (tickersCache && tickersCache.expires > now) return tickersCache.data;
+  if (tickersInFlight) return tickersInFlight;
+  tickersInFlight = computeTickers()
+    .then((data) => {
+      tickersCache = { data, expires: Date.now() + TICKERS_TTL_MS };
+      return data;
+    })
+    .finally(() => { tickersInFlight = null; });
+  return tickersInFlight;
 }

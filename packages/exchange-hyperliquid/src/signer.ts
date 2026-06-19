@@ -66,18 +66,28 @@ function crossPrice(ref: number, side: OrderParams['side'], slip: number): strin
   return String(ref * (side === 'BUY' ? 1 + slip : 1 - slip));
 }
 
+/**
+ * Process-wide asset-map cache keyed by endpoint URL. The HL universe (asset
+ * index + szDecimals) is effectively static, but a fresh signer is built per
+ * request — without this, every order/leverage/cancel re-fetched the whole
+ * universe `meta` before signing. TTL keeps it fresh enough for new listings.
+ */
+const ASSET_MAP_CACHE = new Map<string, { map: Map<string, AssetInfo>; expires: number }>();
+const ASSET_MAP_TTL_MS = 10 * 60 * 1000;
+
 export class HyperliquidSigner implements ExchangeSigner {
   readonly name = 'hyperliquid' as const;
   readonly chain = 'evm' as const;
 
   private readonly client: ExchangeClient | null;
   private readonly info: InfoClient;
+  private readonly apiUrl: string;
   private readonly builder?: { address: `0x${string}`; feeTenthsBps: number };
-  private assetMap?: Map<string, AssetInfo>;
 
   constructor(opts: HyperliquidSignerOptions = {}) {
     const endpoint = opts.endpoint ?? MAINNET;
     this.info = opts.infoClient ?? new InfoClient(endpoint);
+    this.apiUrl = endpoint.apiUrl;
     this.builder = opts.builder;
 
     const account = opts.account ?? (opts.privateKey ? privateKeyToAccount(opts.privateKey) : null);
@@ -178,16 +188,24 @@ export class HyperliquidSigner implements ExchangeSigner {
   }
 
   private async resolveAsset(symbol: string): Promise<AssetInfo> {
-    if (!this.assetMap) {
-      const meta = await this.info.meta();
-      this.assetMap = new Map(
-        meta.universe.map((a, i) => [a.name, { index: i, szDecimals: a.szDecimals }])
-      );
-    }
+    const map = await this.assetMap();
     const coin = toHlCoin(symbol);
-    const info = this.assetMap.get(coin);
+    const info = map.get(coin);
     if (!info) throw new Error(`Unknown HyperLiquid asset: ${coin}`);
     return info;
+  }
+
+  /** Cached (per-endpoint, TTL) asset index + szDecimals map. */
+  private async assetMap(): Promise<Map<string, AssetInfo>> {
+    const now = Date.now();
+    const hit = ASSET_MAP_CACHE.get(this.apiUrl);
+    if (hit && hit.expires > now) return hit.map;
+    const meta = await this.info.meta();
+    const map = new Map<string, AssetInfo>(
+      meta.universe.map((a, i) => [a.name, { index: i, szDecimals: a.szDecimals }])
+    );
+    ASSET_MAP_CACHE.set(this.apiUrl, { map, expires: now + ASSET_MAP_TTL_MS });
+    return map;
   }
 }
 
