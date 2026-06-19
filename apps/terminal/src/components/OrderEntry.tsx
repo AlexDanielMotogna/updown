@@ -146,7 +146,7 @@ export function OrderEntry({
     <div className="card flex h-full flex-col p-3 text-sm">
       {/* Header */}
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-2xs font-semibold uppercase tracking-wide text-surface-300">Place Order</span>
+        <span className="text-xs font-semibold uppercase tracking-wide text-surface-300">Place Order</span>
         <button
           onClick={() => setMarginMode((m) => (m === 'cross' ? 'isolated' : 'cross'))}
           className="rounded border border-surface-700 px-2 py-0.5 text-xs capitalize text-surface-300 hover:bg-surface-800"
@@ -195,7 +195,7 @@ export function OrderEntry({
           onChange={(e) => setLeverage(Number(e.target.value))}
           className="w-full accent-win-500"
         />
-        <div className="flex justify-between text-2xs text-surface-500">
+        <div className="flex justify-between text-xs text-surface-500">
           <span>1x</span><span>{Math.round(maxLev / 2)}x</span><span>{maxLev}x</span>
         </div>
       </div>
@@ -213,7 +213,7 @@ export function OrderEntry({
         <InlineInput value={sizeBtc} onChange={setBtc} suffix={base} />
         <InlineInput value={sizeUsd} onChange={setUsd} suffix="USD" />
       </div>
-      <div className="mb-2 flex justify-between text-2xs text-surface-400">
+      <div className="mb-2 flex justify-between text-xs text-surface-400">
         <span>Margin: {usd(marginUsd)}</span>
         <span>Max: {usd(maxUsd)} ({leverage}x)</span>
       </div>
@@ -221,7 +221,7 @@ export function OrderEntry({
       {/* % buttons */}
       <div className="mb-3 grid grid-cols-4 gap-1">
         {PCTS.map((p) => (
-          <button key={p} onClick={() => setPct(p)} className="rounded bg-surface-800 py-1 text-2xs text-surface-300 hover:bg-surface-700">
+          <button key={p} onClick={() => setPct(p)} className="rounded bg-surface-800 py-1 text-xs text-surface-300 hover:bg-surface-700">
             {p}%
           </button>
         ))}
@@ -232,7 +232,7 @@ export function OrderEntry({
       <Toggle label="Take Profit / Stop Loss" on={tpSl} onClick={() => setTpSl((v) => !v)} />
 
       {/* Info rows */}
-      <div className="my-2 space-y-1 text-2xs">
+      <div className="my-2 space-y-1 text-xs">
         <Row label="Max Slippage" value={`${slippage}%`} />
         <Row label="Est. Liq Price" value={estLiq ? usd(estLiq) : 'N/A'} />
         <Row label="Margin" value={marginUsd ? usd(marginUsd) : 'N/A'} />
@@ -248,7 +248,7 @@ export function OrderEntry({
         {busy ? 'Placing…' : !walletAddress ? 'Connect to trade' : buy ? `Buy / Long` : `Sell / Short`}
       </button>
 
-      {msg && <div className={`mt-2 text-2xs ${msg.ok ? 'text-win-500' : 'text-loss-500'}`}>{msg.text}</div>}
+      {msg && <div className={`mt-2 text-xs ${msg.ok ? 'text-win-500' : 'text-loss-500'}`}>{msg.text}</div>}
 
       {/* Deposit / Withdraw */}
       <div className="mt-2 grid grid-cols-2 gap-1">
@@ -280,7 +280,7 @@ function InlineInput({ value, onChange, suffix }: { value: string; onChange: (v:
         placeholder="0.00"
         className="w-full bg-transparent py-1.5 tabular outline-none placeholder:text-surface-500"
       />
-      <span className="text-2xs text-surface-500">{suffix}</span>
+      <span className="text-xs text-surface-500">{suffix}</span>
     </div>
   );
 }

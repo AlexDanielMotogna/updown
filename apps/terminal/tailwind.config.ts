@@ -40,7 +40,19 @@ const config: Config = {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
         mono: ['Roboto Mono', 'monospace'],
       },
-      fontSize: { '2xs': ['0.625rem', { lineHeight: '0.875rem' }] },
+      // ── Centralized type scale (single source of truth for font sizes) ──
+      // Bumped from the cramped early values. Adjust ONLY here to retune the
+      // whole terminal's typography. [size, lineHeight].
+      fontSize: {
+        '2xs': ['0.6875rem', { lineHeight: '1rem' }], //  11px — micro labels
+        xs: ['0.8125rem', { lineHeight: '1.1rem' }], //   13px — labels / dense tables
+        sm: ['0.875rem', { lineHeight: '1.25rem' }], //   14px — body / values (default)
+        base: ['0.9375rem', { lineHeight: '1.4rem' }], // 15px — emphasized body
+        md: ['1.0625rem', { lineHeight: '1.5rem' }], //   17px — sub-headings
+        lg: ['1.1875rem', { lineHeight: '1.6rem' }], //   19px — headings
+        xl: ['1.375rem', { lineHeight: '1.75rem' }], //   22px — large numbers
+        '2xl': ['1.75rem', { lineHeight: '2.1rem' }], //  28px
+      },
       boxShadow: {
         subtle: '0 1px 2px 0 rgba(0,0,0,0.3)',
         card: '0 1px 3px 0 rgba(0,0,0,0.4), 0 1px 2px -1px rgba(0,0,0,0.4)',
