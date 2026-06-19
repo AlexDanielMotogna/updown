@@ -93,8 +93,7 @@ export function MarketHeader({ symbol, initial }: { symbol: string; initial?: Ti
       <Stat label="Oracle" value={fmtPrice(t?.index)} />
       <Stat
         label="24h Change"
-        value={t ? `${chgUp ? '+' : ''}${fmtPrice(String(chgAbs))}` : '—'}
-        sub={t ? `${chgUp ? '+' : ''}${chgPct.toFixed(2)}%` : undefined}
+        value={t ? `${chgUp ? '+' : ''}${fmtPrice(String(chgAbs))} / ${chgUp ? '+' : ''}${chgPct.toFixed(2)}%` : '—'}
         cls={chgUp ? 'text-win-500' : 'text-loss-500'}
       />
       <Stat label="24h Volume" value={t ? fmtUsd(Number(t.volume24h)) : '—'} />
