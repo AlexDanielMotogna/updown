@@ -346,7 +346,9 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
                 const long = p.side === 'LONG';
                 const pnl = Number(p.unrealizedPnl);
                 const roe = Number(p.metadata?.returnOnEquity ?? 0) * 100;
-                const fund = Number(p.funding);
+                // HL cumFunding.sinceOpen is positive when funding was PAID (a cost),
+                // so negate it: paid → negative (red), received → positive (green).
+                const fund = -Number(p.funding);
                 return (
                   <tr key={p.symbol} className="border-b border-surface-800/60 tabular">
                     <Td>
@@ -367,7 +369,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
                     <Td className="text-surface-100">
                       ${n(p.margin)} <span className="text-2xs capitalize text-surface-400">({p.metadata?.leverageType ?? 'cross'})</span>
                     </Td>
-                    <Td className={fund >= 0 ? 'text-win-500' : 'text-loss-500'}>{fund >= 0 ? '' : '-'}${n(Math.abs(fund))}</Td>
+                    <Td className={fund >= 0 ? 'text-win-500' : 'text-loss-500'}>{fund >= 0 ? '+' : '-'}${n(Math.abs(fund))}</Td>
                     <Td>
                       <div className="flex gap-1">
                         {(['limit', 'market', 'reverse'] as const).map((m) => (
