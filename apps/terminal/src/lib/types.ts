@@ -11,8 +11,10 @@ export type OrderType =
 export interface Ticker {
   symbol: string;
   mark: string;
-  change24h: string;
+  index: string; // oracle price
+  change24h: string; // 24h change %
   volume24h: string;
+  openInterest: string; // in base units (× mark for notional)
   funding: string;
   maxLeverage: number | null;
 }

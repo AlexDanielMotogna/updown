@@ -39,12 +39,15 @@ export async function getTickers(): Promise<Ticker[]> {
   const a = readAdapter();
   const [markets, prices] = await Promise.all([a.getMarkets(), a.getPrices()]);
   const lev = new Map(markets.map((m) => [m.symbol, m.maxLeverage]));
+  const oi = new Map(markets.map((m) => [m.symbol, String(m.metadata?.openInterest ?? '0')]));
   return prices
     .map((p) => ({
       symbol: p.symbol,
       mark: p.mark,
+      index: p.index,
       change24h: p.change24h,
       volume24h: p.volume24h,
+      openInterest: oi.get(p.symbol) ?? '0',
       funding: p.funding,
       maxLeverage: lev.get(p.symbol) ?? null,
     }))
