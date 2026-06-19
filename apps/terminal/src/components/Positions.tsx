@@ -126,19 +126,19 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
                     <Td>
                       <span className="flex items-center gap-1.5">
                         <span className={`h-3 w-0.5 ${long ? 'bg-win-500' : 'bg-loss-500'}`} />
-                        <span className="font-medium">{base}</span>
+                        <span className="font-medium text-surface-100">{base}</span>
                         <span className={`rounded px-1 text-2xs ${long ? 'bg-win-500/15 text-win-500' : 'bg-loss-500/15 text-loss-500'}`}>{p.leverage}x</span>
                       </span>
                     </Td>
-                    <Td className={long ? 'text-win-500' : 'text-loss-500'}>{n(p.amount, 4)} {base}</Td>
-                    <Td>${n(p.metadata?.positionValue ?? '0')}</Td>
-                    <Td>{n(p.entryPrice)}</Td>
-                    <Td>{n(p.markPrice)}</Td>
+                    <Td className="text-surface-400">{n(p.amount, 4)} {base}</Td>
+                    <Td className="text-surface-100">${n(p.metadata?.positionValue ?? '0')}</Td>
+                    <Td className="text-surface-100">{n(p.entryPrice)}</Td>
+                    <Td className="text-surface-100">{n(p.markPrice)}</Td>
                     <Td className={pnl >= 0 ? 'text-win-500' : 'text-loss-500'}>
                       {pnl >= 0 ? '+' : ''}${n(pnl)} ({roe.toFixed(1)}%)
                     </Td>
-                    <Td className="text-surface-400">{Number(p.liquidationPrice) > 0 ? n(p.liquidationPrice) : 'N/A'}</Td>
-                    <Td>
+                    <Td className="text-surface-100">{Number(p.liquidationPrice) > 0 ? n(p.liquidationPrice) : 'N/A'}</Td>
+                    <Td className="text-surface-100">
                       ${n(p.margin)} <span className="text-2xs capitalize text-surface-400">({p.metadata?.leverageType ?? 'cross'})</span>
                     </Td>
                     <Td className={fund >= 0 ? 'text-win-500' : 'text-loss-500'}>{fund >= 0 ? '' : '-'}${n(Math.abs(fund))}</Td>
