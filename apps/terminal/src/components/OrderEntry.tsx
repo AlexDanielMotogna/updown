@@ -1,9 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { placeOrder } from '@/lib/api';
 import { AccountInfo } from './AccountInfo';
+import { DepositModal } from './DepositModal';
+import { Modal } from './Modal';
 import type { OrderSide, OrderType } from '@/lib/types';
+
+// Lazy: WithdrawModal pulls the HL SDK (signed withdraw). Only under Privy.
+const WithdrawModal = dynamic(() => import('./WithdrawModal').then((m) => m.WithdrawModal), { ssr: false });
+const HAS_PRIVY = !!process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 
 type Tab = 'MARKET' | 'LIMIT' | 'STOP' | 'STOP_LIMIT';
 const TABS: { key: Tab; label: string }[] = [
@@ -50,6 +57,9 @@ export function OrderEntry({
   const [slippage, setSlippage] = useState('0.5');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const [mark, setMark] = useState(0);
   const [maxLev, setMaxLev] = useState(50);
@@ -93,6 +103,16 @@ export function OrderEntry({
 
   // clamp leverage to the market max
   useEffect(() => { setLeverage((l) => Math.min(l, maxLev)); }, [maxLev]);
+
+  // Persisted max-slippage preference.
+  useEffect(() => {
+    const s = typeof window !== 'undefined' ? window.localStorage.getItem('updown-slippage') : null;
+    if (s) setSlippage(s);
+  }, []);
+  function saveSlippage(v: string) {
+    setSlippage(v);
+    window.localStorage.setItem('updown-slippage', v);
+  }
 
   const marginUsd = Number(sizeUsd) / leverage || 0;
   const maxUsd = available * leverage;
@@ -163,12 +183,15 @@ export function OrderEntry({
       {/* Header */}
       <div className="mb-2 flex items-center justify-between">
         <span className="text-sm font-semibold text-surface-200">Place Order</span>
-        <button
-          onClick={() => setMarginMode((m) => (m === 'cross' ? 'isolated' : 'cross'))}
-          className="rounded border border-surface-700 px-2 py-0.5 text-xs capitalize text-surface-300 hover:bg-surface-800"
-        >
-          {marginMode} ▾
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setMarginMode((m) => (m === 'cross' ? 'isolated' : 'cross'))}
+            className="rounded border border-surface-700 px-2 py-0.5 text-xs capitalize text-surface-300 hover:bg-surface-800"
+          >
+            {marginMode} ▾
+          </button>
+          <button onClick={() => setShowSettings(true)} className="text-surface-400 hover:text-surface-100" aria-label="Settings" title="Settings">⚙</button>
+        </div>
       </div>
 
       {/* Order type tabs */}
@@ -274,12 +297,23 @@ export function OrderEntry({
 
       {/* Deposit / Withdraw */}
       <div className="mt-2 grid grid-cols-2 gap-1">
-        <button className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800">↓ Deposit</button>
-        <button className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800">↑ Withdraw</button>
+        <button onClick={() => setShowDeposit(true)} className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800">↓ Deposit</button>
+        <button onClick={() => setShowWithdraw(true)} className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800">↑ Withdraw</button>
       </div>
       <div className="mt-2">
         <AccountInfo evmAddress={evmAddress} />
       </div>
+
+      {/* Modals */}
+      <DepositModal open={showDeposit} onClose={() => setShowDeposit(false)} evmAddress={evmAddress} />
+      {HAS_PRIVY && <WithdrawModal open={showWithdraw} onClose={() => setShowWithdraw(false)} evmAddress={evmAddress} />}
+      <Modal open={showSettings} onClose={() => setShowSettings(false)} title="Settings">
+        <label className="block text-sm">
+          <span className="text-xs text-surface-400">Max Slippage (%)</span>
+          <input value={slippage} onChange={(e) => saveSlippage(e.target.value)} inputMode="decimal" className="input mt-1 tabular" />
+        </label>
+        <p className="mt-2 text-2xs text-surface-500">Saved locally. (Market-order cap wiring to the signer is pending.)</p>
+      </Modal>
     </div>
   );
 }
