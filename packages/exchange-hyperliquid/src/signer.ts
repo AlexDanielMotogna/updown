@@ -104,10 +104,10 @@ export class HyperliquidSigner implements ExchangeSigner {
     return { success: true };
   }
 
-  async updateLeverage(symbol: string, leverage: number, _wallet?: WalletSigner): Promise<Result> {
+  async updateLeverage(symbol: string, leverage: number, isCross = true, _wallet?: WalletSigner): Promise<Result> {
     const client = this.requireClient();
     const asset = await this.resolveAsset(symbol);
-    await client.updateLeverage({ asset: asset.index, isCross: true, leverage });
+    await client.updateLeverage({ asset: asset.index, isCross, leverage });
     return { success: true };
   }
 

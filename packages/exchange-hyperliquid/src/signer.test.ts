@@ -110,4 +110,13 @@ describe('HyperliquidSigner', () => {
     expect(action.leverage).toBe(5);
     expect(res.success).toBe(true);
   });
+
+  it('updates leverage (isolated) when isCross=false', async () => {
+    const captured: Captured[] = [];
+    await makeSigner(captured).updateLeverage('BTC-USD', 10, false);
+    const action = captured[0].action as { type: string; isCross: boolean; leverage: number };
+    expect(action.type).toBe('updateLeverage');
+    expect(action.isCross).toBe(false);
+    expect(action.leverage).toBe(10);
+  });
 });

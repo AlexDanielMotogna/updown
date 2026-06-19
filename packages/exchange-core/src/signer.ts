@@ -77,5 +77,6 @@ export interface ExchangeSigner {
 
   cancel(params: CancelParams, wallet: WalletSigner): Promise<Result>;
 
-  updateLeverage(symbol: string, leverage: number, wallet: WalletSigner): Promise<Result>;
+  /** Set leverage and margin mode (cross/isolated) for a symbol. Signed action. */
+  updateLeverage(symbol: string, leverage: number, isCross: boolean, wallet?: WalletSigner): Promise<Result>;
 }

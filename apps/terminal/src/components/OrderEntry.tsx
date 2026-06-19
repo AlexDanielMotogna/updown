@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { placeOrder } from '@/lib/api';
+import { placeOrder, setLeverage as setLeverageApi } from '@/lib/api';
 import { AccountInfo } from './AccountInfo';
 import { DepositModal } from './DepositModal';
 import { Modal } from './Modal';
@@ -66,6 +66,35 @@ export function OrderEntry({
   const [mark, setMark] = useState(0);
   const [maxLev, setMaxLev] = useState(50);
   const [available, setAvailable] = useState(0);
+
+  // Leverage / margin-mode application to HyperLiquid (signed by the agent key
+  // server-side — no per-change wallet popup). `appliedRef` dedupes so identical
+  // settings aren't re-sent; reset when the market changes (HL leverage is
+  // per-asset).
+  const [levBusy, setLevBusy] = useState(false);
+  const [levMsg, setLevMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const appliedRef = useRef<string>('');
+  useEffect(() => { appliedRef.current = ''; setLevMsg(null); }, [symbol]);
+
+  /** Push leverage + margin mode to HL. Returns ok + a message; dedupes. */
+  async function applyLeverage(lev: number, cross: boolean): Promise<{ ok: boolean; text: string }> {
+    if (!walletAddress) return { ok: false, text: 'Connect a wallet first' };
+    const key = `${symbol}:${lev}:${cross}`;
+    if (appliedRef.current === key) return { ok: true, text: '' };
+    setLevBusy(true);
+    setLevMsg(null);
+    const res = await setLeverageApi({ walletAddress, symbol, leverage: lev, isCross: cross });
+    setLevBusy(false);
+    if (res.success) {
+      appliedRef.current = key;
+      const text = `${lev}x ${cross ? 'Cross' : 'Isolated'}`;
+      setLevMsg({ ok: true, text });
+      return { ok: true, text };
+    }
+    const text = res.error?.message ?? 'Leverage update failed';
+    setLevMsg({ ok: false, text });
+    return { ok: false, text };
+  }
 
   // Live mark + max leverage for this market.
   useEffect(() => {
@@ -181,6 +210,13 @@ export function OrderEntry({
     if (!walletAddress) return;
     setBusy(true);
     setMsg(null);
+    // Make sure HL has the intended leverage + margin mode before the order.
+    const lev = await applyLeverage(leverage, marginMode === 'cross');
+    if (!lev.ok) {
+      setBusy(false);
+      setMsg({ ok: false, text: lev.text });
+      return;
+    }
     const res = await placeOrder({
       walletAddress,
       symbol,
@@ -221,8 +257,13 @@ export function OrderEntry({
         <span className="text-sm font-semibold text-surface-200">Place Order</span>
         <div className="flex items-center gap-1.5">
           <button
-            onClick={() => setMarginMode((m) => (m === 'cross' ? 'isolated' : 'cross'))}
-            className="rounded border border-surface-700 px-2 py-0.5 text-xs capitalize text-surface-300 hover:bg-surface-800"
+            disabled={levBusy}
+            onClick={() => {
+              const next = marginMode === 'cross' ? 'isolated' : 'cross';
+              setMarginMode(next);
+              void applyLeverage(leverage, next === 'cross');
+            }}
+            className="rounded border border-surface-700 px-2 py-0.5 text-xs capitalize text-surface-300 hover:bg-surface-800 disabled:opacity-50"
           >
             {marginMode} ▾
           </button>
@@ -268,8 +309,18 @@ export function OrderEntry({
         <input
           type="range" min={1} max={maxLev} step={1} value={leverage}
           onChange={(e) => setLeverage(Number(e.target.value))}
+          onMouseUp={() => void applyLeverage(leverage, marginMode === 'cross')}
+          onTouchEnd={() => void applyLeverage(leverage, marginMode === 'cross')}
+          onKeyUp={() => void applyLeverage(leverage, marginMode === 'cross')}
+          disabled={levBusy}
           className="w-full accent-win-500"
         />
+        {levMsg && (
+          <div className={`mt-1 text-2xs ${levMsg.ok ? 'text-win-500' : 'text-loss-500'}`}>
+            {levBusy ? 'Updating leverage…' : levMsg.ok ? `Leverage set: ${levMsg.text}` : levMsg.text}
+          </div>
+        )}
+        {levBusy && !levMsg && <div className="mt-1 text-2xs text-surface-400">Updating leverage…</div>}
         <div className="flex justify-between text-xs text-surface-500">
           <span>1x</span><span>{Math.round(maxLev / 2)}x</span><span>{maxLev}x</span>
         </div>

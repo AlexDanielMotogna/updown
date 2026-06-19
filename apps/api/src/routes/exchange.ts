@@ -91,6 +91,14 @@ const cancelSchema = z.object({
   orderId: z.union([z.string(), z.number()]),
 });
 
+const leverageSchema = z.object({
+  walletAddress: solanaWallet,
+  isTestnet: isTestnetFlag,
+  symbol: z.string().min(1).max(40),
+  leverage: z.number().int().min(1).max(100),
+  isCross: z.boolean(),
+});
+
 function badRequest(res: Parameters<Parameters<typeof exchangeRouter.post>[1]>[1], message: string) {
   return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message } });
 }
@@ -249,6 +257,32 @@ exchangeRouter.post('/order', async (req, res) => {
     console.error('[Exchange] order error:', error);
     // Surface the exchange's message (e.g. "Must deposit", "Insufficient margin").
     res.status(502).json({ success: false, error: { code: 'ORDER_FAILED', message: (error as Error).message } });
+  }
+});
+
+/** Set leverage + margin mode (cross/isolated) for a symbol. Signed agent action. */
+exchangeRouter.post('/leverage', async (req, res) => {
+  try {
+    const parsed = leverageSchema.safeParse(req.body);
+    if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid body');
+
+    const { walletAddress, isTestnet, symbol, leverage, isCross } = parsed.data;
+    const userId = await resolveUserId(walletAddress);
+    if (!userId) {
+      return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Unknown wallet' } });
+    }
+
+    const conn = await getConnection(userId, 'hyperliquid', isTestnet);
+    if (!conn || !conn.active) {
+      return res.status(409).json({ success: false, error: { code: 'NO_ACTIVE_CONNECTION', message: 'Connect and approve an agent first' } });
+    }
+
+    const signer = await buildHyperliquidSigner(userId, { isTestnet });
+    const result = await signer.updateLeverage(symbol, leverage, isCross);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('[Exchange] leverage error:', error);
+    res.status(502).json({ success: false, error: { code: 'LEVERAGE_FAILED', message: (error as Error).message } });
   }
 });
 

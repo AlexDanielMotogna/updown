@@ -51,6 +51,12 @@ export function cancelOrder(input: { walletAddress: string; symbol: string; orde
   return post<{ success: boolean }>('/api/exchange/order/cancel', { ...input, isTestnet: IS_TESTNET });
 }
 
+/** Set leverage + margin mode (cross/isolated) for a symbol on HyperLiquid.
+ * Signed server-side by the agent key — no per-change browser popup. */
+export function setLeverage(input: { walletAddress: string; symbol: string; leverage: number; isCross: boolean }) {
+  return post<{ success: boolean }>('/api/exchange/leverage', { ...input, isTestnet: IS_TESTNET });
+}
+
 // ── Identity + agent lifecycle ────────────────────────────────────────────
 
 /** Resolve a linked wallet → the Solana identity (walletAddress) or null. */
