@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { cancelOrder } from '@/lib/api';
+import { cancelOrder, placeOrder } from '@/lib/api';
 
 type Tab = 'positions' | 'orders' | 'trades';
 const TABS: { key: Tab; label: string }[] = [
@@ -12,7 +12,19 @@ const TABS: { key: Tab; label: string }[] = [
 
 const n = (s: string | number, dp = 2) => Number(s).toLocaleString(undefined, { maximumFractionDigits: dp });
 
-interface Position { symbol: string; side: 'LONG' | 'SHORT'; amount: string; entryPrice: string; markPrice: string; unrealizedPnl: string; leverage: number }
+interface Position {
+  symbol: string;
+  side: 'LONG' | 'SHORT';
+  amount: string;
+  entryPrice: string;
+  markPrice: string;
+  unrealizedPnl: string;
+  leverage: number;
+  liquidationPrice: string;
+  margin: string;
+  funding: string;
+  metadata?: { positionValue?: string; returnOnEquity?: string; leverageType?: string };
+}
 interface OpenOrder { orderId: string | number; symbol: string; side: 'BUY' | 'SELL'; type: string; price: string; amount: string; remaining: string }
 interface Fill { historyId: string; symbol: string; side: 'BUY' | 'SELL'; amount: string; price: string; pnl: string | null; executedAt: number }
 
@@ -53,6 +65,20 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
     refresh();
   }
 
+  async function onClose(p: Position) {
+    if (!walletAddress) return;
+    // Close = reduce-only market order on the opposite side for the full size.
+    await placeOrder({
+      walletAddress,
+      symbol: p.symbol,
+      side: p.side === 'LONG' ? 'SELL' : 'BUY',
+      type: 'MARKET',
+      amount: p.amount,
+      reduceOnly: true,
+    });
+    refresh();
+  }
+
   const counts = { positions: positions.length, orders: orders.length, trades: trades.length };
 
   return (
@@ -78,18 +104,43 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
           <Empty>loading…</Empty>
         ) : tab === 'positions' ? (
           positions.length === 0 ? <Empty>No open positions.</Empty> : (
-            <Table head={['Market', 'Side', 'Size', 'Entry', 'Mark', 'uPnL', 'Lev']}>
-              {positions.map((p) => (
-                <tr key={p.symbol} className="border-b border-surface-800/60 tabular">
-                  <Td className="font-medium">{p.symbol}</Td>
-                  <Td className={p.side === 'LONG' ? 'text-win-500' : 'text-loss-500'}>{p.side}</Td>
-                  <Td>{n(p.amount, 4)}</Td>
-                  <Td>{n(p.entryPrice)}</Td>
-                  <Td>{n(p.markPrice)}</Td>
-                  <Td className={Number(p.unrealizedPnl) >= 0 ? 'text-win-500' : 'text-loss-500'}>{n(p.unrealizedPnl)}</Td>
-                  <Td className="text-surface-400">{p.leverage}x</Td>
-                </tr>
-              ))}
+            <Table head={['Coin', 'Size', 'Pos. Value', 'Entry', 'Mark', 'PnL (ROE %)', 'Liq. Price', 'Margin', 'Funding', 'Close', 'TP/SL']}>
+              {positions.map((p) => {
+                const base = p.symbol.replace('-USD', '');
+                const long = p.side === 'LONG';
+                const pnl = Number(p.unrealizedPnl);
+                const roe = Number(p.metadata?.returnOnEquity ?? 0) * 100;
+                const fund = Number(p.funding);
+                return (
+                  <tr key={p.symbol} className="border-b border-surface-800/60 tabular">
+                    <Td>
+                      <span className="flex items-center gap-1.5">
+                        <span className={`h-3 w-0.5 ${long ? 'bg-win-500' : 'bg-loss-500'}`} />
+                        <span className="font-medium">{base}</span>
+                        <span className={`rounded px-1 text-2xs ${long ? 'bg-win-500/15 text-win-500' : 'bg-loss-500/15 text-loss-500'}`}>{p.leverage}x</span>
+                      </span>
+                    </Td>
+                    <Td className={long ? 'text-win-500' : 'text-loss-500'}>{n(p.amount, 4)} {base}</Td>
+                    <Td>${n(p.metadata?.positionValue ?? '0')}</Td>
+                    <Td>{n(p.entryPrice)}</Td>
+                    <Td>{n(p.markPrice)}</Td>
+                    <Td className={pnl >= 0 ? 'text-win-500' : 'text-loss-500'}>
+                      {pnl >= 0 ? '+' : ''}${n(pnl)} ({roe.toFixed(1)}%)
+                    </Td>
+                    <Td className="text-surface-400">{Number(p.liquidationPrice) > 0 ? n(p.liquidationPrice) : 'N/A'}</Td>
+                    <Td>
+                      ${n(p.margin)} <span className="text-2xs capitalize text-surface-400">({p.metadata?.leverageType ?? 'cross'})</span>
+                    </Td>
+                    <Td className={fund >= 0 ? 'text-win-500' : 'text-loss-500'}>{fund >= 0 ? '' : '-'}${n(Math.abs(fund))}</Td>
+                    <Td>
+                      <button onClick={() => onClose(p)} disabled={!walletAddress} className="rounded border border-surface-700 px-2 py-0.5 text-2xs text-surface-300 hover:bg-surface-800 disabled:opacity-40">
+                        Close
+                      </button>
+                    </Td>
+                    <Td className="text-2xs text-surface-500">-- / --</Td>
+                  </tr>
+                );
+              })}
             </Table>
           )
         ) : tab === 'orders' ? (
