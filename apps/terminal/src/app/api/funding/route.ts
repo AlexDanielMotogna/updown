@@ -8,6 +8,8 @@ interface HlFunding {
   time?: number;
 }
 
+/** Funding payment history (perp settlements only). */
+
 /** GET /api/funding?address=0x… → funding payment history (last 30d, public read). */
 export async function GET(req: Request) {
   try {
@@ -27,8 +29,10 @@ export async function GET(req: Request) {
       .slice(0, 100)
       .map((f) => ({
         symbol: `${f.delta?.coin ?? '?'}-USD`,
+        coin: f.delta?.coin ?? '?',
         usdc: f.delta?.usdc ?? '0',
         rate: f.delta?.fundingRate ?? '0',
+        szi: f.delta?.szi ?? '0',
         time: f.time ?? 0,
       }))
       .reverse();

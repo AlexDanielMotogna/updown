@@ -4,12 +4,25 @@ import { hlEndpoint } from '@/lib/exchange';
 export const dynamic = 'force-dynamic';
 
 interface HlHistOrder {
-  order?: { coin?: string; side?: string; limitPx?: string; sz?: string; oid?: number; timestamp?: number };
+  order?: {
+    coin?: string;
+    side?: string; // 'B' | 'A'
+    limitPx?: string;
+    sz?: string; // remaining
+    oid?: number;
+    timestamp?: number;
+    origSz?: string;
+    reduceOnly?: boolean;
+    orderType?: string;
+    isTrigger?: boolean;
+    triggerPx?: string;
+    triggerCondition?: string;
+  };
   status?: string;
   statusTimestamp?: number;
 }
 
-/** GET /api/orderhistory?address=0x… → historical orders (public read). */
+/** GET /api/orderhistory?address=0x… → full order lifecycle (historicalOrders). */
 export async function GET(req: Request) {
   try {
     const address = new URL(req.url).searchParams.get('address');
@@ -23,16 +36,33 @@ export async function GET(req: Request) {
     });
     if (!res.ok) throw new Error(`HL historicalOrders ${res.status}`);
     const raw = (await res.json()) as HlHistOrder[];
-    const data = (Array.isArray(raw) ? raw : []).slice(0, 100).map((h) => {
+
+    const data = (Array.isArray(raw) ? raw : []).slice(0, 200).map((h) => {
       const o = h.order ?? {};
+      const buy = o.side === 'B';
+      const reduce = !!o.reduceOnly;
+      const direction = reduce ? (buy ? 'Close Short' : 'Close Long') : buy ? 'Open Long' : 'Open Short';
+      const type = o.orderType ?? 'Limit';
+      const isMarket = type.toLowerCase() === 'market';
+      const origSize = Number(o.origSz ?? o.sz ?? 0);
+      const remaining = Number(o.sz ?? 0);
+      const filled = Math.max(0, origSize - remaining);
+      const limitPx = o.limitPx ?? '0';
       return {
         orderId: o.oid ?? 0,
+        coin: o.coin ?? '?',
         symbol: `${o.coin ?? '?'}-USD`,
-        side: o.side === 'B' ? 'BUY' : 'SELL',
-        price: o.limitPx ?? '0',
-        amount: o.sz ?? '0',
+        direction,
+        type,
+        size: String(origSize),
+        filledSize: String(filled),
+        orderValue: String(Number(limitPx) * origSize),
+        price: limitPx,
+        isMarket,
+        reduceOnly: reduce,
+        trigger: o.isTrigger ? { condition: o.triggerCondition ?? '', px: o.triggerPx ?? '' } : null,
         status: h.status ?? 'unknown',
-        time: h.statusTimestamp ?? o.timestamp ?? 0,
+        time: o.timestamp ?? h.statusTimestamp ?? 0,
       };
     });
     return NextResponse.json({ success: true, data });
