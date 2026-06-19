@@ -5,7 +5,6 @@ import dynamic from 'next/dynamic';
 import { placeOrder, setLeverage as setLeverageApi } from '@/lib/api';
 import { AccountInfo } from './AccountInfo';
 import { DepositModal } from './DepositModal';
-import { Modal } from './Modal';
 import type { OrderSide, OrderType } from '@/lib/types';
 
 // Lazy: WithdrawModal pulls the HL SDK (signed withdraw). Only under Privy.
@@ -56,12 +55,12 @@ export function OrderEntry({
   const [slPrice, setSlPrice] = useState('');
   const [tpGain, setTpGain] = useState('');
   const [slLoss, setSlLoss] = useState('');
-  const [slippage, setSlippage] = useState('0.5');
+  const [slippage, setSlippage] = useState('8');
+  const [editSlip, setEditSlip] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
 
   const [mark, setMark] = useState(0);
   const [maxLev, setMaxLev] = useState(50);
@@ -147,6 +146,9 @@ export function OrderEntry({
 
   const marginUsd = Number(sizeUsd) / leverage || 0;
   const maxUsd = available * leverage;
+  // Estimated slippage for the current order. Limit orders cross at their price
+  // (0%); a real market estimate needs order-book depth, so show 0 for now.
+  const estSlip = 0;
   const estLiq = useMemo(() => {
     if (!mark || !Number(sizeBtc)) return null;
     return side === 'BUY' ? mark * (1 - 1 / leverage) : mark * (1 + 1 / leverage);
@@ -255,20 +257,17 @@ export function OrderEntry({
       {/* Header */}
       <div className="mb-2 flex items-center justify-between">
         <span className="text-sm font-semibold text-surface-200">Place Order</span>
-        <div className="flex items-center gap-1.5">
-          <button
-            disabled={levBusy}
-            onClick={() => {
-              const next = marginMode === 'cross' ? 'isolated' : 'cross';
-              setMarginMode(next);
-              void applyLeverage(leverage, next === 'cross');
-            }}
-            className="rounded border border-surface-700 px-2 py-0.5 text-xs capitalize text-surface-300 hover:bg-surface-800 disabled:opacity-50"
-          >
-            {marginMode} ▾
-          </button>
-          <button onClick={() => setShowSettings(true)} className="text-surface-400 hover:text-surface-100" aria-label="Settings" title="Settings">⚙</button>
-        </div>
+        <button
+          disabled={levBusy}
+          onClick={() => {
+            const next = marginMode === 'cross' ? 'isolated' : 'cross';
+            setMarginMode(next);
+            void applyLeverage(leverage, next === 'cross');
+          }}
+          className="rounded border border-surface-700 px-2 py-0.5 text-xs capitalize text-surface-300 hover:bg-surface-800 disabled:opacity-50"
+        >
+          {marginMode} ▾
+        </button>
       </div>
 
       {/* Order type tabs */}
@@ -382,7 +381,32 @@ export function OrderEntry({
 
       {/* Info rows */}
       <div className="my-2 space-y-1 text-xs">
-        <Row label="Max Slippage" value={`${slippage}%`} />
+        {/* Slippage: shows estimated vs max; click the value to adjust the max. */}
+        <div className="flex justify-between">
+          <span className="text-surface-400">Slippage</span>
+          {editSlip ? (
+            <span className="flex items-center gap-1">
+              <input
+                autoFocus
+                value={slippage}
+                onChange={(e) => saveSlippage(e.target.value)}
+                onBlur={() => setEditSlip(false)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setEditSlip(false); }}
+                inputMode="decimal"
+                className="w-16 rounded border border-surface-700 bg-[#1c1c23] px-1.5 py-0.5 text-right tabular outline-none focus:border-surface-500"
+              />
+              <span className="text-surface-400">%</span>
+            </span>
+          ) : (
+            <button
+              onClick={() => setEditSlip(true)}
+              title="click to adjust"
+              className="tabular text-surface-200 hover:text-surface-100"
+            >
+              Est: {trimNum(estSlip, 2) || '0'}% / Max: {Number(slippage).toFixed(2)}%
+            </button>
+          )}
+        </div>
         <Row label="Est. Liq Price" value={estLiq ? usd(estLiq) : 'N/A'} />
         <Row label="Margin" value={marginUsd ? usd(marginUsd) : 'N/A'} />
         <Row label="Available" value={usd(available)} />
@@ -411,13 +435,6 @@ export function OrderEntry({
       {/* Modals */}
       <DepositModal open={showDeposit} onClose={() => setShowDeposit(false)} evmAddress={evmAddress} />
       {HAS_PRIVY && <WithdrawModal open={showWithdraw} onClose={() => setShowWithdraw(false)} evmAddress={evmAddress} />}
-      <Modal open={showSettings} onClose={() => setShowSettings(false)} title="Settings">
-        <label className="block text-sm">
-          <span className="text-xs text-surface-400">Max Slippage (%)</span>
-          <input value={slippage} onChange={(e) => saveSlippage(e.target.value)} inputMode="decimal" className="input mt-1 tabular" />
-        </label>
-        <p className="mt-2 text-2xs text-surface-500">Saved locally. (Market-order cap wiring to the signer is pending.)</p>
-      </Modal>
     </div>
   );
 }

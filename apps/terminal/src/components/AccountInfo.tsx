@@ -15,9 +15,8 @@ interface Account {
 const usd = (n: number) => `$${(Number.isFinite(n) ? n : 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 const pct = (s?: string) => `${(Number(s ?? 0) * 100).toFixed(4)}%`;
 
-/** Collapsible account breakdown (matches TFC's "Account Info" dropdown). */
+/** Account breakdown — always expanded. */
 export function AccountInfo({ evmAddress }: { evmAddress?: string }) {
-  const [open, setOpen] = useState(false);
   const [acct, setAcct] = useState<Account | null>(null);
   const [restingValue, setRestingValue] = useState(0);
 
@@ -59,18 +58,12 @@ export function AccountInfo({ evmAddress }: { evmAddress?: string }) {
 
   return (
     <div className="pt-2 text-xs">
-      <button onClick={() => setOpen((v) => !v)} className="flex w-full items-center justify-between text-surface-400">
+      <div className="flex w-full items-center justify-between text-surface-400">
         <span>Account Info</span>
-        <span className="flex items-center gap-1 text-surface-200">
-          {usd(equity)}
-          <svg width="10" height="10" viewBox="0 0 12 12" className={`text-surface-400 transition-transform ${open ? 'rotate-180' : ''}`}>
-            <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
-          </svg>
-        </span>
-      </button>
+        <span className="text-surface-200">{usd(equity)}</span>
+      </div>
 
-      {open && (
-        <div className="mt-2 space-y-1 animate-fade-in">
+      <div className="mt-2 space-y-1">
           <Row label="Account Equity" value={usd(equity)} />
           <Row label="Idle Balance" value={usd(Number(acct?.availableToSpend ?? 0))} />
           <Row label="Resting Order Value" value={usd(restingValue)} />
@@ -86,8 +79,7 @@ export function AccountInfo({ evmAddress }: { evmAddress?: string }) {
               </span>
             }
           />
-        </div>
-      )}
+      </div>
     </div>
   );
 }
