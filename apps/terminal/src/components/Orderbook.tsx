@@ -53,13 +53,6 @@ interface Level {
   pct: number; // depth bar width %
 }
 
-const FILTERS = [
-  { key: 'all', label: 'All Orders' },
-  { key: 'large', label: 'Large Orders' },
-  { key: 'whale', label: 'Whale Levels' },
-] as const;
-type FilterKey = (typeof FILTERS)[number]['key'];
-
 /** Aggregate raw `[px, sz]` levels into tick buckets, best-first. */
 function aggregate(levels: [string, string][], tick: number, side: 'ask' | 'bid'): { px: number; sz: number }[] {
   const map = new Map<number, number>();
@@ -79,7 +72,6 @@ export function Orderbook({ symbol }: { symbol: string }) {
   const [tab, setTab] = useState<'book' | 'trades'>('book');
   const [book, setBook] = useState<Book | null>(null);
   const [tickOverride, setTickOverride] = useState<number | null>(null);
-  const [filter, setFilter] = useState<FilterKey>('all');
   const [trades, setTrades] = useState<RecentTrade[]>([]);
 
   // Live order book stream.
@@ -134,15 +126,9 @@ export function Orderbook({ symbol }: { symbol: string }) {
     const aAll = aggregate(book.asks, tick, 'ask');
     const bAll = aggregate(book.bids, tick, 'bid');
 
-    // Filter threshold (applied to which rows display, not to cumulative totals).
-    const sizes = [...aAll, ...bAll].map((l) => l.sz);
-    const avg = sizes.length ? sizes.reduce((a, b) => a + b, 0) / sizes.length : 0;
-    const thr = filter === 'whale' ? avg * 4 : filter === 'large' ? avg * 1.75 : 0;
-
     const build = (rows: { px: number; sz: number }[]): Level[] => {
       let cum = 0;
-      const withTotal = rows.map((l) => { cum += l.sz; return { ...l, total: cum, pct: 0 }; });
-      return withTotal.filter((l) => l.sz >= thr).slice(0, ROWS);
+      return rows.slice(0, ROWS).map((l) => { cum += l.sz; return { ...l, total: cum, pct: 0 }; });
     };
     const asks = build(aAll);
     const bids = build(bAll);
@@ -159,7 +145,7 @@ export function Orderbook({ symbol }: { symbol: string }) {
     const totalBid = bAll.reduce((a, l) => a + l.sz, 0);
     const sum = totalAsk + totalBid || 1;
     return { asks, bids, spread: sp, spreadPct: spPct, bidPct: (totalBid / sum) * 100, askPct: (totalAsk / sum) * 100 };
-  }, [book, tick, filter]);
+  }, [book, tick]);
 
   return (
     <div className="card flex h-full flex-col text-xs">
@@ -228,24 +214,14 @@ export function Orderbook({ symbol }: { symbol: string }) {
                 ))}
               </div>
 
-              {/* Footer: filter + buy/sell ratio */}
-              <div className="mt-auto flex flex-col gap-1.5 border-t border-surface-800 px-3 py-1.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xs text-win-500">B {bidPct.toFixed(0)}%</span>
-                  <div className="flex h-1.5 flex-1 overflow-hidden rounded-full">
-                    <div className="h-full bg-win-500" style={{ width: `${bidPct}%` }} />
-                    <div className="h-full bg-loss-500" style={{ width: `${askPct}%` }} />
-                  </div>
-                  <span className="text-2xs text-loss-500">{askPct.toFixed(0)}% S</span>
+              {/* Footer: buy/sell ratio */}
+              <div className="mt-auto flex items-center gap-2 border-t border-surface-800 px-3 py-1.5">
+                <span className="text-2xs text-win-500">B {bidPct.toFixed(0)}%</span>
+                <div className="flex h-1.5 flex-1 overflow-hidden rounded-full">
+                  <div className="h-full bg-win-500" style={{ width: `${bidPct}%` }} />
+                  <div className="h-full bg-loss-500" style={{ width: `${askPct}%` }} />
                 </div>
-                <MiniDropdown
-                  label={FILTERS.find((f) => f.key === filter)!.label}
-                  prefix=""
-                  options={FILTERS.map((f) => ({ key: f.key, label: f.label }))}
-                  selected={filter}
-                  onSelect={(k) => setFilter(k as FilterKey)}
-                  full
-                />
+                <span className="text-2xs text-loss-500">{askPct.toFixed(0)}% S</span>
               </div>
             </div>
           )}
