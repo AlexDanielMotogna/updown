@@ -82,17 +82,18 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
     refresh();
   }
 
-  async function onClose(p: Position, mode: CloseMode, limitPrice?: string) {
+  async function onClose(p: Position, mode: CloseMode, opts?: { size?: string; limitPrice?: string }) {
     if (!walletAddress) return;
     const opp = p.side === 'LONG' ? 'SELL' : 'BUY';
+    const size = opts?.size && Number(opts.size) > 0 ? opts.size : p.amount;
     if (mode === 'reverse') {
-      // Flip: market opposite for 2× size (close current + open the inverse).
+      // Flip the entire position: market opposite for 2× size.
       await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'MARKET', amount: String(Number(p.amount) * 2) });
     } else if (mode === 'limit') {
-      if (!limitPrice) return;
-      await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'LIMIT', amount: p.amount, price: limitPrice, reduceOnly: true, timeInForce: 'GTC' });
+      if (!opts?.limitPrice) return;
+      await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'LIMIT', amount: size, price: opts.limitPrice, reduceOnly: true, timeInForce: 'GTC' });
     } else {
-      await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'MARKET', amount: p.amount, reduceOnly: true });
+      await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'MARKET', amount: size, reduceOnly: true });
     }
     refresh();
   }
@@ -259,10 +260,10 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
         <CloseModal
           target={closeTarget}
           onCancel={() => setCloseTarget(null)}
-          onConfirm={async (limitPrice) => {
+          onConfirm={async (opts) => {
             const { p, mode } = closeTarget;
             setCloseTarget(null);
-            await onClose(p, mode, limitPrice);
+            await onClose(p, mode, opts);
           }}
         />
       )}
@@ -270,40 +271,87 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
   );
 }
 
-interface Position2 { symbol: string; side: 'LONG' | 'SHORT'; amount: string; markPrice: string }
-
-/** Confirmation modal for Market / Limit / Reverse close (HL-style). */
+/** Professional confirmation modal for Market / Limit / Reverse close (HL-style):
+ * choose how much to close (size + % of position), set a limit price, see the
+ * estimated realized PnL. Reverse always flips the whole position. */
 function CloseModal({
   target,
   onConfirm,
   onCancel,
 }: {
-  target: { p: Position2; mode: CloseMode };
-  onConfirm: (limitPrice?: string) => void;
+  target: { p: Position; mode: CloseMode };
+  onConfirm: (opts: { size?: string; limitPrice?: string }) => void;
   onCancel: () => void;
 }) {
   const { p, mode } = target;
   const base = p.symbol.replace('-USD', '');
+  const full = Number(p.amount);
+  const reverse = mode === 'reverse';
+  const [size, setSize] = useState(p.amount);
   const [price, setPrice] = useState(p.markPrice);
-  const title = mode === 'reverse' ? 'Reverse Position' : mode === 'limit' ? 'Limit Close' : 'Market Close';
+  const title = reverse ? 'Reverse Position' : mode === 'limit' ? 'Limit Close' : 'Market Close';
   const opp = p.side === 'LONG' ? 'Sell' : 'Buy';
+
+  const closeSize = reverse ? full : Math.min(Number(size) || 0, full);
+  const pct = full > 0 ? (closeSize / full) * 100 : 0;
+  const exit = mode === 'limit' ? Number(price) : Number(p.markPrice);
+  const sign = p.side === 'LONG' ? 1 : -1;
+  const estPnl = (exit - Number(p.entryPrice)) * closeSize * sign;
+  const valid = reverse || closeSize > 0;
 
   return (
     <Modal open onClose={onCancel} title={title}>
-      <div className="space-y-2 text-sm">
-        <RowKV label="Market" value={p.symbol} />
-        <RowKV label="Position" value={`${p.side} ${n(p.amount, 4)} ${base}`} />
-        <RowKV label="Mark" value={n(p.markPrice)} />
-        <RowKV label="Action" value={mode === 'reverse' ? `${opp} ${n(Number(p.amount) * 2, 4)} ${base} (flip)` : `${opp} ${n(p.amount, 4)} ${base} reduce-only`} />
-        {mode === 'limit' && (
-          <label className="block">
-            <span className="text-xs text-surface-400">Limit Price</span>
-            <input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" className="input mt-1 tabular" />
-          </label>
+      <div className="space-y-3 text-sm">
+        <div className="space-y-1">
+          <RowKV label="Market" value={p.symbol} />
+          <RowKV label="Position" value={`${p.side} ${n(p.amount, 4)} ${base} · ${p.leverage}x`} />
+          <RowKV label="Entry / Mark" value={`${n(p.entryPrice)} / ${n(p.markPrice)}`} />
+        </div>
+
+        {reverse ? (
+          <p className="rounded border border-surface-800 bg-surface-900 p-2 text-xs text-surface-300">
+            Flips the entire position: {opp} {n(full * 2, 4)} {base} at market (closes {base} {p.side} and opens the inverse).
+          </p>
+        ) : (
+          <>
+            <label className="block">
+              <span className="text-xs text-surface-400">Close Size ({base})</span>
+              <input value={size} onChange={(e) => setSize(e.target.value)} inputMode="decimal" className="input mt-1 tabular" />
+            </label>
+            <div className="grid grid-cols-4 gap-1">
+              {[25, 50, 75, 100].map((q) => (
+                <button
+                  key={q}
+                  onClick={() => setSize(String(+((full * q) / 100).toFixed(5)))}
+                  className={`rounded py-1 text-2xs ${Math.abs(pct - q) < 0.5 ? 'bg-surface-700 text-surface-100' : 'bg-surface-800 text-surface-300 hover:bg-surface-700'}`}
+                >
+                  {q}%
+                </button>
+              ))}
+            </div>
+            {mode === 'limit' && (
+              <label className="block">
+                <span className="text-xs text-surface-400">Limit Price</span>
+                <div className="mt-1 flex items-center gap-1">
+                  <input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" className="input tabular" />
+                  <button onClick={() => setPrice(p.markPrice)} className="rounded border border-surface-700 px-2 py-1 text-2xs text-surface-300 hover:bg-surface-800">Mark</button>
+                </div>
+              </label>
+            )}
+            <div className="space-y-1 border-t border-surface-800 pt-2">
+              <RowKV label="Closing" value={`${n(closeSize, 4)} ${base} (${pct.toFixed(0)}%)`} />
+              <div className="flex justify-between">
+                <span className="text-surface-400">Est. Realized PnL</span>
+                <span className={`tabular ${estPnl >= 0 ? 'text-win-500' : 'text-loss-500'}`}>{estPnl >= 0 ? '+' : ''}${n(estPnl)}</span>
+              </div>
+            </div>
+          </>
         )}
+
         <button
-          onClick={() => onConfirm(mode === 'limit' ? price : undefined)}
-          className="mt-1 w-full rounded bg-win-500 py-2 font-semibold text-black"
+          onClick={() => onConfirm({ size: reverse ? undefined : String(closeSize), limitPrice: mode === 'limit' ? price : undefined })}
+          disabled={!valid}
+          className={`mt-1 w-full rounded py-2 font-semibold text-black disabled:opacity-40 ${reverse ? 'bg-info' : opp === 'Sell' ? 'bg-loss-500' : 'bg-win-500'}`}
         >
           Confirm {title}
         </button>

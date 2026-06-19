@@ -54,6 +54,8 @@ export function OrderEntry({
   const [tpSl, setTpSl] = useState(false);
   const [tpPrice, setTpPrice] = useState('');
   const [slPrice, setSlPrice] = useState('');
+  const [tpGain, setTpGain] = useState('');
+  const [slLoss, setSlLoss] = useState('');
   const [slippage, setSlippage] = useState('0.5');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -140,6 +142,40 @@ export function OrderEntry({
   const needsTrigger = tab === 'STOP' || tab === 'STOP_LIMIT';
   const canSubmit =
     !!walletAddress && Number(sizeBtc) > 0 && (!needsPrice || !!price) && (!needsTrigger || !!triggerPrice) && !busy;
+
+  // TP/SL: link price ⇄ gain/loss % (ROE, i.e. price move × leverage) off the
+  // expected entry (limit price, or mark for market orders).
+  const refPrice = needsPrice ? Number(price) : mark;
+  const isLong = side === 'BUY';
+  const fmtP = (v: number) => String(Number(v.toFixed(refPrice >= 100 ? 2 : 5)));
+  function onTpPrice(v: string) {
+    setTpPrice(v);
+    if (refPrice > 0 && v) {
+      const move = isLong ? (Number(v) - refPrice) / refPrice : (refPrice - Number(v)) / refPrice;
+      setTpGain((move * leverage * 100).toFixed(2));
+    } else setTpGain('');
+  }
+  function onTpGain(v: string) {
+    setTpGain(v);
+    if (refPrice > 0 && v) {
+      const m = Number(v) / 100 / leverage;
+      setTpPrice(fmtP(refPrice * (isLong ? 1 + m : 1 - m)));
+    } else setTpPrice('');
+  }
+  function onSlPrice(v: string) {
+    setSlPrice(v);
+    if (refPrice > 0 && v) {
+      const move = isLong ? (refPrice - Number(v)) / refPrice : (Number(v) - refPrice) / refPrice;
+      setSlLoss((move * leverage * 100).toFixed(2));
+    } else setSlLoss('');
+  }
+  function onSlLoss(v: string) {
+    setSlLoss(v);
+    if (refPrice > 0 && v) {
+      const m = Number(v) / 100 / leverage;
+      setSlPrice(fmtP(refPrice * (isLong ? 1 - m : 1 + m)));
+    } else setSlPrice('');
+  }
 
   async function submit() {
     if (!walletAddress) return;
@@ -270,9 +306,15 @@ export function OrderEntry({
       <Toggle label="Reduce Only" on={reduceOnly} onClick={() => setReduceOnly((v) => !v)} />
       <Toggle label="Take Profit / Stop Loss" on={tpSl} onClick={() => setTpSl((v) => !v)} />
       {tpSl && (
-        <div className="mb-2 mt-1 grid grid-cols-2 gap-1">
-          <InlineInput value={tpPrice} onChange={setTpPrice} suffix="TP" />
-          <InlineInput value={slPrice} onChange={setSlPrice} suffix="SL" />
+        <div className="mb-2 mt-1 space-y-2">
+          <div className="grid grid-cols-2 gap-1">
+            <LabeledInput label="TP Price" value={tpPrice} onChange={onTpPrice} suffix="USD" />
+            <LabeledInput label="Gain" value={tpGain} onChange={onTpGain} suffix="%" />
+          </div>
+          <div className="grid grid-cols-2 gap-1">
+            <LabeledInput label="SL Price" value={slPrice} onChange={onSlPrice} suffix="USD" />
+            <LabeledInput label="Loss" value={slLoss} onChange={onSlLoss} suffix="%" />
+          </div>
         </div>
       )}
 
@@ -322,6 +364,14 @@ function Field({ label, value, onChange, suffix }: { label: string; value: strin
   return (
     <div className="mb-2">
       <div className="mb-1 text-xs text-surface-400">{label}</div>
+      <InlineInput value={value} onChange={onChange} suffix={suffix} />
+    </div>
+  );
+}
+function LabeledInput({ label, value, onChange, suffix }: { label: string; value: string; onChange: (v: string) => void; suffix: string }) {
+  return (
+    <div>
+      <div className="mb-1 text-2xs text-surface-400">{label}</div>
       <InlineInput value={value} onChange={onChange} suffix={suffix} />
     </div>
   );
