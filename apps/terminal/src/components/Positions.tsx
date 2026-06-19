@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { cancelOrder, placeOrder, IS_TESTNET } from '@/lib/api';
 import { Modal } from './Modal';
+import { TokenIcon } from './TokenIcon';
 
 type CloseMode = 'market' | 'limit' | 'reverse';
 
@@ -354,6 +355,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
                     <Td>
                       <span className="flex items-center gap-1.5">
                         <span className={`h-3 w-0.5 ${long ? 'bg-win-500' : 'bg-loss-500'}`} />
+                        <TokenIcon symbol={p.symbol} size="sm" />
                         <span className="font-medium text-surface-100">{base}</span>
                         <span className={`rounded px-1 text-2xs ${long ? 'bg-win-500/15 text-win-500' : 'bg-loss-500/15 text-loss-500'}`}>{p.leverage}x</span>
                       </span>
