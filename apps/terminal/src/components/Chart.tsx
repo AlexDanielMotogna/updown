@@ -6,25 +6,42 @@ import {
   ColorType,
   type CandlestickData,
   type IChartApi,
+  type ISeriesApi,
+  type LineData,
   type Time,
 } from 'lightweight-charts';
 
 const INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d'] as const;
 type Interval = (typeof INTERVALS)[number];
 
-interface RawCandle {
-  timestamp: number;
-  open: string;
-  high: string;
-  low: string;
-  close: string;
+const INDICATORS = [
+  { id: 'ma7', period: 7, color: '#f0b90b', label: 'MA 7' },
+  { id: 'ma25', period: 25, color: '#5196c9', label: 'MA 25' },
+  { id: 'ma99', period: 99, color: '#e070c0', label: 'MA 99' },
+] as const;
+
+interface RawCandle { timestamp: number; open: string; high: string; low: string; close: string }
+
+/** Simple moving average of closes → line series points. */
+function sma(candles: CandlestickData[], period: number): LineData[] {
+  const out: LineData[] = [];
+  for (let i = period - 1; i < candles.length; i++) {
+    let sum = 0;
+    for (let j = i - period + 1; j <= i; j++) sum += candles[j].close;
+    out.push({ time: candles[i].time, value: sum / period });
+  }
+  return out;
 }
 
 export function Chart({ symbol }: { symbol: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<ReturnType<IChartApi['addCandlestickSeries']> | null>(null);
+  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const indicatorRefs = useRef<Map<string, ISeriesApi<'Line'>>>(new Map());
+  const candlesRef = useRef<CandlestickData[]>([]);
   const [interval, setInterval] = useState<Interval>('1h');
+  const [enabled, setEnabled] = useState<Set<string>>(new Set());
+  const [showInd, setShowInd] = useState(false);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
 
   // Create the chart once.
@@ -36,24 +53,37 @@ export function Chart({ symbol }: { symbol: string }) {
       grid: { vertLines: { color: '#1b212c' }, horzLines: { color: '#1b212c' } },
       timeScale: { borderColor: '#232a36', timeVisible: true },
       rightPriceScale: { borderColor: '#232a36' },
-      height: 360,
       autoSize: true,
     });
-    const series = chart.addCandlestickSeries({
-      upColor: '#16c784',
-      downColor: '#ea3943',
-      borderVisible: false,
-      wickUpColor: '#16c784',
-      wickDownColor: '#ea3943',
+    seriesRef.current = chart.addCandlestickSeries({
+      upColor: '#26A69A', downColor: '#EF5350', borderVisible: false,
+      wickUpColor: '#26A69A', wickDownColor: '#EF5350',
     });
     chartRef.current = chart;
-    seriesRef.current = series;
     return () => {
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
+      indicatorRefs.current.clear();
     };
   }, []);
+
+  // Sync indicator line series with the enabled set + current candles.
+  function applyIndicators() {
+    const chart = chartRef.current;
+    if (!chart) return;
+    for (const ind of INDICATORS) {
+      const existing = indicatorRefs.current.get(ind.id);
+      if (enabled.has(ind.id)) {
+        const series = existing ?? chart.addLineSeries({ color: ind.color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+        if (!existing) indicatorRefs.current.set(ind.id, series);
+        series.setData(sma(candlesRef.current, ind.period));
+      } else if (existing) {
+        chart.removeSeries(existing);
+        indicatorRefs.current.delete(ind.id);
+      }
+    }
+  }
 
   // Load candles on symbol/interval change.
   useEffect(() => {
@@ -61,53 +91,84 @@ export function Chart({ symbol }: { symbol: string }) {
     setStatus('loading');
     (async () => {
       try {
-        const res = await fetch(`/api/klines?symbol=${encodeURIComponent(symbol)}&interval=${interval}`, {
-          cache: 'no-store',
-        });
+        const res = await fetch(`/api/klines?symbol=${encodeURIComponent(symbol)}&interval=${interval}`, { cache: 'no-store' });
         const json = await res.json();
         if (!alive) return;
         if (!json.success) throw new Error(json.error?.message ?? 'failed');
         const data: CandlestickData[] = (json.data as RawCandle[]).map((c) => ({
           time: (c.timestamp / 1000) as Time,
-          open: Number(c.open),
-          high: Number(c.high),
-          low: Number(c.low),
-          close: Number(c.close),
+          open: Number(c.open), high: Number(c.high), low: Number(c.low), close: Number(c.close),
         }));
+        candlesRef.current = data;
         seriesRef.current?.setData(data);
+        applyIndicators();
         chartRef.current?.timeScale().fitContent();
         setStatus('ready');
       } catch {
         if (alive) setStatus('error');
       }
     })();
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol, interval]);
+
+  // Re-apply when toggling indicators.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { applyIndicators(); }, [enabled]);
+
+  function toggle(id: string) {
+    setEnabled((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   return (
     <div className="card flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-surface-800 px-3 py-2 text-sm">
-        <span className="font-semibold">{symbol}</span>
-        <div className="flex gap-1">
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 border-b border-surface-800 px-3 py-1.5 text-xs">
+        <div className="flex items-center gap-0.5">
           {INTERVALS.map((i) => (
             <button
               key={i}
               onClick={() => setInterval(i)}
-              className={`rounded px-1.5 py-0.5 text-xs ${
-                interval === i ? 'bg-bg-elevated text-white' : 'text-muted hover:text-white'
-              }`}
+              className={`rounded px-1.5 py-1 ${interval === i ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:text-surface-100'}`}
             >
               {i}
             </button>
           ))}
         </div>
+        <span className="text-surface-700">|</span>
+        <div className="relative">
+          <button
+            onClick={() => setShowInd((v) => !v)}
+            className={`flex items-center gap-1 rounded px-1.5 py-1 ${showInd || enabled.size ? 'text-surface-100' : 'text-surface-400 hover:text-surface-100'}`}
+          >
+            <span className="italic">fx</span> Indicators {enabled.size > 0 && <span className="text-surface-500">({enabled.size})</span>}
+          </button>
+          {showInd && (
+            <div className="absolute left-0 top-full z-20 mt-1 w-32 card-elevated">
+              {INDICATORS.map((ind) => (
+                <button
+                  key={ind.id}
+                  onClick={() => toggle(ind.id)}
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-surface-800"
+                >
+                  <span className={`h-3 w-3 rounded-sm border ${enabled.has(ind.id) ? 'border-transparent' : 'border-surface-600'}`} style={{ background: enabled.has(ind.id) ? ind.color : 'transparent' }} />
+                  <span style={{ color: ind.color }}>{ind.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
       <div className="relative min-h-0 flex-1">
         <div ref={containerRef} className="h-full w-full" />
         {status !== 'ready' && (
-          <div className="absolute inset-0 flex items-center justify-center text-sm text-muted">
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-surface-400">
             {status === 'loading' ? 'loading chart…' : 'failed to load chart'}
           </div>
         )}
