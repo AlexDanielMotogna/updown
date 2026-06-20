@@ -84,9 +84,13 @@ export function WalletMenu() {
                       {identity ? getDisplayName(identity) : ''}
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25 }}>
-                      <Typography sx={{ fontSize: '0.68rem', color: t.text.tertiary, fontVariantNumeric: 'tabular-nums' }}>
-                        {addr && truncateWallet(addr)}
-                      </Typography>
+                      {/* Only show the wallet here when the name line isn't already
+                          the wallet (i.e. the user has a custom display name). */}
+                      {profile?.displayName && addr && (
+                        <Typography sx={{ fontSize: '0.68rem', color: t.text.tertiary, fontVariantNumeric: 'tabular-nums' }}>
+                          {truncateWallet(addr)}
+                        </Typography>
+                      )}
                       <Box sx={{ fontSize: '0.58rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: t.text.tertiary, bgcolor: t.hover.default, borderRadius: '4px', px: 0.6, py: 0.1 }}>
                         {IS_TESTNET ? 'Testnet' : 'Mainnet'}
                       </Box>
