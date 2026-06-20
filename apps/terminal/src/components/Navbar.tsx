@@ -2,11 +2,15 @@
 
 import { ConnectButton } from './ConnectButton';
 import { HeaderBalance } from './HeaderBalance';
+import { ProfileStats } from './ProfileStats';
+import { NotificationBell } from './NotificationBell';
 
 // The main UpDown app (Markets/Profile/Leaderboard live there). The terminal is
 // the "Trade" mode of the same product (ADR-002), so the nav links cross back to
 // the app while Trade stays here.
-const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+const rawAppUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+// Prepend https:// if the env var omits the protocol (else it's treated relative).
+const APP_URL = /^https?:\/\//.test(rawAppUrl) ? rawAppUrl : `https://${rawAppUrl}`;
 
 const LINKS: { label: string; href: string; active?: boolean; external?: boolean }[] = [
   { label: 'Markets', href: `${APP_URL}/`, external: true },
@@ -45,9 +49,11 @@ export function Navbar() {
           </nav>
         </div>
 
-        {/* Right: HL balance + connect */}
+        {/* Right: level/coins + HL balance + notifications + wallet */}
         <div className="flex items-center gap-2">
+          <ProfileStats />
           <HeaderBalance />
+          <NotificationBell />
           <ConnectButton />
         </div>
       </div>

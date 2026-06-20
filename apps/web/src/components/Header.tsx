@@ -1,7 +1,7 @@
 'use client';
 
-import { Box, Typography, IconButton, Skeleton } from '@mui/material';
-import { AttachMoney, LightMode, DarkMode } from '@mui/icons-material';
+import { Box, Typography, Skeleton } from '@mui/material';
+import { AttachMoney } from '@mui/icons-material';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ConnectWalletButton } from './ConnectWalletButton';
@@ -21,7 +21,10 @@ import { useThemeTokens, useThemeMode } from '@/app/providers';
 // dropdown + mobile bottom nav.
 // The trading terminal is the "Trade" mode of the same product (ADR-002), served
 // from its own origin. An absolute href is rendered as a plain cross-app link.
-const TERMINAL_URL = (process.env.NEXT_PUBLIC_TERMINAL_URL ?? 'http://localhost:3010').replace(/\/$/, '');
+// Normalize: prepend https:// if the env var omits the protocol (otherwise the
+// browser treats it as a relative path → updown.my/terminal-...).
+const rawTerminalUrl = (process.env.NEXT_PUBLIC_TERMINAL_URL ?? 'http://localhost:3010').replace(/\/$/, '');
+const TERMINAL_URL = /^https?:\/\//.test(rawTerminalUrl) ? rawTerminalUrl : `https://${rawTerminalUrl}`;
 
 const HEADER_NAV = [
   { label: 'Markets', href: '/' },
@@ -33,7 +36,7 @@ const HEADER_NAV = [
 
 export function Header() {
   const t = useThemeTokens();
-  const { mode, toggle } = useThemeMode();
+  const { mode } = useThemeMode();
   const { connected } = useWalletBridge();
   const { data: balance } = useUsdcBalance();
   const { data: userProfile } = useUserProfile();
@@ -218,18 +221,7 @@ export function Header() {
                 </Box>
               </Box>
 
-              <IconButton
-                onClick={toggle}
-                size="small"
-                sx={{
-                  color: t.text.secondary,
-                  width: { xs: 32, sm: 36 },
-                  height: { xs: 32, sm: 36 },
-                  '&:hover': { color: t.text.primary, bgcolor: t.hover.default },
-                }}
-              >
-                {mode === 'dark' ? <LightMode sx={{ fontSize: { xs: 16, sm: 18 } }} /> : <DarkMode sx={{ fontSize: { xs: 16, sm: 18 } }} />}
-              </IconButton>
+              {/* Dark/light toggle hidden for now (app is dark-only). */}
               <NotificationPanel />
               <ConnectWalletButton variant="header" />
             </>
