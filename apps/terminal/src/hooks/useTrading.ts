@@ -12,10 +12,32 @@ const BUILDER_ADDRESS = process.env.NEXT_PUBLIC_HYPERLIQUID_BUILDER_ADDRESS?.toL
 // order (cap), well above the API's f=50 → 0.05%.
 const BUILDER_MAX_FEE = process.env.NEXT_PUBLIC_HYPERLIQUID_BUILDER_MAX_FEE ?? '0.1%';
 
+const HL_API =
+  process.env.NEXT_PUBLIC_HYPERLIQUID_API_URL ??
+  (IS_TESTNET ? 'https://api.hyperliquid-testnet.xyz' : 'https://api.hyperliquid.xyz');
+
+/** Query the max builder fee the user has approved for `builder` (0 = none). */
+async function fetchMaxBuilderFee(user: string, builder: string): Promise<number> {
+  try {
+    const r = await fetch(`${HL_API}/info`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'maxBuilderFee', user, builder }),
+    });
+    if (!r.ok) return 0;
+    const v = await r.json();
+    return typeof v === 'number' ? v : Number(v) || 0;
+  } catch {
+    return 0;
+  }
+}
+
 export interface TradingState {
   conn: ConnectionStatus | null;
   /** Agent approved + active for this network → orders can be placed. */
   enabled: boolean;
+  /** Whether the builder fee is approved for our builder (null = still checking). */
+  builderApproved: boolean | null;
   busy: boolean;
   /** Run the one-time setup: approve agent + builder fee, then activate. */
   enableTrading: () => Promise<void>;
@@ -36,6 +58,7 @@ export function useTrading(walletAddress?: string, evmAddress?: string): Trading
   const { wallets } = useWallets();
   const toast = useToast();
   const [conn, setConn] = useState<ConnectionStatus | null>(null);
+  const [builderApproved, setBuilderApproved] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(() => {
@@ -44,6 +67,15 @@ export function useTrading(walletAddress?: string, evmAddress?: string): Trading
   }, [walletAddress]);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  // Check whether the builder fee is approved once the agent connection is active.
+  const refreshBuilder = useCallback(async () => {
+    if (!evmAddress || !BUILDER_ADDRESS || !conn?.active) { setBuilderApproved(null); return; }
+    const max = await fetchMaxBuilderFee(evmAddress, BUILDER_ADDRESS);
+    setBuilderApproved(max > 0);
+  }, [evmAddress, conn?.active]);
+
+  useEffect(() => { refreshBuilder(); }, [refreshBuilder]);
 
   const enableTrading = useCallback(async () => {
     if (!walletAddress || !evmAddress) {
@@ -72,6 +104,7 @@ export function useTrading(walletAddress?: string, evmAddress?: string): Trading
       // 2) Approve the builder fee so builder-coded orders aren't rejected.
       if (BUILDER_ADDRESS) {
         await client.approveBuilderFee({ maxFeeRate: BUILDER_MAX_FEE, builder: BUILDER_ADDRESS });
+        setBuilderApproved(true);
       }
 
       const confirmed = await confirmAgent(walletAddress);
@@ -98,8 +131,10 @@ export function useTrading(walletAddress?: string, evmAddress?: string): Trading
     const walletClient = createWalletClient({ account: evmAddress as `0x${string}`, transport: custom(provider) });
     const client = new ExchangeClient({ transport: new HttpTransport({ isTestnet: IS_TESTNET }), wallet: walletClient });
     await client.approveBuilderFee({ maxFeeRate: BUILDER_MAX_FEE, builder: BUILDER_ADDRESS });
+    setBuilderApproved(true); // optimistic; the next check confirms
+    void refreshBuilder();
     return true;
-  }, [evmAddress, wallets]);
+  }, [evmAddress, wallets, refreshBuilder]);
 
-  return { conn, enabled: !!conn?.active, busy, enableTrading, approveBuilder, refresh };
+  return { conn, enabled: !!conn?.active, builderApproved, busy, enableTrading, approveBuilder, refresh };
 }

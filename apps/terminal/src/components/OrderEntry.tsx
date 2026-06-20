@@ -76,7 +76,8 @@ export function OrderEntry({
   const [maxLev, setMaxLev] = useState(50);
   const [available, setAvailable] = useState(0);
   const { account: acct } = useAccountStream(evmAddress);
-  const { enabled: tradingEnabled, busy: enabling, enableTrading, approveBuilder } = useTrading(walletAddress, evmAddress);
+  const { enabled: tradingEnabled, builderApproved, busy: enabling, enableTrading, approveBuilder } = useTrading(walletAddress, evmAddress);
+  const [approvingBuilder, setApprovingBuilder] = useState(false);
   const toast = useToast();
 
   // Leverage / margin-mode application to HyperLiquid (signed by the agent key
@@ -310,7 +311,22 @@ export function OrderEntry({
     toast.update(tid, 'success', ok);
   }
 
+  async function handleApproveBuilder() {
+    setApprovingBuilder(true);
+    const tid = toast.loading('Approving builder fee — sign in your wallet…');
+    try {
+      await approveBuilder();
+      toast.update(tid, 'success', 'Builder fee approved — you can trade now');
+    } catch (e) {
+      toast.update(tid, 'error', (e as Error).message || 'Builder approval failed');
+    } finally {
+      setApprovingBuilder(false);
+    }
+  }
+
   const buy = side === 'BUY';
+  const needsAgent = !!walletAddress && !tradingEnabled;
+  const needsBuilder = !!walletAddress && tradingEnabled && builderApproved === false;
 
   return (
     <div className="card flex h-full flex-col p-3 text-sm">
@@ -441,15 +457,23 @@ export function OrderEntry({
         <Row label="Available" value={usd(available)} />
       </div>
 
-      {/* Submit — when the wallet is connected but the trading agent isn't
-          approved yet, this becomes the Enable Trading CTA (one-time setup). */}
-      {walletAddress && !tradingEnabled ? (
+      {/* Submit — one-time gates before trading: approve the agent, then the
+          builder fee (both signed in your wallet). Then Buy/Long. */}
+      {needsAgent ? (
         <button
           onClick={enableTrading}
           disabled={enabling}
           className="w-full rounded bg-surface-100 py-2.5 font-semibold text-surface-900 hover:bg-surface-200 disabled:opacity-50"
         >
           {enabling ? 'Enabling…' : 'Enable Trading'}
+        </button>
+      ) : needsBuilder ? (
+        <button
+          onClick={handleApproveBuilder}
+          disabled={approvingBuilder}
+          className="w-full rounded bg-surface-100 py-2.5 font-semibold text-surface-900 hover:bg-surface-200 disabled:opacity-50"
+        >
+          {approvingBuilder ? 'Approving…' : 'Approve Builder Fee'}
         </button>
       ) : (
         <button
