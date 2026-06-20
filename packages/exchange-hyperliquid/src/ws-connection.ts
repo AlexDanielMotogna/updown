@@ -29,6 +29,8 @@ type Handler = (data: unknown) => void;
 interface Entry {
   subscription: Subscription;
   handlers: Set<Handler>;
+  /** Last payload seen on this feed, replayed to handlers that subscribe late. */
+  last?: unknown;
 }
 
 const RECONNECT_BASE_MS = 500;
@@ -76,6 +78,12 @@ export class HyperliquidWsConnection {
       this.sendSub('subscribe', subscription);
     }
     entry.handlers.add(handler);
+    // Replay the latest snapshot so a late subscriber to a shared feed doesn't
+    // wait for the next push (e.g. openOrders only pushes on change).
+    if (entry.last !== undefined) {
+      const last = entry.last;
+      queueMicrotask(() => { if (this.entries.get(key)?.handlers.has(handler)) handler(last); });
+    }
 
     return () => {
       const e = this.entries.get(key);
@@ -147,6 +155,7 @@ export class HyperliquidWsConnection {
     const key = routingKey({ channel: msg.channel, coin: data?.coin, user: data?.user });
     const entry = this.entries.get(key);
     if (!entry) return;
+    entry.last = msg.data;
     for (const handler of entry.handlers) handler(msg.data);
   }
 }

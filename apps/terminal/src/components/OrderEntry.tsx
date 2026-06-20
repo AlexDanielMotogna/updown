@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { placeOrder, setLeverage as setLeverageApi } from '@/lib/api';
+import { useAccountStream } from '@/hooks/useAccountStream';
 import { AccountInfo } from './AccountInfo';
 import { DepositModal } from './DepositModal';
 import { Modal } from './Modal';
@@ -72,6 +73,7 @@ export function OrderEntry({
   const [mark, setMark] = useState(0);
   const [maxLev, setMaxLev] = useState(50);
   const [available, setAvailable] = useState(0);
+  const { account: acct } = useAccountStream(evmAddress);
 
   // Leverage / margin-mode application to HyperLiquid (signed by the agent key
   // server-side — no per-change wallet popup). `appliedRef` dedupes so identical
@@ -139,21 +141,10 @@ export function OrderEntry({
     return () => { alive = false; window.clearInterval(id); };
   }, [symbol]);
 
-  // Available balance for the connected account.
+  // Available balance for the connected account (live over the WS account stream).
   useEffect(() => {
-    if (!evmAddress) { setAvailable(0); return; }
-    let alive = true;
-    const tick = async () => {
-      try {
-        const r = await fetch(`/api/positions?address=${evmAddress}`, { cache: 'no-store' });
-        const j = await r.json();
-        if (alive && j.success) setAvailable(Number(j.data.account?.availableToSpend ?? 0));
-      } catch {/* keep */}
-    };
-    tick();
-    const id = window.setInterval(tick, 5000);
-    return () => { alive = false; window.clearInterval(id); };
-  }, [evmAddress]);
+    setAvailable(acct ? Number(acct.availableToSpend) : 0);
+  }, [acct]);
 
   // clamp leverage to the market max
   useEffect(() => { setLeverage((l) => Math.min(l, maxLev)); }, [maxLev]);

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { cancelOrder, placeOrder, IS_TESTNET } from '@/lib/api';
+import { useAccountStream } from '@/hooks/useAccountStream';
 import { Modal } from './Modal';
 import { TokenIcon } from './TokenIcon';
 
@@ -162,16 +163,29 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
   const [ohFilter, setOhFilter] = useState('');
   const [ohSort, setOhSort] = useState<{ col: 'time' | 'price'; dir: 'asc' | 'desc' }>({ col: 'time', dir: 'desc' });
 
-  const refresh = useCallback(async () => {
+  // Live positions over the WS account stream (realtime PnL/mark). The rich
+  // history tabs still come from REST (fields the WS openOrders feed lacks).
+  const ws = useAccountStream(address);
+  useEffect(() => { setPositions(ws.positions); }, [ws.positions]);
+
+  const reloadTpsl = useCallback(() => {
     if (!address) return;
+    fetch(`/api/tpsl?address=${address}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((t) => { if (t.success) setTpslMap(t.data); })
+      .catch(() => {});
+  }, [address]);
+
+  // TP/SL triggers for open positions (REST; refresh when the position set changes).
+  useEffect(() => {
+    if (tab === 'positions') reloadTpsl();
+  }, [tab, reloadTpsl, ws.positions.length]);
+
+  const refresh = useCallback(async () => {
+    if (!address || tab === 'positions') return;
     const get = async (path: string) => (await fetch(`${path}?address=${address}`, { cache: 'no-store' })).json();
     try {
-      if (tab === 'positions') {
-        const r = await get('/api/positions');
-        if (r.success) setPositions(r.data.positions);
-        const t = await get('/api/tpsl');
-        if (t.success) setTpslMap(t.data);
-      } else if (tab === 'orders') {
+      if (tab === 'orders') {
         const r = await get('/api/orders');
         if (r.success) setOrders(r.data);
       } else if (tab === 'trades') {
@@ -189,11 +203,12 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
   }, [address, tab]);
 
   useEffect(() => {
+    if (tab === 'positions') return; // positions are WS-driven
     setLoaded(false);
     refresh();
     const id = window.setInterval(refresh, 4000);
     return () => window.clearInterval(id);
-  }, [refresh]);
+  }, [refresh, tab]);
 
   async function onCancel(o: OpenOrder) {
     if (!walletAddress) return;
@@ -305,7 +320,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
     const cap = (trigger: string) => String(Number(trigger) * (opp === 'BUY' ? 1.05 : 0.95));
     if (tp) await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'TAKE_PROFIT_MARKET', amount: p.amount, triggerPrice: tp, price: cap(tp), reduceOnly: true });
     if (sl) await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'STOP_MARKET', amount: p.amount, triggerPrice: sl, price: cap(sl), reduceOnly: true });
-    refresh();
+    reloadTpsl();
   }
 
   const counts: Record<Tab, number> = {
@@ -335,7 +350,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
       <div className="min-h-0 flex-1 overflow-auto">
         {!address ? (
           <Empty>Connect to view {tab}.</Empty>
-        ) : !loaded ? (
+        ) : (tab === 'positions' ? !ws.ready : !loaded) ? (
           <Empty>loading…</Empty>
         ) : tab === 'positions' ? (
           positions.length === 0 ? <Empty>No open positions.</Empty> : (

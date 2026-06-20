@@ -1,58 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-
-interface Account {
-  accountEquity: string;
-  availableToSpend: string;
-  marginUsed: string;
-  unrealizedPnl: string;
-  makerFee: string;
-  takerFee: string;
-  metadata?: { totalNtlPos?: string; crossMaintenanceMarginUsed?: string };
-}
+import { useAccountStream } from '@/hooks/useAccountStream';
 
 const usd = (n: number) => `$${(Number.isFinite(n) ? n : 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 const pct = (s?: string) => `${(Number(s ?? 0) * 100).toFixed(4)}%`;
 
-/** Account breakdown — always expanded. */
+/** Account breakdown — always expanded, live over the WS account stream. */
 export function AccountInfo({ evmAddress }: { evmAddress?: string }) {
-  const [acct, setAcct] = useState<Account | null>(null);
-  const [restingValue, setRestingValue] = useState(0);
-
-  useEffect(() => {
-    if (!evmAddress) {
-      setAcct(null);
-      return;
-    }
-    let alive = true;
-    const tick = async () => {
-      try {
-        const [pos, ord] = await Promise.all([
-          fetch(`/api/positions?address=${evmAddress}`, { cache: 'no-store' }).then((r) => r.json()),
-          fetch(`/api/orders?address=${evmAddress}`, { cache: 'no-store' }).then((r) => r.json()),
-        ]);
-        if (!alive) return;
-        if (pos.success) setAcct(pos.data.account);
-        if (ord.success) {
-          const rv = (ord.data as Array<{ price: string; remaining: string }>).reduce(
-            (s, o) => s + Number(o.price) * Number(o.remaining),
-            0
-          );
-          setRestingValue(rv);
-        }
-      } catch {/* keep */}
-    };
-    tick();
-    const id = window.setInterval(tick, 5000);
-    return () => {
-      alive = false;
-      window.clearInterval(id);
-    };
-  }, [evmAddress]);
+  const { account: acct, orders } = useAccountStream(evmAddress);
+  const restingValue = orders.reduce((s, o) => s + Number(o.price) * Number(o.remaining), 0);
 
   const equity = Number(acct?.accountEquity ?? 0);
-  const ntl = Number(acct?.metadata?.totalNtlPos ?? 0);
+  const ntl = Number((acct?.metadata as { totalNtlPos?: string } | undefined)?.totalNtlPos ?? 0);
   const upnl = Number(acct?.unrealizedPnl ?? 0);
   const crossLev = equity > 0 ? ntl / equity : 0;
 

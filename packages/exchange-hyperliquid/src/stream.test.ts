@@ -57,6 +57,20 @@ describe('HyperliquidWsConnection', () => {
     expect(seen).toHaveLength(1);
   });
 
+  it('replays the last payload to a handler that subscribes late', async () => {
+    const conn = new HyperliquidWsConnection('ws://x', factory);
+    conn.subscribe({ type: 'l2Book', coin: 'BTC' }, () => {});
+    const sock = sockets[0];
+    sock.open();
+    sock.emit({ channel: 'l2Book', data: { coin: 'BTC', time: 1, levels: [[], []] } });
+
+    const late: unknown[] = [];
+    conn.subscribe({ type: 'l2Book', coin: 'BTC' }, (d) => late.push(d)); // joins existing feed
+    await Promise.resolve(); // flush queueMicrotask
+    expect(late).toHaveLength(1);
+    expect((late[0] as { coin: string }).coin).toBe('BTC');
+  });
+
   it('ref-counts: 2 handlers → 1 subscribe; unsubscribe only when last leaves', () => {
     const conn = new HyperliquidWsConnection('ws://x', factory);
     const u1 = conn.subscribe({ type: 'l2Book', coin: 'BTC' }, () => {});
