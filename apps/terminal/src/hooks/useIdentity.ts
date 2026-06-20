@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { linkEvm, registerUser, resolveIdentity } from '@/lib/api';
 
 export interface Identity {
@@ -33,13 +33,16 @@ interface LinkedAccount {
  */
 export function useIdentity(): Identity {
   const { ready, authenticated, user } = usePrivy();
+  const { wallets } = useWallets(); // actually-connected EVM wallets
   const accounts = (user?.linkedAccounts ?? []) as LinkedAccount[];
   const sessionSolana = accounts.find((a) => a.type === 'wallet' && a.chainType === 'solana')?.address;
-  // Prefer an EXTERNAL EVM wallet (MetaMask/Rabby — where the user's funds are)
-  // over Privy's auto-created embedded wallet, which is empty. Picking the first
-  // ethereum account blindly often selected the embedded one → wrong HL account.
-  const evmWallets = accounts.filter((a) => a.type === 'wallet' && a.chainType === 'ethereum');
-  const evmAddress = (evmWallets.find((a) => a.walletClientType && a.walletClientType !== 'privy') ?? evmWallets[0])?.address;
+  // The HL account = the EXTERNAL connected EVM wallet (MetaMask/Rabby — where the
+  // funds are), NOT Privy's empty embedded wallet. Read from useWallets (a wallet
+  // can be connected for txns without being a "linked account"); prefer a non-Privy
+  // wallet, then any connected wallet, then a linked ethereum account.
+  const linkedEvm = accounts.find((a) => a.type === 'wallet' && a.chainType === 'ethereum')?.address;
+  const evmAddress =
+    (wallets.find((w) => w.walletClientType !== 'privy') ?? wallets[0])?.address ?? linkedEvm;
 
   // EVM-only session → try to resolve a previously-linked identity.
   const [resolved, setResolved] = useState<string>();

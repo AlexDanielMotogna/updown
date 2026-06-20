@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useWallets } from '@privy-io/react-auth';
-import { createWalletClient, custom, parseUnits } from 'viem';
-import { arbitrum, arbitrumSepolia } from 'viem/chains';
+import { createPublicClient, createWalletClient, custom, erc20Abi, http, parseUnits } from 'viem';
+import { arbitrum } from 'viem/chains';
 import { Modal } from './Modal';
 import { useToast } from './Toast';
 import { IS_TESTNET } from '@/lib/api';
+
+const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
 /**
  * HyperLiquid deposits are an ERC-20 USDC `transfer` to the HL bridge contract on
@@ -79,11 +81,38 @@ function MainnetDeposit({ evmAddress }: { evmAddress?: string }) {
   const toast = useToast();
   const [amount, setAmount] = useState('');
   const [busy, setBusy] = useState(false);
+  const [walletUsdc, setWalletUsdc] = useState<number | null>(null);
+
+  // Wallet's native-USDC balance on Arbitrum One (what's available to deposit).
+  // Polled while open + refreshed after a deposit so it never goes stale.
+  const loadBalance = useCallback(async () => {
+    if (!evmAddress) return;
+    try {
+      const client = createPublicClient({ chain: arbitrum, transport: http() });
+      const b = await client.readContract({ address: MAINNET.usdc, abi: erc20Abi, functionName: 'balanceOf', args: [evmAddress as `0x${string}`] });
+      setWalletUsdc(Number(b) / 1e6);
+    } catch {
+      setWalletUsdc(null);
+    }
+  }, [evmAddress]);
+
+  useEffect(() => {
+    loadBalance();
+    const id = window.setInterval(loadBalance, 8000);
+    return () => window.clearInterval(id);
+  }, [loadBalance]);
+
+  const amt = Number(amount);
+  const overBalance = walletUsdc != null && amt > walletUsdc;
 
   async function deposit() {
-    if (!evmAddress || !amount) return;
-    if (Number(amount) < MAINNET.minDeposit) {
+    if (!evmAddress || !amount || busy) return;
+    if (amt < MAINNET.minDeposit) {
       toast.show('error', `Minimum deposit is ${MAINNET.minDeposit} USDC (less is not credited)`);
+      return;
+    }
+    if (overBalance) {
+      toast.show('error', `Only ${fmt(walletUsdc ?? 0)} USDC in your wallet`);
       return;
     }
     setBusy(true);
@@ -124,6 +153,8 @@ function MainnetDeposit({ evmAddress }: { evmAddress?: string }) {
       toast.update(tid, 'error', (e as Error).message || 'Deposit failed');
     } finally {
       setBusy(false);
+      // Refresh after the tx so the wallet balance / Max reflect the new amount.
+      setTimeout(loadBalance, 3000);
     }
   }
 
@@ -131,20 +162,30 @@ function MainnetDeposit({ evmAddress }: { evmAddress?: string }) {
     <div className="space-y-3 text-sm">
       <p className="text-surface-300">Deposit native USDC from Arbitrum One. Funds credit your account ~1 min after the transfer confirms.</p>
       <label className="block">
-        <span className="text-xs text-surface-400">Amount (USDC)</span>
-        <div className="mt-1.5 flex items-center rounded border border-surface-700 bg-[#1c1c23] px-3">
+        <div className="mb-1.5 flex items-center justify-between text-xs">
+          <span className="text-surface-400">Amount (USDC)</span>
+          <button
+            onClick={() => walletUsdc != null && setAmount(String(walletUsdc))}
+            disabled={walletUsdc == null}
+            className="text-surface-300 hover:text-surface-100 disabled:opacity-40"
+          >
+            In wallet: {walletUsdc == null ? '…' : fmt(walletUsdc)} · Max
+          </button>
+        </div>
+        <div className="flex items-center rounded border border-surface-700 bg-[#1c1c23] px-3">
           <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0.00" className="w-full bg-transparent py-2.5 text-base tabular text-surface-100 outline-none placeholder:text-surface-500" />
           <span className="text-surface-400">USDC</span>
         </div>
       </label>
       <button
         onClick={deposit}
-        disabled={!evmAddress || !amount || busy}
+        disabled={!evmAddress || !amount || busy || overBalance}
         className="w-full rounded bg-surface-100 py-2.5 text-sm font-semibold text-surface-900 hover:bg-surface-200 disabled:opacity-40"
       >
-        {busy ? 'Depositing…' : 'Deposit'}
+        {busy ? 'Depositing…' : overBalance ? 'Insufficient USDC' : 'Deposit'}
       </button>
       <p className="text-2xs text-surface-500">Minimum {MAINNET.minDeposit} USDC — smaller amounts are NOT credited. Uses native USDC (not USDC.e).</p>
+      <p className="text-2xs text-surface-500">To trade perps, use <span className="text-surface-300">Transfer</span> to move USDC to the Perp balance.</p>
     </div>
   );
 }

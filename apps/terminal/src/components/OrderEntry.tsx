@@ -11,8 +11,9 @@ import { DepositModal } from './DepositModal';
 import { Modal } from './Modal';
 import type { OrderSide, OrderType } from '@/lib/types';
 
-// Lazy: WithdrawModal pulls the HL SDK (signed withdraw). Only under Privy.
+// Lazy: Withdraw/Transfer pull the HL SDK (signed actions). Only under Privy.
 const WithdrawModal = dynamic(() => import('./WithdrawModal').then((m) => m.WithdrawModal), { ssr: false });
+const TransferModal = dynamic(() => import('./TransferModal').then((m) => m.TransferModal), { ssr: false });
 const HAS_PRIVY = !!process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 
 type Tab = 'MARKET' | 'LIMIT' | 'STOP' | 'STOP_LIMIT';
@@ -71,6 +72,7 @@ export function OrderEntry({
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
+  const [showTransfer, setShowTransfer] = useState(false);
 
   const [mark, setMark] = useState(0);
   const [maxLev, setMaxLev] = useState(50);
@@ -487,9 +489,10 @@ export function OrderEntry({
 
       {msg && <div className={`mt-2 text-xs ${msg.ok ? 'text-win-500' : 'text-loss-500'}`}>{msg.text}</div>}
 
-      {/* Deposit / Withdraw */}
-      <div className="mt-4 grid grid-cols-2 gap-1.5">
+      {/* Deposit / Transfer / Withdraw */}
+      <div className="mt-4 grid grid-cols-3 gap-1.5">
         <button onClick={() => setShowDeposit(true)} className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800">↓ Deposit</button>
+        <button onClick={() => setShowTransfer(true)} className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800" title="Move USDC between Spot and Perps">⇄ Transfer</button>
         <button onClick={() => setShowWithdraw(true)} className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800">↑ Withdraw</button>
       </div>
       <div className="mt-4">
@@ -499,6 +502,7 @@ export function OrderEntry({
       {/* Modals */}
       <DepositModal open={showDeposit} onClose={() => setShowDeposit(false)} evmAddress={evmAddress} />
       {HAS_PRIVY && <WithdrawModal open={showWithdraw} onClose={() => setShowWithdraw(false)} evmAddress={evmAddress} />}
+      {HAS_PRIVY && <TransferModal open={showTransfer} onClose={() => setShowTransfer(false)} evmAddress={evmAddress} />}
 
       {/* Adjust Leverage */}
       <Modal open={showLeverage} onClose={() => setShowLeverage(false)} title="Adjust Leverage" size="md">

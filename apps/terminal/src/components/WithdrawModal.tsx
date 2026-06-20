@@ -1,15 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useWallets } from '@privy-io/react-auth';
 import { ExchangeClient, HttpTransport } from '@nktkas/hyperliquid';
 import { createWalletClient, custom } from 'viem';
 import { Modal } from './Modal';
 import { useToast } from './Toast';
 import { IS_TESTNET } from '@/lib/api';
+import { fetchPerpsWithdrawable } from '@/lib/hlBalances';
 
 const MIN_WITHDRAW = 2; // USDC
 const WITHDRAW_FEE = 1; // USDC, deducted from the amount
+const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
 function Inner({ evmAddress }: { evmAddress?: string }) {
   const { wallets } = useWallets();
@@ -17,6 +19,11 @@ function Inner({ evmAddress }: { evmAddress?: string }) {
   const [amount, setAmount] = useState('');
   const [dest, setDest] = useState(evmAddress ?? '');
   const [busy, setBusy] = useState(false);
+  const [available, setAvailable] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (evmAddress) fetchPerpsWithdrawable(evmAddress).then(setAvailable);
+  }, [evmAddress]);
 
   const amt = Number(amount);
   const receives = amt > WITHDRAW_FEE ? amt - WITHDRAW_FEE : 0;
@@ -48,8 +55,17 @@ function Inner({ evmAddress }: { evmAddress?: string }) {
   return (
     <div className="space-y-3 text-sm">
       <label className="block">
-        <span className="text-xs text-surface-400">Amount (USDC)</span>
-        <div className="mt-1.5 flex items-center rounded border border-surface-700 bg-[#1c1c23] px-3">
+        <div className="mb-1.5 flex items-center justify-between text-xs">
+          <span className="text-surface-400">Amount (USDC)</span>
+          <button
+            onClick={() => available != null && setAmount(String(available))}
+            disabled={available == null}
+            className="text-surface-300 hover:text-surface-100 disabled:opacity-40"
+          >
+            Perps available: {available == null ? '…' : fmt(available)} · Max
+          </button>
+        </div>
+        <div className="flex items-center rounded border border-surface-700 bg-[#1c1c23] px-3">
           <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0.00" className="w-full bg-transparent py-2.5 text-base tabular text-surface-100 outline-none placeholder:text-surface-500" />
           <span className="text-surface-400">USDC</span>
         </div>
