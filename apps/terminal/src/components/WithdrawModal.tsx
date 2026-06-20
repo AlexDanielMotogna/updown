@@ -5,29 +5,41 @@ import { useWallets } from '@privy-io/react-auth';
 import { ExchangeClient, HttpTransport } from '@nktkas/hyperliquid';
 import { createWalletClient, custom } from 'viem';
 import { Modal } from './Modal';
+import { useToast } from './Toast';
 import { IS_TESTNET } from '@/lib/api';
+
+const MIN_WITHDRAW = 2; // USDC
+const WITHDRAW_FEE = 1; // USDC, deducted from the amount
 
 function Inner({ evmAddress }: { evmAddress?: string }) {
   const { wallets } = useWallets();
+  const toast = useToast();
   const [amount, setAmount] = useState('');
   const [dest, setDest] = useState(evmAddress ?? '');
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const amt = Number(amount);
+  const receives = amt > WITHDRAW_FEE ? amt - WITHDRAW_FEE : 0;
 
   async function withdraw() {
     if (!evmAddress || !amount) return;
+    if (amt < MIN_WITHDRAW) {
+      toast.show('error', `Minimum withdrawal is ${MIN_WITHDRAW} USDC`);
+      return;
+    }
     setBusy(true);
-    setMsg(null);
+    const tid = toast.loading(`Withdrawing ${amount} USDC…`);
     try {
-      const wallet = wallets.find((w) => w.address === evmAddress);
+      const wallet = wallets.find((w) => w.address.toLowerCase() === evmAddress.toLowerCase());
       if (!wallet) throw new Error('Connected wallet not found');
       const provider = await wallet.getEthereumProvider();
       const walletClient = createWalletClient({ account: evmAddress as `0x${string}`, transport: custom(provider) });
       const client = new ExchangeClient({ transport: new HttpTransport({ isTestnet: IS_TESTNET }), wallet: walletClient });
       await client.withdraw3({ destination: (dest || evmAddress) as `0x${string}`, amount });
-      setMsg({ ok: true, text: 'Withdrawal submitted' });
+      toast.update(tid, 'success', `Withdrawal submitted — arrives on Arbitrum in ~5 min`);
+      setAmount('');
     } catch (e) {
-      setMsg({ ok: false, text: (e as Error).message });
+      toast.update(tid, 'error', (e as Error).message || 'Withdrawal failed');
     } finally {
       setBusy(false);
     }
@@ -37,21 +49,31 @@ function Inner({ evmAddress }: { evmAddress?: string }) {
     <div className="space-y-3 text-sm">
       <label className="block">
         <span className="text-xs text-surface-400">Amount (USDC)</span>
-        <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0.00" className="input mt-1 tabular" />
+        <div className="mt-1.5 flex items-center rounded border border-surface-700 bg-[#1c1c23] px-3">
+          <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0.00" className="w-full bg-transparent py-2.5 text-base tabular text-surface-100 outline-none placeholder:text-surface-500" />
+          <span className="text-surface-400">USDC</span>
+        </div>
       </label>
       <label className="block">
-        <span className="text-xs text-surface-400">Destination (Arbitrum)</span>
-        <input value={dest} onChange={(e) => setDest(e.target.value)} placeholder="0x…" className="input mt-1 font-mono text-xs" />
+        <span className="text-xs text-surface-400">Destination (Arbitrum One)</span>
+        <input value={dest} onChange={(e) => setDest(e.target.value)} placeholder="0x…" className="input mt-1.5 font-mono text-xs" />
       </label>
+      <div className="flex justify-between text-xs text-surface-400">
+        <span>Fee</span>
+        <span className="tabular">{WITHDRAW_FEE.toFixed(2)} USDC</span>
+      </div>
+      <div className="flex justify-between text-xs">
+        <span className="text-surface-400">You receive</span>
+        <span className="tabular text-surface-100">{receives.toFixed(2)} USDC</span>
+      </div>
       <button
         onClick={withdraw}
-        disabled={!evmAddress || !amount || busy}
-        className="w-full rounded bg-win-500 py-2 font-semibold text-black disabled:opacity-40"
+        disabled={!evmAddress || amt < MIN_WITHDRAW || busy}
+        className="w-full rounded bg-surface-100 py-2.5 text-sm font-semibold text-surface-900 hover:bg-surface-200 disabled:opacity-40"
       >
         {busy ? 'Submitting…' : 'Withdraw'}
       </button>
-      {msg && <p className={`text-xs ${msg.ok ? 'text-win-500' : 'text-loss-500'}`}>{msg.text}</p>}
-      <p className="text-2xs text-surface-500">Withdrawals settle to Arbitrum; HyperLiquid charges a small fee.</p>
+      <p className="text-2xs text-surface-500">Signed (no gas). Settles to Arbitrum One in ~5 min. Min {MIN_WITHDRAW} USDC; flat {WITHDRAW_FEE} USDC fee.</p>
     </div>
   );
 }
