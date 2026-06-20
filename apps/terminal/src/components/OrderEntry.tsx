@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { placeOrder, setLeverage as setLeverageApi } from '@/lib/api';
 import { useAccountStream } from '@/hooks/useAccountStream';
+import { useToast } from './Toast';
 import { AccountInfo } from './AccountInfo';
 import { DepositModal } from './DepositModal';
 import { Modal } from './Modal';
@@ -74,6 +75,7 @@ export function OrderEntry({
   const [maxLev, setMaxLev] = useState(50);
   const [available, setAvailable] = useState(0);
   const { account: acct } = useAccountStream(evmAddress);
+  const toast = useToast();
 
   // Leverage / margin-mode application to HyperLiquid (signed by the agent key
   // server-side — no per-change wallet popup). `appliedRef` dedupes so identical
@@ -84,23 +86,35 @@ export function OrderEntry({
   const appliedRef = useRef<string>('');
   useEffect(() => { appliedRef.current = ''; setLevMsg(null); }, [symbol]);
 
-  /** Push leverage + margin mode to HL. Returns ok + a message; dedupes. */
-  async function applyLeverage(lev: number, cross: boolean): Promise<{ ok: boolean; text: string }> {
+  /** Push leverage + margin mode to HL. Returns ok + a message; dedupes.
+   * `kind` only changes the toast wording (leverage and margin mode are one HL
+   * action), so a Cross↔Isolated change reads as "Margin mode…", not leverage. */
+  async function applyLeverage(
+    lev: number,
+    cross: boolean,
+    kind: 'leverage' | 'margin' = 'leverage'
+  ): Promise<{ ok: boolean; text: string }> {
     if (!walletAddress) return { ok: false, text: 'Connect a wallet first' };
     const key = `${symbol}:${lev}:${cross}`;
     if (appliedRef.current === key) return { ok: true, text: '' };
+    const mode = cross ? 'Cross' : 'Isolated';
+    const label = `${lev}x ${mode}`;
+    const pending = kind === 'margin' ? `Margin mode change pending — ${mode}` : `Leverage change pending — ${label}`;
+    const done = kind === 'margin' ? `Margin mode set — ${mode}` : `Leverage changed — ${label}`;
+    const tid = toast.loading(pending);
     setLevBusy(true);
     setLevMsg(null);
     const res = await setLeverageApi({ walletAddress, symbol, leverage: lev, isCross: cross });
     setLevBusy(false);
     if (res.success) {
       appliedRef.current = key;
-      const text = `${lev}x ${cross ? 'Cross' : 'Isolated'}`;
-      setLevMsg({ ok: true, text });
-      return { ok: true, text };
+      setLevMsg({ ok: true, text: label });
+      toast.update(tid, 'success', done);
+      return { ok: true, text: label };
     }
-    const text = res.error?.message ?? 'Leverage update failed';
+    const text = res.error?.message ?? `${kind === 'margin' ? 'Margin mode' : 'Leverage'} update failed`;
     setLevMsg({ ok: false, text });
+    toast.update(tid, 'error', text);
     return { ok: false, text };
   }
 
@@ -112,13 +126,14 @@ export function OrderEntry({
   }
   async function confirmMargin() {
     setMarginMode(pendingMode);
-    const r = await applyLeverage(leverage, pendingMode === 'cross');
+    const r = await applyLeverage(leverage, pendingMode === 'cross', 'margin');
     if (r.ok) setShowMargin(false);
   }
   function confirmSlippage() {
     const v = Math.min(Math.max(Number(pendingSlip) || 0, 0), 50);
     saveSlippage(String(v));
     setShowSlippage(false);
+    toast.show('success', `Max slippage set to ${v}%`);
   }
 
   // Live mark + max leverage for this market.
@@ -227,13 +242,17 @@ export function OrderEntry({
     if (!walletAddress) return;
     setBusy(true);
     setMsg(null);
-    // Make sure HL has the intended leverage + margin mode before the order.
+    // Make sure HL has the intended leverage + margin mode before the order
+    // (applyLeverage shows its own toast).
     const lev = await applyLeverage(leverage, marginMode === 'cross');
     if (!lev.ok) {
       setBusy(false);
       setMsg({ ok: false, text: lev.text });
       return;
     }
+
+    const verb = side === 'BUY' ? 'Buy' : 'Sell';
+    const tid = toast.loading(`${verb} ${sizeBtc} ${base} — order pending`);
     const res = await placeOrder({
       walletAddress,
       symbol,
@@ -248,7 +267,9 @@ export function OrderEntry({
     });
     if (!res.success) {
       setBusy(false);
-      setMsg({ ok: false, text: res.error?.message ?? 'Order failed' });
+      const text = res.error?.message ?? 'Order failed';
+      setMsg({ ok: false, text });
+      toast.update(tid, 'error', text);
       return;
     }
 
@@ -263,7 +284,9 @@ export function OrderEntry({
     }
 
     setBusy(false);
-    setMsg({ ok: true, text: `Order ${res.data?.status} · #${res.data?.orderId}` });
+    const ok = `${verb} ${sizeBtc} ${base} — ${String(res.data?.status ?? 'submitted').toLowerCase()}${res.data?.orderId ? ` · #${res.data.orderId}` : ''}`;
+    setMsg({ ok: true, text: ok });
+    toast.update(tid, 'success', ok);
   }
 
   const buy = side === 'BUY';

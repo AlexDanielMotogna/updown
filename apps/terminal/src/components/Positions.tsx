@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { cancelOrder, placeOrder, IS_TESTNET } from '@/lib/api';
 import { useAccountStream } from '@/hooks/useAccountStream';
+import { useToast } from './Toast';
 import { Modal } from './Modal';
 import { TokenIcon } from './TokenIcon';
 
@@ -163,6 +164,8 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
   const [ohFilter, setOhFilter] = useState('');
   const [ohSort, setOhSort] = useState<{ col: 'time' | 'price'; dir: 'asc' | 'desc' }>({ col: 'time', dir: 'desc' });
 
+  const toast = useToast();
+
   // Live positions over the WS account stream (realtime PnL/mark). The rich
   // history tabs still come from REST (fields the WS openOrders feed lacks).
   const ws = useAccountStream(address);
@@ -212,13 +215,18 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
 
   async function onCancel(o: OpenOrder) {
     if (!walletAddress) return;
-    await cancelOrder({ walletAddress, symbol: o.symbol, orderId: o.orderId });
+    const tid = toast.loading(`Cancelling ${o.coin} order #${o.orderId}…`);
+    const res = await cancelOrder({ walletAddress, symbol: o.symbol, orderId: o.orderId });
+    toast.update(tid, res.success ? 'success' : 'error', res.success ? `Order #${o.orderId} cancelled` : res.error?.message ?? 'Cancel failed');
     refresh();
   }
 
   async function onCancelAllOrders() {
-    if (!walletAddress) return;
-    await Promise.all(orders.map((o) => cancelOrder({ walletAddress, symbol: o.symbol, orderId: o.orderId })));
+    if (!walletAddress || orders.length === 0) return;
+    const tid = toast.loading(`Cancelling all ${orders.length} orders…`);
+    const res = await Promise.all(orders.map((o) => cancelOrder({ walletAddress, symbol: o.symbol, orderId: o.orderId })));
+    const failed = res.filter((r) => !r.success).length;
+    toast.update(tid, failed ? 'error' : 'success', failed ? `${failed}/${orders.length} cancels failed` : `Cancelled ${orders.length} orders`);
     refresh();
   }
 
@@ -297,15 +305,20 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
     if (!walletAddress) return;
     const opp = p.side === 'LONG' ? 'SELL' : 'BUY';
     const size = opts?.size && Number(opts.size) > 0 ? opts.size : p.amount;
+    const base = p.symbol.replace('-USD', '');
+    const verb = mode === 'reverse' ? 'Reversing' : 'Closing';
+    const tid = toast.loading(`${verb} ${base} position…`);
+    let res;
     if (mode === 'reverse') {
       // Flip the entire position: market opposite for 2× size.
-      await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'MARKET', amount: String(Number(p.amount) * 2) });
+      res = await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'MARKET', amount: String(Number(p.amount) * 2) });
     } else if (mode === 'limit') {
-      if (!opts?.limitPrice) return;
-      await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'LIMIT', amount: size, price: opts.limitPrice, reduceOnly: true, timeInForce: 'GTC' });
+      if (!opts?.limitPrice) { toast.dismiss(tid); return; }
+      res = await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'LIMIT', amount: size, price: opts.limitPrice, reduceOnly: true, timeInForce: 'GTC' });
     } else {
-      await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'MARKET', amount: size, reduceOnly: true });
+      res = await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'MARKET', amount: size, reduceOnly: true });
     }
+    toast.update(tid, res.success ? 'success' : 'error', res.success ? `${base} position ${mode === 'reverse' ? 'reversed' : 'close submitted'}` : res.error?.message ?? 'Close failed');
     refresh();
   }
 
@@ -315,11 +328,15 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
   }
 
   async function onSetTpSl(p: Position, tp?: string, sl?: string) {
-    if (!walletAddress) return;
+    if (!walletAddress || (!tp && !sl)) return;
     const opp = p.side === 'LONG' ? 'SELL' : 'BUY';
     const cap = (trigger: string) => String(Number(trigger) * (opp === 'BUY' ? 1.05 : 0.95));
-    if (tp) await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'TAKE_PROFIT_MARKET', amount: p.amount, triggerPrice: tp, price: cap(tp), reduceOnly: true });
-    if (sl) await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'STOP_MARKET', amount: p.amount, triggerPrice: sl, price: cap(sl), reduceOnly: true });
+    const base = p.symbol.replace('-USD', '');
+    const tid = toast.loading(`Setting ${base} TP/SL…`);
+    let ok = true;
+    if (tp) { const r = await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'TAKE_PROFIT_MARKET', amount: p.amount, triggerPrice: tp, price: cap(tp), reduceOnly: true }); ok = ok && r.success; }
+    if (sl) { const r = await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'STOP_MARKET', amount: p.amount, triggerPrice: sl, price: cap(sl), reduceOnly: true }); ok = ok && r.success; }
+    toast.update(tid, ok ? 'success' : 'error', ok ? `${base} TP/SL set` : 'Failed to set TP/SL');
     reloadTpsl();
   }
 
