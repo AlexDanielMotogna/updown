@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { placeOrder, setLeverage as setLeverageApi } from '@/lib/api';
+import { usePrivy } from '@privy-io/react-auth';
 import { useAccountStream } from '@/hooks/useAccountStream';
 import { useTrading } from '@/hooks/useTrading';
 import { useToast } from './Toast';
@@ -79,6 +80,7 @@ export function OrderEntry({
   const [available, setAvailable] = useState(0);
   const { account: acct } = useAccountStream(evmAddress);
   const { enabled: tradingEnabled, builderApproved, busy: enabling, enableTrading, approveBuilder } = useTrading(walletAddress, evmAddress);
+  const { ready: privyReady, authenticated, login, connectWallet } = usePrivy();
   const [approvingBuilder, setApprovingBuilder] = useState(false);
   const toast = useToast();
 
@@ -329,6 +331,10 @@ export function OrderEntry({
   const buy = side === 'BUY';
   const needsAgent = !!walletAddress && !tradingEnabled;
   const needsBuilder = !!walletAddress && tradingEnabled && builderApproved === false;
+  // Primary-action button gating, in order. All of it lives on the order button
+  // (no separate cards): sign in → connect wallet → enable trading → approve
+  // builder fee → Buy/Long.
+  const ctaCls = 'w-full rounded bg-surface-100 py-2.5 font-semibold text-surface-900 hover:bg-surface-200 disabled:opacity-50';
 
   return (
     <div className="card flex h-full flex-col p-3 text-sm">
@@ -459,22 +465,19 @@ export function OrderEntry({
         <Row label="Available" value={usd(available)} />
       </div>
 
-      {/* Submit — one-time gates before trading: approve the agent, then the
-          builder fee (both signed in your wallet). Then Buy/Long. */}
-      {needsAgent ? (
-        <button
-          onClick={enableTrading}
-          disabled={enabling}
-          className="w-full rounded bg-surface-100 py-2.5 font-semibold text-surface-900 hover:bg-surface-200 disabled:opacity-50"
-        >
+      {/* Primary action — sign in / connect / enable / approve all on this button. */}
+      {!privyReady ? (
+        <button disabled className={ctaCls}>…</button>
+      ) : !authenticated ? (
+        <button onClick={login} className={ctaCls}>Connect to trade</button>
+      ) : !evmAddress ? (
+        <button onClick={connectWallet} className={ctaCls}>Connect wallet</button>
+      ) : needsAgent ? (
+        <button onClick={enableTrading} disabled={enabling} className={ctaCls}>
           {enabling ? 'Enabling…' : 'Enable Trading'}
         </button>
       ) : needsBuilder ? (
-        <button
-          onClick={handleApproveBuilder}
-          disabled={approvingBuilder}
-          className="w-full rounded bg-surface-100 py-2.5 font-semibold text-surface-900 hover:bg-surface-200 disabled:opacity-50"
-        >
+        <button onClick={handleApproveBuilder} disabled={approvingBuilder} className={ctaCls}>
           {approvingBuilder ? 'Approving…' : 'Approve Builder Fee'}
         </button>
       ) : (
