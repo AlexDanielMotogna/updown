@@ -131,7 +131,7 @@ export function WalletMenu() {
                         color: t.text.secondary, transition: 'all 0.12s ease', '&:hover': { bgcolor: t.border.subtle, color: t.text.primary },
                       }}>
                         <Icon sx={{ fontSize: 17 }} />
-                        <Typography sx={{ fontSize: '0.82rem', fontWeight: 500 }}>{item.label} ↗</Typography>
+                        <Typography sx={{ fontSize: '0.82rem', fontWeight: 500 }}>{item.label}</Typography>
                       </Box>
                     );
                   })}
