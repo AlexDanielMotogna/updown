@@ -128,11 +128,22 @@ export function Orderbook({ symbol }: { symbol: string }) {
     const empty = { asks: [] as Level[], bids: [] as Level[], spread: null as number | null, spreadPct: 0, bidPct: 50, askPct: 50 };
     if (!book) return empty;
 
-    // Patch the top of book with the realtime bbo level (best ask = bbo.ask, with
-    // deeper l2Book levels strictly beyond it; same for bids). This makes the top
-    // move on every block while the depth refreshes at the slower l2Book cadence.
-    const rawAsks = bbo?.ask ? [bbo.ask, ...book.asks.filter((l) => Number(l[0]) > Number(bbo.ask![0]))] : book.asks;
-    const rawBids = bbo?.bid ? [bbo.bid, ...book.bids.filter((l) => Number(l[0]) < Number(bbo.bid![0]))] : book.bids;
+    // Safely merge the realtime bbo into the (slower) l2Book WITHOUT dropping
+    // levels — only: (a) replace the best level's size when prices match, or
+    // (b) prepend when bbo is a strict price improvement over the current best.
+    // If bbo is equal/worse/stale, leave l2Book untouched. Filtering out levels
+    // (the old approach) caused rows to vanish then refill on the next snapshot.
+    const mergeTop = (levels: [string, string][], top: [string, string] | null | undefined, side: 'ask' | 'bid'): [string, string][] => {
+      if (!top) return levels;
+      const tp = Number(top[0]);
+      const bestPx = levels[0] ? Number(levels[0][0]) : null;
+      if (bestPx == null) return [top];
+      if (tp === bestPx) return [top, ...levels.slice(1)]; // same level → refresh size
+      const improves = side === 'ask' ? tp < bestPx : tp > bestPx;
+      return improves ? [top, ...levels] : levels; // strict improvement → prepend
+    };
+    const rawAsks = mergeTop(book.asks, bbo?.ask, 'ask');
+    const rawBids = mergeTop(book.bids, bbo?.bid, 'bid');
 
     const aAll = aggregate(rawAsks, tick, 'ask');
     const bAll = aggregate(rawBids, tick, 'bid');
@@ -203,10 +214,11 @@ export function Orderbook({ symbol }: { symbol: string }) {
             <div className="flex-1 p-4 text-center text-surface-400">connecting…</div>
           ) : (
             <div className="flex flex-1 flex-col overflow-hidden">
-              {/* Asks (worst at top → best near the spread) */}
+              {/* Asks (worst at top → best near the spread). Fixed ROWS height so
+                  the list never grows/shrinks (placeholders fill empty slots). */}
               <div className="flex flex-1 flex-col-reverse justify-start overflow-hidden">
-                {asks.map((l, i) => (
-                  <Row key={`a${i}`} l={l} side="ask" fmtPx={fmtPx} />
+                {Array.from({ length: ROWS }, (_, i) => (
+                  <Row key={`a${i}`} l={asks[i]} side="ask" fmtPx={fmtPx} />
                 ))}
               </div>
 
@@ -218,10 +230,10 @@ export function Orderbook({ symbol }: { symbol: string }) {
                 <span className="tabular text-surface-300">{spreadPct.toFixed(3)}%</span>
               </div>
 
-              {/* Bids (best at top → worst) */}
+              {/* Bids (best at top → worst). Fixed ROWS height (see asks). */}
               <div className="flex flex-1 flex-col overflow-hidden">
-                {bids.map((l, i) => (
-                  <Row key={`b${i}`} l={l} side="bid" fmtPx={fmtPx} />
+                {Array.from({ length: ROWS }, (_, i) => (
+                  <Row key={`b${i}`} l={bids[i]} side="bid" fmtPx={fmtPx} />
                 ))}
               </div>
 
@@ -244,9 +256,11 @@ export function Orderbook({ symbol }: { symbol: string }) {
   );
 }
 
-function Row({ l, side, fmtPx }: { l: Level; side: 'ask' | 'bid'; fmtPx: (n: number) => string }) {
+function Row({ l, side, fmtPx }: { l?: Level; side: 'ask' | 'bid'; fmtPx: (n: number) => string }) {
   const color = side === 'ask' ? 'text-loss-500' : 'text-win-500';
   const bar = side === 'ask' ? 'bg-loss-500/15' : 'bg-win-500/15';
+  // Empty slot — keep the row height so the book never changes size.
+  if (!l) return <div className="grid grid-cols-3 px-3 py-0.5">&nbsp;</div>;
   return (
     <div className="relative grid grid-cols-3 px-3 py-0.5 tabular hover:bg-surface-800/40">
       <div
