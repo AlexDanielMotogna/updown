@@ -95,6 +95,28 @@ export async function getConnection(walletAddress: string): Promise<ConnectionSt
   }
 }
 
+export interface UserProfile {
+  walletAddress: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  level: number;
+  title: string;
+  totalXp: string;
+  xpProgress: number; // 0..1
+  coinsBalance: string;
+}
+
+/** UpDown profile (level / XP / UP coins) for an identity wallet, or null. */
+export async function fetchProfile(walletAddress: string): Promise<UserProfile | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/users/profile?wallet=${encodeURIComponent(walletAddress)}`, { cache: 'no-store' });
+    const json = (await res.json()) as ApiResult<UserProfile>;
+    return json.success ? (json.data ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Ensure a User exists for a Solana wallet (idempotent upsert). */
 export function registerUser(walletAddress: string) {
   return post<unknown>('/api/users/register', { walletAddress });
