@@ -10,7 +10,7 @@ export function MuiProvider({ children }: { children: ReactNode }) {
     () =>
       createTheme({
         palette: { mode: 'dark' },
-        typography: { fontFamily: 'Satoshi, Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' },
+        typography: { fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' },
       }),
     []
   );

@@ -40,7 +40,7 @@ const config: Config = {
         muted: '#71717a',
       },
       fontFamily: {
-        sans: ['Satoshi', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
         mono: ['Roboto Mono', 'monospace'],
       },
       // ── Centralized type scale (single source of truth for font sizes) ──

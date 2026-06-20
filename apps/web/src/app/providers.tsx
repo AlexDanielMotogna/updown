@@ -114,7 +114,7 @@ function buildMuiTheme(t: ThemeTokens) {
       },
     },
     typography: {
-      fontFamily: 'var(--font-satoshi), "Satoshi", -apple-system, BlinkMacSystemFont, sans-serif',
+      fontFamily: 'var(--font-satoshi), "Inter", -apple-system, BlinkMacSystemFont, sans-serif',
       fontWeightLight: 300,
       fontWeightRegular: 400,
       fontWeightMedium: 500,
