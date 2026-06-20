@@ -19,10 +19,13 @@ const config: Config = {
           50: '#fafaf9', 100: '#f5f5f4', 200: '#e7e5e4', 300: '#d6d3d1', 400: '#a8a29e',
           500: '#78716c', 600: '#57534e', 700: '#44403c', 800: '#292524', 900: '#1c1917',
         },
+        // Dark base aligned to the UpDown app (navy) — bg.app/surface/elevated.
         surface: {
-          950: '#09090b', 900: '#0c0c0e', 850: '#111113', 800: '#18181b', 700: '#27272a',
+          950: '#04080E', 900: '#060C14', 850: '#0A121C', 800: '#121A26', 700: '#27272a',
           600: '#3f3f46', 500: '#52525b', 400: '#71717a', 300: '#a1a1aa', 200: '#d4d4d8', 100: '#f4f4f5',
         },
+        // UpDown brand cyan (logo, connect button, active states).
+        brand: { DEFAULT: '#5FD8EF', 400: '#7FE2F5', 500: '#5FD8EF', 600: '#3BBFD9' },
         positive: { DEFAULT: '#26A69A', muted: '#00796B', subtle: 'rgba(38,166,154,0.1)' },
         negative: { DEFAULT: '#EF5350', muted: '#C62828', subtle: 'rgba(239,83,80,0.1)' },
         warning: { DEFAULT: '#FFA726', muted: '#EF6C00', subtle: 'rgba(255,167,38,0.1)' },
@@ -37,7 +40,7 @@ const config: Config = {
         muted: '#71717a',
       },
       fontFamily: {
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        sans: ['Satoshi', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
         mono: ['Roboto Mono', 'monospace'],
       },
       // ── Centralized type scale (single source of truth for font sizes) ──

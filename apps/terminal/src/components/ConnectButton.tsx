@@ -8,13 +8,14 @@ function short(addr?: string) {
 
 function PrivyConnect() {
   const { ready, authenticated, login, logout, user } = usePrivy();
-  if (!ready) return <span className="text-muted text-xs">…</span>;
+  if (!ready) return <span className="text-xs text-surface-400">…</span>;
 
+  // Disconnected — UpDown's cyan-tinted connect button.
   if (!authenticated) {
     return (
       <button
         onClick={login}
-        className="rounded bg-up/90 px-3 py-1.5 text-sm font-semibold text-black hover:bg-up"
+        className="rounded bg-brand/[0.06] px-4 py-2 text-sm font-medium text-brand transition-colors hover:bg-brand/10"
       >
         Connect
       </button>
@@ -22,14 +23,17 @@ function PrivyConnect() {
   }
 
   const addr = user?.wallet?.address;
+  const initials = (addr ?? '').slice(2, 4).toUpperCase();
   return (
     <button
       onClick={logout}
-      className="flex items-center gap-2 rounded border border-surface-700 bg-surface-850 px-2.5 py-1 text-sm hover:bg-surface-800"
+      className="flex items-center gap-2 rounded-md bg-white/[0.06] px-2 py-1.5 text-sm text-surface-100 transition-colors hover:bg-white/[0.1]"
       title="Disconnect"
     >
-      <span className="h-4 w-4 rounded-full bg-gradient-to-br from-win-500 to-primary-500" />
-      {short(addr) || 'Connected'}
+      <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-brand/20 text-2xs font-bold text-brand">
+        {initials || '◈'}
+      </span>
+      <span className="hidden tabular sm:inline">{short(addr) || 'Connected'}</span>
     </button>
   );
 }
@@ -37,7 +41,7 @@ function PrivyConnect() {
 export function ConnectButton() {
   // Rendered before any Privy hook so the UI works without Privy configured.
   if (!process.env.NEXT_PUBLIC_PRIVY_APP_ID) {
-    return <span className="text-muted text-xs">Privy not configured</span>;
+    return <span className="text-xs text-surface-400">Privy not configured</span>;
   }
   return <PrivyConnect />;
 }

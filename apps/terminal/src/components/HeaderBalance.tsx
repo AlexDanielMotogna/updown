@@ -9,9 +9,9 @@ function BalanceInner() {
   const equity = account ? Number(account.accountEquity) : null;
 
   return (
-    <span className="flex items-center gap-1.5 rounded border border-surface-700 bg-surface-850 px-2.5 py-1 text-sm tabular text-surface-100">
-      <span className="text-surface-400">◈</span>
-      {equity != null ? `$${equity.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '$0.00'}
+    <span className="flex h-[38px] items-center gap-1 rounded-md bg-white/[0.06] px-3 text-sm font-semibold tabular text-surface-100" title="HyperLiquid account equity">
+      <span className="text-win-500">$</span>
+      {equity != null ? equity.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '0.00'}
     </span>
   );
 }
