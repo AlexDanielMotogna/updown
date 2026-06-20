@@ -163,9 +163,10 @@ export function OrderEntry({
     return () => { alive = false; window.clearInterval(id); };
   }, [symbol]);
 
-  // Available balance for the connected account (live over the WS account stream).
+  // Available to trade = account value − margin already used (HL's "Available to
+  // Trade", the buying power for new orders), NOT withdrawable. Live over WS.
   useEffect(() => {
-    setAvailable(acct ? Number(acct.availableToSpend) : 0);
+    setAvailable(acct ? Math.max(0, Number(acct.accountEquity) - Number(acct.marginUsed)) : 0);
   }, [acct]);
 
   // clamp leverage to the market max
@@ -460,9 +461,10 @@ export function OrderEntry({
             Est: {trimNum(estSlip, 2) || '0'}% / Max: {Number(slippage).toFixed(2)}%
           </button>
         </div>
-        <Row label="Est. Liq Price" value={estLiq ? usd(estLiq) : 'N/A'} />
-        <Row label="Margin" value={marginUsd ? usd(marginUsd) : 'N/A'} />
-        <Row label="Available" value={usd(available)} />
+        <Row label="Order Value" value={Number(sizeUsd) > 0 ? usd(Number(sizeUsd)) : 'N/A'} />
+        <Row label="Margin Required" value={marginUsd ? usd(marginUsd) : 'N/A'} />
+        <Row label="Liquidation Price" value={estLiq ? usd(estLiq) : 'N/A'} />
+        <Row label="Available to Trade" value={usd(available)} />
       </div>
 
       {/* Primary action — sign in / connect / enable / approve all on this button. */}

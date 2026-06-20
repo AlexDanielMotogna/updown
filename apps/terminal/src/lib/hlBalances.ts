@@ -25,6 +25,13 @@ export async function fetchPerpsWithdrawable(user: string): Promise<number> {
   return Number(s?.withdrawable ?? 0);
 }
 
+/** The user's perps maker/taker fee rates (decimals, e.g. 0.00015 = 0.015%). */
+export async function fetchUserFees(user: string): Promise<{ maker: number; taker: number } | null> {
+  const s = await info<{ userAddRate?: string; userCrossRate?: string }>({ type: 'userFees', user });
+  if (!s) return null;
+  return { maker: Number(s.userAddRate ?? 0), taker: Number(s.userCrossRate ?? 0) };
+}
+
 /** USDC sitting in the Spot account. */
 export async function fetchSpotUsdc(user: string): Promise<number> {
   const s = await info<{ balances?: Array<{ coin: string; total: string }> }>({
