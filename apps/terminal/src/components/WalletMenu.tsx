@@ -2,12 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Avatar, Box, Button, ClickAwayListener, Fade, Popper, Typography } from '@mui/material';
-import { ContentCopy, CheckCircle, Logout, ShowChart, AccountBalanceWallet, Leaderboard as LeaderboardIcon } from '@mui/icons-material';
+import { ContentCopy, CheckCircle, Logout, ShowChart, AccountCircle, EmojiEvents, MenuBook, AccountBalanceWallet, PeopleOutline } from '@mui/icons-material';
 import { usePrivy } from '@privy-io/react-auth';
 import { useIdentity } from '@/hooks/useIdentity';
-import { useAccountStream } from '@/hooks/useAccountStream';
-import { fetchProfile, getConnection, IS_TESTNET, type UserProfile } from '@/lib/api';
-import { fetchSpotUsdc } from '@/lib/hlBalances';
+import { fetchProfile, IS_TESTNET, type UserProfile } from '@/lib/api';
 import { useThemeTokens, getDisplayAvatar, getDisplayName, truncateWallet } from '@/lib/theme-tokens';
 import { UserLevelBadge } from './UserLevelBadge';
 import { XpProgressBar } from './XpProgressBar';
@@ -15,13 +13,15 @@ import { XpProgressBar } from './XpProgressBar';
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 const UP_COINS_DIVISOR = 100;
 
+// Same items + icons as the app nav (apps/web/src/lib/navigation.ts).
 const NAV = [
   { label: 'Markets', href: `${APP_URL}/`, icon: ShowChart },
-  { label: 'Profile', href: `${APP_URL}/profile`, icon: AccountBalanceWallet },
-  { label: 'Leaderboard', href: `${APP_URL}/leaderboard`, icon: LeaderboardIcon },
+  { label: 'Profile', href: `${APP_URL}/profile`, icon: AccountCircle },
+  { label: 'Referrals', href: `${APP_URL}/referrals`, icon: PeopleOutline },
+  { label: 'Leaderboard', href: `${APP_URL}/leaderboard`, icon: EmojiEvents },
+  { label: 'Faucet', href: `${APP_URL}/faucet`, icon: AccountBalanceWallet },
+  { label: 'Docs', href: `${APP_URL}/docs`, icon: MenuBook },
 ];
-
-const usd = (n: number) => `$${(Number.isFinite(n) ? n : 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
 /** Connected-wallet chip + dropdown — mirrors the app's ConnectWalletButton
  * (MUI, same tokens/sections), with an added HyperLiquid account section. */
@@ -29,26 +29,17 @@ export function WalletMenu() {
   const t = useThemeTokens();
   const { logout } = usePrivy();
   const { walletAddress, evmAddress } = useIdentity();
-  const { account } = useAccountStream(evmAddress);
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [spot, setSpot] = useState<number | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [tradingActive, setTradingActive] = useState<boolean | null>(null);
   const anchorRef = useRef<HTMLButtonElement>(null);
 
-  const perps = account ? Number(account.accountEquity) : 0;
   const addr = evmAddress ?? '';
   const identity = addr ? { walletAddress: addr, displayName: profile?.displayName ?? null, avatarUrl: profile?.avatarUrl ?? null } : null;
 
   useEffect(() => {
-    if (!open) return;
-    if (evmAddress) fetchSpotUsdc(evmAddress).then(setSpot);
-    if (walletAddress) {
-      fetchProfile(walletAddress).then(setProfile);
-      getConnection(walletAddress).then((c) => setTradingActive(!!c?.active));
-    }
-  }, [open, evmAddress, walletAddress]);
+    if (open && walletAddress) fetchProfile(walletAddress).then(setProfile);
+  }, [open, walletAddress]);
 
   function handleCopy() {
     if (!addr) return;
@@ -130,16 +121,6 @@ export function WalletMenu() {
                   </Box>
                 )}
 
-                {/* HyperLiquid account */}
-                <Box sx={{ px: 2, py: 1.5, borderBottom: border }}>
-                  <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: t.text.quaternary, mb: 0.75 }}>
-                    HyperLiquid
-                  </Typography>
-                  <HlRow t={t} label="Perps equity" value={usd(perps)} />
-                  <HlRow t={t} label="Spot" value={spot == null ? '…' : usd(spot)} />
-                  <HlRow t={t} label="Trading" value={tradingActive == null ? '…' : tradingActive ? 'Enabled' : 'Not enabled'} valueColor={tradingActive ? t.gain : t.text.secondary} />
-                </Box>
-
                 {/* Nav (cross to the app) */}
                 <Box sx={{ py: 0.5, borderBottom: border }}>
                   {NAV.map((item) => {
@@ -169,14 +150,5 @@ export function WalletMenu() {
         </Popper>
       </Box>
     </ClickAwayListener>
-  );
-}
-
-function HlRow({ t, label, value, valueColor }: { t: ReturnType<typeof useThemeTokens>; label: string; value: string; valueColor?: string }) {
-  return (
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 0.25 }}>
-      <Typography sx={{ fontSize: '0.75rem', color: t.text.tertiary }}>{label}</Typography>
-      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: valueColor ?? t.text.primary, fontVariantNumeric: 'tabular-nums' }}>{value}</Typography>
-    </Box>
   );
 }
