@@ -45,6 +45,8 @@ function makeSigner(captured: Captured[]): HyperliquidSigner {
     infoClient: fakeInfo(),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     transport: fakeTransport(captured) as any,
+    // vitest VM can't run the Function-based dynamic import; use a plain import.
+    sdkLoader: () => import('@nktkas/hyperliquid'),
   });
 }
 
@@ -138,6 +140,7 @@ describe('HyperliquidSigner', () => {
       builder: { address: `0x${'a'.repeat(40)}`, feeTenthsBps: 50 },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       transport: fakeTransport(captured) as any,
+      sdkLoader: () => import('@nktkas/hyperliquid'),
     });
     await signer.signAndSubmit(
       signer.buildOrder({ symbol: 'BTC-USD', side: 'BUY', type: 'LIMIT', amount: '0.001', price: '64000' })

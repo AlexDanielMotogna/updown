@@ -9,7 +9,9 @@
  * (kept for contract compatibility / other chains); pass the agent account/key
  * to the constructor instead.
  */
-import { ExchangeClient, HttpTransport } from '@nktkas/hyperliquid';
+// Type-only import: erased at compile time, so it never emits a `require` of the
+// ESM-only @nktkas/hyperliquid (the actual module is loaded lazily — see below).
+import type { ExchangeClient } from '@nktkas/hyperliquid';
 import { privateKeyToAccount } from 'viem/accounts';
 import type {
   CancelParams,
@@ -46,6 +48,10 @@ export interface HyperliquidSignerOptions {
   infoClient?: InfoClient;
   /** Inject a transport (tests). Overrides the default HttpTransport. */
   transport?: ConstructorParameters<typeof ExchangeClient>[0]['transport'];
+  /** Inject the SDK module loader. Defaults to a real dynamic import; tests pass
+   * `() => import('@nktkas/hyperliquid')` (the Function-based import the default
+   * uses isn't supported inside vitest's VM). */
+  sdkLoader?: () => Promise<typeof import('@nktkas/hyperliquid')>;
 }
 
 interface AssetInfo {
@@ -76,29 +82,54 @@ function crossPrice(ref: number, side: OrderParams['side'], slip: number): strin
 const ASSET_MAP_CACHE = new Map<string, { map: Map<string, AssetInfo>; expires: number }>();
 const ASSET_MAP_TTL_MS = 10 * 60 * 1000;
 
+// A genuine ESM dynamic import that survives tsc's CommonJS down-leveling. With
+// `module: commonjs`, a plain `await import()` is rewritten to `require()`, which
+// throws ERR_REQUIRE_ESM for @nktkas/hyperliquid (it pulls ESM-only @noble/hashes).
+// Hiding it in a Function keeps a real runtime `import()` — Node can import ESM
+// from CJS that way. Browser/Next bundlers are unaffected (they bundle the SDK).
+// eslint-disable-next-line @typescript-eslint/no-implied-eval
+const esmImport = new Function('s', 'return import(s)') as (s: string) => Promise<typeof import('@nktkas/hyperliquid')>;
+
 export class HyperliquidSigner implements ExchangeSigner {
   readonly name = 'hyperliquid' as const;
   readonly chain = 'evm' as const;
 
-  private readonly client: ExchangeClient | null;
   private readonly info: InfoClient;
   private readonly apiUrl: string;
+  private readonly endpoint: HlEndpoint;
+  private readonly account: AgentAccount | null;
+  private readonly transportOverride?: HyperliquidSignerOptions['transport'];
   private readonly builder?: { address: `0x${string}`; feeTenthsBps: number };
+  private readonly sdkLoader: () => Promise<typeof import('@nktkas/hyperliquid')>;
+  private clientPromise?: Promise<ExchangeClient>;
 
   constructor(opts: HyperliquidSignerOptions = {}) {
     const endpoint = opts.endpoint ?? MAINNET;
+    this.endpoint = endpoint;
     this.info = opts.infoClient ?? new InfoClient(endpoint);
     this.apiUrl = endpoint.apiUrl;
     this.builder = opts.builder;
+    // viem/accounts is CJS-safe, so the account can be built eagerly.
+    this.account = opts.account ?? (opts.privateKey ? privateKeyToAccount(opts.privateKey) : null);
+    this.transportOverride = opts.transport;
+    this.sdkLoader = opts.sdkLoader ?? (() => esmImport('@nktkas/hyperliquid'));
+  }
 
-    const account = opts.account ?? (opts.privateKey ? privateKeyToAccount(opts.privateKey) : null);
-    if (account || opts.transport) {
-      const transport =
-        opts.transport ?? new HttpTransport({ isTestnet: endpoint.apiUrl.includes('testnet') });
-      this.client = new ExchangeClient({ transport, wallet: account as AgentAccount });
-    } else {
-      this.client = null;
+  /** Lazily build (and cache) the SDK client, loading @nktkas/hyperliquid via a
+   * real dynamic import so the ESM-only dep doesn't break CommonJS consumers. */
+  private async getClient(): Promise<ExchangeClient> {
+    if (!this.clientPromise) this.clientPromise = this.buildClient();
+    return this.clientPromise;
+  }
+
+  private async buildClient(): Promise<ExchangeClient> {
+    if (!this.account && !this.transportOverride) {
+      throw new Error('HyperliquidSigner has no account — construct with { privateKey } or { account }');
     }
+    const sdk = await this.sdkLoader();
+    const transport =
+      this.transportOverride ?? new sdk.HttpTransport({ isTestnet: this.endpoint.apiUrl.includes('testnet') });
+    return new sdk.ExchangeClient({ transport, wallet: this.account as AgentAccount });
   }
 
   buildOrder(params: OrderParams): UnsignedPayload {
@@ -106,7 +137,7 @@ export class HyperliquidSigner implements ExchangeSigner {
   }
 
   async signAndSubmit(payload: UnsignedPayload, _wallet?: WalletSigner): Promise<OrderResult> {
-    const client = this.requireClient();
+    const client = await this.getClient();
     let params = (payload.action as { params: OrderParams }).params;
     // Market-type orders still need a price on HL (a slippage cap, crossing the
     // book in the fill direction) when the caller didn't pass one:
@@ -134,14 +165,14 @@ export class HyperliquidSigner implements ExchangeSigner {
   }
 
   async cancel(params: CancelParams, _wallet?: WalletSigner): Promise<Result> {
-    const client = this.requireClient();
+    const client = await this.getClient();
     const asset = await this.resolveAsset(params.symbol);
     await client.cancel({ cancels: [{ a: asset.index, o: Number(params.orderId) }] });
     return { success: true };
   }
 
   async updateLeverage(symbol: string, leverage: number, isCross = true, _wallet?: WalletSigner): Promise<Result> {
-    const client = this.requireClient();
+    const client = await this.getClient();
     const asset = await this.resolveAsset(symbol);
     await client.updateLeverage({ asset: asset.index, isCross, leverage });
     return { success: true };
@@ -153,7 +184,7 @@ export class HyperliquidSigner implements ExchangeSigner {
    * signers with the agent key. Not part of ExchangeSigner — HL-specific.
    */
   async approveAgent(agentAddress: `0x${string}`, agentName?: string): Promise<Result> {
-    const client = this.requireClient();
+    const client = await this.getClient();
     await client.approveAgent({ agentAddress, agentName: agentName ?? null });
     return { success: true };
   }
@@ -164,18 +195,11 @@ export class HyperliquidSigner implements ExchangeSigner {
    * account before any builder-fee orders are accepted. HL-specific.
    */
   async approveBuilderFee(maxFeeRate: string, builderAddress?: `0x${string}`): Promise<Result> {
-    const client = this.requireClient();
+    const client = await this.getClient();
     const builder = builderAddress ?? this.builder?.address;
     if (!builder) throw new Error('approveBuilderFee: no builder address (pass one or set opts.builder)');
     await client.approveBuilderFee({ maxFeeRate, builder });
     return { success: true };
-  }
-
-  private requireClient(): ExchangeClient {
-    if (!this.client) {
-      throw new Error('HyperliquidSigner has no account — construct with { privateKey } or { account }');
-    }
-    return this.client;
   }
 
   /** A slippage-capped price for a MARKET order, from the current mid (±5%). */
