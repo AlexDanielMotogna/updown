@@ -158,6 +158,21 @@ describe('HyperliquidStream', () => {
     expect(batches[0][1].side).toBe('SELL');
   });
 
+  it('maps bbo → normalized best bid/ask (null sides preserved)', () => {
+    const stream = new HyperliquidStream({ wsFactory: factory });
+    const updates: Array<{ bid: unknown; ask: unknown }> = [];
+    stream.subscribeBbo('BTC-USD', (b) => updates.push(b));
+    const sock = sockets[0];
+    sock.open();
+    expect(sock.parsedSent()).toEqual([{ method: 'subscribe', subscription: { type: 'bbo', coin: 'BTC' } }]);
+
+    sock.emit({ channel: 'bbo', data: { coin: 'BTC', time: 7, bbo: [{ px: '63999', sz: '1.5', n: 3 }, { px: '64001', sz: '0.8', n: 2 }] } });
+    expect(updates[0]).toEqual({ bid: ['63999', '1.5'], ask: ['64001', '0.8'], time: 7 });
+
+    sock.emit({ channel: 'bbo', data: { coin: 'BTC', time: 8, bbo: [null, { px: '64002', sz: '0.3', n: 1 }] } });
+    expect(updates[1]).toEqual({ bid: null, ask: ['64002', '0.3'], time: 8 });
+  });
+
   it('subscribeAccount emits account + positions from clearinghouseState', () => {
     const stream = new HyperliquidStream({ wsFactory: factory });
     const events: Array<{ kind: string }> = [];

@@ -71,15 +71,20 @@ export function Orderbook({ symbol }: { symbol: string }) {
   const base = symbol.replace('-USD', '');
   const [tab, setTab] = useState<'book' | 'trades'>('book');
   const [book, setBook] = useState<Book | null>(null);
+  const [bbo, setBbo] = useState<{ bid: [string, string] | null; ask: [string, string] | null } | null>(null);
   const [tickOverride, setTickOverride] = useState<number | null>(null);
   const [trades, setTrades] = useState<RecentTrade[]>([]);
 
-  // Live order book stream.
+  // Live order book. l2Book is throttled (~0.5–2s); the bbo feed pushes on every
+  // block the best bid/offer changes, so it keeps the top of book moving in
+  // realtime (HL's own UI uses an internal gRPC depth feed not on the public WS).
   useEffect(() => {
     setBook(null);
+    setBbo(null);
     setTickOverride(null);
-    const unsub = getStream().subscribeOrderbook(symbol, setBook);
-    return unsub;
+    const unsubBook = getStream().subscribeOrderbook(symbol, setBook);
+    const unsubBbo = getStream().subscribeBbo(symbol, (b) => setBbo({ bid: b.bid, ask: b.ask }));
+    return () => { unsubBook(); unsubBbo(); };
   }, [symbol]);
 
   // Recent trades: REST snapshot for the initial fill, then live WS prepend.
@@ -123,8 +128,14 @@ export function Orderbook({ symbol }: { symbol: string }) {
     const empty = { asks: [] as Level[], bids: [] as Level[], spread: null as number | null, spreadPct: 0, bidPct: 50, askPct: 50 };
     if (!book) return empty;
 
-    const aAll = aggregate(book.asks, tick, 'ask');
-    const bAll = aggregate(book.bids, tick, 'bid');
+    // Patch the top of book with the realtime bbo level (best ask = bbo.ask, with
+    // deeper l2Book levels strictly beyond it; same for bids). This makes the top
+    // move on every block while the depth refreshes at the slower l2Book cadence.
+    const rawAsks = bbo?.ask ? [bbo.ask, ...book.asks.filter((l) => Number(l[0]) > Number(bbo.ask![0]))] : book.asks;
+    const rawBids = bbo?.bid ? [bbo.bid, ...book.bids.filter((l) => Number(l[0]) < Number(bbo.bid![0]))] : book.bids;
+
+    const aAll = aggregate(rawAsks, tick, 'ask');
+    const bAll = aggregate(rawBids, tick, 'bid');
 
     const build = (rows: { px: number; sz: number }[]): Level[] => {
       let cum = 0;
@@ -145,7 +156,7 @@ export function Orderbook({ symbol }: { symbol: string }) {
     const totalBid = bAll.reduce((a, l) => a + l.sz, 0);
     const sum = totalAsk + totalBid || 1;
     return { asks, bids, spread: sp, spreadPct: spPct, bidPct: (totalBid / sum) * 100, askPct: (totalAsk / sum) * 100 };
-  }, [book, tick]);
+  }, [book, bbo, tick]);
 
   return (
     <div className="card flex h-full flex-col text-xs">
@@ -238,7 +249,10 @@ function Row({ l, side, fmtPx }: { l: Level; side: 'ask' | 'bid'; fmtPx: (n: num
   const bar = side === 'ask' ? 'bg-loss-500/15' : 'bg-win-500/15';
   return (
     <div className="relative grid grid-cols-3 px-3 py-0.5 tabular hover:bg-surface-800/40">
-      <div className={`absolute inset-y-0 right-0 ${bar}`} style={{ width: `${l.pct}%` }} />
+      <div
+        className={`absolute inset-y-0 right-0 ${bar} transition-[width] duration-300 ease-out`}
+        style={{ width: `${l.pct}%` }}
+      />
       <span className={`relative ${color}`}>{fmtPx(l.px)}</span>
       <span className="relative text-right text-surface-200">{fmtSz(l.sz)}</span>
       <span className="relative text-right text-surface-400">{fmtSz(l.total)}</span>

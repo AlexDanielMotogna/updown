@@ -50,6 +50,14 @@ export interface HlBookLevel {
   n: number;
 }
 
+/** `bbo` → best bid/offer, pushed only when the BBO changes on a block.
+ * `bbo: [bestBid | null, bestAsk | null]`. */
+export interface HlBbo {
+  coin: string;
+  time: number;
+  bbo: [HlBookLevel | null, HlBookLevel | null];
+}
+
 /** `l2Book` → { coin, time, levels: [bids, asks] }. */
 export interface HlL2Book {
   coin: string;

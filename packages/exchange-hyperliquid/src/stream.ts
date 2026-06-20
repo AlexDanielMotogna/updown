@@ -25,7 +25,14 @@ import type {
 } from 'exchange-core';
 import { MAINNET, type HlEndpoint } from './info-client';
 import { mapFill, mapOpenOrder, mapOrderbook, mapPosition, mapRecentTrade } from './mappers';
-import type { HlL2Book, HlOpenOrder, HlPosition, HlRecentTrade, HlUserFill } from './raw-types';
+import type { HlBbo, HlL2Book, HlOpenOrder, HlPosition, HlRecentTrade, HlUserFill } from './raw-types';
+
+/** Normalized best bid/offer update (`[px, sz]` per side; null if empty). */
+export interface BboUpdate {
+  bid: [string, string] | null;
+  ask: [string, string] | null;
+  time: number;
+}
 import { toHlCoin, toNormalizedSymbol } from './symbols';
 import { HyperliquidWsConnection, type WsFactory } from './ws-connection';
 
@@ -118,6 +125,24 @@ export class HyperliquidStream implements ExchangeStream {
     return this.conn.subscribe({ type: 'l2Book', coin: toHlCoin(symbol) }, (data) =>
       cb(mapOrderbook(data as HlL2Book))
     );
+  }
+
+  /**
+   * Best bid/offer feed (HL `bbo` channel) — pushed only when the BBO changes on
+   * a block, so it's far lower-latency than the rate-limited l2Book snapshot. Use
+   * it to keep the top of the book moving in realtime. Not part of ExchangeStream
+   * (HL-specific); call it on the concrete HyperliquidStream.
+   */
+  subscribeBbo(symbol: string, cb: (bbo: BboUpdate) => void): Unsubscribe {
+    return this.conn.subscribe({ type: 'bbo', coin: toHlCoin(symbol) }, (data) => {
+      const d = data as HlBbo;
+      const [bid, ask] = d.bbo ?? [null, null];
+      cb({
+        bid: bid ? [bid.px, bid.sz] : null,
+        ask: ask ? [ask.px, ask.sz] : null,
+        time: d.time ?? 0,
+      });
+    });
   }
 
   subscribeTrades(symbol: string, cb: (trades: RecentTrade[]) => void): Unsubscribe {
