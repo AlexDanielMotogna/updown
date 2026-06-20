@@ -8,6 +8,13 @@ import { Navbar } from '@/components/Navbar';
 export const metadata: Metadata = {
   title: 'UpDown Terminal',
   description: 'Pro trading terminal — HyperLiquid',
+  icons: {
+    icon: [
+      { url: '/updown-logos/Logo_32px_Cyan_Transparent.png', sizes: '32x32', type: 'image/png' },
+      { url: '/updown-logos/Logo_16px_Cyan_Transparent.png', sizes: '16x16', type: 'image/png' },
+    ],
+    apple: '/updown-logos/Logo_512px_Cyan_Transparent.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
