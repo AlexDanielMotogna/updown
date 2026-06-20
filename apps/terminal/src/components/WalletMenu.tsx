@@ -10,7 +10,9 @@ import { useThemeTokens, getDisplayAvatar, getDisplayName, truncateWallet } from
 import { UserLevelBadge } from './UserLevelBadge';
 import { XpProgressBar } from './XpProgressBar';
 
-const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+const rawAppUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+// Prepend https:// if the env var omits the protocol (else it's treated relative).
+const APP_URL = /^https?:\/\//.test(rawAppUrl) ? rawAppUrl : `https://${rawAppUrl}`;
 const UP_COINS_DIVISOR = 100;
 
 // Same items + icons as the app nav (apps/web/src/lib/navigation.ts).

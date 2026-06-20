@@ -21,7 +21,10 @@ import { useThemeTokens, useThemeMode } from '@/app/providers';
 // dropdown + mobile bottom nav.
 // The trading terminal is the "Trade" mode of the same product (ADR-002), served
 // from its own origin. An absolute href is rendered as a plain cross-app link.
-const TERMINAL_URL = (process.env.NEXT_PUBLIC_TERMINAL_URL ?? 'http://localhost:3010').replace(/\/$/, '');
+// Normalize: prepend https:// if the env var omits the protocol (otherwise the
+// browser treats it as a relative path → updown.my/terminal-...).
+const rawTerminalUrl = (process.env.NEXT_PUBLIC_TERMINAL_URL ?? 'http://localhost:3010').replace(/\/$/, '');
+const TERMINAL_URL = /^https?:\/\//.test(rawTerminalUrl) ? rawTerminalUrl : `https://${rawTerminalUrl}`;
 
 const HEADER_NAV = [
   { label: 'Markets', href: '/' },
