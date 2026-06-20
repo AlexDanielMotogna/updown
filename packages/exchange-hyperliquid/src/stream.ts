@@ -79,6 +79,7 @@ interface WsInnerClearinghouse {
   assetPositions: Array<{ position: Record<string, unknown> }>;
   marginSummary: Record<string, unknown>;
   withdrawable: unknown;
+  crossMaintenanceMarginUsed?: unknown;
 }
 
 function wsAccount(user: string, inner: WsInnerClearinghouse): Account {
@@ -96,7 +97,10 @@ function wsAccount(user: string, inner: WsInnerClearinghouse): Account {
     unrealizedPnl: String(unrealizedPnl),
     makerFee: '0',
     takerFee: '0',
-    metadata: { totalNtlPos: String(ms.totalNtlPos ?? '0') },
+    metadata: {
+      totalNtlPos: String(ms.totalNtlPos ?? '0'),
+      crossMaintenanceMarginUsed: String(inner.crossMaintenanceMarginUsed ?? '0'),
+    },
   };
 }
 
