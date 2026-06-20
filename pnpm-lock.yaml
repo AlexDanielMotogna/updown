@@ -138,6 +138,18 @@ importers:
 
   apps/terminal:
     dependencies:
+      '@emotion/react':
+        specifier: ^11.11.0
+        version: 11.14.0(@types/react@18.3.27)(react@18.3.1)
+      '@emotion/styled':
+        specifier: ^11.11.0
+        version: 11.14.1(@emotion/react@11.14.0)(@types/react@18.3.27)(react@18.3.1)
+      '@mui/icons-material':
+        specifier: ^5.18.0
+        version: 5.18.0(@mui/material@5.18.0)(@types/react@18.3.27)(react@18.3.1)
+      '@mui/material':
+        specifier: ^5.14.0
+        version: 5.18.0(@emotion/react@11.14.0)(@emotion/styled@11.14.1)(@types/react@18.3.27)(react-dom@18.3.1)(react@18.3.1)
       '@nktkas/hyperliquid':
         specifier: ^0.32.2
         version: 0.32.2(typescript@5.9.3)

@@ -102,7 +102,10 @@ export interface UserProfile {
   level: number;
   title: string;
   totalXp: string;
+  xpForCurrentLevel: string;
+  xpForNextLevel: string;
   xpProgress: number; // 0..1
+  nextLevel: { level: number; title: string } | null;
   coinsBalance: string;
 }
 

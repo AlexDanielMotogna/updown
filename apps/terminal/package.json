@@ -10,16 +10,20 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@emotion/react": "^11.11.0",
+    "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^5.18.0",
+    "@mui/material": "^5.14.0",
     "@nktkas/hyperliquid": "^0.32.2",
     "@privy-io/react-auth": "^2.12.1",
     "exchange-core": "workspace:*",
     "exchange-hyperliquid": "workspace:*",
     "lightweight-charts": "^4.2.0",
     "next": "^14.0.0",
-    "react-resizable-panels": "^2.1.0",
     "react": "^18.2.0",
-    "viem": "2.21.55",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-resizable-panels": "^2.1.0",
+    "viem": "2.21.55"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

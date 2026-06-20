@@ -1,20 +1,32 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Avatar, Box, Button, ClickAwayListener, Fade, Popper, Typography } from '@mui/material';
+import { ContentCopy, CheckCircle, Logout, ShowChart, AccountBalanceWallet, Leaderboard as LeaderboardIcon } from '@mui/icons-material';
 import { usePrivy } from '@privy-io/react-auth';
 import { useIdentity } from '@/hooks/useIdentity';
 import { useAccountStream } from '@/hooks/useAccountStream';
 import { fetchProfile, getConnection, IS_TESTNET, type UserProfile } from '@/lib/api';
 import { fetchSpotUsdc } from '@/lib/hlBalances';
+import { useThemeTokens, getDisplayAvatar, getDisplayName, truncateWallet } from '@/lib/theme-tokens';
+import { UserLevelBadge } from './UserLevelBadge';
+import { XpProgressBar } from './XpProgressBar';
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 const UP_COINS_DIVISOR = 100;
 
-const short = (a?: string) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : '');
+const NAV = [
+  { label: 'Markets', href: `${APP_URL}/`, icon: ShowChart },
+  { label: 'Profile', href: `${APP_URL}/profile`, icon: AccountBalanceWallet },
+  { label: 'Leaderboard', href: `${APP_URL}/leaderboard`, icon: LeaderboardIcon },
+];
+
 const usd = (n: number) => `$${(Number.isFinite(n) ? n : 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
-/** Connected-wallet chip + dropdown (UpDown app pattern, terminal-adapted). */
+/** Connected-wallet chip + dropdown — mirrors the app's ConnectWalletButton
+ * (MUI, same tokens/sections), with an added HyperLiquid account section. */
 export function WalletMenu() {
+  const t = useThemeTokens();
   const { logout } = usePrivy();
   const { walletAddress, evmAddress } = useIdentity();
   const { account } = useAccountStream(evmAddress);
@@ -23,18 +35,12 @@ export function WalletMenu() {
   const [spot, setSpot] = useState<number | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [tradingActive, setTradingActive] = useState<boolean | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
+  const anchorRef = useRef<HTMLButtonElement>(null);
 
   const perps = account ? Number(account.accountEquity) : 0;
-  const initials = (evmAddress ?? '').slice(2, 4).toUpperCase();
+  const addr = evmAddress ?? '';
+  const identity = addr ? { walletAddress: addr, displayName: profile?.displayName ?? null, avatarUrl: profile?.avatarUrl ?? null } : null;
 
-  useEffect(() => {
-    const onClick = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener('mousedown', onClick);
-    return () => document.removeEventListener('mousedown', onClick);
-  }, []);
-
-  // Load spot balance, UpDown profile + trading status when the menu opens.
   useEffect(() => {
     if (!open) return;
     if (evmAddress) fetchSpotUsdc(evmAddress).then(setSpot);
@@ -44,89 +50,133 @@ export function WalletMenu() {
     }
   }, [open, evmAddress, walletAddress]);
 
-  function copy() {
-    if (!evmAddress) return;
-    navigator.clipboard?.writeText(evmAddress);
+  function handleCopy() {
+    if (!addr) return;
+    navigator.clipboard.writeText(addr);
     setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    setTimeout(() => setCopied(false), 2000);
   }
 
+  const border = `1px solid ${t.border.default}`;
+
   return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-md bg-white/[0.06] px-2 py-1.5 text-sm text-surface-100 transition-colors hover:bg-white/[0.1]"
-      >
-        <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-brand/20 text-2xs font-bold text-brand">
-          {initials || '◈'}
-        </span>
-        <span className="hidden tabular sm:inline">{short(evmAddress) || 'Account'}</span>
-        <svg width="11" height="11" viewBox="0 0 12 12" className={`text-surface-400 transition-transform ${open ? 'rotate-180' : ''}`}>
-          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
-        </svg>
-      </button>
+    <ClickAwayListener onClickAway={() => setOpen(false)}>
+      <Box sx={{ position: 'relative' }}>
+        <Button
+          ref={anchorRef}
+          onClick={() => setOpen((p) => !p)}
+          startIcon={identity ? <Avatar src={getDisplayAvatar(identity)} sx={{ width: 22, height: 22 }} /> : undefined}
+          sx={{
+            height: { xs: 34, sm: 38 }, px: { xs: 1, sm: 2 }, fontSize: { xs: '0.75rem', sm: '0.875rem' },
+            fontWeight: 500, fontFamily: 'inherit', textTransform: 'none', backgroundColor: open ? t.hover.strong : t.hover.medium,
+            border: 'none', borderRadius: '6px', color: t.text.primary, transition: 'all 0.2s ease', minWidth: 0,
+            '&:hover': { backgroundColor: t.hover.strong },
+            '& .MuiButton-startIcon': { mr: { xs: 0, sm: 0.75 } },
+            '& .wallet-text': { display: { xs: 'none', sm: 'inline' } },
+          }}
+        >
+          <Box component="span" className="wallet-text">{identity ? getDisplayName(identity) : 'Account'}</Box>
+        </Button>
 
-      {open && (
-        <div className="absolute right-0 top-full z-[110] mt-2 w-72 max-w-[92vw] card-elevated animate-fade-in p-3 text-sm">
-          {/* Identity */}
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand/20 text-xs font-bold text-brand">{initials || '◈'}</span>
-            <div className="min-w-0 flex-1">
-              <div className="truncate font-medium text-surface-100">{profile?.displayName ?? short(evmAddress)}</div>
-              <div className="flex items-center gap-1.5 text-2xs text-surface-400">
-                <span className="font-mono">{short(evmAddress)}</span>
-                <span className="rounded bg-surface-700 px-1 py-0.5 uppercase">{IS_TESTNET ? 'Testnet' : 'Mainnet'}</span>
-              </div>
-            </div>
-            <button onClick={copy} className="rounded border border-surface-700 px-2 py-1 text-2xs text-surface-300 hover:bg-surface-800">
-              {copied ? 'Copied' : 'Copy'}
-            </button>
-          </div>
+        <Popper open={open} anchorEl={anchorRef.current} placement="bottom-end" transition sx={{ zIndex: 1400, maxWidth: 'calc(100vw - 16px)' }}>
+          {({ TransitionProps }) => (
+            <Fade {...TransitionProps} timeout={150}>
+              <Box sx={{
+                mt: 1, minWidth: 240, maxWidth: 300, maxHeight: 'calc(100vh - 90px)', overflowY: 'auto', overflowX: 'hidden',
+                bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, borderRadius: '8px', boxShadow: t.surfaceShadow, fontFamily: 'inherit',
+              }}>
+                {/* Identity + copy */}
+                <Box sx={{ px: 2, py: 1.5, borderBottom: border, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  {identity && <Avatar src={getDisplayAvatar(identity)} sx={{ width: 28, height: 28 }} />}
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {identity ? getDisplayName(identity) : ''}
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25 }}>
+                      <Typography sx={{ fontSize: '0.68rem', color: t.text.tertiary, fontVariantNumeric: 'tabular-nums' }}>
+                        {addr && truncateWallet(addr)}
+                      </Typography>
+                      <Box sx={{ fontSize: '0.58rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: t.text.tertiary, bgcolor: t.hover.default, borderRadius: '4px', px: 0.6, py: 0.1 }}>
+                        {IS_TESTNET ? 'Testnet' : 'Mainnet'}
+                      </Box>
+                    </Box>
+                  </Box>
+                  <Button size="small" onClick={handleCopy} sx={{ minWidth: 0, p: 0.5, color: copied ? t.gain : t.text.secondary, '&:hover': { color: t.text.primary } }}>
+                    {copied ? <CheckCircle sx={{ fontSize: 16 }} /> : <ContentCopy sx={{ fontSize: 16 }} />}
+                  </Button>
+                </Box>
 
-          {/* Level / XP / UP coins — only if a UpDown profile exists */}
-          {profile && (
-            <div className="mt-3 rounded bg-white/[0.03] p-2.5">
-              <div className="flex items-center justify-between text-2xs">
-                <span className="font-semibold text-surface-100">LVL {profile.level} · {profile.title}</span>
-                <span className="tabular text-surface-400">{(Number(profile.coinsBalance) / UP_COINS_DIVISOR).toLocaleString(undefined, { maximumFractionDigits: 2 })} UP</span>
-              </div>
-              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-700">
-                <div className="h-full bg-brand" style={{ width: `${Math.round((profile.xpProgress ?? 0) * 100)}%` }} />
-              </div>
-            </div>
+                {/* Level & XP */}
+                {profile && (
+                  <Box sx={{ px: 2, py: 1.5, borderBottom: border }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+                      <UserLevelBadge level={profile.level} title={profile.title} size="md" variant="icon-only" />
+                      <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: t.text.primary, lineHeight: 1.2 }}>
+                        LVL {profile.level}: {profile.title}
+                      </Typography>
+                    </Box>
+                    <XpProgressBar profile={profile} compact />
+                  </Box>
+                )}
+
+                {/* UP Coins */}
+                {profile && (
+                  <Box sx={{ px: 2, py: 1.5, borderBottom: border, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box component="img" src="/token/Token_16px_Gold.png" alt="UP Coin" sx={{ width: 16, height: 16 }} />
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.accent }}>
+                      {(Number(profile.coinsBalance) / UP_COINS_DIVISOR).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary }}>UP Coins</Typography>
+                  </Box>
+                )}
+
+                {/* HyperLiquid account */}
+                <Box sx={{ px: 2, py: 1.5, borderBottom: border }}>
+                  <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: t.text.quaternary, mb: 0.75 }}>
+                    HyperLiquid
+                  </Typography>
+                  <HlRow t={t} label="Perps equity" value={usd(perps)} />
+                  <HlRow t={t} label="Spot" value={spot == null ? '…' : usd(spot)} />
+                  <HlRow t={t} label="Trading" value={tradingActive == null ? '…' : tradingActive ? 'Enabled' : 'Not enabled'} valueColor={tradingActive ? t.gain : t.text.secondary} />
+                </Box>
+
+                {/* Nav (cross to the app) */}
+                <Box sx={{ py: 0.5, borderBottom: border }}>
+                  {NAV.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Box key={item.label} component="a" href={item.href} sx={{
+                        display: 'flex', alignItems: 'center', gap: 1.25, px: 2, py: 1, cursor: 'pointer', textDecoration: 'none',
+                        color: t.text.secondary, transition: 'all 0.12s ease', '&:hover': { bgcolor: t.border.subtle, color: t.text.primary },
+                      }}>
+                        <Icon sx={{ fontSize: 17 }} />
+                        <Typography sx={{ fontSize: '0.82rem', fontWeight: 500 }}>{item.label} ↗</Typography>
+                      </Box>
+                    );
+                  })}
+                </Box>
+
+                {/* Disconnect */}
+                <Button fullWidth onClick={() => { setOpen(false); logout(); }} startIcon={<Logout sx={{ fontSize: 16 }} />} sx={{
+                  justifyContent: 'flex-start', px: 2, py: 1.5, fontSize: '0.8rem', fontWeight: 500, fontFamily: 'inherit',
+                  color: t.text.secondary, textTransform: 'none', borderRadius: 1, '&:hover': { bgcolor: t.border.subtle, color: t.text.primary },
+                }}>
+                  Disconnect
+                </Button>
+              </Box>
+            </Fade>
           )}
-
-          {/* HL account */}
-          <div className="mt-3 space-y-1.5 text-xs">
-            <div className="text-2xs uppercase tracking-wide text-surface-500">HyperLiquid</div>
-            <Row label="Perps equity" value={usd(perps)} />
-            <Row label="Spot" value={spot == null ? '…' : usd(spot)} />
-            <Row
-              label="Trading"
-              value={tradingActive == null ? '…' : tradingActive ? 'Enabled' : 'Not enabled'}
-              cls={tradingActive ? 'text-win-500' : 'text-surface-300'}
-            />
-          </div>
-
-          {/* Links + disconnect */}
-          <div className="mt-3 space-y-1 border-t border-white/[0.06] pt-3">
-            <a href={`${APP_URL}/profile`} className="block rounded px-2 py-1.5 text-surface-200 hover:bg-white/[0.04]">Profile ↗</a>
-            <a href={`${APP_URL}/`} className="block rounded px-2 py-1.5 text-surface-200 hover:bg-white/[0.04]">Markets ↗</a>
-            <button onClick={() => { setOpen(false); logout(); }} className="block w-full rounded px-2 py-1.5 text-left text-loss-500 hover:bg-loss-500/10">
-              Disconnect
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+        </Popper>
+      </Box>
+    </ClickAwayListener>
   );
 }
 
-function Row({ label, value, cls }: { label: string; value: string; cls?: string }) {
+function HlRow({ t, label, value, valueColor }: { t: ReturnType<typeof useThemeTokens>; label: string; value: string; valueColor?: string }) {
   return (
-    <div className="flex justify-between">
-      <span className="text-surface-400">{label}</span>
-      <span className={`tabular ${cls ?? 'text-surface-100'}`}>{value}</span>
-    </div>
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 0.25 }}>
+      <Typography sx={{ fontSize: '0.75rem', color: t.text.tertiary }}>{label}</Typography>
+      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: valueColor ?? t.text.primary, fontVariantNumeric: 'tabular-nums' }}>{value}</Typography>
+    </Box>
   );
 }
