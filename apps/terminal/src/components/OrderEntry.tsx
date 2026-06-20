@@ -70,7 +70,6 @@ export function OrderEntry({
   const [pendingMode, setPendingMode] = useState<'cross' | 'isolated'>('cross');
   const [pendingSlip, setPendingSlip] = useState('8');
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
@@ -249,13 +248,11 @@ export function OrderEntry({
   async function submit() {
     if (!walletAddress) return;
     setBusy(true);
-    setMsg(null);
     // Make sure HL has the intended leverage + margin mode before the order
     // (applyLeverage shows its own toast).
     const lev = await applyLeverage(leverage, marginMode === 'cross');
     if (!lev.ok) {
       setBusy(false);
-      setMsg({ ok: false, text: lev.text });
       return;
     }
 
@@ -285,18 +282,14 @@ export function OrderEntry({
         res = await placeOrder(orderParams);
       } catch (e) {
         setBusy(false);
-        const text = (e as Error).message || 'Builder fee approval failed';
-        setMsg({ ok: false, text });
-        toast.update(tid, 'error', text);
+        toast.update(tid, 'error', (e as Error).message || 'Builder fee approval failed');
         return;
       }
     }
 
     if (!res.success) {
       setBusy(false);
-      const text = res.error?.message ?? 'Order failed';
-      setMsg({ ok: false, text });
-      toast.update(tid, 'error', text);
+      toast.update(tid, 'error', res.error?.message ?? 'Order failed');
       return;
     }
 
@@ -312,7 +305,6 @@ export function OrderEntry({
 
     setBusy(false);
     const ok = `${verb} ${sizeBtc} ${base} — ${String(res.data?.status ?? 'submitted').toLowerCase()}${res.data?.orderId ? ` · #${res.data.orderId}` : ''}`;
-    setMsg({ ok: true, text: ok });
     toast.update(tid, 'success', ok);
   }
 
@@ -492,7 +484,6 @@ export function OrderEntry({
         </button>
       )}
 
-      {msg && <div className={`mt-2 text-xs ${msg.ok ? 'text-win-500' : 'text-loss-500'}`}>{msg.text}</div>}
 
       {/* Deposit / Transfer / Withdraw */}
       <div className="mt-4 grid grid-cols-3 gap-1.5">
