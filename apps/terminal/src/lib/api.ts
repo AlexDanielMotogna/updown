@@ -120,6 +120,40 @@ export async function fetchProfile(walletAddress: string): Promise<UserProfile |
   }
 }
 
+export interface DbNotification {
+  id: string;
+  walletAddress: string;
+  type: string;
+  title: string;
+  message: string;
+  severity: string;
+  read: boolean;
+  createdAt: string;
+}
+
+/** Unread + recent notifications for a wallet (same store as the app). */
+export async function fetchNotifications(wallet: string): Promise<DbNotification[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/notifications?wallet=${encodeURIComponent(wallet)}`, { cache: 'no-store' });
+    const json = (await res.json()) as ApiResult<DbNotification[]>;
+    return json.success ? (json.data ?? []) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function markNotificationRead(id: string) {
+  return fetch(`${API_BASE}/api/notifications/${id}/read`, { method: 'PATCH' }).catch(() => {});
+}
+
+export function markAllNotificationsRead(wallet: string) {
+  return fetch(`${API_BASE}/api/notifications/read-all`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ wallet }),
+  }).catch(() => {});
+}
+
 /** Ensure a User exists for a Solana wallet (idempotent upsert). */
 export function registerUser(walletAddress: string) {
   return post<unknown>('/api/users/register', { walletAddress });
