@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { placeOrder, setLeverage as setLeverageApi } from '@/lib/api';
 import { useAccountStream } from '@/hooks/useAccountStream';
+import { useTrading } from '@/hooks/useTrading';
 import { useToast } from './Toast';
 import { AccountInfo } from './AccountInfo';
 import { DepositModal } from './DepositModal';
@@ -75,6 +76,7 @@ export function OrderEntry({
   const [maxLev, setMaxLev] = useState(50);
   const [available, setAvailable] = useState(0);
   const { account: acct } = useAccountStream(evmAddress);
+  const { enabled: tradingEnabled, busy: enabling, enableTrading, approveBuilder } = useTrading(walletAddress, evmAddress);
   const toast = useToast();
 
   // Leverage / margin-mode application to HyperLiquid (signed by the agent key
@@ -253,7 +255,7 @@ export function OrderEntry({
 
     const verb = side === 'BUY' ? 'Buy' : 'Sell';
     const tid = toast.loading(`${verb} ${sizeBtc} ${base} — order pending`);
-    const res = await placeOrder({
+    const orderParams = {
       walletAddress,
       symbol,
       side,
@@ -262,9 +264,28 @@ export function OrderEntry({
       price: needsPrice ? price : undefined,
       triggerPrice: needsTrigger ? triggerPrice : undefined,
       reduceOnly,
-      timeInForce: tab === 'LIMIT' ? 'GTC' : undefined,
+      timeInForce: tab === 'LIMIT' ? ('GTC' as const) : undefined,
       maxSlippagePct: Number(slippage) || undefined,
-    });
+    };
+    let res = await placeOrder(orderParams);
+
+    // First order on an agent enabled before builder-fee approval existed: HL
+    // rejects it. Approve the builder fee (one wallet signature) and retry once.
+    if (!res.success && /builder fee/i.test(res.error?.message ?? '')) {
+      toast.update(tid, 'loading', 'Approving builder fee — sign in your wallet…');
+      try {
+        await approveBuilder();
+        toast.update(tid, 'loading', `${verb} ${sizeBtc} ${base} — order pending`);
+        res = await placeOrder(orderParams);
+      } catch (e) {
+        setBusy(false);
+        const text = (e as Error).message || 'Builder fee approval failed';
+        setMsg({ ok: false, text });
+        toast.update(tid, 'error', text);
+        return;
+      }
+    }
+
     if (!res.success) {
       setBusy(false);
       const text = res.error?.message ?? 'Order failed';
@@ -420,14 +441,25 @@ export function OrderEntry({
         <Row label="Available" value={usd(available)} />
       </div>
 
-      {/* Submit */}
-      <button
-        onClick={submit}
-        disabled={!canSubmit}
-        className={`w-full rounded py-2.5 font-semibold ${buy ? 'bg-win-500 text-black' : 'bg-loss-500 text-black'} disabled:cursor-not-allowed disabled:opacity-40`}
-      >
-        {busy ? 'Placing…' : !walletAddress ? 'Connect to trade' : buy ? `Buy / Long` : `Sell / Short`}
-      </button>
+      {/* Submit — when the wallet is connected but the trading agent isn't
+          approved yet, this becomes the Enable Trading CTA (one-time setup). */}
+      {walletAddress && !tradingEnabled ? (
+        <button
+          onClick={enableTrading}
+          disabled={enabling}
+          className="w-full rounded bg-surface-100 py-2.5 font-semibold text-surface-900 hover:bg-surface-200 disabled:opacity-50"
+        >
+          {enabling ? 'Enabling…' : 'Enable Trading'}
+        </button>
+      ) : (
+        <button
+          onClick={submit}
+          disabled={!canSubmit}
+          className={`w-full rounded py-2.5 font-semibold ${buy ? 'bg-win-500 text-black' : 'bg-loss-500 text-black'} disabled:cursor-not-allowed disabled:opacity-40`}
+        >
+          {busy ? 'Placing…' : !walletAddress ? 'Connect to trade' : buy ? `Buy / Long` : `Sell / Short`}
+        </button>
+      )}
 
       {msg && <div className={`mt-2 text-xs ${msg.ok ? 'text-win-500' : 'text-loss-500'}`}>{msg.text}</div>}
 

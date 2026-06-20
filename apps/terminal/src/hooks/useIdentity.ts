@@ -19,6 +19,8 @@ interface LinkedAccount {
   type: string;
   address?: string;
   chainType?: string;
+  /** 'privy' = embedded wallet; anything else = an external wallet (MetaMask…). */
+  walletClientType?: string;
 }
 
 /**
@@ -33,7 +35,11 @@ export function useIdentity(): Identity {
   const { ready, authenticated, user } = usePrivy();
   const accounts = (user?.linkedAccounts ?? []) as LinkedAccount[];
   const sessionSolana = accounts.find((a) => a.type === 'wallet' && a.chainType === 'solana')?.address;
-  const evmAddress = accounts.find((a) => a.type === 'wallet' && a.chainType === 'ethereum')?.address;
+  // Prefer an EXTERNAL EVM wallet (MetaMask/Rabby — where the user's funds are)
+  // over Privy's auto-created embedded wallet, which is empty. Picking the first
+  // ethereum account blindly often selected the embedded one → wrong HL account.
+  const evmWallets = accounts.filter((a) => a.type === 'wallet' && a.chainType === 'ethereum');
+  const evmAddress = (evmWallets.find((a) => a.walletClientType && a.walletClientType !== 'privy') ?? evmWallets[0])?.address;
 
   // EVM-only session → try to resolve a previously-linked identity.
   const [resolved, setResolved] = useState<string>();

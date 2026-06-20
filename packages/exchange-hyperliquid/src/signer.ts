@@ -37,8 +37,9 @@ export interface HyperliquidSignerOptions {
   endpoint?: HlEndpoint;
   /**
    * Optional builder code: orders include a builder fee paid to `address`.
-   * `feeTenthsBps` is in 0.1bps (1 = 0.0001%); max 100 for perps (0.1%).
-   * Requires a one-time `approveBuilderFee` from the signing account first.
+   * `feeTenthsBps` is in TENTHS of a basis point (10 = 1 bps = 0.01%); max 100
+   * for perps (= 0.1%). The user must first `approveBuilderFee` from their MAIN
+   * wallet with maxFeeRate >= feeTenthsBps/1000 percent (e.g. f=50 → 0.05%).
    */
   builder?: { address: `0x${string}`; feeTenthsBps: number };
   /** Override the InfoClient used to resolve asset indices (tests). */
@@ -124,7 +125,9 @@ export class HyperliquidSigner implements ExchangeSigner {
     const asset = await this.resolveAsset(params.symbol);
     const order = buildOrderRequest(params, asset.index, asset.szDecimals);
     const builder = this.builder
-      ? { b: this.builder.address, f: this.builder.feeTenthsBps }
+      // Lowercase `b` so it's byte-identical to the (lowercased) approved builder
+      // — HL matches the approval by exact address, not checksum-insensitively.
+      ? { b: this.builder.address.toLowerCase() as `0x${string}`, f: this.builder.feeTenthsBps }
       : undefined;
     const res = await client.order({ orders: [order], grouping: 'na', ...(builder ? { builder } : {}) });
     return mapOrderResult(res);
