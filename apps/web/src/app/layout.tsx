@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import localFont from 'next/font/local';
+import { Inter } from 'next/font/google';
 import { cookies } from 'next/headers';
 import { Providers } from './providers';
 
@@ -10,8 +10,10 @@ export const viewport: Viewport = {
   themeColor: '#060C14',
 };
 
-const satoshi = localFont({
-  src: '../../public/fonts/Satoshi-Variable.woff2',
+// App-wide UI font (also used by the terminal). Kept under the --font-satoshi CSS
+// variable so the existing references across the app resolve to Inter unchanged.
+const inter = Inter({
+  subsets: ['latin'],
   variable: '--font-satoshi',
   display: 'swap',
 });
@@ -44,7 +46,7 @@ export default async function RootLayout({
   const bg = initialTheme === 'light' ? '#F5F7FA' : '#060C14';
 
   return (
-    <html lang="en" className={satoshi.variable} style={{ overflowY: 'scroll', background: bg, colorScheme: initialTheme }} suppressHydrationWarning>
+    <html lang="en" className={inter.variable} style={{ overflowY: 'scroll', background: bg, colorScheme: initialTheme }} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: `
           (function(){

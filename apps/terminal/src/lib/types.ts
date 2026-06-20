@@ -1,0 +1,20 @@
+/** Client-safe shared types (no server/exchange imports). Mirror exchange-core. */
+export type OrderSide = 'BUY' | 'SELL';
+export type OrderType =
+  | 'MARKET'
+  | 'LIMIT'
+  | 'STOP_MARKET'
+  | 'STOP_LIMIT'
+  | 'TAKE_PROFIT_MARKET'
+  | 'TAKE_PROFIT_LIMIT';
+
+export interface Ticker {
+  symbol: string;
+  mark: string;
+  index: string; // oracle price
+  change24h: string; // 24h change %
+  volume24h: string;
+  openInterest: string; // in base units (× mark for notional)
+  funding: string;
+  maxLeverage: number | null;
+}

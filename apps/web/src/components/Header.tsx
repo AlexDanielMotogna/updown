@@ -19,8 +19,13 @@ import { useThemeTokens, useThemeMode } from '@/app/providers';
 // the search field on the right still has room. The rest of the routes
 // (Tournaments, Squads, Referrals, Faucet, Docs) live in the account
 // dropdown + mobile bottom nav.
+// The trading terminal is the "Trade" mode of the same product (ADR-002), served
+// from its own origin. An absolute href is rendered as a plain cross-app link.
+const TERMINAL_URL = (process.env.NEXT_PUBLIC_TERMINAL_URL ?? 'http://localhost:3010').replace(/\/$/, '');
+
 const HEADER_NAV = [
   { label: 'Markets', href: '/' },
+  { label: 'Trade', href: TERMINAL_URL },
   // 'Live' moved into the MarketFilter tabs (first tab, before Trending).
   { label: 'Profile', href: '/profile' },
   { label: 'Leaderboard', href: '/leaderboard' },
@@ -86,9 +91,11 @@ export function Header() {
             }}
           >
             {HEADER_NAV.map(item => {
-              const active = isActive(item.href);
+              const external = item.href.startsWith('http');
+              const active = !external && isActive(item.href);
+              const LinkEl = external ? 'a' : Link;
               return (
-                <Link
+                <LinkEl
                   key={item.href}
                   href={item.href}
                   style={{ textDecoration: 'none' }}
@@ -113,7 +120,7 @@ export function Header() {
                   >
                     {item.label}
                   </Box>
-                </Link>
+                </LinkEl>
               );
             })}
           </Box>

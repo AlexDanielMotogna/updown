@@ -10,7 +10,9 @@
 //
 // Usage:   sx={{ fontFamily: FONT_MONO, fontVariantNumeric: 'tabular-nums' }}
 // Or via:  sx={monoNumSx}  for the common preset.
-export const FONT_SANS = 'var(--font-satoshi), "Satoshi", -apple-system, BlinkMacSystemFont, sans-serif';
+// --font-satoshi now resolves to Inter (next/font/google); the var name is kept
+// to avoid churning every reference across the app.
+export const FONT_SANS = 'var(--font-satoshi), "Inter", -apple-system, BlinkMacSystemFont, sans-serif';
 export const FONT_MONO = 'ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace';
 
 /** Drop-in sx slice for any data-dense numeric cell. Pairs Geist Mono with

@@ -236,14 +236,73 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  rewardLogs        RewardLog[]
-  referralsGiven    Referral[]  @relation("referrer")
-  referralsReceived Referral[]  @relation("referred")
+  rewardLogs          RewardLog[]
+  referralsGiven      Referral[]           @relation("referrer")
+  referralsReceived   Referral[]           @relation("referred")
+  exchangeConnections ExchangeConnection[]
+  walletLinks         WalletLink[]
 
   @@index([level])
   @@index([coinsLifetime])
   @@index([totalXp])
   @@map("users")
+}
+
+/// Per-user link to a trading exchange (HyperLiquid first). Stores the user's
+/// REAL account address (used for ALL reads) plus a delegated *agent wallet*
+/// whose private key is AES-256-GCM encrypted at rest (never plaintext). See
+/// docs/Terminal-Migration/ADR-003. The agent signs L1 actions; the account
+/// address (the wallet that ran `approveAgent`) is what positions/balances are
+/// queried under.
+model ExchangeConnection {
+  id       String @id @default(uuid())
+  userId   String @map("user_id")
+  exchange String // 'hyperliquid' | 'pacifica' | …
+
+  /// The user's real on-exchange account address (EVM, lowercased). Reads use this.
+  accountAddress String @map("account_address")
+  /// The delegated agent (API) wallet address (lowercased). Signs on behalf of the account.
+  agentAddress   String @map("agent_address")
+  agentName      String? @map("agent_name")
+
+  /// AES-256-GCM encrypted agent private key (iv:authTag:ciphertext, hex). Never plaintext.
+  encryptedKeyData String @map("encrypted_key_data")
+
+  isTestnet  Boolean   @default(false) @map("is_testnet")
+  active     Boolean   @default(true)
+  approvedAt DateTime? @map("approved_at")
+  expiresAt  DateTime? @map("expires_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, exchange, isTestnet])
+  @@index([accountAddress])
+  @@map("exchange_connections")
+}
+
+/// Links an external wallet (any chain) to a User identity. One identity, many
+/// wallets (ADR-003): the Solana wallet is the betting identity; an EVM wallet
+/// links here so the terminal can resolve the same User from a Privy EVM login.
+/// `(chain, address)` is unique so a wallet maps to exactly one user.
+model WalletLink {
+  id        String  @id @default(uuid())
+  userId    String  @map("user_id")
+  chain     String // 'solana' | 'evm'
+  address   String // lowercased for evm
+  source    String? // 'phantom' | 'rabby' | 'metamask' | 'privy-embedded' | …
+  isPrimary Boolean @default(false) @map("is_primary")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chain, address])
+  @@index([userId])
+  @@map("wallet_links")
 }
 
 model RewardLog {
