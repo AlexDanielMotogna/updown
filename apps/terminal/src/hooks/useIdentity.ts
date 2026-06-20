@@ -1,8 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { linkEvm, registerUser, resolveIdentity } from '@/lib/api';
+
+// Module-level guard so register+link fires ONCE per identity across all the
+// components that call useIdentity (not once per hook instance). Deleted on
+// failure (e.g. API down) so a later mount can retry.
+const linkInFlight = new Set<string>();
 
 export interface Identity {
   ready: boolean;
@@ -44,32 +49,51 @@ export function useIdentity(): Identity {
   const evmAddress =
     (wallets.find((w) => w.walletClientType !== 'privy') ?? wallets[0])?.address ?? linkedEvm;
 
-  // EVM-only session → try to resolve a previously-linked identity.
-  const [resolved, setResolved] = useState<string>();
+  // EVM-only session → try to resolve a previously-linked identity. `resolveDone`
+  // distinguishes "still checking" (undefined) from "checked, none found" (null).
+  const [resolved, setResolved] = useState<string | null>(null);
+  const [resolveDone, setResolveDone] = useState(false);
   useEffect(() => {
     if (sessionSolana || !evmAddress) {
-      setResolved(undefined);
+      setResolved(null);
+      setResolveDone(false);
       return;
     }
     let alive = true;
-    resolveIdentity(evmAddress).then((w) => alive && setResolved(w ?? undefined));
-    return () => {
-      alive = false;
-    };
+    setResolveDone(false);
+    resolveIdentity(evmAddress).then((w) => {
+      if (alive) { setResolved(w ?? null); setResolveDone(true); }
+    });
+    return () => { alive = false; };
   }, [sessionSolana, evmAddress]);
 
-  const walletAddress = sessionSolana ?? resolved;
+  // Identity = Solana wallet → a previously-linked identity → the EVM wallet
+  // itself. The last fallback means an EVM-only user (e.g. just MetaMask) gets an
+  // account automatically, with no manual linking; undefined only while resolving.
+  const walletAddress = sessionSolana ?? resolved ?? (resolveDone ? evmAddress : undefined);
 
-  // Auto-link the EVM wallet to the Solana identity once (when both are known
-  // from the session). Ensures the User exists first.
-  const linkedOnce = useRef<string>();
+  // Auto-register + link once (deduped across hook instances). With a Solana
+  // wallet, the Solana address is the identity and the EVM wallet links to it.
+  // EVM-only → the EVM wallet is its own identity (persists via /resolve).
   useEffect(() => {
-    if (!sessionSolana || !evmAddress) return;
-    const key = `${sessionSolana}:${evmAddress}`;
-    if (linkedOnce.current === key) return;
-    linkedOnce.current = key;
-    registerUser(sessionSolana).then(() => linkEvm(sessionSolana, evmAddress, 'privy'));
-  }, [sessionSolana, evmAddress]);
+    if (!evmAddress) return;
+    const [identity, key] = sessionSolana
+      ? [sessionSolana, `sol:${sessionSolana}:${evmAddress}`]
+      : resolveDone && !resolved
+        ? [evmAddress, `evm:${evmAddress}`]
+        : [undefined, ''];
+    if (!identity || linkInFlight.has(key)) return;
+    linkInFlight.add(key);
+    // registerUser/linkEvm resolve to { success } (no throw on network errors),
+    // so release the guard on any failure to allow a retry once the API is up.
+    registerUser(identity)
+      .then(async (r) => {
+        if (!r.success) return false;
+        return (await linkEvm(identity, evmAddress, 'privy')).success;
+      })
+      .then((ok) => { if (!ok) linkInFlight.delete(key); })
+      .catch(() => linkInFlight.delete(key));
+  }, [sessionSolana, evmAddress, resolveDone, resolved]);
 
   return { ready, authenticated, walletAddress, evmAddress, linked: !!walletAddress };
 }
