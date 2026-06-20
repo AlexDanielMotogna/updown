@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { MarketSelector } from './MarketSelector';
+import { getStream } from '@/lib/stream';
 import type { Ticker } from '@/lib/types';
 
 function fmtPrice(s?: string) {
@@ -57,8 +58,10 @@ function Stat({ label, value, sub, cls }: { label: string; value: string; sub?: 
 
 export function MarketHeader({ symbol, initial }: { symbol: string; initial?: Ticker | null }) {
   const [t, setT] = useState<Ticker | null>(initial ?? null);
+  const [liveMark, setLiveMark] = useState<number | null>(null);
   const countdown = useFundingCountdown();
 
+  // Full ticker (funding/volume/OI/oracle/24h) — polled; the mid moves slower.
   useEffect(() => {
     let alive = true;
     const tick = async () => {
@@ -73,7 +76,17 @@ export function MarketHeader({ symbol, initial }: { symbol: string; initial?: Ti
     return () => { alive = false; window.clearInterval(id); };
   }, [symbol]);
 
-  const mark = t ? Number(t.mark) : 0;
+  // Live mark price over the WS allMids feed (mid only — the rest stays polled).
+  useEffect(() => {
+    setLiveMark(null);
+    const unsub = getStream().subscribePrices((prices) => {
+      const p = prices.find((x) => x.symbol === symbol);
+      if (p) setLiveMark(Number(p.mark));
+    });
+    return unsub;
+  }, [symbol]);
+
+  const mark = liveMark ?? (t ? Number(t.mark) : 0);
   const chgPct = t ? Number(t.change24h) : 0;
   const prevDay = mark / (1 + chgPct / 100);
   const chgAbs = mark - prevDay;
@@ -89,7 +102,7 @@ export function MarketHeader({ symbol, initial }: { symbol: string; initial?: Ti
           {t?.maxLeverage ? `${t.maxLeverage}x` : '—'}
         </span>
       </div>
-      <Stat label="Mark" value={fmtPrice(t?.mark)} />
+      <Stat label="Mark" value={mark ? fmtPrice(String(mark)) : '—'} />
       <Stat label="Oracle" value={fmtPrice(t?.index)} />
       <Stat
         label="24h Change"
