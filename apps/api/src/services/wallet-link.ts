@@ -19,19 +19,36 @@ export interface LinkWalletInput {
   isPrimary?: boolean;
 }
 
-/** Link (or re-point) a wallet to a user. Idempotent on (chain, address). */
-export async function linkWallet(input: LinkWalletInput) {
+export type LinkWalletResult =
+  | { conflict: true; ownerUserId: string }
+  | { conflict: false; link: { chain: string; address: string } };
+
+/**
+ * Link a wallet to a user — **bind-once**. A wallet stays with the first identity
+ * that claimed it: re-linking the same `(chain, address)` to a DIFFERENT user is
+ * rejected (one HyperLiquid/EVM account ↔ exactly one UpDown account). Idempotent
+ * for the same user.
+ */
+export async function linkWallet(input: LinkWalletInput): Promise<LinkWalletResult> {
   const address = normalize(input.chain, input.address);
+  const existing = await prisma.walletLink.findUnique({
+    where: { chain_address: { chain: input.chain, address } },
+    select: { userId: true },
+  });
+  if (existing && existing.userId !== input.userId) {
+    return { conflict: true, ownerUserId: existing.userId };
+  }
   const data = {
     userId: input.userId,
     source: input.source ?? null,
     isPrimary: input.isPrimary ?? false,
   };
-  return prisma.walletLink.upsert({
+  const link = await prisma.walletLink.upsert({
     where: { chain_address: { chain: input.chain, address } },
     create: { chain: input.chain, address, ...data },
     update: data,
   });
+  return { conflict: false, link: { chain: link.chain, address: link.address } };
 }
 
 /** Resolve the User a linked wallet belongs to (null if unlinked). */

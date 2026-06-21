@@ -126,13 +126,20 @@ exchangeRouter.post('/link', async (req, res) => {
       return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Unknown wallet' } });
     }
 
-    const link = await linkWallet({
+    const result = await linkWallet({
       userId,
       chain: parsed.data.chain,
       address: parsed.data.address,
       source: parsed.data.source,
     });
-    res.json({ success: true, data: { chain: link.chain, address: link.address } });
+    if (result.conflict) {
+      // Bind-once: this wallet already belongs to a different UpDown account.
+      return res.status(409).json({
+        success: false,
+        error: { code: 'WALLET_LINKED_ELSEWHERE', message: 'This wallet is already linked to another UpDown account' },
+      });
+    }
+    res.json({ success: true, data: { chain: result.link.chain, address: result.link.address } });
   } catch (error) {
     console.error('[Exchange] link error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to link wallet' } });
