@@ -57,10 +57,11 @@ const btnGhost =
 
 function Gate() {
   const { ready, authenticated, login, connectWallet, logout } = usePrivy();
-  const { evmAddress, linkConflict } = useIdentity();
+  const { walletAddress, evmAddress, linkConflict } = useIdentity();
 
-  // Gate down — an EVM wallet is connected and it's ours.
-  if (ready && authenticated && evmAddress && !linkConflict) return null;
+  // Gate down — signed into a UpDown account (Solana) AND an EVM trading wallet is
+  // connected and bound to that account.
+  if (ready && authenticated && walletAddress && evmAddress && !linkConflict) return null;
 
   if (!ready) {
     return (
@@ -81,10 +82,32 @@ function Gate() {
         </div>
         <h2 className="mt-5 text-lg font-bold text-surface-100">Connect to start trading</h2>
         <p className="mt-2 text-sm leading-relaxed text-surface-400">
-          UpDown Terminal trades perps on HyperLiquid. Connect your wallet to access the terminal.
+          UpDown Terminal trades perps on HyperLiquid. Sign in with your UpDown account to access the terminal.
         </p>
         <button onClick={login} className={btnPrimary}>
-          Connect wallet
+          Connect to UpDown
+        </button>
+      </Card>
+    );
+  }
+
+  // Authenticated but no UpDown identity yet — the account IS the Solana wallet.
+  if (!walletAddress) {
+    return (
+      <Card>
+        <div className="flex justify-center">
+          <PulseIcon />
+        </div>
+        <h2 className="mt-5 text-lg font-bold text-surface-100">Connect your UpDown wallet</h2>
+        <p className="mt-2 text-sm leading-relaxed text-surface-400">
+          Your UpDown account is your <span className="text-surface-200">Solana wallet</span>. Connect it to
+          continue — the terminal is tied to your UpDown account.
+        </p>
+        <button onClick={connectWallet} className={btnPrimary}>
+          Connect UpDown wallet
+        </button>
+        <button onClick={logout} className={btnGhost}>
+          Disconnect
         </button>
       </Card>
     );
