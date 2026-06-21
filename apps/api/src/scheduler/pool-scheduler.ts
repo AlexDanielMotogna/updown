@@ -98,13 +98,15 @@ export class PoolScheduler {
     console.log('[Scheduler] Scheduled transition & resolution job: every 30 seconds');
 
     // Retry auto-payout for CLAIMABLE pools with unpaid winners (drains any
-    // backlog left by failed one-shot payouts; batch-limited inside).
-    const retryPayoutJob = cron.schedule('*/60 * * * * *', () => {
+    // backlog left by failed one-shot payouts; batch-limited inside). This is the
+    // FALLBACK only — winners are paid by the one-shot at resolution — so a failed
+    // payout retrying every 5 min (was 60s) is fine and cuts RPC on any backlog.
+    const retryPayoutJob = cron.schedule('0 */5 * * * *', () => {
       this.runTracked('retry-unpaid-payouts', () => this.resolver.retryUnpaidClaimable());
     });
     this.jobs.push(retryPayoutJob);
-    this.initJobHealth('retry-unpaid-payouts', '*/60 * * * * *');
-    console.log('[Scheduler] Scheduled unpaid-payout retry sweep: every 60 seconds');
+    this.initJobHealth('retry-unpaid-payouts', '0 */5 * * * *');
+    console.log('[Scheduler] Scheduled unpaid-payout retry sweep: every 5 minutes');
 
     // Return rent of losing bets to bettors (no-op unless CLOSE_LOSING_BETS=on,
     // which requires the close_losing_bet program instruction deployed).
