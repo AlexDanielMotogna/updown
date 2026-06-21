@@ -82,8 +82,10 @@ export class PoolScheduler {
       console.log(`[Scheduler] Guard for ${template.asset}/${template.intervalKey}: ${template.cronExpression}`);
     }
 
-    // Status transitions every 10 seconds (reduces RPC pressure across instances)
-    const transitionJob = cron.schedule('*/10 * * * * *', () => {
+    // Status transitions every 30 seconds. (Was 10s; 30s cuts the per-tick RPC
+    // ~3× — closures/claimable/resolution polling — at the cost of resolving a
+    // pool within ≤30s of its end instead of ≤10s, which is fine.)
+    const transitionJob = cron.schedule('*/30 * * * * *', () => {
       this.runTracked('transitions', () => Promise.all([
         this.processStatusTransitions(),
         this.resolver.processResolutions(),
@@ -92,8 +94,8 @@ export class PoolScheduler {
       ]));
     });
     this.jobs.push(transitionJob);
-    this.initJobHealth('transitions', '*/10 * * * * *');
-    console.log('[Scheduler] Scheduled transition & resolution job: every 10 seconds');
+    this.initJobHealth('transitions', '*/30 * * * * *');
+    console.log('[Scheduler] Scheduled transition & resolution job: every 30 seconds');
 
     // Retry auto-payout for CLAIMABLE pools with unpaid winners (drains any
     // backlog left by failed one-shot payouts; batch-limited inside).

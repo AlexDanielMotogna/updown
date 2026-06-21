@@ -347,10 +347,11 @@ export class PoolResolver {
             // Vault account might not exist (already closed) - that's fine, proceed
           }
 
-          const balanceBefore = await connection.getBalance(this.deps.wallet.publicKey);
+          // Note: we used to read getBalance before+after just to log the rent
+          // reclaimed — two extra RPC calls per close, every tick. Dropped to cut
+          // RPC cost; close_pool returns the pool PDA's rent to the authority
+          // (a fixed ~0.004 SOL), which isn't worth two balance reads to log.
           const txSig = await closePoolOnChain(this.deps, pool.id);
-          const balanceAfter = await connection.getBalance(this.deps.wallet.publicKey);
-          const rentReclaimed = balanceAfter - balanceBefore;
 
           await logEvent(this.deps.prisma, 'POOL_CLOSED', 'closure', pool.id, {
             poolId: pool.id,
@@ -361,8 +362,6 @@ export class PoolResolver {
             totalPool: ((poolData?.totalUp ?? BigInt(0)) + (poolData?.totalDown ?? BigInt(0))).toString(),
             betCount: betCount.toString(),
             winner: poolData?.winner ?? 'none',
-            rentReclaimedLamports: rentReclaimed.toString(),
-            rentReclaimedSol: (rentReclaimed / 1e9).toFixed(6),
             txSignature: txSig,
           });
 
@@ -372,14 +371,14 @@ export class PoolResolver {
             // No participants - safe to delete entirely
             await this.deps.prisma.eventLog.deleteMany({ where: { entityType: 'pool', entityId: pool.id } });
             await this.deps.prisma.pool.deleteMany({ where: { id: pool.id } });
-            console.log(`[Scheduler] Pool ${pool.id} closed on-chain & deleted (empty, rent: +${(rentReclaimed / 1e9).toFixed(6)} SOL)`);
+            console.log(`[Scheduler] Pool ${pool.id} closed on-chain & deleted (empty)`);
           } else {
             // Had participants - keep pool + bets for history. We leave the
             // status at CLAIMABLE so the UI keeps showing the result, and
             // stamp closedAt so neither processClaimableTransitions nor
             // processPoolClosures will look at this row again.
             await this.deps.prisma.pool.update({ where: { id: pool.id }, data: { closedAt: new Date() } });
-            console.log(`[Scheduler] Pool ${pool.id} closed on-chain (${betCount} bets kept, closedAt stamped, rent: +${(rentReclaimed / 1e9).toFixed(6)} SOL)`);
+            console.log(`[Scheduler] Pool ${pool.id} closed on-chain (${betCount} bets kept, closedAt stamped)`);
           }
         } catch (error) {
           const errMsg = error instanceof Error ? error.message : String(error);
