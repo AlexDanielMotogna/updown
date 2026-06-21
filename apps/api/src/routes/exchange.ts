@@ -26,6 +26,7 @@ import {
 } from '../services/exchange-connection';
 import { linkWallet, resolveUserByWallet } from '../services/wallet-link';
 import { creditConnectionFills } from '../services/trading-xp/poller';
+import type { OrderParams } from 'exchange-core';
 
 export const exchangeRouter: RouterType = Router();
 
@@ -93,6 +94,19 @@ const cancelSchema = z.object({
   symbol: z.string().min(1).max(40),
   orderId: z.union([z.string(), z.number()]),
 });
+
+const tpslSchema = z
+  .object({
+    walletAddress: solanaWallet,
+    isTestnet: isTestnetFlag,
+    symbol: z.string().min(1).max(40),
+    side: z.enum(['BUY', 'SELL']), // the CLOSING side (opposite of the position)
+    amount: z.string().min(1),
+    tpTriggerPrice: z.string().optional(),
+    slTriggerPrice: z.string().optional(),
+    maxSlippagePct: z.number().positive().max(50).optional(),
+  })
+  .refine((d) => d.tpTriggerPrice || d.slTriggerPrice, { message: 'tpTriggerPrice or slTriggerPrice required' });
 
 const creditFillsSchema = z.object({
   walletAddress: solanaWallet,
@@ -275,6 +289,46 @@ exchangeRouter.post('/order', async (req, res) => {
     console.error('[Exchange] order error:', error);
     // Surface the exchange's message (e.g. "Must deposit", "Insufficient margin").
     res.status(502).json({ success: false, error: { code: 'ORDER_FAILED', message: (error as Error).message } });
+  }
+});
+
+/**
+ * Set position TP/SL as a HyperLiquid `positionTpsl` group: HL ties them to the
+ * live position (OCO — one fills, the other auto-cancels; both cancel when the
+ * position closes), so they never linger and attach to the next position. `side`
+ * is the CLOSING side (opposite of the position).
+ */
+exchangeRouter.post('/order/tpsl', async (req, res) => {
+  try {
+    const parsed = tpslSchema.safeParse(req.body);
+    if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid body');
+
+    const { walletAddress, isTestnet, symbol, side, amount, tpTriggerPrice, slTriggerPrice, maxSlippagePct } = parsed.data;
+    const userId = await resolveUserId(walletAddress);
+    if (!userId) {
+      return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Unknown wallet' } });
+    }
+
+    const conn = await getConnection(userId, 'hyperliquid', isTestnet);
+    if (!conn || !conn.active) {
+      return res.status(409).json({ success: false, error: { code: 'NO_ACTIVE_CONNECTION', message: 'Connect and approve an agent first' } });
+    }
+
+    const orders: OrderParams[] = [];
+    if (tpTriggerPrice) orders.push({ symbol, side, type: 'TAKE_PROFIT_MARKET', amount, triggerPrice: tpTriggerPrice, reduceOnly: true, maxSlippagePct });
+    if (slTriggerPrice) orders.push({ symbol, side, type: 'STOP_MARKET', amount, triggerPrice: slTriggerPrice, reduceOnly: true, maxSlippagePct });
+
+    const signer = await buildHyperliquidSigner(userId, { isTestnet });
+    const results = await signer.signAndSubmitGroup(orders, 'positionTpsl');
+    const failed = results.filter((r) => !r.success);
+    res.json({
+      success: failed.length === 0,
+      data: { results },
+      ...(failed.length ? { error: { code: 'TPSL_PARTIAL', message: failed.map((f) => f.error).filter(Boolean).join('; ') || 'TP/SL rejected' } } : {}),
+    });
+  } catch (error) {
+    console.error('[Exchange] tpsl error:', error);
+    res.status(502).json({ success: false, error: { code: 'TPSL_FAILED', message: (error as Error).message } });
   }
 });
 

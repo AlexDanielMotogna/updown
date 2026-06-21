@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { cancelOrder, placeOrder, IS_TESTNET } from '@/lib/api';
+import { cancelOrder, placeOrder, setTpsl, IS_TESTNET } from '@/lib/api';
 import { useAccountStream } from '@/hooks/useAccountStream';
 import { useToast } from './Toast';
 import { Modal } from './Modal';
@@ -359,15 +359,19 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
   async function onSetTpSl(p: Position, tp?: string, sl?: string) {
     if (!walletAddress || (!tp && !sl)) return;
     const opp = p.side === 'LONG' ? 'SELL' : 'BUY';
-    const cap = (trigger: string) => String(Number(trigger) * (opp === 'BUY' ? 1.05 : 0.95));
     const base = p.symbol.replace('-USD', '');
     const tid = toast.loading(`Setting ${base} TP/SL…`);
-    const errs: string[] = [];
-    if (tp) { const r = await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'TAKE_PROFIT_MARKET', amount: p.amount, triggerPrice: tp, price: cap(tp), reduceOnly: true }); if (!r.success) errs.push(`TP: ${r.error?.message ?? 'failed'}`); }
-    if (sl) { const r = await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'STOP_MARKET', amount: p.amount, triggerPrice: sl, price: cap(sl), reduceOnly: true }); if (!r.success) errs.push(`SL: ${r.error?.message ?? 'failed'}`); }
-    toast.update(tid, errs.length ? 'error' : 'success', errs.length ? `${base} TP/SL failed — ${errs.join('; ')}` : `${base} TP/SL set`);
-    // Immediate + delayed reload — HL needs a moment to surface the new trigger
-    // orders in frontendOpenOrders.
+    // One HL `positionTpsl` group: OCO + auto-cancel when the position closes, so
+    // it never lingers onto the next position. The price cap + tick formatting are
+    // handled server-side.
+    const res = await setTpsl({ walletAddress, symbol: p.symbol, side: opp, amount: p.amount, tpTriggerPrice: tp || undefined, slTriggerPrice: sl || undefined });
+    if (res.success) {
+      toast.update(tid, 'success', `${base} TP/SL set`);
+    } else {
+      const detail = res.data?.results?.filter((r) => !r.success).map((r) => r.error).filter(Boolean).join('; ') || res.error?.message || 'failed';
+      toast.update(tid, 'error', `${base} TP/SL failed — ${detail}`);
+    }
+    // Immediate + delayed reload — HL needs a moment to surface the trigger orders.
     reloadTpsl();
     setTimeout(reloadTpsl, 1500);
   }

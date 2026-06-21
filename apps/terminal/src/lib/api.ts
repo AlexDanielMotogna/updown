@@ -61,6 +61,25 @@ export function cancelOrder(input: { walletAddress: string; symbol: string; orde
   return post<{ success: boolean }>('/api/exchange/order/cancel', { ...input, isTestnet: IS_TESTNET });
 }
 
+export interface TpslResult {
+  results: Array<{ success: boolean; orderId?: number; error?: string }>;
+}
+
+/** Set Take Profit / Stop Loss as a HyperLiquid `positionTpsl` group — HL ties
+ * them to the position (OCO + auto-cancel on close). `side` is the CLOSING side
+ * (opposite of the position). */
+export function setTpsl(input: {
+  walletAddress: string;
+  symbol: string;
+  side: OrderSide;
+  amount: string;
+  tpTriggerPrice?: string;
+  slTriggerPrice?: string;
+  maxSlippagePct?: number;
+}) {
+  return post<TpslResult>('/api/exchange/order/tpsl', { ...input, isTestnet: IS_TESTNET });
+}
+
 /** Set leverage + margin mode (cross/isolated) for a symbol on HyperLiquid.
  * Signed server-side by the agent key — no per-change browser popup. */
 export function setLeverage(input: { walletAddress: string; symbol: string; leverage: number; isCross: boolean }) {
