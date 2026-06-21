@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { creditFills, IS_TESTNET } from '@/lib/api';
+import { emitProfileRefresh } from '@/lib/profileEvents';
 import { useToast } from '@/components/Toast';
 import { useAccountStream } from './useAccountStream';
 
@@ -33,6 +34,7 @@ export function useTradeRewardCredit(walletAddress?: string, evmAddress?: string
         const { xpAwarded, coinsAwarded } = res.data;
         const parts = [xpAwarded > 0 ? `+${xpAwarded} XP` : '', coinsAwarded > 0 ? `+${(coinsAwarded / 100).toFixed(2)} UP` : ''].filter(Boolean);
         if (parts.length) toast.show('success', `Trade reward: ${parts.join(' · ')}`);
+        emitProfileRefresh(); // update the navbar level/UP chip immediately
       }
     }, 3000);
     return () => { if (timer.current) clearTimeout(timer.current); };
