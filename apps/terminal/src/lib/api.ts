@@ -2,7 +2,16 @@
  * server (it holds the encrypted agent key); the browser never signs orders. */
 import type { OrderSide, OrderType } from './types';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3002';
+/** API base. If the page is served over HTTPS but the env URL is http:// (and not
+ * localhost), upgrade it — otherwise the browser blocks the call as mixed content. */
+function apiBase(): string {
+  const raw = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3002';
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && raw.startsWith('http://') && !raw.includes('localhost')) {
+    return raw.replace(/^http:\/\//, 'https://');
+  }
+  return raw;
+}
+const API_BASE = apiBase();
 
 /** Whether this terminal targets HyperLiquid testnet (default true for now). */
 export const IS_TESTNET = process.env.NEXT_PUBLIC_HYPERLIQUID_TESTNET !== 'false';
