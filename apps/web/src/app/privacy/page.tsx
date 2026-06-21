@@ -147,6 +147,19 @@ export default function PrivacyPage() {
           </Paragraph>
         </Box>
 
+        {/* ── Operator ────────────────────────────────────────────── */}
+        <SectionLabel>Operator</SectionLabel>
+
+        <Box sx={{ bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, boxShadow: t.surfaceShadow, px: { xs: 2, md: 2.5 }, py: { xs: 2, md: 2.5 } }}>
+          <Paragraph>
+            UpDown (updown.my) is owned and operated by <strong style={{ color: t.text.primary }}>MOTOGNA Tech Studio</strong> (Alex Daniel Motogna), Murzgasse 2/13, 8600 Bruck an der Mur, Austria — GISA 39260086. Contact: alex@motogna.tech.
+          </Paragraph>
+          <Paragraph>
+            Full company details are in the{' '}
+            <Box component="a" href="/impressum" sx={{ color: t.up, textDecoration: 'none' }}>Legal Notice (Impressum)</Box>.
+          </Paragraph>
+        </Box>
+
       </Container>
     </AppShell>
   );

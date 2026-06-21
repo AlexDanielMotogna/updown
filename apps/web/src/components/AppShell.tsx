@@ -58,6 +58,17 @@ function Footer() {
           >
             Privacy & Disclaimer
           </Typography>
+          <Typography
+            component="a"
+            href="/impressum"
+            sx={{ fontSize: '0.75rem', color: t.text.quaternary, textDecoration: 'none', '&:hover': { color: t.text.bright }, transition: 'color 0.15s' }}
+          >
+            Legal Notice
+          </Typography>
+          {/* Operator attribution (domain-ownership / Impressum). */}
+          <Typography sx={{ fontSize: '0.75rem', color: t.text.quaternary }}>
+            © MOTOGNA Tech Studio
+          </Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
           <Box
