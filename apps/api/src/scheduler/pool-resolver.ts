@@ -30,6 +30,25 @@ export class PoolResolver {
   /** Track close_pool failures to avoid retrying every 2s */
   private closeFailures = new Map<string, number>();
   private static CLOSE_RETRY_DELAY_MS = 5 * 60 * 1000; // 5 minutes
+  /** Give up closing a pool that keeps failing past this age — it can never
+   * close (vault stuck / garbage from a buggy run). Without this, un-closeable
+   * pools are retried every 5min forever and burn RPC indefinitely. Tunable via
+   * POOL_CLOSE_ABANDON_HOURS (default 24h). */
+  private static CLOSE_ABANDON_MS = (Number(process.env.POOL_CLOSE_ABANDON_HOURS) || 24) * 60 * 60 * 1000;
+
+  /** Abandon an un-closeable pool past the abandon age: stamp closedAt so it
+   * leaves the closure loop (and stops burning RPC). Only reached after the
+   * blocking-winner check, so nothing is owed. Returns true if abandoned. */
+  private async abandonStaleClose(poolId: string, endTime: Date | null | undefined, reason: string): Promise<boolean> {
+    if (!endTime || Date.now() - endTime.getTime() < PoolResolver.CLOSE_ABANDON_MS) return false;
+    await this.deps.prisma.pool.update({ where: { id: poolId }, data: { closedAt: new Date() } });
+    await logEvent(this.deps.prisma, 'POOL_CLOSED', 'closure', poolId, {
+      poolId, source: 'auto_abandon', reason, note: 'Un-closeable past abandon age; removed from closure loop',
+    }).catch(() => {});
+    this.closeFailures.delete(poolId);
+    console.warn(`[Scheduler] Pool ${poolId} abandoned (un-closeable: ${reason}) — closedAt stamped`);
+    return true;
+  }
   /** Prevent concurrent processPoolClosures executions */
   private closingInProgress = false;
 
@@ -334,11 +353,13 @@ export class PoolResolver {
                 } catch (e) {
                   handleRpcError(e);
                   console.warn(`[Scheduler] dust sweep failed for ${pool.id}:`, e instanceof Error ? e.message : e);
+                  if (await this.abandonStaleClose(pool.id, poolData?.endTime, 'dust-sweep-failed')) continue;
                   this.closeFailures.set(pool.id, Date.now());
                   continue;
                 }
               } else {
                 console.warn(`[Scheduler] Pool ${pool.id} vault still has ${vaultAmount} tokens - skipping close`);
+                if (await this.abandonStaleClose(pool.id, poolData?.endTime, 'vault-not-empty')) continue;
                 this.closeFailures.set(pool.id, Date.now());
                 continue;
               }
@@ -406,8 +427,10 @@ export class PoolResolver {
                 console.log(`[Scheduler] Pool ${pool.id} resolved + closed on-chain (${betCount} bets kept, closedAt stamped)`);
               }
             } catch (resolveErr) {
-              this.closeFailures.set(pool.id, Date.now());
-              console.warn(`[Scheduler] Pool ${pool.id} resolve+close failed (will retry in 5m):`, resolveErr instanceof Error ? resolveErr.message : resolveErr);
+              if (!(await this.abandonStaleClose(pool.id, poolData?.endTime, 'resolve+close-failed'))) {
+                this.closeFailures.set(pool.id, Date.now());
+                console.warn(`[Scheduler] Pool ${pool.id} resolve+close failed (will retry in 5m):`, resolveErr instanceof Error ? resolveErr.message : resolveErr);
+              }
             }
             continue;
           }
@@ -442,11 +465,13 @@ export class PoolResolver {
             continue;
           }
 
-          this.closeFailures.set(pool.id, Date.now());
-          console.warn(
-            `[Scheduler] Failed to close pool ${pool.id} (will retry in 5m):`,
-            errMsg,
-          );
+          if (!(await this.abandonStaleClose(pool.id, poolData?.endTime, 'close-failed'))) {
+            this.closeFailures.set(pool.id, Date.now());
+            console.warn(
+              `[Scheduler] Failed to close pool ${pool.id} (will retry in 5m):`,
+              errMsg,
+            );
+          }
         }
       }
     } catch (error) {
