@@ -185,6 +185,7 @@ enum RewardReason {
   WIN_STREAK
   LEVEL_UP
   REFERRAL_ACCEPTED
+  TRADE_VOLUME
 }
 
 model User {
@@ -241,6 +242,7 @@ model User {
   referralsReceived   Referral[]           @relation("referred")
   exchangeConnections ExchangeConnection[]
   walletLinks         WalletLink[]
+  tradeFills          TradeFill[]
 
   @@index([level])
   @@index([coinsLifetime])
@@ -272,6 +274,9 @@ model ExchangeConnection {
   active     Boolean   @default(true)
   approvedAt DateTime? @map("approved_at")
   expiresAt  DateTime? @map("expires_at")
+
+  /// Cursor for the trading-XP poller: max fill `time` (ms) already credited.
+  lastFillTime BigInt? @map("last_fill_time")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -804,4 +809,32 @@ model LiquidityBotConfig {
   createdAt         DateTime @default(now())
 
   @@map("liquidity_bot_config")
+}
+
+/// Persisted trading fills (HyperLiquid) — powers trading-XP dedupe, the user's
+/// own trade history, volume/fee analytics, and builder-fee revenue. One row per
+/// exchange fill (`tid` unique → idempotent XP awards). See docs/PLAN-TRADING-XP.md.
+model TradeFill {
+  id             String   @id @default(uuid())
+  walletAddress  String   @map("wallet_address") // UpDown identity
+  accountAddress String   @map("account_address") // HL/EVM account the fill belongs to
+  exchange       String   @default("hyperliquid")
+  tid            BigInt   @unique // exchange fill id → idempotency
+  coin           String
+  side           String // BUY | SELL
+  px             String
+  sz             String
+  notionalUsd    String   @map("notional_usd")
+  feeUsd         String   @map("fee_usd")
+  pnlUsd         String?  @map("pnl_usd")
+  dir            String? // HL dir, e.g. "Open Long"
+  xpAwarded      BigInt   @default(0) @map("xp_awarded")
+  time           BigInt // fill time (ms)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [walletAddress], references: [walletAddress])
+
+  @@index([walletAddress, time])
+  @@index([accountAddress, time])
+  @@map("trade_fills")
 }

@@ -24,6 +24,7 @@ import {
   serializeConnection,
 } from '../services/exchange-connection';
 import { linkWallet, resolveUserByWallet } from '../services/wallet-link';
+import { creditConnectionFills } from '../services/trading-xp/poller';
 
 export const exchangeRouter: RouterType = Router();
 
@@ -90,6 +91,11 @@ const cancelSchema = z.object({
   isTestnet: isTestnetFlag,
   symbol: z.string().min(1).max(40),
   orderId: z.union([z.string(), z.number()]),
+});
+
+const creditFillsSchema = z.object({
+  walletAddress: solanaWallet,
+  isTestnet: isTestnetFlag,
 });
 
 const leverageSchema = z.object({
@@ -258,6 +264,34 @@ exchangeRouter.post('/order', async (req, res) => {
     console.error('[Exchange] order error:', error);
     // Surface the exchange's message (e.g. "Must deposit", "Insufficient margin").
     res.status(502).json({ success: false, error: { code: 'ORDER_FAILED', message: (error as Error).message } });
+  }
+});
+
+/**
+ * Credit trading XP + UP coins for the caller's recent fills (near-instant path).
+ * The terminal pings this when its WS sees a new fill; the server re-fetches
+ * `userFills` itself (never trusts client fill data) and credits. Mainnet only.
+ */
+exchangeRouter.post('/credit-fills', async (req, res) => {
+  try {
+    const parsed = creditFillsSchema.safeParse(req.body);
+    if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid body');
+    const { walletAddress, isTestnet } = parsed.data;
+    if (isTestnet) return res.json({ success: true, data: { newFills: 0, xpAwarded: 0, coinsAwarded: 0 } });
+
+    const userId = await resolveUserId(walletAddress);
+    if (!userId) return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Unknown wallet' } });
+
+    const conn = await getConnection(userId, 'hyperliquid', false);
+    if (!conn || !conn.active) {
+      return res.status(409).json({ success: false, error: { code: 'NO_ACTIVE_CONNECTION', message: 'Connect and approve an agent first' } });
+    }
+
+    const r = await creditConnectionFills(conn.accountAddress);
+    res.json({ success: true, data: { newFills: r.newFills, xpAwarded: Number(r.xpAwarded), coinsAwarded: Number(r.coinsAwarded), level: r.newLevel, levelUp: r.levelUp } });
+  } catch (error) {
+    console.error('[Exchange] credit-fills error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to credit fills' } });
   }
 });
 

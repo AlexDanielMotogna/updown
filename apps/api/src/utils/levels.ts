@@ -96,3 +96,17 @@ export const XP_ACTIONS = {
     return BigInt(100 * (effective - 2));
   },
 };
+
+/**
+ * XP earned per HyperLiquid fill — volume-based, weighted by maker/taker. The
+ * fee already encodes both (taker rate 0.045% = 3× maker 0.015%, and fee scales
+ * with notional), so XP ∝ fee paid. e.g. at K=200: a $1k taker fill (~$0.45 fee)
+ * ≈ 90 XP, a $1k maker fill (~$0.15 fee) ≈ 30 XP. Rebates (negative fee) → 0.
+ * Tunable via TRADE_XP_PER_FEE_USD. See docs/PLAN-TRADING-XP.md.
+ */
+export const TRADE_XP_PER_FEE_USD = 200;
+
+export function tradeXpForFill(feeUsd: number): bigint {
+  if (!Number.isFinite(feeUsd) || feeUsd <= 0) return 0n;
+  return BigInt(Math.round(feeUsd * TRADE_XP_PER_FEE_USD));
+}
