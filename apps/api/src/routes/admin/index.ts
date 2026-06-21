@@ -16,6 +16,7 @@ import { adminReferralsRouter } from './referrals';
 import { adminResolutionInspectorRouter } from './resolution-inspector';
 import { adminResolutionSuggestionsRouter } from './resolution-suggestions';
 import { adminLiquidityBotRouter } from './liquidity-bot';
+import { adminPoolCreationRouter } from './pool-creation';
 
 export const adminRouter: RouterType = Router();
 
@@ -44,3 +45,4 @@ adminRouter.use('/referrals', adminReferralsRouter);
 adminRouter.use('/resolution-inspector', adminResolutionInspectorRouter);
 adminRouter.use('/resolution-suggestions', adminResolutionSuggestionsRouter);
 adminRouter.use('/liquidity-bot', adminLiquidityBotRouter);
+adminRouter.use('/pool-creation', adminPoolCreationRouter);

@@ -838,3 +838,20 @@ model TradeFill {
   @@index([accountAddress, time])
   @@map("trade_fills")
 }
+
+// Single-row admin toggle for prediction-pool CREATION, per interval. Lets us
+// stop creating short-interval pools (the bulk of on-chain RPC churn) while in
+// testing, and flip them on with one click when users arrive. Disabling only
+// stops NEW creation — existing pools still resolve/close. See
+// docs/PLAN-POOL-CREATION-TOGGLE.md. Default: short OFF, 1h ON.
+model PoolCreationConfig {
+  id        String   @id @default("default")
+  allow3m   Boolean  @default(false)
+  allow5m   Boolean  @default(false)
+  allow15m  Boolean  @default(false)
+  allow1h   Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@map("pool_creation_config")
+}

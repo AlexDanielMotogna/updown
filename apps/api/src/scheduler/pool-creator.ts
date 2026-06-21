@@ -7,6 +7,7 @@ import { PoolTemplate } from './config';
 import { emitNewPool, ensurePriceStreams } from '../websocket';
 import { getUsdcMint, derivePoolSeed, getConnection, rotateConnection } from '../utils/solana';
 import { sendAndConfirm } from '../utils/onchain';
+import { isIntervalCreationAllowed } from '../services/pool-creation/config';
 
 export interface CreatorDeps {
   prisma: PrismaClient;
@@ -110,6 +111,12 @@ export class PoolCreator {
    * Includes a final database-level dedup check to prevent duplicates.
    */
   async createPool(template: PoolTemplate): Promise<string | null> {
+    // Admin per-interval toggle: skip creation (and its on-chain RPC) when this
+    // interval is disabled. Existing pools still resolve/close.
+    if (!(await isIntervalCreationAllowed(template.intervalKey))) {
+      return null;
+    }
+
     const duplicate = await this.deps.prisma.pool.findFirst({
       where: {
         asset: template.asset,
