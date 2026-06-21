@@ -1,13 +1,27 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { linkEvm, registerUser, resolveIdentity } from '@/lib/api';
 
-// Module-level guard so register+link fires ONCE per identity across all the
-// components that call useIdentity (not once per hook instance). Deleted on
-// failure (e.g. API down) so a later mount can retry.
-const linkInFlight = new Set<string>();
+// ── Shared link state (module-level) ────────────────────────────────────────
+// useIdentity is called by MANY components. The register+link must fire ONCE per
+// (identity, evm), and its RESULT (linked / conflict) must be visible to ALL hook
+// instances — otherwise the instance that wins the dedup is the only one that
+// learns about a conflict, and the gate (a different instance) never blocks.
+// So we keep the result in a module-level store and subscribe via
+// useSyncExternalStore (survives re-renders, shared across instances).
+type LinkStatus = 'linked' | 'conflict';
+const linkResults = new Map<string, LinkStatus>(); // key → status
+const linkInFlight = new Set<string>(); // key currently being requested
+const linkSubs = new Set<() => void>();
+function notifyLink() { linkSubs.forEach((fn) => fn()); }
+function setLinkResult(key: string, status: LinkStatus) {
+  if (linkResults.get(key) === status) return;
+  linkResults.set(key, status);
+  notifyLink();
+}
+function subscribeLink(cb: () => void) { linkSubs.add(cb); return () => { linkSubs.delete(cb); }; }
 
 export interface Identity {
   ready: boolean;
@@ -36,7 +50,8 @@ interface LinkedAccount {
  * the Solana wallet IS the UpDown identity; the EVM wallet is the HL account.
  * We read both from the session (no pasting). For an EVM-only session we fall
  * back to /resolve (a previously-linked identity). When both are present we
- * auto-link them server-side.
+ * auto-link them server-side; if the EVM already belongs to ANOTHER UpDown
+ * account the link is rejected (bind-once) and surfaced via `linkConflict`.
  */
 export function useIdentity(): Identity {
   const { ready, authenticated, user } = usePrivy();
@@ -74,41 +89,49 @@ export function useIdentity(): Identity {
   // account automatically, with no manual linking; undefined only while resolving.
   const walletAddress = sessionSolana ?? resolved ?? (resolveDone ? evmAddress : undefined);
 
-  // The connected EVM wallet is already bound to a different UpDown account
-  // (server rejects the re-link, bind-once). One HL account ↔ one UpDown account.
-  const [linkConflict, setLinkConflict] = useState(false);
-
-  // Auto-register + link once (deduped across hook instances). With a Solana
-  // wallet, the Solana address is the identity and the EVM wallet links to it.
-  // EVM-only → the EVM wallet is its own identity (persists via /resolve).
-  useEffect(() => {
-    // A new EVM wallet starts conflict-free; the link below re-flags if needed.
-    setLinkConflict(false);
-    if (!evmAddress) return;
-    const [identity, key] = sessionSolana
-      ? [sessionSolana, `sol:${sessionSolana}:${evmAddress}`]
+  // Resolve the (identity, evm) pair → the dedup/result key. Only the Solana path
+  // can conflict (EVM-only resolves to its own owner, so it links to itself).
+  const linkKey = !evmAddress
+    ? ''
+    : sessionSolana
+      ? `sol:${sessionSolana}:${evmAddress}`
       : resolveDone && !resolved
-        ? [evmAddress, `evm:${evmAddress}`]
-        : [undefined, ''];
-    if (!identity || linkInFlight.has(key)) return;
-    linkInFlight.add(key);
+        ? `evm:${evmAddress}`
+        : '';
+
+  // Subscribe to the shared link store so EVERY instance reflects the conflict.
+  const status = useSyncExternalStore(
+    subscribeLink,
+    () => (linkKey ? linkResults.get(linkKey) ?? null : null),
+    () => null,
+  );
+  const linkConflict = status === 'conflict';
+
+  // Auto-register + link once per key (deduped across all hook instances). With a
+  // Solana wallet, the Solana address is the identity and the EVM links to it;
+  // EVM-only → the EVM is its own identity (persists via /resolve).
+  useEffect(() => {
+    if (!linkKey) return;
+    const identity = sessionSolana ?? evmAddress; // matches linkKey's identity
+    if (!identity) return;
+    if (linkInFlight.has(linkKey) || linkResults.has(linkKey)) return; // already done/doing
+    linkInFlight.add(linkKey);
     // registerUser/linkEvm resolve to { success } (no throw on network errors).
-    // Release the guard on a TRANSIENT failure (API down) so a later mount can
-    // retry; a WALLET_LINKED_ELSEWHERE conflict is permanent → keep the guard and
-    // surface it via linkConflict.
+    // A WALLET_LINKED_ELSEWHERE conflict is permanent → record it; a transient
+    // failure (API down) just releases the in-flight guard so a later mount retries.
     registerUser(identity)
       .then(async (r) => {
         if (!r.success) return { ok: false as const };
-        const link = await linkEvm(identity, evmAddress, 'privy');
+        const link = await linkEvm(identity, evmAddress!, 'privy');
         return { ok: link.success, code: link.error?.code };
       })
       .then((res) => {
-        if (res.ok) return;
-        if (res.code === 'WALLET_LINKED_ELSEWHERE') { setLinkConflict(true); return; }
-        linkInFlight.delete(key);
+        linkInFlight.delete(linkKey);
+        if (res.ok) { setLinkResult(linkKey, 'linked'); return; }
+        if (res.code === 'WALLET_LINKED_ELSEWHERE') setLinkResult(linkKey, 'conflict');
       })
-      .catch(() => linkInFlight.delete(key));
-  }, [sessionSolana, evmAddress, resolveDone, resolved]);
+      .catch(() => { linkInFlight.delete(linkKey); });
+  }, [linkKey, sessionSolana, evmAddress]);
 
   return { ready, authenticated, walletAddress, evmAddress, linked: !!walletAddress, linkConflict };
 }
