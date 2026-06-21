@@ -101,7 +101,7 @@ function Gate() {
           This HyperLiquid wallet is already linked to another UpDown account. Each HyperLiquid
           account can be used with only one UpDown account. Connect a different wallet to continue.
         </p>
-        <button onClick={connectWallet} className={btnPrimary}>
+        <button onClick={() => connectWallet({ walletChainType: 'ethereum-only' })} className={btnPrimary}>
           Connect a different wallet
         </button>
         <button onClick={logout} className={btnGhost}>
@@ -129,7 +129,7 @@ function Gate() {
           </span>
         ))}
       </div>
-      <button onClick={connectWallet} className={btnPrimary}>
+      <button onClick={() => connectWallet({ walletChainType: 'ethereum-only' })} className={btnPrimary}>
         Connect EVM wallet
       </button>
       <button onClick={logout} className={btnGhost}>

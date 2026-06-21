@@ -465,7 +465,7 @@ export function OrderEntry({
       ) : !authenticated ? (
         <button onClick={login} className={ctaCls}>Connect to trade</button>
       ) : !evmAddress ? (
-        <button onClick={connectWallet} className={ctaCls}>Connect wallet</button>
+        <button onClick={() => connectWallet({ walletChainType: 'ethereum-only' })} className={ctaCls}>Connect wallet</button>
       ) : needsAgent ? (
         <button onClick={enableTrading} disabled={enabling} className={ctaCls}>
           {enabling ? 'Enabling…' : 'Enable Trading'}
