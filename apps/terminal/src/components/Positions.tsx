@@ -173,17 +173,12 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
   // the stream was delivering positions — so derive it, no mirror.
   const positions: Position[] = ws.positions;
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    console.log('[DBG2 render]', { tab, wsPos: ws.positions.length, orders: orders.length, ready: ws.ready, tpslKeys: Object.keys(tpslMap) });
-  });
-
   const reloadTpsl = useCallback(() => {
     if (!address) return;
     fetch(`/api/tpsl?address=${address}`, { cache: 'no-store' })
       .then((r) => r.json())
-      .then((t) => { console.log('[DBG2 tpsl] fetched', JSON.stringify(t.data)); if (t.success) setTpslMap(t.data); })
-      .catch((e) => console.log('[DBG2 tpsl] error', e?.message));
+      .then((t) => { if (t.success) setTpslMap(t.data); })
+      .catch(() => {});
   }, [address]);
 
   // TP/SL triggers for open positions (REST). Poll while on the tab — HL's
@@ -203,7 +198,6 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
     try {
       if (tab === 'orders') {
         const r = await get('/api/orders');
-        console.log('[DBG2 refresh] /api/orders →', r.success ? `${r.data.length} orders` : 'FAIL');
         if (r.success) setOrders(r.data);
       } else if (tab === 'trades') {
         const r = await get('/api/trades');
@@ -231,7 +225,6 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
     if (!walletAddress) return;
     const tid = toast.loading(`Cancelling ${o.coin} order #${o.orderId}…`);
     const res = await cancelOrder({ walletAddress, symbol: o.symbol, orderId: o.orderId });
-    console.log('[DBG2 cancel]', o.orderId, '→ success=', res.success, res.error?.message ?? '');
     toast.update(tid, res.success ? 'success' : 'error', res.success ? `Order #${o.orderId} cancelled` : res.error?.message ?? 'Cancel failed');
     refresh();
   }
