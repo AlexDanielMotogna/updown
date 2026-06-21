@@ -24,31 +24,40 @@ export function useWalletBridge() {
 
   // Prefer external wallet ONLY if its standard adapter is connected,
   // otherwise fall back to embedded (avoids building transactions for a
-  // wallet that can't actually sign  e.g. deployed env without extension)
+  // wallet that can't actually sign  e.g. deployed env without extension).
+  // SOLANA-ONLY: a user can also link an EVM wallet (0x…) for the trading
+  // terminal — that must NEVER be treated as the Solana signer (new PublicKey
+  // would throw "Non-base58 character" and break the whole app).
   const activeWallet = useMemo(() => {
-    if (!wallets.length) return null;
+    const sol = wallets.filter((w) => !w.address.startsWith('0x'));
+    if (!sol.length) return null;
 
-    const external = wallets.find((w) => w.connectorType !== 'embedded');
+    const external = sol.find((w) => w.connectorType !== 'embedded');
     const hasAdapter = external && standardWallets.some((sw) => sw.address === external.address);
 
     if (external && hasAdapter) return external;
 
     return (
-      wallets.find((w) => w.connectorType === 'embedded') ??
-      wallets[0]
+      sol.find((w) => w.connectorType === 'embedded') ??
+      sol[0]
     );
   }, [wallets, standardWallets]);
 
   const isEmbedded = activeWallet?.connectorType === 'embedded';
   const connected = ready && authenticated;
 
-  const walletAddress =
-    activeWallet?.address ?? user?.wallet?.address ?? null;
+  // Never let an EVM address through as the Solana wallet identity.
+  const rawAddress = activeWallet?.address ?? user?.wallet?.address ?? null;
+  const walletAddress = rawAddress && !rawAddress.startsWith('0x') ? rawAddress : null;
 
-  const publicKey = useMemo(
-    () => (walletAddress ? new PublicKey(walletAddress) : null),
-    [walletAddress],
-  );
+  const publicKey = useMemo(() => {
+    if (!walletAddress) return null;
+    try {
+      return new PublicKey(walletAddress);
+    } catch {
+      return null;
+    }
+  }, [walletAddress]);
 
   const sendTransaction = useCallback(
     async (transaction: Transaction): Promise<string> => {
