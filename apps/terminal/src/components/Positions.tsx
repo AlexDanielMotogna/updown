@@ -656,6 +656,11 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
             setTpslTarget(null);
             await onSetTpSl(p, tp, sl);
           }}
+          onClosePosition={() => {
+            const p = tpslTarget;
+            setTpslTarget(null);
+            setCloseTarget({ p, mode: 'market' });
+          }}
         />
       )}
     </div>
@@ -663,7 +668,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
 }
 
 /** Set Take Profit / Stop Loss for an existing position (price ⇄ gain/loss %). */
-function TpSlModal({ p, onConfirm, onCancel }: { p: Position; onConfirm: (tp?: string, sl?: string) => void; onCancel: () => void }) {
+function TpSlModal({ p, onConfirm, onCancel, onClosePosition }: { p: Position; onConfirm: (tp?: string, sl?: string) => void; onCancel: () => void; onClosePosition: () => void }) {
   const base = p.symbol.replace('-USD', '');
   const isLong = p.side === 'LONG';
   const ref = Number(p.entryPrice) || Number(p.markPrice);
@@ -700,6 +705,16 @@ function TpSlModal({ p, onConfirm, onCancel }: { p: Position; onConfirm: (tp?: s
           Set TP / SL
         </button>
         <p className="text-2xs text-surface-500">Places reduce-only trigger orders for the full position size.</p>
+
+        <div className="mt-1 border-t border-surface-800 pt-3">
+          <button
+            onClick={onClosePosition}
+            className="w-full rounded border border-loss-500/40 py-2 text-sm font-semibold text-loss-500 hover:bg-loss-500/10"
+          >
+            Close position
+          </button>
+          <p className="mt-1.5 text-2xs text-surface-500">Closes the full position at market (reduce-only).</p>
+        </div>
       </div>
     </Modal>
   );
