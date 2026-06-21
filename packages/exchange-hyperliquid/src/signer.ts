@@ -136,32 +136,61 @@ export class HyperliquidSigner implements ExchangeSigner {
     return { exchange: 'hyperliquid', chain: 'evm', action: { kind: 'order', params } };
   }
 
-  async signAndSubmit(payload: UnsignedPayload, _wallet?: WalletSigner): Promise<OrderResult> {
-    const client = await this.getClient();
-    let params = (payload.action as { params: OrderParams }).params;
+  /** Resolve a price cap (for MARKET / trigger-market when none was passed) and
+   * build the HL order request. Shared by single + grouped submits. */
+  private async prepareOrder(params: OrderParams) {
+    let p = params;
     // Market-type orders still need a price on HL (a slippage cap, crossing the
     // book in the fill direction) when the caller didn't pass one:
     //   - plain MARKET → cap off the current mid
     //   - trigger-market (STOP_MARKET / TAKE_PROFIT_MARKET) → cap off the trigger
     //     price, so it fills once triggered regardless of how far the trigger is.
-    if (params.price == null) {
-      const slip = slippageFraction(params.maxSlippagePct);
-      if (params.type === 'MARKET') {
-        params = { ...params, price: await this.marketSlippagePrice(params.symbol, params.side, slip) };
-      } else if (params.type === 'STOP_MARKET' || params.type === 'TAKE_PROFIT_MARKET') {
-        if (params.triggerPrice == null) throw new Error(`${params.type} requires triggerPrice`);
-        params = { ...params, price: crossPrice(Number(params.triggerPrice), params.side, slip) };
+    if (p.price == null) {
+      const slip = slippageFraction(p.maxSlippagePct);
+      if (p.type === 'MARKET') {
+        p = { ...p, price: await this.marketSlippagePrice(p.symbol, p.side, slip) };
+      } else if (p.type === 'STOP_MARKET' || p.type === 'TAKE_PROFIT_MARKET') {
+        if (p.triggerPrice == null) throw new Error(`${p.type} requires triggerPrice`);
+        p = { ...p, price: crossPrice(Number(p.triggerPrice), p.side, slip) };
       }
     }
-    const asset = await this.resolveAsset(params.symbol);
-    const order = buildOrderRequest(params, asset.index, asset.szDecimals);
-    const builder = this.builder
-      // Lowercase `b` so it's byte-identical to the (lowercased) approved builder
-      // — HL matches the approval by exact address, not checksum-insensitively.
-      ? { b: this.builder.address.toLowerCase() as `0x${string}`, f: this.builder.feeTenthsBps }
-      : undefined;
+    const asset = await this.resolveAsset(p.symbol);
+    return buildOrderRequest(p, asset.index, asset.szDecimals);
+  }
+
+  /** Lowercase `b` so it's byte-identical to the (lowercased) approved builder —
+   * HL matches the approval by exact address, not checksum-insensitively. */
+  private builderField() {
+    return this.builder ? { b: this.builder.address.toLowerCase() as `0x${string}`, f: this.builder.feeTenthsBps } : undefined;
+  }
+
+  async signAndSubmit(payload: UnsignedPayload, _wallet?: WalletSigner): Promise<OrderResult> {
+    const client = await this.getClient();
+    const params = (payload.action as { params: OrderParams }).params;
+    const order = await this.prepareOrder(params);
+    const builder = this.builderField();
     const res = await client.order({ orders: [order], grouping: 'na', ...(builder ? { builder } : {}) });
     return mapOrderResult(res);
+  }
+
+  /**
+   * Submit several orders as ONE HyperLiquid group. With `grouping: 'positionTpsl'`
+   * the TP/SL are tied to the live position: HL makes them OCO (one fills → the
+   * other auto-cancels) AND cancels them when the position closes — so they never
+   * linger to attach to the next position on that coin. Returns a per-order result
+   * (does not throw on a single rejected leg).
+   */
+  async signAndSubmitGroup(
+    paramsList: OrderParams[],
+    grouping: 'na' | 'normalTpsl' | 'positionTpsl',
+  ): Promise<GroupOrderResult[]> {
+    if (paramsList.length === 0) return [];
+    const client = await this.getClient();
+    const orders = [];
+    for (const params of paramsList) orders.push(await this.prepareOrder(params));
+    const builder = this.builderField();
+    const res = await client.order({ orders, grouping, ...(builder ? { builder } : {}) });
+    return mapGroupResults(res, orders.length);
   }
 
   async cancel(params: CancelParams, _wallet?: WalletSigner): Promise<Result> {
@@ -244,6 +273,28 @@ interface OrderStatusEntry {
 
 interface OrderApiResponse {
   response: { data: { statuses: OrderStatusEntry[] } };
+}
+
+export interface GroupOrderResult {
+  success: boolean;
+  orderId?: number;
+  status?: OrderStatus;
+  error?: string;
+}
+
+/** Map each status of a grouped order response, tolerant of per-leg errors. */
+function mapGroupResults(res: unknown, count: number): GroupOrderResult[] {
+  const statuses = (res as OrderApiResponse).response?.data?.statuses ?? [];
+  const out: GroupOrderResult[] = [];
+  for (let i = 0; i < count; i++) {
+    const s = statuses[i];
+    if (!s) { out.push({ success: false, error: 'no status returned' }); continue; }
+    if (s.error) { out.push({ success: false, error: s.error }); continue; }
+    if (s.resting) { out.push({ success: true, orderId: s.resting.oid, status: 'OPEN' as OrderStatus }); continue; }
+    if (s.filled) { out.push({ success: true, orderId: s.filled.oid, status: 'FILLED' as OrderStatus }); continue; }
+    out.push({ success: false, error: 'unrecognized status' });
+  }
+  return out;
 }
 
 function mapOrderResult(res: unknown): OrderResult {

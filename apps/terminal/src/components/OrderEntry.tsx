@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { placeOrder, setLeverage as setLeverageApi } from '@/lib/api';
+import { placeOrder, setTpsl, setLeverage as setLeverageApi } from '@/lib/api';
 import { usePrivy } from '@privy-io/react-auth';
 import { useAccountStream } from '@/hooks/useAccountStream';
 import { useTrading } from '@/hooks/useTrading';
@@ -293,27 +293,19 @@ export function OrderEntry({
       return;
     }
 
-    // Attach TP/SL as reduce-only trigger orders on the opposite (closing) side.
-    // Surface failures — these were silently swallowed, so a rejected TP/SL (e.g.
-    // tick size, min notional, or no position yet on a resting limit) looked like
-    // "TP/SL didn't get set" with no reason.
-    const tpslErrors: string[] = [];
+    // Attach TP/SL as ONE HyperLiquid `positionTpsl` group — OCO + auto-cancel when
+    // the position closes, so it never lingers onto the next position. Side is the
+    // closing side; price cap + tick formatting are handled server-side.
+    let tpslError = '';
     if (tpSl && !reduceOnly && (tpPrice || slPrice)) {
       const opp: OrderSide = side === 'BUY' ? 'SELL' : 'BUY';
-      const cap = (trigger: string) => String(Number(trigger) * (opp === 'BUY' ? 1.05 : 0.95));
-      if (tpPrice) {
-        const r = await placeOrder({ walletAddress, symbol, side: opp, type: 'TAKE_PROFIT_MARKET', amount: sizeBtc, triggerPrice: tpPrice, price: cap(tpPrice), reduceOnly: true });
-        if (!r.success) tpslErrors.push(`TP: ${r.error?.message ?? 'failed'}`);
-      }
-      if (slPrice) {
-        const r = await placeOrder({ walletAddress, symbol, side: opp, type: 'STOP_MARKET', amount: sizeBtc, triggerPrice: slPrice, price: cap(slPrice), reduceOnly: true });
-        if (!r.success) tpslErrors.push(`SL: ${r.error?.message ?? 'failed'}`);
-      }
+      const r = await setTpsl({ walletAddress, symbol, side: opp, amount: sizeBtc, tpTriggerPrice: tpPrice || undefined, slTriggerPrice: slPrice || undefined, maxSlippagePct: Number(slippage) || undefined });
+      if (!r.success) tpslError = r.data?.results?.filter((x) => !x.success).map((x) => x.error).filter(Boolean).join('; ') || r.error?.message || 'failed';
     }
 
     setBusy(false);
-    if (tpslErrors.length) {
-      toast.update(tid, 'error', `Order placed, but TP/SL failed — ${tpslErrors.join('; ')}`);
+    if (tpslError) {
+      toast.update(tid, 'error', `Order placed, but TP/SL failed — ${tpslError}`);
       return;
     }
     const ok = `${verb} ${sizeBtc} ${base} — ${String(res.data?.status ?? 'submitted').toLowerCase()}${res.data?.orderId ? ` · #${res.data.orderId}` : ''}`;

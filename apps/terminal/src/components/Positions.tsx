@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { cancelOrder, placeOrder, IS_TESTNET } from '@/lib/api';
+import { cancelOrder, placeOrder, setTpsl, IS_TESTNET } from '@/lib/api';
 import { useAccountStream } from '@/hooks/useAccountStream';
 import { useToast } from './Toast';
 import { Modal } from './Modal';
@@ -307,6 +307,21 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
     URL.revokeObjectURL(url);
   }
 
+  /** Cancel any resting TP/SL trigger orders for a coin. These are reduce-only and
+   * survive a manual close, so without this they'd attach to the NEXT position
+   * opened on the same coin. Best-effort. */
+  async function cancelTpslOrders(symbol: string) {
+    if (!walletAddress || !address) return;
+    try {
+      const r = await fetch(`/api/orders?address=${address}`, { cache: 'no-store' }).then((x) => x.json());
+      if (!r.success) return;
+      const triggers = (r.data as Array<{ orderId: number; symbol: string; trigger: unknown }>).filter(
+        (o) => o.symbol === symbol && o.trigger,
+      );
+      await Promise.all(triggers.map((o) => cancelOrder({ walletAddress, symbol, orderId: o.orderId })));
+    } catch { /* best-effort */ }
+  }
+
   async function onClose(p: Position, mode: CloseMode, opts?: { size?: string; limitPrice?: string }) {
     if (!walletAddress) return;
     const opp = p.side === 'LONG' ? 'SELL' : 'BUY';
@@ -325,7 +340,15 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
       res = await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'MARKET', amount: size, reduceOnly: true });
     }
     toast.update(tid, res.success ? 'success' : 'error', res.success ? `${base} position ${mode === 'reverse' ? 'reversed' : 'close submitted'}` : res.error?.message ?? 'Close failed');
+    // Clear leftover TP/SL so it doesn't attach to the next position on this coin.
+    // Only on a full market close or reverse — a partial close keeps them
+    // (reduce-only caps to the remainder); a limit close hasn't closed yet.
+    const fullClose = !opts?.size || Number(opts.size) >= Number(p.amount);
+    if (res.success && (mode === 'reverse' || (mode === 'market' && fullClose))) {
+      await cancelTpslOrders(p.symbol);
+    }
     refresh();
+    reloadTpsl();
   }
 
   async function onCloseAll() {
@@ -336,15 +359,19 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
   async function onSetTpSl(p: Position, tp?: string, sl?: string) {
     if (!walletAddress || (!tp && !sl)) return;
     const opp = p.side === 'LONG' ? 'SELL' : 'BUY';
-    const cap = (trigger: string) => String(Number(trigger) * (opp === 'BUY' ? 1.05 : 0.95));
     const base = p.symbol.replace('-USD', '');
     const tid = toast.loading(`Setting ${base} TP/SL…`);
-    const errs: string[] = [];
-    if (tp) { const r = await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'TAKE_PROFIT_MARKET', amount: p.amount, triggerPrice: tp, price: cap(tp), reduceOnly: true }); if (!r.success) errs.push(`TP: ${r.error?.message ?? 'failed'}`); }
-    if (sl) { const r = await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'STOP_MARKET', amount: p.amount, triggerPrice: sl, price: cap(sl), reduceOnly: true }); if (!r.success) errs.push(`SL: ${r.error?.message ?? 'failed'}`); }
-    toast.update(tid, errs.length ? 'error' : 'success', errs.length ? `${base} TP/SL failed — ${errs.join('; ')}` : `${base} TP/SL set`);
-    // Immediate + delayed reload — HL needs a moment to surface the new trigger
-    // orders in frontendOpenOrders.
+    // One HL `positionTpsl` group: OCO + auto-cancel when the position closes, so
+    // it never lingers onto the next position. The price cap + tick formatting are
+    // handled server-side.
+    const res = await setTpsl({ walletAddress, symbol: p.symbol, side: opp, amount: p.amount, tpTriggerPrice: tp || undefined, slTriggerPrice: sl || undefined });
+    if (res.success) {
+      toast.update(tid, 'success', `${base} TP/SL set`);
+    } else {
+      const detail = res.data?.results?.filter((r) => !r.success).map((r) => r.error).filter(Boolean).join('; ') || res.error?.message || 'failed';
+      toast.update(tid, 'error', `${base} TP/SL failed — ${detail}`);
+    }
+    // Immediate + delayed reload — HL needs a moment to surface the trigger orders.
     reloadTpsl();
     setTimeout(reloadTpsl, 1500);
   }
@@ -656,6 +683,11 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
             setTpslTarget(null);
             await onSetTpSl(p, tp, sl);
           }}
+          onClosePosition={() => {
+            const p = tpslTarget;
+            setTpslTarget(null);
+            setCloseTarget({ p, mode: 'market' });
+          }}
         />
       )}
     </div>
@@ -663,7 +695,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
 }
 
 /** Set Take Profit / Stop Loss for an existing position (price ⇄ gain/loss %). */
-function TpSlModal({ p, onConfirm, onCancel }: { p: Position; onConfirm: (tp?: string, sl?: string) => void; onCancel: () => void }) {
+function TpSlModal({ p, onConfirm, onCancel, onClosePosition }: { p: Position; onConfirm: (tp?: string, sl?: string) => void; onCancel: () => void; onClosePosition: () => void }) {
   const base = p.symbol.replace('-USD', '');
   const isLong = p.side === 'LONG';
   const ref = Number(p.entryPrice) || Number(p.markPrice);
@@ -700,6 +732,16 @@ function TpSlModal({ p, onConfirm, onCancel }: { p: Position; onConfirm: (tp?: s
           Set TP / SL
         </button>
         <p className="text-2xs text-surface-500">Places reduce-only trigger orders for the full position size.</p>
+
+        <div className="mt-1 border-t border-surface-800 pt-3">
+          <button
+            onClick={onClosePosition}
+            className="w-full rounded border border-loss-500/40 py-2 text-sm font-semibold text-loss-500 hover:bg-loss-500/10"
+          >
+            Close position
+          </button>
+          <p className="mt-1.5 text-2xs text-surface-500">Closes the full position at market (reduce-only).</p>
+        </div>
       </div>
     </Modal>
   );
