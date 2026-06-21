@@ -77,6 +77,7 @@ export function setTpsl(input: {
   slTriggerPrice?: string;
   maxSlippagePct?: number;
 }) {
+  console.log('[DBG3 setTpsl CALLED]', input.symbol, 'tp=' + input.tpTriggerPrice, 'sl=' + input.slTriggerPrice, '\n', new Error().stack);
   return post<TpslResult>('/api/exchange/order/tpsl', { ...input, isTestnet: IS_TESTNET });
 }
 
