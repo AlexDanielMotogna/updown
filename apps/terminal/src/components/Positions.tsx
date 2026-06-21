@@ -333,10 +333,10 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
     const cap = (trigger: string) => String(Number(trigger) * (opp === 'BUY' ? 1.05 : 0.95));
     const base = p.symbol.replace('-USD', '');
     const tid = toast.loading(`Setting ${base} TP/SL…`);
-    let ok = true;
-    if (tp) { const r = await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'TAKE_PROFIT_MARKET', amount: p.amount, triggerPrice: tp, price: cap(tp), reduceOnly: true }); ok = ok && r.success; }
-    if (sl) { const r = await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'STOP_MARKET', amount: p.amount, triggerPrice: sl, price: cap(sl), reduceOnly: true }); ok = ok && r.success; }
-    toast.update(tid, ok ? 'success' : 'error', ok ? `${base} TP/SL set` : 'Failed to set TP/SL');
+    const errs: string[] = [];
+    if (tp) { const r = await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'TAKE_PROFIT_MARKET', amount: p.amount, triggerPrice: tp, price: cap(tp), reduceOnly: true }); if (!r.success) errs.push(`TP: ${r.error?.message ?? 'failed'}`); }
+    if (sl) { const r = await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'STOP_MARKET', amount: p.amount, triggerPrice: sl, price: cap(sl), reduceOnly: true }); if (!r.success) errs.push(`SL: ${r.error?.message ?? 'failed'}`); }
+    toast.update(tid, errs.length ? 'error' : 'success', errs.length ? `${base} TP/SL failed — ${errs.join('; ')}` : `${base} TP/SL set`);
     reloadTpsl();
   }
 

@@ -294,16 +294,28 @@ export function OrderEntry({
     }
 
     // Attach TP/SL as reduce-only trigger orders on the opposite (closing) side.
+    // Surface failures — these were silently swallowed, so a rejected TP/SL (e.g.
+    // tick size, min notional, or no position yet on a resting limit) looked like
+    // "TP/SL didn't get set" with no reason.
+    const tpslErrors: string[] = [];
     if (tpSl && !reduceOnly && (tpPrice || slPrice)) {
       const opp: OrderSide = side === 'BUY' ? 'SELL' : 'BUY';
       const cap = (trigger: string) => String(Number(trigger) * (opp === 'BUY' ? 1.05 : 0.95));
-      if (tpPrice)
-        await placeOrder({ walletAddress, symbol, side: opp, type: 'TAKE_PROFIT_MARKET', amount: sizeBtc, triggerPrice: tpPrice, price: cap(tpPrice), reduceOnly: true });
-      if (slPrice)
-        await placeOrder({ walletAddress, symbol, side: opp, type: 'STOP_MARKET', amount: sizeBtc, triggerPrice: slPrice, price: cap(slPrice), reduceOnly: true });
+      if (tpPrice) {
+        const r = await placeOrder({ walletAddress, symbol, side: opp, type: 'TAKE_PROFIT_MARKET', amount: sizeBtc, triggerPrice: tpPrice, price: cap(tpPrice), reduceOnly: true });
+        if (!r.success) tpslErrors.push(`TP: ${r.error?.message ?? 'failed'}`);
+      }
+      if (slPrice) {
+        const r = await placeOrder({ walletAddress, symbol, side: opp, type: 'STOP_MARKET', amount: sizeBtc, triggerPrice: slPrice, price: cap(slPrice), reduceOnly: true });
+        if (!r.success) tpslErrors.push(`SL: ${r.error?.message ?? 'failed'}`);
+      }
     }
 
     setBusy(false);
+    if (tpslErrors.length) {
+      toast.update(tid, 'error', `Order placed, but TP/SL failed — ${tpslErrors.join('; ')}`);
+      return;
+    }
     const ok = `${verb} ${sizeBtc} ${base} — ${String(res.data?.status ?? 'submitted').toLowerCase()}${res.data?.orderId ? ` · #${res.data.orderId}` : ''}`;
     toast.update(tid, 'success', ok);
   }
