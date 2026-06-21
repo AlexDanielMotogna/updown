@@ -190,10 +190,6 @@ export class HyperliquidSigner implements ExchangeSigner {
     for (const params of paramsList) orders.push(await this.prepareOrder(params));
     const builder = this.builderField();
     const res = await client.order({ orders, grouping, ...(builder ? { builder } : {}) });
-    // Diagnostic: surface HL's exact statuses for grouped (TP/SL) orders — a leg HL
-    // accepts-but-parks comes back as a bare "waitingForTrigger" string, which looks
-    // like success. Logged so we can see the real outcome in the API logs.
-    console.error(`[Exchange] group order HL raw (grouping=${grouping}):`, JSON.stringify(res));
     return mapGroupResults(res, orders.length);
   }
 
