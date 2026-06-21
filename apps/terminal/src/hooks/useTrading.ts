@@ -56,6 +56,20 @@ async function isAgentApproved(account: string, agent: string): Promise<boolean>
   }
 }
 
+/**
+ * Per-environment agent name. HL keys agents by NAME, so the same name + same
+ * account means approving in one place revokes the agent elsewhere. Suffix dev
+ * envs so local testing never revokes the deployed terminal's agent (and vice
+ * versa). localhost → "updown-terminal-dev"; deployed → "updown-terminal".
+ */
+function agentName(): string {
+  if (typeof window !== 'undefined') {
+    const h = window.location.hostname;
+    if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local')) return 'updown-terminal-dev';
+  }
+  return 'updown-terminal';
+}
+
 export interface TradingState {
   conn: ConnectionStatus | null;
   /** Agent approved + active for this network → orders can be placed. */
@@ -136,7 +150,7 @@ export function useTrading(walletAddress?: string, evmAddress?: string): Trading
       const client = new ExchangeClient({ transport: new HttpTransport({ isTestnet: IS_TESTNET }), wallet: walletClient });
 
       // 1) Approve the agent (delegated signing key the server holds).
-      await client.approveAgent({ agentAddress: gen.data.agentAddress, agentName: 'updown-terminal' });
+      await client.approveAgent({ agentAddress: gen.data.agentAddress, agentName: agentName() });
       // 2) Approve the builder fee so builder-coded orders aren't rejected.
       if (BUILDER_ADDRESS) {
         await client.approveBuilderFee({ maxFeeRate: BUILDER_MAX_FEE, builder: BUILDER_ADDRESS });
