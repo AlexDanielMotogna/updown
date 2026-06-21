@@ -677,16 +677,21 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
       {tpslTarget && (
         <TpSlModal
           p={tpslTarget}
+          existing={tpslMap[tpslTarget.symbol]}
           onCancel={() => setTpslTarget(null)}
           onConfirm={async (tp, sl) => {
             const p = tpslTarget;
             setTpslTarget(null);
             await onSetTpSl(p, tp, sl);
           }}
-          onClosePosition={() => {
+          onRemoveTpsl={async () => {
             const p = tpslTarget;
             setTpslTarget(null);
-            setCloseTarget({ p, mode: 'market' });
+            const tid = toast.loading(`Removing ${p.symbol.replace('-USD', '')} TP/SL…`);
+            await cancelTpslOrders(p.symbol);
+            toast.update(tid, 'success', 'TP/SL removed');
+            reloadTpsl();
+            setTimeout(reloadTpsl, 1500);
           }}
         />
       )}
@@ -695,7 +700,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
 }
 
 /** Set Take Profit / Stop Loss for an existing position (price ⇄ gain/loss %). */
-function TpSlModal({ p, onConfirm, onCancel, onClosePosition }: { p: Position; onConfirm: (tp?: string, sl?: string) => void; onCancel: () => void; onClosePosition: () => void }) {
+function TpSlModal({ p, existing, onConfirm, onCancel, onRemoveTpsl }: { p: Position; existing?: { tp?: string; sl?: string }; onConfirm: (tp?: string, sl?: string) => void; onCancel: () => void; onRemoveTpsl: () => void }) {
   const base = p.symbol.replace('-USD', '');
   const isLong = p.side === 'LONG';
   const ref = Number(p.entryPrice) || Number(p.markPrice);
@@ -731,17 +736,22 @@ function TpSlModal({ p, onConfirm, onCancel, onClosePosition }: { p: Position; o
         >
           Set TP / SL
         </button>
-        <p className="text-2xs text-surface-500">Places reduce-only trigger orders for the full position size.</p>
+        <p className="text-2xs text-surface-500">HyperLiquid position TP/SL — OCO, and auto-cancels when the position closes.</p>
 
-        <div className="mt-1 border-t border-surface-800 pt-3">
-          <button
-            onClick={onClosePosition}
-            className="w-full rounded border border-loss-500/40 py-2 text-sm font-semibold text-loss-500 hover:bg-loss-500/10"
-          >
-            Close position
-          </button>
-          <p className="mt-1.5 text-2xs text-surface-500">Closes the full position at market (reduce-only).</p>
-        </div>
+        {(existing?.tp || existing?.sl) && (
+          <div className="mt-1 border-t border-surface-800 pt-3">
+            <div className="mb-2 text-2xs text-surface-400">
+              Current{existing?.tp ? ` · TP ${existing.tp}` : ''}{existing?.sl ? ` · SL ${existing.sl}` : ''}
+            </div>
+            <button
+              onClick={onRemoveTpsl}
+              className="w-full rounded border border-loss-500/40 py-2 text-sm font-semibold text-loss-500 hover:bg-loss-500/10"
+            >
+              Remove TP / SL
+            </button>
+            <p className="mt-1.5 text-2xs text-surface-500">Cancels the existing TP/SL trigger orders for this position.</p>
+          </div>
+        )}
       </div>
     </Modal>
   );
