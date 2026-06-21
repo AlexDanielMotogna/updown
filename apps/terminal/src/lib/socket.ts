@@ -4,7 +4,15 @@ import { io, type Socket } from 'socket.io-client';
 
 // Connects to the UpDown API socket (same server as the web app) so the terminal
 // receives live reward events (user:reward) without polling. One shared socket.
-const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3002';
+// Upgrade http→https when the page is https (avoid mixed-content blocking).
+function socketUrl(): string {
+  const raw = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3002';
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && raw.startsWith('http://') && !raw.includes('localhost')) {
+    return raw.replace(/^http:\/\//, 'https://');
+  }
+  return raw;
+}
+const SOCKET_URL = socketUrl();
 
 let socket: Socket | null = null;
 
