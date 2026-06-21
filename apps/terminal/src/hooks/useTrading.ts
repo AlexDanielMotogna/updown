@@ -63,9 +63,11 @@ async function isAgentApproved(account: string, agent: string): Promise<boolean>
  * versa). localhost → "updown-terminal-dev"; deployed → "updown-terminal".
  */
 function agentName(): string {
+  // HyperLiquid caps the agent name at 16 chars: "updown-terminal" (15) for prod,
+  // a distinct ≤16-char "updown-term-dev" (15) for local so they don't collide.
   if (typeof window !== 'undefined') {
     const h = window.location.hostname;
-    if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local')) return 'updown-terminal-dev';
+    if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local')) return 'updown-term-dev';
   }
   return 'updown-terminal';
 }
