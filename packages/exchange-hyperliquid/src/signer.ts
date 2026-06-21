@@ -201,15 +201,13 @@ export class HyperliquidSigner implements ExchangeSigner {
       // HL can return status "ok" with a per-cancel error in statuses[] (it does
       // NOT always throw). Surface that so a failed cancel isn't reported as success.
       const st = (res as { response?: { data?: { statuses?: unknown[] } } })?.response?.data?.statuses?.[0];
-      console.error('[Exchange] cancel', params.orderId, 'asset', asset.index, '→', JSON.stringify(res));
-      if (st && st !== 'success' && typeof st === 'object' && 'error' in st) {
+      if (st && typeof st === 'object' && 'error' in st) {
         throw new Error(`HyperLiquid cancel rejected: ${(st as { error: string }).error}`);
       }
     } catch (e) {
       const msg = (e as Error)?.message ?? '';
-      console.error('[Exchange] cancel error for', params.orderId, ':', msg);
-      // Only a genuinely already-gone order is idempotent-success. (HL's exact
-      // phrasing.) Anything else must surface, not be masked.
+      // Only a genuinely already-gone order is idempotent-success (HL's exact
+      // phrasing). Anything else must surface, not be masked.
       if (/never placed, already canceled, or filled/i.test(msg)) return { success: true };
       throw e;
     }

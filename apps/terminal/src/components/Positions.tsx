@@ -225,7 +225,6 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
     if (!walletAddress) return;
     const tid = toast.loading(`Cancelling ${o.coin} order #${o.orderId}…`);
     const res = await cancelOrder({ walletAddress, symbol: o.symbol, orderId: o.orderId });
-    console.log('[DBG2 cancel]', o.orderId, '→ success=', res.success, '| err=', res.error?.message ?? '');
     toast.update(tid, res.success ? 'success' : 'error', res.success ? `Order #${o.orderId} cancelled` : res.error?.message ?? 'Cancel failed');
     refresh();
   }
@@ -365,9 +364,9 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
     const opp = p.side === 'LONG' ? 'SELL' : 'BUY';
     const base = p.symbol.replace('-USD', '');
     const tid = toast.loading(`Setting ${base} TP/SL…`);
-    // One HL `positionTpsl` group: OCO + auto-cancel when the position closes, so
-    // it never lingers onto the next position. The price cap + tick formatting are
-    // handled server-side.
+    // REPLACE, don't pile up: HL stores these as plain triggers (isPositionTpsl=false)
+    // that don't get replaced on a new set, so cancel the coin's existing TP/SL first.
+    await cancelTpslOrders(p.symbol);
     const res = await setTpsl({ walletAddress, symbol: p.symbol, side: opp, amount: p.amount, tpTriggerPrice: tp || undefined, slTriggerPrice: sl || undefined });
     if (res.success) {
       toast.update(tid, 'success', `${base} TP/SL set`);
