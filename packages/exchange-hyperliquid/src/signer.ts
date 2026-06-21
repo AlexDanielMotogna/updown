@@ -272,7 +272,8 @@ interface OrderStatusEntry {
 }
 
 interface OrderApiResponse {
-  response: { data: { statuses: OrderStatusEntry[] } };
+  // HL also returns plain-string statuses for trigger/queued orders.
+  response: { data: { statuses: (OrderStatusEntry | string)[] } };
 }
 
 export interface GroupOrderResult {
@@ -288,7 +289,10 @@ function mapGroupResults(res: unknown, count: number): GroupOrderResult[] {
   const out: GroupOrderResult[] = [];
   for (let i = 0; i < count; i++) {
     const s = statuses[i];
-    if (!s) { out.push({ success: false, error: 'no status returned' }); continue; }
+    if (s == null) { out.push({ success: false, error: 'no status returned' }); continue; }
+    // Trigger / queued orders come back as the plain strings "waitingForTrigger"
+    // or "waitingForFill" — both mean accepted (no oid yet), NOT an error.
+    if (typeof s === 'string') { out.push({ success: true, status: 'OPEN' as OrderStatus }); continue; }
     if (s.error) { out.push({ success: false, error: s.error }); continue; }
     if (s.resting) { out.push({ success: true, orderId: s.resting.oid, status: 'OPEN' as OrderStatus }); continue; }
     if (s.filled) { out.push({ success: true, orderId: s.filled.oid, status: 'FILLED' as OrderStatus }); continue; }
@@ -299,7 +303,11 @@ function mapGroupResults(res: unknown, count: number): GroupOrderResult[] {
 
 function mapOrderResult(res: unknown): OrderResult {
   const status = (res as OrderApiResponse).response?.data?.statuses?.[0];
-  if (!status) throw new Error('HyperLiquid order: empty status in response');
+  if (status == null) throw new Error('HyperLiquid order: empty status in response');
+  // Trigger / queued orders → "waitingForTrigger" / "waitingForFill" (accepted).
+  if (typeof status === 'string') {
+    return { orderId: 0, status: 'OPEN' as OrderStatus, metadata: { status } };
+  }
   if (status.error) throw new Error(`HyperLiquid order rejected: ${status.error}`);
   if (status.resting) {
     return { orderId: status.resting.oid, status: 'OPEN' as OrderStatus, metadata: { ...status } };
