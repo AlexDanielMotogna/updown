@@ -4,6 +4,7 @@ import { Providers } from './providers';
 import { MuiProvider } from '@/components/MuiProvider';
 import { ToastProvider } from '@/components/Toast';
 import { Navbar } from '@/components/Navbar';
+import { DebugHud } from '@/components/DebugHud';
 
 export const metadata: Metadata = {
   title: 'UpDown Terminal',
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <ToastProvider>
               <Navbar />
               <main className="min-h-0 flex-1 p-1">{children}</main>
+              <DebugHud />
             </ToastProvider>
           </MuiProvider>
         </Providers>

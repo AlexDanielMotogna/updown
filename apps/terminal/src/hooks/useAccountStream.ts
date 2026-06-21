@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { Account, Order, Position, TradeHistoryItem } from 'exchange-core';
 import { getStream } from '@/lib/stream';
+import { dbg } from '@/lib/debug';
 
 export interface AccountStream {
   account: Account | null;
@@ -32,10 +33,13 @@ export function useAccountStream(evmAddress?: string): AccountStream {
     setOrders([]);
     setFills([]);
     setReady(false);
+    dbg.wsReady(false);
     if (!evmAddress) return;
 
     const unsub = getStream().subscribeAccount(evmAddress, (e) => {
       setReady(true);
+      dbg.wsReady(true);
+      dbg.bumpWs(e.kind);
       switch (e.kind) {
         case 'account':
           setAccount(e.account);

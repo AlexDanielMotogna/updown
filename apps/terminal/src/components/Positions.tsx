@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { cancelOrder, placeOrder, setTpsl, IS_TESTNET } from '@/lib/api';
 import { useAccountStream } from '@/hooks/useAccountStream';
+import { dbg } from '@/lib/debug';
 import { useToast } from './Toast';
 import { Modal } from './Modal';
 import { TokenIcon } from './TokenIcon';
@@ -173,12 +174,15 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
   // the stream was delivering positions — so derive it, no mirror.
   const positions: Position[] = ws.positions;
 
+  // DEBUG: surface identity to the HUD.
+  useEffect(() => { dbg.identity(address, walletAddress); }, [address, walletAddress]);
+
   const reloadTpsl = useCallback(() => {
     if (!address) return;
     fetch(`/api/tpsl?address=${address}`, { cache: 'no-store' })
-      .then((r) => r.json())
+      .then(async (r) => { const t = await r.json(); dbg.rest('/api/tpsl', r.status, t?.data ? Object.keys(t.data).length : 0); return t; })
       .then((t) => { if (t.success) setTpslMap(t.data); })
-      .catch(() => {});
+      .catch((e) => dbg.error('tpsl fetch: ' + (e?.message ?? String(e))));
   }, [address]);
 
   // TP/SL triggers for open positions (REST). Poll while on the tab — HL's
@@ -194,7 +198,12 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
 
   const refresh = useCallback(async () => {
     if (!address || tab === 'positions') return;
-    const get = async (path: string) => (await fetch(`${path}?address=${address}`, { cache: 'no-store' })).json();
+    const get = async (path: string) => {
+      const r = await fetch(`${path}?address=${address}`, { cache: 'no-store' });
+      const j = await r.json();
+      dbg.rest(path, r.status, Array.isArray(j?.data) ? j.data.length : undefined);
+      return j;
+    };
     try {
       if (tab === 'orders') {
         const r = await get('/api/orders');
