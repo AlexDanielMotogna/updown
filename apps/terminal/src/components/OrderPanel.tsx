@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { OrderEntry } from './OrderEntry';
 import { useIdentity } from '@/hooks/useIdentity';
+import { useTradeRewardCredit } from '@/hooks/useTradeRewardCredit';
 
 // Lazy: AgentSetup pulls the HL SDK (approveAgent signing). Keep it out of the
 // market route's initial bundle — load it as an async chunk on demand.
@@ -15,6 +16,8 @@ const AgentSetup = dynamic(() => import('./AgentSetup').then((m) => m.AgentSetup
 
 function WithIdentity({ symbol, devWallet, devEvm }: { symbol: string; devWallet?: string; devEvm?: string }) {
   const { walletAddress, evmAddress } = useIdentity();
+  // Near-instant trading rewards: credit XP + UP coins when a fill lands.
+  useTradeRewardCredit(walletAddress ?? devWallet, evmAddress ?? devEvm);
   return (
     <div className="space-y-1">
       <OrderEntry symbol={symbol} walletAddress={walletAddress ?? devWallet} evmAddress={evmAddress ?? devEvm} />

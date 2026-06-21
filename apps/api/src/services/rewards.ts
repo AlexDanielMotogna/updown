@@ -1,7 +1,8 @@
 import { prisma } from '../db';
-import { getLevelForXp, XP_ACTIONS, getXpForLevel } from '../utils/levels';
+import { getLevelForXp, XP_ACTIONS, getXpForLevel, tradeXpForFill } from '../utils/levels';
 import {
   calculateCoinsForBet,
+  calculateCoinsForTrade,
   calculateWinBonus,
   calculateStreakBonus,
   calculateLevelUpBonus,
@@ -211,6 +212,142 @@ export async function awardBetResolution(walletAddress: string): Promise<void> {
       .catch(e => console.warn('[Rewards] referrer grant failed:', e instanceof Error ? e.message : e));
   } catch (error) {
     console.error('[Rewards] awardBetResolution failed:', error);
+  }
+}
+
+/** A normalized HyperLiquid fill for trading-XP crediting. */
+export interface TradeFillInput {
+  tid: bigint;
+  coin: string;
+  side: 'BUY' | 'SELL';
+  px: string;
+  sz: string;
+  feeUsd: number;
+  notionalUsd: number;
+  pnlUsd?: number | null;
+  dir?: string | null;
+  time: number;
+}
+
+export interface AwardTradeFillsResult {
+  newFills: number;
+  xpAwarded: bigint;
+  coinsAwarded: bigint;
+  newLevel: number;
+  levelUp: boolean;
+}
+
+/**
+ * Credit trading XP from HyperLiquid fills (volume-based, maker/taker-weighted via
+ * fee). Persists each fill in `trade_fills` (unique `tid` → idempotent: re-runs
+ * skip already-stored fills), increments the user's unified `totalXp`/`level`, and
+ * logs one TRADE_VOLUME RewardLog. Farm-proof: XP only ever from real fills, once
+ * each. See docs/PLAN-TRADING-XP.md.
+ */
+export async function awardTradeFills(
+  walletAddress: string,
+  accountAddress: string,
+  fills: TradeFillInput[],
+): Promise<AwardTradeFillsResult> {
+  const empty: AwardTradeFillsResult = { newFills: 0, xpAwarded: 0n, coinsAwarded: 0n, newLevel: 0, levelUp: false };
+  if (fills.length === 0) return empty;
+
+  try {
+    // Skip fills we've already stored (idempotency by exchange fill id).
+    const tids = fills.map((f) => f.tid);
+    const existing = await prisma.tradeFill.findMany({
+      where: { tid: { in: tids } },
+      select: { tid: true },
+    });
+    const seen = new Set(existing.map((e) => e.tid));
+    const fresh = fills.filter((f) => !seen.has(f.tid));
+    if (fresh.length === 0) return empty;
+
+    const user = await prisma.user.findUnique({ where: { walletAddress } });
+    if (!user) return empty;
+
+    let xpAward = 0n;
+    let coinsAward = 0n;
+    const rows = fresh.map((f) => {
+      const xp = tradeXpForFill(f.feeUsd);
+      xpAward += xp;
+      coinsAward += calculateCoinsForTrade(f.notionalUsd, user.level);
+      return {
+        walletAddress,
+        accountAddress: accountAddress.toLowerCase(),
+        tid: f.tid,
+        coin: f.coin,
+        side: f.side,
+        px: f.px,
+        sz: f.sz,
+        notionalUsd: String(f.notionalUsd),
+        feeUsd: String(f.feeUsd),
+        pnlUsd: f.pnlUsd == null ? null : String(f.pnlUsd),
+        dir: f.dir ?? null,
+        xpAwarded: xp,
+        time: BigInt(Math.round(f.time)),
+      };
+    });
+
+    const newTotalXp = user.totalXp + xpAward;
+    const newLevel = getLevelForXp(newTotalXp);
+    const levelUp = newLevel > user.level;
+    const totalNotional = fresh.reduce((s, f) => s + f.notionalUsd, 0);
+    const totalFee = fresh.reduce((s, f) => s + Math.max(0, f.feeUsd), 0);
+
+    await prisma.$transaction(async (tx) => {
+      // createMany with skipDuplicates guards a concurrent poller racing on tid.
+      await tx.tradeFill.createMany({ data: rows, skipDuplicates: true });
+      if (xpAward > 0n || coinsAward > 0n) {
+        await tx.user.update({
+          where: { walletAddress },
+          data: {
+            totalXp: { increment: xpAward },
+            level: newLevel,
+            coinsBalance: { increment: coinsAward },
+            coinsLifetime: { increment: coinsAward },
+          },
+        });
+        if (xpAward > 0n) {
+          await tx.rewardLog.create({
+            data: {
+              walletAddress,
+              rewardType: 'XP',
+              reason: 'TRADE_VOLUME',
+              amount: xpAward,
+              metadata: { fills: fresh.length, totalNotional, totalFee, tids: tids.map(String) },
+            },
+          });
+        }
+        if (coinsAward > 0n) {
+          await tx.rewardLog.create({
+            data: {
+              walletAddress,
+              rewardType: 'COINS',
+              reason: 'TRADE_VOLUME',
+              amount: coinsAward,
+              metadata: { fills: fresh.length, totalNotional },
+            },
+          });
+        }
+      }
+    });
+
+    if (xpAward > 0n || coinsAward > 0n) {
+      emitUserReward(walletAddress, {
+        xp: Number(xpAward),
+        coins: Number(coinsAward),
+        level: newLevel,
+        levelUp,
+        totalXp: Number(newTotalXp),
+        xpToNextLevel: Number(getXpForLevel(newLevel + 1) - newTotalXp),
+      });
+    }
+
+    return { newFills: fresh.length, xpAwarded: xpAward, coinsAwarded: coinsAward, newLevel, levelUp };
+  } catch (error) {
+    console.error('[Rewards] awardTradeFills failed:', error);
+    return empty;
   }
 }
 

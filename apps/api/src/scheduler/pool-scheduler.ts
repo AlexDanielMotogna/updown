@@ -82,8 +82,10 @@ export class PoolScheduler {
       console.log(`[Scheduler] Guard for ${template.asset}/${template.intervalKey}: ${template.cronExpression}`);
     }
 
-    // Status transitions every 10 seconds (reduces RPC pressure across instances)
-    const transitionJob = cron.schedule('*/10 * * * * *', () => {
+    // Status transitions every 30 seconds. (Was 10s; 30s cuts the per-tick RPC
+    // ~3× — closures/claimable/resolution polling — at the cost of resolving a
+    // pool within ≤30s of its end instead of ≤10s, which is fine.)
+    const transitionJob = cron.schedule('*/30 * * * * *', () => {
       this.runTracked('transitions', () => Promise.all([
         this.processStatusTransitions(),
         this.resolver.processResolutions(),
@@ -92,17 +94,19 @@ export class PoolScheduler {
       ]));
     });
     this.jobs.push(transitionJob);
-    this.initJobHealth('transitions', '*/10 * * * * *');
-    console.log('[Scheduler] Scheduled transition & resolution job: every 10 seconds');
+    this.initJobHealth('transitions', '*/30 * * * * *');
+    console.log('[Scheduler] Scheduled transition & resolution job: every 30 seconds');
 
     // Retry auto-payout for CLAIMABLE pools with unpaid winners (drains any
-    // backlog left by failed one-shot payouts; batch-limited inside).
-    const retryPayoutJob = cron.schedule('*/60 * * * * *', () => {
+    // backlog left by failed one-shot payouts; batch-limited inside). This is the
+    // FALLBACK only — winners are paid by the one-shot at resolution — so a failed
+    // payout retrying every 5 min (was 60s) is fine and cuts RPC on any backlog.
+    const retryPayoutJob = cron.schedule('0 */5 * * * *', () => {
       this.runTracked('retry-unpaid-payouts', () => this.resolver.retryUnpaidClaimable());
     });
     this.jobs.push(retryPayoutJob);
-    this.initJobHealth('retry-unpaid-payouts', '*/60 * * * * *');
-    console.log('[Scheduler] Scheduled unpaid-payout retry sweep: every 60 seconds');
+    this.initJobHealth('retry-unpaid-payouts', '0 */5 * * * *');
+    console.log('[Scheduler] Scheduled unpaid-payout retry sweep: every 5 minutes');
 
     // Return rent of losing bets to bettors (no-op unless CLOSE_LOSING_BETS=on,
     // which requires the close_losing_bet program instruction deployed).

@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useIdentity } from '@/hooks/useIdentity';
 import { fetchProfile, type UserProfile } from '@/lib/api';
+import { onProfileRefresh } from '@/lib/profileEvents';
+import { useRewardSocket } from '@/hooks/useRewardSocket';
 import { UserLevelBadge } from './UserLevelBadge';
 
 const UP_COINS_DIVISOR = 100;
@@ -17,15 +19,20 @@ function fmtCoins(n: number): string {
 export function ProfileStats() {
   const { walletAddress } = useIdentity();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  useRewardSocket(walletAddress); // live updates from the API socket (any source)
+
+  const load = useCallback(() => {
+    if (walletAddress) fetchProfile(walletAddress).then(setProfile);
+  }, [walletAddress]);
 
   useEffect(() => {
     if (!walletAddress) { setProfile(null); return; }
-    let alive = true;
-    const load = () => fetchProfile(walletAddress).then((p) => alive && setProfile(p));
     load();
     const id = window.setInterval(load, 30_000);
-    return () => { alive = false; window.clearInterval(id); };
-  }, [walletAddress]);
+    // Refresh immediately when a trade reward is credited (near-instant chip update).
+    const off = onProfileRefresh(load);
+    return () => { window.clearInterval(id); off(); };
+  }, [walletAddress, load]);
 
   if (!profile) return null;
 

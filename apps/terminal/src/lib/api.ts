@@ -58,6 +58,15 @@ export function setLeverage(input: { walletAddress: string; symbol: string; leve
   return post<{ success: boolean }>('/api/exchange/leverage', { ...input, isTestnet: IS_TESTNET });
 }
 
+/** Near-instant trading-reward crediting: ping the API after a fill; it
+ * re-verifies via userFills and credits XP + UP coins. Server-verified. */
+export function creditFills(walletAddress: string) {
+  return post<{ newFills: number; xpAwarded: number; coinsAwarded: number; level: number; levelUp: boolean }>(
+    '/api/exchange/credit-fills',
+    { walletAddress, isTestnet: IS_TESTNET },
+  );
+}
+
 // ── Identity + agent lifecycle ────────────────────────────────────────────
 
 /** Resolve a linked wallet → the Solana identity (walletAddress) or null. */

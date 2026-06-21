@@ -34,6 +34,7 @@ import { GrowthOverview } from './components/GrowthOverview';
 import { ResolutionInspector } from './components/ResolutionInspector';
 import { ResolutionSuggestions } from './components/ResolutionSuggestions';
 import { LiquidityBot } from './components/LiquidityBot';
+import { PoolCreation } from './components/PoolCreation';
 
 // Grouped navigation (Phase 1 of PLAN-ADMIN-RESTRUCTURE): the flat 17-tab bar
 // becomes 5 sidebar groups. Components are unchanged — only relocated. Later
@@ -50,6 +51,7 @@ const NAV_GROUPS: { group: string; items: NavEntry[] }[] = [
   { group: 'Pools', items: [
     { id: 'pools', label: 'Browse', Component: PoolManagement },
     { id: 'attention', label: 'Needs Attention', Component: NeedsAttention },
+    { id: 'pool-creation', label: 'Creation', Component: PoolCreation },
   ] },
   { group: 'Resolution', items: [
     { id: 'metrics', label: 'Metrics', Component: ResolutionMetrics },
