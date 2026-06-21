@@ -77,7 +77,7 @@ export function OrderEntry({
   const [mark, setMark] = useState(0);
   const [maxLev, setMaxLev] = useState(50);
   const [available, setAvailable] = useState(0);
-  const { account: acct } = useAccountStream(evmAddress);
+  const { account: acct, ready: accountReady } = useAccountStream(evmAddress);
   const { enabled: tradingEnabled, builderApproved, busy: enabling, enableTrading, approveBuilder } = useTrading(walletAddress, evmAddress);
   const { ready: privyReady, authenticated, login, connectWallet } = usePrivy();
   const [approvingBuilder, setApprovingBuilder] = useState(false);
@@ -324,6 +324,10 @@ export function OrderEntry({
   const buy = side === 'BUY';
   const needsAgent = !!walletAddress && !tradingEnabled;
   const needsBuilder = !!walletAddress && tradingEnabled && builderApproved === false;
+  // A brand-new HL account (created via our app, never funded) has 0 equity, and
+  // HyperLiquid rejects approveAgent/orders with "Must deposit before performing
+  // actions". Prompt a deposit first instead of a failing "Enable Trading".
+  const needsDeposit = !!walletAddress && !!evmAddress && accountReady && !!acct && Number(acct.accountEquity) <= 0;
   // Primary-action button gating, in order. All of it lives on the order button
   // (no separate cards): sign in → connect wallet → enable trading → approve
   // builder fee → Buy/Long.
@@ -466,6 +470,8 @@ export function OrderEntry({
         <button onClick={login} className={ctaCls}>Connect to trade</button>
       ) : !evmAddress ? (
         <button onClick={() => connectWallet({ walletChainType: 'ethereum-only' })} className={ctaCls}>Connect wallet</button>
+      ) : needsDeposit ? (
+        <button onClick={() => setShowDeposit(true)} className={ctaCls}>Deposit to trade</button>
       ) : needsAgent ? (
         <button onClick={enableTrading} disabled={enabling} className={ctaCls}>
           {enabling ? 'Enabling…' : 'Enable Trading'}
