@@ -190,13 +190,28 @@ export class HyperliquidSigner implements ExchangeSigner {
     for (const params of paramsList) orders.push(await this.prepareOrder(params));
     const builder = this.builderField();
     const res = await client.order({ orders, grouping, ...(builder ? { builder } : {}) });
+    // Diagnostic: surface HL's exact statuses for grouped (TP/SL) orders — a leg HL
+    // accepts-but-parks comes back as a bare "waitingForTrigger" string, which looks
+    // like success. Logged so we can see the real outcome in the API logs.
+    console.error(`[Exchange] group order HL raw (grouping=${grouping}):`, JSON.stringify(res));
     return mapGroupResults(res, orders.length);
   }
 
   async cancel(params: CancelParams, _wallet?: WalletSigner): Promise<Result> {
     const client = await this.getClient();
     const asset = await this.resolveAsset(params.symbol);
-    await client.cancel({ cancels: [{ a: asset.index, o: Number(params.orderId) }] });
+    try {
+      await client.cancel({ cancels: [{ a: asset.index, o: Number(params.orderId) }] });
+    } catch (e) {
+      // An order that's already gone (canceled/filled/never-placed) is NOT a real
+      // failure — e.g. a positionTpsl leg HL auto-canceled when the position closed.
+      // Treat it as success so the app doesn't surface a spurious 502.
+      const msg = (e as Error)?.message ?? '';
+      if (/never placed|already cancel|already filled|filled|missing order|was never|not found/i.test(msg)) {
+        return { success: true };
+      }
+      throw e;
+    }
     return { success: true };
   }
 

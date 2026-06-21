@@ -340,13 +340,10 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
       res = await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'MARKET', amount: size, reduceOnly: true });
     }
     toast.update(tid, res.success ? 'success' : 'error', res.success ? `${base} position ${mode === 'reverse' ? 'reversed' : 'close submitted'}` : res.error?.message ?? 'Close failed');
-    // Clear leftover TP/SL so it doesn't attach to the next position on this coin.
-    // Only on a full market close or reverse — a partial close keeps them
-    // (reduce-only caps to the remainder); a limit close hasn't closed yet.
-    const fullClose = !opts?.size || Number(opts.size) >= Number(p.amount);
-    if (res.success && (mode === 'reverse' || (mode === 'market' && fullClose))) {
-      await cancelTpslOrders(p.symbol);
-    }
+    // NOTE: do NOT cancel TP/SL here. They're placed as a `positionTpsl` group,
+    // which HyperLiquid auto-cancels when the position closes. Cancelling again
+    // races that auto-cancel and hits "Order was never placed/already canceled"
+    // → a spurious 502. (cancelTpslOrders is kept only for the explicit Remove.)
     refresh();
     reloadTpsl();
   }
