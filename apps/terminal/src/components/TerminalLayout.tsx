@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { MarketHeader } from './MarketHeader';
 import { Chart } from './Chart';
@@ -45,6 +46,17 @@ export function TerminalLayout({
   devWallet?: string;
   devEvm?: string;
 }) {
+  // Render the workspace CLIENT-ONLY. The resizable panels read their sizes from
+  // localStorage and the cells render live, locale-formatted numbers — neither can
+  // be server-rendered without a hydration mismatch (#418/#425). On prod those
+  // mismatches make React throw away + re-render the tree, which leaves effects
+  // (notably the live WebSocket that pushes position/order updates) unsettled, so
+  // the UI stops reflecting actions. Mounting after the first client render makes
+  // SSR and the first client paint identical (empty), eliminating the mismatch.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return <div className="h-full bg-surface-900" />;
+
   return (
     <div className="relative h-full">
       {/* Blocking connect gate — overlays the workspace until an EVM wallet is
