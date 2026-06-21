@@ -146,7 +146,6 @@ function statusStyle(status: string): { label: string; cls: string } {
 
 export function Positions({ address, walletAddress }: { address?: string; walletAddress?: string }) {
   const [tab, setTab] = useState<Tab>('positions');
-  const [positions, setPositions] = useState<Position[]>([]);
   const [orders, setOrders] = useState<OpenOrder[]>([]);
   const [trades, setTrades] = useState<Fill[]>([]);
   const [funding, setFunding] = useState<FundingItem[]>([]);
@@ -169,7 +168,10 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
   // Live positions over the WS account stream (realtime PnL/mark). The rich
   // history tabs still come from REST (fields the WS openOrders feed lacks).
   const ws = useAccountStream(address);
-  useEffect(() => { setPositions(ws.positions); }, [ws.positions]);
+  // Use the WS positions directly. A local useState mirror (setPositions in an
+  // effect) failed to sync in the prod build — the table stayed empty even though
+  // the stream was delivering positions — so derive it, no mirror.
+  const positions: Position[] = ws.positions;
 
   const reloadTpsl = useCallback(() => {
     if (!address) return;
@@ -438,7 +440,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
                     </Td>
                     <Td className="text-surface-100">{Number(p.liquidationPrice) > 0 ? px(p.liquidationPrice) : 'N/A'}</Td>
                     <Td className="text-surface-100">
-                      ${n(p.margin)} <span className="text-2xs capitalize text-surface-400">({p.metadata?.leverageType ?? 'cross'})</span>
+                      ${n(p.margin)} <span className="text-2xs capitalize text-surface-400">({String(p.metadata?.leverageType ?? 'cross')})</span>
                     </Td>
                     <Td className={fund >= 0 ? 'text-win-500' : 'text-loss-500'}>{fund >= 0 ? '+' : '-'}${n(Math.abs(fund))}</Td>
                     <Td>

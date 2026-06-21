@@ -32,12 +32,9 @@ export function useAccountStream(evmAddress?: string): AccountStream {
     setOrders([]);
     setFills([]);
     setReady(false);
-    if (!evmAddress) { console.log('[DBG acct] no evmAddress → not subscribing'); return; }
+    if (!evmAddress) return;
 
-    console.log('[DBG acct] subscribeAccount', evmAddress);
     const unsub = getStream().subscribeAccount(evmAddress, (e) => {
-      console.log('[DBG acct] event', e.kind,
-        e.kind === 'positions' ? `(${e.positions.length})` : e.kind === 'orders' ? `(${e.orders.length})` : '');
       setReady(true);
       switch (e.kind) {
         case 'account':
