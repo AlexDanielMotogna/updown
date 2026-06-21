@@ -13,6 +13,10 @@ function endpoint(): HlEndpoint {
 let stream: HyperliquidStream | null = null;
 
 export function getStream(): HyperliquidStream {
-  if (!stream) stream = new HyperliquidStream({ endpoint: endpoint() });
+  if (!stream) {
+    const ep = endpoint();
+    console.log('[DBG stream] creating HyperliquidStream', ep);
+    stream = new HyperliquidStream({ endpoint: ep });
+  }
   return stream;
 }

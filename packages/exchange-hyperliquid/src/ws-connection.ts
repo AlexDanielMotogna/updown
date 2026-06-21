@@ -109,17 +109,25 @@ export class HyperliquidWsConnection {
   private ensureConnected(): void {
     if (this.ws) return;
     this.closedByUser = false;
-    const ws = this.wsFactory(this.url);
+    console.log('[DBG ws] connecting', this.url);
+    let ws: WsLike;
+    try {
+      ws = this.wsFactory(this.url);
+    } catch (e) {
+      console.log('[DBG ws] factory threw', (e as Error)?.message);
+      throw e;
+    }
     this.ws = ws;
     ws.onopen = () => {
       this.opened = true;
       this.reconnectAttempts = 0;
+      console.log('[DBG ws] OPEN; (re)subscribing', this.entries.size, 'feeds');
       // (Re)subscribe to everything currently registered.
       for (const entry of this.entries.values()) this.sendSub('subscribe', entry.subscription);
     };
     ws.onmessage = (ev) => this.handleMessage(ev.data);
-    ws.onclose = () => this.handleClose();
-    ws.onerror = () => this.ws?.close();
+    ws.onclose = () => { console.log('[DBG ws] CLOSE'); this.handleClose(); };
+    ws.onerror = (e) => { console.log('[DBG ws] ERROR', e); this.ws?.close(); };
   }
 
   private handleClose(): void {
@@ -136,7 +144,8 @@ export class HyperliquidWsConnection {
   }
 
   private sendSub(method: 'subscribe' | 'unsubscribe', subscription: Subscription): void {
-    if (!this.ws || !this.opened) return; // will be (re)sent on open
+    if (!this.ws || !this.opened) { console.log('[DBG ws] defer', method, subscription.type, '(not open yet)'); return; }
+    console.log('[DBG ws] send', method, subscription.type);
     this.ws.send(JSON.stringify({ method, subscription }));
   }
 
@@ -154,7 +163,15 @@ export class HyperliquidWsConnection {
     const data = (raw0 ?? msg.data) as { coin?: unknown; user?: unknown } | undefined;
     const key = routingKey({ channel: msg.channel, coin: data?.coin, user: data?.user });
     const entry = this.entries.get(key);
-    if (!entry) return;
+    if (!entry) {
+      if (msg.channel !== 'l2Book' && msg.channel !== 'allMids' && msg.channel !== 'trades') {
+        console.log('[DBG ws] msg', msg.channel, 'key=', key, '→ NO matching handler. keys:', [...this.entries.keys()]);
+      }
+      return;
+    }
+    if (msg.channel !== 'l2Book' && msg.channel !== 'allMids' && msg.channel !== 'trades') {
+      console.log('[DBG ws] msg', msg.channel, '→ handler matched');
+    }
     entry.last = msg.data;
     for (const handler of entry.handlers) handler(msg.data);
   }
