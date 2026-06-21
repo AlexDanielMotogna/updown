@@ -22,6 +22,17 @@ import { decryptSecret, encryptSecret } from '../utils/exchange-keys';
 export type ExchangeName = 'hyperliquid';
 
 /**
+ * The on-exchange account (EVM/HL wallet) is already connected by a DIFFERENT
+ * UpDown user. One account ↔ one user per network (anti dual-binding / XP farming).
+ */
+export class AccountLinkedElsewhereError extends Error {
+  constructor() {
+    super('This HyperLiquid account is already linked to another UpDown account');
+    this.name = 'AccountLinkedElsewhereError';
+  }
+}
+
+/**
  * Endpoint is derived STRICTLY from the connection's network flag — never from a
  * single shared URL env — so a mainnet connection can never accidentally route to
  * testnet (or vice-versa). Custom endpoints, if ever needed, should be per-network.
@@ -97,17 +108,38 @@ export async function createPendingAgentConnection(input: {
   exchange?: ExchangeName;
   isTestnet?: boolean;
 }): Promise<{ agentAddress: `0x${string}` }> {
-  const agent = generateAgentWallet();
-  await upsertConnection({
-    userId: input.userId,
-    exchange: input.exchange,
-    accountAddress: input.accountAddress,
-    agentPrivateKey: agent.privateKey,
-    agentAddress: agent.address,
-    agentName: input.agentName,
-    isTestnet: input.isTestnet,
-    active: false,
+  const exchange = input.exchange ?? 'hyperliquid';
+  const isTestnet = input.isTestnet ?? false;
+  const accountAddress = input.accountAddress.toLowerCase();
+
+  // Bind-once: reject if this on-exchange account is already connected by a
+  // different user (one account ↔ one user per network). The DB unique index
+  // `exchange_account_unique` is the race-safe backstop below.
+  const taken = await prisma.exchangeConnection.findFirst({
+    where: { exchange, isTestnet, accountAddress, userId: { not: input.userId } },
+    select: { id: true },
   });
+  if (taken) throw new AccountLinkedElsewhereError();
+
+  const agent = generateAgentWallet();
+  try {
+    await upsertConnection({
+      userId: input.userId,
+      exchange,
+      accountAddress,
+      agentPrivateKey: agent.privateKey,
+      agentAddress: agent.address,
+      agentName: input.agentName,
+      isTestnet,
+      active: false,
+    });
+  } catch (e) {
+    // P2002 on the unique index = another user grabbed this account concurrently.
+    if (e && typeof e === 'object' && (e as { code?: string }).code === 'P2002') {
+      throw new AccountLinkedElsewhereError();
+    }
+    throw e;
+  }
   return { agentAddress: agent.address };
 }
 

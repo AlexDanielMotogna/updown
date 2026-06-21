@@ -284,6 +284,9 @@ model ExchangeConnection {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, exchange, isTestnet])
+  /// One on-exchange account ↔ one UpDown user: a HyperLiquid/EVM account can be
+  /// connected by exactly one user per network (anti dual-binding / XP farming).
+  @@unique([exchange, isTestnet, accountAddress], map: "exchange_account_unique")
   @@index([accountAddress])
   @@map("exchange_connections")
 }

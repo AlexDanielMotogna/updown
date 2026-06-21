@@ -18,6 +18,7 @@ import { z } from 'zod';
 import { prisma } from '../db';
 import {
   activateConnection,
+  AccountLinkedElsewhereError,
   buildHyperliquidSigner,
   createPendingAgentConnection,
   getConnection,
@@ -180,6 +181,9 @@ exchangeRouter.post('/agent/generate', async (req, res) => {
 
     res.json({ success: true, data: { agentAddress, isTestnet: parsed.data.isTestnet } });
   } catch (error) {
+    if (error instanceof AccountLinkedElsewhereError) {
+      return res.status(409).json({ success: false, error: { code: 'ACCOUNT_LINKED_ELSEWHERE', message: error.message } });
+    }
     console.error('[Exchange] agent/generate error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to generate agent' } });
   }
