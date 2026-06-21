@@ -225,6 +225,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
     if (!walletAddress) return;
     const tid = toast.loading(`Cancelling ${o.coin} order #${o.orderId}…`);
     const res = await cancelOrder({ walletAddress, symbol: o.symbol, orderId: o.orderId });
+    console.log('[DBG2 cancel]', o.orderId, '→ success=', res.success, '| err=', res.error?.message ?? '');
     toast.update(tid, res.success ? 'success' : 'error', res.success ? `Order #${o.orderId} cancelled` : res.error?.message ?? 'Cancel failed');
     refresh();
   }

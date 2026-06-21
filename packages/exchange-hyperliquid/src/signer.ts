@@ -197,15 +197,20 @@ export class HyperliquidSigner implements ExchangeSigner {
     const client = await this.getClient();
     const asset = await this.resolveAsset(params.symbol);
     try {
-      await client.cancel({ cancels: [{ a: asset.index, o: Number(params.orderId) }] });
-    } catch (e) {
-      // An order that's already gone (canceled/filled/never-placed) is NOT a real
-      // failure — e.g. a positionTpsl leg HL auto-canceled when the position closed.
-      // Treat it as success so the app doesn't surface a spurious 502.
-      const msg = (e as Error)?.message ?? '';
-      if (/never placed|already cancel|already filled|filled|missing order|was never|not found/i.test(msg)) {
-        return { success: true };
+      const res = await client.cancel({ cancels: [{ a: asset.index, o: Number(params.orderId) }] });
+      // HL can return status "ok" with a per-cancel error in statuses[] (it does
+      // NOT always throw). Surface that so a failed cancel isn't reported as success.
+      const st = (res as { response?: { data?: { statuses?: unknown[] } } })?.response?.data?.statuses?.[0];
+      console.error('[Exchange] cancel', params.orderId, 'asset', asset.index, '→', JSON.stringify(res));
+      if (st && st !== 'success' && typeof st === 'object' && 'error' in st) {
+        throw new Error(`HyperLiquid cancel rejected: ${(st as { error: string }).error}`);
       }
+    } catch (e) {
+      const msg = (e as Error)?.message ?? '';
+      console.error('[Exchange] cancel error for', params.orderId, ':', msg);
+      // Only a genuinely already-gone order is idempotent-success. (HL's exact
+      // phrasing.) Anything else must surface, not be masked.
+      if (/never placed, already canceled, or filled/i.test(msg)) return { success: true };
       throw e;
     }
     return { success: true };
