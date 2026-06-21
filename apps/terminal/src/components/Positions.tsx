@@ -307,6 +307,21 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
     URL.revokeObjectURL(url);
   }
 
+  /** Cancel any resting TP/SL trigger orders for a coin. These are reduce-only and
+   * survive a manual close, so without this they'd attach to the NEXT position
+   * opened on the same coin. Best-effort. */
+  async function cancelTpslOrders(symbol: string) {
+    if (!walletAddress || !address) return;
+    try {
+      const r = await fetch(`/api/orders?address=${address}`, { cache: 'no-store' }).then((x) => x.json());
+      if (!r.success) return;
+      const triggers = (r.data as Array<{ orderId: number; symbol: string; trigger: unknown }>).filter(
+        (o) => o.symbol === symbol && o.trigger,
+      );
+      await Promise.all(triggers.map((o) => cancelOrder({ walletAddress, symbol, orderId: o.orderId })));
+    } catch { /* best-effort */ }
+  }
+
   async function onClose(p: Position, mode: CloseMode, opts?: { size?: string; limitPrice?: string }) {
     if (!walletAddress) return;
     const opp = p.side === 'LONG' ? 'SELL' : 'BUY';
@@ -325,7 +340,15 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
       res = await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'MARKET', amount: size, reduceOnly: true });
     }
     toast.update(tid, res.success ? 'success' : 'error', res.success ? `${base} position ${mode === 'reverse' ? 'reversed' : 'close submitted'}` : res.error?.message ?? 'Close failed');
+    // Clear leftover TP/SL so it doesn't attach to the next position on this coin.
+    // Only on a full market close or reverse — a partial close keeps them
+    // (reduce-only caps to the remainder); a limit close hasn't closed yet.
+    const fullClose = !opts?.size || Number(opts.size) >= Number(p.amount);
+    if (res.success && (mode === 'reverse' || (mode === 'market' && fullClose))) {
+      await cancelTpslOrders(p.symbol);
+    }
     refresh();
+    reloadTpsl();
   }
 
   async function onCloseAll() {
