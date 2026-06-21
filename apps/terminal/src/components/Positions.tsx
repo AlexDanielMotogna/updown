@@ -179,9 +179,15 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
       .catch(() => {});
   }, [address]);
 
-  // TP/SL triggers for open positions (REST; refresh when the position set changes).
+  // TP/SL triggers for open positions (REST). Poll while on the tab — HL's
+  // frontendOpenOrders lags a moment after placing, and adding a TP/SL to an
+  // existing position doesn't change positions.length, so without a poll a freshly
+  // set TP/SL would never re-fetch and would look like it "didn't get set".
   useEffect(() => {
-    if (tab === 'positions') reloadTpsl();
+    if (tab !== 'positions') return;
+    reloadTpsl();
+    const id = window.setInterval(reloadTpsl, 5000);
+    return () => window.clearInterval(id);
   }, [tab, reloadTpsl, ws.positions.length]);
 
   const refresh = useCallback(async () => {
@@ -337,7 +343,10 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
     if (tp) { const r = await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'TAKE_PROFIT_MARKET', amount: p.amount, triggerPrice: tp, price: cap(tp), reduceOnly: true }); if (!r.success) errs.push(`TP: ${r.error?.message ?? 'failed'}`); }
     if (sl) { const r = await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'STOP_MARKET', amount: p.amount, triggerPrice: sl, price: cap(sl), reduceOnly: true }); if (!r.success) errs.push(`SL: ${r.error?.message ?? 'failed'}`); }
     toast.update(tid, errs.length ? 'error' : 'success', errs.length ? `${base} TP/SL failed — ${errs.join('; ')}` : `${base} TP/SL set`);
+    // Immediate + delayed reload — HL needs a moment to surface the new trigger
+    // orders in frontendOpenOrders.
     reloadTpsl();
+    setTimeout(reloadTpsl, 1500);
   }
 
   const counts: Record<Tab, number> = {
