@@ -6,6 +6,7 @@ import { Chart } from './Chart';
 import { Orderbook } from './Orderbook';
 import { OrderPanel } from './OrderPanel';
 import { PositionsPanel } from './PositionsPanel';
+import { ConnectGate } from './ConnectGate';
 import type { Ticker } from '@/lib/types';
 
 /** Vertical (column-splitting) drag handle. */
@@ -45,7 +46,10 @@ export function TerminalLayout({
   devEvm?: string;
 }) {
   return (
-    <div className="h-full">
+    <div className="relative h-full">
+      {/* Blocking connect gate — overlays the workspace until an EVM wallet is
+          connected (HyperLiquid needs an EVM chain). Navbar stays visible. */}
+      <ConnectGate devEvm={devEvm} />
       <PanelGroup direction="horizontal" autoSaveId="updown-terminal-main">
         {/* Left work area: (chart | orderbook) over positions */}
         <Panel defaultSize={82} minSize={50}>
