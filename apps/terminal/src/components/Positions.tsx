@@ -340,10 +340,14 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
       res = await placeOrder({ walletAddress, symbol: p.symbol, side: opp, type: 'MARKET', amount: size, reduceOnly: true });
     }
     toast.update(tid, res.success ? 'success' : 'error', res.success ? `${base} position ${mode === 'reverse' ? 'reversed' : 'close submitted'}` : res.error?.message ?? 'Close failed');
-    // NOTE: do NOT cancel TP/SL here. They're placed as a `positionTpsl` group,
-    // which HyperLiquid auto-cancels when the position closes. Cancelling again
-    // races that auto-cancel and hits "Order was never placed/already canceled"
-    // → a spurious 502. (cancelTpslOrders is kept only for the explicit Remove.)
+    // Cancel any TP/SL triggers after a full close/reverse so they don't attach to
+    // the next position. HL stores these as plain reduce-only triggers
+    // (isPositionTpsl=false), so they do NOT auto-cancel on close. signer.cancel is
+    // idempotent, so if any are already gone this is a safe no-op (no 502).
+    const fullClose = !opts?.size || Number(opts.size) >= Number(p.amount);
+    if (res.success && (mode === 'reverse' || (mode === 'market' && fullClose))) {
+      await cancelTpslOrders(p.symbol);
+    }
     refresh();
     reloadTpsl();
   }

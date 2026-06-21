@@ -21,7 +21,12 @@ import type { Ticker } from './types';
 export type { Ticker } from './types';
 
 export function hlEndpoint(): HlEndpoint {
-  const url = process.env.HYPERLIQUID_API_URL ?? process.env.NEXT_PUBLIC_HYPERLIQUID_API_URL;
+  // Prefer the PUBLIC url — it's the network the terminal's client uses (stream,
+  // orders, IS_TESTNET). A stray server-only HYPERLIQUID_API_URL (e.g. copied
+  // from the API service) must NOT override it, or the server read routes
+  // (/api/tpsl, /api/orders, /api/markets) query a DIFFERENT network than the
+  // user trades on — e.g. reading testnet while orders rest on mainnet.
+  const url = process.env.NEXT_PUBLIC_HYPERLIQUID_API_URL ?? process.env.HYPERLIQUID_API_URL;
   if (url) return { apiUrl: url.replace(/\/$/, '') };
   return process.env.NEXT_PUBLIC_HYPERLIQUID_TESTNET === 'true' ? TESTNET : MAINNET;
 }
