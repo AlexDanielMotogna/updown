@@ -32,6 +32,44 @@ async function fetchMaxBuilderFee(user: string, builder: string): Promise<number
   }
 }
 
+/**
+ * Is `agent` currently an approved API/agent wallet for `account` on HL? The DB
+ * can hold a STALE agent — HL identifies agents by name, so approving a new agent
+ * (e.g. on another device/env with the same account) revokes the old one while the
+ * DB still points at it, and every order then fails "User or API Wallet … does not
+ * exist". We verify on-chain and re-prompt Enable Trading when it's gone.
+ * Fail-OPEN (returns true) on a network hiccup so we don't nag spuriously.
+ */
+async function isAgentApproved(account: string, agent: string): Promise<boolean> {
+  try {
+    const r = await fetch(`${HL_API}/info`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'extraAgents', user: account }),
+    });
+    if (!r.ok) return true;
+    const agents = (await r.json()) as Array<{ address?: string }> | null;
+    if (!Array.isArray(agents)) return true;
+    return agents.some((a) => a?.address?.toLowerCase() === agent.toLowerCase());
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Per-environment agent name. HL keys agents by NAME, so the same name + same
+ * account means approving in one place revokes the agent elsewhere. Suffix dev
+ * envs so local testing never revokes the deployed terminal's agent (and vice
+ * versa). localhost → "updown-terminal-dev"; deployed → "updown-terminal".
+ */
+function agentName(): string {
+  if (typeof window !== 'undefined') {
+    const h = window.location.hostname;
+    if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local')) return 'updown-terminal-dev';
+  }
+  return 'updown-terminal';
+}
+
 export interface TradingState {
   conn: ConnectionStatus | null;
   /** Agent approved + active for this network → orders can be placed. */
@@ -60,6 +98,8 @@ export function useTrading(walletAddress?: string, evmAddress?: string): Trading
   const [conn, setConn] = useState<ConnectionStatus | null>(null);
   const [builderApproved, setBuilderApproved] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
+  // null = unknown/checking (fail-open), false = confirmed NOT approved on-chain.
+  const [agentLive, setAgentLive] = useState<boolean | null>(null);
 
   const refresh = useCallback(() => {
     if (walletAddress) getConnection(walletAddress).then(setConn);
@@ -67,6 +107,16 @@ export function useTrading(walletAddress?: string, evmAddress?: string): Trading
   }, [walletAddress]);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  // Verify the stored agent is still approved on-chain (catches a revoked/stale
+  // agent so we re-prompt Enable Trading instead of failing every order).
+  useEffect(() => {
+    if (!conn?.active || !conn.agentAddress || !evmAddress) { setAgentLive(null); return; }
+    let alive = true;
+    setAgentLive(null);
+    isAgentApproved(evmAddress, conn.agentAddress).then((ok) => { if (alive) setAgentLive(ok); });
+    return () => { alive = false; };
+  }, [conn?.active, conn?.agentAddress, evmAddress]);
 
   // Check whether the builder fee is approved once the agent connection is active.
   const refreshBuilder = useCallback(async () => {
@@ -100,7 +150,7 @@ export function useTrading(walletAddress?: string, evmAddress?: string): Trading
       const client = new ExchangeClient({ transport: new HttpTransport({ isTestnet: IS_TESTNET }), wallet: walletClient });
 
       // 1) Approve the agent (delegated signing key the server holds).
-      await client.approveAgent({ agentAddress: gen.data.agentAddress, agentName: 'updown-terminal' });
+      await client.approveAgent({ agentAddress: gen.data.agentAddress, agentName: agentName() });
       // 2) Approve the builder fee so builder-coded orders aren't rejected.
       if (BUILDER_ADDRESS) {
         await client.approveBuilderFee({ maxFeeRate: BUILDER_MAX_FEE, builder: BUILDER_ADDRESS });
@@ -136,5 +186,7 @@ export function useTrading(walletAddress?: string, evmAddress?: string): Trading
     return true;
   }, [evmAddress, wallets, refreshBuilder]);
 
-  return { conn, enabled: !!conn?.active, builderApproved, busy, enableTrading, approveBuilder, refresh };
+  // Enabled only if the connection is active AND the agent hasn't been confirmed
+  // revoked on-chain (agentLive === false). null/true → treat as enabled (fail-open).
+  return { conn, enabled: !!conn?.active && agentLive !== false, builderApproved, busy, enableTrading, approveBuilder, refresh };
 }
