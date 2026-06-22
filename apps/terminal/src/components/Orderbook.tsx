@@ -244,14 +244,21 @@ export function Orderbook({ symbol }: { symbol: string }) {
                 <span className="flex items-center gap-1 text-2xs font-semibold text-win-500">
                   B<span className="inline-block w-7 text-left tabular">{bidPct.toFixed(0)}%</span>
                 </span>
-                <div className="relative flex h-2 flex-1 overflow-hidden rounded-full bg-surface-800 ring-1 ring-inset ring-white/5">
+                <div className="relative flex h-2.5 flex-1 overflow-hidden rounded-[2px] bg-surface-800/50">
+                  {/* Buy — translucent glass, square, like the depth bars. */}
                   <div
-                    className="h-full bg-gradient-to-r from-win-600 to-win-400 transition-[width] duration-500 ease-out"
+                    className="relative h-full bg-win-500/30 transition-[width] duration-500 ease-out"
                     style={{ width: `${bidPct}%` }}
-                  />
-                  <div className="h-full flex-1 bg-gradient-to-r from-loss-400 to-loss-600" />
+                  >
+                    <span className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/15 to-transparent" />
+                  </div>
+                  {/* Sell */}
+                  <div className="relative h-full flex-1 bg-loss-500/30">
+                    <span className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/15 to-transparent" />
+                  </div>
+                  {/* seam at the split */}
                   <div
-                    className="absolute inset-y-0 w-px bg-surface-950/80 transition-[left] duration-500 ease-out"
+                    className="absolute inset-y-0 w-px bg-surface-950/60 transition-[left] duration-500 ease-out"
                     style={{ left: `${bidPct}%` }}
                   />
                 </div>
