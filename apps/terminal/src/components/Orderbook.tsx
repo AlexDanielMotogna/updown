@@ -222,13 +222,12 @@ export function Orderbook({ symbol }: { symbol: string }) {
                 ))}
               </div>
 
-              {/* Spread — one uniform font/size/tabular for the whole row; both
-                  values share the same style (no per-value font change). */}
-              <div className="flex items-center justify-center gap-2 bg-surface-900/60 px-3 py-1 text-2xs tabular">
-                <span className="text-surface-400">Spread</span>
-                <span className="text-surface-100">{spread != null ? fmtPx(spread) : '—'}</span>
-                <span className="text-surface-600">|</span>
-                <span className="text-surface-100">{spreadPct.toFixed(3)}%</span>
+              {/* Spread — same 3-col grid as the order rows so it lines up with the
+                  numbers (Spread · value · %), one uniform font/size/color. */}
+              <div className="grid grid-cols-3 bg-surface-900/60 px-3 py-1 text-2xs tabular text-surface-100">
+                <span>Spread</span>
+                <span className="text-right">{spread != null ? fmtPx(spread) : '—'}</span>
+                <span className="text-right">{spreadPct.toFixed(3)}%</span>
               </div>
 
               {/* Bids (best at top → worst). Fixed ROWS height (see asks). */}
@@ -244,10 +243,10 @@ export function Orderbook({ symbol }: { symbol: string }) {
               <div className="mt-auto">
                 <div className="relative flex h-6 w-full overflow-hidden tabular">
                   <div
-                    className="h-full bg-gradient-to-r from-win-500/25 to-black/15 transition-[width] duration-500 ease-out"
+                    className="h-full bg-gradient-to-r from-win-500/25 to-black/8 transition-[width] duration-500 ease-out"
                     style={{ width: `${bidPct}%` }}
                   />
-                  <div className="h-full flex-1 bg-gradient-to-l from-loss-500/25 to-black/15" />
+                  <div className="h-full flex-1 bg-gradient-to-l from-loss-500/25 to-black/8" />
                   <span className="absolute inset-y-0 left-2 flex items-center text-2xs font-semibold text-win-400">
                     B {bidPct.toFixed(0)}%
                   </span>
@@ -271,8 +270,8 @@ function Row({ l, side, fmtPx }: { l?: Level; side: 'ask' | 'bid'; fmtPx: (n: nu
   // Same gradient-to-black treatment as the footer pressure bar: colored at the
   // outer (total) edge, fading subtly to black toward the price.
   const bar = side === 'ask'
-    ? 'bg-gradient-to-l from-loss-500/25 to-black/15'
-    : 'bg-gradient-to-l from-win-500/25 to-black/15';
+    ? 'bg-gradient-to-l from-loss-500/25 to-black/8'
+    : 'bg-gradient-to-l from-win-500/25 to-black/8';
   // Empty slot — keep the row height so the book never changes size.
   if (!l) return <div className="grid grid-cols-3 px-3 py-0.5">&nbsp;</div>;
   return (
