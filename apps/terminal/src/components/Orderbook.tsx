@@ -40,6 +40,10 @@ function tickDp(tick: number): number {
 function fmtSz(n: number) {
   return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
 }
+/** USD value — thousands separated, no decimals (e.g. 513,289). */
+function fmtUsd(n: number) {
+  return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+}
 function hhmmss(ts: number) {
   const d = new Date(ts);
   const p = (x: number) => String(x).padStart(2, '0');
@@ -49,7 +53,8 @@ function hhmmss(ts: number) {
 interface Level {
   px: number;
   sz: number;
-  total: number; // cumulative size from the spread outward
+  total: number; // cumulative size (base asset) from the spread outward
+  totalUsd: number; // cumulative USD value (Σ sz·px) from the spread outward
   pct: number; // depth bar width %
 }
 
@@ -149,8 +154,8 @@ export function Orderbook({ symbol }: { symbol: string }) {
     const bAll = aggregate(rawBids, tick, 'bid');
 
     const build = (rows: { px: number; sz: number }[]): Level[] => {
-      let cum = 0;
-      return rows.slice(0, ROWS).map((l) => { cum += l.sz; return { ...l, total: cum, pct: 0 }; });
+      let cum = 0, cumUsd = 0;
+      return rows.slice(0, ROWS).map((l) => { cum += l.sz; cumUsd += l.sz * l.px; return { ...l, total: cum, totalUsd: cumUsd, pct: 0 }; });
     };
     const asks = build(aAll);
     const bids = build(bAll);
@@ -200,14 +205,14 @@ export function Orderbook({ symbol }: { symbol: string }) {
               selected={String(tick)}
               onSelect={(k) => setTickOverride(Number(k))}
             />
-            <span className="text-2xs text-surface-500">Tick size</span>
+            <span className="text-2xs text-surface-500">{base} / USD</span>
           </div>
 
           {/* Column headers */}
           <div className="grid grid-cols-3 px-3 py-1 text-2xs font-medium text-surface-400">
             <span>Price</span>
             <span className="text-right">Size ({base})</span>
-            <span className="text-right">Total</span>
+            <span className="text-right">Total (USD)</span>
           </div>
 
           {!book ? (
@@ -282,7 +287,7 @@ function Row({ l, side, fmtPx }: { l?: Level; side: 'ask' | 'bid'; fmtPx: (n: nu
       />
       <span className={`relative ${color}`}>{fmtPx(l.px)}</span>
       <span className="relative text-right text-surface-200">{fmtSz(l.sz)}</span>
-      <span className="relative text-right text-surface-200">{fmtSz(l.total)}</span>
+      <span className="relative text-right text-surface-200">{fmtUsd(l.totalUsd)}</span>
     </div>
   );
 }
