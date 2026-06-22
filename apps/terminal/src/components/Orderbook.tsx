@@ -237,34 +237,23 @@ export function Orderbook({ symbol }: { symbol: string }) {
                 ))}
               </div>
 
-              {/* Footer: buy/sell pressure. The % labels have a fixed tabular width
-                  (room for "100%") so the bar never reflows as the value changes
-                  9 → 90 → 100 — no flicker. Bar brightens toward the center seam. */}
-              <div className="mt-auto flex items-center gap-2 px-3 py-2">
-                <span className="flex items-center gap-1 text-2xs font-semibold text-win-500">
-                  B<span className="inline-block w-7 text-left tabular">{bidPct.toFixed(0)}%</span>
-                </span>
-                <div className="relative flex h-2.5 flex-1 overflow-hidden rounded-[2px] bg-surface-800/50">
-                  {/* Buy — translucent glass, square, like the depth bars. */}
+              {/* Footer: buy/sell pressure — full-width split bar with the % labels
+                  OVERLAID at each end (so the bar never reflows / flickers as the
+                  value goes 9 → 90 → 100). Flat translucent teal/red bands, square. */}
+              <div className="mt-auto px-3 py-2">
+                <div className="relative flex h-6 w-full overflow-hidden rounded-[2px] tabular">
                   <div
-                    className="relative h-full bg-win-500/30 transition-[width] duration-500 ease-out"
+                    className="h-full bg-win-500/35 transition-[width] duration-500 ease-out"
                     style={{ width: `${bidPct}%` }}
-                  >
-                    <span className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/15 to-transparent" />
-                  </div>
-                  {/* Sell */}
-                  <div className="relative h-full flex-1 bg-loss-500/30">
-                    <span className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/15 to-transparent" />
-                  </div>
-                  {/* seam at the split */}
-                  <div
-                    className="absolute inset-y-0 w-px bg-surface-950/60 transition-[left] duration-500 ease-out"
-                    style={{ left: `${bidPct}%` }}
                   />
+                  <div className="h-full flex-1 bg-loss-500/35" />
+                  <span className="absolute inset-y-0 left-2 flex items-center text-2xs font-semibold text-win-400">
+                    B {bidPct.toFixed(0)}%
+                  </span>
+                  <span className="absolute inset-y-0 right-2 flex items-center text-2xs font-semibold text-loss-400">
+                    {askPct.toFixed(0)}% S
+                  </span>
                 </div>
-                <span className="flex items-center gap-1 text-2xs font-semibold text-loss-500">
-                  <span className="inline-block w-7 text-right tabular">{askPct.toFixed(0)}%</span>S
-                </span>
               </div>
             </div>
           )}
