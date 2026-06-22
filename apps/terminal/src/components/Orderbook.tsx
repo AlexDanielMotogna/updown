@@ -243,10 +243,10 @@ export function Orderbook({ symbol }: { symbol: string }) {
               <div className="mt-auto">
                 <div className="relative flex h-6 w-full overflow-hidden tabular">
                   <div
-                    className="h-full bg-gradient-to-r from-win-500/25 to-transparent transition-[width] duration-500 ease-out"
+                    className="h-full bg-gradient-to-r from-win-500/50 to-win-500/20 transition-[width] duration-500 ease-out"
                     style={{ width: `${bidPct}%` }}
                   />
-                  <div className="h-full flex-1 bg-gradient-to-l from-loss-500/25 to-transparent" />
+                  <div className="h-full flex-1 bg-gradient-to-l from-loss-500/50 to-loss-500/20" />
                   <span className="absolute inset-y-0 left-2 flex items-center text-2xs font-semibold text-win-400">
                     B {bidPct.toFixed(0)}%
                   </span>
@@ -267,11 +267,11 @@ export function Orderbook({ symbol }: { symbol: string }) {
 
 function Row({ l, side, fmtPx }: { l?: Level; side: 'ask' | 'bid'; fmtPx: (n: number) => string }) {
   const color = side === 'ask' ? 'text-loss-500' : 'text-win-500';
-  // Same gradient-to-black treatment as the footer pressure bar: colored at the
-  // outer (total) edge, fading subtly to black toward the price.
+  // Same treatment as the footer pressure bar: strong color at the outer (total)
+  // edge fading to a lighter shade of itself toward the price (no black tips).
   const bar = side === 'ask'
-    ? 'bg-gradient-to-l from-loss-500/25 to-transparent'
-    : 'bg-gradient-to-l from-win-500/25 to-transparent';
+    ? 'bg-gradient-to-l from-loss-500/50 to-loss-500/20'
+    : 'bg-gradient-to-l from-win-500/50 to-win-500/20';
   // Empty slot — keep the row height so the book never changes size.
   if (!l) return <div className="grid grid-cols-3 px-3 py-0.5">&nbsp;</div>;
   return (
