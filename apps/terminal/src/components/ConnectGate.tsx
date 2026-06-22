@@ -81,7 +81,8 @@ function Gate() {
         </div>
         <h2 className="mt-5 text-lg font-bold text-surface-100">Connect to start trading</h2>
         <p className="mt-2 text-sm leading-relaxed text-surface-400">
-          UpDown Terminal trades perps on HyperLiquid. Connect your wallet to access the terminal.
+          UpDown Terminal trades perps on HyperLiquid. Connect your wallet to place orders — the
+          charts and market data are open to everyone.
         </p>
         <button onClick={login} className={btnPrimary}>
           Connect wallet

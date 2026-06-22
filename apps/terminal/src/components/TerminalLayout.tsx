@@ -59,9 +59,6 @@ export function TerminalLayout({
 
   return (
     <div className="relative h-full">
-      {/* Blocking connect gate — overlays the workspace until an EVM wallet is
-          connected (HyperLiquid needs an EVM chain). Navbar stays visible. */}
-      <ConnectGate devEvm={devEvm} />
       <PanelGroup direction="horizontal" autoSaveId="updown-terminal-main">
         {/* Left work area: (chart | orderbook) over positions */}
         <Panel defaultSize={82} minSize={50}>
@@ -98,10 +95,16 @@ export function TerminalLayout({
 
         <VHandle />
 
-        {/* Right: place order — full height */}
+        {/* Right: place order — full height. The connect/verify gate overlays ONLY
+            this panel (HyperLiquid needs an EVM wallet to TRADE), so the chart and
+            the rest of the terminal stay visible to everyone — incl. the TradingView
+            review — without connecting a wallet. */}
         <Panel defaultSize={18} minSize={13}>
-          <div className="h-full overflow-y-auto">
-            <OrderPanel symbol={symbol} devWallet={devWallet} devEvm={devEvm} />
+          <div className="relative h-full">
+            <div className="h-full overflow-y-auto">
+              <OrderPanel symbol={symbol} devWallet={devWallet} devEvm={devEvm} />
+            </div>
+            <ConnectGate devEvm={devEvm} />
           </div>
         </Panel>
       </PanelGroup>
