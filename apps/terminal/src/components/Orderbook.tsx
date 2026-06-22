@@ -237,14 +237,27 @@ export function Orderbook({ symbol }: { symbol: string }) {
                 ))}
               </div>
 
-              {/* Footer: buy/sell ratio */}
-              <div className="mt-auto flex items-center gap-2 px-3 py-1.5">
-                <span className="text-2xs text-win-500">B {bidPct.toFixed(0)}%</span>
-                <div className="flex h-1.5 flex-1 overflow-hidden rounded-full">
-                  <div className="h-full bg-win-500" style={{ width: `${bidPct}%` }} />
-                  <div className="h-full bg-loss-500" style={{ width: `${askPct}%` }} />
+              {/* Footer: buy/sell pressure. The % labels have a fixed tabular width
+                  (room for "100%") so the bar never reflows as the value changes
+                  9 → 90 → 100 — no flicker. Bar brightens toward the center seam. */}
+              <div className="mt-auto flex items-center gap-2 px-3 py-2">
+                <span className="flex items-center gap-1 text-2xs font-semibold text-win-500">
+                  B<span className="inline-block w-7 text-left tabular">{bidPct.toFixed(0)}%</span>
+                </span>
+                <div className="relative flex h-2 flex-1 overflow-hidden rounded-full bg-surface-800 ring-1 ring-inset ring-white/5">
+                  <div
+                    className="h-full bg-gradient-to-r from-win-600 to-win-400 transition-[width] duration-500 ease-out"
+                    style={{ width: `${bidPct}%` }}
+                  />
+                  <div className="h-full flex-1 bg-gradient-to-r from-loss-400 to-loss-600" />
+                  <div
+                    className="absolute inset-y-0 w-px bg-surface-950/80 transition-[left] duration-500 ease-out"
+                    style={{ left: `${bidPct}%` }}
+                  />
                 </div>
-                <span className="text-2xs text-loss-500">{askPct.toFixed(0)}% S</span>
+                <span className="flex items-center gap-1 text-2xs font-semibold text-loss-500">
+                  <span className="inline-block w-7 text-right tabular">{askPct.toFixed(0)}%</span>S
+                </span>
               </div>
             </div>
           )}
