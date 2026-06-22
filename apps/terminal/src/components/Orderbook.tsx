@@ -178,8 +178,8 @@ export function Orderbook({ symbol }: { symbol: string }) {
 
   return (
     <div className="card flex h-full flex-col text-xs">
-      {/* Tabs + asset indicator */}
-      <div className="flex items-center justify-between px-2 py-1.5">
+      {/* Tabs */}
+      <div className="flex items-center px-2 py-1.5">
         <div className="flex gap-1">
           {(['book', 'trades'] as const).map((t) => (
             <button
@@ -193,7 +193,6 @@ export function Orderbook({ symbol }: { symbol: string }) {
             </button>
           ))}
         </div>
-        <span className="text-xs font-medium text-surface-300">{base}</span>
       </div>
 
       {tab === 'book' ? (
