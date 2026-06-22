@@ -222,12 +222,13 @@ export function Orderbook({ symbol }: { symbol: string }) {
                 ))}
               </div>
 
-              {/* Spread */}
-              <div className="flex items-center justify-center gap-2 bg-surface-900/60 px-3 py-1 text-2xs">
+              {/* Spread — one uniform font/size/tabular for the whole row; both
+                  values share the same style (no per-value font change). */}
+              <div className="flex items-center justify-center gap-2 bg-surface-900/60 px-3 py-1 text-2xs tabular">
                 <span className="text-surface-400">Spread</span>
-                <span className="tabular text-surface-100">{spread != null ? fmtPx(spread) : '—'}</span>
+                <span className="text-surface-100">{spread != null ? fmtPx(spread) : '—'}</span>
                 <span className="text-surface-600">|</span>
-                <span className="tabular text-surface-300">{spreadPct.toFixed(3)}%</span>
+                <span className="text-surface-100">{spreadPct.toFixed(3)}%</span>
               </div>
 
               {/* Bids (best at top → worst). Fixed ROWS height (see asks). */}
