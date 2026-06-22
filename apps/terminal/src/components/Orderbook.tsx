@@ -75,6 +75,8 @@ function aggregate(levels: [string, string][], tick: number, side: 'ask' | 'bid'
 export function Orderbook({ symbol }: { symbol: string }) {
   const base = symbol.replace('-USD', '');
   const [tab, setTab] = useState<'book' | 'trades'>('book');
+  // Size/Total display unit — base asset (BTC) or USD value. Toggle in the header.
+  const [unit, setUnit] = useState<'base' | 'usd'>('base');
   const [book, setBook] = useState<Book | null>(null);
   const [bbo, setBbo] = useState<{ bid: [string, string] | null; ask: [string, string] | null } | null>(null);
   const [tickOverride, setTickOverride] = useState<number | null>(null);
@@ -205,14 +207,24 @@ export function Orderbook({ symbol }: { symbol: string }) {
               selected={String(tick)}
               onSelect={(k) => setTickOverride(Number(k))}
             />
-            <span className="text-2xs text-surface-500">{base} / USD</span>
+            <div className="flex items-center gap-0.5 text-2xs">
+              {(['base', 'usd'] as const).map((u) => (
+                <button
+                  key={u}
+                  onClick={() => setUnit(u)}
+                  className={`rounded px-1.5 py-0.5 ${unit === u ? 'bg-surface-700 text-surface-100' : 'text-surface-500 hover:text-surface-200'}`}
+                >
+                  {u === 'base' ? base : 'USD'}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Column headers */}
           <div className="grid grid-cols-3 px-3 py-1 text-2xs font-medium text-surface-400">
             <span>Price</span>
-            <span className="text-right">Size ({base})</span>
-            <span className="text-right">Total (USD)</span>
+            <span className="text-right">Size ({unit === 'base' ? base : 'USD'})</span>
+            <span className="text-right">Total ({unit === 'base' ? base : 'USD'})</span>
           </div>
 
           {!book ? (
@@ -223,7 +235,7 @@ export function Orderbook({ symbol }: { symbol: string }) {
                   the list never grows/shrinks (placeholders fill empty slots). */}
               <div className="flex flex-1 flex-col-reverse justify-start overflow-hidden">
                 {Array.from({ length: ROWS }, (_, i) => (
-                  <Row key={`a${i}`} l={asks[i]} side="ask" fmtPx={fmtPx} />
+                  <Row key={`a${i}`} l={asks[i]} side="ask" fmtPx={fmtPx} unit={unit} />
                 ))}
               </div>
 
@@ -238,7 +250,7 @@ export function Orderbook({ symbol }: { symbol: string }) {
               {/* Bids (best at top → worst). Fixed ROWS height (see asks). */}
               <div className="flex flex-1 flex-col overflow-hidden">
                 {Array.from({ length: ROWS }, (_, i) => (
-                  <Row key={`b${i}`} l={bids[i]} side="bid" fmtPx={fmtPx} />
+                  <Row key={`b${i}`} l={bids[i]} side="bid" fmtPx={fmtPx} unit={unit} />
                 ))}
               </div>
 
@@ -270,7 +282,7 @@ export function Orderbook({ symbol }: { symbol: string }) {
   );
 }
 
-function Row({ l, side, fmtPx }: { l?: Level; side: 'ask' | 'bid'; fmtPx: (n: number) => string }) {
+function Row({ l, side, fmtPx, unit }: { l?: Level; side: 'ask' | 'bid'; fmtPx: (n: number) => string; unit: 'base' | 'usd' }) {
   const color = side === 'ask' ? 'text-loss-500' : 'text-win-500';
   // Same treatment as the footer pressure bar: strong color at the outer (total)
   // edge fading to a lighter shade of itself toward the price (no black tips).
@@ -286,8 +298,8 @@ function Row({ l, side, fmtPx }: { l?: Level; side: 'ask' | 'bid'; fmtPx: (n: nu
         style={{ width: `${l.pct}%` }}
       />
       <span className={`relative ${color}`}>{fmtPx(l.px)}</span>
-      <span className="relative text-right text-surface-200">{fmtSz(l.sz)}</span>
-      <span className="relative text-right text-surface-200">{fmtUsd(l.totalUsd)}</span>
+      <span className="relative text-right text-surface-200">{unit === 'base' ? fmtSz(l.sz) : fmtUsd(l.sz * l.px)}</span>
+      <span className="relative text-right text-surface-200">{unit === 'base' ? fmtSz(l.total) : fmtUsd(l.totalUsd)}</span>
     </div>
   );
 }
