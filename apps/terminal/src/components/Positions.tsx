@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { cancelOrder, placeOrder, setTpsl, IS_TESTNET } from '@/lib/api';
 import { useAccountStream } from '@/hooks/useAccountStream';
-import { dbg } from '@/lib/debug';
 import { useToast } from './Toast';
 import { Modal } from './Modal';
 import { TokenIcon } from './TokenIcon';
@@ -209,18 +208,10 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
     else if (t.includes('stop')) tpslMap[o.symbol].sl = m.triggerPx;
   }
 
-  // DEBUG: surface identity to the HUD.
-  useEffect(() => { dbg.identity(address, walletAddress); }, [address, walletAddress]);
-
   const refresh = useCallback(async () => {
     // positions + orders are WS-driven; only the history tabs use REST.
     if (!address || tab === 'positions' || tab === 'orders') return;
-    const get = async (path: string) => {
-      const r = await fetch(`${path}?address=${address}`, { cache: 'no-store' });
-      const j = await r.json();
-      dbg.rest(path, r.status, Array.isArray(j?.data) ? j.data.length : undefined);
-      return j;
-    };
+    const get = async (path: string) => (await fetch(`${path}?address=${address}`, { cache: 'no-store' })).json();
     try {
       if (tab === 'trades') {
         const r = await get('/api/trades');
