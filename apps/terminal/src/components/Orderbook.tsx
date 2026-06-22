@@ -237,16 +237,16 @@ export function Orderbook({ symbol }: { symbol: string }) {
                 ))}
               </div>
 
-              {/* Footer: buy/sell pressure — full-width split bar with the % labels
-                  OVERLAID at each end (so the bar never reflows / flickers as the
-                  value goes 9 → 90 → 100). Flat translucent teal/red bands, square. */}
-              <div className="mt-auto px-3 py-2">
-                <div className="relative flex h-6 w-full overflow-hidden rounded-[2px] tabular">
+              {/* Footer: buy/sell pressure — full-bleed split bar, each band fading
+                  to black toward the center. % labels are OVERLAID at each end, so
+                  the bar never reflows / flickers as the value goes 9 → 90 → 100. */}
+              <div className="mt-auto">
+                <div className="relative flex h-6 w-full overflow-hidden tabular">
                   <div
-                    className="h-full bg-win-500/35 transition-[width] duration-500 ease-out"
+                    className="h-full bg-gradient-to-r from-win-500 to-black transition-[width] duration-500 ease-out"
                     style={{ width: `${bidPct}%` }}
                   />
-                  <div className="h-full flex-1 bg-loss-500/35" />
+                  <div className="h-full flex-1 bg-gradient-to-r from-black to-loss-500" />
                   <span className="absolute inset-y-0 left-2 flex items-center text-2xs font-semibold text-win-400">
                     B {bidPct.toFixed(0)}%
                   </span>
