@@ -49,8 +49,9 @@ export function Chart({ symbol }: { symbol: string }) {
     const el = containerRef.current;
     if (!el) return;
     const chart = createChart(el, {
-      layout: { background: { type: ColorType.Solid, color: '#141821' }, textColor: '#8a94a6' },
-      grid: { vertLines: { color: '#1b212c' }, horzLines: { color: '#1b212c' } },
+      // Match the panels' background (.card → bg-surface-850 = #0A121C).
+      layout: { background: { type: ColorType.Solid, color: '#0A121C' }, textColor: '#8a94a6' },
+      grid: { vertLines: { color: '#121A26' }, horzLines: { color: '#121A26' } },
       timeScale: { borderColor: '#232a36', timeVisible: true },
       rightPriceScale: { borderColor: '#232a36' },
       autoSize: true,
