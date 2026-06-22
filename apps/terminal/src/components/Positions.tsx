@@ -147,14 +147,12 @@ function statusStyle(status: string): { label: string; cls: string } {
 
 export function Positions({ address, walletAddress }: { address?: string; walletAddress?: string }) {
   const [tab, setTab] = useState<Tab>('positions');
-  const [orders, setOrders] = useState<OpenOrder[]>([]);
   const [trades, setTrades] = useState<Fill[]>([]);
   const [funding, setFunding] = useState<FundingItem[]>([]);
   const [orderHist, setOrderHist] = useState<OrderHistItem[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [closeTarget, setCloseTarget] = useState<{ p: Position; mode: CloseMode } | null>(null);
   const [tpslTarget, setTpslTarget] = useState<Position | null>(null);
-  const [tpslMap, setTpslMap] = useState<Record<string, { tp?: string; sl?: string }>>({});
   const [ordSort, setOrdSort] = useState<{ col: 'time' | 'price'; dir: 'asc' | 'desc' }>({ col: 'time', dir: 'desc' });
   const [tradeAgg, setTradeAgg] = useState(false);
   const [tradeFilter, setTradeFilter] = useState('');
@@ -166,38 +164,57 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
 
   const toast = useToast();
 
-  // Live positions over the WS account stream (realtime PnL/mark). The rich
-  // history tabs still come from REST (fields the WS openOrders feed lacks).
+  // Positions, OPEN ORDERS and TP/SL all come straight from the WS account stream
+  // (browser → HyperLiquid, no backend hop). The server REST routes /api/orders +
+  // /api/tpsl read HL `frontendOpenOrders`, which HL returns EMPTY when the call
+  // comes from a datacenter IP (Railway) — so on prod they showed nothing while HL
+  // held the orders (worked on localhost = residential IP). The WS carries the
+  // same data, incl. trigger orders, reliably and live — so derive from it.
   const ws = useAccountStream(address);
-  // Use the WS positions directly. A local useState mirror (setPositions in an
-  // effect) failed to sync in the prod build — the table stayed empty even though
-  // the stream was delivering positions — so derive it, no mirror.
   const positions: Position[] = ws.positions;
+
+  const orders: OpenOrder[] = ws.orders.map((o) => {
+    const m = (o.metadata ?? {}) as { orderType?: string; isTrigger?: boolean; triggerPx?: string; triggerCondition?: string };
+    const buy = o.side === 'BUY';
+    const reduce = o.reduceOnly;
+    const direction = reduce ? (buy ? 'Close Short' : 'Close Long') : buy ? 'Open Long' : 'Open Short';
+    const type = m.orderType ?? 'Limit';
+    return {
+      orderId: o.orderId,
+      coin: o.symbol.replace('-USD', ''),
+      symbol: o.symbol,
+      side: o.side,
+      type,
+      direction,
+      size: o.remaining,
+      remaining: o.remaining,
+      origSize: o.amount,
+      price: o.price,
+      isMarket: type.toLowerCase() === 'market',
+      orderValue: String(Number(o.price) * Number(o.remaining)),
+      reduceOnly: reduce,
+      trigger: m.isTrigger ? { condition: m.triggerCondition ?? '', px: m.triggerPx ?? '' } : null,
+      time: o.createdAt,
+    };
+  });
+
+  // Each position's TP/SL = its reduce-only trigger orders, derived from the feed.
+  const tpslMap: Record<string, { tp?: string; sl?: string }> = {};
+  for (const o of ws.orders) {
+    const m = (o.metadata ?? {}) as { orderType?: string; isTrigger?: boolean; triggerPx?: string };
+    if (!m.isTrigger || !m.triggerPx) continue;
+    const t = (m.orderType ?? '').toLowerCase();
+    (tpslMap[o.symbol] ??= {});
+    if (t.includes('take profit')) tpslMap[o.symbol].tp = m.triggerPx;
+    else if (t.includes('stop')) tpslMap[o.symbol].sl = m.triggerPx;
+  }
 
   // DEBUG: surface identity to the HUD.
   useEffect(() => { dbg.identity(address, walletAddress); }, [address, walletAddress]);
 
-  const reloadTpsl = useCallback(() => {
-    if (!address) return;
-    fetch(`/api/tpsl?address=${address}`, { cache: 'no-store' })
-      .then(async (r) => { const t = await r.json(); dbg.rest('/api/tpsl', r.status, t?.data ? Object.keys(t.data).length : 0); return t; })
-      .then((t) => { if (t.success) setTpslMap(t.data); })
-      .catch((e) => dbg.error('tpsl fetch: ' + (e?.message ?? String(e))));
-  }, [address]);
-
-  // TP/SL triggers for open positions (REST). Poll while on the tab — HL's
-  // frontendOpenOrders lags a moment after placing, and adding a TP/SL to an
-  // existing position doesn't change positions.length, so without a poll a freshly
-  // set TP/SL would never re-fetch and would look like it "didn't get set".
-  useEffect(() => {
-    if (tab !== 'positions') return;
-    reloadTpsl();
-    const id = window.setInterval(reloadTpsl, 5000);
-    return () => window.clearInterval(id);
-  }, [tab, reloadTpsl, ws.positions.length]);
-
   const refresh = useCallback(async () => {
-    if (!address || tab === 'positions') return;
+    // positions + orders are WS-driven; only the history tabs use REST.
+    if (!address || tab === 'positions' || tab === 'orders') return;
     const get = async (path: string) => {
       const r = await fetch(`${path}?address=${address}`, { cache: 'no-store' });
       const j = await r.json();
@@ -205,10 +222,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
       return j;
     };
     try {
-      if (tab === 'orders') {
-        const r = await get('/api/orders');
-        if (r.success) setOrders(r.data);
-      } else if (tab === 'trades') {
+      if (tab === 'trades') {
         const r = await get('/api/trades');
         if (r.success) setTrades(r.data);
       } else if (tab === 'funding') {
@@ -223,7 +237,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
   }, [address, tab]);
 
   useEffect(() => {
-    if (tab === 'positions') return; // positions are WS-driven
+    if (tab === 'positions' || tab === 'orders') return; // WS-driven tabs
     setLoaded(false);
     refresh();
     const id = window.setInterval(refresh, 4000);
@@ -322,13 +336,10 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
    * survive a manual close, so without this they'd attach to the NEXT position
    * opened on the same coin. Best-effort. */
   async function cancelTpslOrders(symbol: string) {
-    if (!walletAddress || !address) return;
+    if (!walletAddress) return;
+    // Trigger orders come from the live WS feed (the REST route is empty on prod).
+    const triggers = orders.filter((o) => o.symbol === symbol && o.trigger);
     try {
-      const r = await fetch(`/api/orders?address=${address}`, { cache: 'no-store' }).then((x) => x.json());
-      if (!r.success) return;
-      const triggers = (r.data as Array<{ orderId: number; symbol: string; trigger: unknown }>).filter(
-        (o) => o.symbol === symbol && o.trigger,
-      );
       await Promise.all(triggers.map((o) => cancelOrder({ walletAddress, symbol, orderId: o.orderId })));
     } catch { /* best-effort */ }
   }
@@ -359,8 +370,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
     if (res.success && (mode === 'reverse' || (mode === 'market' && fullClose))) {
       await cancelTpslOrders(p.symbol);
     }
-    refresh();
-    reloadTpsl();
+    // positions/orders/TP-SL refresh themselves via the WS feed.
   }
 
   async function onCloseAll() {
@@ -383,9 +393,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
       const detail = res.data?.results?.filter((r) => !r.success).map((r) => r.error).filter(Boolean).join('; ') || res.error?.message || 'failed';
       toast.update(tid, 'error', `${base} TP/SL failed — ${detail}`);
     }
-    // Immediate + delayed reload — HL needs a moment to surface the trigger orders.
-    reloadTpsl();
-    setTimeout(reloadTpsl, 1500);
+    // The new trigger orders surface via the WS feed → the cell updates itself.
   }
 
   const counts: Record<Tab, number> = {
@@ -415,7 +423,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
       <div className="min-h-0 flex-1 overflow-auto">
         {!address ? (
           <Empty>Connect to view {tab}.</Empty>
-        ) : (tab === 'positions' ? !ws.ready : !loaded) ? (
+        ) : (tab === 'positions' || tab === 'orders' ? !ws.ready : !loaded) ? (
           <Empty>loading…</Empty>
         ) : tab === 'positions' ? (
           positions.length === 0 ? <Empty>No open positions.</Empty> : (
@@ -702,8 +710,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
             const tid = toast.loading(`Removing ${p.symbol.replace('-USD', '')} TP/SL…`);
             await cancelTpslOrders(p.symbol);
             toast.update(tid, 'success', 'TP/SL removed');
-            reloadTpsl();
-            setTimeout(reloadTpsl, 1500);
+            // The WS feed drops the cancelled triggers → the cell clears itself.
           }}
         />
       )}

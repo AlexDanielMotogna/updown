@@ -201,7 +201,16 @@ export function mapOpenOrder(o: HlOpenOrder): Order {
     reduceOnly: o.reduceOnly ?? false,
     createdAt: o.timestamp,
     updatedAt: o.timestamp,
-    metadata: {},
+    // Carry trigger (TP/SL) fields through so the UI can render order type /
+    // condition and derive position TP/SL from the realtime feed (the server REST
+    // route `frontendOpenOrders` is unusable from datacenter IPs — HL returns []).
+    metadata: {
+      orderType: o.orderType,
+      isTrigger: o.isTrigger ?? false,
+      triggerPx: o.triggerPx,
+      triggerCondition: o.triggerCondition,
+      isPositionTpsl: o.isPositionTpsl ?? false,
+    },
   };
 }
 

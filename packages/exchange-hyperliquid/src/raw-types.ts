@@ -132,6 +132,13 @@ export interface HlOpenOrder {
   timestamp: number;
   cloid?: string;
   reduceOnly?: boolean;
+  // Present on `frontendOpenOrders` and the `openOrders` WS feed — trigger (TP/SL)
+  // orders carry these so we can render type/condition and derive position TP/SL.
+  orderType?: string;
+  isTrigger?: boolean;
+  triggerPx?: string;
+  triggerCondition?: string;
+  isPositionTpsl?: boolean;
 }
 
 /** `recentTrades` element. side: "B" (buy) | "A" (sell). */
