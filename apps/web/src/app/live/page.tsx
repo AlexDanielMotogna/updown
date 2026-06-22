@@ -11,7 +11,7 @@ import { MarketCardSkeleton } from '@/components/MarketCardSkeleton';
 import { AssetIcon } from '@/components/AssetIcon';
 import { MarketsRightRail } from '@/components/sidebar/MarketsRightRail';
 import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter';
-import { useLiveScores } from '@/hooks/useLiveScores';
+import { useLiveScores, isMatchActive } from '@/hooks/useLiveScores';
 import { useCategoryMap } from '@/hooks/useCategories';
 import { getIcon } from '@/lib/icon-registry';
 import { fetchPools } from '@/lib/api';
@@ -76,13 +76,25 @@ export default function LivePage() {
     />
   );
 
-  // All open pools; "live" = ends today.
+  // All open pools. "Live" means:
+  //  - SPORTS: the match is actually IN PLAY (livescore status 1H/2H/Q3/… — not NS,
+  //    not finished). `endsToday` alone wrongly listed matches that merely kick off
+  //    later today (i.e. "soon", not live).
+  //  - Crypto / Polymarket: ends today (short intervals → effectively live now).
   const { data, isLoading } = useQuery({
     queryKey: ['live-today'],
     queryFn: () => fetchPools({ status: 'JOINING,ACTIVE', limit: 300 }),
     refetchInterval: 30_000,
   });
-  const today = useMemo(() => (data?.data ?? []).filter(endsToday), [data]);
+  const isSport = (p: Pool) => p.poolType === 'SPORTS' && !p.league?.startsWith('PM_');
+  const today = useMemo(
+    () => (data?.data ?? []).filter((p) =>
+      isSport(p)
+        ? isMatchActive(p.matchId ? liveScores.get(p.matchId) ?? null : null)
+        : endsToday(p),
+    ),
+    [data, liveScores],
+  );
 
   // Build the topic tree from today's pools (so only covered/whitelisted sports appear).
   const topics = useMemo<Topic[]>(() => {
