@@ -282,7 +282,7 @@ function Row({ l, side, fmtPx }: { l?: Level; side: 'ask' | 'bid'; fmtPx: (n: nu
       />
       <span className={`relative ${color}`}>{fmtPx(l.px)}</span>
       <span className="relative text-right text-surface-200">{fmtSz(l.sz)}</span>
-      <span className="relative text-right text-surface-400">{fmtSz(l.total)}</span>
+      <span className="relative text-right text-surface-200">{fmtSz(l.total)}</span>
     </div>
   );
 }
