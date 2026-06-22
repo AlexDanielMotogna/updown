@@ -41,10 +41,19 @@ export interface LiveScore {
 
 const FINISHED_STATUSES = new Set(['FT', 'AET', 'PEN', 'AOT', 'AP']);
 
-/** True when the livescore is for an actively-playing match (not finished, not NS) */
+/** Not-playable statuses (not started / postponed / cancelled / suspended / …).
+ * Mirrors the backend's SKIP_STATUSES (livescore/types.ts). The backend already
+ * filters these out of the feed at the source, but we guard here too (defense in
+ * depth) so a stale/transient entry can never render as "live". */
+const INACTIVE_STATUSES = new Set([
+  'NS', 'TBD', 'PST', 'POST', 'CANC', 'ABD', 'AWD', 'AW', 'WO', 'SUSP', 'INT', 'INTR',
+]);
+
+/** True when the livescore is for an actively-playing match — any in-play status
+ * (1H/2H/Q3/P2/IN5/'LIVE'/… for every sport), i.e. NOT finished and NOT inactive. */
 export function isMatchActive(score: LiveScore | null | undefined): boolean {
   if (!score) return false;
-  return !FINISHED_STATUSES.has(score.status) && score.status !== 'NS' && score.status !== 'TBD';
+  return !FINISHED_STATUSES.has(score.status) && !INACTIVE_STATUSES.has(score.status);
 }
 
 /** True when the livescore indicates the match has ended */
