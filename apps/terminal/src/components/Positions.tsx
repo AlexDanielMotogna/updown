@@ -561,7 +561,31 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
             </Table>
           )
         ) : tab === 'orders' ? (
-          orders.length === 0 ? <Empty>No open orders.</Empty> : (
+          orders.length === 0 ? <Empty>No open orders.</Empty> : isMobile ? (
+            <div className="space-y-1.5 p-1.5">
+              <button onClick={onCancelAllOrders} disabled={!walletAddress} className="w-full rounded border border-surface-700 py-2 text-xs font-semibold text-surface-300 hover:bg-surface-800 disabled:opacity-40">Cancel All</button>
+              {sortedOrders.map((o) => (
+                <div key={String(o.orderId)} className="rounded-lg border border-surface-800/60 bg-surface-900/50 p-3 tabular">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="text-sm font-medium text-surface-100">{o.coin}</span>
+                      <span className={`text-xs font-medium ${directionColor(o.direction)}`}>{o.direction}</span>
+                      <span className="text-2xs text-surface-400">{o.type}</span>
+                    </span>
+                    <button onClick={() => onCancel(o)} disabled={!walletAddress} className="shrink-0 rounded border border-surface-700 px-2 py-0.5 text-xs text-surface-300 hover:bg-surface-800 disabled:opacity-40">Cancel</button>
+                  </div>
+                  <div className="mt-2 grid grid-cols-3 gap-x-3 gap-y-1.5 text-[11px]">
+                    <Field label="Size" v={n(o.size, 4)} />
+                    <Field label="Price" v={o.isMarket ? 'Market' : px(o.price)} />
+                    <Field label="Order Value" v={o.isMarket ? '--' : `$${n(o.orderValue)}`} />
+                    <Field label="Trigger" v={o.trigger ? o.trigger.condition || `Price ${px(o.trigger.px)}` : '--'} />
+                    <Field label="Reduce" v={o.reduceOnly ? 'Yes' : 'No'} />
+                    <Field label="Time" v={fmtDateTime(o.time)} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
             <>
               <Table
                 head={[
@@ -622,6 +646,25 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
                   Export CSV
                 </button>
               </div>
+              {isMobile ? (
+                <div className="space-y-1.5 p-1.5">
+                  {tradeRows.map((f) => { const pnl = Number(f.pnl); return (
+                    <div key={f.id} className="rounded-lg border border-surface-800/60 bg-surface-900/50 p-3 tabular">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-2"><span className="text-sm font-medium text-surface-100">{f.coin}</span><span className={`text-xs font-medium ${tradeDirColor(f.direction)}`}>{f.direction}</span></span>
+                        <span className={`text-xs font-medium ${pnl >= 0 ? 'text-win-500' : 'text-loss-500'}`}>{pnl >= 0 ? '+' : ''}${n(pnl)}</span>
+                      </div>
+                      <div className="mt-2 grid grid-cols-3 gap-x-3 gap-y-1.5 text-[11px]">
+                        <Field label="Price" v={px(f.price)} />
+                        <Field label="Size" v={n(f.size, 4)} />
+                        <Field label="Value" v={`$${n(f.tradeValue)}`} />
+                        <Field label="Fee" v={`$${n(f.fee, 4)}`} />
+                        <Field label="Time" v={fmtDateTime(f.time)} />
+                      </div>
+                    </div>
+                  ); })}
+                </div>
+              ) : (
               <Table
                 head={[
                   <SortTh key="t" label="Time" active={tradeSort.col === 'time'} dir={tradeSort.dir} onClick={() => toggleTradeSort('time')} />,
@@ -655,6 +698,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
                   );
                 })}
               </Table>
+              )}
             </>
           )
         ) : tab === 'funding' ? (
@@ -671,6 +715,23 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
                   Export CSV
                 </button>
               </div>
+              {isMobile ? (
+                <div className="space-y-1.5 p-1.5">
+                  {fundRows.map((f, i) => { const pay = Number(f.usdc); const szi = Number(f.szi); const long = szi >= 0; const rate = Number(f.rate) * 100; return (
+                    <div key={i} className="rounded-lg border border-surface-800/60 bg-surface-900/50 p-3 tabular">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-2"><span className="text-sm font-medium text-surface-100">{f.coin}</span><span className={`text-xs font-medium ${long ? 'text-win-500' : 'text-loss-500'}`}>{long ? 'Long' : 'Short'}</span></span>
+                        <span className={`text-xs font-medium ${pay >= 0 ? 'text-win-500' : 'text-loss-500'}`}>{pay >= 0 ? '+' : '-'}${n(Math.abs(pay), 4)}</span>
+                      </div>
+                      <div className="mt-2 grid grid-cols-3 gap-x-3 gap-y-1.5 text-[11px]">
+                        <Field label="Size" v={`${n(Math.abs(szi), 4)} ${f.coin}`} />
+                        <Field label="Rate" v={`${rate.toFixed(4)}%`} />
+                        <Field label="Time" v={fmtDateTime(f.time)} />
+                      </div>
+                    </div>
+                  ); })}
+                </div>
+              ) : (
               <Table
                 head={[
                   <SortTh key="t" label="Time" active={fundSort.col === 'time'} dir={fundSort.dir} onClick={() => toggleFundSort('time')} />,
@@ -696,6 +757,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
                   );
                 })}
               </Table>
+              )}
             </>
           )
         ) : (
@@ -712,6 +774,26 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
                   Export CSV
                 </button>
               </div>
+              {isMobile ? (
+                <div className="space-y-1.5 p-1.5">
+                  {ohRows.map((o, i) => { const st = statusStyle(o.status); return (
+                    <div key={i} className="rounded-lg border border-surface-800/60 bg-surface-900/50 p-3 tabular">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="flex min-w-0 items-center gap-2"><span className="text-sm font-medium text-surface-100">{o.coin}</span><span className={`text-xs font-medium ${directionColor(o.direction)}`}>{o.direction}</span><span className="text-2xs text-surface-400">{o.type}</span></span>
+                        <span className={`text-xs font-medium ${st.cls}`}>{st.label}</span>
+                      </div>
+                      <div className="mt-2 grid grid-cols-3 gap-x-3 gap-y-1.5 text-[11px]">
+                        <Field label="Size" v={n(o.size, 4)} />
+                        <Field label="Filled" v={Number(o.filledSize) > 0 ? n(o.filledSize, 4) : '--'} />
+                        <Field label="Price" v={o.isMarket ? 'Market' : px(o.price)} />
+                        <Field label="Order Value" v={o.isMarket ? '--' : `$${n(o.orderValue)}`} />
+                        <Field label="Trigger" v={o.trigger ? o.trigger.condition || `Price ${px(o.trigger.px)}` : 'N/A'} />
+                        <Field label="Time" v={fmtDateTime(o.time)} />
+                      </div>
+                    </div>
+                  ); })}
+                </div>
+              ) : (
               <Table
                 head={[
                   <SortTh key="t" label="Time" active={ohSort.col === 'time'} dir={ohSort.dir} onClick={() => toggleOhSort('time')} />,
@@ -740,6 +822,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
                   );
                 })}
               </Table>
+              )}
             </>
           )
         )}
