@@ -51,7 +51,11 @@ export function Navbar() {
 
         {/* Right: level/coins + HL balance + notifications + wallet */}
         <div className="flex items-center gap-2">
-          <ProfileStats />
+          {/* Level + XP/coins chip — hidden on mobile (declutter the trade header;
+              only money + notifications + wallet stay). */}
+          <div className="hidden md:block">
+            <ProfileStats />
+          </div>
           <HeaderBalance />
           <NotificationBell />
           <ConnectButton />
