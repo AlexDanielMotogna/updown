@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/parimutuel_pools.json`.
  */
 export type ParimutuelPools = {
-  "address": "HnqB6ahdTEGwJ624D6kaeoSxUS2YwNoq1Cn5Kt9KQBTD",
+  "address": "9H7k26HvHHnB4T6ErU7n2wVSFJhS1aigqFQGwvQyVuNG",
   "metadata": {
     "name": "parimutuelPools",
     "version": "0.1.0",

@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-parimutuel_pools = "HnqB6ahdTEGwJ624D6kaeoSxUS2YwNoq1Cn5Kt9KQBTD"
+parimutuel_pools = "9H7k26HvHHnB4T6ErU7n2wVSFJhS1aigqFQGwvQyVuNG"
 
 [programs.localnet]
 parimutuel_pools = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"

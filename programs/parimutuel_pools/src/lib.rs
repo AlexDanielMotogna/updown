@@ -7,7 +7,7 @@ pub mod state;
 
 use instructions::*;
 
-declare_id!("HnqB6ahdTEGwJ624D6kaeoSxUS2YwNoq1Cn5Kt9KQBTD");
+declare_id!("9H7k26HvHHnB4T6ErU7n2wVSFJhS1aigqFQGwvQyVuNG");
 
 #[program]
 pub mod parimutuel_pools {

@@ -2,7 +2,7 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import { Program, AnchorProvider } from '@coral-xyz/anchor';
 
 // Program ID - Devnet deployment
-export const PROGRAM_ID = new PublicKey('HnqB6ahdTEGwJ624D6kaeoSxUS2YwNoq1Cn5Kt9KQBTD');
+export const PROGRAM_ID = new PublicKey('9H7k26HvHHnB4T6ErU7n2wVSFJhS1aigqFQGwvQyVuNG');
 
 /**
  * Derive Pool PDA
