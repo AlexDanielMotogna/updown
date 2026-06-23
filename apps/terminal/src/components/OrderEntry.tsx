@@ -41,14 +41,17 @@ export function OrderEntry({
   symbol,
   walletAddress,
   evmAddress,
+  initialSide,
 }: {
   symbol: string;
   walletAddress?: string;
   evmAddress?: string;
+  /** Preselect Buy/Sell (e.g. mobile sticky buttons opening the order sheet). */
+  initialSide?: OrderSide;
 }) {
   const base = symbol.replace('-USD', '');
   const [tab, setTab] = useState<Tab>('MARKET');
-  const [side, setSide] = useState<OrderSide>('BUY');
+  const [side, setSide] = useState<OrderSide>(initialSide ?? 'BUY');
   const [marginMode, setMarginMode] = useState<'cross' | 'isolated'>('cross');
   const [leverage, setLeverage] = useState(5);
   const [sizeBtc, setSizeBtc] = useState('');
