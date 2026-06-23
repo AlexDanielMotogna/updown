@@ -55,8 +55,8 @@ export function MobileTerminal({
 
   return (
     <div className="h-full overflow-y-auto overscroll-contain pb-[72px]" style={{ overflowAnchor: 'none' }}>
-      {/* Market bar (price + live stats) */}
-      <MarketHeader symbol={symbol} initial={initial} />
+      {/* Market bar — collapsible (compact + chevron → stats grid) */}
+      <MarketHeader symbol={symbol} initial={initial} mobile />
 
       {/* Section tabs — underline on active (border-b-2) */}
       <div className="flex items-center">

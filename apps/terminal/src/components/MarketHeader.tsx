@@ -44,6 +44,16 @@ function useFundingCountdown() {
   return left;
 }
 
+/** Compact label/value cell for the mobile collapsible stats grid. */
+function MiniStat({ label, v, cls }: { label: string; v: string; cls?: string }) {
+  return (
+    <div className="flex flex-col">
+      <span className="text-2xs text-surface-500">{label}</span>
+      <span className={cls ?? 'text-surface-100'}>{v}</span>
+    </div>
+  );
+}
+
 function Stat({ label, value, sub, cls }: { label: string; value: string; sub?: string; cls?: string }) {
   return (
     <div className="flex flex-col">
@@ -56,9 +66,10 @@ function Stat({ label, value, sub, cls }: { label: string; value: string; sub?: 
   );
 }
 
-export function MarketHeader({ symbol, initial }: { symbol: string; initial?: Ticker | null }) {
+export function MarketHeader({ symbol, initial, mobile }: { symbol: string; initial?: Ticker | null; mobile?: boolean }) {
   const [t, setT] = useState<Ticker | null>(initial ?? null);
   const [liveMark, setLiveMark] = useState<number | null>(null);
+  const [expanded, setExpanded] = useState(false);
   const countdown = useFundingCountdown();
 
   // Full ticker (funding/volume/OI/oracle/24h) — polled; the mid moves slower.
@@ -93,6 +104,40 @@ export function MarketHeader({ symbol, initial }: { symbol: string; initial?: Ti
   const chgUp = chgPct >= 0;
   const fundingPct = t ? Number(t.funding) * 100 : 0;
   const oiUsd = t ? Number(t.openInterest) * mark : 0;
+
+  // Mobile: compact bar (selector + price + 24h%) with a chevron that expands a
+  // stats grid — per docs/Terminal-Migration/mobile-terminal-style.md §5.1.
+  if (mobile) {
+    return (
+      <div className="card px-3 py-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <MarketSelector symbol={symbol} />
+            <span className="rounded bg-surface-800 px-1.5 py-0.5 text-2xs text-surface-300" title="Max leverage">{t?.maxLeverage ? `${t.maxLeverage}x` : '—'}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="text-right">
+              <div className="tabular text-sm font-semibold text-surface-100">{mark ? fmtPrice(String(mark)) : '—'}</div>
+              <div className={`tabular text-xs font-medium ${chgUp ? 'text-win-500' : 'text-loss-500'}`}>{t ? `${chgUp ? '+' : ''}${chgPct.toFixed(2)}%` : '—'}</div>
+            </div>
+            <button onClick={() => setExpanded((e) => !e)} className="rounded p-1.5 text-surface-400 hover:bg-surface-800">
+              <svg className={`transition-transform ${expanded ? 'rotate-180' : ''}`} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+            </button>
+          </div>
+        </div>
+        {expanded && (
+          <div className="mt-2 grid grid-cols-3 gap-y-2.5 border-t border-surface-800/50 pt-2 text-[11px] tabular">
+            <MiniStat label="Oracle" v={fmtPrice(t?.index)} />
+            <MiniStat label="24h Change" v={t ? `${chgUp ? '+' : ''}${fmtPrice(String(chgAbs))}` : '—'} cls={chgUp ? 'text-win-500' : 'text-loss-500'} />
+            <MiniStat label="24h Volume" v={t ? fmtUsd(Number(t.volume24h)) : '—'} />
+            <MiniStat label="Open Interest" v={t ? fmtUsd(oiUsd) : '—'} />
+            <MiniStat label="Funding" v={t ? `${fundingPct.toFixed(4)}%` : '—'} cls={fundingPct >= 0 ? 'text-win-500' : 'text-loss-500'} />
+            <MiniStat label="Countdown" v={countdown} />
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="card flex flex-wrap items-center gap-x-10 gap-y-2 px-3 py-2">
