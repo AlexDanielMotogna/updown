@@ -5,10 +5,17 @@ import { Box, Button, Drawer, Typography } from '@mui/material';
 import { MoreHoriz } from '@mui/icons-material';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { NAV_ITEMS } from '@/lib/navigation';
+import { NAV_ITEMS, type NavItem } from '@/lib/navigation';
 import { useThemeTokens } from '@/app/providers';
 
 const PRIMARY_COUNT = 4;
+
+/** Internal routes → Next <Link> (client nav); external (terminal) → plain <a>. */
+function NavWrap({ item, style, onClick, children }: { item: NavItem; style: React.CSSProperties; onClick?: () => void; children: React.ReactNode }) {
+  return item.external
+    ? <a href={item.href} style={style} onClick={onClick}>{children}</a>
+    : <Link href={item.href} style={style} onClick={onClick}>{children}</Link>;
+}
 
 export function MobileBottomNav() {
   const t = useThemeTokens();
@@ -40,7 +47,7 @@ export function MobileBottomNav() {
           const active = isActive(item.href);
           const Icon = item.icon;
           return (
-            <Link key={item.href} href={item.href} style={{ textDecoration: 'none', flex: 1, minWidth: 0 }}>
+            <NavWrap key={item.href} item={item} style={{ textDecoration: 'none', flex: 1, minWidth: 0 }}>
               <Button
                 fullWidth
                 sx={{
@@ -62,7 +69,7 @@ export function MobileBottomNav() {
                 <Icon sx={{ fontSize: 20 }} />
                 {item.label}
               </Button>
-            </Link>
+            </NavWrap>
           );
         })}
 
@@ -115,7 +122,7 @@ export function MobileBottomNav() {
             const active = isActive(item.href);
             const Icon = item.icon;
             return (
-              <Link key={item.href} href={item.href} style={{ textDecoration: 'none' }} onClick={() => setMoreOpen(false)}>
+              <NavWrap key={item.href} item={item} style={{ textDecoration: 'none' }} onClick={() => setMoreOpen(false)}>
                 <Box
                   sx={{
                     display: 'flex',
@@ -133,7 +140,7 @@ export function MobileBottomNav() {
                     {item.label}
                   </Typography>
                 </Box>
-              </Link>
+              </NavWrap>
             );
           })}
         </Box>
