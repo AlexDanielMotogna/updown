@@ -227,13 +227,35 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
     } catch {/* keep */}
   }, [address, tab]);
 
+  // Poll only the ACTIVE history tab (Positions/Open Orders are WS-driven). No
+  // setLoaded(false) here — once the initial data is in, switching tabs shows it
+  // instantly (the prefetch below already filled every tab).
   useEffect(() => {
     if (tab === 'positions' || tab === 'orders') return; // WS-driven tabs
-    setLoaded(false);
     refresh();
     const id = window.setInterval(refresh, 4000);
     return () => window.clearInterval(id);
   }, [refresh, tab]);
+
+  // Prefetch all history tabs ONCE on mount / address change, so their count
+  // badges + data are ready without clicking — and without adding any polling
+  // (only the active tab polls, above). One-shot per address.
+  useEffect(() => {
+    if (!address) return;
+    let alive = true;
+    const get = async (path: string) => (await fetch(`${path}?address=${address}`, { cache: 'no-store' })).json();
+    (async () => {
+      try {
+        const [tr, fu, oh] = await Promise.all([get('/api/trades'), get('/api/funding'), get('/api/orderhistory')]);
+        if (!alive) return;
+        if (tr.success) setTrades(tr.data);
+        if (fu.success) setFunding(fu.data);
+        if (oh.success) setOrderHist(oh.data);
+        setLoaded(true);
+      } catch { /* keep whatever we have */ }
+    })();
+    return () => { alive = false; };
+  }, [address]);
 
   async function onCancel(o: OpenOrder) {
     if (!walletAddress) return;
