@@ -156,6 +156,24 @@ export class HyperliquidStream implements ExchangeStream {
     });
   }
 
+  /**
+   * HL `candle` feed for one coin+interval. Pushes the forming candle (updates as
+   * it builds, then a fresh one when it closes) — use it to keep the chart's last
+   * bar live. `time` is epoch SECONDS (lightweight-charts shape). Not part of
+   * ExchangeStream (HL-specific); call it on the concrete HyperliquidStream.
+   */
+  subscribeCandle(
+    symbol: string,
+    interval: string,
+    cb: (c: { time: number; open: number; high: number; low: number; close: number; volume: number }) => void,
+  ): Unsubscribe {
+    return this.conn.subscribe({ type: 'candle', coin: toHlCoin(symbol), interval }, (data) => {
+      const d = data as { t?: number; o?: string; h?: string; l?: string; c?: string; v?: string };
+      if (d.t == null) return;
+      cb({ time: Math.floor(d.t / 1000), open: Number(d.o), high: Number(d.h), low: Number(d.l), close: Number(d.c), volume: Number(d.v ?? 0) });
+    });
+  }
+
   subscribePrices(cb: (prices: Price[]) => void): Unsubscribe {
     return this.conn.subscribe({ type: 'allMids' }, (data) => {
       const mids = (data as { mids?: Record<string, string> }).mids ?? {};

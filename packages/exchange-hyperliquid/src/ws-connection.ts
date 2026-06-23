@@ -46,10 +46,17 @@ function defaultWsFactory(url: string): WsLike {
   return new Ctor(url);
 }
 
-/** Routing key for a subscription/message: `type:coin`, `type:user`, or `type`. */
-export function routingKey(o: { type?: string; channel?: string; coin?: unknown; user?: unknown }): string {
+/** Routing key for a subscription/message: `type:coin`, `type:user`, or `type`.
+ * The `candle` channel keys by coin+interval — its messages carry `s` (coin) and
+ * `i` (interval) instead of `coin`, so accept both shapes. */
+export function routingKey(o: { type?: string; channel?: string; coin?: unknown; user?: unknown; interval?: unknown; s?: unknown; i?: unknown }): string {
   const channel = o.type ?? o.channel ?? '';
-  if (typeof o.coin === 'string') return `${channel}:${o.coin}`;
+  const coin = typeof o.coin === 'string' ? o.coin : typeof o.s === 'string' ? o.s : undefined;
+  if (channel === 'candle' && coin) {
+    const iv = typeof o.interval === 'string' ? o.interval : typeof o.i === 'string' ? o.i : '';
+    return `candle:${coin}:${iv}`;
+  }
+  if (coin) return `${channel}:${coin}`;
   if (typeof o.user === 'string') return `${channel}:${o.user.toLowerCase()}`;
   return channel;
 }
@@ -151,8 +158,8 @@ export class HyperliquidWsConnection {
 
     // `trades` delivers an array of trades; the coin lives on each element.
     const raw0 = Array.isArray(msg.data) ? (msg.data[0] as { coin?: unknown } | undefined) : undefined;
-    const data = (raw0 ?? msg.data) as { coin?: unknown; user?: unknown } | undefined;
-    const key = routingKey({ channel: msg.channel, coin: data?.coin, user: data?.user });
+    const data = (raw0 ?? msg.data) as { coin?: unknown; user?: unknown; s?: unknown; i?: unknown } | undefined;
+    const key = routingKey({ channel: msg.channel, coin: data?.coin, user: data?.user, s: data?.s, i: data?.i });
     const entry = this.entries.get(key);
     if (!entry) return;
     entry.last = msg.data;

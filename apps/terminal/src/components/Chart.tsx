@@ -10,6 +10,7 @@ import {
   type LineData,
   type Time,
 } from 'lightweight-charts';
+import { getStream } from '@/lib/stream';
 
 const INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d'] as const;
 type Interval = (typeof INTERVALS)[number];
@@ -111,6 +112,23 @@ export function Chart({ symbol }: { symbol: string }) {
     })();
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbol, interval]);
+
+  // Live last candle over the WS `candle` feed (browser → HL direct, no server
+  // load). Updates the forming bar and appends new ones in real time, so the
+  // chart isn't static between reloads.
+  useEffect(() => {
+    const unsub = getStream().subscribeCandle(symbol, interval, (c) => {
+      const series = seriesRef.current;
+      if (!series) return;
+      const bar: CandlestickData = { time: c.time as Time, open: c.open, high: c.high, low: c.low, close: c.close };
+      try { series.update(bar); } catch { return; } // ignore out-of-order ticks before history loads
+      const arr = candlesRef.current;
+      const last = arr[arr.length - 1];
+      if (last && Number(last.time) === c.time) arr[arr.length - 1] = bar;
+      else if (!last || c.time > Number(last.time)) arr.push(bar);
+    });
+    return unsub;
   }, [symbol, interval]);
 
   // Re-apply when toggling indicators.
