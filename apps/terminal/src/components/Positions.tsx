@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { cancelOrder, placeOrder, setTpsl, IS_TESTNET } from '@/lib/api';
 import { useAccountStream } from '@/hooks/useAccountStream';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { useToast } from './Toast';
 import { Modal } from './Modal';
 import { TokenIcon } from './TokenIcon';
@@ -146,6 +147,9 @@ function statusStyle(status: string): { label: string; cls: string } {
 
 export function Positions({ address, walletAddress }: { address?: string; walletAddress?: string }) {
   const [tab, setTab] = useState<Tab>('positions');
+  const isMobile = useIsMobile();
+  const [expandedPos, setExpandedPos] = useState<Set<string>>(new Set());
+  const togglePos = (sym: string) => setExpandedPos((s) => { const n = new Set(s); n.has(sym) ? n.delete(sym) : n.add(sym); return n; });
   const [trades, setTrades] = useState<Fill[]>([]);
   const [funding, setFunding] = useState<FundingItem[]>([]);
   const [orderHist, setOrderHist] = useState<OrderHistItem[]>([]);
@@ -439,7 +443,53 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
         ) : (tab === 'positions' || tab === 'orders' ? !ws.ready : !loaded) ? (
           <Empty>loading…</Empty>
         ) : tab === 'positions' ? (
-          positions.length === 0 ? <Empty>No open positions.</Empty> : (
+          positions.length === 0 ? <Empty>No open positions.</Empty> : isMobile ? (
+            <div className="space-y-1.5 p-1.5">
+              <button onClick={onCloseAll} disabled={!walletAddress} className="w-full rounded border border-surface-700 py-2 text-xs font-semibold text-surface-300 hover:bg-surface-800 disabled:opacity-40">Close All</button>
+              {positions.map((p) => {
+                const base = p.symbol.replace('-USD', '');
+                const long = p.side === 'LONG';
+                const pnl = Number(p.unrealizedPnl);
+                const roe = Number(p.metadata?.returnOnEquity ?? 0) * 100;
+                const fund = -Number(p.funding);
+                const ts = tpslMap[p.symbol] ?? {};
+                const open = expandedPos.has(p.symbol);
+                return (
+                  <div key={p.symbol} className="rounded-lg border border-surface-800/60 bg-surface-900/50">
+                    <button onClick={() => togglePos(p.symbol)} className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <TokenIcon symbol={p.symbol} size="sm" />
+                        <span className="text-sm font-medium text-surface-100">{base}</span>
+                        <span className={`rounded px-1.5 py-0.5 text-2xs font-semibold ${long ? 'bg-win-500/20 text-win-400' : 'bg-loss-500/20 text-loss-400'}`}>{p.leverage}x {long ? 'Long' : 'Short'}</span>
+                        <span className={`tabular text-xs font-medium ${pnl >= 0 ? 'text-win-400' : 'text-loss-400'}`}>{pnl >= 0 ? '+' : ''}${n(pnl)} ({roe.toFixed(1)}%)</span>
+                      </span>
+                      <svg className={`shrink-0 text-surface-400 transition-transform ${open ? 'rotate-180' : ''}`} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+                    </button>
+                    {open && (
+                      <div className="px-3 pb-3">
+                        <div className="grid grid-cols-3 gap-x-3 gap-y-2.5 text-[11px] tabular">
+                          <Field label="Size" v={`${n(p.amount, 4)} ${base}`} />
+                          <Field label="Pos. Value" v={`$${n(p.metadata?.positionValue ?? '0')}`} />
+                          <Field label="Entry" v={px(p.entryPrice)} />
+                          <Field label="Mark" v={px(p.markPrice)} />
+                          <Field label="Liq. Price" v={Number(p.liquidationPrice) > 0 ? px(p.liquidationPrice) : 'N/A'} />
+                          <Field label="Margin" v={`$${n(p.margin)} (${String(p.metadata?.leverageType ?? 'cross')})`} />
+                          <Field label="Funding" v={`${fund >= 0 ? '+' : '-'}$${n(Math.abs(fund))}`} cls={fund >= 0 ? 'text-win-500' : 'text-loss-500'} />
+                          <Field label="TP / SL" v={`${ts.tp ? px(ts.tp) : '--'} / ${ts.sl ? px(ts.sl) : '--'}`} />
+                        </div>
+                        <div className="mt-3 flex gap-2 border-t border-surface-800/60 pt-2.5">
+                          <button onClick={() => setCloseTarget({ p, mode: 'market' })} disabled={!walletAddress} className="rounded bg-surface-700 px-3 py-1.5 text-xs font-medium text-win-400 hover:bg-surface-600 disabled:opacity-40">Market</button>
+                          <button onClick={() => setCloseTarget({ p, mode: 'limit' })} disabled={!walletAddress} className="rounded bg-surface-700 px-3 py-1.5 text-xs font-medium text-surface-100 hover:bg-surface-600 disabled:opacity-40">Limit</button>
+                          <button onClick={() => setCloseTarget({ p, mode: 'reverse' })} disabled={!walletAddress} className="rounded bg-surface-500/20 px-3 py-1.5 text-xs font-medium text-surface-300 hover:bg-surface-500/30 disabled:opacity-40">Flip</button>
+                          <button onClick={() => setTpslTarget(p)} disabled={!walletAddress} className="ml-auto rounded border border-surface-700 px-3 py-1.5 text-xs font-medium text-surface-300 hover:bg-surface-800 disabled:opacity-40">TP/SL</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
             <Table head={['Coin', 'Size', 'Pos. Value', 'Entry', 'Mark', 'PnL (ROE %)', 'Liq. Price', 'Margin', 'Funding',
               <button key="closeall" onClick={onCloseAll} disabled={!walletAddress} className="font-semibold text-surface-300 hover:text-surface-100 disabled:opacity-40">Close All</button>,
               'TP/SL']}>
@@ -901,6 +951,15 @@ function RowKV({ label, value }: { label: string; value: string }) {
 
 function Empty({ children }: { children: React.ReactNode }) {
   return <div className="p-4 text-sm text-surface-400">{children}</div>;
+}
+/** Label/value cell for the mobile position cards (grid grid-cols-3). */
+function Field({ label, v, cls = '' }: { label: string; v: string; cls?: string }) {
+  return (
+    <div>
+      <div className="text-surface-500">{label}</div>
+      <div className={`text-surface-100 ${cls}`}>{v}</div>
+    </div>
+  );
 }
 function Table({ head, children }: { head: React.ReactNode[]; children: React.ReactNode }) {
   return (
