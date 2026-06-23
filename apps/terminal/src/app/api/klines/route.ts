@@ -17,7 +17,10 @@ export async function GET(req: Request) {
     const candles = await readAdapter().getKlines({
       symbol,
       interval: ALLOWED.has(interval) ? interval : '1h',
-      limit: 300,
+      // More history so the chart isn't just a couple of days. HL candleSnapshot
+      // returns up to ~5000; 1500 gives plenty across intervals (≈62d @1h,
+      // ≈5d @1m) without a heavy payload.
+      limit: 1500,
     });
     return NextResponse.json({ success: true, data: candles });
   } catch (error) {
