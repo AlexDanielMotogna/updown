@@ -214,7 +214,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
       <Box sx={{ minWidth: 0 }}>
         <Link href={poolLink} style={{ textDecoration: 'none', color: 'inherit' }} onClick={stopToggle}>
           <Typography sx={{
-            fontWeight: 700, fontSize: '0.9rem', color: t.text.primary,
+            fontWeight: 600, fontSize: '0.9rem', color: t.text.primary,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             '&:hover': { color: t.text.bright },
           }}>
@@ -238,7 +238,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
   );
 
   const stakeCell = (
-    <Typography sx={{ fontSize: '1rem', fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>
+    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: t.text.primary, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>
       {fmtMicro(totalStake)}
     </Typography>
   );
@@ -251,7 +251,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
           <Typography sx={{ fontSize: '0.68rem', fontWeight: 600, color: t.text.quaternary, whiteSpace: 'nowrap' }}>
             {sideLabel(s.side, pool)} wins
           </Typography>
-          <Typography sx={{ fontSize: '0.8rem', fontWeight: 800, color: s.net >= 0 ? t.gain : t.down, fontVariantNumeric: 'tabular-nums', minWidth: 64, textAlign: 'right' }}>
+          <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: s.net >= 0 ? t.gain : t.down, fontVariantNumeric: 'tabular-nums', minWidth: 64, textAlign: 'right' }}>
             {fmtSigned(s.net)}
           </Typography>
         </Box>
@@ -273,13 +273,13 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
         </Typography>
       ) : totalPayout > 0 ? (
         <>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
             {fmtMicro(totalPayout)}
           </Typography>
           {allRefunded ? (
             <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: t.info }}>refunded</Typography>
           ) : (
-            <Typography sx={{ fontSize: '0.74rem', fontWeight: 800, color: netClosed >= 0 ? t.gain : t.down, fontVariantNumeric: 'tabular-nums' }}>
+            <Typography sx={{ fontSize: '0.74rem', fontWeight: 700, color: netClosed >= 0 ? t.gain : t.down, fontVariantNumeric: 'tabular-nums' }}>
               PnL {fmtSigned(netClosed)} ({netPct.toFixed(1)}%)
             </Typography>
           )}
@@ -332,14 +332,14 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
               {isActive ? (
                 <Typography sx={{ fontSize: '0.76rem', fontWeight: 700, color: t.text.secondary, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                   you receive {fmtMicro(potential)}
-                  <Box component="span" sx={{ color: (netBySide.get(b.side) ?? 0) >= 0 ? t.gain : t.down, fontWeight: 800, ml: 0.6 }}>
+                  <Box component="span" sx={{ color: (netBySide.get(b.side) ?? 0) >= 0 ? t.gain : t.down, fontWeight: 700, ml: 0.6 }}>
                     (PnL {fmtSigned(netBySide.get(b.side) ?? 0)})
                   </Box>
                 </Typography>
               ) : (
                 <>
                   {paid != null && (
-                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
+                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
                       {fmtMicro(paid)}
                     </Typography>
                   )}
@@ -426,7 +426,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
         <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 1, px: 1.5, pb: 1.5 }}>
           <Box>
             <Typography sx={{ fontSize: '0.62rem', fontWeight: 800, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Stake</Typography>
-            <Typography sx={{ fontSize: '0.95rem', fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>{fmtMicro(totalStake)}</Typography>
+            <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>{fmtMicro(totalStake)}</Typography>
           </Box>
           <Box sx={{ textAlign: 'right' }}>
             <Typography sx={{ fontSize: '0.62rem', fontWeight: 800, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
