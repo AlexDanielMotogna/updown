@@ -180,7 +180,12 @@ async function _createMatchPoolsInner(): Promise<void> {
  */
 export async function createSportsPool(match: Match, leagueCode: string): Promise<string | null> {
   const poolId = crypto.randomUUID();
-  const asset = `${leagueCode}:${match.homeTeam}-${match.awayTeam}`.slice(0, 32);
+  // On-chain `asset` is #[max_len(32)] = 32 BYTES (Borsh), not chars. Truncate by
+  // UTF-8 byte length — `.slice(0, 32)` cut by chars, so a title with multi-byte
+  // chars (curly quote ’, %, emoji…) exceeded 32 bytes and failed InitializePool
+  // with AccountDidNotSerialize (0xbbc).
+  let asset = `${leagueCode}:${match.homeTeam}-${match.awayTeam}`;
+  while (Buffer.byteLength(asset, 'utf8') > 32) asset = asset.slice(0, -1);
   const adapter = getAdapterForLeague(leagueCode);
   const isPolymarket = leagueCode.startsWith('PM_');
 
