@@ -215,7 +215,7 @@ export function ProfileHeader({
                 {/* Name + meta */}
                 <Box sx={{ minWidth: 0, flex: 1, pb: { xs: 0, sm: 0.5 } }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                    <Typography sx={{ fontSize: { xs: '0.95rem', md: '1.4rem' }, fontWeight: 800, color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Typography sx={{ fontSize: { xs: '0.95rem', md: '1.4rem' }, fontWeight: 700, color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {displayedName}
                     </Typography>
                     <Tooltip

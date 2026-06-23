@@ -86,7 +86,7 @@ export function ProfileStatsPanel({ userProfile }: Props) {
                 {tile.label}
               </Typography>
             </Box>
-            <Typography sx={{ fontSize: '1.15rem', fontWeight: 900, color: tile.color, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>
+            <Typography sx={{ fontSize: '1.15rem', fontWeight: 700, color: tile.color, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>
               {tile.value}
             </Typography>
             {tile.sub && (

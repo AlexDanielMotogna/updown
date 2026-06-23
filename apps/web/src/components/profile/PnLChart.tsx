@@ -213,7 +213,7 @@ export function PnLChart({ bets }: PnLChartProps) {
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
             <Typography sx={{
-              fontSize: { xs: '1.3rem', md: '1.7rem' }, fontWeight: 900, color, fontVariantNumeric: 'tabular-nums', lineHeight: 1,
+              fontSize: { xs: '1.3rem', md: '1.7rem' }, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums', lineHeight: 1,
               textShadow: `0 0 18px ${withAlpha(color, 0.55)}`,
             }}>
               {scoreStr}
@@ -225,7 +225,7 @@ export function PnLChart({ bets }: PnLChartProps) {
                 px: 0.75, py: 0.2, borderRadius: '999px',
                 bgcolor: withAlpha(t.gold, 0.15), border: `1px solid ${withAlpha(t.gold, 0.45)}`,
               }}>
-                <Typography sx={{ fontSize: '0.72rem', fontWeight: 900, color: t.gold }}>🔥 {streak}</Typography>
+                <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, color: t.gold }}>🔥 {streak}</Typography>
               </Box>
             )}
           </Box>
@@ -351,7 +351,7 @@ export function PnLChart({ bets }: PnLChartProps) {
                   <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.6)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>
                     {new Date(hover.t).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                   </Typography>
-                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 800, color: hp ? t.gain : t.down, fontVariantNumeric: 'tabular-nums' }}>
+                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: hp ? t.gain : t.down, fontVariantNumeric: 'tabular-nums' }}>
                     {hp ? '+' : '−'}{formatUSDC(String(Math.round(Math.abs(hover.pnl))), { min: 2 })}
                   </Typography>
                 </Box>
