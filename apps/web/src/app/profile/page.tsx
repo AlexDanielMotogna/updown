@@ -22,6 +22,7 @@ import { PositionsTab } from '@/components/profile/PositionsTab';
 import { PnLChart } from '@/components/profile/PnLChart';
 import { ProfileStatsPanel } from '@/components/profile/ProfileStatsPanel';
 import { BetRewardProgress } from '@/components/profile/BetRewardProgress';
+import { TradingTab } from '@/components/profile/TradingTab';
 
 /**
  * /profile - intentionally minimal. Identity header + P&L chart + the single
@@ -36,6 +37,7 @@ export default function MyBetsPage() {
   const { connected, walletAddress } = useWalletBridge();
   const { data: userProfile } = useUserProfile();
   const { data: balance } = useUsdcBalance();
+  const [mode, setMode] = useState<'predictions' | 'trading'>('predictions');
   const [claimingBetId, setClaimingBetId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [claimAllProgress, setClaimAllProgress] = useState<{ current: number; total: number } | null>(null);
@@ -158,6 +160,30 @@ export default function MyBetsPage() {
       <Container maxWidth={false} sx={{ maxWidth: 1400, pb: { xs: 3, md: 6 }, pt: { xs: 2, md: 3 }, px: { xs: 2, md: 3 } }}>
         {connected && walletAddress && (
           <>
+            {/* Predictions | Trading switch */}
+            <Box sx={{ display: 'inline-flex', gap: 0.5, p: 0.5, mb: 3, borderRadius: 1.5, bgcolor: t.bg.surfaceAlt, border: `1px solid ${t.border.subtle}` }}>
+              {(['predictions', 'trading'] as const).map((m) => (
+                <Box
+                  key={m}
+                  component="button"
+                  onClick={() => setMode(m)}
+                  sx={{
+                    px: 2.5, py: 0.85, borderRadius: 1, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                    fontSize: '0.85rem', fontWeight: 600, textTransform: 'capitalize', transition: 'all 0.12s ease',
+                    bgcolor: mode === m ? t.accent : 'transparent',
+                    color: mode === m ? '#000' : t.text.secondary,
+                    '&:hover': { color: mode === m ? '#000' : t.text.primary },
+                  }}
+                >
+                  {m}
+                </Box>
+              ))}
+            </Box>
+
+            {mode === 'trading' ? (
+              <TradingTab walletAddress={walletAddress} />
+            ) : (
+            <>
             {/* Testing-campaign 20-bet reward progress */}
             <BetRewardProgress reward={userProfile?.testingReward} />
 
@@ -225,6 +251,8 @@ export default function MyBetsPage() {
                 isLoadingMore={isFetchingNextPage}
                 onLoadMore={fetchNextPage}
               />
+            )}
+            </>
             )}
           </>
         )}

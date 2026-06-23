@@ -48,10 +48,13 @@ function fmtAxisUsd(micro: number): string {
 }
 
 interface PnLChartProps {
-  bets: Bet[];
+  bets?: Bet[];
+  /** Pre-computed cumulative series (micro-USDC), e.g. trading PnL. When given it
+   * replaces the bets-derived points so the same chart renders trading data. */
+  series?: Array<{ t: number; pnl: number }>;
 }
 
-export function PnLChart({ bets }: PnLChartProps) {
+export function PnLChart({ bets = [], series }: PnLChartProps) {
   const t = useThemeTokens();
   const [range, setRange] = useState<Range>('ALL');
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -69,8 +72,9 @@ export function PnLChart({ bets }: PnLChartProps) {
     return () => ro.disconnect();
   }, []);
 
-  // ── Cumulative P&L per pool ──────────────────────────────────────────
+  // ── Cumulative P&L per pool (or a pre-computed series for trading) ───────
   const allPoints = useMemo(() => {
+    if (series) return series;
     const buckets = new Map<string, { t: number; delta: number }>();
     for (const b of bets) {
       if (b.isWinner === null) continue;
@@ -87,7 +91,7 @@ export function PnLChart({ bets }: PnLChartProps) {
     const sorted = [...buckets.values()].sort((a, b) => a.t - b.t);
     let cum = 0;
     return sorted.map(({ t, delta }) => { cum += delta; return { t, pnl: cum }; });
-  }, [bets]);
+  }, [bets, series]);
 
   const points = useMemo(() => {
     if (range === 'ALL') return allPoints;

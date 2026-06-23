@@ -405,3 +405,105 @@ exchangeRouter.post('/order/cancel', async (req, res) => {
     res.status(502).json({ success: false, error: { code: 'CANCEL_FAILED', message: (error as Error).message } });
   }
 });
+
+// ── Trading history (read-only over persisted HL fills) ──────────────────────
+// Powers the Profile "Trading" tab. Keyed by the Solana walletAddress — the same
+// identity as predictions. Mainnet only (that's all we persist in `trade_fills`).
+// The terminal/poller writes the fills; these endpoints just read + aggregate.
+
+const tradesQuerySchema = z.object({
+  wallet: solanaWallet,
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  before: z.coerce.number().int().optional(), // time cursor (ms) for "load more"
+});
+
+/** GET /api/exchange/trades?wallet=&limit=&before= → paginated fill history. */
+exchangeRouter.get('/trades', async (req, res) => {
+  try {
+    const parsed = tradesQuerySchema.safeParse(req.query);
+    if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid query');
+    const { wallet, limit, before } = parsed.data;
+
+    const rows = await prisma.tradeFill.findMany({
+      where: { walletAddress: wallet, ...(before ? { time: { lt: BigInt(before) } } : {}) },
+      orderBy: { time: 'desc' },
+      take: limit + 1,
+    });
+    const hasMore = rows.length > limit;
+    const page = rows.slice(0, limit);
+    res.json({
+      success: true,
+      data: page.map((f) => ({
+        id: f.id,
+        coin: f.coin,
+        side: f.side,
+        dir: f.dir,
+        px: f.px,
+        sz: f.sz,
+        notionalUsd: f.notionalUsd,
+        feeUsd: f.feeUsd,
+        pnlUsd: f.pnlUsd,
+        time: Number(f.time),
+      })),
+      nextCursor: hasMore ? Number(page[page.length - 1].time) : null,
+    });
+  } catch (error) {
+    console.error('[Exchange] trades error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load trades' } });
+  }
+});
+
+/** GET /api/exchange/trades/summary?wallet= → aggregates + cumulative PnL curve. */
+exchangeRouter.get('/trades/summary', async (req, res) => {
+  try {
+    const parsed = z.object({ wallet: solanaWallet }).safeParse(req.query);
+    if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid query');
+    const { wallet } = parsed.data;
+
+    const rows = await prisma.tradeFill.findMany({
+      where: { walletAddress: wallet },
+      orderBy: { time: 'asc' },
+      select: { coin: true, dir: true, notionalUsd: true, feeUsd: true, pnlUsd: true, time: true },
+    });
+
+    let volumeUsd = 0, feesUsd = 0, realizedPnlUsd = 0, wins = 0, closedTrades = 0;
+    const perCoin = new Map<string, number>(); // realized PnL by coin
+    const curve: Array<{ t: number; pnl: number }> = [];
+    let cum = 0;
+    for (const f of rows) {
+      volumeUsd += Number(f.notionalUsd);
+      feesUsd += Number(f.feeUsd);
+      const pnl = f.pnlUsd != null ? Number(f.pnlUsd) : 0;
+      // A "close" realizes PnL — HL only sets closedPnl on closing fills.
+      const isClose = (f.dir ?? '').toLowerCase().includes('close') || (f.pnlUsd != null && pnl !== 0);
+      if (isClose) {
+        closedTrades++;
+        if (pnl > 0) wins++;
+        realizedPnlUsd += pnl;
+        perCoin.set(f.coin, (perCoin.get(f.coin) ?? 0) + pnl);
+        cum += pnl;
+        curve.push({ t: Number(f.time), pnl: cum });
+      }
+    }
+    const ranked = [...perCoin.entries()].sort((a, b) => b[1] - a[1]);
+    res.json({
+      success: true,
+      data: {
+        realizedPnlUsd,
+        volumeUsd,
+        feesUsd,
+        trades: rows.length,
+        closedTrades,
+        winRate: closedTrades > 0 ? (wins / closedTrades) * 100 : 0,
+        wins,
+        losses: closedTrades - wins,
+        bestCoin: ranked[0] ? { coin: ranked[0][0], pnl: ranked[0][1] } : null,
+        worstCoin: ranked.length ? { coin: ranked[ranked.length - 1][0], pnl: ranked[ranked.length - 1][1] } : null,
+        pnlCurve: curve,
+      },
+    });
+  } catch (error) {
+    console.error('[Exchange] trades summary error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load summary' } });
+  }
+});

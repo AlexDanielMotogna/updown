@@ -599,6 +599,50 @@ export async function fetchUserCategoryStats(
   return fetchApi<CategoryStatEntry[]>(`/api/users/category-stats?wallet=${wallet}`);
 }
 
+// ─── Trading (HyperLiquid fills persisted in trade_fills) ────────────────────
+
+export interface TradeFillRow {
+  id: string;
+  coin: string;
+  side: 'BUY' | 'SELL';
+  dir: string | null;
+  px: string;
+  sz: string;
+  notionalUsd: string;
+  feeUsd: string;
+  pnlUsd: string | null;
+  time: number;
+}
+
+export interface TradingSummary {
+  realizedPnlUsd: number;
+  volumeUsd: number;
+  feesUsd: number;
+  trades: number;
+  closedTrades: number;
+  winRate: number;
+  wins: number;
+  losses: number;
+  bestCoin: { coin: string; pnl: number } | null;
+  worstCoin: { coin: string; pnl: number } | null;
+  pnlCurve: Array<{ t: number; pnl: number }>;
+}
+
+export type TradingHistoryResponse = ApiResponse<TradeFillRow[]> & { nextCursor?: number | null };
+
+export async function fetchTradingSummary(wallet: string): Promise<ApiResponse<TradingSummary>> {
+  return fetchApi<TradingSummary>(`/api/exchange/trades/summary?wallet=${encodeURIComponent(wallet)}`);
+}
+
+export async function fetchTradingHistory(
+  wallet: string,
+  params?: { before?: number; limit?: number },
+): Promise<TradingHistoryResponse> {
+  const q = new URLSearchParams({ wallet, limit: String(params?.limit ?? 50) });
+  if (params?.before) q.set('before', String(params.before));
+  return fetchApi<TradeFillRow[]>(`/api/exchange/trades?${q.toString()}`) as Promise<TradingHistoryResponse>;
+}
+
 export type LeaderboardResponse = ApiResponse<LeaderboardEntry[]> & { self?: LeaderboardEntry | null };
 
 export async function fetchLeaderboard(
