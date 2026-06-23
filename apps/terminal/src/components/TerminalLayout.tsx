@@ -8,6 +8,8 @@ import { Orderbook } from './Orderbook';
 import { OrderPanel } from './OrderPanel';
 import { PositionsPanel } from './PositionsPanel';
 import { ConnectGate } from './ConnectGate';
+import { MobileTerminal } from './MobileTerminal';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import type { Ticker } from '@/lib/types';
 
 /** Vertical (column-splitting) drag handle. */
@@ -55,7 +57,11 @@ export function TerminalLayout({
   // SSR and the first client paint identical (empty), eliminating the mismatch.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  const isMobile = useIsMobile();
   if (!mounted) return <div className="h-full bg-surface-900" />;
+
+  // Small screens: the resizable panel grid is unusable — use a tabbed layout.
+  if (isMobile) return <MobileTerminal symbol={symbol} initial={initial} devWallet={devWallet} devEvm={devEvm} />;
 
   return (
     <div className="relative h-full">
