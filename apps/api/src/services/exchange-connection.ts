@@ -112,17 +112,16 @@ export async function createPendingAgentConnection(input: {
   const isTestnet = input.isTestnet ?? false;
   const accountAddress = input.accountAddress.toLowerCase();
 
-  // Bind-once: reject if this on-exchange account is already connected by a
-  // different user (one account ↔ one user per network). The DB unique index
-  // `exchange_account_unique` is the race-safe backstop below.
-  const taken = await prisma.exchangeConnection.findFirst({
-    where: { exchange, isTestnet, accountAddress, userId: { not: input.userId } },
-    select: { id: true },
-  });
-  if (taken) throw new AccountLinkedElsewhereError();
-
   const agent = generateAgentWallet();
-  try {
+
+  // Re-link (model i): a HyperLiquid/EVM account FOLLOWS the user connecting it
+  // now. If another UpDown account previously claimed it, move it — drop their
+  // (now-stale) connection so this user can own it. Safe: trade_fills dedupe by
+  // globally-unique `tid`, so re-linking can't double-credit XP / farm.
+  const claim = async () => {
+    await prisma.exchangeConnection.deleteMany({
+      where: { exchange, isTestnet, accountAddress, userId: { not: input.userId } },
+    });
     await upsertConnection({
       userId: input.userId,
       exchange,
@@ -133,12 +132,17 @@ export async function createPendingAgentConnection(input: {
       isTestnet,
       active: false,
     });
+  };
+
+  try {
+    await claim();
   } catch (e) {
-    // P2002 on the unique index = another user grabbed this account concurrently.
+    // P2002 = another user grabbed it between our delete and upsert. Retry once.
     if (e && typeof e === 'object' && (e as { code?: string }).code === 'P2002') {
-      throw new AccountLinkedElsewhereError();
+      await claim();
+    } else {
+      throw e;
     }
-    throw e;
   }
   return { agentAddress: agent.address };
 }
