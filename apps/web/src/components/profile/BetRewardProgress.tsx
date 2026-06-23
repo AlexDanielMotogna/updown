@@ -28,13 +28,13 @@ export function BetRewardProgress({ reward }: { reward: UserProfile['testingRewa
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: t.text.primary }}>
           {remaining} more prediction{remaining === 1 ? '' : 's'} to earn{' '}
-          <Box component="span" sx={{ color: t.gold, fontWeight: 800 }}>{reward.amount.toLocaleString()} <UpIcon size={14} sx={{ ml: 0.2 }} /></Box>
+          <Box component="span" sx={{ color: t.gold, fontWeight: 700 }}>{reward.amount.toLocaleString()} <UpIcon size={14} sx={{ ml: 0.2 }} /></Box>
         </Typography>
         <Box sx={{ mt: 0.6, height: 6, borderRadius: 3, bgcolor: t.hover.medium, overflow: 'hidden' }}>
           <Box sx={{ width: `${pct}%`, height: '100%', bgcolor: t.gold, transition: 'width 0.3s ease' }} />
         </Box>
       </Box>
-      <Typography sx={{ fontSize: '0.8rem', fontWeight: 800, color: t.text.secondary, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+      <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: t.text.secondary, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
         {reward.progress}/{reward.threshold}
       </Typography>
     </Box>

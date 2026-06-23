@@ -82,7 +82,7 @@ export function ProfileStatsPanel({ userProfile }: Props) {
           }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               {tile.icon && <Box sx={{ display: 'flex', color: tile.color }}>{tile.icon}</Box>}
-              <Typography sx={{ fontSize: '0.62rem', fontWeight: 800, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              <Typography sx={{ fontSize: '0.62rem', fontWeight: 600, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                 {tile.label}
               </Typography>
             </Box>

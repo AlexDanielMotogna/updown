@@ -208,7 +208,7 @@ export function PnLChart({ bets }: PnLChartProps) {
       {/* Header: animated score + range selector */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
         <Box>
-          <Typography sx={{ fontSize: '0.62rem', fontWeight: 800, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 1 }}>
+          <Typography sx={{ fontSize: '0.62rem', fontWeight: 600, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 1 }}>
             Profit / Loss
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
@@ -236,7 +236,7 @@ export function PnLChart({ bets }: PnLChartProps) {
             return (
               <Box key={r} onClick={() => setRange(r)} sx={{
                 px: 1, py: 0.4, cursor: 'pointer', borderRadius: '6px',
-                fontSize: '0.7rem', fontWeight: 800,
+                fontSize: '0.7rem', fontWeight: 600,
                 color: active ? t.text.contrast : t.text.tertiary,
                 bgcolor: active ? color : 'transparent',
                 boxShadow: active ? `0 0 12px ${withAlpha(color, 0.5)}` : 'none',

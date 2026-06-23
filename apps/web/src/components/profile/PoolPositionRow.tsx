@@ -189,7 +189,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
       onClick={(e) => { stopToggle(e); onClaim(pool.id, failedBet.id); }}
       disabled={isClaiming && claimingBetId === failedBet.id}
       sx={{
-        minWidth: 0, px: 1.5, py: 0.25, fontSize: '0.72rem', fontWeight: 800,
+        minWidth: 0, px: 1.5, py: 0.25, fontSize: '0.72rem', fontWeight: 700,
         bgcolor: t.gain, color: t.text.contrast, borderRadius: '4px', textTransform: 'none',
         '&:hover': { bgcolor: t.gain, filter: 'brightness(1.15)' },
       }}
@@ -302,10 +302,10 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, px: { xs: 1.5, md: 2 }, pb: 1.5, pt: 1, borderTop: `1px solid ${t.border.subtle}` }}>
       {/* Per-side column labels so the numbers are self-explanatory. */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-        <Typography sx={{ fontSize: '0.62rem', fontWeight: 800, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        <Typography sx={{ fontSize: '0.62rem', fontWeight: 600, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
           Side · stake
         </Typography>
-        <Typography sx={{ fontSize: '0.62rem', fontWeight: 800, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        <Typography sx={{ fontSize: '0.62rem', fontWeight: 600, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
           {isActive ? 'If this side wins' : 'Result'}
         </Typography>
       </Box>
@@ -319,7 +319,7 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
           <Box key={b.id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Box sx={{
-                fontSize: '0.72rem', fontWeight: 800, color: sideColor(b.side, t),
+                fontSize: '0.72rem', fontWeight: 700, color: sideColor(b.side, t),
                 bgcolor: withAlpha(sideColor(b.side, t), 0.15), px: 0.8, py: 0.2, borderRadius: '3px',
               }}>
                 {sideLabel(b.side, pool)}
@@ -346,13 +346,13 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
                   {won && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3, color: t.gain }}>
                       <CheckCircle sx={{ fontSize: 13 }} />
-                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 800 }}>Won</Typography>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 700 }}>Won</Typography>
                     </Box>
                   )}
                   {lost && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3, color: t.down }}>
                       <Cancel sx={{ fontSize: 13 }} />
-                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 800 }}>Lost</Typography>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 700 }}>Lost</Typography>
                     </Box>
                   )}
                 </>
@@ -425,11 +425,11 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 1, px: 1.5, pb: 1.5 }}>
           <Box>
-            <Typography sx={{ fontSize: '0.62rem', fontWeight: 800, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Stake</Typography>
+            <Typography sx={{ fontSize: '0.62rem', fontWeight: 600, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Stake</Typography>
             <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>{fmtMicro(totalStake)}</Typography>
           </Box>
           <Box sx={{ textAlign: 'right' }}>
-            <Typography sx={{ fontSize: '0.62rem', fontWeight: 800, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            <Typography sx={{ fontSize: '0.62rem', fontWeight: 600, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
               {isActive ? 'PnL if win' : 'Payout'}
             </Typography>
             {isActive ? scenarioCell : payoutCell}

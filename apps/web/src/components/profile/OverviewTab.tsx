@@ -194,11 +194,11 @@ function ReferralSnapshot({ wallet, onManage }: { wallet: string; onManage?: () 
     <Box>
       <Box sx={{ display: 'flex', gap: 2, mb: 1.5 }}>
         <Box>
-          <Typography sx={{ fontSize: '1.3rem', fontWeight: 800, color: t.text.primary, lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>{referrals}</Typography>
+          <Typography sx={{ fontSize: '1.3rem', fontWeight: 700, color: t.text.primary, lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>{referrals}</Typography>
           <Typography sx={{ fontSize: '0.68rem', color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Referred</Typography>
         </Box>
         <Box>
-          <Typography sx={{ fontSize: '1.3rem', fontWeight: 800, color: t.gain, lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>${earned.toFixed(2)}</Typography>
+          <Typography sx={{ fontSize: '1.3rem', fontWeight: 700, color: t.gain, lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>${earned.toFixed(2)}</Typography>
           <Typography sx={{ fontSize: '0.68rem', color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Earned</Typography>
         </Box>
       </Box>

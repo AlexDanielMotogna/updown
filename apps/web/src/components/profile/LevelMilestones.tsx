@@ -108,7 +108,7 @@ export function LevelMilestones({ userProfile }: LevelMilestonesProps) {
             }}
             title={
               <Box sx={{ minWidth: 150 }}>
-                <Typography sx={{ fontSize: '0.82rem', fontWeight: 800, color: m.unlocked ? tierColor : TT_TEXT, lineHeight: 1.2 }}>
+                <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: m.unlocked ? tierColor : TT_TEXT, lineHeight: 1.2 }}>
                   {m.title}
                 </Typography>
                 <Typography sx={{ fontSize: '0.66rem', fontWeight: 600, color: TT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, mb: 0.75 }}>

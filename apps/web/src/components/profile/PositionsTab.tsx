@@ -148,9 +148,9 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim, hasMor
         gap: 2, px: 2, py: 1, mb: 0.5,
         borderBottom: `1px solid ${t.border.subtle}`,
       }}>
-        <Typography sx={{ fontSize: '0.7rem', color: t.text.secondary, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>Market</Typography>
-        <Typography sx={{ fontSize: '0.7rem', color: t.text.secondary, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' }}>Stake</Typography>
-        <Typography sx={{ fontSize: '0.7rem', color: t.text.secondary, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' }}>
+        <Typography sx={{ fontSize: '0.7rem', color: t.text.secondary, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Market</Typography>
+        <Typography sx={{ fontSize: '0.7rem', color: t.text.secondary, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' }}>Stake</Typography>
+        <Typography sx={{ fontSize: '0.7rem', color: t.text.secondary, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' }}>
           {sub === 'active' ? 'PnL if win' : 'Payout'}
         </Typography>
         <Box />
