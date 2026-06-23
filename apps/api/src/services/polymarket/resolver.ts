@@ -25,7 +25,11 @@ export async function resolvePolymarketPools(): Promise<void> {
       poolType: 'POLYMARKET',
       status: { in: ['JOINING', 'ACTIVE'] },
       matchId: { not: null },
-      endTime: { lte: new Date() }, // market deadline passed
+      // No endTime gate: a PM market can settle on UMA/CTF BEFORE its nominal
+      // deadline (e.g. "X by date Y" resolves the moment X happens). We settle as
+      // soon as the cache is FINISHED — `getCachedFixtureResults` only returns
+      // resolved markets, and the on-chain `resolve` allows it from Joining
+      // (its `clock >= end_time` check was removed by design).
     },
   });
   if (pools.length === 0) return;

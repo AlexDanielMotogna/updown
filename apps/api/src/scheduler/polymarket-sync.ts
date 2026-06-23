@@ -719,33 +719,24 @@ async function resolutionPoll(): Promise<void> {
   let refunds = 0;
   let stillPending = 0;
 
+  // Mark a cache row FINISHED with the resolved winner (+ best-effort event log).
+  const applyResolved = async (externalId: string, result: MatchResult, oracle: 'ctf' | 'gamma') => {
+    const winner = result.winner === 'HOME' ? 'HOME' : 'AWAY';
+    await prisma.sportsFixtureCache.updateMany({
+      where: { externalId, sport: 'POLYMARKET', apiSource: API_SOURCE },
+      data: { status: 'FINISHED', homeScore: result.homeScore, awayScore: result.awayScore, winner, lastSyncedAt: new Date() },
+    });
+    await prisma.eventLog.create({
+      data: { eventType: 'POOL_PM_MARKET_RESOLVED', entityType: 'market', entityId: externalId, payload: { marketId: externalId, oracle, winner } },
+    }).catch(() => {});
+  };
+
   for (const { externalId, conditionId } of pending) {
     try {
       const state = await pollPolymarketMarket(externalId, conditionId);
 
       if (state.kind === 'resolved') {
-        const winner = state.result.winner === 'HOME' ? 'HOME' : 'AWAY';
-        await prisma.sportsFixtureCache.updateMany({
-          where: { externalId, sport: 'POLYMARKET', apiSource: API_SOURCE },
-          data: {
-            status: 'FINISHED',
-            homeScore: state.result.homeScore,
-            awayScore: state.result.awayScore,
-            winner,
-            lastSyncedAt: new Date(),
-          },
-        });
-        // Track the oracle source so the cutover decision has hard data.
-        // Event log is best-effort — losing a counter row is fine, the
-        // cache update is the source of truth.
-        await prisma.eventLog.create({
-          data: {
-            eventType: 'POOL_PM_MARKET_RESOLVED',
-            entityType: 'market',
-            entityId: externalId,
-            payload: { marketId: externalId, oracle: state.oracle, winner },
-          },
-        }).catch(() => {});
+        await applyResolved(externalId, state.result, state.oracle);
         resolved++;
         if (state.oracle === 'ctf') resolvedByCtf++;
       } else if (state.kind === 'delisted') {
@@ -787,6 +778,57 @@ async function resolutionPoll(): Promise<void> {
     // Rate limit between API calls
     await sleep(RATE_LIMIT_MS);
   }
+
+  // ── Early resolution (pre-deadline) ──────────────────────────────────────
+  // A PM market can settle on UMA/CTF BEFORE its nominal endDate ("X by date Y"
+  // resolves the moment X happens). The main loop above only looks at past-
+  // deadline markets, so without this an early-resolved market keeps taking bets
+  // on a known outcome. CTF-ONLY here (no Gamma) to keep load low, and we NEVER
+  // cancel a pre-deadline market — only act on a confirmed on-chain resolution.
+  // Bound the on-chain reads to markets that actually back an OPEN PM pool —
+  // not every cached market (could be hundreds). We only care about settling
+  // pools we created.
+  const openPmPools = await prisma.pool.findMany({
+    where: { poolType: 'POLYMARKET', status: { in: ['JOINING', 'ACTIVE'] }, matchId: { not: null } },
+    select: { matchId: true },
+  });
+  const openMatchIds = [...new Set(openPmPools.map((p) => p.matchId!).filter(Boolean))];
+  const early = openMatchIds.length === 0 ? [] : await prisma.sportsFixtureCache.findMany({
+    where: {
+      sport: 'POLYMARKET',
+      apiSource: API_SOURCE,
+      status: { notIn: ['FINISHED', 'CANCELLED'] },
+      kickoff: { gt: new Date() }, // NOT yet past endDate
+      conditionId: { not: null },
+      externalId: { in: openMatchIds },
+    },
+    select: { externalId: true, conditionId: true },
+  });
+  let earlyResolved = 0;
+  for (const { externalId, conditionId } of early) {
+    try {
+      const ctf = await readCtfResolution(conditionId!);
+      if (ctf.kind === 'resolved') {
+        const winner: 'HOME' | 'AWAY' = ctf.outcome === 1 ? 'HOME' : 'AWAY';
+        await applyResolved(
+          externalId,
+          { matchId: externalId, status: 'FINISHED', homeScore: winner === 'HOME' ? 1 : 0, awayScore: winner === 'AWAY' ? 1 : 0, winner },
+          'ctf',
+        );
+        earlyResolved++; resolved++; resolvedByCtf++;
+      } else if (ctf.kind === 'refund') {
+        await prisma.eventLog.create({
+          data: { eventType: 'POOL_PM_CTF_REFUND', entityType: 'market', entityId: externalId, payload: { marketId: externalId, conditionId } },
+        }).catch(() => {});
+        refunds++;
+      }
+      // pending / unknown / rpc-error → leave it for a later cycle.
+    } catch (error) {
+      console.warn(`[PolymarketSync] Early CTF check failed for ${externalId}:`, error instanceof Error ? error.message : error);
+    }
+    await sleep(RATE_LIMIT_MS);
+  }
+  if (earlyResolved > 0) console.log(`[PolymarketSync] Early CTF resolution: ${earlyResolved} pre-deadline market(s) settled on-chain`);
 
   if (resolved > 0 || delisted > 0 || refunds > 0) {
     console.log(`[PolymarketSync] Resolution poll: resolved=${resolved} (ctf=${resolvedByCtf}) delisted=${delisted} refund=${refunds} still-pending=${stillPending} (of ${pending.length})`);
