@@ -31,6 +31,7 @@ const CategoryManagement = dynamic(() => import('./components/CategoryManagement
 const MatchExplorer = dynamic(() => import('./components/MatchExplorer').then(m => m.MatchExplorer), { ssr: false, loading: () => <LoadingState /> });
 const PmExplorer = dynamic(() => import('./components/PmExplorer').then(m => m.PmExplorer), { ssr: false, loading: () => <LoadingState /> });
 import { GrowthOverview } from './components/GrowthOverview';
+import { BuilderRevenue } from './components/BuilderRevenue';
 import { ResolutionInspector } from './components/ResolutionInspector';
 import { ResolutionSuggestions } from './components/ResolutionSuggestions';
 import { LiquidityBot } from './components/LiquidityBot';
@@ -67,6 +68,7 @@ const NAV_GROUPS: { group: string; items: NavEntry[] }[] = [
   ] },
   { group: 'Economy', items: [
     { id: 'growth', label: 'Growth', Component: GrowthOverview },
+    { id: 'trading', label: 'Trading', Component: BuilderRevenue },
     { id: 'liquidity', label: 'Liquidity', Component: LiquidityBot },
   ] },
 ];
