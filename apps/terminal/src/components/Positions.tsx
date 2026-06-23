@@ -11,12 +11,12 @@ import { TokenIcon } from './TokenIcon';
 type CloseMode = 'market' | 'limit' | 'reverse';
 
 type Tab = 'positions' | 'orders' | 'trades' | 'funding' | 'orderhistory';
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'positions', label: 'Positions' },
-  { key: 'orders', label: 'Open Orders' },
-  { key: 'trades', label: 'Trade History' },
-  { key: 'funding', label: 'Funding History' },
-  { key: 'orderhistory', label: 'Order History' },
+const TABS: { key: Tab; label: string; short: string }[] = [
+  { key: 'positions', label: 'Positions', short: 'Positions' },
+  { key: 'orders', label: 'Open Orders', short: 'Orders' },
+  { key: 'trades', label: 'Trade History', short: 'Trades' },
+  { key: 'funding', label: 'Funding History', short: 'Funding' },
+  { key: 'orderhistory', label: 'Order History', short: 'History' },
 ];
 
 const n = (s: string | number, dp = 2) => Number(s).toLocaleString(undefined, { maximumFractionDigits: dp });
@@ -423,15 +423,16 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
 
   return (
     <div className="card flex h-full flex-col">
-      {/* Tabs */}
-      <div className="flex text-xs">
+      {/* Tabs — scroll horizontally instead of widening the card (mobile: short
+          labels). [scrollbar hidden] so it doesn't show a bar. */}
+      <div className="flex overflow-x-auto text-xs [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex items-center gap-1.5 border-b-2 px-3 py-2 ${tab === t.key ? 'border-surface-200 text-surface-100' : 'border-transparent text-surface-400 hover:text-surface-200'}`}
+            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 ${tab === t.key ? 'border-surface-200 text-surface-100' : 'border-transparent text-surface-400 hover:text-surface-200'}`}
           >
-            {t.label}
+            {isMobile ? t.short : t.label}
             {counts[t.key] > 0 && <span className="rounded bg-surface-700 px-1.5 py-0.5 text-2xs">{counts[t.key]}</span>}
           </button>
         ))}

@@ -54,7 +54,7 @@ export function MobileTerminal({
   ];
 
   return (
-    <div className="h-full overflow-y-auto overscroll-contain pb-[72px]" style={{ overflowAnchor: 'none' }}>
+    <div className="h-full overflow-y-auto overflow-x-hidden overscroll-contain pb-[72px]" style={{ overflowAnchor: 'none' }}>
       {/* Market bar — collapsible (compact + chevron → stats grid) */}
       <MarketHeader symbol={symbol} initial={initial} mobile />
 
