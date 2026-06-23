@@ -164,16 +164,19 @@ export function Chart({ symbol }: { symbol: string }) {
             </div>
           )}
         </div>
-        {/* TradingView attribution — REQUIRED by the lightweight-charts license
-            (text-based link back to tradingview.com). Do not remove. */}
-        <a
-          href="https://www.tradingview.com/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="ml-auto text-2xs text-surface-500 hover:text-surface-300"
-        >
-          Charts by TradingView
-        </a>
+        {/* TradingView attribution — REQUIRED by the lightweight-charts license.
+            Only the words "TradingView" are the link back to tradingview.com. */}
+        <span className="ml-auto text-2xs text-surface-500">
+          Charts by{' '}
+          <a
+            href="https://www.tradingview.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-surface-400 underline hover:text-surface-200"
+          >
+            TradingView
+          </a>
+        </span>
       </div>
 
       <div className="relative min-h-0 flex-1">
