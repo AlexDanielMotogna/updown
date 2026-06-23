@@ -342,7 +342,7 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
           <Box component="img" src={pool.homeTeamCrest} alt="" sx={{ width: 36, height: 36, borderRadius: 1, objectFit: 'cover', flexShrink: 0 }} />
         )}
         <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Typography sx={{ fontSize: { xs: '0.88rem', md: '0.92rem' }, fontWeight: 700, color: t.text.primary, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          <Typography sx={{ fontSize: { xs: '0.88rem', md: '0.92rem' }, fontWeight: 600, color: t.text.primary, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
             {title}
           </Typography>
           {cryptoWindow && (

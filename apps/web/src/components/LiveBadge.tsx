@@ -35,7 +35,7 @@ export function LiveBadge({ size = 'md' }: LiveBadgeProps) {
       <Typography
         sx={{
           fontSize: size === 'sm' ? '0.56rem' : '0.62rem',
-          fontWeight: 800,
+          fontWeight: 700,
           color: t.gain,
           letterSpacing: '0.08em',
           lineHeight: 1,
