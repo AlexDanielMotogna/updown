@@ -151,16 +151,23 @@ export function PnLChart({ bets }: PnLChartProps) {
     // Axis ticks.
     const yTicks: Array<{ v: number; y: number }> = [];
     for (let i = 0; i <= 3; i++) { const v = minY + (maxY - minY) * (i / 3); yTicks.push({ v, y: sy(v) }); }
+    // X-axis ticks are spaced by TIME across the span (not by data points), so
+    // intermediate dates show even on days with no betting — the curve is
+    // time-positioned, so its labels must be too. (Before, ticks were taken from
+    // the data points only, so "5 jun → 12 jun" skipped every day between.)
     const xTicks: Array<{ t: number; x: number }> = [];
-    const xn = Math.min(4, coords.length);
     const dayKey = (ms: number) => new Date(ms).toDateString();
-    if (xn === 1) xTicks.push({ t: coords[0].t, x: coords[0].x });
-    else for (let i = 0; i < xn; i++) {
-      const idx = Math.round((coords.length - 1) * (i / (xn - 1)));
-      const cand = { t: coords[idx].t, x: coords[idx].x };
-      // Skip ticks that land on the same day as the previous one (avoids the
-      // "jun jun jun" overlap when several pools resolved close together).
-      if (xTicks.length === 0 || dayKey(cand.t) !== dayKey(xTicks[xTicks.length - 1].t)) xTicks.push(cand);
+    if (coords.length === 1) {
+      xTicks.push({ t: coords[0].t, x: coords[0].x });
+    } else {
+      const dayMs = 24 * 60 * 60 * 1000;
+      const xn = Math.min(5, Math.max(2, Math.round(spanT / dayMs) + 1));
+      for (let i = 0; i < xn; i++) {
+        const tv = minT + spanT * (i / (xn - 1));
+        const cand = { t: tv, x: sx(tv) };
+        // De-dupe labels that fall on the same calendar day (tiny spans).
+        if (xTicks.length === 0 || dayKey(cand.t) !== dayKey(xTicks[xTicks.length - 1].t)) xTicks.push(cand);
+      }
     }
     return { coords, line, area, bottom, zeroY, plotW, yTicks, xTicks };
   }, [points, w]);
