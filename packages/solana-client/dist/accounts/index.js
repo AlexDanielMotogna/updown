@@ -10,7 +10,7 @@ exports.getTournamentVaultPDA = getTournamentVaultPDA;
 exports.getTournamentParticipantPDA = getTournamentParticipantPDA;
 const web3_js_1 = require("@solana/web3.js");
 // Program ID - Devnet deployment
-exports.PROGRAM_ID = new web3_js_1.PublicKey('HnqB6ahdTEGwJ624D6kaeoSxUS2YwNoq1Cn5Kt9KQBTD');
+exports.PROGRAM_ID = new web3_js_1.PublicKey('9H7k26HvHHnB4T6ErU7n2wVSFJhS1aigqFQGwvQyVuNG');
 /**
  * Derive Pool PDA
  */
