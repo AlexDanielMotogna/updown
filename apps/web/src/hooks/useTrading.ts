@@ -1,5 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { fetchTradingSummary, fetchTradingHistory } from '@/lib/api';
+
+export const TRADES_PAGE_SIZE = 10;
 
 /**
  * Trading data for the Profile "Trading" tab — aggregates + fill history from
@@ -16,12 +18,13 @@ export function useTradingSummary(walletAddress?: string) {
   });
 }
 
-export function useTradingHistory(walletAddress?: string) {
+/** One page of fill history (offset pagination) + total count. */
+export function useTradingHistory(walletAddress?: string, page = 0) {
   return useQuery({
-    queryKey: ['tradingHistory', walletAddress],
-    queryFn: () => fetchTradingHistory(walletAddress!, { limit: 100 }),
+    queryKey: ['tradingHistory', walletAddress, page],
+    queryFn: () => fetchTradingHistory(walletAddress!, { page, limit: TRADES_PAGE_SIZE }),
     enabled: !!walletAddress,
     refetchInterval: 30_000,
-    select: (res) => res.data ?? [],
+    placeholderData: keepPreviousData, // keep the old page visible while the next loads
   });
 }

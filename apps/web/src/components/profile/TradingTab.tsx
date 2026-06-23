@@ -1,9 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { Box, Typography, Tooltip } from '@mui/material';
-import { TrendingUp, TrendingDown } from '@mui/icons-material';
+import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight } from '@mui/icons-material';
 import { useThemeTokens } from '@/app/providers';
-import { useTradingSummary, useTradingHistory } from '@/hooks/useTrading';
+import { useTradingSummary, useTradingHistory, TRADES_PAGE_SIZE } from '@/hooks/useTrading';
 import { PnLChart } from './PnLChart';
 import type { TradeFillRow } from '@/lib/api';
 
@@ -25,8 +26,9 @@ function fmtTime(ms: number): string {
  */
 export function TradingTab({ walletAddress }: { walletAddress?: string }) {
   const t = useThemeTokens();
+  const [page, setPage] = useState(0);
   const { data: summary, isLoading } = useTradingSummary(walletAddress);
-  const { data: fills } = useTradingHistory(walletAddress);
+  const { data: hist } = useTradingHistory(walletAddress, page);
 
   const hasData = !!summary && summary.trades > 0;
 
@@ -45,6 +47,12 @@ export function TradingTab({ walletAddress }: { walletAddress?: string }) {
   const pnlPositive = pnl >= 0;
   // PnLChart works in micro-USDC (like predictions) — scale the USD curve up.
   const series = (summary?.pnlCurve ?? []).map((p) => ({ t: p.t, pnl: Math.round(p.pnl * 1_000_000) }));
+
+  // Server-side pagination — one page from the API + the total count, so the
+  // user can page through ALL trades (no client-side cap).
+  const rows = hist?.data ?? [];
+  const total = hist?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / TRADES_PAGE_SIZE));
 
   const tiles: Array<{ label: string; tip: string; value: string; sub?: string; color: string; icon?: React.ReactNode }> = [
     {
@@ -109,10 +117,10 @@ export function TradingTab({ walletAddress }: { walletAddress?: string }) {
             <Typography key={h} sx={{ fontSize: '0.66rem', fontWeight: 600, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: i >= 3 ? 'right' : 'left' }}>{h}</Typography>
           ))}
         </Box>
-        {(fills ?? []).length === 0 ? (
+        {total === 0 ? (
           <Typography sx={{ textAlign: 'center', color: t.text.tertiary, py: 5, fontSize: '0.85rem' }}>No fills yet.</Typography>
         ) : (
-          (fills ?? []).map((f: TradeFillRow) => {
+          rows.map((f: TradeFillRow) => {
             const pnlN = f.pnlUsd != null ? Number(f.pnlUsd) : null;
             const isClose = (f.dir ?? '').toLowerCase().includes('close');
             const dirColor = !f.dir ? t.text.secondary : isClose ? t.accent : f.side === 'BUY' ? t.gain : t.down;
@@ -130,6 +138,31 @@ export function TradingTab({ walletAddress }: { walletAddress?: string }) {
               </Box>
             );
           })
+        )}
+
+        {/* Pagination footer */}
+        {total > TRADES_PAGE_SIZE && (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1.5, px: 2, py: 1.25 }}>
+            <Typography sx={{ fontSize: '0.72rem', color: t.text.tertiary }}>
+              Page {page + 1} of {pageCount} · {total} trade{total === 1 ? '' : 's'}
+            </Typography>
+            <Box
+              component="button"
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0}
+              sx={{ display: 'flex', alignItems: 'center', p: 0.5, borderRadius: 1, border: `1px solid ${t.border.subtle}`, bgcolor: 'transparent', cursor: page === 0 ? 'default' : 'pointer', color: page === 0 ? t.text.quaternary : t.text.secondary, opacity: page === 0 ? 0.4 : 1, '&:hover': { color: page === 0 ? t.text.quaternary : t.text.primary } }}
+            >
+              <ChevronLeft sx={{ fontSize: 18 }} />
+            </Box>
+            <Box
+              component="button"
+              onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+              disabled={page >= pageCount - 1}
+              sx={{ display: 'flex', alignItems: 'center', p: 0.5, borderRadius: 1, border: `1px solid ${t.border.subtle}`, bgcolor: 'transparent', cursor: page >= pageCount - 1 ? 'default' : 'pointer', color: page >= pageCount - 1 ? t.text.quaternary : t.text.secondary, opacity: page >= pageCount - 1 ? 0.4 : 1, '&:hover': { color: page >= pageCount - 1 ? t.text.quaternary : t.text.primary } }}
+            >
+              <ChevronRight sx={{ fontSize: 18 }} />
+            </Box>
+          </Box>
         )}
       </Box>
     </>

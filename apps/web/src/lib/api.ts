@@ -628,7 +628,7 @@ export interface TradingSummary {
   pnlCurve: Array<{ t: number; pnl: number }>;
 }
 
-export type TradingHistoryResponse = ApiResponse<TradeFillRow[]> & { nextCursor?: number | null };
+export type TradingHistoryResponse = ApiResponse<TradeFillRow[]> & { total?: number; page?: number; limit?: number };
 
 export async function fetchTradingSummary(wallet: string): Promise<ApiResponse<TradingSummary>> {
   return fetchApi<TradingSummary>(`/api/exchange/trades/summary?wallet=${encodeURIComponent(wallet)}`);
@@ -636,10 +636,9 @@ export async function fetchTradingSummary(wallet: string): Promise<ApiResponse<T
 
 export async function fetchTradingHistory(
   wallet: string,
-  params?: { before?: number; limit?: number },
+  params?: { page?: number; limit?: number },
 ): Promise<TradingHistoryResponse> {
-  const q = new URLSearchParams({ wallet, limit: String(params?.limit ?? 50) });
-  if (params?.before) q.set('before', String(params.before));
+  const q = new URLSearchParams({ wallet, page: String(params?.page ?? 0), limit: String(params?.limit ?? 10) });
   return fetchApi<TradeFillRow[]>(`/api/exchange/trades?${q.toString()}`) as Promise<TradingHistoryResponse>;
 }
 

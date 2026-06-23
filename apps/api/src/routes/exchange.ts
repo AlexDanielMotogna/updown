@@ -413,27 +413,33 @@ exchangeRouter.post('/order/cancel', async (req, res) => {
 
 const tradesQuerySchema = z.object({
   wallet: solanaWallet,
-  limit: z.coerce.number().int().min(1).max(200).default(50),
-  before: z.coerce.number().int().optional(), // time cursor (ms) for "load more"
+  page: z.coerce.number().int().min(0).default(0),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
 });
 
-/** GET /api/exchange/trades?wallet=&limit=&before= → paginated fill history. */
+/** GET /api/exchange/trades?wallet=&page=&limit= → offset-paginated fill history
+ * (newest first) + total count, so the UI can page through ALL trades. */
 exchangeRouter.get('/trades', async (req, res) => {
   try {
     const parsed = tradesQuerySchema.safeParse(req.query);
     if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid query');
-    const { wallet, limit, before } = parsed.data;
+    const { wallet, page, limit } = parsed.data;
 
-    const rows = await prisma.tradeFill.findMany({
-      where: { walletAddress: wallet, ...(before ? { time: { lt: BigInt(before) } } : {}) },
-      orderBy: { time: 'desc' },
-      take: limit + 1,
-    });
-    const hasMore = rows.length > limit;
-    const page = rows.slice(0, limit);
+    const [total, rows] = await Promise.all([
+      prisma.tradeFill.count({ where: { walletAddress: wallet } }),
+      prisma.tradeFill.findMany({
+        where: { walletAddress: wallet },
+        orderBy: { time: 'desc' },
+        skip: page * limit,
+        take: limit,
+      }),
+    ]);
     res.json({
       success: true,
-      data: page.map((f) => ({
+      total,
+      page,
+      limit,
+      data: rows.map((f) => ({
         id: f.id,
         coin: f.coin,
         side: f.side,
@@ -445,7 +451,6 @@ exchangeRouter.get('/trades', async (req, res) => {
         pnlUsd: f.pnlUsd,
         time: Number(f.time),
       })),
-      nextCursor: hasMore ? Number(page[page.length - 1].time) : null,
     });
   } catch (error) {
     console.error('[Exchange] trades error:', error);
