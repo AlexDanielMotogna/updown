@@ -101,14 +101,15 @@ const PM_LOPSIDED_THRESHOLD = (() => {
  * Skip markets that are already too far through their life — the operator's
  * "don't create pools for markets that started 10 days ago with 2 days left"
  * complaint. We only ingest a market when LESS than PM_MAX_ELAPSED_FRACTION of
- * its [startDate, endDate] span has elapsed (default 0.5 → must catch it in the
- * first half). Relative, not an arbitrary absolute age, so genuinely long
- * markets we catch early still qualify. Never rejects when the dates are
- * missing/invalid (can't compute → let other filters decide).
+ * its [startDate, endDate] span has elapsed (default 0.05 → must catch it in the
+ * first 5% of its life, i.e. "freshly listed" only). Relative, not an arbitrary
+ * absolute age, so genuinely long markets we catch early still qualify. Never
+ * rejects when the dates are missing/invalid (can't compute → let other filters
+ * decide). Override per-env with PM_MAX_ELAPSED_FRACTION.
  */
 const PM_MAX_ELAPSED_FRACTION = (() => {
   const n = Number(process.env.PM_MAX_ELAPSED_FRACTION);
-  return Number.isFinite(n) && n > 0 && n <= 1 ? n : 0.5;
+  return Number.isFinite(n) && n > 0 && n <= 1 ? n : 0.05;
 })();
 
 function isMarketStale(startDateRaw: unknown, endDateRaw: unknown): boolean {
