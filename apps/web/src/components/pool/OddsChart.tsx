@@ -117,7 +117,7 @@ export function OddsChart({
   const [pmHistory, setPmHistory] = useState<OddsPoint[]>([]);
   const [udHistory, setUdHistory] = useState<OddsPoint[]>([]);
   const [loading, setLoading] = useState(true);
-  const [source, setSource] = useState<Source>(lockSource ?? 'polymarket');
+  const [source, setSource] = useState<Source>(lockSource ?? 'updown');
   const [showUp, setShowUp] = useState(true);
   const [showDown, setShowDown] = useState(true);
   const [showDraw, setShowDraw] = useState(true);
@@ -765,10 +765,12 @@ export function OddsChart({
       {!hideControls && (
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            {/* Source toggle (Polymarket vs UpDown). Hidden when locked. */}
+            {/* Source toggle. UpDown first + active by default; the external
+                odds curve is surfaced as "Market sentiment" (we don't brand a
+                competitor on our own chart). Hidden when locked. */}
             {!lockSource && (
               <Box sx={{ display: 'flex', bgcolor: t.border.subtle, borderRadius: '6px', overflow: 'hidden' }}>
-                {(['polymarket', 'updown'] as const).map(s => (
+                {(['updown', 'polymarket'] as const).map(s => (
                   <Box
                     key={s}
                     onClick={() => setSource(s)}
@@ -781,7 +783,7 @@ export function OddsChart({
                       '&:hover': { bgcolor: t.border.default },
                     }}
                   >
-                    {s === 'polymarket' ? 'Polymarket' : 'UpDown'}
+                    {s === 'polymarket' ? 'Market sentiment' : 'UpDown'}
                   </Box>
                 ))}
               </Box>
