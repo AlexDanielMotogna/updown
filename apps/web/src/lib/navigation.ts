@@ -15,7 +15,10 @@ const TERMINAL_URL = /^https?:\/\//.test(rawTerminalUrl) ? rawTerminalUrl : `htt
 
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Markets', href: '/', icon: ShowChart },
-  { label: 'Trade', href: TERMINAL_URL, icon: CandlestickChart, external: true },
+  // Link straight to a market page (not the terminal root): the terminal has no
+  // server redirect on `/`, so a bare TERMINAL_URL can't reliably land Pro users
+  // on the trade view. /market/BTC-USD works in both Simple and Pro.
+  { label: 'Trade', href: `${TERMINAL_URL}/market/BTC-USD`, icon: CandlestickChart, external: true },
   // Tournaments + Squads temporarily disabled (under construction) — also
   // redirected to / in next.config.js. Re-add here to re-enable.
   // { label: 'Tournaments', href: '/tournaments', icon: MilitaryTech },
