@@ -65,7 +65,9 @@ export function TokenIcon({ symbol, size = 'sm', className = '' }: { symbol: str
     <img
       src={urls[i]}
       alt={b}
-      className={`${SIZE[size]} shrink-0 rounded-full object-cover ${className}`}
+      // White backdrop + faint ring so black/transparent logos stay visible on the
+      // dark UI (colored circular logos cover it, so they're unaffected).
+      className={`${SIZE[size]} shrink-0 rounded-full bg-white object-cover ring-1 ring-black/10 ${className}`}
       onError={() => (i < urls.length - 1 ? setI(i + 1) : setFailed(true))}
       loading="lazy"
     />
