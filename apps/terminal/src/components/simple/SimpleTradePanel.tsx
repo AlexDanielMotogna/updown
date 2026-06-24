@@ -173,7 +173,7 @@ export function SimpleTradePanel({
                       ? isLong ? 'bg-win-500 text-black' : 'bg-loss-500 text-black'
                       : 'bg-surface-800 text-surface-400 hover:text-surface-200'
                   }`}>
-                  {isLong ? 'LONG' : 'SHORT'}
+                  {isLong ? 'Long' : 'Short'}
                 </button>
               );
             })}
@@ -225,7 +225,7 @@ export function SimpleTradePanel({
           ) : (
             <button onClick={openPosition} disabled={!canSubmit}
               className={`w-full rounded-lg py-3 text-base font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-40 ${long ? 'bg-win-500' : 'bg-loss-500'}`}>
-              {busy ? 'Submitting…' : long ? 'OPEN LONG' : 'OPEN SHORT'}
+              {busy ? 'Submitting…' : long ? 'Open Long' : 'Open Short'}
             </button>
           )}
         </>
@@ -234,7 +234,7 @@ export function SimpleTradePanel({
         <div className="flex flex-col gap-2">
           {pos && (
             <div className="rounded bg-surface-900/60 px-3 py-1">
-              <Info label="Position" value={`${pos.side} ${pos.amount} ${base}`} />
+              <Info label="Position" value={`${pos.side === 'LONG' ? 'Long' : 'Short'} ${pos.amount} ${base}`} />
               <Info label="Entry" value={usd(Number(pos.entryPrice))} />
               <Info label="PnL" value={usd(Number(pos.unrealizedPnl))} />
             </div>

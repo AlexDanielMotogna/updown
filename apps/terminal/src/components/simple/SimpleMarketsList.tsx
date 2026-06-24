@@ -107,9 +107,9 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
                 {/* LONG / SHORT — same look as the Pro terminal's Buy/Sell (rounded, semibold) */}
                 <div className="grid grid-cols-2 gap-1.5" onClick={(e) => e.stopPropagation()}>
                   <button onClick={() => setTrade({ symbol: t.symbol, side: 'BUY' })}
-                    className="rounded bg-win-500 py-1.5 text-xs font-semibold text-black transition-opacity hover:opacity-90">LONG</button>
+                    className="rounded bg-win-500 py-1.5 text-xs font-semibold text-black transition-opacity hover:opacity-90">Long</button>
                   <button onClick={() => setTrade({ symbol: t.symbol, side: 'SELL' })}
-                    className="rounded bg-loss-500 py-1.5 text-xs font-semibold text-black transition-opacity hover:opacity-90">SHORT</button>
+                    className="rounded bg-loss-500 py-1.5 text-xs font-semibold text-black transition-opacity hover:opacity-90">Short</button>
                 </div>
               </div>
             );

@@ -43,7 +43,7 @@ export function SimplePosition({ pos, walletAddress }: { pos: Position; walletAd
       <div className="mb-1 flex items-center gap-2">
         <span className="text-sm font-bold text-surface-100">{base}</span>
         <span className={`rounded px-1.5 py-0.5 text-xs font-bold text-black ${long ? 'bg-win-500' : 'bg-loss-500'}`}>
-          {long ? 'LONG' : 'SHORT'}
+          {long ? 'Long' : 'Short'}
         </span>
       </div>
       <Row label="Entry" value={usd(Number(pos.entryPrice))} />
