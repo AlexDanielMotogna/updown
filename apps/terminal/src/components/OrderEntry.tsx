@@ -80,7 +80,7 @@ export function OrderEntry({
   const [mark, setMark] = useState(0);
   const [maxLev, setMaxLev] = useState(50);
   const [available, setAvailable] = useState(0);
-  const { account: acct, ready: accountReady } = useAccountStream(evmAddress);
+  const { account: acct, positions, ready: accountReady } = useAccountStream(evmAddress);
   const { enabled: tradingEnabled, builderApproved, busy: enabling, enableTrading, approveBuilder } = useTrading(walletAddress, evmAddress);
   const { ready: privyReady, authenticated, login, connectWallet } = usePrivy();
   const [approvingBuilder, setApprovingBuilder] = useState(false);
@@ -130,11 +130,13 @@ export function OrderEntry({
   // Modal confirm handlers — apply only on Confirm (HL-style).
   async function confirmLeverage() {
     setLeverage(pendingLev);
+    persistLeveragePref(pendingLev, marginMode === 'cross');
     const r = await applyLeverage(pendingLev, marginMode === 'cross');
     if (r.ok) setShowLeverage(false);
   }
   async function confirmMargin() {
     setMarginMode(pendingMode);
+    persistLeveragePref(leverage, pendingMode === 'cross');
     const r = await applyLeverage(leverage, pendingMode === 'cross', 'margin');
     if (r.ok) setShowMargin(false);
   }
@@ -173,6 +175,45 @@ export function OrderEntry({
 
   // clamp leverage to the market max
   useEffect(() => { setLeverage((l) => Math.min(l, maxLev)); }, [maxLev]);
+
+  // The open HL position for this market (if any) — the authoritative source of
+  // the current leverage + margin mode.
+  const pos = useMemo(() => positions.find((p) => p.symbol === symbol), [positions, symbol]);
+
+  // Restore the user's last leverage/margin for THIS market on a symbol change or
+  // page reload, so the panel doesn't snap back to the 5x default (HL leverage is
+  // per-asset and persists server-side). localStorage is the fast fallback; the
+  // live HL position below is authoritative and overrides it when one exists.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(`updown-lev-${symbol}`);
+      if (raw) {
+        const { lev, cross } = JSON.parse(raw) as { lev?: number; cross?: boolean };
+        if (typeof lev === 'number' && lev > 0) setLeverage(lev);
+        if (typeof cross === 'boolean') setMarginMode(cross ? 'cross' : 'isolated');
+      } else {
+        setLeverage(5);
+        setMarginMode('cross');
+      }
+    } catch {/* ignore */}
+  }, [symbol]);
+
+  // Authoritative sync from the live HL position: whatever leverage/margin mode HL
+  // actually holds for this market wins (e.g. after a reload, or if it was changed
+  // elsewhere). Only runs when a position exists; the modal uses pendingLev so this
+  // never fights an in-progress edit.
+  useEffect(() => {
+    if (!pos) return;
+    if (typeof pos.leverage === 'number' && pos.leverage > 0) setLeverage(pos.leverage);
+    const lt = pos.metadata?.leverageType as 'cross' | 'isolated' | undefined;
+    if (lt === 'cross' || lt === 'isolated') setMarginMode(lt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbol, pos?.leverage, pos?.metadata?.leverageType]);
+
+  /** Remember the user's leverage/margin choice for this market across reloads. */
+  function persistLeveragePref(lev: number, cross: boolean) {
+    try { window.localStorage.setItem(`updown-lev-${symbol}`, JSON.stringify({ lev, cross })); } catch {/* ignore */}
+  }
 
   // Persisted max-slippage preference.
   useEffect(() => {
