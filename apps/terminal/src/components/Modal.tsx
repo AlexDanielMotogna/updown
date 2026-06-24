@@ -28,8 +28,8 @@ export function Modal({
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className={`relative z-10 ${WIDTHS[size]} max-w-[94vw] animate-fade-in card-elevated p-5`}>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className={`relative z-10 ${WIDTHS[size]} max-w-[94vw] animate-fade-in rounded-2xl border border-surface-700 bg-surface-850 p-5 shadow-card`}>
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-base font-semibold text-surface-100">{title}</h3>
           <button onClick={onClose} className="text-lg text-surface-400 hover:text-surface-100" aria-label="Close">✕</button>
