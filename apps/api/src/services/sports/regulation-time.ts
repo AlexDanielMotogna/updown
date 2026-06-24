@@ -28,6 +28,22 @@ const EXTRA_TIME_TOKENS = new Set([
   'penalty_shootout',
 ]);
 
+/**
+ * Sports that can NEVER end in a tie — MLB (extra innings), NBA (overtime) and
+ * NHL (overtime + shootout) always produce a winner. So a tied "final" for these
+ * is incomplete / bad upstream data (e.g. a 0-0 the feed hasn't updated yet), not
+ * a real result. We reject such phantom draws instead of resolving/voiding on
+ * them: the pool stays unresolved so it (a) keeps polling for the true score and
+ * (b) can be settled by hand in the admin panel. Football/NFL/MMA can legitimately
+ * draw, so they are NOT listed here.
+ */
+const NO_TIE_SPORTS = new Set(['MLB', 'NBA', 'NHL']);
+
+/** True when a tied final is impossible for this sport/league → treat a tie as bad data. */
+export function isNoTieSport(sportOrLeague: string | null | undefined): boolean {
+  return !!sportOrLeague && NO_TIE_SPORTS.has(sportOrLeague.trim().toUpperCase());
+}
+
 /** Returns true if the given raw status indicates the match went beyond 90 minutes. */
 export function wentBeyondRegulation(rawStatus: string | null | undefined): boolean {
   if (!rawStatus) return false;

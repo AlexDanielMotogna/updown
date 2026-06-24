@@ -3,7 +3,7 @@ import { prisma } from '../../db';
 import type { Match, MatchResult, MatchStatus } from './types';
 import { sportsDbFetchV2 } from './api-sports-fetch';
 import { FINISHED_STATUSES, API_LOOKUP_LIMIT, isFinishedStatus, normalizeStatus } from './livescore';
-import { regulationWinner } from './regulation-time';
+import { regulationWinner, isNoTieSport } from './regulation-time';
 
 /**
  * Fixture cache read service.
@@ -49,6 +49,7 @@ function rowToMatch(row: {
 
 function rowToResult(row: {
   externalId: string;
+  sport?: string | null;
   status: string;
   homeScore: number | null;
   awayScore: number | null;
@@ -57,13 +58,19 @@ function rowToResult(row: {
   if (row.status !== 'FINISHED') return null;
   if (row.homeScore == null || row.awayScore == null) return null;
 
+  const winner = (row.winner as 'HOME' | 'AWAY' | 'DRAW') ||
+    (row.homeScore > row.awayScore ? 'HOME' : row.awayScore > row.homeScore ? 'AWAY' : 'DRAW');
+  // A tied "final" for a no-tie sport (MLB/NBA/NHL) is bad/incomplete data — don't
+  // treat it as a result. Returning null leaves the pool unresolved for the admin
+  // to settle by hand (and for the next sync to overwrite with the true score).
+  if (winner === 'DRAW' && isNoTieSport(row.sport)) return null;
+
   return {
     matchId: row.externalId,
     status: 'FINISHED',
     homeScore: row.homeScore,
     awayScore: row.awayScore,
-    winner: (row.winner as 'HOME' | 'AWAY' | 'DRAW') ||
-      (row.homeScore > row.awayScore ? 'HOME' : row.awayScore > row.homeScore ? 'AWAY' : 'DRAW'),
+    winner,
   };
 }
 
@@ -138,6 +145,8 @@ export async function getCachedFixtureResults(
         const winner = row.homeScore > row.awayScore ? 'HOME' as const
           : row.awayScore > row.homeScore ? 'AWAY' as const
           : 'DRAW' as const;
+        // Skip phantom draws for no-tie sports — leave the pool for admin / next sync.
+        if (winner === 'DRAW' && isNoTieSport(row.sport)) continue;
         map.set(row.eventId, {
           matchId: row.eventId,
           status: 'FINISHED',
@@ -188,6 +197,9 @@ export async function getCachedFixtureResults(
       if (!isFinishedStatus(rawStatus) || isNaN(homeScore) || isNaN(awayScore)) continue;
       // Regulation-time rules: extra-time / penalty winners collapse to DRAW.
       const winner = regulationWinner(homeScore, awayScore, rawStatus);
+      // Skip phantom draws for no-tie sports (MLB/NBA/NHL) — don't cache a bogus
+      // FINISHED draw; leave the pool for admin / a later sync with the real score.
+      if (winner === 'DRAW' && isNoTieSport(evt.strSport)) continue;
       map.set(eventId, { matchId: eventId, status: 'FINISHED', rawStatus, homeScore, awayScore, winner });
       // Sync to both caches. Composite scope on the fixture row: SDB
       // event lookup gives us evt.strSport; apiSource is the SDB
