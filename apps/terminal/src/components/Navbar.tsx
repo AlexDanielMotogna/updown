@@ -4,6 +4,7 @@ import { ConnectButton } from './ConnectButton';
 import { HeaderBalance } from './HeaderBalance';
 import { ProfileStats } from './ProfileStats';
 import { NotificationBell } from './NotificationBell';
+import { SimpleProToggle } from './SimpleProToggle';
 
 // The main UpDown app (Markets/Profile/Leaderboard live there). The terminal is
 // the "Trade" mode of the same product (ADR-002), so the nav links cross back to
@@ -49,8 +50,9 @@ export function Navbar() {
           </nav>
         </div>
 
-        {/* Right: level/coins + HL balance + notifications + wallet */}
+        {/* Right: mode toggle + level/coins + HL balance + notifications + wallet */}
         <div className="flex items-center gap-2">
+          <SimpleProToggle />
           {/* Level + XP/coins chip — hidden on mobile (declutter the trade header;
               only money + notifications + wallet stay). */}
           <div className="hidden md:block">
