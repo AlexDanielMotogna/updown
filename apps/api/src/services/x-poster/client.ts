@@ -46,3 +46,14 @@ export async function postTweet(text: string): Promise<string> {
   const res = await c.v2.tweet(text);
   return res.data.id;
 }
+
+/**
+ * Identify the account these credentials post AS — i.e. which @handle the Access
+ * Token belongs to. Use it to confirm the target account before tweeting for real.
+ */
+export async function getAuthedAccount(): Promise<{ id: string; username: string; name: string }> {
+  const c = getClient();
+  if (!c) throw new Error('X poster: missing X_API_KEY/X_API_SECRET/X_ACCESS_TOKEN/X_ACCESS_SECRET');
+  const me = await c.v2.me();
+  return { id: me.data.id, username: me.data.username, name: me.data.name };
+}

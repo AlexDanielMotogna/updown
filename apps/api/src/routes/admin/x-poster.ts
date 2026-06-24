@@ -2,7 +2,7 @@ import { Router, type Router as RouterType } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../db';
 import { getXPosterConfig } from '../../services/x-poster/config';
-import { hasXCredentials } from '../../services/x-poster/client';
+import { hasXCredentials, getAuthedAccount } from '../../services/x-poster/client';
 import { runXPosterCycle } from '../../services/x-poster/poster';
 
 export const adminXPosterRouter: RouterType = Router();
@@ -67,6 +67,20 @@ adminXPosterRouter.post('/kill', async (_req, res) => {
   } catch (e) {
     console.error('[Admin] x-poster kill error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to stop poster' } });
+  }
+});
+
+// GET /verify - confirm which @handle the credentials post AS (no tweet sent).
+adminXPosterRouter.get('/verify', async (_req, res) => {
+  try {
+    if (!hasXCredentials()) {
+      return res.status(400).json({ success: false, error: { code: 'NOT_CONFIGURED', message: 'X API credentials are missing in env' } });
+    }
+    const account = await getAuthedAccount();
+    res.json({ success: true, data: account });
+  } catch (e) {
+    console.error('[Admin] x-poster verify error:', e);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: e instanceof Error ? e.message : 'Failed to verify account' } });
   }
 });
 

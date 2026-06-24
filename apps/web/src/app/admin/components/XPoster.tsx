@@ -24,6 +24,7 @@ export function XPoster() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [account, setAccount] = useState<{ username: string; name: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setErr(null);
@@ -76,6 +77,19 @@ export function XPoster() {
     }
   };
 
+  const verify = async () => {
+    setSaving(true); setErr(null); setMsg(null); setAccount(null);
+    try {
+      const r = await adminFetch<{ data: { username: string; name: string } }>('/x-poster/verify');
+      setAccount(r.data);
+      setMsg(`Connected as @${r.data.username}`);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const runNow = async () => {
     setSaving(true); setErr(null); setMsg(null);
     try {
@@ -116,6 +130,15 @@ export function XPoster() {
           </Box>
           <Box component="span" sx={{ px: 1, py: 0.3, borderRadius: '4px', fontSize: '0.72rem', fontWeight: 800, color: cfg.credentialsConfigured ? t.success : t.error, bgcolor: `${cfg.credentialsConfigured ? t.success : t.error}22` }}>
             {cfg.credentialsConfigured ? 'API KEYS OK' : 'API KEYS MISSING'}
+          </Box>
+          {account && (
+            <Box component="span" sx={{ px: 1, py: 0.3, borderRadius: '4px', fontSize: '0.72rem', fontWeight: 800, color: t.text.primary, bgcolor: t.bg.app, border: `1px solid ${t.border.subtle}` }}>
+              Posting as @{account.username}
+            </Box>
+          )}
+          <Box component="button" onClick={verify} disabled={saving || !cfg.credentialsConfigured}
+            sx={{ px: 1.2, py: 0.3, borderRadius: '4px', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', border: `1px solid ${t.border.medium}`, bgcolor: 'transparent', color: t.text.secondary, opacity: (saving || !cfg.credentialsConfigured) ? 0.5 : 1 }}>
+            Verify account
           </Box>
         </Box>
         {!cfg.credentialsConfigured && (
