@@ -119,7 +119,7 @@ export function XPoster() {
 
   // Live preview of the tweet body.
   const sampleTitle = cfg.postSports ? 'Premier League: Arsenal vs Chelsea' : 'Will BTC close above $100k in 2026?';
-  const preview = cfg.template.replace('{title}', sampleTitle) + (cfg.includeLink ? '\n\nhttps://updown.bet/match/…' : '');
+  const preview = cfg.template.replace('{title}', sampleTitle) + (cfg.includeLink ? '\n\nhttps://updown.my/match/…' : '');
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>

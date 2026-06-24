@@ -15,7 +15,7 @@ import { hasXCredentials, postTweet } from './client';
 // posted so they never tweet.
 const MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2h
 
-const WEB_BASE_URL = (process.env.WEB_BASE_URL || 'https://updown.bet').replace(/\/+$/, '');
+const WEB_BASE_URL = (process.env.WEB_BASE_URL || 'https://updown.my').replace(/\/+$/, '');
 
 /** Public URL for a pool's detail page (crypto → /pool, sports/PM → /match). */
 function poolUrl(pool: Pool): string {
