@@ -117,7 +117,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
       {rows.length === 0 ? (
         <div className="rounded-xl border border-surface-800 bg-surface-850 px-4 py-16 text-center text-sm text-surface-500">Loading markets…</div>
       ) : view === 'card' ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {rows.map((t) => {
             const baseSym = t.symbol.replace('-USD', '');
             const chg = Number(t.change24h);
