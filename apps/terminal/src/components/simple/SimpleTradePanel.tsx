@@ -8,13 +8,13 @@ import { useTradeMath } from '@/hooks/useTradeMath';
 import { useToast } from '../Toast';
 import { ConnectGate } from '../ConnectGate';
 import { DepositModal } from '../DepositModal';
+import { TokenIcon } from '../TokenIcon';
 import type { OrderSide } from '@/lib/types';
 
 const usd = (n: number) => (Number.isFinite(n) ? `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '$0.00');
 const trim = (n: number, dp: number) => (Number.isFinite(n) ? n.toFixed(dp).replace(/\.?0+$/, '') : '');
 
-/** Read the per-asset leverage the user set in Pro (or the default 5x). Simple Mode
- *  shows leverage read-only; it's changed in Pro (PLAN-SIMPLE-MODE §8.1). */
+/** Per-asset leverage set in Pro (or default 5x). Read-only in Simple (§8.1). */
 function readLeverage(symbol: string): number {
   try {
     const raw = window.localStorage.getItem(`updown-lev-${symbol}`);
@@ -24,9 +24,9 @@ function readLeverage(symbol: string): number {
 }
 
 /**
- * Kalshi-style one-decision trade form (PLAN-SIMPLE-MODE §4.2). Shared body for the
- * trade modal and the simple market page. Reuses the same backend as Pro
- * (placeOrder MARKET, setLeverage, useAccountStream) — UI only.
+ * Robinhood-style one-decision trade form (PLAN-SIMPLE-MODE §4.2): the amount is
+ * the hero. Shared body for the trade modal and the simple market page. Reuses the
+ * same backend as Pro (placeOrder MARKET, setLeverage, useAccountStream) — UI only.
  */
 export function SimpleTradePanel({
   symbol,
@@ -34,15 +34,12 @@ export function SimpleTradePanel({
   evmAddress,
   initialSide,
   onClose,
-  hideHeader,
 }: {
   symbol: string;
   walletAddress?: string;
   evmAddress?: string;
   initialSide?: OrderSide;
   onClose?: () => void;
-  /** Hide the in-panel title/close (e.g. when a Modal already provides them). */
-  hideHeader?: boolean;
 }) {
   const base = symbol.replace('-USD', '');
   const toast = useToast();
@@ -56,7 +53,6 @@ export function SimpleTradePanel({
   const [busy, setBusy] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
 
-  // Live mark for sizing.
   useEffect(() => {
     let alive = true;
     const tick = async () => {
@@ -74,7 +70,6 @@ export function SimpleTradePanel({
   }, [symbol]);
 
   const pos = useMemo(() => positions.find((p) => p.symbol === symbol), [positions, symbol]);
-  // Authoritative leverage: open position's, else the user's Pro/default setting.
   const leverage = pos?.leverage && pos.leverage > 0 ? pos.leverage : readLeverage(symbol);
   const marginMode = (pos?.metadata?.leverageType as 'cross' | 'isolated' | undefined) ?? 'cross';
   const available = acct ? Math.max(0, Number(acct.accountEquity) - Number(acct.marginUsed)) : 0;
@@ -98,7 +93,6 @@ export function SimpleTradePanel({
     const sizeBase = trim(math.positionUsd / mark, 5);
     const verb = long ? 'Long' : 'Short';
     const tid = toast.loading(`${verb} ${base} — pending`);
-    // Ensure HL has the right leverage first (idempotent).
     const lev = await setLeverageApi({ walletAddress, symbol, leverage, isCross: marginMode === 'cross' });
     if (!lev.success) { setBusy(false); toast.update(tid, 'error', lev.error?.message ?? 'Leverage update failed'); return; }
 
@@ -128,47 +122,50 @@ export function SimpleTradePanel({
   }
 
   const Info = ({ label, value }: { label: string; value: string }) => (
-    <div className="flex items-center justify-between py-1 text-xs">
+    <div className="flex items-center justify-between py-1 text-sm">
       <span className="text-surface-400">{label}</span>
-      <span className="font-medium text-surface-100 tabular-nums">{value}</span>
+      <span className="font-semibold text-surface-100 tabular-nums">{value}</span>
     </div>
   );
 
   return (
-    <div className="relative flex flex-col gap-3 p-3">
-      {/* Connect overlay (charts/data stay open; this gates the form). */}
+    <div className="relative flex flex-col gap-4 p-4">
       <ConnectGate devEvm={evmAddress} />
 
-      {/* Header */}
-      {!hideHeader && (
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold text-surface-100">{base} PERP</span>
-          {onClose && (
-            <button onClick={onClose} className="text-surface-400 hover:text-surface-100" aria-label="Close">✕</button>
-          )}
+      {/* Header: asset + live price + close */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <TokenIcon symbol={symbol} size="md" />
+          <span className="text-sm font-bold text-surface-100">{base}-PERP</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-bold text-surface-100 tabular-nums">{mark > 0 ? usd(mark) : '—'}</span>
+          {onClose && <button onClick={onClose} className="text-lg text-surface-400 hover:text-surface-100" aria-label="Close">✕</button>}
+        </div>
+      </div>
+
+      {/* OPEN | CLOSE (only when a position exists) */}
+      {pos && (
+        <div className="flex rounded-lg bg-surface-900 p-0.5 text-xs">
+          {(['OPEN', 'CLOSE'] as const).map((t) => (
+            <button key={t} onClick={() => setTab(t)}
+              className={`flex-1 rounded-md py-1.5 font-semibold transition-colors ${tab === t ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:text-surface-100'}`}>
+              {t === 'OPEN' ? 'Open' : 'Close'}
+            </button>
+          ))}
         </div>
       )}
 
-      {/* OPEN | CLOSE tabs (CLOSE only when a position exists) */}
-      <div className="flex gap-1 text-xs">
-        {(['OPEN', ...(pos ? (['CLOSE'] as const) : [])] as Array<'OPEN' | 'CLOSE'>).map((t) => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`flex-1 rounded py-1.5 font-semibold ${tab === t ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:text-surface-100'}`}>
-            {t}
-          </button>
-        ))}
-      </div>
-
       {tab === 'OPEN' ? (
         <>
-          {/* LONG / SHORT */}
+          {/* Long / Short */}
           <div className="grid grid-cols-2 gap-2">
             {(['BUY', 'SELL'] as OrderSide[]).map((s) => {
               const active = side === s;
               const isLong = s === 'BUY';
               return (
                 <button key={s} onClick={() => setSide(s)}
-                  className={`rounded py-2.5 text-sm font-bold transition-colors ${
+                  className={`rounded-lg py-2.5 text-sm font-bold transition-colors ${
                     active
                       ? isLong ? 'bg-win-500 text-black' : 'bg-loss-500 text-black'
                       : 'bg-surface-800 text-surface-400 hover:text-surface-200'
@@ -179,68 +176,66 @@ export function SimpleTradePanel({
             })}
           </div>
 
-          {/* Balance */}
-          <div className="text-xs text-surface-400">Available Balance: <span className="text-surface-100">{usd(available)}</span></div>
-
-          {/* Amount */}
-          <div className="rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 focus-within:border-brand">
-            <div className="text-2xs uppercase tracking-wide text-surface-500">Amount (USD)</div>
-            <div className="flex items-center gap-1">
-              <span className="text-lg font-semibold text-surface-400">$</span>
+          {/* Hero amount */}
+          <div className="flex flex-col items-center gap-1 py-3">
+            <span className="text-xs font-medium uppercase tracking-wide text-surface-400">Amount</span>
+            <div className="flex items-center justify-center">
+              <span className="text-3xl font-bold text-surface-500">$</span>
               <input
                 value={amountUsd}
                 onChange={(e) => setAmountUsd(e.target.value.replace(/[^0-9.]/g, ''))}
-                inputMode="decimal" placeholder="0.00"
-                className="w-full bg-transparent text-lg font-semibold text-surface-100 outline-none placeholder:text-surface-600"
+                inputMode="decimal" placeholder="0"
+                className="w-44 bg-transparent text-center text-4xl font-bold text-surface-100 outline-none placeholder:text-surface-600"
               />
             </div>
+            <span className="text-xs text-surface-400">Available {usd(available)}</span>
           </div>
 
-          {/* Quick buttons */}
+          {/* Quick % */}
           <div className="grid grid-cols-3 gap-2">
             {[25, 50, 100].map((p) => (
               <button key={p} onClick={() => quick(p)}
-                className="rounded border border-surface-700 py-1.5 text-xs font-medium text-surface-300 hover:bg-surface-800">
-                {p === 100 ? 'MAX' : `${p}%`}
+                className="rounded-lg border border-surface-700 py-2 text-xs font-semibold text-surface-300 transition-colors hover:bg-surface-800 hover:text-surface-100">
+                {p === 100 ? 'Max' : `${p}%`}
               </button>
             ))}
           </div>
 
-          {/* Auto info */}
-          <div className="rounded bg-surface-900/60 px-3 py-1">
-            <Info label="Position Size" value={usd(math.positionUsd)} />
+          {/* Summary */}
+          <div className="border-t border-surface-800 pt-2">
+            <Info label="Position size" value={usd(math.positionUsd)} />
             <Info label="Leverage" value={`${leverage}x`} />
             <Info label="Liquidation" value={math.liquidationPrice ? usd(math.liquidationPrice) : '—'} />
-            <Info label="Est. Fee" value={usd(math.estFee)} />
+            <Info label="Est. fee" value={usd(math.estFee)} />
           </div>
           {math.exceedsBalance && <div className="text-xs text-loss-500">Amount exceeds your buying power ({usd(math.maxUsd)} max).</div>}
 
           {/* CTA */}
           {needsDeposit ? (
-            <button onClick={() => setShowDeposit(true)} className="w-full rounded bg-brand py-3 text-sm font-bold text-surface-950">Deposit USDC to trade</button>
+            <button onClick={() => setShowDeposit(true)} className="w-full rounded-xl bg-brand py-3.5 text-sm font-bold text-surface-950">Deposit USDC to trade</button>
           ) : needsAgent ? (
-            <button onClick={enableTrading} disabled={enabling} className="w-full rounded bg-brand py-3 text-sm font-bold text-surface-950 disabled:opacity-50">{enabling ? 'Enabling…' : 'Enable Trading'}</button>
+            <button onClick={enableTrading} disabled={enabling} className="w-full rounded-xl bg-brand py-3.5 text-sm font-bold text-surface-950 disabled:opacity-50">{enabling ? 'Enabling…' : 'Enable Trading'}</button>
           ) : needsBuilder ? (
-            <button onClick={approveBuilder} className="w-full rounded bg-brand py-3 text-sm font-bold text-surface-950">Approve builder fee</button>
+            <button onClick={approveBuilder} className="w-full rounded-xl bg-brand py-3.5 text-sm font-bold text-surface-950">Approve builder fee</button>
           ) : (
             <button onClick={openPosition} disabled={!canSubmit}
-              className={`w-full rounded-lg py-3 text-base font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-40 ${long ? 'bg-win-500' : 'bg-loss-500'}`}>
+              className={`w-full rounded-xl py-3.5 text-base font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-40 ${long ? 'bg-win-500' : 'bg-loss-500'}`}>
               {busy ? 'Submitting…' : long ? 'Open Long' : 'Open Short'}
             </button>
           )}
         </>
       ) : (
         /* CLOSE */
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
           {pos && (
-            <div className="rounded bg-surface-900/60 px-3 py-1">
+            <div className="border-t border-surface-800 pt-2">
               <Info label="Position" value={`${pos.side === 'LONG' ? 'Long' : 'Short'} ${pos.amount} ${base}`} />
               <Info label="Entry" value={usd(Number(pos.entryPrice))} />
-              <Info label="PnL" value={usd(Number(pos.unrealizedPnl))} />
+              <Info label="PnL" value={`${Number(pos.unrealizedPnl) >= 0 ? '+' : ''}${usd(Number(pos.unrealizedPnl))}`} />
             </div>
           )}
           <button onClick={closePosition} disabled={busy}
-            className="w-full rounded-lg bg-loss-500 py-3 text-base font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-50">
+            className="w-full rounded-xl bg-loss-500 py-3.5 text-base font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-50">
             {busy ? 'Closing…' : 'Close Position'}
           </button>
         </div>
