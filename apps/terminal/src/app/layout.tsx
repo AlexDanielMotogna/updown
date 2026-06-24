@@ -1,9 +1,15 @@
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { MuiProvider } from '@/components/MuiProvider';
 import { ToastProvider } from '@/components/Toast';
 import { Navbar } from '@/components/Navbar';
+
+// Same UI font as the app (apps/web) — loaded via next/font and exposed under the
+// --font-satoshi variable that tailwind's font-sans resolves to, so the terminal
+// renders in Inter instead of falling back to a system font.
+const inter = Inter({ subsets: ['latin'], variable: '--font-satoshi', display: 'swap' });
 
 export const metadata: Metadata = {
   title: 'UpDown Terminal',
@@ -19,7 +25,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <body className="flex h-screen flex-col overflow-hidden bg-surface-900 font-sans text-surface-100">
         <Providers>
           <MuiProvider>

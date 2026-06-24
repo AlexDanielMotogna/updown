@@ -20,7 +20,7 @@ function EmptyState({ connected }: { connected: boolean }) {
       </span>
       <div className="space-y-1">
         <h3 className="text-sm font-bold text-surface-100">{connected ? 'No open positions' : 'Connect to trade'}</h3>
-        <p className="text-xs leading-relaxed text-surface-500">
+        <p className="text-xs leading-relaxed text-surface-300">
           {connected
             ? 'Your open positions will show up here. Pick a market and go Long or Short.'
             : 'Connect your wallet to see your positions and orders here.'}

@@ -102,7 +102,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
                       <div className="text-2xs font-medium text-surface-500">PERP</div>
                     </div>
                   </div>
-                  <span className="text-2xs text-surface-500">Vol {fmtVol(t.volume24h)}</span>
+                  <span className="text-xs font-medium text-surface-300">Vol {fmtVol(t.volume24h)}</span>
                 </div>
 
                 {/* Price + 24h */}
