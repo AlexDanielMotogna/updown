@@ -5,6 +5,9 @@ import type { Ticker, OrderSide } from '@/lib/types';
 import { TokenIcon } from '../TokenIcon';
 import { Sparkline } from './Sparkline';
 import { SimpleTradeModal } from './SimpleTradeModal';
+import { SimplePositionsSidebar } from './SimplePositionsSidebar';
+import { useIdentity } from '@/hooks/useIdentity';
+import { useAccountStream } from '@/hooks/useAccountStream';
 
 function fmtPrice(s: string) {
   const n = Number(s);
@@ -24,6 +27,10 @@ function fmtVol(s: string) {
  * TokenIcon, card). Tapping a row or LONG/SHORT opens the trade modal (no nav).
  */
 export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; devEvm?: string }) {
+  const id = useIdentity();
+  const walletAddress = id.walletAddress ?? devWallet;
+  const evmAddress = id.evmAddress ?? devEvm;
+  const { positions, orders } = useAccountStream(evmAddress);
   const [tickers, setTickers] = useState<Ticker[]>([]);
   const [filter, setFilter] = useState<string>('ALL');
   const [trade, setTrade] = useState<{ symbol: string; side: OrderSide } | null>(null);
@@ -55,8 +62,10 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
   }, [tickers, filter]);
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-[1600px] px-4 py-5 lg:px-6">
+    <div className="flex h-full">
+      {/* Left: catalog (left-aligned, fills the space) */}
+      <div className="min-w-0 flex-1 overflow-y-auto">
+        <div className="px-4 py-5 lg:px-6">
       <h1 className="mb-4 text-xl font-bold text-surface-100">Perpetuals</h1>
 
       {/* Asset filter tabs */}
@@ -121,7 +130,13 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
       {trade && (
         <SimpleTradeModal open onClose={() => setTrade(null)} symbol={trade.symbol} initialSide={trade.side} devWallet={devWallet} devEvm={devEvm} />
       )}
+        </div>
       </div>
+
+      {/* Right: what the user has open */}
+      <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-surface-800 bg-surface-900/40 lg:block">
+        <SimplePositionsSidebar positions={positions} orders={orders} walletAddress={walletAddress} connected={!!evmAddress} />
+      </aside>
     </div>
   );
 }
