@@ -8,6 +8,28 @@ import { SimplePosition } from './SimplePosition';
 
 const usd = (n: number) => (Number.isFinite(n) ? `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '$0.00');
 
+/** Centered empty / connect state — UpDown-icon node in a brand-tinted box with a
+ *  soft pulse, matching the ConnectGate look the user liked. */
+function EmptyState({ connected }: { connected: boolean }) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
+      <span className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-brand/30 bg-brand/10">
+        <span className="absolute inset-0 rounded-2xl border border-brand/30 animate-ping" style={{ animationDuration: '2.6s' }} />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/updown-logos/Logo_48px_Cyan_Transparent.png" alt="UpDown" className="h-9 w-9" />
+      </span>
+      <div className="space-y-1">
+        <h3 className="text-sm font-bold text-surface-100">{connected ? 'No open positions' : 'Connect to trade'}</h3>
+        <p className="text-xs leading-relaxed text-surface-500">
+          {connected
+            ? 'Your open positions will show up here. Pick a market and go Long or Short.'
+            : 'Connect your wallet to see your positions and orders here.'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Right rail for the Simple catalog (PLAN-SIMPLE-MODE): "what do I have open" —
  * live positions (with Close) + any resting orders (with Cancel). Reuses
@@ -36,14 +58,17 @@ export function SimplePositionsSidebar({
     toast.update(tid, res.success ? 'success' : 'error', res.success ? 'Order cancelled' : res.error?.message ?? 'Cancel failed');
   }
 
+  // Centered empty state (not connected, or connected with nothing open).
+  if (!connected || (positions.length === 0 && orders.length === 0)) {
+    return <EmptyState connected={connected} />;
+  }
+
   return (
     <div className="flex h-full flex-col gap-4 p-3">
       <section>
         <h2 className="mb-2 text-sm font-bold text-surface-100">Open Positions</h2>
-        {!connected ? (
-          <p className="text-xs text-surface-500">Connect your wallet to see your positions.</p>
-        ) : positions.length === 0 ? (
-          <p className="text-xs text-surface-500">No open positions yet.</p>
+        {positions.length === 0 ? (
+          <p className="text-xs text-surface-500">No open positions.</p>
         ) : (
           <div className="flex flex-col gap-2">
             {positions.map((p) => (
@@ -53,7 +78,7 @@ export function SimplePositionsSidebar({
         )}
       </section>
 
-      {connected && orders.length > 0 && (
+      {orders.length > 0 && (
         <section>
           <h2 className="mb-2 text-sm font-bold text-surface-100">Open Orders</h2>
           <div className="flex flex-col gap-2">
