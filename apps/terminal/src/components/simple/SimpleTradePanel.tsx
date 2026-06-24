@@ -9,6 +9,7 @@ import { useToast } from '../Toast';
 import { ConnectGate } from '../ConnectGate';
 import { DepositModal } from '../DepositModal';
 import { TokenIcon } from '../TokenIcon';
+import { getStream } from '@/lib/stream';
 import type { OrderSide } from '@/lib/types';
 
 const usd = (n: number) => (Number.isFinite(n) ? `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '$0.00');
@@ -53,20 +54,13 @@ export function SimpleTradePanel({
   const [busy, setBusy] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
 
+  // Live mark over the shared WS (allMids) — no REST polling.
   useEffect(() => {
-    let alive = true;
-    const tick = async () => {
-      try {
-        const r = await fetch('/api/markets', { cache: 'no-store' });
-        const j = await r.json();
-        if (!alive || !j.success) return;
-        const t = (j.data as Array<{ symbol: string; mark: string }>).find((m) => m.symbol === symbol);
-        if (t) setMark(Number(t.mark));
-      } catch {/* keep */}
-    };
-    tick();
-    const id = window.setInterval(tick, 4000);
-    return () => { alive = false; window.clearInterval(id); };
+    const unsub = getStream().subscribePrices((prices) => {
+      const p = prices.find((x) => x.symbol === symbol);
+      if (p) setMark(Number(p.mark));
+    });
+    return unsub;
   }, [symbol]);
 
   const pos = useMemo(() => positions.find((p) => p.symbol === symbol), [positions, symbol]);

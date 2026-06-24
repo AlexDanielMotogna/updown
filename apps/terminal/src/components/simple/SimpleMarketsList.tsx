@@ -8,6 +8,9 @@ import { SimpleTradeModal } from './SimpleTradeModal';
 import { SimplePositionsSidebar } from './SimplePositionsSidebar';
 import { useIdentity } from '@/hooks/useIdentity';
 import { useAccountStream } from '@/hooks/useAccountStream';
+import { getStream } from '@/lib/stream';
+
+const TOP_N = 20; // cap the catalog to the top markets by volume (API load + clarity)
 
 function fmtPrice(s: string) {
   const n = Number(s);
@@ -32,9 +35,12 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
   const evmAddress = id.evmAddress ?? devEvm;
   const { positions, orders } = useAccountStream(evmAddress);
   const [tickers, setTickers] = useState<Ticker[]>([]);
+  const [livePrices, setLivePrices] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<string>('ALL');
   const [trade, setTrade] = useState<{ symbol: string; side: OrderSide } | null>(null);
 
+  // Static-ish fields (24h change, volume, the list) over REST — slow poll, since
+  // live price now comes from the WS below.
   useEffect(() => {
     let alive = true;
     const tick = async () => {
@@ -45,21 +51,34 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
       } catch {/* keep last */}
     };
     tick();
-    const id = setInterval(tick, 4000);
+    const id = setInterval(tick, 15000);
     return () => { alive = false; clearInterval(id); };
   }, []);
 
-  // Every available asset, most-traded first (no fixed whitelist → nothing missing).
-  const tabs = useMemo(() => {
-    const byVol = [...tickers].sort((a, b) => Number(b.volume24h) - Number(a.volume24h));
-    const syms = [...new Set(byVol.map((t) => t.symbol.replace('-USD', '')))];
-    return ['ALL', ...syms];
-  }, [tickers]);
+  // Live mark prices over ONE WS subscription (allMids) — every coin in a single
+  // feed, so cards update in realtime without hammering the REST endpoint.
+  useEffect(() => {
+    const unsub = getStream().subscribePrices((prices) => {
+      setLivePrices((cur) => {
+        const next = { ...cur };
+        for (const p of prices) next[p.symbol] = p.mark;
+        return next;
+      });
+    });
+    return unsub;
+  }, []);
 
-  const rows = useMemo(() => {
-    const list = filter === 'ALL' ? tickers : tickers.filter((t) => t.symbol.replace('-USD', '') === filter);
-    return [...list].sort((a, b) => Number(b.volume24h) - Number(a.volume24h));
-  }, [tickers, filter]);
+  // Top-N markets by volume (the catalog cap). Used for both the cards and the tabs.
+  const top = useMemo(
+    () => [...tickers].sort((a, b) => Number(b.volume24h) - Number(a.volume24h)).slice(0, TOP_N),
+    [tickers],
+  );
+  const tabs = useMemo(() => ['ALL', ...top.map((t) => t.symbol.replace('-USD', ''))], [top]);
+
+  const rows = useMemo(
+    () => (filter === 'ALL' ? top : tickers.filter((t) => t.symbol.replace('-USD', '') === filter)),
+    [top, tickers, filter],
+  );
 
   return (
     <div className="flex h-full">
@@ -89,6 +108,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
             const chg = Number(t.change24h);
             const up = chg >= 0;
             const chgColor = up ? 'text-win-500' : 'text-loss-500';
+            const mark = livePrices[t.symbol] ?? t.mark; // live (WS) price, REST fallback
             return (
               <div key={t.symbol}
                 onClick={() => setTrade({ symbol: t.symbol, side: 'BUY' })}
@@ -107,7 +127,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
 
                 {/* Price + 24h */}
                 <div className="flex items-baseline justify-between">
-                  <span className="text-lg font-bold text-surface-100 tabular-nums">{fmtPrice(t.mark)}</span>
+                  <span className="text-lg font-bold text-surface-100 tabular-nums">{fmtPrice(mark)}</span>
                   <span className={`${chgColor} text-sm font-semibold tabular-nums`}>{up ? '▲' : '▼'} {Math.abs(chg).toFixed(2)}%</span>
                 </div>
 
