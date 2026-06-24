@@ -74,7 +74,7 @@ export function SimpleTradePanel({
   const needsAgent = !!walletAddress && !tradingEnabled;
   const needsBuilder = !!walletAddress && tradingEnabled && builderApproved === false;
   const needsDeposit = !!walletAddress && !!evmAddress && accountReady && !!acct && Number(acct.accountEquity) <= 0;
-  const canSubmit = !!walletAddress && mark > 0 && math.positionUsd > 0 && !math.exceedsBalance && !busy;
+  const canSubmit = !!walletAddress && mark > 0 && math.cost > 0 && !math.exceedsBalance && !busy;
 
   function quick(pct: number) {
     if (!math.maxUsd) return;
@@ -195,14 +195,14 @@ export function SimpleTradePanel({
             ))}
           </div>
 
-          {/* Summary */}
+          {/* Summary — "You pay" is the real money in; position size is leveraged. */}
           <div className="border-t border-surface-800 pt-2">
-            <Info label="Position size" value={usd(math.positionUsd)} />
-            <Info label="Leverage" value={`${leverage}x`} />
+            <Info label="You pay" value={usd(math.cost)} />
+            <Info label={`Position size · ${leverage}x`} value={usd(math.positionUsd)} />
             <Info label="Liquidation" value={math.liquidationPrice ? usd(math.liquidationPrice) : '—'} />
             <Info label="Est. fee" value={usd(math.estFee)} />
           </div>
-          {math.exceedsBalance && <div className="text-xs text-loss-500">Amount exceeds your buying power ({usd(math.maxUsd)} max).</div>}
+          {math.exceedsBalance && <div className="text-xs text-loss-500">Amount exceeds your balance ({usd(math.maxUsd)} available).</div>}
 
           {/* CTA */}
           {needsDeposit ? (
