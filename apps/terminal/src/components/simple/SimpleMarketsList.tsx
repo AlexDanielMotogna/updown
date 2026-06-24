@@ -6,8 +6,6 @@ import { TokenIcon } from '../TokenIcon';
 import { Sparkline } from './Sparkline';
 import { SimpleTradeModal } from './SimpleTradeModal';
 
-const MAJORS = ['BTC', 'ETH', 'SOL', 'XRP', 'LINK'];
-
 function fmtPrice(s: string) {
   const n = Number(s);
   return `$${n.toLocaleString(undefined, { maximumFractionDigits: n >= 100 ? 2 : 4 })}`;
@@ -44,9 +42,11 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
     return () => { alive = false; clearInterval(id); };
   }, []);
 
+  // Every available asset, most-traded first (no fixed whitelist → nothing missing).
   const tabs = useMemo(() => {
-    const present = new Set(tickers.map((t) => t.symbol.replace('-USD', '')));
-    return ['ALL', ...MAJORS.filter((m) => present.has(m))];
+    const byVol = [...tickers].sort((a, b) => Number(b.volume24h) - Number(a.volume24h));
+    const syms = [...new Set(byVol.map((t) => t.symbol.replace('-USD', '')))];
+    return ['ALL', ...syms];
   }, [tickers]);
 
   const rows = useMemo(() => {
@@ -55,7 +55,8 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
   }, [tickers, filter]);
 
   return (
-    <div className="mx-auto max-w-[1600px] px-4 py-5 lg:px-6">
+    <div className="h-full overflow-y-auto">
+      <div className="mx-auto max-w-[1600px] px-4 py-5 lg:px-6">
       <h1 className="mb-4 text-xl font-bold text-surface-100">Perpetuals</h1>
 
       {/* Asset filter tabs */}
@@ -120,6 +121,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
       {trade && (
         <SimpleTradeModal open onClose={() => setTrade(null)} symbol={trade.symbol} initialSide={trade.side} devWallet={devWallet} devEvm={devEvm} />
       )}
+      </div>
     </div>
   );
 }

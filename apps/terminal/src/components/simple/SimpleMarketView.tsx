@@ -24,6 +24,7 @@ export function SimpleMarketView({ symbol, devWallet, devEvm }: { symbol: string
   const pos = useMemo(() => positions.find((p) => p.symbol === symbol), [positions, symbol]);
 
   return (
+    <div className="h-full overflow-y-auto">
     <div className="mx-auto flex max-w-6xl flex-col gap-3 p-2 lg:flex-row">
       {/* Chart + position */}
       <div className="flex min-w-0 flex-1 flex-col gap-3">
@@ -39,6 +40,7 @@ export function SimpleMarketView({ symbol, devWallet, devEvm }: { symbol: string
           <SimpleTradePanel symbol={symbol} walletAddress={walletAddress} evmAddress={evmAddress} />
         </div>
       </div>
+    </div>
     </div>
   );
 }
