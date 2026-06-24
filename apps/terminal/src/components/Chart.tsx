@@ -123,10 +123,13 @@ export function Chart({ symbol, minimal = false }: { symbol: string; minimal?: b
   useEffect(() => {
     const unsub = getStream().subscribeCandle(symbol, interval, (c) => {
       const series = seriesRef.current;
-      if (!series) return;
-      const bar: CandlestickData = { time: c.time as Time, open: c.open, high: c.high, low: c.low, close: c.close };
-      try { series.update(bar); } catch { return; } // ignore out-of-order ticks before history loads
       const arr = candlesRef.current;
+      // Wait for the historical snapshot before drawing live ticks — otherwise a
+      // tick that arrives before history renders as a single lone candle (the
+      // flash seen when the chart mounts on Simple→Pro).
+      if (!series || arr.length === 0) return;
+      const bar: CandlestickData = { time: c.time as Time, open: c.open, high: c.high, low: c.low, close: c.close };
+      try { series.update(bar); } catch { return; } // ignore out-of-order ticks
       const last = arr[arr.length - 1];
       if (last && Number(last.time) === c.time) arr[arr.length - 1] = bar;
       else if (!last || c.time > Number(last.time)) arr.push(bar);
