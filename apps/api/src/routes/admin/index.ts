@@ -18,6 +18,7 @@ import { adminResolutionSuggestionsRouter } from './resolution-suggestions';
 import { adminLiquidityBotRouter } from './liquidity-bot';
 import { adminPoolCreationRouter } from './pool-creation';
 import { adminBuilderRevenueRouter } from './builder-revenue';
+import { adminXPosterRouter } from './x-poster';
 
 export const adminRouter: RouterType = Router();
 
@@ -48,3 +49,4 @@ adminRouter.use('/resolution-suggestions', adminResolutionSuggestionsRouter);
 adminRouter.use('/liquidity-bot', adminLiquidityBotRouter);
 adminRouter.use('/pool-creation', adminPoolCreationRouter);
 adminRouter.use('/builder-revenue', adminBuilderRevenueRouter);
+adminRouter.use('/x-poster', adminXPosterRouter);
