@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { placeOrder, setTpsl, setLeverage as setLeverageApi } from '@/lib/api';
+import { marginUsd as calcMargin, maxPositionUsd, liquidationPrice as calcLiq } from '@/lib/tradeMath';
 import { usePrivy } from '@privy-io/react-auth';
 import { useAccountStream } from '@/hooks/useAccountStream';
 import { useTrading } from '@/hooks/useTrading';
@@ -225,15 +226,16 @@ export function OrderEntry({
     window.localStorage.setItem('updown-slippage', v);
   }
 
-  const marginUsd = Number(sizeUsd) / leverage || 0;
-  const maxUsd = available * leverage;
+  // Shared trade math (lib/tradeMath) so Simple Mode and Pro compute identically.
+  const marginUsd = calcMargin(Number(sizeUsd), leverage);
+  const maxUsd = maxPositionUsd(available, leverage);
   // Estimated slippage for the current order. Limit orders cross at their price
   // (0%); a real market estimate needs order-book depth, so show 0 for now.
   const estSlip = 0;
-  const estLiq = useMemo(() => {
-    if (!mark || !Number(sizeBtc)) return null;
-    return side === 'BUY' ? mark * (1 - 1 / leverage) : mark * (1 + 1 / leverage);
-  }, [mark, sizeBtc, side, leverage]);
+  const estLiq = useMemo(
+    () => (Number(sizeBtc) ? calcLiq(mark, side, leverage) : null),
+    [mark, sizeBtc, side, leverage]
+  );
 
   function setBtc(v: string) {
     setSizeBtc(v);
