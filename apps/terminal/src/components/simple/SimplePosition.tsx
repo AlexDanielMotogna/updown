@@ -13,7 +13,7 @@ const usd = (n: number) => (Number.isFinite(n) ? `$${n.toLocaleString(undefined,
  * size / liquidation + Close. No pro columns. (Add Margin is a fast-follow once the
  * HL updateIsolatedMargin endpoint exists — §7.)
  */
-export function SimplePosition({ pos, walletAddress }: { pos: Position; walletAddress?: string }) {
+export function SimplePosition({ pos, walletAddress, compact }: { pos: Position; walletAddress?: string; compact?: boolean }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const base = pos.symbol.replace('-USD', '');
@@ -29,6 +29,21 @@ export function SimplePosition({ pos, walletAddress }: { pos: Position; walletAd
     const res = await placeOrder({ walletAddress, symbol: pos.symbol, side: opp, type: 'MARKET', amount: pos.amount, reduceOnly: true, maxSlippagePct: 8 });
     setBusy(false);
     toast.update(tid, res.success ? 'success' : 'error', res.success ? `Close ${base} submitted` : res.error?.message ?? 'Close failed');
+  }
+
+  // Compact one-line row (sidebar "row" view).
+  if (compact) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-surface-800 bg-surface-850 px-2.5 py-2">
+        <span className={`rounded px-1.5 py-0.5 text-2xs font-bold text-black ${long ? 'bg-win-500' : 'bg-loss-500'}`}>{long ? 'L' : 'S'}</span>
+        <span className="text-sm font-semibold text-surface-100">{base}</span>
+        <span className={`ml-auto text-sm font-semibold tabular-nums ${pnl >= 0 ? 'text-win-500' : 'text-loss-500'}`}>{pnl >= 0 ? '+' : ''}{usd(pnl)}</span>
+        <button onClick={close} disabled={busy}
+          className="rounded border border-surface-700 px-2 py-0.5 text-2xs font-medium text-surface-300 hover:bg-surface-800 disabled:opacity-50">
+          {busy ? '…' : 'Close'}
+        </button>
+      </div>
+    );
   }
 
   const Row = ({ label, value, cls }: { label: string; value: string; cls?: string }) => (

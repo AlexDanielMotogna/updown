@@ -48,6 +48,7 @@ export function SimplePositionsSidebar({
 }) {
   const toast = useToast();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [view, setView] = useState<'card' | 'row'>('card');
 
   async function cancel(o: Order) {
     if (!walletAddress) return;
@@ -66,13 +67,27 @@ export function SimplePositionsSidebar({
   return (
     <div className="flex h-full flex-col gap-4 p-3">
       <section>
-        <h2 className="mb-2 text-sm font-bold text-surface-100">Open Positions</h2>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-sm font-bold text-surface-100">Open Positions</h2>
+          {/* card | row view switch (matches the catalog) */}
+          <div className="flex items-center rounded-md bg-surface-800 p-0.5">
+            {([
+              ['card', <svg key="g" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>],
+              ['row', <svg key="l" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" /></svg>],
+            ] as const).map(([v, icon]) => (
+              <button key={v} onClick={() => setView(v)} aria-label={`${v} view`}
+                className={`rounded px-1.5 py-1 transition-colors ${view === v ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:text-surface-100'}`}>
+                {icon}
+              </button>
+            ))}
+          </div>
+        </div>
         {positions.length === 0 ? (
           <p className="text-xs text-surface-500">No open positions.</p>
         ) : (
           <div className="flex flex-col gap-2">
             {positions.map((p) => (
-              <SimplePosition key={p.symbol} pos={p} walletAddress={walletAddress} />
+              <SimplePosition key={p.symbol} pos={p} walletAddress={walletAddress} compact={view === 'row'} />
             ))}
           </div>
         )}
