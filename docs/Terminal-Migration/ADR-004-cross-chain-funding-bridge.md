@@ -256,11 +256,13 @@ registry, no provider logic yet) and spike a LI.FI Solana→Arbitrum USDC quote 
 
 ---
 
-## 11. Spike results (2026-06-24) — `bridge-core` scaffolded + LI.FI quote run
+## 11. Spike results (2026-06-24) — LI.FI quote run (bridge deferred from MVP)
 
-`packages/bridge-core` is scaffolded (pure contract: types + `BridgeAdapter` + `BridgeProvider`
-registry, 5 tests, no provider logic). The LI.FI spike hit the public `li.quest/v1` API for a real
-**25 USDC, Solana → Arbitrum** quote/routes (placeholder addresses):
+**Status: the bridge is NOT in the MVP.** A `packages/bridge-core` contract was prototyped during
+this spike (types + `BridgeAdapter` + `BridgeProvider` registry) to validate the shape, then set
+aside — the code was not kept. These findings are preserved here so the work can resume later without
+re-running the spike. The LI.FI spike hit the public `li.quest/v1` API for a real **25 USDC,
+Solana → Arbitrum** quote/routes (placeholder addresses):
 
 **`/v1/advanced/routes` returned 6 routes** (best output first), out of 25.00 USDC in:
 

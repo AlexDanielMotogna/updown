@@ -297,21 +297,6 @@ importers:
         specifier: ^5.3.0
         version: 5.9.3
 
-  packages/bridge-core:
-    devDependencies:
-      '@types/node':
-        specifier: ^20.10.0
-        version: 20.19.30
-      eslint:
-        specifier: ^8.55.0
-        version: 8.57.1
-      typescript:
-        specifier: ^5.3.0
-        version: 5.9.3
-      vitest:
-        specifier: ^1.6.0
-        version: 1.6.1(@types/node@20.19.30)
-
   packages/exchange-core:
     devDependencies:
       '@types/node':
