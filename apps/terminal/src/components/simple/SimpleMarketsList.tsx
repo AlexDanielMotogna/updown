@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import type { Ticker } from '@/lib/types';
 import type { OrderSide } from '@/lib/types';
 import { Sparkline } from './Sparkline';
@@ -27,7 +26,6 @@ function fmtVol(s: string) {
  * the row to open the simple market page.
  */
 export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; devEvm?: string }) {
-  const router = useRouter();
   const [tickers, setTickers] = useState<Ticker[]>([]);
   const [filter, setFilter] = useState<string>('ALL');
   const [trade, setTrade] = useState<{ symbol: string; side: OrderSide } | null>(null);
@@ -77,7 +75,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
           const chgColor = chg >= 0 ? 'text-win-500' : 'text-loss-500';
           return (
             <div key={t.symbol}
-              onClick={() => router.push(`/market/${t.symbol}`)}
+              onClick={() => setTrade({ symbol: t.symbol, side: 'BUY' })}
               className="flex cursor-pointer items-center gap-3 px-3 py-3 hover:bg-white/[0.02]">
               {/* Market + price */}
               <div className="min-w-0 flex-1">

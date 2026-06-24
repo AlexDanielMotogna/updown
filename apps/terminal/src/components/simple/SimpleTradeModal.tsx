@@ -27,7 +27,7 @@ export function SimpleTradeModal({
 }) {
   const base = symbol.replace('-USD', '');
   return (
-    <Modal open={open} onClose={onClose} title={`${base} PERP`} size="sm">
+    <Modal open={open} onClose={onClose} title={`${base} PERP`} size="md">
       <Body symbol={symbol} initialSide={initialSide} devWallet={devWallet} devEvm={devEvm} onClose={onClose} />
     </Modal>
   );
