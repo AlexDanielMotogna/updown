@@ -24,6 +24,7 @@ import { startPolymarketSyncScheduler } from './scheduler/polymarket-sync';
 import { seedCategoriesIfEmpty } from './services/category-config';
 import { startLiveScorePolling } from './services/sports/livescore';
 import { startLiquidityBotScheduler } from './services/liquidity-bot/bot';
+import { startXPoster } from './services/x-poster/poster';
 import { startTradingXpPoller } from './services/trading-xp/poller';
 import { initWebSocket, shutdownWebSocket, ensurePriceStreams } from './websocket';
 import { prisma } from './db';
@@ -196,6 +197,12 @@ httpServer.listen(PORT, async () => {
     startTradingXpPoller();
   } catch (error) {
     console.error('Failed to start trading-XP poller:', error);
+  }
+
+  try {
+    startXPoster();
+  } catch (error) {
+    console.error('Failed to start X poster:', error);
   }
 });
 

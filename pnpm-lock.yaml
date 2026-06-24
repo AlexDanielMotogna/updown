@@ -92,6 +92,9 @@ importers:
       solana-client:
         specifier: workspace:*
         version: link:../../packages/solana-client
+      twitter-api-v2:
+        specifier: ^1.29.0
+        version: 1.29.0
       viem:
         specifier: 2.21.55
         version: 2.21.55(typescript@5.9.3)(zod@3.25.76)
@@ -10953,6 +10956,10 @@ packages:
 
   /tweetnacl@1.0.3:
     resolution: {integrity: sha512-6rt+RN7aOi1nGMyC4Xa5DdYiukl2UWCbcJft7YhxReBGQD7OAM8Pbxw6YMo4r2diNEA8FEmu32YOn9rhaiE5yw==}
+    dev: false
+
+  /twitter-api-v2@1.29.0:
+    resolution: {integrity: sha512-v473q5bwme4N+DWSg6qY+JCvfg1nSJRWwui3HUALafxfqCvVkKiYmS/5x/pVeJwTmyeBxexMbzHwnzrH4h6oYQ==}
     dev: false
 
   /type-check@0.4.0:

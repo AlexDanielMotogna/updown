@@ -63,6 +63,9 @@ model Pool {
   conditionId     String?    @map("condition_id")
   tags            String? // JSON array of raw tag labels from Polymarket (display/debug)
   subcategory     String? // Single resolved subcategory bucket (exact-match filter key)
+  /// Set once this pool has been auto-posted to X (Twitter). NULL = not yet
+  /// posted; acts as the dedup flag so the X poster tweets each pool exactly once.
+  xPostedAt       DateTime?  @map("x_posted_at")
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
   // Set once the pool's on-chain PDA has been closed (or confirmed already
@@ -812,6 +815,25 @@ model LiquidityBotConfig {
   createdAt         DateTime @default(now())
 
   @@map("liquidity_bot_config")
+}
+
+/// Single-row config for the X (Twitter) auto-poster. Tweets newly-created pools
+/// as plain text ("JUST IN: {title}" + link), like Kalshi/Polymarket. Dedup is on
+/// Pool.xPostedAt. Kill switch = `enabled`. API keys live in env, not here.
+model XPosterConfig {
+  id              String   @id @default("default")
+  enabled         Boolean  @default(false)            // master on/off (kill switch)
+  intervalSeconds Int      @default(120)              // job cadence
+  perCycleCap     Int      @default(5)                // max tweets per cycle (rate-limit guard)
+  postSports      Boolean  @default(true)             // include SPORTS pools
+  postPm          Boolean  @default(true)             // include POLYMARKET pools
+  postCrypto      Boolean  @default(false)            // include CRYPTO pools (off — too noisy/hourly)
+  includeLink     Boolean  @default(true)             // append the pool URL
+  template        String   @default("JUST IN: {title}") // tweet body; {title} is substituted
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  @@map("x_poster_config")
 }
 
 /// Persisted trading fills (HyperLiquid) — powers trading-XP dedupe, the user's
