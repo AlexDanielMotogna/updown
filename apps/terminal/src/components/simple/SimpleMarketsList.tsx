@@ -37,6 +37,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
   const [tickers, setTickers] = useState<Ticker[]>([]);
   const [livePrices, setLivePrices] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<string>('ALL');
+  const [view, setView] = useState<'card' | 'row'>('card');
   const [trade, setTrade] = useState<{ symbol: string; side: OrderSide } | null>(null);
 
   // Static-ish fields (24h change, volume, the list) over REST — slow poll, since
@@ -87,22 +88,36 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
         <div className="px-4 py-5 lg:px-6">
       <h1 className="mb-4 text-xl font-bold text-surface-100">Perpetuals</h1>
 
-      {/* Asset filter tabs */}
-      <div className="mb-4 flex gap-1 overflow-x-auto">
-        {tabs.map((t) => (
-          <button key={t} onClick={() => setFilter(t)}
-            className={`whitespace-nowrap rounded-md px-3.5 py-1.5 text-sm font-semibold transition-colors ${
-              filter === t ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:bg-surface-800/60 hover:text-surface-100'
-            }`}>
-            {t}
-          </button>
-        ))}
+      {/* Asset filter tabs + view toggle */}
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="flex gap-1 overflow-x-auto">
+          {tabs.map((t) => (
+            <button key={t} onClick={() => setFilter(t)}
+              className={`whitespace-nowrap rounded-md px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+                filter === t ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:bg-surface-800/60 hover:text-surface-100'
+              }`}>
+              {t}
+            </button>
+          ))}
+        </div>
+        {/* card | row view switch */}
+        <div className="flex shrink-0 items-center rounded-md bg-surface-800 p-0.5">
+          {([
+            ['card', <svg key="g" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>],
+            ['row', <svg key="l" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" /></svg>],
+          ] as const).map(([v, icon]) => (
+            <button key={v} onClick={() => setView(v)} aria-label={`${v} view`}
+              className={`rounded px-2 py-1 transition-colors ${view === v ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:text-surface-100'}`}>
+              {icon}
+            </button>
+          ))}
+        </div>
       </div>
 
       {rows.length === 0 ? (
         <div className="rounded-xl border border-surface-800 bg-surface-850 px-4 py-16 text-center text-sm text-surface-500">Loading markets…</div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+      ) : view === 'card' ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {rows.map((t) => {
             const baseSym = t.symbol.replace('-USD', '');
             const chg = Number(t.change24h);
@@ -140,6 +155,46 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
                     className="rounded bg-win-500 py-1.5 text-xs font-semibold text-black transition-opacity hover:opacity-90">Long</button>
                   <button onClick={() => setTrade({ symbol: t.symbol, side: 'SELL' })}
                     className="rounded bg-loss-500 py-1.5 text-xs font-semibold text-black transition-opacity hover:opacity-90">Short</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* Row / list view */
+        <div className="flex flex-col divide-y divide-surface-800 overflow-hidden rounded-xl border border-surface-800 bg-surface-850">
+          {rows.map((t) => {
+            const baseSym = t.symbol.replace('-USD', '');
+            const chg = Number(t.change24h);
+            const up = chg >= 0;
+            const chgColor = up ? 'text-win-500' : 'text-loss-500';
+            const mark = livePrices[t.symbol] ?? t.mark;
+            return (
+              <div key={t.symbol}
+                onClick={() => setTrade({ symbol: t.symbol, side: 'BUY' })}
+                className="flex cursor-pointer items-center gap-3 px-3 py-2.5 transition-colors hover:bg-surface-800/50">
+                {/* Asset */}
+                <div className="flex w-36 min-w-0 items-center gap-2">
+                  <TokenIcon symbol={t.symbol} size="md" />
+                  <div className="min-w-0 leading-tight">
+                    <div className="truncate text-sm font-semibold text-surface-100">{baseSym}</div>
+                    <div className="text-2xs font-medium text-surface-500">PERP</div>
+                  </div>
+                </div>
+                {/* Price */}
+                <span className="w-24 text-right text-sm font-bold text-surface-100 tabular-nums">{fmtPrice(mark)}</span>
+                {/* 24h */}
+                <span className={`${chgColor} w-20 text-right text-sm font-semibold tabular-nums`}>{up ? '▲' : '▼'} {Math.abs(chg).toFixed(2)}%</span>
+                {/* Volume */}
+                <span className="hidden w-24 text-right text-xs font-medium text-surface-300 md:block">{fmtVol(t.volume24h)}</span>
+                {/* Sparkline */}
+                <div className="hidden w-28 lg:block"><Sparkline symbol={t.symbol} height={28} /></div>
+                {/* Trade */}
+                <div className="ml-auto flex gap-1.5" onClick={(e) => e.stopPropagation()}>
+                  <button onClick={() => setTrade({ symbol: t.symbol, side: 'BUY' })}
+                    className="rounded bg-win-500 px-4 py-1.5 text-xs font-semibold text-black transition-opacity hover:opacity-90">Long</button>
+                  <button onClick={() => setTrade({ symbol: t.symbol, side: 'SELL' })}
+                    className="rounded bg-loss-500 px-4 py-1.5 text-xs font-semibold text-black transition-opacity hover:opacity-90">Short</button>
                 </div>
               </div>
             );
