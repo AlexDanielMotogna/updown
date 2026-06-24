@@ -828,7 +828,7 @@ model XPosterConfig {
   postSports      Boolean  @default(true)             // include SPORTS pools
   postPm          Boolean  @default(true)             // include POLYMARKET pools
   postCrypto      Boolean  @default(false)            // include CRYPTO pools (off — too noisy/hourly)
-  includeLink     Boolean  @default(true)             // append the pool URL
+  includeLink     Boolean  @default(false)            // append the pool URL (off: cheaper on X PPU — plain post, not ContentCreateWithUrl)
   template        String   @default("JUST IN: {title}") // tweet body; {title} is substituted
   updatedAt       DateTime @updatedAt
   createdAt       DateTime @default(now())
