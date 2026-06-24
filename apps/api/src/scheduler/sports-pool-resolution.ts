@@ -72,13 +72,25 @@ export async function resolveMatchPools(): Promise<void> {
 async function resolveFinishedPool(pool: SportsPool, result: MatchResult): Promise<void> {
   const adapter = getAdapterForLeague(pool.league);
   const winnerSide = adapter.resolveWinner(result);
-  const winnerLabel = (['UP', 'DOWN', 'DRAW'] as const)[winnerSide];
 
   // Always update scores immediately so the UI shows the final result
   await prisma.pool.update({
     where: { id: pool.id },
     data: { homeScore: result.homeScore, awayScore: result.awayScore },
   });
+
+  // A draw/tie (winnerSide 2) on a pool that has no draw side (numSides < 3 —
+  // e.g. NBA/NHL/MMA/NFL, which are 2-side Home/Away) cannot be represented
+  // on-chain: resolve_with_winner(2) fails with InvalidSide (6017) and the pool
+  // retries forever. There's no valid winner, so VOID + refund instead — every
+  // bettor gets their stake back; empty pools just close to reclaim rent.
+  if (winnerSide >= pool.numSides) {
+    console.warn(`[Sports] ${pool.id} (${pool.league}) ended in a draw/tie but the pool has only ${pool.numSides} sides — voiding + refunding`);
+    await voidSportsPool(pool, 'draw-on-2-side-pool');
+    return;
+  }
+
+  const winnerLabel = (['UP', 'DOWN', 'DRAW'] as const)[winnerSide];
 
   // Check if pool has any bets
   const betCount = await prisma.bet.count({ where: { poolId: pool.id } });
