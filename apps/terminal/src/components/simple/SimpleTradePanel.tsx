@@ -124,7 +124,10 @@ export function SimpleTradePanel({
 
   return (
     <div className="relative flex flex-col gap-4 p-4">
-      <ConnectGate devEvm={evmAddress} />
+      {/* devEvm must be the DEV env var (local-only skip), NOT the resolved
+          evmAddress — passing the address disabled the gate for any persisted
+          session, letting a disconnected wallet still trade. */}
+      <ConnectGate devEvm={process.env.NEXT_PUBLIC_DEV_EVM_ADDRESS} />
 
       {/* Header: asset + live price + close */}
       <div className="flex items-center justify-between">
