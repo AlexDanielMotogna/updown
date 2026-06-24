@@ -114,8 +114,35 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
         </div>
       </div>
 
-      {rows.length === 0 ? (
-        <div className="rounded-xl border border-surface-800 bg-surface-850 px-4 py-16 text-center text-sm text-surface-500">Loading markets…</div>
+      {tickers.length === 0 ? (
+        view === 'card' ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex flex-col gap-2 rounded-xl border border-surface-800 bg-surface-850 p-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-7 w-7 animate-pulse rounded-full bg-surface-800" />
+                  <div className="h-3 w-16 animate-pulse rounded bg-surface-800" />
+                </div>
+                <div className="h-5 w-24 animate-pulse rounded bg-surface-800" />
+                <div className="h-9 w-full animate-pulse rounded bg-surface-800" />
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div className="h-7 animate-pulse rounded bg-surface-800" />
+                  <div className="h-7 animate-pulse rounded bg-surface-800" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col divide-y divide-surface-800 overflow-hidden rounded-xl border border-surface-800 bg-surface-850">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-3 py-3">
+                <div className="h-6 w-6 animate-pulse rounded-full bg-surface-800" />
+                <div className="h-3 w-24 animate-pulse rounded bg-surface-800" />
+                <div className="ml-auto h-7 w-36 animate-pulse rounded bg-surface-800" />
+              </div>
+            ))}
+          </div>
+        )
       ) : view === 'card' ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {rows.map((t) => {
