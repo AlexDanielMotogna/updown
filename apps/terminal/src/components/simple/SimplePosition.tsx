@@ -31,28 +31,28 @@ export function SimplePosition({ pos, walletAddress }: { pos: Position; walletAd
     toast.update(tid, res.success ? 'success' : 'error', res.success ? `Close ${base} submitted` : res.error?.message ?? 'Close failed');
   }
 
-  const Row = ({ label, value, color }: { label: string; value: string; color?: string }) => (
+  const Row = ({ label, value, cls }: { label: string; value: string; cls?: string }) => (
     <div className="flex items-center justify-between py-0.5 text-sm">
       <span className="text-surface-400">{label}</span>
-      <span className="font-medium tabular-nums" style={{ color: color ?? 'var(--surface-100, #e6e9ef)' }}>{value}</span>
+      <span className={`font-medium tabular-nums ${cls ?? 'text-surface-100'}`}>{value}</span>
     </div>
   );
 
   return (
-    <div className="rounded-lg border border-surface-800 bg-surface-900/40 p-3">
+    <div className="card p-3">
       <div className="mb-1 flex items-center gap-2">
         <span className="text-sm font-bold text-surface-100">{base}</span>
-        <span className="rounded px-1.5 py-0.5 text-xs font-bold" style={{ background: long ? '#16c784' : '#e8566d', color: long ? '#0a0f15' : '#fff' }}>
+        <span className={`rounded px-1.5 py-0.5 text-xs font-bold text-black ${long ? 'bg-win-500' : 'bg-loss-500'}`}>
           {long ? 'LONG' : 'SHORT'}
         </span>
       </div>
       <Row label="Entry" value={usd(Number(pos.entryPrice))} />
       <Row label="Current" value={usd(Number(pos.markPrice))} />
-      <Row label="PnL" value={`${pnl >= 0 ? '+' : ''}${usd(pnl)}`} color={pnl >= 0 ? '#16c784' : '#e8566d'} />
+      <Row label="PnL" value={`${pnl >= 0 ? '+' : ''}${usd(pnl)}`} cls={pnl >= 0 ? 'text-win-500' : 'text-loss-500'} />
       <Row label="Size" value={usd(sizeUsd)} />
       <Row label="Liquidation" value={usd(Number(pos.liquidationPrice))} />
       <button onClick={close} disabled={busy}
-        className="mt-2 w-full rounded py-2 text-sm font-bold text-white disabled:opacity-50" style={{ background: '#e8566d' }}>
+        className="mt-2 w-full rounded-lg bg-loss-500 py-2 text-sm font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-50">
         {busy ? 'Closing…' : 'Close Position'}
       </button>
     </div>

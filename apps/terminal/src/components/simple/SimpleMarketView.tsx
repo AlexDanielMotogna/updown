@@ -35,7 +35,7 @@ export function SimpleMarketView({ symbol, devWallet, devEvm }: { symbol: string
 
       {/* Trade panel */}
       <div className="lg:w-[360px] lg:shrink-0">
-        <div className="rounded-lg border border-surface-800 bg-surface-900/40">
+        <div className="card p-0">
           <SimpleTradePanel symbol={symbol} walletAddress={walletAddress} evmAddress={evmAddress} />
         </div>
       </div>

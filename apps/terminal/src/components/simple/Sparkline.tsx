@@ -30,7 +30,7 @@ export function Sparkline({ symbol, width = 96, height = 28 }: { symbol: string;
   const dx = width / (pts.length - 1);
   const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${(i * dx).toFixed(1)},${(height - ((p - min) / span) * height).toFixed(1)}`).join(' ');
   const up = pts[pts.length - 1] >= pts[0];
-  const color = up ? '#16c784' : '#e8566d';
+  const color = up ? '#26A69A' : '#EF5350'; // win-500 / loss-500
 
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="block">

@@ -10,8 +10,6 @@ import { ConnectGate } from '../ConnectGate';
 import { DepositModal } from '../DepositModal';
 import type { OrderSide } from '@/lib/types';
 
-const LONG_GREEN = 'var(--win-500, #16c784)';
-const SHORT_RED = '#e8566d';
 const usd = (n: number) => (Number.isFinite(n) ? `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '$0.00');
 const trim = (n: number, dp: number) => (Number.isFinite(n) ? n.toFixed(dp).replace(/\.?0+$/, '') : '');
 
@@ -170,11 +168,11 @@ export function SimpleTradePanel({
               const isLong = s === 'BUY';
               return (
                 <button key={s} onClick={() => setSide(s)}
-                  className="rounded py-2 text-sm font-bold transition-colors"
-                  style={{
-                    background: active ? (isLong ? LONG_GREEN : SHORT_RED) : 'rgba(255,255,255,0.04)',
-                    color: active ? '#0a0f15' : 'var(--surface-300, #8a94a6)',
-                  }}>
+                  className={`rounded py-2.5 text-sm font-bold transition-colors ${
+                    active
+                      ? isLong ? 'bg-win-500 text-black' : 'bg-loss-500 text-black'
+                      : 'bg-surface-800 text-surface-400 hover:text-surface-200'
+                  }`}>
                   {isLong ? 'LONG' : 'SHORT'}
                 </button>
               );
@@ -185,14 +183,17 @@ export function SimpleTradePanel({
           <div className="text-xs text-surface-400">Available Balance: <span className="text-surface-100">{usd(available)}</span></div>
 
           {/* Amount */}
-          <div className="rounded border border-surface-700 bg-surface-900 px-3 py-2">
+          <div className="rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 focus-within:border-brand">
             <div className="text-2xs uppercase tracking-wide text-surface-500">Amount (USD)</div>
-            <input
-              value={amountUsd}
-              onChange={(e) => setAmountUsd(e.target.value.replace(/[^0-9.]/g, ''))}
-              inputMode="decimal" placeholder="0.00"
-              className="w-full bg-transparent text-lg font-semibold text-surface-100 outline-none"
-            />
+            <div className="flex items-center gap-1">
+              <span className="text-lg font-semibold text-surface-400">$</span>
+              <input
+                value={amountUsd}
+                onChange={(e) => setAmountUsd(e.target.value.replace(/[^0-9.]/g, ''))}
+                inputMode="decimal" placeholder="0.00"
+                className="w-full bg-transparent text-lg font-semibold text-surface-100 outline-none placeholder:text-surface-600"
+              />
+            </div>
           </div>
 
           {/* Quick buttons */}
@@ -223,8 +224,7 @@ export function SimpleTradePanel({
             <button onClick={approveBuilder} className="w-full rounded bg-brand py-3 text-sm font-bold text-surface-950">Approve builder fee</button>
           ) : (
             <button onClick={openPosition} disabled={!canSubmit}
-              className="w-full rounded py-3 text-base font-bold text-[#0a0f15] disabled:opacity-50"
-              style={{ background: long ? LONG_GREEN : SHORT_RED }}>
+              className={`w-full rounded-lg py-3 text-base font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-40 ${long ? 'bg-win-500' : 'bg-loss-500'}`}>
               {busy ? 'Submitting…' : long ? 'OPEN LONG' : 'OPEN SHORT'}
             </button>
           )}
@@ -240,7 +240,7 @@ export function SimpleTradePanel({
             </div>
           )}
           <button onClick={closePosition} disabled={busy}
-            className="w-full rounded py-3 text-base font-bold text-white disabled:opacity-50" style={{ background: SHORT_RED }}>
+            className="w-full rounded-lg bg-loss-500 py-3 text-base font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-50">
             {busy ? 'Closing…' : 'Close Position'}
           </button>
         </div>
