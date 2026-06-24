@@ -2,12 +2,9 @@
 const nextConfig = {
   // Workspace packages ship TS; let Next transpile them.
   transpilePackages: ['exchange-core', 'exchange-hyperliquid'],
-  // Land on the trade view. A server-level redirect is more reliable in
-  // production than redirect() in the root page (which prerenders static and can
-  // 404 on some hosts).
-  async redirects() {
-    return [{ source: '/', destination: '/market/BTC-USD', permanent: false }];
-  },
+  // NOTE: `/` is a mode-aware client page (Simple → catalog, Pro → client-redirect
+  // to /market/BTC-USD). No server-level redirect here — it would intercept `/`
+  // before the page can render the Simple catalog (PLAN-SIMPLE-MODE §3).
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
