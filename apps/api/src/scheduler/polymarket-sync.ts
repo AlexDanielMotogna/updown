@@ -112,6 +112,24 @@ const PM_MAX_ELAPSED_FRACTION = (() => {
   return Number.isFinite(n) && n > 0 && n <= 1 ? n : 0.05;
 })();
 
+/**
+ * Global "ranking" floor on 24h volume. We only ingest markets whose Polymarket
+ * 24h volume is at least max(category.minVolume24h, PM_MIN_VOLUME_24H_FLOOR), so
+ * the app surfaces genuinely active, world-known topics instead of the long tail
+ * of obscure low-volume questions — regardless of each category's own (possibly
+ * lower, DB-stored) minVolume24h. Applies uniformly to every env via code; tune
+ * with PM_MIN_VOLUME_24H_FLOOR. Set to 0 to defer entirely to per-category config.
+ */
+const PM_MIN_VOLUME_24H_FLOOR = (() => {
+  const n = Number(process.env.PM_MIN_VOLUME_24H_FLOOR);
+  return Number.isFinite(n) && n >= 0 ? n : 25_000;
+})();
+
+/** Effective 24h-volume bar for a category: the stricter of its config and the floor. */
+function effectiveMinVolume24h(catMinVolume24h: number): number {
+  return Math.max(catMinVolume24h, PM_MIN_VOLUME_24H_FLOOR);
+}
+
 function isMarketStale(startDateRaw: unknown, endDateRaw: unknown): boolean {
   if (typeof startDateRaw !== 'string' || typeof endDateRaw !== 'string') return false;
   const start = new Date(startDateRaw).getTime();
@@ -202,8 +220,8 @@ export async function bulkSync(): Promise<void> {
     const cat = await categorizeEvent(event.tags ?? []);
     if (!cat) continue;
 
-    // Volume filter
-    if ((event.volume24hr ?? 0) < cat.minVolume24h) continue;
+    // Volume filter — stricter of the category config and the global ranking floor.
+    if ((event.volume24hr ?? 0) < effectiveMinVolume24h(cat.minVolume24h)) continue;
 
     const lim = limits[cat.code] ?? { maxMarkets: 50, maxSubmarketsPerEvent: 1 };
     const markets = event.markets ?? [];
@@ -434,7 +452,7 @@ export async function syncCategory(code: string): Promise<{ tagIds: string[]; ev
     // tag the operator shares between categories would import twice.
     const matched = await categorizeEvent(event.tags ?? []);
     if (!matched || matched.code !== code) continue;
-    if ((event.volume24hr ?? 0) < cat.minVolume24h) continue;
+    if ((event.volume24hr ?? 0) < effectiveMinVolume24h(cat.minVolume24h)) continue;
 
     const markets = event.markets ?? [];
     if (markets.length === 0) continue;
