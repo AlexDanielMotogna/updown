@@ -117,7 +117,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
       {tickers.length === 0 ? (
         view === 'card' ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, i) => (
+            {Array.from({ length: 16 }).map((_, i) => (
               <div key={i} className="flex flex-col gap-2 rounded-xl border border-surface-800 bg-surface-850 p-3">
                 <div className="flex items-center gap-2">
                   <div className="h-7 w-7 animate-pulse rounded-full bg-surface-800" />
