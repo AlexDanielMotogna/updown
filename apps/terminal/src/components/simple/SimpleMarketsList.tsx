@@ -55,59 +55,67 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
   }, [tickers, filter]);
 
   return (
-    <div className="mx-auto max-w-3xl px-3 py-4">
-      <h1 className="mb-3 px-1 text-lg font-bold text-surface-100">Perpetuals</h1>
+    <div className="mx-auto max-w-[1600px] px-4 py-5 lg:px-6">
+      <h1 className="mb-4 text-xl font-bold text-surface-100">Perpetuals</h1>
 
       {/* Asset filter tabs */}
-      <div className="mb-3 flex gap-1 overflow-x-auto">
+      <div className="mb-4 flex gap-1 overflow-x-auto">
         {tabs.map((t) => (
           <button key={t} onClick={() => setFilter(t)}
-            className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-semibold transition-colors ${
-              filter === t ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:text-surface-100'
+            className={`whitespace-nowrap rounded-md px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+              filter === t ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:bg-surface-800/60 hover:text-surface-100'
             }`}>
             {t}
           </button>
         ))}
       </div>
 
-      <div className="card-elevated divide-y divide-surface-800 overflow-hidden p-0">
-        {rows.length === 0 && <div className="px-4 py-12 text-center text-sm text-surface-500">Loading markets…</div>}
-        {rows.map((t) => {
-          const baseSym = t.symbol.replace('-USD', '');
-          const chg = Number(t.change24h);
-          const chgColor = chg >= 0 ? 'text-win-500' : 'text-loss-500';
-          return (
-            <div key={t.symbol}
-              onClick={() => setTrade({ symbol: t.symbol, side: 'BUY' })}
-              className="flex cursor-pointer items-center gap-3 px-3 py-3 transition-colors hover:bg-surface-800/50">
-              {/* Asset */}
-              <TokenIcon symbol={t.symbol} size="lg" />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-sm font-semibold text-surface-100">{baseSym}</span>
-                  <span className="text-2xs font-medium text-surface-500">PERP</span>
+      {rows.length === 0 ? (
+        <div className="card-elevated px-4 py-16 text-center text-sm text-surface-500">Loading markets…</div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+          {rows.map((t) => {
+            const baseSym = t.symbol.replace('-USD', '');
+            const chg = Number(t.change24h);
+            const up = chg >= 0;
+            const chgColor = up ? 'text-win-500' : 'text-loss-500';
+            return (
+              <div key={t.symbol}
+                onClick={() => setTrade({ symbol: t.symbol, side: 'BUY' })}
+                className="card-elevated group flex cursor-pointer flex-col gap-2 p-3 transition-colors hover:border-surface-600">
+                {/* Asset row */}
+                <div className="flex items-center justify-between">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <TokenIcon symbol={t.symbol} size="lg" />
+                    <div className="min-w-0 leading-tight">
+                      <div className="truncate text-sm font-semibold text-surface-100">{baseSym}</div>
+                      <div className="text-2xs font-medium text-surface-500">PERP</div>
+                    </div>
+                  </div>
+                  <span className="text-2xs text-surface-500">Vol {fmtVol(t.volume24h)}</span>
                 </div>
-                <div className="text-base font-bold text-surface-100 tabular-nums">{fmtPrice(t.mark)}</div>
-                <div className="flex gap-3 text-xs">
-                  <span className={`${chgColor} font-medium tabular-nums`}>{chg >= 0 ? '+' : ''}{chg.toFixed(2)}%</span>
-                  <span className="text-surface-500">Vol {fmtVol(t.volume24h)}</span>
+
+                {/* Price + 24h */}
+                <div className="flex items-baseline justify-between">
+                  <span className="text-lg font-bold text-surface-100 tabular-nums">{fmtPrice(t.mark)}</span>
+                  <span className={`${chgColor} text-sm font-semibold tabular-nums`}>{up ? '▲' : '▼'} {Math.abs(chg).toFixed(2)}%</span>
+                </div>
+
+                {/* Sparkline */}
+                <div className="py-1"><Sparkline symbol={t.symbol} height={36} /></div>
+
+                {/* LONG / SHORT */}
+                <div className="grid grid-cols-2 gap-2" onClick={(e) => e.stopPropagation()}>
+                  <button onClick={() => setTrade({ symbol: t.symbol, side: 'BUY' })}
+                    className="rounded-lg bg-win-500 py-2 text-xs font-bold text-black transition-opacity hover:opacity-90">LONG</button>
+                  <button onClick={() => setTrade({ symbol: t.symbol, side: 'SELL' })}
+                    className="rounded-lg bg-loss-500 py-2 text-xs font-bold text-black transition-opacity hover:opacity-90">SHORT</button>
                 </div>
               </div>
-
-              {/* Sparkline */}
-              <div className="hidden sm:block"><Sparkline symbol={t.symbol} /></div>
-
-              {/* LONG / SHORT */}
-              <div className="flex flex-col gap-1.5" onClick={(e) => e.stopPropagation()}>
-                <button onClick={() => setTrade({ symbol: t.symbol, side: 'BUY' })}
-                  className="rounded bg-win-500 px-4 py-1.5 text-xs font-bold text-black transition-opacity hover:opacity-90">LONG</button>
-                <button onClick={() => setTrade({ symbol: t.symbol, side: 'SELL' })}
-                  className="rounded bg-loss-500 px-4 py-1.5 text-xs font-bold text-black transition-opacity hover:opacity-90">SHORT</button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {trade && (
         <SimpleTradeModal open onClose={() => setTrade(null)} symbol={trade.symbol} initialSide={trade.side} devWallet={devWallet} devEvm={devEvm} />

@@ -22,7 +22,7 @@ export function Sparkline({ symbol, width = 96, height = 28 }: { symbol: string;
     return () => { alive = false; };
   }, [symbol]);
 
-  if (pts.length < 2) return <div style={{ width, height }} className="opacity-40" />;
+  if (pts.length < 2) return <div style={{ height }} className="w-full opacity-40" />;
 
   const min = Math.min(...pts);
   const max = Math.max(...pts);
@@ -33,7 +33,7 @@ export function Sparkline({ symbol, width = 96, height = 28 }: { symbol: string;
   const color = up ? '#26A69A' : '#EF5350'; // win-500 / loss-500
 
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="block">
+    <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" height={height} className="block w-full">
       <path d={path} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
