@@ -1,5 +1,5 @@
 import { getTickers } from '@/lib/exchange';
-import { TerminalLayout } from '@/components/TerminalLayout';
+import { MarketShell } from '@/components/MarketShell';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,5 +12,5 @@ export default async function MarketPage({ params }: { params: { symbol: string 
   const devWallet = process.env.NEXT_PUBLIC_DEV_WALLET;
   const devEvm = process.env.NEXT_PUBLIC_DEV_EVM_ADDRESS;
 
-  return <TerminalLayout symbol={symbol} initial={initial} devWallet={devWallet} devEvm={devEvm} />;
+  return <MarketShell symbol={symbol} initial={initial} devWallet={devWallet} devEvm={devEvm} />;
 }

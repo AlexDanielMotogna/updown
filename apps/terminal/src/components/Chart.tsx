@@ -34,7 +34,10 @@ function sma(candles: CandlestickData[], period: number): LineData[] {
   return out;
 }
 
-export function Chart({ symbol }: { symbol: string }) {
+/** A pared-down interval set for Simple Mode (PLAN-SIMPLE-MODE §4.3). */
+const SIMPLE_INTERVALS = ['1h', '4h', '1d'] as const;
+
+export function Chart({ symbol, minimal = false }: { symbol: string; minimal?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -149,7 +152,7 @@ export function Chart({ symbol }: { symbol: string }) {
       {/* Toolbar */}
       <div className="flex items-center gap-3 px-3 py-1.5 text-xs">
         <div className="flex items-center gap-0.5">
-          {INTERVALS.map((i) => (
+          {(minimal ? SIMPLE_INTERVALS : INTERVALS).map((i) => (
             <button
               key={i}
               onClick={() => setInterval(i)}
@@ -159,8 +162,8 @@ export function Chart({ symbol }: { symbol: string }) {
             </button>
           ))}
         </div>
-        <span className="text-surface-700">|</span>
-        <div className="relative">
+        {!minimal && <span className="text-surface-700">|</span>}
+        {!minimal && <div className="relative">
           <button
             onClick={() => setShowInd((v) => !v)}
             className={`flex items-center gap-1 rounded px-1.5 py-1 ${showInd || enabled.size ? 'text-surface-100' : 'text-surface-400 hover:text-surface-100'}`}
@@ -181,7 +184,7 @@ export function Chart({ symbol }: { symbol: string }) {
               ))}
             </div>
           )}
-        </div>
+        </div>}
         {/* TradingView attribution — REQUIRED by the lightweight-charts license.
             Only the words "TradingView" are the link back to tradingview.com. */}
         <span className="ml-auto text-2xs text-surface-500">
