@@ -39,7 +39,7 @@ export function SimplePosition({ pos, walletAddress }: { pos: Position; walletAd
   );
 
   return (
-    <div className="card p-3">
+    <div className="rounded-xl border border-surface-800 bg-surface-850 p-3">
       <div className="mb-1 flex items-center gap-2">
         <span className="text-sm font-bold text-surface-100">{base}</span>
         <span className={`rounded px-1.5 py-0.5 text-xs font-bold text-black ${long ? 'bg-win-500' : 'bg-loss-500'}`}>

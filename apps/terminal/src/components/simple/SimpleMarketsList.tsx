@@ -71,7 +71,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
       </div>
 
       {rows.length === 0 ? (
-        <div className="card-elevated px-4 py-16 text-center text-sm text-surface-500">Loading markets…</div>
+        <div className="rounded-xl border border-surface-800 bg-surface-850 px-4 py-16 text-center text-sm text-surface-500">Loading markets…</div>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
           {rows.map((t) => {
@@ -82,7 +82,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
             return (
               <div key={t.symbol}
                 onClick={() => setTrade({ symbol: t.symbol, side: 'BUY' })}
-                className="card-elevated group flex cursor-pointer flex-col gap-2 p-3 transition-colors hover:border-surface-600">
+                className="group flex cursor-pointer flex-col gap-2 rounded-xl border border-surface-800 bg-surface-850 p-3 transition-colors hover:border-surface-600">
                 {/* Asset row */}
                 <div className="flex items-center justify-between">
                   <div className="flex min-w-0 items-center gap-2">
@@ -104,12 +104,12 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
                 {/* Sparkline */}
                 <div className="py-1"><Sparkline symbol={t.symbol} height={36} /></div>
 
-                {/* LONG / SHORT */}
-                <div className="grid grid-cols-2 gap-2" onClick={(e) => e.stopPropagation()}>
+                {/* LONG / SHORT — same look as the Pro terminal's Buy/Sell (rounded, semibold) */}
+                <div className="grid grid-cols-2 gap-1.5" onClick={(e) => e.stopPropagation()}>
                   <button onClick={() => setTrade({ symbol: t.symbol, side: 'BUY' })}
-                    className="rounded-lg bg-win-500 py-2 text-xs font-bold text-black transition-opacity hover:opacity-90">LONG</button>
+                    className="rounded bg-win-500 py-1.5 text-xs font-semibold text-black transition-opacity hover:opacity-90">LONG</button>
                   <button onClick={() => setTrade({ symbol: t.symbol, side: 'SELL' })}
-                    className="rounded-lg bg-loss-500 py-2 text-xs font-bold text-black transition-opacity hover:opacity-90">SHORT</button>
+                    className="rounded bg-loss-500 py-1.5 text-xs font-semibold text-black transition-opacity hover:opacity-90">SHORT</button>
                 </div>
               </div>
             );
