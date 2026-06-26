@@ -164,7 +164,13 @@ export default function MatchDetailPage() {
   // leagues; until then the UI stops pretending it's still live. Computed
   // BEFORE matchLive so we can exclude "stuck 2H 95'" feed states from the
   // live indicator.
-  const awaitingFinalFeed = pool ? isAwaitingFinalResult(pool, liveScore?.status) : false;
+  // PM pools open at CREATION (startTime = now), so the sports-duration-based
+  // isAwaitingFinalResult (startTime + ~2h) ALWAYS reads as "past expected end"
+  // and falsely flips a JOINING PM market to ENDED/determining-winner. Gate it
+  // off for PM — their awaiting state is driven solely by pmPredictionsClosed
+  // (lockTime/endTime actually passed) below.
+  const isPmPool = pool?.league?.startsWith('PM_') ?? false;
+  const awaitingFinalFeed = pool && !isPmPool ? isAwaitingFinalResult(pool, liveScore?.status) : false;
   const matchLive = liveScore && isMatchActive(liveScore) && !awaitingFinalFeed;
   // PM-specific awaiting state: once the betting window closes we're
   // sitting on Polymarket / UMA to confirm the outcome. The generic
@@ -175,7 +181,6 @@ export default function MatchDetailPage() {
   // pool sits in RESOLVED/CLAIMABLE without a `winner` field yet, which
   // happens during the brief window between the scheduler flipping the
   // status and the resolve-on-chain call writing the side.
-  const isPmPool = pool?.league?.startsWith('PM_') ?? false;
   const pmPredictionsClosed = isPmPool && pool && (
     (pool.lockTime && new Date(pool.lockTime).getTime() < Date.now()) ||
     (pool.endTime && new Date(pool.endTime).getTime() < Date.now())
@@ -379,7 +384,9 @@ export default function MatchDetailPage() {
   const winnerLabel = isResolved ? (pool.winner === 'UP' ? (isPrediction && !pool.awayTeam ? 'Yes' : pool.homeTeam) : pool.winner === 'DOWN' ? (isPrediction && !pool.awayTeam ? 'No' : pool.awayTeam) : pool.winner === 'DRAW' ? 'Draw' : null) : null;
   const winnerColor = pool.winner === 'UP' ? t.up : pool.winner === 'DOWN' ? t.down : t.draw;
 
-  const kickoff = new Date(pool.startTime).toLocaleString('en-US', {
+  // Sports: startTime = kickoff. PM: startTime = pool creation, so the meaningful
+  // "Closes {date}" is the lockTime (when betting shuts), not creation.
+  const kickoff = new Date(isPrediction ? pool.lockTime : pool.startTime).toLocaleString('en-US', {
     weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
   });
 
