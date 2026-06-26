@@ -7,6 +7,9 @@ import {
   Avatar,
   Skeleton,
   Tooltip,
+  Menu,
+  MenuItem,
+  ListItemIcon,
 } from '@mui/material';
 import {
   ContentCopy,
@@ -15,8 +18,11 @@ import {
   EmojiEvents,
   AccountBalanceWallet,
   Edit,
+  Settings,
+  VpnKey,
 } from '@mui/icons-material';
 import { useState } from 'react';
+import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { ConnectWalletButton } from '@/components';
 import { UserLevelBadge } from '@/components/UserLevelBadge';
 import { XpProgressBar } from '@/components/XpProgressBar';
@@ -52,9 +58,20 @@ export function ProfileHeader({
   balance,
 }: ProfileHeaderProps) {
   const t = useThemeTokens();
+  const { isEmbedded, exportWallet } = useWalletBridge();
   const [copied, setCopied] = useState(false);
   const [refCopied, setRefCopied] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [settingsAnchor, setSettingsAnchor] = useState<HTMLElement | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  // Self-custody: only the app-created (embedded) wallet can export a key.
+  const handleExport = async () => {
+    setSettingsAnchor(null);
+    setExporting(true);
+    try { await exportWallet(); } catch { /* user closed the secure modal */ }
+    finally { setExporting(false); }
+  };
 
   // The user's self-edited identity always wins over the wallet-derived
   // defaults. Keeping fallbacks here (truncated wallet + DiceBear gradient
@@ -228,6 +245,27 @@ export function ProfileHeader({
                         {copied ? <CheckCircle sx={{ fontSize: 15 }} /> : <ContentCopy sx={{ fontSize: 15 }} />}
                       </Box>
                     </Tooltip>
+                    {isEmbedded && (
+                      <>
+                        <Tooltip title="Wallet settings" arrow placement="bottom" slotProps={tooltipSlotProps(t)}>
+                          <Box component="button" onClick={(e) => setSettingsAnchor(e.currentTarget)} sx={{ background: 'none', border: 'none', cursor: 'pointer', p: 0, display: 'flex', alignItems: 'center', flexShrink: 0, color: settingsAnchor ? t.text.primary : t.text.dimmed, '&:hover': { color: t.text.primary } }}>
+                            <Settings sx={{ fontSize: 15 }} />
+                          </Box>
+                        </Tooltip>
+                        <Menu
+                          anchorEl={settingsAnchor}
+                          open={Boolean(settingsAnchor)}
+                          onClose={() => setSettingsAnchor(null)}
+                          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                          slotProps={{ paper: { sx: { bgcolor: t.bg.surface, border: `1px solid ${t.border.medium}`, boxShadow: t.surfaceShadow, mt: 0.5 } } }}
+                        >
+                          <MenuItem onClick={handleExport} disabled={exporting} sx={{ fontSize: '0.85rem', gap: 1 }}>
+                            <ListItemIcon sx={{ minWidth: 'auto !important', color: t.text.secondary }}><VpnKey sx={{ fontSize: 17 }} /></ListItemIcon>
+                            {exporting ? 'Opening…' : 'Export wallet'}
+                          </MenuItem>
+                        </Menu>
+                      </>
+                    )}
                   </Box>
 
                   {/* Meta line: only the rank chip when the user has a display
