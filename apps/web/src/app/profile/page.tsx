@@ -14,7 +14,7 @@ import { useLivePoolTotals } from '@/hooks/useLivePoolTotals';
 import type { Bet } from '@/lib/api';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
-import { TransactionModal, AppShell } from '@/components';
+import { AppShell } from '@/components';
 import { formatUSDC } from '@/lib/format';
 import { useThemeTokens } from '@/app/providers';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
@@ -39,7 +39,6 @@ export default function MyBetsPage() {
   const { data: balance } = useUsdcBalance();
   const [mode, setMode] = useState<'predictions' | 'trading'>('predictions');
   const [claimingBetId, setClaimingBetId] = useState<string | null>(null);
-  const [showModal, setShowModal] = useState(false);
   const [claimAllProgress, setClaimAllProgress] = useState<{ current: number; total: number } | null>(null);
 
   const {
@@ -51,44 +50,47 @@ export default function MyBetsPage() {
     isFetchingNextPage,
   } = useInfiniteBets();
   const { data: claimableData } = useClaimableBets();
-  const { claim, state: claimState, reset: resetClaim } = useClaim();
+  const { claim, reset: resetClaim } = useClaim();
 
+  // No modal: the per-bet button shows "Claiming…" (via claimingBetId) and the
+  // Claim-All banner shows "Claiming X/Y…"; the result is a toast (CLAIM_SUCCESS
+  // / CLAIM_FAILED, fired in useClaim). Reset the inline state when done.
   const handleClaim = useCallback(async (poolId: string, betId: string) => {
     setClaimingBetId(betId);
     setClaimAllProgress(null);
-    setShowModal(true);
     try {
       await claim(poolId, betId);
     } catch {
-      /* error surfaces via claim state */
+      /* surfaced via toast */
+    } finally {
+      setClaimingBetId(null);
+      resetClaim();
     }
-  }, [claim]);
+  }, [claim, resetClaim]);
 
   const handleClaimAll = useCallback(async () => {
     if (!claimable) return;
     const betsToProcess = claimable.bets.filter((b) => !b.claimed);
     if (betsToProcess.length === 0) return;
-    setClaimAllProgress({ current: 1, total: betsToProcess.length });
-    setShowModal(true);
-    for (let i = 0; i < betsToProcess.length; i++) {
-      const bet = betsToProcess[i];
-      setClaimAllProgress({ current: i + 1, total: betsToProcess.length });
-      setClaimingBetId(bet.id);
-      try {
+    try {
+      for (let i = 0; i < betsToProcess.length; i++) {
+        const bet = betsToProcess[i];
+        setClaimAllProgress({ current: i + 1, total: betsToProcess.length });
+        setClaimingBetId(bet.id);
         resetClaim();
-        await claim(bet.pool.id, bet.id);
-      } catch {
-        return; // stop on first failure
+        try {
+          await claim(bet.pool.id, bet.id);
+        } catch {
+          return; // stop on first failure
+        }
       }
+    } finally {
+      setClaimAllProgress(null);
+      setClaimingBetId(null);
+      resetClaim();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [claim, resetClaim]);
-
-  const handleCloseModal = useCallback(() => {
-    setShowModal(false);
-    setClaimingBetId(null);
-    setClaimAllProgress(null);
-    resetClaim();
-  }, [resetClaim]);
 
   const bets = useMemo(() => {
     const flat = betsData?.pages.flatMap((p) => p.data ?? []) ?? [];
@@ -257,18 +259,6 @@ export default function MyBetsPage() {
           </>
         )}
       </Container>
-
-      <TransactionModal
-        open={showModal}
-        status={claimState.status}
-        title={claimAllProgress
-          ? `Claiming Payout (${claimAllProgress.current}/${claimAllProgress.total})`
-          : 'Claiming Payout'}
-        txSignature={claimState.txSignature}
-        error={claimState.error}
-        onClose={handleCloseModal}
-        onRetry={() => resetClaim()}
-      />
     </AppShell>
   );
 }
