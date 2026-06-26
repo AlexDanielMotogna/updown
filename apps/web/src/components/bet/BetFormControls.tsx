@@ -1,8 +1,8 @@
 'use client';
 
-import { Box, Button, TextField, Tooltip, Typography, CircularProgress, type SxProps } from '@mui/material';
+import { Box, Button, ClickAwayListener, TextField, Tooltip, Typography, CircularProgress, type SxProps } from '@mui/material';
 import { InfoOutlined } from '@mui/icons-material';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useThemeTokens } from '@/app/providers';
 
 /**
@@ -122,17 +122,36 @@ export function BetStatRow({
   labelTooltip?: string;
 }) {
   const t = useThemeTokens();
-  const labelNode = (
-    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.4, cursor: labelTooltip ? 'help' : 'default' }}>
-      <Typography component="span" sx={{ fontSize: '0.75rem', fontWeight: 600, color: t.text.tertiary }}>
-        {label}
-      </Typography>
-      {labelTooltip && <InfoOutlined sx={{ fontSize: 13, color: t.text.quaternary }} />}
-    </Box>
-  );
+  const [open, setOpen] = useState(false);
   return (
     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      {labelTooltip ? <Tooltip arrow placement="top" title={labelTooltip}>{labelNode}</Tooltip> : labelNode}
+      <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.4 }}>
+        <Typography component="span" sx={{ fontSize: '0.75rem', fontWeight: 600, color: t.text.tertiary }}>
+          {label}
+        </Typography>
+        {labelTooltip && (
+          // Tooltip opens ONLY on clicking the info icon (no hover / no text trigger).
+          <ClickAwayListener onClickAway={() => setOpen(false)}>
+            <Box component="span" sx={{ display: 'inline-flex' }}>
+              <Tooltip
+                arrow
+                placement="top"
+                title={labelTooltip}
+                open={open}
+                onClose={() => setOpen(false)}
+                disableHoverListener
+                disableFocusListener
+                disableTouchListener
+              >
+                <InfoOutlined
+                  onClick={() => setOpen((v) => !v)}
+                  sx={{ fontSize: 13, color: open ? t.text.secondary : t.text.quaternary, cursor: 'pointer' }}
+                />
+              </Tooltip>
+            </Box>
+          </ClickAwayListener>
+        )}
+      </Box>
       <Typography sx={{ fontSize: emphasize ? '0.85rem' : '0.8rem', fontWeight: 700, color: valueColor ?? t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
         {value}
       </Typography>
