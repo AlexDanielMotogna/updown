@@ -14,11 +14,12 @@ import {
   Avatar,
   IconButton,
 } from '@mui/material';
-import { CloudUpload, Link as LinkIcon, Close } from '@mui/icons-material';
+import { CloudUpload, Link as LinkIcon, Close, VpnKey } from '@mui/icons-material';
 import Script from 'next/script';
 import { useThemeTokens } from '@/app/providers';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { updateUserProfile, type UserProfile } from '@/lib/api';
+import { useWalletBridge } from '@/hooks/useWalletBridge';
 
 // Cloudinary's upload widget is attached to window when their CDN script
 // loads. We don't want a hard dependency on @types/cloudinary, so this is a
@@ -66,6 +67,16 @@ interface EditProfileDialogProps {
 export function EditProfileDialog({ open, onClose, walletAddress, profile }: EditProfileDialogProps) {
   const t = useThemeTokens();
   const queryClient = useQueryClient();
+  const { isEmbedded, exportWallet } = useWalletBridge();
+  const [exporting, setExporting] = useState(false);
+
+  // Self-custody: only the app-created (embedded) wallet can export a private
+  // key — external wallets (Phantom/Solflare) already hold their own keys.
+  const handleExport = async () => {
+    setExporting(true);
+    try { await exportWallet(); } catch { /* user closed the secure modal */ }
+    finally { setExporting(false); }
+  };
 
   const [displayName, setDisplayName] = useState(profile?.displayName ?? '');
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatarUrl ?? '');
@@ -276,6 +287,29 @@ export function EditProfileDialog({ open, onClose, walletAddress, profile }: Edi
                 helperText="3–20 chars. Letters, numbers, space, _ or -. Leave blank to use your wallet."
               />
             </Box>
+
+            {/* Wallet & security — export the app wallet's key (embedded only) */}
+            {isEmbedded && (
+              <Box sx={{ borderTop: `1px solid ${t.border.subtle}`, pt: 2 }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: t.text.tertiary, mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Wallet & security
+                </Typography>
+                <Button
+                  size="small"
+                  startIcon={<VpnKey sx={{ fontSize: 16 }} />}
+                  onClick={handleExport}
+                  disabled={exporting}
+                  variant="outlined"
+                  sx={{ textTransform: 'none', fontSize: '0.8rem', borderColor: t.border.medium, color: t.text.primary }}
+                >
+                  {exporting ? 'Opening…' : 'Export wallet'}
+                </Button>
+                <Typography sx={{ fontSize: '0.7rem', color: t.text.quaternary, mt: 0.75, lineHeight: 1.5 }}>
+                  Reveals your app wallet&apos;s private key in a secure Privy window so you can import it into
+                  Phantom, Solflare, etc. Your key is shown only to you — never to this app.
+                </Typography>
+              </Box>
+            )}
 
             {error && (
               <Typography sx={{ fontSize: '0.8rem', color: t.down, fontWeight: 600 }}>
