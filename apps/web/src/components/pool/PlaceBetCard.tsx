@@ -221,14 +221,14 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
         <BetStatRow
           label="Current odds"
           value={displayOdds > 0 ? `${displayOdds.toFixed(2)}x` : '-'}
-          labelTooltip="Time-weighted parimutuel: earlier deposits earn a larger share of the losing pool. Your live multiplier is enforced on-chain when you claim."
+          labelTooltip="What you'd win per $1 staked right now, based on how the pool is split. It shifts as more bets come in before the round closes."
         />
         {weighting && (
           <BetStatRow
             label="Time-weight now"
             value={`×${weighting.currentMultiplier.toFixed(2)}`}
             valueColor={sideColor}
-            labelTooltip={`Bets placed earlier in the window earn a bigger share of the losing pool. Floor ${(weighting.config.floor * 100).toFixed(0)}%, decay exponent ${weighting.config.exponent}.`}
+            labelTooltip={`Bet early, win bigger. The sooner you bet in a round, the larger your share of the losing side's pool. Your bet locks in this ×${weighting.currentMultiplier.toFixed(2)} multiplier right now — it's highest at the round's start and eases toward ×1 by close, so waiting costs you. It's enforced on-chain when you claim.`}
           />
         )}
       </BetPayoutBox>

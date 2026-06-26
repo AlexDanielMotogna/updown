@@ -1,6 +1,7 @@
 'use client';
 
 import { Box, Button, TextField, Tooltip, Typography, CircularProgress, type SxProps } from '@mui/material';
+import { InfoOutlined } from '@mui/icons-material';
 import type { ReactNode } from 'react';
 import { useThemeTokens } from '@/app/providers';
 
@@ -122,12 +123,15 @@ export function BetStatRow({
 }) {
   const t = useThemeTokens();
   const labelNode = (
-    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: t.text.tertiary, cursor: labelTooltip ? 'help' : 'default' }}>
-      {label}
-    </Typography>
+    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.4, cursor: labelTooltip ? 'help' : 'default' }}>
+      <Typography component="span" sx={{ fontSize: '0.75rem', fontWeight: 600, color: t.text.tertiary }}>
+        {label}
+      </Typography>
+      {labelTooltip && <InfoOutlined sx={{ fontSize: 13, color: t.text.quaternary }} />}
+    </Box>
   );
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       {labelTooltip ? <Tooltip arrow placement="top" title={labelTooltip}>{labelNode}</Tooltip> : labelNode}
       <Typography sx={{ fontSize: emphasize ? '0.85rem' : '0.8rem', fontWeight: 700, color: valueColor ?? t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
         {value}
