@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Box, Typography, Drawer, Button, TextField, IconButton, CircularProgress } from '@mui/material';
+import { Box, Typography, Drawer, Button, IconButton } from '@mui/material';
 import { Close, OpenInNew } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { ThreeWaySelector } from './ThreeWaySelector';
+import { BetPresetRow, BetAmountInput, BetPayoutBox, BetStatRow, BetSubmitButton } from '@/components/bet/BetFormControls';
 import { MatchAnalysis } from './MatchAnalysis';
 import { useDeposit } from '@/hooks/useTransactions';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
@@ -258,43 +259,10 @@ export function MatchBetModal({ pool, onClose }: Props) {
             <>
               {/* Amount */}
               <Box sx={{ px: 2, mb: 2 }}>
-                <Box sx={{ display: 'flex', gap: 0.5, mb: 1 }}>
-                  {PRESETS.map(p => (
-                    <Button
-                      key={p}
-                      size="small"
-                      onClick={() => setAmount(String(p))}
-                      sx={{
-                        flex: 1, minWidth: 0, py: 0.5,
-                        fontSize: '0.75rem', fontWeight: 600,
-                        bgcolor: amountNum === p ? t.hover.emphasis : t.hover.default,
-                        color: amountNum === p ? t.text.primary : t.text.secondary,
-                        textTransform: 'none', borderRadius: '5px',
-                        '&:hover': { bgcolor: t.hover.strong },
-                      }}
-                    >
-                      ${p}
-                    </Button>
-                  ))}
+                <Box sx={{ mb: 1 }}>
+                  <BetPresetRow presets={PRESETS} amount={amount} onSelect={(p) => setAmount(String(p))} />
                 </Box>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="Amount (USDC)"
-                  type="number"
-                  value={amount}
-                  onChange={e => setAmount(e.target.value)}
-                  inputProps={{ min: 1, step: 'any' }}
-                  sx={{
-                    '& .MuiInputBase-root': { bgcolor: t.hover.default, borderRadius: '5px' },
-                    '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
-                    '& .MuiInputBase-input': {
-                      color: t.text.primary, fontSize: '0.9rem',
-                      MozAppearance: 'textfield',
-                      '&::-webkit-outer-spin-button, &::-webkit-inner-spin-button': { WebkitAppearance: 'none', margin: 0 },
-                    },
-                  }}
-                />
+                <BetAmountInput value={amount} onChange={(e) => setAmount(e.target.value)} />
                 <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: t.text.strong, mt: 0.75 }}>
                   Balance: ${balanceNum.toFixed(2)} USDC
                 </Typography>
@@ -302,19 +270,11 @@ export function MatchBetModal({ pool, onClose }: Props) {
 
               {/* Payout preview */}
               {side && amountNum > 0 && (
-                <Box sx={{ px: 2, mb: 2, py: 1.5, bgcolor: t.hover.light }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.75rem', color: t.text.tertiary }}>Estimated payout</Typography>
-                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: t.gain }}>
-                      ${estimatedPayout.toFixed(2)}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography sx={{ fontSize: '0.75rem', color: t.text.tertiary }}>Multiplier</Typography>
-                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: t.text.primary }}>
-                      {amountNum > 0 ? (estimatedPayout / amountNum).toFixed(2) : '0.00'}x
-                    </Typography>
-                  </Box>
+                <Box sx={{ px: 2, mb: 2 }}>
+                  <BetPayoutBox>
+                    <BetStatRow label="Estimated payout" value={`$${estimatedPayout.toFixed(2)}`} valueColor={t.gain} emphasize />
+                    <BetStatRow label="Multiplier" value={`${amountNum > 0 ? (estimatedPayout / amountNum).toFixed(2) : '0.00'}x`} />
+                  </BetPayoutBox>
                 </Box>
               )}
             </>
@@ -375,21 +335,13 @@ export function MatchBetModal({ pool, onClose }: Props) {
               </Link>
             ) : (
               <>
-                <Button
-                  fullWidth
-                  variant="contained"
+                <BetSubmitButton
+                  label={!connected ? 'Connect Wallet' : isSubmitting ? 'Placing…' : !side ? 'Select Side' : amountNum <= 0 ? 'Enter Amount' : 'Place Prediction'}
+                  color={t.up}
                   disabled={!canSubmit}
-                  startIcon={isSubmitting ? <CircularProgress size={15} thickness={5} sx={{ color: 'inherit' }} /> : null}
+                  loading={isSubmitting}
                   onClick={handleSubmit}
-                  sx={{
-                    bgcolor: t.up, color: t.text.contrast, fontWeight: 700, fontSize: '0.8rem',
-                    py: 1, borderRadius: '5px', textTransform: 'none',
-                    '&:hover': { bgcolor: t.up, filter: 'brightness(1.15)' },
-                    '&:disabled': { bgcolor: t.border.default, color: t.text.dimmed },
-                  }}
-                >
-                  {!connected ? 'Connect Wallet' : isSubmitting ? 'Placing…' : !side ? 'Select Side' : amountNum <= 0 ? 'Enter Amount' : 'Place Prediction'}
-                </Button>
+                />
                 <Link href={`/match/${pool.id}`} style={{ textDecoration: 'none', width: '100%' }}>
                   <Button
                     fullWidth
