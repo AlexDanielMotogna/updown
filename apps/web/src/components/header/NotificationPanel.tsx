@@ -128,7 +128,11 @@ export function NotificationPanel() {
           anchorEl={bellRef.current}
           placement="bottom-end"
           transition
-          sx={{ zIndex: 1400 }}
+          // Header is position:sticky, so the bell stays fixed on scroll. Use the
+          // fixed positioning strategy so the panel stays glued to the bell instead
+          // of drifting away as the page scrolls.
+          popperOptions={{ strategy: 'fixed' }}
+          sx={{ zIndex: 1400, position: 'fixed' }}
         >
           {({ TransitionProps }) => (
             <Fade {...TransitionProps} timeout={150}>
