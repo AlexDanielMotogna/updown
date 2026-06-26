@@ -23,17 +23,13 @@ import { useEffect, useState, type RefObject } from 'react';
 import {
   Alert,
   Box,
-  Button,
-  CircularProgress,
-  InputAdornment,
-  TextField,
-  Tooltip,
   Typography,
 } from '@mui/material';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { usePoolWeighting, projectWeightedPayout } from '@/hooks/usePoolWeighting';
 import { AssetIcon } from '@/components/AssetIcon';
+import { BetPresetRow, BetAmountInput, BetPayoutBox, BetStatRow, BetSubmitButton } from '@/components/bet/BetFormControls';
 import { DeterminingCard as SharedDetermining, OutcomeCard as SharedOutcome, CancelledCard as SharedCancelled, TermsFooter } from './ResolutionCards';
 import { USDC_DIVISOR, formatPredictionWindow } from '@/lib/format';
 import {
@@ -204,138 +200,38 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
       </Box>
 
       {/* ── Amount ── */}
-      <Box>
-        <TextField
-          fullWidth
-          type="text"
-          value={amount}
-          onChange={handleAmountChange}
-          placeholder="0.00"
-          disabled={!canInteract}
-          InputProps={{
-            // Raw span instead of Typography (which forces its own block
-            // line-height) and matched font-size/weight to the input. The
-            // adornment now sits on the same text baseline as the number.
-            startAdornment: (
-              <InputAdornment position="start" sx={{ mr: 0.5, alignSelf: 'center' }} disableTypography>
-                <span style={{ color: t.text.tertiary, fontWeight: 800, fontSize: '1.1rem', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>$</span>
-              </InputAdornment>
-            ),
-            endAdornment: (
-              <InputAdornment position="end" sx={{ ml: 0.5, alignSelf: 'center' }} disableTypography>
-                <span style={{ color: t.text.quaternary, fontSize: '0.7rem', fontWeight: 700, lineHeight: 1 }}>USDC</span>
-              </InputAdornment>
-            ),
-          }}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              fontSize: '1.1rem',
-              fontWeight: 800,
-              fontVariantNumeric: 'tabular-nums',
-              bgcolor: t.bg.input,
-              borderRadius: 1.5,
-              '& fieldset': { border: 'none' },
-              '&:hover fieldset': { border: 'none' },
-              '&.Mui-focused fieldset': { border: 'none' },
-            },
-            // Trim the input's own left padding so the entered amount sits
-            // flush against the $ adornment, and clamp line-height to 1 so
-            // the number shares the exact baseline with the $/USDC spans
-            // (MUI's default ~1.4em line-height was pushing the digit down).
-            '& .MuiOutlinedInput-input': {
-              pl: 0,
-              lineHeight: 1,
-              py: 1.25,
-            },
-          }}
-        />
-      </Box>
+      <BetAmountInput value={amount} onChange={handleAmountChange} disabled={!canInteract} />
 
       {/* ── Preset chips ── */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0.6 }}>
-        {PRESET_AMOUNTS.map((p) => {
-          const active = amount === String(p);
-          return (
-            <Button
-              key={p}
-              size="small"
-              onClick={() => canInteract && setAmount(String(p))}
-              disabled={!canInteract}
-              sx={{
-                minWidth: 0,
-                py: 0.55,
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                color: active ? t.text.primary : t.text.secondary,
-                bgcolor: active ? t.hover.emphasis : t.hover.default,
-                textTransform: 'none',
-                borderRadius: 1.5,
-                '&:hover': { bgcolor: t.hover.strong },
-                '&:disabled': { bgcolor: t.hover.subtle, color: t.text.muted },
-              }}
-            >
-              ${p}
-            </Button>
-          );
-        })}
-      </Box>
+      <BetPresetRow
+        presets={PRESET_AMOUNTS}
+        amount={amount}
+        onSelect={(p) => { if (canInteract) setAmount(String(p)); }}
+        disabled={!canInteract}
+      />
 
-      {/* ── Time-weight badge + Payout preview ──────────────────────
-           Phase 1A: shows the live multiplier and the projected
-           weighted payout side-by-side with the raw parimutuel one
-           so users see what's coming when Phase 1B/2 makes it the
-           canonical formula. Multiplier is the live currentMultiplier
-           from /weighting - drops as lockTime approaches. */}
-      {weighting && (
-        <Box
-          sx={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            bgcolor: withAlpha(sideColor, 0.07),
-            border: `1px solid ${withAlpha(sideColor, 0.18)}`,
-            borderRadius: 1.5,
-            px: 1.25,
-            py: 0.75,
-          }}
-        >
-          <Tooltip
-            arrow
-            placement="top"
-            title={`Bets placed earlier in the window earn a bigger share of the losing pool. Floor ${(weighting.config.floor * 100).toFixed(0)}%, decay exponent ${weighting.config.exponent}.`}
-          >
-            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: t.text.tertiary, cursor: 'help' }}>
-              Time-weight now
-            </Typography>
-          </Tooltip>
-          <Typography sx={{ fontSize: '0.85rem', fontWeight: 800, color: sideColor, fontVariantNumeric: 'tabular-nums' }}>
-            ×{weighting.currentMultiplier.toFixed(2)}
-          </Typography>
-        </Box>
-      )}
-
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: t.text.tertiary }}>
-            Payout if {selectedSide === 'UP' ? 'Up' : 'Down'}
-          </Typography>
-          <Typography sx={{ fontSize: '0.95rem', fontWeight: 800, color: amountNum > 0 ? t.gain : t.text.quaternary, fontVariantNumeric: 'tabular-nums' }}>
-            ${displayPayout.toFixed(2)}
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <Tooltip
-            arrow
-            placement="top"
-            title="Time-weighted parimutuel: earlier deposits earn a larger share of the losing pool. Your live multiplier is shown above and is enforced on-chain when you claim."
-          >
-            <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: t.text.quaternary, cursor: 'help' }}>
-              Current odds
-            </Typography>
-          </Tooltip>
-          <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: t.text.tertiary, fontVariantNumeric: 'tabular-nums' }}>
-            {displayOdds > 0 ? `${displayOdds.toFixed(2)}x` : '-'}
-          </Typography>
-        </Box>
-      </Box>
+      {/* ── Payout / odds / time-weight preview (one sports-style box) ── */}
+      <BetPayoutBox>
+        <BetStatRow
+          label={`Estimated payout`}
+          value={`$${displayPayout.toFixed(2)}`}
+          valueColor={amountNum > 0 ? t.gain : t.text.quaternary}
+          emphasize
+        />
+        <BetStatRow
+          label="Current odds"
+          value={displayOdds > 0 ? `${displayOdds.toFixed(2)}x` : '-'}
+          labelTooltip="Time-weighted parimutuel: earlier deposits earn a larger share of the losing pool. Your live multiplier is enforced on-chain when you claim."
+        />
+        {weighting && (
+          <BetStatRow
+            label="Time-weight now"
+            value={`×${weighting.currentMultiplier.toFixed(2)}`}
+            valueColor={sideColor}
+            labelTooltip={`Bets placed earlier in the window earn a bigger share of the losing pool. Floor ${(weighting.config.floor * 100).toFixed(0)}%, decay exponent ${weighting.config.exponent}.`}
+          />
+        )}
+      </BetPayoutBox>
 
       {/* ── Error ── */}
       {txState.error && (
@@ -354,28 +250,13 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
       )}
 
       {/* ── Submit ── */}
-      <Button
+      <BetSubmitButton
         type="submit"
-        variant="contained"
-        fullWidth
+        label={submitLabel}
+        color={sideColor}
         disabled={!canBet}
-        startIcon={isSubmitting ? <CircularProgress size={15} thickness={5} sx={{ color: 'inherit' }} /> : null}
-        sx={{
-          py: 1.25,
-          fontSize: '0.85rem',
-          fontWeight: 800,
-          letterSpacing: '0.04em',
-          borderRadius: 1.5,
-          textTransform: 'uppercase',
-          bgcolor: sideColor,
-          color: t.text.contrast,
-          boxShadow: 'none',
-          '&:hover': { bgcolor: sideColor, filter: 'brightness(1.1)', boxShadow: 'none' },
-          '&:disabled': { bgcolor: t.hover.medium, color: t.text.muted },
-        }}
-      >
-        {submitLabel}
-      </Button>
+        loading={isSubmitting}
+      />
 
     </Box>
       <TermsFooter />
