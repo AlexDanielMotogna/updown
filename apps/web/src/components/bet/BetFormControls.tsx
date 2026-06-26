@@ -88,7 +88,6 @@ export function BetAmountInput({
         '& .MuiInputBase-input': {
           color: t.text.primary,
           fontSize: '0.9rem',
-          fontWeight: 600,
           fontVariantNumeric: 'tabular-nums',
         },
       }}
