@@ -3,6 +3,7 @@ import { usePrivy, useWallets } from '@privy-io/react-auth';
 import {
   useSendTransaction,
   useSignTransaction,
+  useExportWallet,
   useConnectedStandardWallets,
   useStandardSignAndSendTransaction,
 } from '@privy-io/react-auth/solana';
@@ -17,6 +18,7 @@ export function useWalletBridge() {
   const connection = useSolanaConnection();
   const { sendTransaction: embeddedSend } = useSendTransaction();
   const { signTransaction: embeddedSign } = useSignTransaction();
+  const { exportWallet: privyExportWallet } = useExportWallet();
   const { signAndSendTransaction: standardSignAndSend } = useStandardSignAndSendTransaction();
 
   // Keep a ref to standardWallets so the sendTransaction callback
@@ -144,6 +146,16 @@ export function useWalletBridge() {
     [embeddedSign, connection, getAccessToken],
   );
 
+  /**
+   * Self-custody export: opens Privy's secure modal (key loaded in an iframe on a
+   * separate domain — the app never sees it) so the user can copy their embedded
+   * wallet's private key into Phantom/Solflare. Embedded-only.
+   */
+  const exportWallet = useCallback(async (): Promise<void> => {
+    if (!walletAddress) return;
+    await privyExportWallet({ address: walletAddress });
+  }, [privyExportWallet, walletAddress]);
+
   return {
     connected,
     publicKey,
@@ -151,6 +163,7 @@ export function useWalletBridge() {
     isEmbedded,
     sendTransaction,
     coSignAndSend,
+    exportWallet,
     login,
     logout,
   };

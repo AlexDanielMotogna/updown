@@ -15,8 +15,10 @@ import {
   EmojiEvents,
   AccountBalanceWallet,
   Edit,
+  VpnKey,
 } from '@mui/icons-material';
 import { useState } from 'react';
+import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { ConnectWalletButton } from '@/components';
 import { UserLevelBadge } from '@/components/UserLevelBadge';
 import { XpProgressBar } from '@/components/XpProgressBar';
@@ -52,9 +54,19 @@ export function ProfileHeader({
   balance,
 }: ProfileHeaderProps) {
   const t = useThemeTokens();
+  const { isEmbedded, exportWallet } = useWalletBridge();
   const [copied, setCopied] = useState(false);
   const [refCopied, setRefCopied] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  // Self-custody: only embedded (email) wallets can export a private key —
+  // external wallets (Phantom/Solflare) already hold their own keys.
+  const handleExport = async () => {
+    setExporting(true);
+    try { await exportWallet(); } catch { /* user closed the modal / not embedded */ }
+    finally { setExporting(false); }
+  };
 
   // The user's self-edited identity always wins over the wallet-derived
   // defaults. Keeping fallbacks here (truncated wallet + DiceBear gradient
@@ -274,6 +286,14 @@ export function ProfileHeader({
                       <Box component="button" onClick={handleShareReferral} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 1.25, py: 0.8, borderRadius: 1, cursor: 'pointer', border: `1px solid ${t.border.subtle}`, bgcolor: refCopied ? withAlpha(t.gain, 0.12) : t.hover.light, color: refCopied ? t.gain : t.text.secondary, transition: 'all 0.15s', '&:hover': { color: t.accent, borderColor: t.border.default } }}>
                         {refCopied ? <CheckCircle sx={{ fontSize: 15 }} /> : <Share sx={{ fontSize: 15 }} />}
                         <Typography sx={{ fontSize: '0.8rem', fontWeight: 700 }}>Share</Typography>
+                      </Box>
+                    </Tooltip>
+                  )}
+                  {isEmbedded && (
+                    <Tooltip title="Export your wallet's private key to import it into Phantom/Solflare" arrow placement="bottom" slotProps={tooltipSlotProps(t)}>
+                      <Box component="button" onClick={handleExport} disabled={exporting} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 1.25, py: 0.8, borderRadius: 1, cursor: exporting ? 'default' : 'pointer', border: `1px solid ${t.border.subtle}`, bgcolor: t.hover.light, color: t.text.secondary, transition: 'all 0.15s', '&:hover': { color: t.accent, borderColor: t.border.default } }}>
+                        <VpnKey sx={{ fontSize: 15 }} />
+                        <Typography sx={{ fontSize: '0.8rem', fontWeight: 700 }}>{exporting ? 'Exporting…' : 'Export wallet'}</Typography>
                       </Box>
                     </Tooltip>
                   )}
