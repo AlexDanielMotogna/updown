@@ -137,7 +137,11 @@ export function ConnectWalletButton({ variant = 'header' }: ConnectWalletButtonP
           anchorEl={anchorRef.current}
           placement="bottom-end"
           transition
-          sx={{ zIndex: 1400, maxWidth: 'calc(100vw - 16px)' }}
+          // Header is position:sticky, so the trigger stays fixed on scroll. Use the
+          // fixed positioning strategy so the menu stays glued to it instead of
+          // drifting away as the page scrolls.
+          popperOptions={{ strategy: 'fixed' }}
+          sx={{ zIndex: 1400, maxWidth: 'calc(100vw - 16px)', position: 'fixed' }}
         >
           {({ TransitionProps }) => (
             <Fade {...TransitionProps} timeout={150}>
