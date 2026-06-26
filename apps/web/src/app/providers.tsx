@@ -265,6 +265,10 @@ export function Providers({ children, initialTheme = 'dark' }: { children: React
         loginMethods: ['wallet'],
         embeddedWallets: {
           solana: { createOnLogin: 'all-users' },
+          // Sign silently — no Privy confirm modal. The app's bet UI is the
+          // confirmation; the embedded wallet co-signs the relayer's tx without
+          // a popup (gasless flow, see useWalletBridge.coSignAndSend).
+          showWalletUIs: false,
         },
         externalWallets: {
           solana: { connectors: solanaConnectors },

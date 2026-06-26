@@ -1,12 +1,12 @@
 import { Router, type Router as RouterType } from 'express';
 import { z } from 'zod';
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, Transaction, SystemProgram, type TransactionInstruction } from '@solana/web3.js';
 import { prisma } from '../db';
 import { emitPoolUpdate, emitBetPlaced } from '../websocket';
-import { getPoolPDA, getVaultPDA, getUserBetPDA, PROGRAM_ID, sideToIndex } from 'solana-client';
+import { getPoolPDA, getVaultPDA, getUserBetPDA, PROGRAM_ID, sideToIndex, buildDepositIx } from 'solana-client';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { getConnection, getUsdcMint, derivePoolSeed } from '../utils/solana';
-import { getAssociatedTokenAddress } from '@solana/spl-token';
+import { getConnection, getUsdcMint, derivePoolSeed, getAuthorityKeypair } from '../utils/solana';
+import { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction } from '@solana/spl-token';
 import { trackBetPlacement } from '../services/rewards';
 import { recordConfirmedBet } from '../services/bet-recording';
 import { isSquadMember } from '../services/squads';
@@ -163,6 +163,101 @@ depositsRouter.post('/deposit', async (req, res) => {
         message: 'Failed to prepare deposit transaction',
       },
     });
+  }
+});
+
+/**
+ * POST /prepare-gasless-deposit
+ * Server-built, authority-fee-paid deposit so the user needs ZERO SOL and the
+ * embedded wallet co-signs SILENTLY. The authority is the tx feePayer; it also
+ * (a) creates the user's USDC ATA if missing (authority pays that rent) and
+ * (b) funds the exact UserBet rent in the SAME tx when the UserBet PDA doesn't
+ * exist yet — because the Anchor deposit has `user_bet: init_if_needed, payer = user`,
+ * so the user must hold those lamports at execution. Returns a base64 tx already
+ * partial-signed by the authority; the client adds the user's silent signature
+ * and submits, then calls /confirm-deposit as usual.
+ */
+depositsRouter.post('/prepare-gasless-deposit', async (req, res) => {
+  try {
+    const parsed = depositRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid request body', details: parsed.error.flatten() } });
+    }
+    const { poolId, walletAddress, side, amount } = parsed.data;
+
+    const pool = await prisma.pool.findUnique({ where: { id: poolId } });
+    if (!pool) return res.status(404).json({ success: false, error: { code: 'POOL_NOT_FOUND', message: 'Pool not found' } });
+    if (pool.status !== 'JOINING') return res.status(400).json({ success: false, error: { code: 'INVALID_POOL_STATUS', message: `Pool is in ${pool.status} status, deposits only allowed during JOINING` } });
+    if (new Date() > pool.lockTime) return res.status(400).json({ success: false, error: { code: 'DEPOSIT_DEADLINE_PASSED', message: 'Deposit deadline has passed' } });
+
+    // Squad pool checks: membership + maxBettors (same gates as /deposit).
+    if (pool.squadId) {
+      if (!(await isSquadMember(walletAddress, pool.squadId))) {
+        return res.status(403).json({ success: false, error: { code: 'NOT_SQUAD_MEMBER', message: 'Only squad members can bet in squad pools' } });
+      }
+      if (pool.maxBettors) {
+        const bettorWallets = await getDistinctBettorWallets(pool.id);
+        if (!bettorWallets.includes(walletAddress) && bettorWallets.length >= pool.maxBettors) {
+          return res.status(400).json({ success: false, error: { code: 'MAX_BETTORS_REACHED', message: `This pool is limited to ${pool.maxBettors} participants` } });
+        }
+      }
+    }
+
+    const seed = derivePoolSeed(pool.id);
+    const user = new PublicKey(walletAddress);
+    const sideIdx = sideToIndex(side);
+    const [poolPDA] = getPoolPDA(seed);
+    const [vaultPDA] = getVaultPDA(seed);
+    const [userBet] = getUserBetPDA(poolPDA, user, sideIdx);
+    const usdcMint = getUsdcMint();
+    const userTokenAccount = await getAssociatedTokenAddress(usdcMint, user);
+
+    const connection = getConnection();
+    const authority = getAuthorityKeypair();
+
+    const ixs: TransactionInstruction[] = [];
+
+    // (a) Create the user's USDC ATA if it doesn't exist — authority pays its rent.
+    const ataInfo = await connection.getAccountInfo(userTokenAccount);
+    if (!ataInfo) {
+      ixs.push(createAssociatedTokenAccountInstruction(authority.publicKey, userTokenAccount, user, usdcMint));
+    }
+
+    // (b) Fund the exact UserBet rent in this same tx when the PDA is new, so the
+    // deposit's `payer = user` can cover it without the user holding any SOL.
+    // UserBet = 8 (disc) + 91 (InitSpace) ; +16 bytes headroom for safety.
+    const userBetInfo = await connection.getAccountInfo(userBet);
+    if (!userBetInfo) {
+      const USER_BET_SPACE = 8 + 91 + 16;
+      const rent = await connection.getMinimumBalanceForRentExemption(USER_BET_SPACE);
+      ixs.push(SystemProgram.transfer({ fromPubkey: authority.publicKey, toPubkey: user, lamports: rent }));
+    }
+
+    // (c) The deposit itself — user is a required signer (co-signs silently).
+    ixs.push(buildDepositIx(poolPDA, userBet, vaultPDA, userTokenAccount, user, sideIdx, BigInt(amount)));
+
+    const { blockhash } = await connection.getLatestBlockhash();
+    const tx = new Transaction();
+    tx.add(...ixs);
+    tx.feePayer = authority.publicKey;
+    tx.recentBlockhash = blockhash;
+    tx.partialSign(authority); // authority signs as feePayer + ATA/rent funder
+
+    const serialized = tx.serialize({ requireAllSignatures: false }).toString('base64');
+
+    res.json({
+      success: true,
+      data: {
+        tx: serialized,
+        poolId: pool.id,
+        side,
+        asset: pool.asset,
+        lockTime: pool.lockTime.toISOString(),
+      },
+    });
+  } catch (error) {
+    console.error('Error preparing gasless deposit:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to prepare gasless deposit' } });
   }
 });
 

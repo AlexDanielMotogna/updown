@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import {
   useSendTransaction,
+  useSignTransaction,
   useConnectedStandardWallets,
   useStandardSignAndSendTransaction,
 } from '@privy-io/react-auth/solana';
@@ -15,6 +16,7 @@ export function useWalletBridge() {
   const { wallets: standardWallets } = useConnectedStandardWallets();
   const connection = useSolanaConnection();
   const { sendTransaction: embeddedSend } = useSendTransaction();
+  const { signTransaction: embeddedSign } = useSignTransaction();
   const { signAndSendTransaction: standardSignAndSend } = useStandardSignAndSendTransaction();
 
   // Keep a ref to standardWallets so the sendTransaction callback
@@ -117,11 +119,38 @@ export function useWalletBridge() {
     ],
   );
 
+  /**
+   * Gasless path: take a tx the server already built + partial-signed (authority
+   * = feePayer, rent/ATA funded), have the EMBEDDED wallet add its signature
+   * SILENTLY (showWalletUIs:false → no popup), then submit. The user needs zero
+   * SOL. Embedded-only — external wallets keep the normal pay-your-own-gas flow.
+   */
+  const coSignAndSend = useCallback(
+    async (serializedTxB64: string): Promise<string> => {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error('SESSION_EXPIRED: Your wallet session has expired. Please log in again.');
+      }
+      const bytes = Uint8Array.from(atob(serializedTxB64), (c) => c.charCodeAt(0));
+      const tx = Transaction.from(bytes);
+      // Embedded wallet co-signs (silent, no broadcast) → fully-signed tx.
+      const signed = (await embeddedSign({ transaction: tx, connection })) as Transaction;
+      const sig = await connection.sendRawTransaction(signed.serialize(), {
+        preflightCommitment: 'confirmed',
+      });
+      await connection.confirmTransaction(sig, 'confirmed');
+      return sig;
+    },
+    [embeddedSign, connection, getAccessToken],
+  );
+
   return {
     connected,
     publicKey,
     walletAddress,
+    isEmbedded,
     sendTransaction,
+    coSignAndSend,
     login,
     logout,
   };
