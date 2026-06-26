@@ -47,12 +47,23 @@ export function useWalletBridge() {
     );
   }, [wallets, standardWallets]);
 
-  const isEmbedded = activeWallet?.connectorType === 'embedded';
   const connected = ready && authenticated;
 
   // Never let an EVM address through as the Solana wallet identity.
   const rawAddress = activeWallet?.address ?? user?.wallet?.address ?? null;
   const walletAddress = rawAddress && !rawAddress.startsWith('0x') ? rawAddress : null;
+
+  // Is the ACTIVE wallet an app-created (Privy embedded) one? `connectorType`
+  // alone is unreliable for Solana embedded wallets, so cross-check against the
+  // user's linked accounts (the canonical source) by matching the address.
+  const isEmbedded = useMemo(() => {
+    if (!walletAddress) return false;
+    if (activeWallet?.connectorType === 'embedded' && activeWallet.address === walletAddress) return true;
+    const accts = (user?.linkedAccounts ?? []) as Array<{ type?: string; walletClientType?: string; address?: string }>;
+    return accts.some(
+      (a) => a.type === 'wallet' && a.walletClientType === 'privy' && a.address === walletAddress,
+    );
+  }, [activeWallet, user, walletAddress]);
 
   const publicKey = useMemo(() => {
     if (!walletAddress) return null;
