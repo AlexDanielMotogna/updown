@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Box, Typography, Button, TextField } from '@mui/material';
+import { Box, Typography, Button, TextField, CircularProgress } from '@mui/material';
 import { ThreeWaySelector } from '@/components/sports/ThreeWaySelector';
-import { TransactionModal } from '@/components/TransactionModal';
 import { useDeposit } from '@/hooks/useTransactions';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
@@ -25,7 +24,6 @@ export function LiveBetPanel({ pool }: { pool: Pool | null }) {
   const { deposit, state: depositState, reset } = useDeposit();
   const [side, setSide] = useState<'UP' | 'DOWN' | 'DRAW' | null>(null);
   const [amount, setAmount] = useState('');
-  const [showTx, setShowTx] = useState(false);
 
   // Reset selection whenever a different market is picked.
   useEffect(() => { setSide(null); setAmount(''); }, [pool?.id]);
@@ -57,11 +55,20 @@ export function LiveBetPanel({ pool }: { pool: Pool | null }) {
   })();
 
   const canSubmit = connected && !!side && amountNum > 0 && amountNum <= balanceNum && isOpen && depositState.status === 'idle';
+  const isSubmitting =
+    depositState.status === 'preparing' ||
+    depositState.status === 'signing' ||
+    depositState.status === 'confirming';
 
+  // No modal: the button shows "Placing…" + a toast confirms. Reset to idle
+  // afterwards so re-betting works; clear the amount on success.
   const submit = async () => {
     if (!side || amountNum <= 0) return;
-    setShowTx(true);
-    try { await deposit(pool.id, side as 'UP' | 'DOWN', amountUsdc); } catch { /* surfaced in state */ }
+    try {
+      await deposit(pool.id, side as 'UP' | 'DOWN', amountUsdc);
+      setAmount('');
+    } catch { /* surfaced via toast */ }
+    reset();
   };
 
   return (
@@ -122,9 +129,10 @@ export function LiveBetPanel({ pool }: { pool: Pool | null }) {
           )}
 
           <Button fullWidth variant="contained" disabled={!canSubmit} onClick={submit}
+            startIcon={isSubmitting ? <CircularProgress size={15} thickness={5} sx={{ color: 'inherit' }} /> : null}
             sx={{ bgcolor: t.up, color: t.text.contrast, fontWeight: 700, fontSize: '0.85rem', py: 1.1, borderRadius: '5px', textTransform: 'none',
               '&:hover': { bgcolor: t.up, filter: 'brightness(1.15)' }, '&:disabled': { bgcolor: t.border.default, color: t.text.dimmed } }}>
-            {!connected ? 'Connect Wallet' : !side ? 'Select Side' : amountNum <= 0 ? 'Enter Amount' : amountNum > balanceNum ? 'Insufficient Balance' : 'Place Prediction'}
+            {!connected ? 'Connect Wallet' : isSubmitting ? 'Placing…' : !side ? 'Select Side' : amountNum <= 0 ? 'Enter Amount' : amountNum > balanceNum ? 'Insufficient Balance' : 'Place Prediction'}
           </Button>
         </>
       ) : (
@@ -132,16 +140,6 @@ export function LiveBetPanel({ pool }: { pool: Pool | null }) {
           <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: t.text.muted }}>Predictions closed</Typography>
         </Box>
       )}
-
-      <TransactionModal
-        open={showTx}
-        status={depositState.status}
-        title="Placing Prediction"
-        txSignature={depositState.txSignature}
-        error={depositState.error}
-        onClose={() => { setShowTx(false); reset(); }}
-        onRetry={() => { reset(); setShowTx(false); }}
-      />
     </Box>
   );
 }

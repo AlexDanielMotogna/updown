@@ -11,7 +11,7 @@ import { useDeposit, useClaim } from '@/hooks/useTransactions';
 import { useClaimableBets } from '@/hooks/useBets';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
-import { AppShell, TransactionModal, EmptyMessage } from '@/components';
+import { AppShell, EmptyMessage } from '@/components';
 import { ThreeWaySelector } from '@/components/sports/ThreeWaySelector';
 import { OddsChart } from '@/components/pool/OddsChart';
 import { resolveOddsChartIdentity } from '@/lib/oddsChartProps';
@@ -116,7 +116,6 @@ export default function MatchDetailPage() {
 
   const [side, setSide] = useState<'UP' | 'DOWN' | 'DRAW' | null>(null);
   const [amount, setAmount] = useState('');
-  const [showTxModal, setShowTxModal] = useState(false);
 
   // Activity log state
   const [bets, setBets] = useState<PoolBet[]>([]);
@@ -265,14 +264,23 @@ export default function MatchDetailPage() {
     return (amountUsdc / sideTotal) * totalPool / USDC_DIVISOR;
   }, [pool, side, amountUsdc, amountNum, liveTotals]);
 
+  // No modal: the button shows "Placing…"/"Claiming…" and the result is a toast.
+  // On success we clear the form; either way we reset back to idle so re-betting works.
+  const isSubmitting =
+    depositState.status === 'preparing' ||
+    depositState.status === 'signing' ||
+    depositState.status === 'confirming';
+  const isClaiming =
+    claimState.status === 'preparing' ||
+    claimState.status === 'signing' ||
+    claimState.status === 'confirming';
+
   const handleSubmit = async () => {
     if (!pool || !side) return;
-    setShowTxModal(true);
-    try { await deposit(pool.id, side as 'UP' | 'DOWN', amountUsdc); } catch { /* handled in state */ }
-  };
-
-  const handleCloseTxModal = () => {
-    setShowTxModal(false);
+    try {
+      await deposit(pool.id, side as 'UP' | 'DOWN', amountUsdc);
+      setAmount('');
+    } catch { /* surfaced via toast */ }
     resetDeposit();
   };
 
@@ -756,10 +764,11 @@ export default function MatchDetailPage() {
               <Button
                 fullWidth
                 variant="contained"
-                disabled={claimState.status === 'confirming'}
+                disabled={isClaiming}
+                startIcon={isClaiming ? <CircularProgress size={15} thickness={5} sx={{ color: 'inherit' }} /> : null}
                 onClick={async () => {
-                  setShowTxModal(true);
-                  try { await claim(pool.id, claimableBet.id); } catch { /* handled in state */ }
+                  try { await claim(pool.id, claimableBet.id); } catch { /* surfaced via toast */ }
+                  resetClaim();
                 }}
                 sx={{
                   bgcolor: t.gain,
@@ -772,7 +781,7 @@ export default function MatchDetailPage() {
                   '&:hover': { bgcolor: t.gain, filter: 'brightness(1.15)' },
                 }}
               >
-                {claimState.status === 'confirming' ? 'Claiming...' : 'Claim Winnings'}
+                {isClaiming ? 'Claiming…' : 'Claim Winnings'}
               </Button>
             );
           })()}
@@ -853,6 +862,7 @@ export default function MatchDetailPage() {
                 fullWidth
                 variant="contained"
                 disabled={!canSubmit}
+                startIcon={isSubmitting ? <CircularProgress size={15} thickness={5} sx={{ color: 'inherit' }} /> : null}
                 onClick={handleSubmit}
                 sx={{
                   bgcolor: t.up,
@@ -866,7 +876,7 @@ export default function MatchDetailPage() {
                   '&:disabled': { bgcolor: t.border.default, color: t.text.dimmed },
                 }}
               >
-                {!connected ? 'Connect Wallet' : !side ? 'Select Side' : amountNum <= 0 ? 'Enter Amount' : 'Place Prediction'}
+                {!connected ? 'Connect Wallet' : isSubmitting ? 'Placing…' : !side ? 'Select Side' : amountNum <= 0 ? 'Enter Amount' : 'Place Prediction'}
               </Button>
             </>
           )}
@@ -883,16 +893,6 @@ export default function MatchDetailPage() {
           )}
         </Box>
       </Box>
-
-      <TransactionModal
-        open={showTxModal}
-        status={claimState.status !== 'idle' ? claimState.status : depositState.status}
-        title={claimState.status !== 'idle' ? 'Claiming Winnings' : 'Placing Prediction'}
-        txSignature={claimState.txSignature || depositState.txSignature}
-        error={claimState.error || depositState.error}
-        onClose={() => { setShowTxModal(false); resetDeposit(); resetClaim(); }}
-        onRetry={() => { resetDeposit(); resetClaim(); setShowTxModal(false); }}
-      />
     </AppShell>
   );
 }

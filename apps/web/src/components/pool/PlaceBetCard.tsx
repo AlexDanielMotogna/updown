@@ -24,6 +24,7 @@ import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   InputAdornment,
   TextField,
   Tooltip,
@@ -166,7 +167,7 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
   // After the early returns above, the pool is guaranteed to be in JOINING,
   // so submit-label cases collapse to just connection + submission state.
   const submitLabel = !connected ? 'Connect Wallet'
-    : isSubmitting ? 'Processing…'
+    : isSubmitting ? 'Placing…'
     : `Place ${selectedSide} Prediction`;
 
   return (
@@ -358,6 +359,7 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
         variant="contained"
         fullWidth
         disabled={!canBet}
+        startIcon={isSubmitting ? <CircularProgress size={15} thickness={5} sx={{ color: 'inherit' }} /> : null}
         sx={{
           py: 1.25,
           fontSize: '0.85rem',
