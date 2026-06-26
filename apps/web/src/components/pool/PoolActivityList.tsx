@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import { AnimatePresence, motion } from 'framer-motion';
-import { USDC_DIVISOR } from '@/lib/format';
+import { USDC_DIVISOR, formatTimeAgo } from '@/lib/format';
 import { useThemeTokens } from '@/app/providers';
 import { getDisplayName } from '@/lib/userDisplay';
 
@@ -96,8 +96,7 @@ export function PoolActivityList({ poolId, limit = 8 }: Props) {
             const isFresh = freshKeys.has(key);
             const sideColor = b.side === 'UP' ? t.up : t.down;
             const amt = (Number(b.amount) / USDC_DIVISOR).toFixed(2);
-            const ago = Math.floor((Date.now() - new Date(b.createdAt).getTime()) / 60000);
-            const when = ago < 1 ? 'now' : ago < 60 ? `${ago}m` : `${Math.floor(ago / 60)}h`;
+            const when = formatTimeAgo(b.createdAt);
             return (
               <motion.div
                 key={key}

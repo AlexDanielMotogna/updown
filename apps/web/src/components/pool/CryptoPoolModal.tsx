@@ -13,7 +13,7 @@ import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { usePriceStream } from '@/hooks/usePriceStream';
 import { INTERVAL_LABELS, INTERVAL_TAG_IMAGES } from '@/lib/constants';
-import { USDC_DIVISOR } from '@/lib/format';
+import { USDC_DIVISOR, formatTimeAgo } from '@/lib/format';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import type { Pool } from '@/lib/api';
@@ -318,8 +318,7 @@ export function CryptoPoolModal({ pool, onClose }: Props) {
                   const sideColor = b.side === 'UP' ? t.up : t.down;
                   const sideLabel = b.side === 'UP' ? 'UP' : 'DOWN';
                   const amt = (Number(b.amount) / USDC_DIVISOR).toFixed(2);
-                  const ago = Math.floor((Date.now() - new Date(b.createdAt).getTime()) / 60000);
-                  const timeStr = ago < 1 ? 'now' : ago < 60 ? `${ago}m` : `${Math.floor(ago / 60)}h`;
+                  const timeStr = formatTimeAgo(b.createdAt);
                   return (
                     <motion.div
                       key={key}

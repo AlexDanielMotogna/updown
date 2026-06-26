@@ -71,6 +71,30 @@ export function formatTime(isoString: string): string {
   });
 }
 
+/**
+ * Compact, never-overflowing relative time for activity feeds: "now", "5m",
+ * "4h", "2d", "3w", then a short date for anything older. One shared formatter
+ * so every feed reads the same and a large value can't break a fixed-width row.
+ * Accepts an ISO string, an epoch-ms number, or a Date.
+ */
+export function formatTimeAgo(input: string | number | Date): string {
+  const ts = input instanceof Date ? input.getTime()
+    : typeof input === 'number' ? input
+    : new Date(input).getTime();
+  const diff = Date.now() - ts;
+  if (!Number.isFinite(diff)) return '';
+  const m = Math.floor(diff / 60_000);
+  if (m < 1) return 'now';
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d`;
+  const w = Math.floor(d / 7);
+  if (w < 5) return `${w}w`;
+  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 export function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleString('en-US', {
     month: 'short',

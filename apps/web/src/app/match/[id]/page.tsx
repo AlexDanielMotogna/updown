@@ -23,7 +23,7 @@ import { BetFlash } from '@/components/BetFlash';
 import { useBetFlash } from '@/hooks/useBetFlash';
 import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter';
 import { useThemeTokens } from '@/app/providers';
-import { formatUSDC, USDC_DIVISOR } from '@/lib/format';
+import { formatUSDC, USDC_DIVISOR, formatTimeAgo } from '@/lib/format';
 import { useLiveScore, isMatchActive, isMatchFinished, formatLiveStatus, isAwaitingFinalResult } from '@/hooks/useLiveScores';
 import { useCategoryMap } from '@/hooks/useCategories';
 import { getIcon } from '@/lib/icon-registry';
@@ -583,8 +583,7 @@ export default function MatchDetailPage() {
                     ? (b.side === 'UP' ? (pool.awayTeam ? pool.homeTeam?.slice(0, 3).toUpperCase() : 'YES') : b.side === 'DOWN' ? (pool.awayTeam ? pool.awayTeam?.slice(0, 3).toUpperCase() : 'NO') : 'DRAW')
                     : (b.side === 'UP' ? (pool.homeTeam?.slice(0, 3).toUpperCase() || 'HOME') : b.side === 'DOWN' ? (pool.awayTeam?.slice(0, 3).toUpperCase() || 'AWAY') : 'DRAW');
                   const amt = (Number(b.amount) / USDC_DIVISOR).toFixed(2);
-                  const ago = Math.floor((Date.now() - new Date(b.createdAt).getTime()) / 60000);
-                  const timeStr = ago < 1 ? 'now' : ago < 60 ? `${ago}m` : `${Math.floor(ago / 60)}h`;
+                  const timeStr = formatTimeAgo(b.createdAt);
                   return (
                     <motion.div
                       key={key}
@@ -595,16 +594,16 @@ export default function MatchDetailPage() {
                       layout
                     >
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 0.75, fontSize: '0.75rem', fontWeight: 600 }}>
-                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.soft, width: 75, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.soft, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {b.wallet}
                         </Typography>
-                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: sideColor, width: 55, flexShrink: 0 }}>
+                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: sideColor, flexShrink: 0, whiteSpace: 'nowrap' }}>
                           {sideLabel}
                         </Typography>
-                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.primary, flex: 1, textAlign: 'right' }}>
+                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.primary, flexShrink: 0, whiteSpace: 'nowrap', textAlign: 'right' }}>
                           ${amt}
                         </Typography>
-                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.muted, width: 25, textAlign: 'right', flexShrink: 0 }}>
+                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.muted, flexShrink: 0, whiteSpace: 'nowrap', textAlign: 'right', minWidth: 28 }}>
                           {timeStr}
                         </Typography>
                       </Box>

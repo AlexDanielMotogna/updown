@@ -12,7 +12,7 @@ import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
-import { USDC_DIVISOR } from '@/lib/format';
+import { USDC_DIVISOR, formatTimeAgo } from '@/lib/format';
 import type { Pool } from '@/lib/api';
 import { getSocket, subscribePool, unsubscribePool } from '@/lib/socket';
 
@@ -334,8 +334,7 @@ export function MatchBetModal({ pool, onClose }: Props) {
                   const rawLabel = b.side === 'UP' ? (isPrediction && !pool?.awayTeam ? 'Yes' : pool?.homeTeam || 'Home') : b.side === 'DOWN' ? (isPrediction && !pool?.awayTeam ? 'No' : pool?.awayTeam || 'Away') : 'Draw';
                   const sideLabel = rawLabel.length > 6 ? rawLabel.slice(0, 5) + '…' : rawLabel;
                   const amt = (Number(b.amount) / USDC_DIVISOR).toFixed(2);
-                  const ago = Math.floor((Date.now() - new Date(b.createdAt).getTime()) / 60000);
-                  const timeStr = ago < 1 ? 'now' : ago < 60 ? `${ago}m` : `${Math.floor(ago / 60)}h`;
+                  const timeStr = formatTimeAgo(b.createdAt);
                   return (
                     <motion.div
                       key={key}
