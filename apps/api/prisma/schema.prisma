@@ -798,6 +798,7 @@ model LiquidityBotConfig {
   id                String   @id @default("default")
   enabled           Boolean  @default(false)            // master on/off (kill switch)
   perPoolCap        BigInt   @default(5000000)          // max bot stake per pool (5 USDC)
+  perPoolVariancePct Int     @default(50)               // 0-100: each pool targets a stable, per-pool-random fraction of perPoolCap in [1-v, 1] so pools don't all fill to the same volume. 0 = every pool fills to cap (old behavior)
   perCycleCap       BigInt   @default(20000000)         // max bot stake per cycle (20 USDC)
   maxTotalExposure  BigInt   @default(200000000)        // max open bot stake across all pools (200 USDC)
   treasuryFloor     BigInt   @default(25000000)         // stop funding/betting below this treasury balance (25 USDC)

@@ -11,8 +11,9 @@ import { useDeposit, useClaim } from '@/hooks/useTransactions';
 import { useClaimableBets } from '@/hooks/useBets';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
-import { AppShell, TransactionModal, EmptyMessage } from '@/components';
+import { AppShell, EmptyMessage } from '@/components';
 import { ThreeWaySelector } from '@/components/sports/ThreeWaySelector';
+import { BetPresetRow, BetAmountInput, BetPayoutBox, BetStatRow, BetSubmitButton } from '@/components/bet/BetFormControls';
 import { OddsChart } from '@/components/pool/OddsChart';
 import { resolveOddsChartIdentity } from '@/lib/oddsChartProps';
 import { MatchHeader } from '@/components/sports/MatchHeader';
@@ -23,7 +24,7 @@ import { BetFlash } from '@/components/BetFlash';
 import { useBetFlash } from '@/hooks/useBetFlash';
 import { MarketFilter, type MarketType } from '@/components/sports/MarketFilter';
 import { useThemeTokens } from '@/app/providers';
-import { formatUSDC, USDC_DIVISOR } from '@/lib/format';
+import { formatUSDC, USDC_DIVISOR, formatTimeAgo } from '@/lib/format';
 import { useLiveScore, isMatchActive, isMatchFinished, formatLiveStatus, isAwaitingFinalResult } from '@/hooks/useLiveScores';
 import { useCategoryMap } from '@/hooks/useCategories';
 import { getIcon } from '@/lib/icon-registry';
@@ -116,7 +117,6 @@ export default function MatchDetailPage() {
 
   const [side, setSide] = useState<'UP' | 'DOWN' | 'DRAW' | null>(null);
   const [amount, setAmount] = useState('');
-  const [showTxModal, setShowTxModal] = useState(false);
 
   // Activity log state
   const [bets, setBets] = useState<PoolBet[]>([]);
@@ -165,7 +165,13 @@ export default function MatchDetailPage() {
   // leagues; until then the UI stops pretending it's still live. Computed
   // BEFORE matchLive so we can exclude "stuck 2H 95'" feed states from the
   // live indicator.
-  const awaitingFinalFeed = pool ? isAwaitingFinalResult(pool, liveScore?.status) : false;
+  // PM pools open at CREATION (startTime = now), so the sports-duration-based
+  // isAwaitingFinalResult (startTime + ~2h) ALWAYS reads as "past expected end"
+  // and falsely flips a JOINING PM market to ENDED/determining-winner. Gate it
+  // off for PM — their awaiting state is driven solely by pmPredictionsClosed
+  // (lockTime/endTime actually passed) below.
+  const isPmPool = pool?.league?.startsWith('PM_') ?? false;
+  const awaitingFinalFeed = pool && !isPmPool ? isAwaitingFinalResult(pool, liveScore?.status) : false;
   const matchLive = liveScore && isMatchActive(liveScore) && !awaitingFinalFeed;
   // PM-specific awaiting state: once the betting window closes we're
   // sitting on Polymarket / UMA to confirm the outcome. The generic
@@ -176,7 +182,6 @@ export default function MatchDetailPage() {
   // pool sits in RESOLVED/CLAIMABLE without a `winner` field yet, which
   // happens during the brief window between the scheduler flipping the
   // status and the resolve-on-chain call writing the side.
-  const isPmPool = pool?.league?.startsWith('PM_') ?? false;
   const pmPredictionsClosed = isPmPool && pool && (
     (pool.lockTime && new Date(pool.lockTime).getTime() < Date.now()) ||
     (pool.endTime && new Date(pool.endTime).getTime() < Date.now())
@@ -265,14 +270,23 @@ export default function MatchDetailPage() {
     return (amountUsdc / sideTotal) * totalPool / USDC_DIVISOR;
   }, [pool, side, amountUsdc, amountNum, liveTotals]);
 
+  // No modal: the button shows "Placing…"/"Claiming…" and the result is a toast.
+  // On success we clear the form; either way we reset back to idle so re-betting works.
+  const isSubmitting =
+    depositState.status === 'preparing' ||
+    depositState.status === 'signing' ||
+    depositState.status === 'confirming';
+  const isClaiming =
+    claimState.status === 'preparing' ||
+    claimState.status === 'signing' ||
+    claimState.status === 'confirming';
+
   const handleSubmit = async () => {
     if (!pool || !side) return;
-    setShowTxModal(true);
-    try { await deposit(pool.id, side as 'UP' | 'DOWN', amountUsdc); } catch { /* handled in state */ }
-  };
-
-  const handleCloseTxModal = () => {
-    setShowTxModal(false);
+    try {
+      await deposit(pool.id, side as 'UP' | 'DOWN', amountUsdc);
+      setAmount('');
+    } catch { /* surfaced via toast */ }
     resetDeposit();
   };
 
@@ -371,7 +385,9 @@ export default function MatchDetailPage() {
   const winnerLabel = isResolved ? (pool.winner === 'UP' ? (isPrediction && !pool.awayTeam ? 'Yes' : pool.homeTeam) : pool.winner === 'DOWN' ? (isPrediction && !pool.awayTeam ? 'No' : pool.awayTeam) : pool.winner === 'DRAW' ? 'Draw' : null) : null;
   const winnerColor = pool.winner === 'UP' ? t.up : pool.winner === 'DOWN' ? t.down : t.draw;
 
-  const kickoff = new Date(pool.startTime).toLocaleString('en-US', {
+  // Sports: startTime = kickoff. PM: startTime = pool creation, so the meaningful
+  // "Closes {date}" is the lockTime (when betting shuts), not creation.
+  const kickoff = new Date(isPrediction ? pool.lockTime : pool.startTime).toLocaleString('en-US', {
     weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
   });
 
@@ -568,8 +584,7 @@ export default function MatchDetailPage() {
                     ? (b.side === 'UP' ? (pool.awayTeam ? pool.homeTeam?.slice(0, 3).toUpperCase() : 'YES') : b.side === 'DOWN' ? (pool.awayTeam ? pool.awayTeam?.slice(0, 3).toUpperCase() : 'NO') : 'DRAW')
                     : (b.side === 'UP' ? (pool.homeTeam?.slice(0, 3).toUpperCase() || 'HOME') : b.side === 'DOWN' ? (pool.awayTeam?.slice(0, 3).toUpperCase() || 'AWAY') : 'DRAW');
                   const amt = (Number(b.amount) / USDC_DIVISOR).toFixed(2);
-                  const ago = Math.floor((Date.now() - new Date(b.createdAt).getTime()) / 60000);
-                  const timeStr = ago < 1 ? 'now' : ago < 60 ? `${ago}m` : `${Math.floor(ago / 60)}h`;
+                  const timeStr = formatTimeAgo(b.createdAt);
                   return (
                     <motion.div
                       key={key}
@@ -580,16 +595,16 @@ export default function MatchDetailPage() {
                       layout
                     >
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 0.75, fontSize: '0.75rem', fontWeight: 600 }}>
-                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.soft, width: 75, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.soft, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {b.wallet}
                         </Typography>
-                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: sideColor, width: 55, flexShrink: 0 }}>
+                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: sideColor, flexShrink: 0, whiteSpace: 'nowrap' }}>
                           {sideLabel}
                         </Typography>
-                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.primary, flex: 1, textAlign: 'right' }}>
+                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.primary, flexShrink: 0, whiteSpace: 'nowrap', textAlign: 'right' }}>
                           ${amt}
                         </Typography>
-                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.muted, width: 25, textAlign: 'right', flexShrink: 0 }}>
+                        <Typography sx={{ fontSize: 'inherit', fontWeight: 'inherit', color: t.text.muted, flexShrink: 0, whiteSpace: 'nowrap', textAlign: 'right', minWidth: 28 }}>
                           {timeStr}
                         </Typography>
                       </Box>
@@ -756,10 +771,11 @@ export default function MatchDetailPage() {
               <Button
                 fullWidth
                 variant="contained"
-                disabled={claimState.status === 'confirming'}
+                disabled={isClaiming}
+                startIcon={isClaiming ? <CircularProgress size={15} thickness={5} sx={{ color: 'inherit' }} /> : null}
                 onClick={async () => {
-                  setShowTxModal(true);
-                  try { await claim(pool.id, claimableBet.id); } catch { /* handled in state */ }
+                  try { await claim(pool.id, claimableBet.id); } catch { /* surfaced via toast */ }
+                  resetClaim();
                 }}
                 sx={{
                   bgcolor: t.gain,
@@ -772,7 +788,7 @@ export default function MatchDetailPage() {
                   '&:hover': { bgcolor: t.gain, filter: 'brightness(1.15)' },
                 }}
               >
-                {claimState.status === 'confirming' ? 'Claiming...' : 'Claim Winnings'}
+                {isClaiming ? 'Claiming…' : 'Claim Winnings'}
               </Button>
             );
           })()}
@@ -781,93 +797,30 @@ export default function MatchDetailPage() {
           {!isResolved && !isLocked && !matchLive && !matchFinished && !awaitingResolution && (
             <>
               {/* Presets */}
-              <Box sx={{ display: 'flex', gap: 0.5 }}>
-                {PRESETS.map(p => (
-                  <Button
-                    key={p}
-                    size="small"
-                    onClick={() => setAmount(String(p))}
-                    sx={{
-                      flex: 1,
-                      minWidth: 0,
-                      py: 0.5,
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      bgcolor: amountNum === p ? t.hover.emphasis : t.border.subtle,
-                      color: amountNum === p ? t.text.primary : t.text.secondary,
-                      textTransform: 'none',
-                      borderRadius: '5px',
-                      '&:hover': { bgcolor: t.hover.strong },
-                    }}
-                  >
-                    ${p}
-                  </Button>
-                ))}
-              </Box>
+              <BetPresetRow presets={PRESETS} amount={amount} onSelect={(p) => setAmount(String(p))} />
 
               {/* Input */}
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="Amount (USDC)"
-                type="number"
-                value={amount}
-                onChange={e => setAmount(e.target.value)}
-                inputProps={{ min: 1, step: 'any' }}
-                sx={{
-                  '& .MuiInputBase-root': { bgcolor: t.border.subtle, borderRadius: '5px' },
-                  '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
-                  '& .MuiInputBase-input': {
-                    color: t.text.primary,
-                    fontSize: '0.9rem',
-                    outline: 'none',
-                    MozAppearance: 'textfield',
-                    '&::-webkit-outer-spin-button, &::-webkit-inner-spin-button': { WebkitAppearance: 'none', margin: 0 },
-                  },
-                }}
-              />
+              <BetAmountInput value={amount} onChange={(e) => setAmount(e.target.value)} />
               <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: t.text.strong }}>
                 Balance: ${balanceNum.toFixed(2)} USDC
               </Typography>
 
               {/* Payout preview */}
               {side && amountNum > 0 && (
-                <Box sx={{ py: 1.5, bgcolor: t.hover.light, borderRadius: '5px', px: 1.5 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.75rem', color: t.text.tertiary }}>Estimated payout</Typography>
-                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: t.gain }}>
-                      ${estimatedPayout.toFixed(2)}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography sx={{ fontSize: '0.75rem', color: t.text.tertiary }}>Multiplier</Typography>
-                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>
-                      {amountNum > 0 ? (estimatedPayout / amountNum).toFixed(2) : '0.00'}x
-                    </Typography>
-                  </Box>
-                </Box>
+                <BetPayoutBox>
+                  <BetStatRow label="Estimated payout" value={`$${estimatedPayout.toFixed(2)}`} valueColor={t.gain} emphasize />
+                  <BetStatRow label="Multiplier" value={`${amountNum > 0 ? (estimatedPayout / amountNum).toFixed(2) : '0.00'}x`} />
+                </BetPayoutBox>
               )}
 
               {/* Submit */}
-              <Button
-                fullWidth
-                variant="contained"
+              <BetSubmitButton
+                label={!connected ? 'Connect Wallet' : isSubmitting ? 'Placing…' : !side ? 'Select Side' : amountNum <= 0 ? 'Enter Amount' : 'Place Prediction'}
+                color={t.up}
                 disabled={!canSubmit}
+                loading={isSubmitting}
                 onClick={handleSubmit}
-                sx={{
-                  bgcolor: t.up,
-                  color: t.text.contrast,
-                  fontWeight: 700,
-                  fontSize: '0.8rem',
-                  py: 1,
-                  borderRadius: '5px',
-                  textTransform: 'none',
-                  '&:hover': { bgcolor: t.up, filter: 'brightness(1.15)' },
-                  '&:disabled': { bgcolor: t.border.default, color: t.text.dimmed },
-                }}
-              >
-                {!connected ? 'Connect Wallet' : !side ? 'Select Side' : amountNum <= 0 ? 'Enter Amount' : 'Place Prediction'}
-              </Button>
+              />
             </>
           )}
 
@@ -883,16 +836,6 @@ export default function MatchDetailPage() {
           )}
         </Box>
       </Box>
-
-      <TransactionModal
-        open={showTxModal}
-        status={claimState.status !== 'idle' ? claimState.status : depositState.status}
-        title={claimState.status !== 'idle' ? 'Claiming Winnings' : 'Placing Prediction'}
-        txSignature={claimState.txSignature || depositState.txSignature}
-        error={claimState.error || depositState.error}
-        onClose={() => { setShowTxModal(false); resetDeposit(); resetClaim(); }}
-        onRetry={() => { resetDeposit(); resetClaim(); setShowTxModal(false); }}
-      />
     </AppShell>
   );
 }

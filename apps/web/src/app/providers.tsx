@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PrivyProvider } from '@privy-io/react-auth';
 import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
 import { Connection, clusterApiUrl } from '@solana/web3.js';
+import { createSolanaRpc, createSolanaRpcSubscriptions } from '@solana/kit';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { NotificationToasts } from '@/components/NotificationToasts';
 import { ReferralDialog } from '@/components/ReferralDialog';
@@ -249,6 +250,19 @@ export function Providers({ children, initialTheme = 'dark' }: { children: React
   );
   const connection = useMemo(() => new Connection(endpoint), [endpoint]);
 
+  // Privy 2.x embedded-wallet signing needs @solana/kit RPC clients under
+  // config.solana.rpcs (keyed by CAIP chain), separate from the legacy
+  // solanaClusters. Without it: "No RPC configuration found for chain solana:devnet".
+  const solanaRpcs = useMemo(
+    () => ({
+      'solana:devnet': {
+        rpc: createSolanaRpc(endpoint),
+        rpcSubscriptions: createSolanaRpcSubscriptions(endpoint.replace(/^http/, 'ws')),
+      },
+    }),
+    [endpoint],
+  );
+
   return (
     <PrivyProvider
       appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID!}
@@ -262,14 +276,22 @@ export function Providers({ children, initialTheme = 'dark' }: { children: React
           walletList: ['phantom', 'solflare', 'backpack', 'coinbase_wallet', 'metamask', 'detected_solana_wallets'],
           showWalletLoginFirst: true,
         },
-        loginMethods: ['wallet'],
+        // Email (+ wallet) so users can sign up WITHOUT an external wallet → Privy
+        // creates a Solana embedded wallet → gasless silent betting (no SOL, no
+        // popup). Wallet login stays for users who prefer Phantom/Solflare.
+        loginMethods: ['email', 'wallet'],
         embeddedWallets: {
           solana: { createOnLogin: 'all-users' },
+          // Sign silently — no Privy confirm modal. The app's bet UI is the
+          // confirmation; the embedded wallet co-signs the relayer's tx without
+          // a popup (gasless flow, see useWalletBridge.coSignAndSend).
+          showWalletUIs: false,
         },
         externalWallets: {
           solana: { connectors: solanaConnectors },
         },
         solanaClusters: [{ name: 'devnet', rpcUrl: endpoint }],
+        solana: { rpcs: solanaRpcs },
       }}
     >
       <SolanaConnectionContext.Provider value={connection}>

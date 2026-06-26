@@ -12,7 +12,6 @@ import {
   usePacificaPrices,
 } from '@/hooks';
 import {
-  TransactionModal,
   AppShell,
   PoolDetailSkeleton,
   AiAnalyzerBot,
@@ -57,8 +56,7 @@ export default function PoolDetailPage() {
   const initialSide = (searchParams.get('side')?.toUpperCase() as 'UP' | 'DOWN') || undefined;
 
   const { data, isLoading, error } = usePool(poolId);
-  const { deposit, state: txState, reset: resetTx } = useDeposit();
-  const [showModal, setShowModal] = useState(false);
+  const { deposit, state: txState } = useDeposit();
   const [selectedSide, setSelectedSide] = useState<'UP' | 'DOWN'>(initialSide || 'UP');
   const betFormRef = useRef<HTMLDivElement>(null);
 
@@ -136,17 +134,14 @@ export default function PoolDetailPage() {
   );
 
   const handleBet = async (side: 'UP' | 'DOWN', amount: number) => {
-    setShowModal(true);
+    // No modal: the button shows "Placing…" (txState) and the result is a toast
+    // (DEPOSIT_SUCCESS / DEPOSIT_FAILED, fired in useDeposit). Errors also show
+    // inline under the bet form via txState.error.
     try {
       await deposit(poolId, side, amount);
     } catch {
-      // Surfaced through txState.error.
+      // Surfaced through the toast + txState.error.
     }
-  };
-
-  const handleCloseModal = () => {
-    setShowModal(false);
-    resetTx();
   };
 
   if (isLoading) {
@@ -269,16 +264,6 @@ export default function PoolDetailPage() {
         endTime={pool.endTime}
         winner={pool.winner}
         priceData={priceData}
-      />
-
-      <TransactionModal
-        open={showModal}
-        status={txState.status}
-        title="Placing Prediction"
-        txSignature={txState.txSignature}
-        error={txState.error}
-        onClose={handleCloseModal}
-        onRetry={() => { resetTx(); setShowModal(false); }}
       />
     </AppShell>
   );

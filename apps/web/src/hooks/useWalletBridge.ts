@@ -2,6 +2,8 @@ import { useCallback, useMemo, useRef } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import {
   useSendTransaction,
+  useSignTransaction,
+  useExportWallet,
   useConnectedStandardWallets,
   useStandardSignAndSendTransaction,
 } from '@privy-io/react-auth/solana';
@@ -15,6 +17,8 @@ export function useWalletBridge() {
   const { wallets: standardWallets } = useConnectedStandardWallets();
   const connection = useSolanaConnection();
   const { sendTransaction: embeddedSend } = useSendTransaction();
+  const { signTransaction: embeddedSign } = useSignTransaction();
+  const { exportWallet: privyExportWallet } = useExportWallet();
   const { signAndSendTransaction: standardSignAndSend } = useStandardSignAndSendTransaction();
 
   // Keep a ref to standardWallets so the sendTransaction callback
@@ -43,12 +47,23 @@ export function useWalletBridge() {
     );
   }, [wallets, standardWallets]);
 
-  const isEmbedded = activeWallet?.connectorType === 'embedded';
   const connected = ready && authenticated;
 
   // Never let an EVM address through as the Solana wallet identity.
   const rawAddress = activeWallet?.address ?? user?.wallet?.address ?? null;
   const walletAddress = rawAddress && !rawAddress.startsWith('0x') ? rawAddress : null;
+
+  // Is the ACTIVE wallet an app-created (Privy embedded) one? `connectorType`
+  // alone is unreliable for Solana embedded wallets, so cross-check against the
+  // user's linked accounts (the canonical source) by matching the address.
+  const isEmbedded = useMemo(() => {
+    if (!walletAddress) return false;
+    if (activeWallet?.connectorType === 'embedded' && activeWallet.address === walletAddress) return true;
+    const accts = (user?.linkedAccounts ?? []) as Array<{ type?: string; walletClientType?: string; address?: string }>;
+    return accts.some(
+      (a) => a.type === 'wallet' && a.walletClientType === 'privy' && a.address === walletAddress,
+    );
+  }, [activeWallet, user, walletAddress]);
 
   const publicKey = useMemo(() => {
     if (!walletAddress) return null;
@@ -117,11 +132,49 @@ export function useWalletBridge() {
     ],
   );
 
+  /**
+   * Gasless path: take a tx the server already built + partial-signed (authority
+   * = feePayer, rent/ATA funded), have the EMBEDDED wallet add its signature
+   * SILENTLY (showWalletUIs:false → no popup), then submit. The user needs zero
+   * SOL. Embedded-only — external wallets keep the normal pay-your-own-gas flow.
+   */
+  const coSignAndSend = useCallback(
+    async (serializedTxB64: string): Promise<string> => {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error('SESSION_EXPIRED: Your wallet session has expired. Please log in again.');
+      }
+      const bytes = Uint8Array.from(atob(serializedTxB64), (c) => c.charCodeAt(0));
+      const tx = Transaction.from(bytes);
+      // Embedded wallet co-signs (silent, no broadcast) → fully-signed tx.
+      const signed = (await embeddedSign({ transaction: tx, connection })) as Transaction;
+      const sig = await connection.sendRawTransaction(signed.serialize(), {
+        preflightCommitment: 'confirmed',
+      });
+      await connection.confirmTransaction(sig, 'confirmed');
+      return sig;
+    },
+    [embeddedSign, connection, getAccessToken],
+  );
+
+  /**
+   * Self-custody export: opens Privy's secure modal (key loaded in an iframe on a
+   * separate domain — the app never sees it) so the user can copy their embedded
+   * wallet's private key into Phantom/Solflare. Embedded-only.
+   */
+  const exportWallet = useCallback(async (): Promise<void> => {
+    if (!walletAddress) return;
+    await privyExportWallet({ address: walletAddress });
+  }, [privyExportWallet, walletAddress]);
+
   return {
     connected,
     publicKey,
     walletAddress,
+    isEmbedded,
     sendTransaction,
+    coSignAndSend,
+    exportWallet,
     login,
     logout,
   };

@@ -10,6 +10,7 @@ interface BotConfig {
   enabled: boolean;
   perPoolCap: string; perCycleCap: string; maxTotalExposure: string; treasuryFloor: string;
   betMin: string; betMax: string; walletUsdcTopup: string;
+  perPoolVariancePct: number;
   intervalSeconds: number; lockMarginSeconds: number; walletSolTopup: number;
   poolTypesCrypto: boolean; poolTypesSports: boolean; poolTypesPm: boolean;
   sideStrategy: string;
@@ -82,6 +83,7 @@ export function LiquidityBot() {
         intervalSeconds: cfg.intervalSeconds,
         lockMarginSeconds: cfg.lockMarginSeconds,
         walletSolTopup: cfg.walletSolTopup,
+        perPoolVariancePct: cfg.perPoolVariancePct,
         poolTypesCrypto: cfg.poolTypesCrypto,
         poolTypesSports: cfg.poolTypesSports,
         poolTypesPm: cfg.poolTypesPm,
@@ -217,6 +219,10 @@ export function LiquidityBot() {
               {input(usdcInputs[f.key] ?? '', v => setUsdcInputs({ ...usdcInputs, [f.key]: v }))}
             </Box>
           ))}
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+            <Box sx={{ fontSize: '0.78rem', color: t.text.secondary }}>Per-pool variance (%)<Box component="span" sx={{ display: 'block', fontSize: '0.66rem', color: t.text.tertiary }}>0 = every pool to cap · 50 = 50–100% of cap</Box></Box>
+            {input(cfg.perPoolVariancePct, v => setCfg({ ...cfg, perPoolVariancePct: Number(v) }))}
+          </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
             <Box sx={{ fontSize: '0.78rem', color: t.text.secondary }}>Interval (s)</Box>
             {input(cfg.intervalSeconds, v => setCfg({ ...cfg, intervalSeconds: Number(v) }))}

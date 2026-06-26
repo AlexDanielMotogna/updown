@@ -24,6 +24,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useNotificationStore, type Notification, type NotificationSeverity } from '@/stores/notificationStore';
 import { markAllNotificationsRead, markNotificationRead } from '@/lib/api';
+import { formatTimeAgo } from '@/lib/format';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { AssetIcon } from '../AssetIcon';
 import { UserLevelBadge } from '../UserLevelBadge';
@@ -48,11 +49,7 @@ function getSeverityIcon(severity: NotificationSeverity, type: string) {
 }
 
 function timeAgo(ts: number): string {
-  const diff = Math.floor((Date.now() - ts) / 1000);
-  if (diff < 60) return 'just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
+  return formatTimeAgo(ts);
 }
 
 export function NotificationPanel() {

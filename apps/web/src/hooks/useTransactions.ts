@@ -5,6 +5,7 @@ import { useSolanaConnection } from '@/app/providers';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   prepareDeposit,
+  prepareGaslessDeposit,
   confirmDeposit,
   prepareClaim,
   confirmClaim,
@@ -76,7 +77,7 @@ export interface TransactionState {
 
 export function useDeposit() {
   const connection = useSolanaConnection();
-  const { publicKey, sendTransaction, login } = useWalletBridge();
+  const { publicKey, sendTransaction, coSignAndSend, isEmbedded, login } = useWalletBridge();
   const queryClient = useQueryClient();
   const [state, setState] = useState<TransactionState>({ status: 'idle' });
 
@@ -90,45 +91,68 @@ export function useDeposit() {
       try {
         setState({ status: 'preparing' });
 
-        // Get accounts from API
-        const response = await prepareDeposit({
-          poolId,
-          walletAddress: publicKey.toBase58(),
-          side,
-          amount,
-        });
+        let signature: string;
+        let poolAsset: string;
 
-        if (!response.success || !response.data) {
-          throw new Error(response.error?.message || 'Failed to prepare deposit');
+        if (isEmbedded) {
+          // Gasless path: the server builds the tx, pays the fee (feePayer =
+          // authority) and funds any ATA/UserBet rent, and partial-signs it. The
+          // embedded wallet co-signs SILENTLY and submits → user needs ZERO SOL,
+          // no popup.
+          const prep = await prepareGaslessDeposit({
+            poolId,
+            walletAddress: publicKey.toBase58(),
+            side,
+            amount,
+          });
+          if (!prep.success || !prep.data) {
+            throw new Error(prep.error?.message || 'Failed to prepare deposit');
+          }
+          setState({ status: 'signing' });
+          poolAsset = prep.data.asset;
+          signature = await coSignAndSend(prep.data.tx);
+        } else {
+          // External wallet: pay-your-own-gas flow (user is feePayer + signer).
+          const response = await prepareDeposit({
+            poolId,
+            walletAddress: publicKey.toBase58(),
+            side,
+            amount,
+          });
+
+          if (!response.success || !response.data) {
+            throw new Error(response.error?.message || 'Failed to prepare deposit');
+          }
+
+          setState({ status: 'signing' });
+          poolAsset = response.data.pool.asset;
+
+          // Build Anchor deposit instruction
+          const { accounts } = response.data;
+          const poolPubkey = new PublicKey(accounts.pool);
+          const userBetPubkey = new PublicKey(accounts.userBet);
+          const vaultPubkey = new PublicKey(accounts.vault);
+          const userTokenAccount = new PublicKey(accounts.userTokenAccount);
+          const sideValue = sideToIndex(side);
+
+          const ix = buildDepositIx(
+            poolPubkey,
+            userBetPubkey,
+            vaultPubkey,
+            userTokenAccount,
+            publicKey,
+            sideValue,
+            BigInt(amount),
+          );
+
+          const transaction = new Transaction().add(ix);
+
+          const { blockhash } = await connection.getLatestBlockhash();
+          transaction.recentBlockhash = blockhash;
+          transaction.feePayer = publicKey;
+
+          signature = await sendTransaction(transaction);
         }
-
-        setState({ status: 'signing' });
-
-        // Build Anchor deposit instruction
-        const { accounts } = response.data;
-        const poolPubkey = new PublicKey(accounts.pool);
-        const userBetPubkey = new PublicKey(accounts.userBet);
-        const vaultPubkey = new PublicKey(accounts.vault);
-        const userTokenAccount = new PublicKey(accounts.userTokenAccount);
-        const sideValue = sideToIndex(side);
-
-        const ix = buildDepositIx(
-          poolPubkey,
-          userBetPubkey,
-          vaultPubkey,
-          userTokenAccount,
-          publicKey,
-          sideValue,
-          BigInt(amount),
-        );
-
-        const transaction = new Transaction().add(ix);
-
-        const { blockhash } = await connection.getLatestBlockhash();
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = publicKey;
-
-        const signature = await sendTransaction(transaction);
 
         setState({ status: 'confirming', txSignature: signature });
 
@@ -159,8 +183,8 @@ export function useDeposit() {
         // Register pool for notifications + push success toast
         const notifStore = useNotificationStore.getState();
         notifStore.addUserPoolId(poolId);
-        notifStore.push({ ...buildNotification('DEPOSIT_SUCCESS', { asset: response.data.pool.asset }), poolId, asset: response.data.pool.asset });
-        notifStore.push({ ...buildNotification('PREDICTION_PLACED', { side, asset: response.data.pool.asset }), poolId, asset: response.data.pool.asset });
+        notifStore.push({ ...buildNotification('DEPOSIT_SUCCESS', { asset: poolAsset }), poolId, asset: poolAsset });
+        notifStore.push({ ...buildNotification('PREDICTION_PLACED', { side, asset: poolAsset }), poolId, asset: poolAsset });
 
         // Invalidate queries
         queryClient.invalidateQueries({ queryKey: ['pools'] });
@@ -191,7 +215,7 @@ export function useDeposit() {
         throw error;
       }
     },
-    [publicKey, connection, sendTransaction, login, queryClient, state.txSignature]
+    [publicKey, connection, sendTransaction, coSignAndSend, isEmbedded, login, queryClient, state.txSignature]
   );
 
   const reset = useCallback(() => {

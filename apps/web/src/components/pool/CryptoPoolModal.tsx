@@ -1,20 +1,19 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Box, Typography, Drawer, Button, TextField, IconButton } from '@mui/material';
+import { Box, Typography, Drawer, Button, TextField, IconButton, CircularProgress } from '@mui/material';
 import { Close, OpenInNew } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { AssetIcon } from '@/components/AssetIcon';
 import { InlineChart } from '@/components/pool/InlineChart';
 import { AnimatedValue } from '@/components/AnimatedValue';
-import { TransactionModal } from '@/components/TransactionModal';
 import { useDeposit } from '@/hooks/useTransactions';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { usePriceStream } from '@/hooks/usePriceStream';
 import { INTERVAL_LABELS, INTERVAL_TAG_IMAGES } from '@/lib/constants';
-import { USDC_DIVISOR } from '@/lib/format';
+import { USDC_DIVISOR, formatTimeAgo } from '@/lib/format';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import type { Pool } from '@/lib/api';
@@ -38,7 +37,6 @@ export function CryptoPoolModal({ pool, onClose }: Props) {
 
   const [side, setSide] = useState<'UP' | 'DOWN' | null>(null);
   const [amount, setAmount] = useState('');
-  const [showTxModal, setShowTxModal] = useState(false);
   const [bets, setBets] = useState<Array<{ wallet: string; side: string; amount: string; createdAt: string }>>([]);
   const knownBetsRef = useRef<Set<string>>(new Set());
   const [newBetKeys, setNewBetKeys] = useState<Set<string>>(new Set());
@@ -108,23 +106,23 @@ export function CryptoPoolModal({ pool, onClose }: Props) {
   }, [pool, side, amountUsdc, amountNum, liveTotals]);
 
   const canSubmit = connected && side && amountNum > 0 && amountNum <= balanceNum && depositState.status === 'idle';
+  const isSubmitting =
+    depositState.status === 'preparing' ||
+    depositState.status === 'signing' ||
+    depositState.status === 'confirming';
 
+  // No modal: the button shows "Placing…" and the result is a toast
+  // (PREDICTION_PLACED / DEPOSIT_FAILED, fired in useDeposit). On success we
+  // close the drawer; either way we reset back to idle so re-betting works.
   const handleSubmit = async () => {
     if (!pool || !side) return;
-    setShowTxModal(true);
     try {
       await deposit(pool.id, side, amountUsdc);
-    } catch {
-      // handled in state
-    }
-  };
-
-  const handleCloseTxModal = () => {
-    setShowTxModal(false);
-    if (depositState.status === 'success') {
       onClose();
       setSide(null);
       setAmount('');
+    } catch {
+      // surfaced via toast
     }
     resetDeposit();
   };
@@ -320,8 +318,7 @@ export function CryptoPoolModal({ pool, onClose }: Props) {
                   const sideColor = b.side === 'UP' ? t.up : t.down;
                   const sideLabel = b.side === 'UP' ? 'UP' : 'DOWN';
                   const amt = (Number(b.amount) / USDC_DIVISOR).toFixed(2);
-                  const ago = Math.floor((Date.now() - new Date(b.createdAt).getTime()) / 60000);
-                  const timeStr = ago < 1 ? 'now' : ago < 60 ? `${ago}m` : `${Math.floor(ago / 60)}h`;
+                  const timeStr = formatTimeAgo(b.createdAt);
                   return (
                     <motion.div
                       key={key}
@@ -350,6 +347,7 @@ export function CryptoPoolModal({ pool, onClose }: Props) {
               fullWidth
               variant="contained"
               disabled={!canSubmit}
+              startIcon={isSubmitting ? <CircularProgress size={15} thickness={5} sx={{ color: 'inherit' }} /> : null}
               onClick={handleSubmit}
               sx={{
                 bgcolor: t.up, color: t.text.contrast, fontWeight: 700, fontSize: '0.8rem',
@@ -358,7 +356,7 @@ export function CryptoPoolModal({ pool, onClose }: Props) {
                 '&:disabled': { bgcolor: t.hover.medium, color: t.text.dimmed },
               }}
             >
-              {!connected ? 'Connect Wallet' : !side ? 'Select Side' : amountNum <= 0 ? 'Enter Amount' : 'Place Prediction'}
+              {!connected ? 'Connect Wallet' : isSubmitting ? 'Placing…' : !side ? 'Select Side' : amountNum <= 0 ? 'Enter Amount' : 'Place Prediction'}
             </Button>
             <Link href={`/pool/${pool.id}`} style={{ textDecoration: 'none', width: '100%' }}>
               <Button
@@ -383,16 +381,6 @@ export function CryptoPoolModal({ pool, onClose }: Props) {
           </Box>
         </Box>
       </Drawer>
-
-      <TransactionModal
-        open={showTxModal}
-        status={depositState.status}
-        title="Placing Prediction"
-        txSignature={depositState.txSignature}
-        error={depositState.error}
-        onClose={handleCloseTxModal}
-        onRetry={() => resetDeposit()}
-      />
     </>
   );
 }

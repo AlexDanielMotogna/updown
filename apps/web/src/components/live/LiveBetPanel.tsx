@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Box, Typography, Button, TextField } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { ThreeWaySelector } from '@/components/sports/ThreeWaySelector';
-import { TransactionModal } from '@/components/TransactionModal';
+import { BetPresetRow, BetAmountInput, BetPayoutBox, BetStatRow, BetSubmitButton } from '@/components/bet/BetFormControls';
 import { useDeposit } from '@/hooks/useTransactions';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
@@ -25,7 +25,6 @@ export function LiveBetPanel({ pool }: { pool: Pool | null }) {
   const { deposit, state: depositState, reset } = useDeposit();
   const [side, setSide] = useState<'UP' | 'DOWN' | 'DRAW' | null>(null);
   const [amount, setAmount] = useState('');
-  const [showTx, setShowTx] = useState(false);
 
   // Reset selection whenever a different market is picked.
   useEffect(() => { setSide(null); setAmount(''); }, [pool?.id]);
@@ -57,11 +56,20 @@ export function LiveBetPanel({ pool }: { pool: Pool | null }) {
   })();
 
   const canSubmit = connected && !!side && amountNum > 0 && amountNum <= balanceNum && isOpen && depositState.status === 'idle';
+  const isSubmitting =
+    depositState.status === 'preparing' ||
+    depositState.status === 'signing' ||
+    depositState.status === 'confirming';
 
+  // No modal: the button shows "Placing…" + a toast confirms. Reset to idle
+  // afterwards so re-betting works; clear the amount on success.
   const submit = async () => {
     if (!side || amountNum <= 0) return;
-    setShowTx(true);
-    try { await deposit(pool.id, side as 'UP' | 'DOWN', amountUsdc); } catch { /* surfaced in state */ }
+    try {
+      await deposit(pool.id, side as 'UP' | 'DOWN', amountUsdc);
+      setAmount('');
+    } catch { /* surfaced via toast */ }
+    reset();
   };
 
   return (
@@ -84,64 +92,34 @@ export function LiveBetPanel({ pool }: { pool: Pool | null }) {
 
       {isOpen ? (
         <>
-          <Box sx={{ display: 'flex', gap: 0.5 }}>
-            {PRESETS.map(p => (
-              <Button key={p} size="small" onClick={() => setAmount(String(p))}
-                sx={{ flex: 1, minWidth: 0, py: 0.5, fontSize: '0.75rem', fontWeight: 600, textTransform: 'none', borderRadius: '5px',
-                  bgcolor: amountNum === p ? t.hover.emphasis : t.border.subtle, color: amountNum === p ? t.text.primary : t.text.secondary,
-                  '&:hover': { bgcolor: t.hover.strong } }}>
-                ${p}
-              </Button>
-            ))}
-          </Box>
+          <BetPresetRow presets={PRESETS} amount={amount} onSelect={(p) => setAmount(String(p))} />
 
-          <TextField fullWidth size="small" placeholder="Amount (USDC)" type="number" value={amount}
-            onChange={e => setAmount(e.target.value)} inputProps={{ min: 1, step: 'any' }}
-            sx={{ '& .MuiInputBase-root': { bgcolor: t.border.subtle, borderRadius: '5px' },
-              '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
-              '& .MuiInputBase-input': { color: t.text.primary, fontSize: '0.9rem', MozAppearance: 'textfield',
-                '&::-webkit-outer-spin-button, &::-webkit-inner-spin-button': { WebkitAppearance: 'none', margin: 0 } } }} />
+          <BetAmountInput value={amount} onChange={(e) => setAmount(e.target.value)} />
 
           <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: t.text.strong }}>
             Balance: ${balanceNum.toFixed(2)} USDC
           </Typography>
 
           {side && amountNum > 0 && (
-            <Box sx={{ py: 1.5, px: 1.5, bgcolor: t.hover.light, borderRadius: '5px' }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                <Typography sx={{ fontSize: '0.75rem', color: t.text.tertiary }}>Estimated payout</Typography>
-                <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: t.gain }}>${estPayout.toFixed(2)}</Typography>
-              </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography sx={{ fontSize: '0.75rem', color: t.text.tertiary }}>Multiplier</Typography>
-                <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: t.text.primary }}>
-                  {amountNum > 0 ? (estPayout / amountNum).toFixed(2) : '0.00'}x
-                </Typography>
-              </Box>
-            </Box>
+            <BetPayoutBox>
+              <BetStatRow label="Estimated payout" value={`$${estPayout.toFixed(2)}`} valueColor={t.gain} emphasize />
+              <BetStatRow label="Multiplier" value={`${amountNum > 0 ? (estPayout / amountNum).toFixed(2) : '0.00'}x`} />
+            </BetPayoutBox>
           )}
 
-          <Button fullWidth variant="contained" disabled={!canSubmit} onClick={submit}
-            sx={{ bgcolor: t.up, color: t.text.contrast, fontWeight: 700, fontSize: '0.85rem', py: 1.1, borderRadius: '5px', textTransform: 'none',
-              '&:hover': { bgcolor: t.up, filter: 'brightness(1.15)' }, '&:disabled': { bgcolor: t.border.default, color: t.text.dimmed } }}>
-            {!connected ? 'Connect Wallet' : !side ? 'Select Side' : amountNum <= 0 ? 'Enter Amount' : amountNum > balanceNum ? 'Insufficient Balance' : 'Place Prediction'}
-          </Button>
+          <BetSubmitButton
+            label={!connected ? 'Connect Wallet' : isSubmitting ? 'Placing…' : !side ? 'Select Side' : amountNum <= 0 ? 'Enter Amount' : amountNum > balanceNum ? 'Insufficient Balance' : 'Place Prediction'}
+            color={t.up}
+            disabled={!canSubmit}
+            loading={isSubmitting}
+            onClick={submit}
+          />
         </>
       ) : (
         <Box sx={{ textAlign: 'center', py: 2, bgcolor: t.hover.subtle, borderRadius: '5px' }}>
           <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: t.text.muted }}>Predictions closed</Typography>
         </Box>
       )}
-
-      <TransactionModal
-        open={showTx}
-        status={depositState.status}
-        title="Placing Prediction"
-        txSignature={depositState.txSignature}
-        error={depositState.error}
-        onClose={() => { setShowTx(false); reset(); }}
-        onRetry={() => { reset(); setShowTx(false); }}
-      />
     </Box>
   );
 }

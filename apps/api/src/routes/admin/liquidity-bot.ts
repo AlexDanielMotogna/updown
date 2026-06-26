@@ -13,6 +13,7 @@ function serializeConfig(c: Awaited<ReturnType<typeof getLiquidityBotConfig>>) {
   return {
     enabled: c.enabled,
     perPoolCap: c.perPoolCap.toString(),
+    perPoolVariancePct: c.perPoolVariancePct,
     perCycleCap: c.perCycleCap.toString(),
     maxTotalExposure: c.maxTotalExposure.toString(),
     treasuryFloor: c.treasuryFloor.toString(),
@@ -53,6 +54,9 @@ adminLiquidityBotRouter.put('/', async (req, res) => {
     }
     for (const f of ['intervalSeconds', 'lockMarginSeconds', 'walletSolTopup']) {
       if (b[f] != null && b[f] !== '') data[f] = Number(b[f]);
+    }
+    if (b.perPoolVariancePct != null && b.perPoolVariancePct !== '') {
+      data.perPoolVariancePct = Math.max(0, Math.min(100, Math.round(Number(b.perPoolVariancePct))));
     }
     for (const f of ['enabled', 'poolTypesCrypto', 'poolTypesSports', 'poolTypesPm']) {
       if (typeof b[f] === 'boolean') data[f] = b[f];

@@ -18,6 +18,25 @@ function randBigInt(min: bigint, max: bigint): bigint {
 }
 function minBig(...xs: bigint[]): bigint { return xs.reduce((a, b) => (b < a ? b : a)); }
 
+/** Deterministic [0,1) from a string (FNV-1a). Same pool id → same value, so a
+ *  pool's target volume is stable across cycles instead of drifting up to cap. */
+function hash01(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return ((h >>> 0) % 100000) / 100000;
+}
+
+/** Per-pool stake target: a stable, per-pool-random fraction of perPoolCap in
+ *  [1 - variance, 1]. variancePct=0 → always the full cap (old behavior). Never
+ *  goes below betMin so a chosen pool can still place at least one bet. */
+function poolTarget(poolId: string, perPoolCap: bigint, betMin: bigint, variancePct: number): bigint {
+  const v = Math.max(0, Math.min(100, variancePct)) / 100;
+  if (v === 0) return perPoolCap;
+  const factor = 1 - v + hash01(poolId) * v;
+  const target = BigInt(Math.floor(Number(perPoolCap) * factor));
+  return target < betMin ? betMin : target;
+}
+
 async function placeBotDeposit(
   pool: { id: string }, wallet: Keypair, side: Side, amount: bigint,
 ): Promise<string> {
@@ -89,14 +108,17 @@ export async function runLiquidityBotCycle(): Promise<{ placed: number; spent: b
       select: { amount: true, side: true, walletAddress: true },
     });
     let poolStake = poolBets.reduce((s, b) => s + b.amount, 0n);
-    if (poolStake >= cfg.perPoolCap) continue;
+    // Stake target for THIS pool — a stable fraction of the cap so pools don't
+    // all show the same volume (configurable via perPoolVariancePct).
+    const effCap = poolTarget(pool.id, cfg.perPoolCap, cfg.betMin, cfg.perPoolVariancePct);
+    if (poolStake >= effCap) continue;
 
     // Cover EVERY side this pass — whichever wins, the bot recaptures the pot
-    // (minus fee) instead of losing a one-sided position. perPoolCap is split
+    // (minus fee) instead of losing a one-sided position. effCap is split
     // evenly across sides. Pools are processed freshest-first so these bets land
     // with the highest possible time-weight.
     const sides: Side[] = pool.numSides === 3 ? ['UP', 'DOWN', 'DRAW'] : ['UP', 'DOWN'];
-    const perSideTarget = cfg.perPoolCap / BigInt(sides.length);
+    const perSideTarget = effCap / BigInt(sides.length);
     const stakeBySide = new Map<Side, bigint>(sides.map(s => [s, 0n]));
     const walletsBySide = new Map<Side, Set<string>>(sides.map(s => [s, new Set<string>()]));
     for (const b of poolBets) {
@@ -105,7 +127,7 @@ export async function runLiquidityBotCycle(): Promise<{ placed: number; spent: b
     }
 
     for (const side of sides) {
-      if (cycleSpent >= cfg.perCycleCap || exposure >= cfg.maxTotalExposure || poolStake >= cfg.perPoolCap) break;
+      if (cycleSpent >= cfg.perCycleCap || exposure >= cfg.maxTotalExposure || poolStake >= effCap) break;
       const sideStake = stakeBySide.get(side) ?? 0n;
       if (sideStake >= perSideTarget) continue;
 
@@ -116,7 +138,7 @@ export async function runLiquidityBotCycle(): Promise<{ placed: number; spent: b
       const wallet = eligible[Math.floor(Math.random() * eligible.length)];
 
       let amount = randBigInt(cfg.betMin, cfg.betMax);
-      amount = minBig(amount, perSideTarget - sideStake, cfg.perPoolCap - poolStake, cfg.perCycleCap - cycleSpent, cfg.maxTotalExposure - exposure);
+      amount = minBig(amount, perSideTarget - sideStake, effCap - poolStake, cfg.perCycleCap - cycleSpent, cfg.maxTotalExposure - exposure);
       if (amount <= 0n) continue;
 
       try {

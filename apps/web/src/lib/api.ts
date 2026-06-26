@@ -299,6 +299,18 @@ export async function prepareDeposit(params: {
   });
 }
 
+export async function prepareGaslessDeposit(params: {
+  poolId: string;
+  walletAddress: string;
+  side: 'UP' | 'DOWN' | 'DRAW';
+  amount: number;
+}): Promise<ApiResponse<{ tx: string; poolId: string; side: string; asset: string; lockTime: string }>> {
+  return fetchApi('/api/transactions/prepare-gasless-deposit', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
 export async function confirmDeposit(params: {
   poolId: string;
   walletAddress: string;
