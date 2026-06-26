@@ -262,7 +262,10 @@ export function Providers({ children, initialTheme = 'dark' }: { children: React
           walletList: ['phantom', 'solflare', 'backpack', 'coinbase_wallet', 'metamask', 'detected_solana_wallets'],
           showWalletLoginFirst: true,
         },
-        loginMethods: ['wallet'],
+        // Email (+ wallet) so users can sign up WITHOUT an external wallet → Privy
+        // creates a Solana embedded wallet → gasless silent betting (no SOL, no
+        // popup). Wallet login stays for users who prefer Phantom/Solflare.
+        loginMethods: ['email', 'wallet'],
         embeddedWallets: {
           solana: { createOnLogin: 'all-users' },
           // Sign silently — no Privy confirm modal. The app's bet UI is the
