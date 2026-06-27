@@ -35,7 +35,7 @@ export function SimplePosition({ pos, walletAddress, compact }: { pos: Position;
   if (compact) {
     return (
       <div className="flex items-center gap-2 rounded-lg border border-surface-800 bg-surface-850 px-2.5 py-2">
-        <span className={`rounded px-1.5 py-0.5 text-2xs font-bold text-black ${long ? 'bg-win-500' : 'bg-loss-500'}`}>{long ? 'L' : 'S'}</span>
+        <span className={`rounded border px-1.5 py-0.5 text-2xs font-bold ${long ? 'border-brand text-brand' : 'border-loss-500 text-loss-500'}`}>{long ? 'L' : 'S'}</span>
         <span className="text-sm font-semibold text-surface-100">{base}</span>
         <span className={`ml-auto text-sm font-semibold tabular-nums ${pnl >= 0 ? 'text-win-500' : 'text-loss-500'}`}>{pnl >= 0 ? '+' : ''}{usd(pnl)}</span>
         <button onClick={close} disabled={busy}
@@ -57,7 +57,7 @@ export function SimplePosition({ pos, walletAddress, compact }: { pos: Position;
     <div className="rounded-xl border border-surface-800 bg-surface-850 p-3">
       <div className="mb-1 flex items-center gap-2">
         <span className="text-sm font-bold text-surface-100">{base}</span>
-        <span className={`rounded px-1.5 py-0.5 text-xs font-bold text-black ${long ? 'bg-win-500' : 'bg-loss-500'}`}>
+        <span className={`rounded border px-1.5 py-0.5 text-xs font-bold ${long ? 'border-brand text-brand' : 'border-loss-500 text-loss-500'}`}>
           {long ? 'Long' : 'Short'}
         </span>
       </div>
