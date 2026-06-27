@@ -77,18 +77,19 @@ export const useNotificationStore = create<NotificationStore>()(
 
         // Skip if this exact DB row is already present.
         if (dbId && existing.some(n => n.id === dbId)) return;
-        // Content dedup. Two cases:
-        //  - live push (no dbId): same content fired twice within the window.
-        //  - DB push (dbId): the same event was already shown live (a client-id
-        //    `notif-…` entry exists) — happens after a reload when a reward that
-        //    was pushed live is also fetched from the DB. Skip it (no time limit,
-        //    since the live entry IS the same event).
+        // Same-event matching. Pool/bet notifs match by type+poolId, NOT message:
+        // the server-persisted row and the live push word the message differently
+        // (e.g. "ETH/USD · PnL +$1.05" vs the buildNotification text), so matching
+        // on message would never collapse them → a duplicate after a reload.
+        // Other notifs (no poolId: coins/xp/level) match by type+message.
+        const sameEvent = (n: Notification) =>
+          input.poolId
+            ? n.type === input.type && n.poolId === input.poolId
+            : n.type === input.type && n.message === input.message;
+        // Skip if a live entry already shows it (DB push: client-id `notif-…`
+        // exists) or it just fired (live push within the dedup window).
         const isDupe = existing.some(
-          (n) =>
-            n.type === input.type &&
-            n.poolId === input.poolId &&
-            n.message === input.message &&
-            (dbId ? n.id.startsWith('notif-') : now - n.createdAt < DEDUP_WINDOW_MS),
+          (n) => sameEvent(n) && (dbId ? n.id.startsWith('notif-') : now - n.createdAt < DEDUP_WINDOW_MS),
         );
         if (isDupe) return;
 
