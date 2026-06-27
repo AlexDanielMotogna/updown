@@ -19,14 +19,14 @@ export function FundButton({ variant = 'navbar', label }: { variant?: 'navbar' |
 
   const cls =
     variant === 'navbar'
-      ? 'flex h-[30px] shrink-0 items-center gap-0.5 rounded-md bg-brand px-2 text-[0.72rem] font-semibold text-surface-950 transition-colors hover:bg-brand-600'
+      ? 'inline-flex h-[38px] shrink-0 items-center justify-center gap-1 rounded-md bg-brand px-3 text-[0.75rem] font-semibold leading-none text-surface-950 transition-colors hover:bg-brand-600'
       : 'w-full rounded-lg bg-brand py-2.5 text-sm font-semibold text-surface-950 transition-colors hover:bg-brand-600';
 
   return (
     <>
       <button onClick={() => setOpen(true)} className={cls}>
-        <span className={variant === 'navbar' ? 'text-xs leading-none' : 'text-base leading-none'}>⇄</span>
-        <span className={variant === 'navbar' ? 'hidden sm:inline' : ''}>{label ?? 'Transfer'}</span>
+        <span className={variant === 'navbar' ? 'text-sm leading-none' : 'text-base leading-none'}>⇄</span>
+        <span className={`leading-none ${variant === 'navbar' ? 'hidden sm:inline' : ''}`}>{label ?? 'Transfer'}</span>
       </button>
       <BridgeFundModal open={open} onClose={() => setOpen(false)} solanaAddress={walletAddress} evmAddress={evmAddress} />
     </>
