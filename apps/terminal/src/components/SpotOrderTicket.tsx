@@ -15,13 +15,15 @@ const usd = (n: number) => (Number.isFinite(n) ? `$${n.toLocaleString(undefined,
  * as perps. No leverage / margin / TP-SL. Live chart/orderbook for spot are a
  * later pass; this gives a usable buy/sell without touching the perp WS.
  */
-export function SpotOrderTicket({ walletAddress, evmAddress }: { walletAddress?: string; evmAddress?: string }) {
+export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbol }: { walletAddress?: string; evmAddress?: string; symbol?: string }) {
   const toast = useToast();
   const { enabled: tradingEnabled, busy: enabling, enableTrading } = useTrading(walletAddress, evmAddress);
   const [tickers, setTickers] = useState<Ticker[]>([]);
-  const [symbol, setSymbol] = useState<string>('');
+  const [symbol, setSymbol] = useState<string>(lockedSymbol ?? '');
   const [side, setSide] = useState<OrderSide>('BUY');
+  const [type, setType] = useState<'MARKET' | 'LIMIT'>('MARKET');
   const [amountUsd, setAmountUsd] = useState('');
+  const [limitPrice, setLimitPrice] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -37,25 +39,29 @@ export function SpotOrderTicket({ walletAddress, evmAddress }: { walletAddress?:
     return () => { alive = false; clearInterval(id); };
   }, []);
 
-  // Default to the highest-volume pair once loaded.
+  // Default to the highest-volume pair once loaded (unless locked).
   useEffect(() => {
-    if (!symbol && tickers.length) setSymbol(tickers[0].symbol);
-  }, [tickers, symbol]);
+    if (!lockedSymbol && !symbol && tickers.length) setSymbol(tickers[0].symbol);
+  }, [tickers, symbol, lockedSymbol]);
 
   const mark = useMemo(() => Number(tickers.find((t) => t.symbol === symbol)?.mark ?? 0), [tickers, symbol]);
   const base = symbol.split('/')[0] || '';
   const amt = Number(amountUsd);
-  const baseSize = mark > 0 && amt > 0 ? amt / mark : 0;
+  // Size is priced off the limit price for LIMIT orders, else the current mark.
+  const refPrice = type === 'LIMIT' ? Number(limitPrice) : mark;
+  const baseSize = refPrice > 0 && amt > 0 ? amt / refPrice : 0;
   const belowMin = amt > 0 && amt < 10; // HL ~$10 min notional
-  const canSubmit = !!walletAddress && !!symbol && mark > 0 && amt > 0 && !belowMin && !busy;
+  const limitMissing = type === 'LIMIT' && !(Number(limitPrice) > 0);
+  const canSubmit = !!walletAddress && !!symbol && refPrice > 0 && amt > 0 && !belowMin && !limitMissing && !busy;
 
   async function submit() {
     if (!canSubmit) return;
     setBusy(true);
     const tid = toast.loading(`${side === 'BUY' ? 'Buy' : 'Sell'} ${base} — pending`);
     const res = await placeOrder({
-      walletAddress: walletAddress!, symbol, side, type: 'MARKET',
-      amount: String(baseSize), kind: 'spot', maxSlippagePct: 8,
+      walletAddress: walletAddress!, symbol, side, type,
+      amount: String(baseSize), kind: 'spot',
+      ...(type === 'LIMIT' ? { price: limitPrice } : { maxSlippagePct: 8 }),
     });
     setBusy(false);
     if (res.success) { toast.update(tid, 'success', `${side === 'BUY' ? 'Bought' : 'Sold'} ${base}`); setAmountUsd(''); }
@@ -71,14 +77,18 @@ export function SpotOrderTicket({ walletAddress, evmAddress }: { walletAddress?:
         <span className="text-2xs text-surface-500">market order</span>
       </div>
 
-      {/* Pair selector */}
-      <select
-        value={symbol}
-        onChange={(e) => setSymbol(e.target.value)}
-        className="w-full rounded border border-surface-700 bg-[#1c1c23] px-2.5 py-2 text-sm text-surface-100 outline-none"
-      >
-        {tickers.map((t) => <option key={t.symbol} value={t.symbol}>{t.symbol}</option>)}
-      </select>
+      {/* Pair selector (hidden when locked to a symbol) */}
+      {lockedSymbol ? (
+        <div className="rounded border border-surface-800 bg-[#1c1c23] px-2.5 py-2 text-sm font-semibold text-surface-100">{symbol}</div>
+      ) : (
+        <select
+          value={symbol}
+          onChange={(e) => setSymbol(e.target.value)}
+          className="w-full rounded border border-surface-700 bg-[#1c1c23] px-2.5 py-2 text-sm text-surface-100 outline-none"
+        >
+          {tickers.map((t) => <option key={t.symbol} value={t.symbol}>{t.symbol}</option>)}
+        </select>
+      )}
 
       {/* Buy / Sell */}
       <div className="flex gap-2">
@@ -87,6 +97,23 @@ export function SpotOrderTicket({ walletAddress, evmAddress }: { walletAddress?:
         <button onClick={() => setSide('SELL')}
           className={`flex-1 rounded py-1.5 text-sm font-semibold transition-colors ${!long ? 'bg-loss-500 text-black' : 'border border-surface-700 text-surface-300 hover:bg-surface-800'}`}>Sell</button>
       </div>
+
+      {/* Market / Limit */}
+      <div className="flex rounded-lg bg-surface-800 p-0.5 text-2xs font-semibold">
+        {(['MARKET', 'LIMIT'] as const).map((t) => (
+          <button key={t} onClick={() => setType(t)}
+            className={`flex-1 rounded-md py-1 transition-colors ${type === t ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:text-surface-200'}`}>
+            {t === 'MARKET' ? 'Market' : 'Limit'}
+          </button>
+        ))}
+      </div>
+      {type === 'LIMIT' && (
+        <label className="block">
+          <span className="text-2xs text-surface-400">Limit price</span>
+          <input value={limitPrice} onChange={(e) => setLimitPrice(e.target.value)} inputMode="decimal" placeholder={mark > 0 ? String(mark) : '0.00'}
+            className="mt-1 w-full rounded border border-surface-700 bg-[#1c1c23] px-2.5 py-2 text-base tabular text-surface-100 outline-none placeholder:text-surface-500" />
+        </label>
+      )}
 
       {/* Amount (USDC) */}
       <label className="block">

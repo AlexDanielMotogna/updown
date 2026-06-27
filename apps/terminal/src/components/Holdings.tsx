@@ -48,7 +48,10 @@ export function HoldingsTab({ address, isMobile }: { address?: string; isMobile?
     .map((b) => {
       const price = b.asset === 'USDC' ? 1 : prices[b.asset] ?? 0;
       const value = Number(b.total) * price;
-      return { ...b, price, value };
+      // Cost-basis P&L from HL's entryNtl (no fill persistence needed). USDC has none.
+      const entry = Number(b.entryNotional ?? 0);
+      const pnl = b.asset !== 'USDC' && entry > 0 ? value - entry : null;
+      return { ...b, price, value, pnl };
     })
     .filter((r) => Number(r.total) > 0)
     .sort((a, b) => b.value - a.value);
@@ -82,6 +85,7 @@ export function HoldingsTab({ address, isMobile }: { address?: string; isMobile?
           <th className="px-3 py-2 text-right font-medium">Available</th>
           <th className="px-3 py-2 text-right font-medium">Price</th>
           <th className="px-3 py-2 text-right font-medium">Value</th>
+          <th className="px-3 py-2 text-right font-medium">PnL</th>
         </tr>
       </thead>
       <tbody className="tabular">
@@ -92,6 +96,9 @@ export function HoldingsTab({ address, isMobile }: { address?: string; isMobile?
             <td className="px-3 py-2 text-right text-surface-300">{n(r.available)}</td>
             <td className="px-3 py-2 text-right text-surface-300">{r.asset === 'USDC' ? '--' : usd(r.price)}</td>
             <td className="px-3 py-2 text-right text-surface-100">{usd(r.value)}</td>
+            <td className={`px-3 py-2 text-right ${r.pnl == null ? 'text-surface-500' : r.pnl >= 0 ? 'text-win-400' : 'text-loss-400'}`}>
+              {r.pnl == null ? '--' : `${r.pnl >= 0 ? '+' : ''}${usd(r.pnl)}`}
+            </td>
           </tr>
         ))}
       </tbody>
