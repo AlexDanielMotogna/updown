@@ -142,9 +142,11 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
     b.claimed && b.payoutAmount != null && b.payoutAmount === b.amount,
   );
   const anyFailed = bets.some(b => !!b.payoutFailed && !b.claimed);
-  const anyPending = bets.some(b =>
-    b.isWinner === true && !b.claimed && !b.payoutFailed && pool.status === 'CLAIMABLE',
-  );
+  // The user holds a winning bet still awaiting payout (tells "paying soon"
+  // apart from "lost"). `allLost` = every bet was on a losing side, which is a
+  // settled loss and must show the loss, not a bare "-".
+  const userOnWinningSide = bets.some(b => b.isWinner === true);
+  const allLost = bets.length > 0 && bets.every(b => b.isWinner === false);
   const failedBet = bets.find(b => !!b.payoutFailed && !b.claimed);
 
   // ── Market identity ────────────────────────────────────────────────────
@@ -267,10 +269,6 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
     <Box sx={{ textAlign: 'right' }}>
       {claimBtn ? (
         claimBtn
-      ) : anyPending ? (
-        <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: t.text.secondary, fontStyle: 'italic' }}>
-          Paying soon…
-        </Typography>
       ) : totalPayout > 0 ? (
         <>
           <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
@@ -283,6 +281,19 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
               PnL {fmtSigned(netClosed)} ({netPct.toFixed(1)}%)
             </Typography>
           )}
+        </>
+      ) : userOnWinningSide ? (
+        <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: t.text.secondary, fontStyle: 'italic' }}>
+          Paying soon…
+        </Typography>
+      ) : allLost ? (
+        <>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>
+            {fmtMicro(0)}
+          </Typography>
+          <Typography sx={{ fontSize: '0.74rem', fontWeight: 700, color: t.down, fontVariantNumeric: 'tabular-nums' }}>
+            PnL {fmtSigned(netClosed)} ({netPct.toFixed(1)}%)
+          </Typography>
         </>
       ) : (
         <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: t.text.secondary }}>-</Typography>
