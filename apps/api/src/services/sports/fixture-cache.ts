@@ -115,6 +115,31 @@ export async function getCachedFixtureResult(
 }
 
 /**
+ * PM-scoped result fetch. ONLY reads the Polymarket fixture cache
+ * (sport='POLYMARKET', FINISHED, marked by resolutionPoll via Gamma/UMA/CTF).
+ *
+ * Critically it does NOT fall through to live_scores / the TheSportsDB API like
+ * `getCachedFixtureResults` does: a Polymarket market id (e.g. 2373875) can
+ * numerically COLLIDE with a TheSportsDB event id, and matching by bare id would
+ * resolve a PM market with an unrelated football result. Scoping to POLYMARKET
+ * rows eliminates that cross-source collision.
+ */
+export async function getCachedPolymarketResults(
+  externalIds: string[],
+): Promise<Map<string, MatchResult>> {
+  if (externalIds.length === 0) return new Map();
+  const map = new Map<string, MatchResult>();
+  const rows = await prisma.sportsFixtureCache.findMany({
+    where: { externalId: { in: externalIds }, sport: 'POLYMARKET', status: 'FINISHED' },
+  });
+  for (const row of rows) {
+    const result = rowToResult(row);
+    if (result) map.set(row.externalId, result);
+  }
+  return map;
+}
+
+/**
  * Batch fetch fixture results by external IDs.
  * Three-tier fallback: SportsFixtureCache → live_scores DB → TheSportsDB API.
  */

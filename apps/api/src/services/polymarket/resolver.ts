@@ -5,7 +5,7 @@ import { derivePoolSeed, getConnection, getAuthorityKeypair } from '../../utils/
 import { sendAndConfirm } from '../../utils/onchain';
 import { emitPoolStatus } from '../../websocket';
 import { awardBetResolution } from '../rewards';
-import { getCachedFixtureResults } from '../sports/fixture-cache';
+import { getCachedPolymarketResults } from '../sports/fixture-cache';
 import { notifyPoolResolved } from '../notifications';
 
 /**
@@ -35,7 +35,7 @@ export async function resolvePolymarketPools(): Promise<void> {
   if (pools.length === 0) return;
 
   const matchIds = [...new Set(pools.map(p => p.matchId!).filter(Boolean))];
-  const resultMap = await getCachedFixtureResults(matchIds);
+  const resultMap = await getCachedPolymarketResults(matchIds);
 
   const connection = getConnection();
   const wallet = getAuthorityKeypair();
