@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Box } from '@mui/material';
 import { adminFetch } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
+import { AppSwitch } from '@/components/ui/SegmentedToggle';
 import { SectionCard, LoadingState, Label } from '../ui';
 
 interface BotConfig {
@@ -124,9 +125,9 @@ export function LiquidityBot() {
       sx={{ width: w, px: 1, py: 0.6, fontSize: '0.82rem', borderRadius: 1, bgcolor: t.bg.app, color: t.text.primary, border: `1px solid ${t.border.subtle}`, outline: 'none', '&:focus': { borderColor: t.border.medium } }} />
   );
   const toggle = (label: string, val: boolean, onChange: (v: boolean) => void) => (
-    <Box component="button" onClick={() => onChange(!val)}
-      sx={{ px: 1.5, py: 0.6, borderRadius: '999px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', border: `1px solid ${val ? 'transparent' : t.border.subtle}`, bgcolor: val ? t.success : 'transparent', color: val ? '#000' : t.text.secondary }}>
-      {label}: {val ? 'ON' : 'OFF'}
+    <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, px: 1.25, py: 0.55, borderRadius: '8px', bgcolor: t.bg.app, border: `1px solid ${t.border.subtle}` }}>
+      <Box component="span" sx={{ fontSize: '0.78rem', fontWeight: 700, color: val ? t.text.primary : t.text.secondary }}>{label}</Box>
+      <AppSwitch checked={val} onChange={onChange} size="sm" tokens={t} />
     </Box>
   );
 

@@ -15,9 +15,10 @@
  */
 import { useMemo, useState } from 'react';
 import {
-  Box, ToggleButtonGroup, ToggleButton, Tooltip,
+  Box, Tooltip,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
 } from '@mui/material';
+import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 import TravelExploreRoundedIcon from '@mui/icons-material/TravelExploreRounded';
 import LaunchRoundedIcon from '@mui/icons-material/LaunchRounded';
@@ -221,16 +222,16 @@ export function PmExplorer() {
               }
               actions={
                 <Box sx={{ display: 'inline-flex', gap: 1, alignItems: 'center' }}>
-                  <ToggleButtonGroup
-                    size="small"
-                    exclusive
+                  <SegmentedToggle
+                    size="sm"
                     value={direction}
-                    onChange={(_, v) => v && setDirection(v)}
-                    sx={{ '& .MuiToggleButton-root': { fontSize: '0.72rem', textTransform: 'none', px: 1.25, py: 0.5 } }}
-                  >
-                    <ToggleButton value="upcoming">Upcoming</ToggleButton>
-                    <ToggleButton value="past">Past</ToggleButton>
-                  </ToggleButtonGroup>
+                    onChange={setDirection}
+                    tokens={t}
+                    options={[
+                      { value: 'upcoming', label: 'Upcoming' },
+                      { value: 'past', label: 'Past' },
+                    ]}
+                  />
                   <ActionButton
                     kind="secondary"
                     label="Refresh"
@@ -416,16 +417,16 @@ export function PmExplorer() {
 
           <Box>
             <Label sx={{ display: 'block', mb: 0.5 }}>Winner</Label>
-            <ToggleButtonGroup
-              exclusive
+            <SegmentedToggle
               fullWidth
               value={resolveWinner}
-              onChange={(_, v) => v && setResolveWinner(v as 'HOME' | 'AWAY')}
-              sx={{ '& .MuiToggleButton-root': { textTransform: 'none', fontSize: '0.8rem' } }}
-            >
-              <ToggleButton value="HOME">HOME (UP)</ToggleButton>
-              <ToggleButton value="AWAY">AWAY (DOWN)</ToggleButton>
-            </ToggleButtonGroup>
+              onChange={setResolveWinner}
+              tokens={t}
+              options={[
+                { value: 'HOME', label: 'HOME (UP)' },
+                { value: 'AWAY', label: 'AWAY (DOWN)' },
+              ]}
+            />
             <Meta sx={{ display: 'block', mt: 0.5 }}>
               PM pools are 2-way: HOME → UP side, AWAY → DOWN side. Pick the outcome the market actually settled to per Polymarket's UI.
             </Meta>

@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Box, ToggleButtonGroup, ToggleButton, TextField } from '@mui/material';
+import { Box, TextField } from '@mui/material';
 import { useMutation } from '@tanstack/react-query';
 import { adminPost } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
+import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 import {
   AdminDialog, ActionButton, ErrorAlert, Body, Meta, Label,
   useMutationFeedback,
@@ -98,17 +99,18 @@ export function ResolveSportsDialog({ pool, onClose, onResolved }: {
 
         <Box>
           <Label sx={{ display: 'block', mb: 0.5 }}>Result</Label>
-          <ToggleButtonGroup
-            exclusive
+          <SegmentedToggle
+            size="sm"
             fullWidth
             value={winner}
-            onChange={(_, v) => v && setWinner(v as WinnerChoice)}
-            sx={{ '& .MuiToggleButton-root': { textTransform: 'none', fontSize: '0.8rem' } }}
-          >
-            <ToggleButton value="HOME">{pool.homeTeam ?? 'Home'} win</ToggleButton>
-            <ToggleButton value="DRAW">Draw</ToggleButton>
-            <ToggleButton value="AWAY">{pool.awayTeam ?? 'Away'} win</ToggleButton>
-          </ToggleButtonGroup>
+            onChange={(v) => setWinner(v as WinnerChoice)}
+            tokens={t}
+            options={[
+              { value: 'HOME', label: `${pool.homeTeam ?? 'Home'} win` },
+              { value: 'DRAW', label: 'Draw' },
+              { value: 'AWAY', label: `${pool.awayTeam ?? 'Away'} win` },
+            ]}
+          />
         </Box>
 
         <Box>

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Box } from '@mui/material';
 import { adminFetch } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
+import { AppSwitch } from '@/components/ui/SegmentedToggle';
 import { SectionCard, LoadingState } from '../ui';
 
 interface Cfg {
@@ -62,19 +63,17 @@ export function PoolCreation() {
   if (!cfg) return <Box sx={{ color: t.error }}>{err || 'Failed to load'}</Box>;
 
   const toggle = (key: keyof Cfg, label: string) => {
-    const val = cfg[key];
+    const val = !!cfg[key];
     return (
       <Box
         key={key}
-        component="button"
-        onClick={() => setCfg({ ...cfg, [key]: !val })}
         sx={{
-          px: 2, py: 0.7, borderRadius: '999px', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
-          border: `1px solid ${val ? 'transparent' : t.border.subtle}`,
-          bgcolor: val ? t.success : 'transparent', color: val ? '#000' : t.text.secondary,
+          display: 'inline-flex', alignItems: 'center', gap: 1, px: 1.25, py: 0.55,
+          borderRadius: '8px', bgcolor: t.bg.app, border: `1px solid ${t.border.subtle}`,
         }}
       >
-        {label}: {val ? 'ON' : 'OFF'}
+        <Box component="span" sx={{ fontSize: '0.82rem', fontWeight: 700, color: val ? t.text.primary : t.text.secondary }}>{label}</Box>
+        <AppSwitch checked={val} onChange={(v) => setCfg({ ...cfg, [key]: v })} size="sm" tokens={t} />
       </Box>
     );
   };

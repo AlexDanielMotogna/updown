@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import {
   Box, Chip, Table, TableBody, TableCell, TableHead, TableRow,
-  ToggleButtonGroup, ToggleButton, TextField,
+  TextField,
 } from '@mui/material';
 import GavelRoundedIcon from '@mui/icons-material/GavelRounded';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
@@ -15,6 +15,7 @@ import {
   Body, Meta, Label,
   useMutationFeedback,
 } from '../ui';
+import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 
 type StuckKnockout = {
   id: string;
@@ -216,17 +217,18 @@ function ResolveKnockoutDialog({ pool, onClose, onResolved }: {
 
         <Box>
           <Label sx={{ display: 'block', mb: 0.5 }}>Regulation result</Label>
-          <ToggleButtonGroup
-            exclusive
+          <SegmentedToggle
+            size="sm"
             fullWidth
             value={winner}
-            onChange={(_, v) => v && setWinner(v as WinnerChoice)}
-            sx={{ '& .MuiToggleButton-root': { textTransform: 'none', fontSize: '0.8rem' } }}
-          >
-            <ToggleButton value="HOME">{pool.homeTeam} win</ToggleButton>
-            <ToggleButton value="DRAW">Draw at 90'</ToggleButton>
-            <ToggleButton value="AWAY">{pool.awayTeam} win</ToggleButton>
-          </ToggleButtonGroup>
+            onChange={(v) => setWinner(v as WinnerChoice)}
+            tokens={t}
+            options={[
+              { value: 'HOME', label: `${pool.homeTeam} win` },
+              { value: 'DRAW', label: "Draw at 90'" },
+              { value: 'AWAY', label: `${pool.awayTeam} win` },
+            ]}
+          />
           {draw && (
             <Meta sx={{ display: 'block', mt: 0.5 }}>
               Use this for ties that went to ET or penalties - the bet still resolves to DRAW.

@@ -18,6 +18,7 @@ import { AppShell } from '@/components';
 import { formatUSDC } from '@/lib/format';
 import { useThemeTokens } from '@/app/providers';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
+import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 import { PositionsTab } from '@/components/profile/PositionsTab';
 import { PnLChart } from '@/components/profile/PnLChart';
 import { ProfileStatsPanel } from '@/components/profile/ProfileStatsPanel';
@@ -163,24 +164,15 @@ export default function MyBetsPage() {
         {connected && walletAddress && (
           <>
             {/* Predictions | Trading switch */}
-            <Box sx={{ display: 'inline-flex', gap: 0.5, p: 0.5, mb: 3, borderRadius: 1.5, bgcolor: t.bg.surfaceAlt, border: `1px solid ${t.border.subtle}` }}>
-              {(['predictions', 'trading'] as const).map((m) => (
-                <Box
-                  key={m}
-                  component="button"
-                  onClick={() => setMode(m)}
-                  sx={{
-                    px: 2.5, py: 0.85, borderRadius: 1, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-                    fontSize: '0.85rem', fontWeight: 600, textTransform: 'capitalize', transition: 'all 0.12s ease',
-                    bgcolor: mode === m ? t.accent : 'transparent',
-                    color: mode === m ? '#000' : t.text.secondary,
-                    '&:hover': { color: mode === m ? '#000' : t.text.primary },
-                  }}
-                >
-                  {m}
-                </Box>
-              ))}
-            </Box>
+            <SegmentedToggle
+              value={mode}
+              onChange={setMode}
+              options={[
+                { value: 'predictions', label: 'Predictions' },
+                { value: 'trading', label: 'Trading' },
+              ]}
+              sx={{ mb: 3 }}
+            />
 
             {mode === 'trading' ? (
               <TradingTab walletAddress={walletAddress} />

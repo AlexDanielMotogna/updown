@@ -1,9 +1,10 @@
 'use client';
 
 import {
-  Box, Card, Typography, Switch, FormControlLabel, Button,
+  Box, Card, Typography, Button,
 } from '@mui/material';
 import { darkTokens as dt, withAlpha } from '@/lib/theme';
+import { AppSwitch } from '@/components/ui/SegmentedToggle';
 import {
   StatusChip as UiStatusChip,
   type StatusKind,
@@ -66,11 +67,12 @@ export function CategoryCard({ cat, poolCount, onToggle, onToggleComingSoon, onE
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <StatusChip enabled={cat.enabled} comingSoon={cat.comingSoon} />
-          <Switch
+          <AppSwitch
             checked={cat.enabled}
-            onChange={onToggle}
-            size="small"
-            sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: TYPE_COLORS[cat.type] || dt.gain }, '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: TYPE_COLORS[cat.type] || dt.gain } }}
+            onChange={() => onToggle()}
+            size="sm"
+            tokens={dt}
+            accent={TYPE_COLORS[cat.type] || dt.gain}
           />
         </Box>
       </Box>
@@ -80,18 +82,16 @@ export function CategoryCard({ cat, poolCount, onToggle, onToggleComingSoon, onE
           {cat.numSides}-way | {cat.sideLabels.join(' / ')}
         </Typography>
         <Box sx={{ ml: 'auto', display: 'flex', gap: 0.5 }}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={cat.comingSoon}
-                onChange={onToggleComingSoon}
-                size="small"
-                disabled={cat.enabled}
-              />
-            }
-            label={<Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>Coming Soon</Typography>}
-            sx={{ m: 0 }}
-          />
+          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+            <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>Coming Soon</Typography>
+            <AppSwitch
+              checked={cat.comingSoon}
+              onChange={() => onToggleComingSoon()}
+              disabled={cat.enabled}
+              size="sm"
+              tokens={dt}
+            />
+          </Box>
           <Button size="small" onClick={onEdit} sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', textTransform: 'none', minWidth: 0 }}>
             Edit
           </Button>

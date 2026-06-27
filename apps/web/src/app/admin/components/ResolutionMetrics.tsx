@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Box, ToggleButtonGroup, ToggleButton } from '@mui/material';
+import { Box } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { adminFetch } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
+import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 import {
   SectionCard, StatCard, StatusChip, RefreshButton,
   LoadingState, EmptyState, ErrorState,
@@ -182,18 +183,18 @@ export function ResolutionMetrics() {
       {/* ─── Window selector + refresh ─────────────────────────────── */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
         <Label>Window</Label>
-        <ToggleButtonGroup
-          size="small"
-          exclusive
+        <SegmentedToggle
+          size="sm"
           value={windowSel}
-          onChange={(_, v) => v && setWindowSel(v)}
-          sx={{ '& .MuiToggleButton-root': { fontSize: '0.72rem', textTransform: 'none', px: 1.5, py: 0.4 } }}
-        >
-          <ToggleButton value="24h">Last 24h</ToggleButton>
-          <ToggleButton value="7d">Last 7d</ToggleButton>
-          <ToggleButton value="30d">Last 30d</ToggleButton>
-          <ToggleButton value="all">All time</ToggleButton>
-        </ToggleButtonGroup>
+          onChange={setWindowSel}
+          tokens={t}
+          options={[
+            { value: '24h', label: 'Last 24h' },
+            { value: '7d', label: 'Last 7d' },
+            { value: '30d', label: 'Last 30d' },
+            { value: 'all', label: 'All time' },
+          ]}
+        />
         <Box sx={{ flex: 1 }} />
         <RefreshButton onRefresh={() => refetch()} isFetching={isFetching} />
       </Box>

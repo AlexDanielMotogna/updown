@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import {
   Box, Card, Typography, Chip, CircularProgress, Button, Tooltip,
-  Table, TableBody, TableCell, TableHead, TableRow, Alert, ToggleButtonGroup, ToggleButton,
+  Table, TableBody, TableCell, TableHead, TableRow, Alert,
   TextField, InputAdornment, Select,
 } from '@mui/material';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
@@ -16,6 +16,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminFetch, adminPost } from '../lib/adminApi';
 import { darkTokens as t, withAlpha } from '@/lib/theme';
 import { resolveBadgeBackground } from '@/lib/badgeBackground';
+import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 
 import {
   type League, type CachedMatch,
@@ -325,16 +326,16 @@ export function MatchExplorer() {
                   </Box>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                  <ToggleButtonGroup
-                    size="small"
-                    exclusive
+                  <SegmentedToggle
+                    size="sm"
                     value={direction}
-                    onChange={(_, v) => v && setDirection(v)}
-                    sx={{ '& .MuiToggleButton-root': { fontSize: '0.72rem', textTransform: 'none', px: 1.25, py: 0.5 } }}
-                  >
-                    <ToggleButton value="upcoming">Upcoming</ToggleButton>
-                    <ToggleButton value="past">Past</ToggleButton>
-                  </ToggleButtonGroup>
+                    onChange={setDirection}
+                    tokens={t}
+                    options={[
+                      { value: 'upcoming', label: 'Upcoming' },
+                      { value: 'past', label: 'Past' },
+                    ]}
+                  />
                   <Tooltip title="Re-fetch this league from TheSportsDB right now">
                     <Button
                       size="small"

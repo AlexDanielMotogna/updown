@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Box, Typography, Button, CircularProgress, useMediaQuery } from '@mui/material';
 import { Search, Close } from '@mui/icons-material';
 import { useThemeTokens } from '@/app/providers';
+import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 import { PoolPositionRow, PoolPositionRowSkeleton, type PoolPosition } from './PoolPositionRow';
 import type { Bet } from '@/lib/api';
 
@@ -83,27 +84,18 @@ export function PositionsTab({ bets, betsLoading, claimingBetId, onClaim, hasMor
     if (visibleCount + pageSize >= filtered.length && hasMore) onLoadMore?.();
   };
 
-  const subTabSx = (active: boolean) => ({
-    px: 2.5, py: 0.85,
-    cursor: 'pointer',
-    fontSize: '0.82rem',
-    fontWeight: 600,
-    color: active ? t.text.primary : t.text.tertiary,
-    bgcolor: active ? t.bg.surfaceAlt : 'transparent',
-    border: `1px solid ${active ? t.border.medium : 'transparent'}`,
-    borderRadius: '6px',
-    transition: 'all 0.15s ease',
-    '&:hover': { color: t.text.primary },
-  });
-
   return (
     <Box>
       {/* Sub-tabs + search bar */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
-        <Box sx={{ display: 'flex', gap: 0.5, p: 0.4, bgcolor: t.bg.surface, borderRadius: '8px', border: `1px solid ${t.border.subtle}` }}>
-          <Box onClick={() => setSub('active')} sx={subTabSx(sub === 'active')}>Active</Box>
-          <Box onClick={() => setSub('closed')} sx={subTabSx(sub === 'closed')}>Closed</Box>
-        </Box>
+        <SegmentedToggle
+          value={sub}
+          onChange={setSub}
+          options={[
+            { value: 'active', label: 'Active' },
+            { value: 'closed', label: 'Closed' },
+          ]}
+        />
         {/* Same look as the markets search bar (rounded pill, inline input). */}
         <Box
           sx={{
