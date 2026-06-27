@@ -75,14 +75,20 @@ export const useNotificationStore = create<NotificationStore>()(
         const now = Date.now();
         const existing = get().notifications;
 
-        // Skip if already in store (by DB id or dedup window)
+        // Skip if this exact DB row is already present.
         if (dbId && existing.some(n => n.id === dbId)) return;
-        const isDupe = !dbId && existing.some(
+        // Content dedup. Two cases:
+        //  - live push (no dbId): same content fired twice within the window.
+        //  - DB push (dbId): the same event was already shown live (a client-id
+        //    `notif-…` entry exists) — happens after a reload when a reward that
+        //    was pushed live is also fetched from the DB. Skip it (no time limit,
+        //    since the live entry IS the same event).
+        const isDupe = existing.some(
           (n) =>
             n.type === input.type &&
             n.poolId === input.poolId &&
             n.message === input.message &&
-            now - n.createdAt < DEDUP_WINDOW_MS,
+            (dbId ? n.id.startsWith('notif-') : now - n.createdAt < DEDUP_WINDOW_MS),
         );
         if (isDupe) return;
 
