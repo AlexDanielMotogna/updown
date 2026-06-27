@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Badge, Box, ClickAwayListener, Fade, IconButton, Popper, Typography } from '@mui/material';
 import {
-  NotificationsNone, EmojiEvents, TrendingDown, AttachMoney,
+  Notifications, EmojiEvents, TrendingDown, AttachMoney,
   CheckCircleOutline, ErrorOutline, WarningAmber, InfoOutlined,
 } from '@mui/icons-material';
 import { useIdentity } from '@/hooks/useIdentity';
@@ -15,9 +15,12 @@ const APP_URL = /^https?:\/\//.test(rawAppUrl) ? rawAppUrl : `https://${rawAppUr
 
 /** Icon per notification type/severity — mirrors the app's NotificationPanel. */
 function NotifIcon({ type, severity, t }: { type: string; severity: string; t: ReturnType<typeof useThemeTokens> }) {
-  if (type === 'POOL_WON' || type === 'POOL_CLAIMABLE' || type === 'BET_PAID')
+  // UP coins use the actual gold token image (same as markets/header), not a $.
+  if (type === 'COINS_EARNED')
+    return <Box component="img" src="/token/Token_16px_Gold.png" alt="UP Coin" sx={{ width: 18, height: 18 }} />;
+  if (type === 'POOL_WON' || type === 'POOL_CLAIMABLE' || type === 'BET_PAID' || type === 'TOURNAMENT_WON' || type === 'TOURNAMENT_MATCH_WON')
     return <EmojiEvents sx={{ fontSize: 18, color: t.gain }} />;
-  if (type === 'POOL_LOST')
+  if (type === 'POOL_LOST' || type === 'TOURNAMENT_MATCH_LOST')
     return <TrendingDown sx={{ fontSize: 18, color: t.down }} />;
   if (type === 'CLAIM_SUCCESS' || type === 'REFUND_RECEIVED' || type === 'DEPOSIT_SUCCESS' || type === 'TOURNAMENT_ENTRY_PAID')
     return <AttachMoney sx={{ fontSize: 18, color: t.gain }} />;
@@ -90,7 +93,7 @@ export function NotificationBell() {
           sx={{ color: t.text.secondary, width: 38, height: 38, borderRadius: '6px', bgcolor: open ? t.hover.strong : 'transparent', '&:hover': { color: t.text.primary, bgcolor: t.hover.default } }}
         >
           <Badge badgeContent={unread} color="error" overlap="circular" sx={{ '& .MuiBadge-badge': { fontSize: '0.6rem', height: 16, minWidth: 16 } }}>
-            <NotificationsNone sx={{ fontSize: 20 }} />
+            <Notifications sx={{ fontSize: 18, color: open ? t.text.primary : t.text.secondary }} />
           </Badge>
         </IconButton>
 
