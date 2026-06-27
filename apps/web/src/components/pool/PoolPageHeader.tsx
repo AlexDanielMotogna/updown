@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Box, Typography, Tooltip } from '@mui/material';
-import { Code, Link as LinkIcon, BookmarkBorder, CheckCircle, ArrowForward } from '@mui/icons-material';
+import { Link as LinkIcon, CheckCircle, ArrowForward } from '@mui/icons-material';
 import { AssetIcon } from '@/components/AssetIcon';
 import { formatPredictionWindow } from '@/lib/format';
 import { INTERVAL_LABELS } from '@/lib/constants';
@@ -32,7 +32,6 @@ export function PoolPageHeader({ asset, interval, startTime, endTime, poolId }: 
   const t = useThemeTokens();
   const router = useRouter();
   const [copied, setCopied] = useState(false);
-  const [bookmarked, setBookmarked] = useState(false);
 
   const intervalLabel = INTERVAL_LABELS[interval] || interval;
   const title = `${getAssetName(asset)} Up or Down ${intervalLabel}`;
@@ -119,7 +118,7 @@ export function PoolPageHeader({ asset, interval, startTime, endTime, poolId }: 
         </Box>
       </Box>
 
-      {/* Share / embed / bookmark - mirror the icons in the Polymarket header. */}
+      {/* Copy link + next pool actions. */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0, mt: { xs: 0.5, md: 1 } }}>
         {/* "Next pool" - simple labelled pill that jumps to the upcoming
             pool for the same asset+interval. Hidden when nothing is queued
@@ -151,20 +150,6 @@ export function PoolPageHeader({ asset, interval, startTime, endTime, poolId }: 
             <ArrowForward sx={{ fontSize: 14 }} />
           </Box>
         )}
-        <Tooltip title="Embed widget (coming soon)" arrow placement="bottom">
-          <Box
-            sx={{
-              p: 0.75,
-              borderRadius: 1,
-              color: t.text.tertiary,
-              cursor: 'not-allowed',
-              opacity: 0.6,
-              display: 'flex',
-            }}
-          >
-            <Code sx={{ fontSize: 18 }} />
-          </Box>
-        </Tooltip>
         <Tooltip title={copied ? 'Link copied!' : 'Copy link'} arrow placement="bottom">
           <Box
             component="button"
@@ -182,25 +167,6 @@ export function PoolPageHeader({ asset, interval, startTime, endTime, poolId }: 
             }}
           >
             {copied ? <CheckCircle sx={{ fontSize: 18 }} /> : <LinkIcon sx={{ fontSize: 18 }} />}
-          </Box>
-        </Tooltip>
-        <Tooltip title={bookmarked ? 'Bookmarked' : 'Bookmark'} arrow placement="bottom">
-          <Box
-            component="button"
-            onClick={() => setBookmarked(b => !b)}
-            sx={{
-              p: 0.75,
-              borderRadius: 1,
-              border: 'none',
-              bgcolor: 'transparent',
-              color: bookmarked ? t.accent : t.text.tertiary,
-              cursor: 'pointer',
-              display: 'flex',
-              transition: 'color 0.15s, background 0.15s',
-              '&:hover': { color: t.text.primary, bgcolor: t.hover.light },
-            }}
-          >
-            <BookmarkBorder sx={{ fontSize: 18 }} />
           </Box>
         </Tooltip>
       </Box>
