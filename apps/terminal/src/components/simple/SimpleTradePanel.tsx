@@ -233,10 +233,17 @@ export function SimpleTradePanel({
               <Info label="PnL" value={`${Number(pos.unrealizedPnl) >= 0 ? '+' : ''}${usd(Number(pos.unrealizedPnl))}`} />
             </div>
           )}
-          <button onClick={closePosition} disabled={busy}
-            className="w-full rounded-xl bg-loss-500 py-3.5 text-base font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-50">
-            {busy ? 'Closing…' : 'Close Position'}
-          </button>
+          {needsAgent ? (
+            <button onClick={enableTrading} disabled={enabling}
+              className="w-full rounded-xl bg-brand py-3.5 text-sm font-bold text-surface-950 disabled:opacity-50">
+              {enabling ? 'Enabling…' : 'Enable Trading to close'}
+            </button>
+          ) : (
+            <button onClick={closePosition} disabled={busy}
+              className="w-full rounded-xl bg-loss-500 py-3.5 text-base font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-50">
+              {busy ? 'Closing…' : 'Close Position'}
+            </button>
+          )}
         </div>
       )}
 

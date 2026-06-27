@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { Order, Position } from 'exchange-core';
 import { cancelOrder } from '@/lib/api';
 import { useToast } from '../Toast';
+import { useTrading } from '@/hooks/useTrading';
 import { SimplePosition } from './SimplePosition';
 
 const usd = (n: number) => (Number.isFinite(n) ? `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '$0.00');
@@ -39,16 +40,23 @@ export function SimplePositionsSidebar({
   positions,
   orders,
   walletAddress,
+  evmAddress,
   connected,
 }: {
   positions: Position[];
   orders: Order[];
   walletAddress?: string;
+  evmAddress?: string;
   connected: boolean;
 }) {
   const toast = useToast();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [view, setView] = useState<'card' | 'row'>('card');
+  // One-time, GLOBAL agent approval. Single source of truth for the whole sidebar
+  // so enabling once unlocks Close on every card (a per-card useTrading meant
+  // approving on one card left the others stuck on "Enable").
+  const { enabled: tradingEnabled, busy: enabling, enableTrading } = useTrading(walletAddress, evmAddress);
+  const needsAgent = !!walletAddress && positions.length > 0 && !tradingEnabled;
 
   async function cancel(o: Order) {
     if (!walletAddress) return;
@@ -82,12 +90,21 @@ export function SimplePositionsSidebar({
             ))}
           </div>
         </div>
+        {needsAgent && (
+          <div className="mb-2 rounded-lg border border-brand/30 bg-brand/10 p-2.5">
+            <p className="mb-2 text-xs leading-relaxed text-surface-200">Enable trading once to close or manage your positions.</p>
+            <button onClick={enableTrading} disabled={enabling}
+              className="w-full rounded-lg bg-brand py-2 text-sm font-bold text-surface-950 transition-opacity hover:opacity-90 disabled:opacity-50">
+              {enabling ? 'Enabling…' : 'Enable Trading'}
+            </button>
+          </div>
+        )}
         {positions.length === 0 ? (
           <p className="text-xs text-surface-500">No open positions.</p>
         ) : (
           <div className="flex flex-col gap-2">
             {positions.map((p) => (
-              <SimplePosition key={p.symbol} pos={p} walletAddress={walletAddress} compact={view === 'row'} />
+              <SimplePosition key={p.symbol} pos={p} walletAddress={walletAddress} canClose={tradingEnabled} compact={view === 'row'} />
             ))}
           </div>
         )}

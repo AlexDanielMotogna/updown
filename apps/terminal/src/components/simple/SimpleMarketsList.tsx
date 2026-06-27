@@ -237,7 +237,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
 
       {/* Right: what the user has open */}
       <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-surface-800 bg-surface-900/40 lg:block">
-        <SimplePositionsSidebar positions={positions} orders={orders} walletAddress={walletAddress} connected={!!evmAddress} />
+        <SimplePositionsSidebar positions={positions} orders={orders} walletAddress={walletAddress} evmAddress={evmAddress} connected={!!evmAddress} />
       </aside>
     </div>
   );

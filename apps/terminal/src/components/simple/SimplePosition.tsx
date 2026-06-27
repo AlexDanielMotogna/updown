@@ -12,8 +12,12 @@ const usd = (n: number) => (Number.isFinite(n) ? `$${n.toLocaleString(undefined,
  * Beginner-friendly position card (PLAN-SIMPLE-MODE §4.4): entry / current / PnL /
  * size / liquidation + Close. No pro columns. (Add Margin is a fast-follow once the
  * HL updateIsolatedMargin endpoint exists — §7.)
+ *
+ * `canClose` gates the Close button on a single, sidebar-level "trading enabled"
+ * check. Enabling the agent is a one-time GLOBAL action, so the "Enable Trading"
+ * CTA lives once in the sidebar (not per card) — see SimplePositionsSidebar.
  */
-export function SimplePosition({ pos, walletAddress, compact }: { pos: Position; walletAddress?: string; compact?: boolean }) {
+export function SimplePosition({ pos, walletAddress, canClose = true, compact }: { pos: Position; walletAddress?: string; canClose?: boolean; compact?: boolean }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const base = pos.symbol.replace('-USD', '');
@@ -22,7 +26,7 @@ export function SimplePosition({ pos, walletAddress, compact }: { pos: Position;
   const sizeUsd = Number(pos.metadata?.positionValue ?? 0);
 
   async function close() {
-    if (!walletAddress || busy) return;
+    if (!walletAddress || busy || !canClose) return;
     setBusy(true);
     const opp: OrderSide = long ? 'SELL' : 'BUY';
     const tid = toast.loading(`Close ${base} — pending`);
@@ -38,7 +42,7 @@ export function SimplePosition({ pos, walletAddress, compact }: { pos: Position;
         <span className={`rounded border px-1.5 py-0.5 text-2xs font-bold ${long ? 'border-brand/40 text-brand' : 'border-loss-500/40 text-loss-500'}`}>{long ? 'L' : 'S'}</span>
         <span className="text-sm font-semibold text-surface-100">{base}</span>
         <span className={`ml-auto text-sm font-semibold tabular-nums ${pnl >= 0 ? 'text-win-500' : 'text-loss-500'}`}>{pnl >= 0 ? '+' : ''}{usd(pnl)}</span>
-        <button onClick={close} disabled={busy}
+        <button onClick={close} disabled={busy || !canClose}
           className="rounded border border-surface-700 px-2 py-0.5 text-2xs font-medium text-surface-300 hover:bg-surface-800 disabled:opacity-50">
           {busy ? '…' : 'Close'}
         </button>
@@ -66,7 +70,7 @@ export function SimplePosition({ pos, walletAddress, compact }: { pos: Position;
       <Row label="PnL" value={`${pnl >= 0 ? '+' : ''}${usd(pnl)}`} cls={pnl >= 0 ? 'text-win-500' : 'text-loss-500'} />
       <Row label="Size" value={usd(sizeUsd)} />
       <Row label="Liquidation" value={usd(Number(pos.liquidationPrice))} />
-      <button onClick={close} disabled={busy}
+      <button onClick={close} disabled={busy || !canClose}
         className="mt-2 w-full rounded-lg bg-loss-500 py-2 text-sm font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-50">
         {busy ? 'Closing…' : 'Close Position'}
       </button>
