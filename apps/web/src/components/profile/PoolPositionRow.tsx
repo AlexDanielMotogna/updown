@@ -153,7 +153,9 @@ export function PoolPositionRow({ position, onClaim, isClaiming, claimingBetId }
   const kind = kindOf(pool);
   const isSports = kind === 'sports';
   const isPM = kind === 'pm';
-  const marketImage = isSports ? pool.homeTeamCrest : null;
+  // PM pools store the market's image in homeTeamCrest too, so show it (falls
+  // back to the topic icon when a pool has no image).
+  const marketImage = (isSports || isPM) ? pool.homeTeamCrest : null;
   const pmColorKey = isPM ? PM_COLOR_KEYS[pool.league || ''] : undefined;
   const pmColor = pmColorKey ? t.categoryColors[pmColorKey] : t.prediction;
   const pmIcon = isPM ? (PM_ICONS[pool.league || ''] ?? <TrendingUp sx={{ fontSize: 20 }} />) : null;
