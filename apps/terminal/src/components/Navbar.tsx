@@ -1,10 +1,12 @@
 'use client';
 
+import { Fragment } from 'react';
 import { ConnectButton } from './ConnectButton';
 import { HeaderBalance } from './HeaderBalance';
 import { ProfileStats } from './ProfileStats';
 import { NotificationBell } from './NotificationBell';
 import { SimpleProToggle } from './SimpleProToggle';
+import { TradeModeMenu } from './TradeModeMenu';
 
 // The main UpDown app (Markets/Profile/Leaderboard live there). The terminal is
 // the "Trade" mode of the same product (ADR-002), so the nav links cross back to
@@ -13,9 +15,10 @@ const rawAppUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').r
 // Prepend https:// if the env var omits the protocol (else it's treated relative).
 const APP_URL = /^https?:\/\//.test(rawAppUrl) ? rawAppUrl : `https://${rawAppUrl}`;
 
-const LINKS: { label: string; href: string; active?: boolean; external?: boolean }[] = [
+// Trade is rendered as a dropdown (Simple|Pro) between Markets and Profile — see
+// the nav below. These are the plain cross-links to the main app.
+const LINKS: { label: string; href: string; external?: boolean }[] = [
   { label: 'Markets', href: `${APP_URL}/`, external: true },
-  { label: 'Trade', href: '/market/BTC-USD', active: true },
   { label: 'Profile', href: `${APP_URL}/profile`, external: true },
   { label: 'Leaderboard', href: `${APP_URL}/leaderboard`, external: true },
 ];
@@ -34,25 +37,28 @@ export function Navbar() {
             <img src="/updown-logos/Logo_48px_Cyan_Transparent.png" alt="UpDown" className="block h-7 w-7 sm:hidden" />
           </a>
           <nav className="hidden items-center gap-1 md:flex">
-            {LINKS.map((l) => (
-              <a
-                key={l.label}
-                href={l.href}
-                className={`rounded-md px-3 py-1.5 text-[0.85rem] font-semibold transition-colors ${
-                  l.active
-                    ? 'bg-white/[0.06] text-surface-100'
-                    : 'text-surface-400 hover:bg-white/[0.03] hover:text-surface-100'
-                }`}
-              >
-                {l.label}
-              </a>
+            {LINKS.map((l, i) => (
+              <Fragment key={l.label}>
+                <a
+                  href={l.href}
+                  className="rounded-md px-3 py-1.5 text-[0.85rem] font-semibold text-surface-400 transition-colors hover:bg-white/[0.03] hover:text-surface-100"
+                >
+                  {l.label}
+                </a>
+                {/* Trade dropdown sits right after Markets */}
+                {i === 0 && <TradeModeMenu />}
+              </Fragment>
             ))}
           </nav>
         </div>
 
         {/* Right: mode toggle + level/coins + HL balance + notifications + wallet */}
         <div className="flex items-center gap-2">
-          <SimpleProToggle />
+          {/* Desktop switches via the "Trade ▾" dropdown; the nav is hidden on
+              mobile, so keep the compact segmented toggle there as a fallback. */}
+          <div className="md:hidden">
+            <SimpleProToggle />
+          </div>
           {/* Level + XP/coins chip — hidden on mobile (declutter the trade header;
               only money + notifications + wallet stay). */}
           <div className="hidden md:block">
