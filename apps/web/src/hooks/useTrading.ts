@@ -1,7 +1,18 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import { fetchTradingSummary, fetchTradingHistory } from '@/lib/api';
+import { fetchTradingSummary, fetchTradingHistory, fetchTradingPositions } from '@/lib/api';
 
 export const TRADES_PAGE_SIZE = 10;
+
+/** Live open positions from HyperLiquid for the Trading tab. */
+export function useTradingPositions(walletAddress?: string) {
+  return useQuery({
+    queryKey: ['tradingPositions', walletAddress],
+    queryFn: () => fetchTradingPositions(walletAddress!),
+    enabled: !!walletAddress,
+    refetchInterval: 15_000,
+    select: (res) => res.data ?? [],
+  });
+}
 
 /**
  * Trading data for the Profile "Trading" tab — aggregates + fill history from

@@ -26,6 +26,7 @@ import {
 } from '../services/exchange-connection';
 import { linkWallet, resolveUserByWallet } from '../services/wallet-link';
 import { creditConnectionFills } from '../services/trading-xp/poller';
+import { HyperliquidReadAdapter, MAINNET, TESTNET } from 'exchange-hyperliquid';
 import type { OrderParams } from 'exchange-core';
 
 export const exchangeRouter: RouterType = Router();
@@ -455,6 +456,26 @@ exchangeRouter.get('/trades', async (req, res) => {
   } catch (error) {
     console.error('[Exchange] trades error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load trades' } });
+  }
+});
+
+/** GET /api/exchange/positions?wallet=&isTestnet= → live OPEN positions from HL
+ *  (clearinghouseState for the user's linked HL account). Empty array when the
+ *  user has no connection or no open positions. */
+exchangeRouter.get('/positions', async (req, res) => {
+  try {
+    const parsed = statusQuerySchema.safeParse(req.query);
+    if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid query');
+    const userId = await resolveUserId(parsed.data.wallet);
+    if (!userId) return res.json({ success: true, data: [] });
+    const conn = await getConnection(userId, 'hyperliquid', parsed.data.isTestnet);
+    if (!conn?.accountAddress) return res.json({ success: true, data: [] });
+    const adapter = new HyperliquidReadAdapter({ endpoint: parsed.data.isTestnet ? TESTNET : MAINNET });
+    const positions = await adapter.getPositions(conn.accountAddress);
+    res.json({ success: true, data: positions });
+  } catch (error) {
+    console.error('[Exchange] positions error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load positions' } });
   }
 });
 

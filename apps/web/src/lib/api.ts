@@ -646,6 +646,23 @@ export async function fetchTradingSummary(wallet: string): Promise<ApiResponse<T
   return fetchApi<TradingSummary>(`/api/exchange/trades/summary?wallet=${encodeURIComponent(wallet)}`);
 }
 
+/** Live open position from HyperLiquid (clearinghouseState), shape matches exchange-core. */
+export interface TradingPositionRow {
+  symbol: string;
+  side: 'LONG' | 'SHORT';
+  amount: string;
+  entryPrice: string;
+  markPrice: string;
+  leverage: number;
+  unrealizedPnl: string;
+  liquidationPrice: string;
+  metadata?: { positionValue?: string | number } | null;
+}
+
+export async function fetchTradingPositions(wallet: string): Promise<ApiResponse<TradingPositionRow[]>> {
+  return fetchApi<TradingPositionRow[]>(`/api/exchange/positions?wallet=${encodeURIComponent(wallet)}`);
+}
+
 export async function fetchTradingHistory(
   wallet: string,
   params?: { page?: number; limit?: number },

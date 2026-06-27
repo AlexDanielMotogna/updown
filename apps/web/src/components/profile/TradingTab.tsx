@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Box, Typography, Tooltip } from '@mui/material';
 import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight } from '@mui/icons-material';
 import { useThemeTokens } from '@/app/providers';
-import { useTradingSummary, useTradingHistory, TRADES_PAGE_SIZE } from '@/hooks/useTrading';
+import { useTradingSummary, useTradingHistory, useTradingPositions, TRADES_PAGE_SIZE } from '@/hooks/useTrading';
 import { PnLChart } from './PnLChart';
 import type { TradeFillRow } from '@/lib/api';
 
@@ -29,8 +29,10 @@ export function TradingTab({ walletAddress }: { walletAddress?: string }) {
   const [page, setPage] = useState(0);
   const { data: summary, isLoading } = useTradingSummary(walletAddress);
   const { data: hist } = useTradingHistory(walletAddress, page);
+  const { data: positions } = useTradingPositions(walletAddress);
 
-  const hasData = !!summary && summary.trades > 0;
+  const openPositions = positions ?? [];
+  const hasData = (!!summary && summary.trades > 0) || openPositions.length > 0;
 
   if (!isLoading && !hasData) {
     return (
@@ -63,7 +65,7 @@ export function TradingTab({ walletAddress }: { walletAddress?: string }) {
       icon: pnlPositive ? <TrendingUp sx={{ fontSize: 15 }} /> : <TrendingDown sx={{ fontSize: 15 }} />,
     },
     {
-      label: 'Win Rate',
+      label: 'Trading Rate',
       tip: 'Share of closing trades that realized a profit',
       value: `${(summary?.winRate ?? 0).toFixed(1)}%`,
       sub: `${summary?.wins ?? 0}W / ${summary?.losses ?? 0}L`,
@@ -73,15 +75,14 @@ export function TradingTab({ walletAddress }: { walletAddress?: string }) {
       label: 'Volume Traded',
       tip: 'Total notional traded (Σ size × price across all fills)',
       value: usd(summary?.volumeUsd ?? 0, 0),
-      sub: `${summary?.trades ?? 0} trade${(summary?.trades ?? 0) === 1 ? '' : 's'}`,
       color: t.text.primary,
     },
     {
-      label: 'Fees Paid',
-      tip: 'Total exchange fees across all fills',
-      value: usd(summary?.feesUsd ?? 0),
+      label: 'Total Trades',
+      tip: 'Total number of fills (opens and closes) on HyperLiquid',
+      value: `${summary?.trades ?? 0}`,
       sub: summary?.bestCoin ? `best: ${summary.bestCoin.coin} ${usd(summary.bestCoin.pnl)}` : undefined,
-      color: t.text.secondary,
+      color: t.text.primary,
     },
   ];
 
@@ -109,6 +110,37 @@ export function TradingTab({ walletAddress }: { walletAddress?: string }) {
           </Box>
         </Box>
       </Box>
+
+      {/* Open positions (live from HyperLiquid) */}
+      {openPositions.length > 0 && (
+        <Box sx={{ mb: 4, bgcolor: t.bg.surface, border: `1px solid ${t.border.subtle}`, borderRadius: 1.5, overflow: 'hidden' }}>
+          <Box sx={{ px: 2, py: 1.25, borderBottom: `1px solid ${t.border.subtle}` }}>
+            <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: t.text.primary }}>Open Positions</Typography>
+          </Box>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 0.9fr 1fr 1fr 1fr 1fr 1fr', gap: 1, px: 2, py: 1.25, borderBottom: `1px solid ${t.border.subtle}` }}>
+            {['Coin', 'Side', 'Size', 'Entry', 'Mark', 'Liq.', 'PnL'].map((h, i) => (
+              <Typography key={h} sx={{ fontSize: '0.66rem', fontWeight: 600, color: t.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: i >= 2 ? 'right' : 'left' }}>{h}</Typography>
+            ))}
+          </Box>
+          {openPositions.map((p) => {
+            const base = p.symbol.replace('-USD', '');
+            const long = p.side === 'LONG';
+            const pnlN = Number(p.unrealizedPnl);
+            const sizeUsd = Number(p.metadata?.positionValue ?? 0);
+            return (
+              <Box key={p.symbol} sx={{ display: 'grid', gridTemplateColumns: '1fr 0.9fr 1fr 1fr 1fr 1fr 1fr', gap: 1, px: 2, py: 1, borderBottom: `1px solid ${t.border.subtle}`, fontVariantNumeric: 'tabular-nums' }}>
+                <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.primary }}>{base}</Typography>
+                <Typography sx={{ fontSize: '0.76rem', fontWeight: 600, color: long ? t.gain : t.down }}>{long ? `Long ${p.leverage}x` : `Short ${p.leverage}x`}</Typography>
+                <Typography sx={{ fontSize: '0.76rem', color: t.text.secondary, textAlign: 'right' }}>{sizeUsd > 0 ? usd(sizeUsd) : Number(p.amount).toLocaleString(undefined, { maximumFractionDigits: 4 })}</Typography>
+                <Typography sx={{ fontSize: '0.76rem', color: t.text.secondary, textAlign: 'right' }}>{usd(Number(p.entryPrice))}</Typography>
+                <Typography sx={{ fontSize: '0.76rem', color: t.text.secondary, textAlign: 'right' }}>{usd(Number(p.markPrice))}</Typography>
+                <Typography sx={{ fontSize: '0.76rem', color: t.text.quaternary, textAlign: 'right' }}>{Number(p.liquidationPrice) > 0 ? usd(Number(p.liquidationPrice)) : '—'}</Typography>
+                <Typography sx={{ fontSize: '0.76rem', fontWeight: 600, color: pnlN >= 0 ? t.gain : t.down, textAlign: 'right' }}>{pnlN >= 0 ? '+' : ''}{usd(pnlN)}</Typography>
+              </Box>
+            );
+          })}
+        </Box>
+      )}
 
       {/* Fill history */}
       <Box sx={{ bgcolor: t.bg.surface, border: `1px solid ${t.border.subtle}`, borderRadius: 1.5, overflow: 'hidden' }}>
