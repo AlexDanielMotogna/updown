@@ -316,6 +316,29 @@ model WalletLink {
   @@map("wallet_links")
 }
 
+/// A cross-chain funding transfer (Solana USDC → the user's EVM/HyperLiquid
+/// wallet) via a bridge provider. Durable lifecycle so the UI can resume polling
+/// after a refresh. Keyed by the Solana identity (walletAddress), like RewardLog.
+model BridgeTransfer {
+  id            String   @id @default(uuid())
+  walletAddress String   @map("wallet_address") // Solana identity (sender)
+  toAddress     String   @map("to_address")      // EVM recipient
+  provider      String                            // 'lifi'
+  tool          String                            // route tool (across/near/…) — needed to poll status
+  fromChain     String   @map("from_chain")
+  toChain       String   @map("to_chain")
+  amount        String                            // base units sent (USDC micro)
+  toAmount      String?  @map("to_amount")         // estimated received (base units)
+  sourceTxHash  String?  @map("source_tx_hash")    // Solana signature once submitted
+  destTxHash    String?  @map("dest_tx_hash")      // destination tx once DONE
+  status        String   @default("PENDING")       // PENDING | SUBMITTED | DONE | FAILED
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([walletAddress])
+  @@map("bridge_transfers")
+}
+
 model RewardLog {
   id            String       @id @default(uuid())
   walletAddress String       @map("wallet_address")

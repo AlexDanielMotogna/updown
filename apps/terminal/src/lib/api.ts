@@ -128,6 +128,39 @@ export async function getBridgeQuote(params: {
   }
 }
 
+export interface BridgeSourceTx {
+  chain: string;
+  /** base64-serialized source-chain tx to sign & send. */
+  data: string;
+}
+export interface BridgeExecuteResult {
+  id: string;
+  sourceTx: BridgeSourceTx;
+  quote: { toAmount: string; toAmountMin: string; feeUsd: string; gasUsd: string; durationSeconds: number; tool: string };
+}
+
+/** Start a transfer: fresh quote + the signable Solana tx + a durable id. */
+export async function executeBridge(params: { amountMicro: string; fromAddress: string; toAddress: string }): Promise<ApiResult<BridgeExecuteResult>> {
+  return post<BridgeExecuteResult>('/api/bridge/execute', {
+    amount: params.amountMicro, fromAddress: params.fromAddress, toAddress: params.toAddress,
+  });
+}
+
+/** Record the Solana source-tx signature so the backend can poll status. */
+export async function markBridgeSubmitted(params: { id: string; txHash: string }): Promise<ApiResult<{ id: string; status: string }>> {
+  return post<{ id: string; status: string }>('/api/bridge/submitted', params);
+}
+
+/** Poll a transfer's normalized status. */
+export async function getBridgeStatus(id: string): Promise<ApiResult<{ id: string; status: string; destTxHash?: string; substatus?: string }>> {
+  try {
+    const res = await fetch(`${API_BASE}/api/bridge/status?id=${encodeURIComponent(id)}`, { cache: 'no-store' });
+    return (await res.json()) as ApiResult<{ id: string; status: string; destTxHash?: string; substatus?: string }>;
+  } catch (e) {
+    return { success: false, error: { code: 'NETWORK_ERROR', message: e instanceof Error ? e.message : 'Network error' } };
+  }
+}
+
 // ── Identity + agent lifecycle ────────────────────────────────────────────
 
 /** Resolve a linked wallet → the Solana identity (walletAddress) or null. */

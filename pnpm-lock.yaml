@@ -165,6 +165,9 @@ importers:
       '@privy-io/react-auth':
         specifier: ^2.12.1
         version: 2.25.0(@solana/kit@5.5.1)(@solana/spl-token@0.3.11)(@solana/web3.js@1.98.4)(@types/react@18.3.27)(bs58@6.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(react-dom@18.3.1)(react@18.3.1)(typescript@5.9.3)
+      '@solana/web3.js':
+        specifier: ^1.87.0
+        version: 1.98.4(encoding@0.1.13)(typescript@5.9.3)
       exchange-core:
         specifier: workspace:*
         version: link:../../packages/exchange-core

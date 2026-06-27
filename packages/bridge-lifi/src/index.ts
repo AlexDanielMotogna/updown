@@ -1,4 +1,7 @@
-import type { BridgeAdapter, BridgeChain, BridgeQuote, BridgeQuoteRequest } from 'bridge-core';
+import type {
+  BridgeAdapter, BridgeChain, BridgeQuote, BridgeQuoteRequest,
+  BridgeSourceTx, BridgeState, BridgeStatus, BridgeStatusRequest,
+} from 'bridge-core';
 
 /**
  * LI.FI bridge adapter (quote-only for phase 1).
@@ -30,6 +33,7 @@ interface LifiCost {
 }
 interface LifiQuoteResponse {
   tool?: string;
+  transactionRequest?: { data?: string };
   estimate?: {
     fromAmount?: string;
     toAmount?: string;
@@ -39,6 +43,20 @@ interface LifiQuoteResponse {
     gasCosts?: LifiCost[];
   };
 }
+
+interface LifiStatusResponse {
+  status?: string;       // NOT_FOUND | INVALID | PENDING | DONE | FAILED
+  substatus?: string;
+  receiving?: { txHash?: string };
+}
+
+const STATUS_MAP: Record<string, BridgeState> = {
+  DONE: 'DONE',
+  FAILED: 'FAILED',
+  INVALID: 'FAILED',
+  PENDING: 'SUBMITTED',
+  NOT_FOUND: 'SUBMITTED', // not indexed yet — keep polling
+};
 
 function sumUsd(costs?: LifiCost[]): string {
   if (!costs?.length) return '0';
@@ -93,6 +111,8 @@ export class LifiBridgeAdapter implements BridgeAdapter {
     return {
       provider: this.provider,
       tool: data.tool ?? 'unknown',
+      fromChain: req.fromChain,
+      toChain: req.toChain,
       fromAmount: est.fromAmount ?? req.amount,
       toAmount: est.toAmount ?? '0',
       toAmountMin: est.toAmountMin ?? '0',
@@ -101,6 +121,39 @@ export class LifiBridgeAdapter implements BridgeAdapter {
       durationSeconds: est.executionDuration ?? 0,
       raw: data,
       metadata: {},
+    };
+  }
+
+  /** Pull the signable source-chain tx out of a fresh quote (Solana = base64
+   *  VersionedTransaction). The quote must be recent — LI.FI routes expire. */
+  buildSourceTx(quote: BridgeQuote): BridgeSourceTx {
+    const raw = quote.raw as LifiQuoteResponse;
+    const data = raw?.transactionRequest?.data;
+    if (!data) throw new Error('LI.FI quote has no transactionRequest to sign');
+    return { chain: quote.fromChain, data };
+  }
+
+  async getStatus(req: BridgeStatusRequest): Promise<BridgeStatus> {
+    const params = new URLSearchParams({
+      txHash: req.txHash,
+      fromChain: String(CHAIN_ID[req.fromChain]),
+      toChain: String(CHAIN_ID[req.toChain]),
+      bridge: req.tool,
+    });
+    const headers: Record<string, string> = { accept: 'application/json' };
+    if (this.apiKey) headers['x-lifi-api-key'] = this.apiKey;
+
+    const res = await this.fetchImpl(`${LIFI_BASE}/status?${params.toString()}`, { headers });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`LI.FI status failed (${res.status}): ${body.slice(0, 200)}`);
+    }
+    const data = (await res.json()) as LifiStatusResponse;
+    return {
+      state: STATUS_MAP[data.status ?? ''] ?? 'SUBMITTED',
+      substatus: data.substatus,
+      destTxHash: data.receiving?.txHash,
+      raw: data,
     };
   }
 }

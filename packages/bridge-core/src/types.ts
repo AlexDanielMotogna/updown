@@ -42,6 +42,8 @@ export interface BridgeQuote {
   provider: string;
   /** Underlying route tool, e.g. 'across' | 'mayanFastMCTP'. */
   tool: string;
+  fromChain: BridgeChain;
+  toChain: BridgeChain;
   /** Amount sent, base units (source token). */
   fromAmount: string;
   /** Estimated amount received, base units (destination token). */
@@ -59,8 +61,42 @@ export interface BridgeQuote {
   metadata: Record<string, unknown>;
 }
 
-/** A bridge provider adapter. Phase 1 only needs `quote`; execute/status land later. */
+/** Lifecycle of a transfer. PENDING=quoted, SUBMITTED=source tx sent, DONE=funds
+ *  arrived on destination, FAILED=route failed/reverted. */
+export type BridgeState = 'PENDING' | 'SUBMITTED' | 'DONE' | 'FAILED';
+
+/** The chain-native transaction the user must sign & send (source chain). */
+export interface BridgeSourceTx {
+  chain: BridgeChain;
+  /** base64-serialized transaction (Solana VersionedTransaction for SVM source). */
+  data: string;
+}
+
+/** Inputs to poll a transfer's status with the provider. */
+export interface BridgeStatusRequest {
+  /** Source-chain tx signature/hash the user submitted. */
+  txHash: string;
+  fromChain: BridgeChain;
+  toChain: BridgeChain;
+  /** Route tool from the quote (providers need it to track). */
+  tool: string;
+}
+
+/** Normalized status. `destTxHash` set once funds land on the destination. */
+export interface BridgeStatus {
+  state: BridgeState;
+  substatus?: string;
+  destTxHash?: string;
+  raw: unknown;
+}
+
+/** A bridge provider adapter (quote → build source tx → track status). Execution
+ *  (signing/submitting the source tx) is done by the caller with the user's wallet. */
 export interface BridgeAdapter {
   readonly provider: string;
   quote(req: BridgeQuoteRequest): Promise<BridgeQuote>;
+  /** Extract the signable source-chain tx from a fresh quote. */
+  buildSourceTx(quote: BridgeQuote): BridgeSourceTx;
+  /** Poll the provider for the transfer's current state. */
+  getStatus(req: BridgeStatusRequest): Promise<BridgeStatus>;
 }
