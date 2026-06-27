@@ -49,6 +49,11 @@ export function BridgeFundModal({
   const amt = Number(amount);
   const exceeds = balance != null && amt > balance;
   const ready = !!solanaAddress && !!evmAddress && amt > 0 && !exceeds;
+  // HyperLiquid drops deposits under 5 USDC, and the bridge takes a fee, so the
+  // amount ARRIVING on Arbitrum (toAmountMin) must clear 5 USDC or the funds get
+  // stranded on the EVM wallet (can't be deposited). Block those transfers.
+  const HL_MIN = 5_000_000;
+  const belowHlMin = !!quote && Number(quote.toAmountMin) < HL_MIN;
 
   // Load the user's Solana USDC balance (the source) so they know the max.
   useEffect(() => {
@@ -204,6 +209,12 @@ export function BridgeFundModal({
                 <div className="mt-1 text-right text-[0.65rem] uppercase tracking-wide text-surface-500">
                   via {quote.tool} · {quote.provider}
                 </div>
+                {belowHlMin && (
+                  <div className="mt-2 rounded border border-loss-500/40 bg-loss-500/5 p-2 text-xs text-loss-500">
+                    After fees you&apos;d receive less than HyperLiquid&apos;s 5 USDC minimum deposit.
+                    Increase the amount (try 6+).
+                  </div>
+                )}
               </>
             ) : null}
           </div>
@@ -211,7 +222,7 @@ export function BridgeFundModal({
 
         <button
           onClick={confirm}
-          disabled={!ready || !quote || loading}
+          disabled={!ready || !quote || loading || belowHlMin}
           className="w-full rounded-lg bg-brand py-2.5 text-sm font-semibold text-surface-950 transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:bg-surface-800 disabled:text-surface-500"
         >
           Confirm transfer
