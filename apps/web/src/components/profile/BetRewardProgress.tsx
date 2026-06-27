@@ -1,7 +1,6 @@
 'use client';
 
 import { Box, Typography } from '@mui/material';
-import { CardGiftcard } from '@mui/icons-material';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import type { UserProfile } from '@/lib/api';
@@ -24,13 +23,6 @@ export function BetRewardProgress({ reward }: { reward: UserProfile['testingRewa
       display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 1.5, mb: 3,
       borderRadius: '10px', bgcolor: t.bg.surfaceAlt, border: `1px solid ${t.border.subtle}`,
     }}>
-      <Box sx={{
-        width: 34, height: 34, flexShrink: 0, borderRadius: '8px',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        bgcolor: withAlpha(t.gold, 0.12), color: t.gold,
-      }}>
-        <CardGiftcard sx={{ fontSize: 18 }} />
-      </Box>
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color: t.text.secondary }}>
           {remaining} more prediction{remaining === 1 ? '' : 's'} to earn{' '}
