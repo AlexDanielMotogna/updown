@@ -162,10 +162,12 @@ export function SimpleTradePanel({
               const isLong = s === 'BUY';
               return (
                 <button key={s} onClick={() => setSide(s)}
-                  className={`rounded-lg py-2.5 text-sm font-bold transition-colors ${
+                  className={`rounded-lg border py-2.5 text-sm font-bold transition-colors ${
                     active
-                      ? isLong ? 'bg-win-500 text-black' : 'bg-loss-500 text-black'
-                      : 'bg-surface-800 text-surface-400 hover:text-surface-200'
+                      ? isLong
+                        ? 'border-brand bg-transparent text-brand'
+                        : 'border-loss-500 bg-transparent text-loss-500'
+                      : 'border-transparent bg-surface-800 text-surface-400 hover:text-surface-200'
                   }`}>
                   {isLong ? 'Long' : 'Short'}
                 </button>
