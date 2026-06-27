@@ -3,16 +3,15 @@
 import { useEffect, useState } from 'react';
 import { Modal } from './Modal';
 import { getBridgeQuote, type BridgeQuote } from '@/lib/api';
-import { useBridgeExecute, type BridgeStep } from '@/hooks/useBridgeExecute';
+import { useBridgeExecute } from '@/hooks/useBridgeExecute';
+import { useHlDeposit } from '@/hooks/useHlDeposit';
 
 const fmtUsdc = (micro: string) => (Number(micro) / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
 /**
- * Fund trading by bridging Solana USDC → the user's Arbitrum (HyperLiquid) wallet.
- *
- * Quote preview + execution: sign once on Solana (embedded, no popup), the bridge
- * delivers USDC to the Arbitrum wallet. The auto-deposit into HyperLiquid (permit
- * relayer) is the next phase, so success here means "USDC in your trading wallet".
+ * Full funding flow: bridge Solana USDC → Arbitrum (sign once on Solana), then
+ * deposit into HyperLiquid via the permit relayer (sign an off-chain permit, the
+ * relayer pays Arbitrum gas). Four steps; the user never needs ETH.
  */
 export function BridgeFundModal({
   open,
@@ -29,18 +28,23 @@ export function BridgeFundModal({
   const [quote, setQuote] = useState<BridgeQuote | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const { step, error: execError, run, reset } = useBridgeExecute();
+  const bridge = useBridgeExecute();
+  const hl = useHlDeposit();
 
   const amt = Number(amount);
   const ready = !!solanaAddress && !!evmAddress && amt > 0;
-  const running = step === 'quoting' || step === 'signing' || step === 'bridging';
+  const bridgeRunning = bridge.step === 'quoting' || bridge.step === 'signing' || bridge.step === 'bridging';
+  const hlRunning = hl.step === 'permit' || hl.step === 'depositing';
+  const busy = bridgeRunning || hlRunning;
+  const started = bridge.step !== 'idle';
 
-  // Reset transient state when the modal closes.
-  useEffect(() => { if (!open) { reset(); setAmount(''); setQuote(null); setErr(null); } }, [open, reset]);
-
-  // Debounced quote preview (skipped while a transfer is running).
   useEffect(() => {
-    if (!ready || running || step === 'done') { return; }
+    if (!open) { bridge.reset(); hl.reset(); setAmount(''); setQuote(null); setErr(null); }
+  }, [open, bridge, hl]);
+
+  // Debounced quote preview (only before the flow starts).
+  useEffect(() => {
+    if (!ready || started) return;
     let alive = true;
     setLoading(true);
     setErr(null);
@@ -53,7 +57,7 @@ export function BridgeFundModal({
       else { setQuote(null); setErr(r.error?.message ?? 'Could not fetch a route'); }
     }, 450);
     return () => { alive = false; clearTimeout(id); };
-  }, [amount, solanaAddress, evmAddress, ready, running, step, amt]);
+  }, [amount, solanaAddress, evmAddress, ready, started, amt]);
 
   const row = (label: string, value: string) => (
     <div className="flex items-center justify-between py-1 text-sm">
@@ -64,47 +68,60 @@ export function BridgeFundModal({
 
   async function confirm() {
     if (!ready) return;
-    await run({ amountMicro: String(Math.round(amt * 1e6)), fromAddress: solanaAddress!, toAddress: evmAddress! });
+    await bridge.run({ amountMicro: String(Math.round(amt * 1e6)), fromAddress: solanaAddress!, toAddress: evmAddress! });
   }
 
-  // ── Progress view (once a transfer starts) ──────────────────────────────
-  if (step !== 'idle') {
-    const steps: { label: string; state: 'done' | 'active' | 'pending' }[] = [
-      { label: 'Sign on Solana', state: stepState(step, 0) },
-      { label: 'Bridging to Arbitrum', state: stepState(step, 1) },
-      { label: 'USDC in trading wallet', state: stepState(step, 2) },
+  // ── Progress view (once the flow starts) ────────────────────────────────
+  if (started) {
+    const steps: { label: string; state: 'done' | 'active' | 'pending' | 'error' }[] = [
+      { label: 'Sign on Solana', state: subState(bridge.step === 'quoting' || bridge.step === 'signing', bridge.step !== 'quoting' && bridge.step !== 'signing' && bridge.step !== 'idle', bridge.step === 'error') },
+      { label: 'Bridging to Arbitrum', state: subState(bridge.step === 'bridging', bridge.step === 'done', false) },
+      { label: 'Authorize deposit', state: subState(hl.step === 'permit', hl.step === 'depositing' || hl.step === 'done', hl.step === 'error') },
+      { label: 'Deposit to HyperLiquid', state: subState(hl.step === 'depositing', hl.step === 'done', hl.step === 'error') },
     ];
+    const bridgeFailed = bridge.step === 'error';
+    const canDeposit = bridge.step === 'done' && (hl.step === 'idle' || hl.step === 'error');
+
     return (
-      <Modal open={open} onClose={running ? () => {} : onClose} title="Funding trading">
+      <Modal open={open} onClose={busy ? () => {} : onClose} title="Funding trading">
         <div className="space-y-3">
           {steps.map((s) => (
             <div key={s.label} className="flex items-center gap-3">
               <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[0.7rem] ${
                 s.state === 'done' ? 'bg-brand text-surface-950'
                 : s.state === 'active' ? 'border border-brand text-brand'
+                : s.state === 'error' ? 'border border-loss-500 text-loss-500'
                 : 'border border-surface-700 text-surface-500'
               }`}>
-                {s.state === 'done' ? '✓' : s.state === 'active' ? '•' : ''}
+                {s.state === 'done' ? '✓' : s.state === 'error' ? '✕' : s.state === 'active' ? '•' : ''}
               </span>
               <span className={`text-sm ${s.state === 'pending' ? 'text-surface-500' : 'text-surface-100'}`}>{s.label}</span>
               {s.state === 'active' && <span className="ml-auto text-xs text-surface-400">…</span>}
             </div>
           ))}
 
-          {step === 'error' && (
+          {(bridgeFailed || hl.step === 'error') && (
             <div className="rounded-lg border border-loss-500/40 bg-loss-500/5 p-2 text-sm text-loss-500">
-              {execError ?? 'Something went wrong'}
+              {bridge.error ?? hl.error ?? 'Something went wrong'}
             </div>
           )}
-          {step === 'done' && (
+          {hl.step === 'done' && (
             <div className="rounded-lg border border-brand/40 bg-brand/5 p-2 text-sm text-brand">
-              Done. Your USDC is in your Arbitrum trading wallet. Auto-deposit into HyperLiquid is coming next.
+              Done. Your USDC is in your HyperLiquid trading account. Ready to trade.
             </div>
           )}
 
-          {!running && (
+          {canDeposit && (
+            <button
+              onClick={() => evmAddress && hl.run(evmAddress)}
+              className="w-full rounded-lg bg-brand py-2.5 text-sm font-semibold text-surface-950 hover:bg-brand-600"
+            >
+              {hl.step === 'error' ? 'Retry deposit to HyperLiquid' : 'Deposit to HyperLiquid'}
+            </button>
+          )}
+          {!busy && !canDeposit && (
             <button onClick={onClose} className="w-full rounded-lg bg-surface-800 py-2.5 text-sm font-semibold text-surface-100 hover:bg-surface-700">
-              {step === 'done' ? 'Close' : 'Back'}
+              {hl.step === 'done' ? 'Close' : 'Back'}
             </button>
           )}
         </div>
@@ -117,8 +134,8 @@ export function BridgeFundModal({
     <Modal open={open} onClose={onClose} title="Fund trading from Solana">
       <div className="space-y-4">
         <p className="text-xs leading-relaxed text-surface-400">
-          Move USDC from your Solana balance to your HyperLiquid trading wallet. You sign once on
-          Solana and pay no Arbitrum gas.
+          Move USDC from your Solana balance into your HyperLiquid trading account. You sign on
+          Solana and a gasless permit; you never need ETH.
         </p>
 
         <div>
@@ -166,15 +183,10 @@ export function BridgeFundModal({
   );
 }
 
-/** Map the running step to a sub-step's visual state. */
-function stepState(step: BridgeStep, index: number): 'done' | 'active' | 'pending' {
-  const order: BridgeStep[] = ['quoting', 'signing', 'bridging', 'done'];
-  // Which sub-step is currently active.
-  const activeIndex = step === 'quoting' || step === 'signing' ? 0 : step === 'bridging' ? 1 : step === 'done' ? 3 : 0;
-  if (step === 'done') return 'done';
-  if (step === 'error') return index === 0 ? 'done' : 'pending';
-  void order;
-  if (index < activeIndex) return 'done';
-  if (index === activeIndex) return 'active';
+/** Compute a sub-step's visual state from (isActive, isDone, isError) flags. */
+function subState(active: boolean, done: boolean, error: boolean): 'done' | 'active' | 'pending' | 'error' {
+  if (done) return 'done';
+  if (error) return 'error';
+  if (active) return 'active';
   return 'pending';
 }

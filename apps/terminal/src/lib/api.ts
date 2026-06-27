@@ -161,6 +161,16 @@ export async function getBridgeStatus(id: string): Promise<ApiResult<{ id: strin
   }
 }
 
+/** Relayer deposits the user's permitted USDC into HyperLiquid (last mile). */
+export async function depositHl(params: {
+  user: string;
+  usd: string;
+  deadline: number;
+  signature: { r: string; s: string; v: number };
+}): Promise<ApiResult<{ txHash: string }>> {
+  return post<{ txHash: string }>('/api/bridge/deposit-hl', params);
+}
+
 // ── Identity + agent lifecycle ────────────────────────────────────────────
 
 /** Resolve a linked wallet → the Solana identity (walletAddress) or null. */

@@ -12,6 +12,9 @@ import { z } from 'zod';
 import { getBridgeAdapter, registerBridgeProvider, type BridgeChain } from 'bridge-core';
 import { LifiBridgeAdapter } from 'bridge-lifi';
 import { prisma } from '../db';
+import { depositToHyperliquid } from '../services/bridge/hl-deposit';
+
+const MIN_HL_DEPOSIT = 5_000_000n; // 5 USDC (below this HL drops the deposit)
 
 // Register providers once at module load.
 registerBridgeProvider('lifi', () => new LifiBridgeAdapter({
@@ -117,6 +120,44 @@ bridgeRouter.post('/submitted', async (req, res) => {
     res.json({ success: true, data: { id: transfer.id, status: transfer.status } });
   } catch {
     res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Transfer not found' } });
+  }
+});
+
+const depositSchema = z.object({
+  user: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'user must be a 0x EVM address'),
+  usd: z.string().regex(/^\d+$/, 'usd must be an integer string (USDC base units)'),
+  deadline: z.coerce.number().int().positive(),
+  signature: z.object({
+    r: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+    s: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+    v: z.coerce.number().int(),
+  }),
+});
+
+// POST /api/bridge/deposit-hl — relayer deposits the user's permitted USDC into
+// HyperLiquid (Bridge2 batchedDepositWithPermit), crediting the user. The relayer
+// pays the Arbitrum gas (user signed only an off-chain permit).
+bridgeRouter.post('/deposit-hl', async (req, res) => {
+  const parsed = depositSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.issues[0]?.message ?? 'Invalid request' } });
+  }
+  const b = parsed.data;
+  const usd = BigInt(b.usd);
+  if (usd < MIN_HL_DEPOSIT) {
+    return res.status(400).json({ success: false, error: { code: 'BELOW_MIN', message: 'Minimum HyperLiquid deposit is 5 USDC' } });
+  }
+  try {
+    const txHash = await depositToHyperliquid({
+      user: b.user as `0x${string}`,
+      usd,
+      deadline: BigInt(b.deadline),
+      signature: { r: BigInt(b.signature.r), s: BigInt(b.signature.s), v: b.signature.v },
+    });
+    res.json({ success: true, data: { txHash } });
+  } catch (e) {
+    console.error('[Bridge] HL deposit error:', e instanceof Error ? e.message : e);
+    res.status(502).json({ success: false, error: { code: 'HL_DEPOSIT_FAILED', message: e instanceof Error ? e.message : 'Deposit failed' } });
   }
 });
 
