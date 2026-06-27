@@ -130,7 +130,7 @@ export function PnLChart({ bets = [], series }: PnLChartProps) {
     const maxY = Math.max(0, ...ys);
     const spanT = maxT - minT || 1;
     const spanY = maxY - minY || 1;
-    const sx = (tv: number) => PAD.left + (points.length === 1 ? plotW : ((tv - minT) / spanT) * plotW);
+    const sx = (tv: number) => PAD.left + (points.length === 1 ? plotW / 2 : ((tv - minT) / spanT) * plotW);
     const sy = (v: number) => PAD.top + (1 - (v - minY) / spanY) * plotH;
     const coords = points.map(p => ({ x: sx(p.t), y: sy(p.pnl), pnl: p.pnl, t: p.t }));
     // Smooth (Catmull-Rom → bezier) for rounded "waves".
@@ -155,22 +155,27 @@ export function PnLChart({ bets = [], series }: PnLChartProps) {
     // Axis ticks.
     const yTicks: Array<{ v: number; y: number }> = [];
     for (let i = 0; i <= 3; i++) { const v = minY + (maxY - minY) * (i / 3); yTicks.push({ v, y: sy(v) }); }
-    // X-axis ticks are spaced by TIME across the span (not by data points), so
-    // intermediate dates show even on days with no betting — the curve is
-    // time-positioned, so its labels must be too. (Before, ticks were taken from
-    // the data points only, so "5 jun → 12 jun" skipped every day between.)
-    const xTicks: Array<{ t: number; x: number }> = [];
-    const dayKey = (ms: number) => new Date(ms).toDateString();
+    // X-axis ticks: spaced evenly by TIME across the span and labelled at a
+    // resolution that fits the span, NOT the selected range. Sub-day spans (new
+    // or recent activity) show HH:mm instead of a single repeated date, which is
+    // what made the axis look broken. Ticks are width-based so they never crowd.
+    const DAY = 24 * 60 * 60 * 1000;
+    const fmtTick = (ms: number) => {
+      const d = new Date(ms);
+      if (spanT <= 1.5 * DAY) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+      if (spanT <= 220 * DAY) return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      return d.toLocaleDateString([], { month: 'short', year: '2-digit' });
+    };
+    const xTicks: Array<{ x: number; label: string }> = [];
     if (coords.length === 1) {
-      xTicks.push({ t: coords[0].t, x: coords[0].x });
+      xTicks.push({ x: coords[0].x, label: fmtTick(coords[0].t) });
     } else {
-      const dayMs = 24 * 60 * 60 * 1000;
-      const xn = Math.min(5, Math.max(2, Math.round(spanT / dayMs) + 1));
-      for (let i = 0; i < xn; i++) {
-        const tv = minT + spanT * (i / (xn - 1));
-        const cand = { t: tv, x: sx(tv) };
-        // De-dupe labels that fall on the same calendar day (tiny spans).
-        if (xTicks.length === 0 || dayKey(cand.t) !== dayKey(xTicks[xTicks.length - 1].t)) xTicks.push(cand);
+      const target = Math.max(2, Math.min(6, Math.floor(plotW / 90)));
+      for (let i = 0; i < target; i++) {
+        const tv = minT + spanT * (i / (target - 1));
+        const label = fmtTick(tv);
+        // Drop a tick whose label repeats the previous one (tiny spans).
+        if (xTicks.length === 0 || xTicks[xTicks.length - 1].label !== label) xTicks.push({ x: sx(tv), label });
       }
     }
     return { coords, line, area, bottom, zeroY, plotW, yTicks, xTicks };
@@ -198,13 +203,6 @@ export function PnLChart({ bets = [], series }: PnLChartProps) {
   }, [latestPnl, range]);
 
   const scoreStr = `${shown >= 0 ? '+' : '−'}${formatUSDC(String(Math.round(Math.abs(shown))), { min: 2 })}`;
-
-  const fmtX = (ms: number) => {
-    const d = new Date(ms);
-    return range === '1D' || range === '1W'
-      ? d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })
-      : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  };
 
   const hover = useMemo(() => {
     if (hoverX == null || !geo) return null;
@@ -300,7 +298,7 @@ export function PnLChart({ bets = [], series }: PnLChartProps) {
                 </g>
               ))}
               {geo.xTicks.map((tk, i) => (
-                <text key={`x${i}`} x={tk.x} y={H - 7} fill={t.text.quaternary} fontSize={9} textAnchor="middle">{fmtX(tk.t)}</text>
+                <text key={`x${i}`} x={tk.x} y={H - 7} fill={t.text.quaternary} fontSize={9} textAnchor="middle">{tk.label}</text>
               ))}
 
               {/* zero baseline */}
