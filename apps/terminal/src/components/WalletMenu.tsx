@@ -4,12 +4,17 @@ import { useEffect, useRef, useState } from 'react';
 import { Avatar, Box, Button, ClickAwayListener, Fade, Popper, Typography } from '@mui/material';
 import { ContentCopy, CheckCircle, Logout, ShowChart, AccountCircle, EmojiEvents, MenuBook, AccountBalanceWallet, PeopleOutline } from '@mui/icons-material';
 import { usePrivy } from '@privy-io/react-auth';
+import { useRouter } from 'next/navigation';
 import { useIdentity } from '@/hooks/useIdentity';
+import { useTradeMode, type TradeMode } from '@/hooks/useTradeMode';
 import { fetchProfile, IS_TESTNET, type UserProfile } from '@/lib/api';
 import { useThemeTokens, getDisplayAvatar, getDisplayName, truncateWallet } from '@/lib/theme-tokens';
 import { UserLevelBadge } from './UserLevelBadge';
 import { XpProgressBar } from './XpProgressBar';
 import { BridgeFundModal } from './BridgeFundModal';
+import { DepositModal } from './DepositModal';
+import { TransferModal } from './TransferModal';
+import { WithdrawModal } from './WithdrawModal';
 
 const rawAppUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 // Prepend https:// if the env var omits the protocol (else it's treated relative).
@@ -31,10 +36,21 @@ const NAV = [
 export function WalletMenu() {
   const t = useThemeTokens();
   const { logout } = usePrivy();
+  const router = useRouter();
   const { walletAddress, evmAddress } = useIdentity();
+  const [mode, setMode] = useTradeMode();
   const [open, setOpen] = useState(false);
   const [fundOpen, setFundOpen] = useState(false);
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const chooseMode = (m: TradeMode) => {
+    setMode(m);
+    setOpen(false);
+    router.push(m === 'pro' ? '/market/BTC-USD' : '/');
+  };
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const anchorRef = useRef<HTMLButtonElement>(null);
 
@@ -134,6 +150,41 @@ export function WalletMenu() {
                   </Box>
                 )}
 
+                {/* Mode switch (Simple | Pro) — the single place on mobile too. */}
+                <Box sx={{ px: 2, py: 1.25, borderBottom: border }}>
+                  <Box sx={{ display: 'flex', gap: 0.5, p: 0.5, borderRadius: '8px', bgcolor: 'rgba(255,255,255,0.04)' }}>
+                    {(['simple', 'pro'] as TradeMode[]).map((m) => (
+                      <Box key={m} component="button" onClick={() => chooseMode(m)} sx={{
+                        flex: 1, py: 0.6, borderRadius: '6px', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                        fontSize: '0.78rem', fontWeight: 700, textTransform: 'capitalize', transition: 'all 0.12s ease',
+                        bgcolor: mode === m ? 'rgba(255,255,255,0.10)' : 'transparent',
+                        color: mode === m ? t.text.primary : t.text.secondary,
+                        '&:hover': { color: t.text.primary },
+                      }}>
+                        {m}
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+
+                {/* Wallet actions — money in/out, centralized here (works on mobile). */}
+                <Box sx={{ p: 1, borderBottom: border, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.75 }}>
+                  {([
+                    { label: 'Add funds', onClick: () => { setOpen(false); setFundOpen(true); } },
+                    { label: 'Deposit', onClick: () => { setOpen(false); setShowDeposit(true); } },
+                    { label: 'Transfer', onClick: () => { setOpen(false); setShowTransfer(true); } },
+                    { label: 'Withdraw', onClick: () => { setOpen(false); setShowWithdraw(true); } },
+                  ]).map((a) => (
+                    <Box key={a.label} component="button" onClick={a.onClick} sx={{
+                      py: 1, borderRadius: '6px', border: `1px solid ${t.border.subtle}`, bgcolor: 'transparent', cursor: 'pointer',
+                      fontFamily: 'inherit', fontSize: '0.78rem', fontWeight: 600, color: t.text.secondary,
+                      '&:hover': { bgcolor: t.border.subtle, color: t.text.primary },
+                    }}>
+                      {a.label}
+                    </Box>
+                  ))}
+                </Box>
+
                 {/* Nav (cross to the app) */}
                 <Box sx={{ py: 0.5, borderBottom: border }}>
                   {NAV.map((item) => {
@@ -149,15 +200,6 @@ export function WalletMenu() {
                     );
                   })}
                 </Box>
-
-                {/* Fund trading from Solana (bridge) */}
-                <Button fullWidth onClick={() => { setOpen(false); setFundOpen(true); }} startIcon={<AccountBalanceWallet sx={{ fontSize: 16 }} />} sx={{
-                  justifyContent: 'flex-start', px: 2, py: 1.5, fontSize: '0.8rem', fontWeight: 500, fontFamily: 'inherit',
-                  color: t.text.secondary, textTransform: 'none', borderRadius: 1, borderBottom: border,
-                  '&:hover': { bgcolor: t.border.subtle, color: t.text.primary },
-                }}>
-                  Fund trading from Solana
-                </Button>
 
                 {/* Disconnect */}
                 <Button fullWidth onClick={() => { setOpen(false); logout(); }} startIcon={<Logout sx={{ fontSize: 16 }} />} sx={{
@@ -177,6 +219,9 @@ export function WalletMenu() {
           solanaAddress={walletAddress}
           evmAddress={evmAddress}
         />
+        <DepositModal open={showDeposit} onClose={() => setShowDeposit(false)} evmAddress={evmAddress} />
+        <TransferModal open={showTransfer} onClose={() => setShowTransfer(false)} evmAddress={evmAddress} />
+        <WithdrawModal open={showWithdraw} onClose={() => setShowWithdraw(false)} evmAddress={evmAddress} />
       </Box>
     </ClickAwayListener>
   );

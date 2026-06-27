@@ -5,7 +5,6 @@ import { ConnectButton } from './ConnectButton';
 import { HeaderBalance } from './HeaderBalance';
 import { ProfileStats } from './ProfileStats';
 import { NotificationBell } from './NotificationBell';
-import { SimpleProToggle } from './SimpleProToggle';
 import { TradeModeMenu } from './TradeModeMenu';
 import { FundButton } from './FundButton';
 
@@ -53,13 +52,10 @@ export function Navbar() {
           </nav>
         </div>
 
-        {/* Right: mode toggle + level/coins + HL balance + notifications + wallet */}
+        {/* Right: fund + level/coins + HL balance + notifications + wallet.
+            Mode switch (Simple|Pro) lives in the account menu — see WalletMenu —
+            so it's reachable on both desktop and mobile from one place. */}
         <div className="flex items-center gap-2">
-          {/* Desktop switches via the "Trade ▾" dropdown; the nav is hidden on
-              mobile, so keep the compact segmented toggle there as a fallback. */}
-          <div className="md:hidden">
-            <SimpleProToggle />
-          </div>
           {/* Level + XP/coins chip — hidden on mobile (declutter the trade header;
               only money + notifications + wallet stay). */}
           <FundButton />
