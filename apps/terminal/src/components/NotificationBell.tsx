@@ -2,13 +2,32 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Badge, Box, ClickAwayListener, Fade, IconButton, Popper, Typography } from '@mui/material';
-import { NotificationsNone } from '@mui/icons-material';
+import {
+  NotificationsNone, EmojiEvents, TrendingDown, AttachMoney,
+  CheckCircleOutline, ErrorOutline, WarningAmber, InfoOutlined,
+} from '@mui/icons-material';
 import { useIdentity } from '@/hooks/useIdentity';
 import { fetchNotifications, markAllNotificationsRead, markNotificationRead, type DbNotification } from '@/lib/api';
 import { useThemeTokens } from '@/lib/theme-tokens';
 
-const sevColor = (t: ReturnType<typeof useThemeTokens>, s: string) =>
-  s === 'success' ? t.gain : s === 'error' ? t.down : s === 'warning' ? t.warning : t.info;
+const rawAppUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+const APP_URL = /^https?:\/\//.test(rawAppUrl) ? rawAppUrl : `https://${rawAppUrl}`;
+
+/** Icon per notification type/severity — mirrors the app's NotificationPanel. */
+function NotifIcon({ type, severity, t }: { type: string; severity: string; t: ReturnType<typeof useThemeTokens> }) {
+  if (type === 'POOL_WON' || type === 'POOL_CLAIMABLE' || type === 'BET_PAID')
+    return <EmojiEvents sx={{ fontSize: 18, color: t.gain }} />;
+  if (type === 'POOL_LOST')
+    return <TrendingDown sx={{ fontSize: 18, color: t.down }} />;
+  if (type === 'CLAIM_SUCCESS' || type === 'REFUND_RECEIVED' || type === 'DEPOSIT_SUCCESS' || type === 'TOURNAMENT_ENTRY_PAID')
+    return <AttachMoney sx={{ fontSize: 18, color: t.gain }} />;
+  switch (severity) {
+    case 'success': return <CheckCircleOutline sx={{ fontSize: 18, color: t.gain }} />;
+    case 'error': return <ErrorOutline sx={{ fontSize: 18, color: t.down }} />;
+    case 'warning': return <WarningAmber sx={{ fontSize: 18, color: t.warning }} />;
+    default: return <InfoOutlined sx={{ fontSize: 18, color: t.info }} />;
+  }
+}
 
 function timeAgo(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -44,9 +63,16 @@ export function NotificationBell() {
     setOpen((v) => !v);
   }
   async function readOne(n: DbNotification) {
-    if (n.read) return;
-    setItems((cur) => cur.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
-    await markNotificationRead(n.id);
+    if (!n.read) {
+      setItems((cur) => cur.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+      markNotificationRead(n.id).catch(() => {});
+    }
+    // Pool/match notifications link back to the app (the terminal has no pool pages).
+    if (n.poolId) {
+      const path = n.poolType === 'CRYPTO' ? 'pool' : 'match';
+      window.open(`${APP_URL}/${path}/${n.poolId}`, '_blank', 'noopener');
+      setOpen(false);
+    }
   }
   async function readAll() {
     if (!walletAddress) return;
@@ -89,14 +115,18 @@ export function NotificationBell() {
                     <Box
                       key={n.id}
                       onClick={() => readOne(n)}
-                      sx={{ px: 2, py: 1.25, borderBottom: `1px solid ${t.border.subtle}`, cursor: 'pointer', bgcolor: n.read ? 'transparent' : t.hover.subtle, '&:hover': { bgcolor: t.hover.default } }}
+                      sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.25, px: 2, py: 1.25, borderBottom: `1px solid ${t.border.subtle}`, cursor: n.poolId ? 'pointer' : 'default', bgcolor: n.read ? 'transparent' : t.hover.subtle, '&:hover': { bgcolor: t.hover.default } }}
                     >
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: n.read ? 'transparent' : sevColor(t, n.severity), flexShrink: 0 }} />
-                        <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.primary, flex: 1, minWidth: 0 }}>{n.title}</Typography>
-                        <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary }}>{timeAgo(n.createdAt)}</Typography>
+                      <Box sx={{ pt: 0.25, flexShrink: 0 }}>
+                        <NotifIcon type={n.type} severity={n.severity} t={t} />
                       </Box>
-                      <Typography sx={{ fontSize: '0.72rem', color: t.text.tertiary, mt: 0.25, pl: 1.75 }}>{n.message}</Typography>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                          <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</Typography>
+                          <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, flexShrink: 0 }}>{timeAgo(n.createdAt)}</Typography>
+                        </Box>
+                        <Typography sx={{ fontSize: '0.72rem', color: t.text.tertiary, mt: 0.25, lineHeight: 1.4 }}>{n.message}</Typography>
+                      </Box>
                     </Box>
                   ))
                 )}

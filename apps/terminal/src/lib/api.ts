@@ -242,6 +242,8 @@ export interface DbNotification {
   severity: string;
   read: boolean;
   createdAt: string;
+  poolId?: string | null;
+  poolType?: string | null;
 }
 
 /** Unread + recent notifications for a wallet (same store as the app). */
