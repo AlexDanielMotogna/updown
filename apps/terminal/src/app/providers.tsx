@@ -31,9 +31,9 @@ export function Providers({ children }: { children: ReactNode }) {
           walletList: ['metamask', 'rabby_wallet', 'phantom', 'wallet_connect', 'coinbase_wallet'],
           showWalletLoginFirst: false,
         },
-        // Email-only, like the app: one login provisions the embedded Solana +
+        // Email + Google, like the app: one login provisions the embedded Solana +
         // EVM (HyperLiquid) wallets, so no external-wallet picker on (re)connect.
-        loginMethods: ['email'],
+        loginMethods: ['email', 'google'],
         embeddedWallets: {
           // Provision both chains so an email login here also yields the Solana
           // identity + the EVM (HyperLiquid) wallet. BYO external wallets skip

@@ -276,12 +276,11 @@ export function Providers({ children, initialTheme = 'dark' }: { children: React
           walletChainType: 'ethereum-and-solana',
           showWalletLoginFirst: false,
         },
-        // Email-only for now: every user signs up WITHOUT an external wallet, so
-        // Privy always creates a Solana embedded wallet → gasless silent betting
-        // (no SOL, no popup) and one clean identity. External-wallet (BYO) login
-        // lives in the terminal, not here. (Social logins like X are deferred:
-        // free from Privy's side but X's OAuth may need a paid X API tier.)
-        loginMethods: ['email'],
+        // Email + Google (both free, no external wallet): every user signs up
+        // WITHOUT an external wallet, so Privy always creates the embedded
+        // wallets → gasless silent betting (no SOL, no popup) and one clean
+        // identity. (X login is deferred — its OAuth may need a paid X API tier.)
+        loginMethods: ['email', 'google'],
         embeddedWallets: {
           // One email login provisions BOTH embedded wallets: Solana (the app /
           // gasless betting identity) AND Ethereum (the HyperLiquid trading
