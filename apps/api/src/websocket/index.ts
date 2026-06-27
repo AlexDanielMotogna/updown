@@ -2,6 +2,9 @@ import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import { PacificaProvider } from 'market-data';
 import { recordTick } from '../services/price-history';
+import { createNotification } from '../services/notifications';
+
+const UP_COINS_DIVISOR = 100;
 
 let io: Server | null = null;
 let priceProvider: PacificaProvider | null = null;
@@ -319,6 +322,28 @@ export function emitUserReward(walletAddress: string, data: {
   if (io) {
     io.emit('user:reward', { walletAddress, ...data });
   }
+  // Persist to the DB so the same notifications are readable from any device
+  // (mobile, terminal) — same rules + text as the app's live push. Fire-and-forget.
+  if (data.coins > 0) {
+    void createNotification({
+      walletAddress, type: 'COINS_EARNED', severity: 'info',
+      title: `+${(data.coins / UP_COINS_DIVISOR).toFixed(2)} UP Coins`,
+      message: data.reason === 'referral'
+        ? 'Referral bonus! Someone accepted your invite.'
+        : data.xp > 0 ? `Plus +${data.xp} XP for the win!` : 'Keep betting to earn more!',
+    });
+  } else if (data.xp > 0 && data.reason === 'referral') {
+    void createNotification({
+      walletAddress, type: 'XP_EARNED', severity: 'info',
+      title: `+${data.xp} XP`, message: 'New referral accepted!',
+    });
+  }
+  if (data.levelUp) {
+    void createNotification({
+      walletAddress, type: 'LEVEL_UP', severity: 'success',
+      title: `Level Up! Lv.${data.level}`, message: 'You unlocked a new fee discount tier!',
+    });
+  }
 }
 
 /**
@@ -337,6 +362,28 @@ export function emitTournamentMatchResult(data: {
 }): void {
   if (io) {
     io.emit('tournament:match:result', data);
+  }
+  // Persist per-wallet so both players see the result on any device.
+  const tName = data.tournamentName || 'Tournament';
+  if (data.winnerWallet) {
+    if (data.completed) {
+      const prize = (Number(data.prizePool || 0) * 0.95 / 1_000_000).toFixed(2);
+      void createNotification({
+        walletAddress: data.winnerWallet, type: 'TOURNAMENT_WON', severity: 'success',
+        title: 'Tournament Champion!', message: `You won ${tName}! Claim your $${prize} USDC prize.`,
+      });
+    } else {
+      void createNotification({
+        walletAddress: data.winnerWallet, type: 'TOURNAMENT_MATCH_WON', severity: 'success',
+        title: 'Match Won!', message: `${tName} · Round ${data.round ?? ''} · You advance!`,
+      });
+    }
+  }
+  if (data.loserWallet) {
+    void createNotification({
+      walletAddress: data.loserWallet, type: 'TOURNAMENT_MATCH_LOST', severity: 'warning',
+      title: 'Match Lost', message: `${tName} · Round ${data.round ?? ''} · Eliminated`,
+    });
   }
 }
 
