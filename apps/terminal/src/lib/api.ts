@@ -95,6 +95,39 @@ export function creditFills(walletAddress: string) {
   );
 }
 
+// ── Bridge (cross-chain funding) ──────────────────────────────────────────
+
+export interface BridgeQuote {
+  provider: string;
+  tool: string;
+  fromAmount: string;
+  toAmount: string;
+  toAmountMin: string;
+  feeUsd: string;
+  gasUsd: string;
+  durationSeconds: number;
+}
+
+/** Quote a Solana USDC → Arbitrum USDC transfer (phase 1: preview only).
+ *  `amountMicro` is base units (USDC = 6 decimals). */
+export async function getBridgeQuote(params: {
+  amountMicro: string;
+  fromAddress: string;
+  toAddress: string;
+}): Promise<ApiResult<BridgeQuote>> {
+  try {
+    const qs = new URLSearchParams({
+      amount: params.amountMicro,
+      fromAddress: params.fromAddress,
+      toAddress: params.toAddress,
+    });
+    const res = await fetch(`${API_BASE}/api/bridge/quote?${qs.toString()}`, { cache: 'no-store' });
+    return (await res.json()) as ApiResult<BridgeQuote>;
+  } catch (e) {
+    return { success: false, error: { code: 'NETWORK_ERROR', message: e instanceof Error ? e.message : 'Network error' } };
+  }
+}
+
 // ── Identity + agent lifecycle ────────────────────────────────────────────
 
 /** Resolve a linked wallet → the Solana identity (walletAddress) or null. */
