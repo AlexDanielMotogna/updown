@@ -22,19 +22,25 @@ export function BetRewardProgress({ reward }: { reward: UserProfile['testingRewa
   return (
     <Box sx={{
       display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 1.5, mb: 3,
-      borderRadius: 1.5, bgcolor: withAlpha(t.gold, 0.08), border: `1px solid ${withAlpha(t.gold, 0.3)}`,
+      borderRadius: '10px', bgcolor: t.bg.surfaceAlt, border: `1px solid ${t.border.subtle}`,
     }}>
-      <CardGiftcard sx={{ fontSize: 22, color: t.gold, flexShrink: 0 }} />
+      <Box sx={{
+        width: 34, height: 34, flexShrink: 0, borderRadius: '8px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        bgcolor: withAlpha(t.gold, 0.12), color: t.gold,
+      }}>
+        <CardGiftcard sx={{ fontSize: 18 }} />
+      </Box>
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: t.text.primary }}>
+        <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color: t.text.secondary }}>
           {remaining} more prediction{remaining === 1 ? '' : 's'} to earn{' '}
-          <Box component="span" sx={{ color: t.gold, fontWeight: 700 }}>{reward.amount.toLocaleString()} <UpIcon size={14} sx={{ ml: 0.2 }} /></Box>
+          <Box component="span" sx={{ color: t.gold, fontWeight: 700 }}>{reward.amount.toLocaleString()} <UpIcon size={13} sx={{ ml: 0.1 }} /></Box>
         </Typography>
-        <Box sx={{ mt: 0.6, height: 6, borderRadius: 3, bgcolor: t.hover.medium, overflow: 'hidden' }}>
-          <Box sx={{ width: `${pct}%`, height: '100%', bgcolor: t.gold, transition: 'width 0.3s ease' }} />
+        <Box sx={{ mt: 0.7, height: 5, borderRadius: 3, bgcolor: t.hover.medium, overflow: 'hidden' }}>
+          <Box sx={{ width: `${pct}%`, height: '100%', borderRadius: 3, bgcolor: t.gold, transition: 'width 0.3s ease' }} />
         </Box>
       </Box>
-      <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: t.text.secondary, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+      <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: t.text.tertiary, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
         {reward.progress}/{reward.threshold}
       </Typography>
     </Box>
