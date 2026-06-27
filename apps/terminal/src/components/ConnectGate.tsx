@@ -137,9 +137,6 @@ function Gate() {
         </p>
       </div>
       <div className="w-full max-w-[15rem] space-y-2">
-        <button onClick={() => connectWallet({ walletChainType: 'ethereum-only' })} className={btnGhost}>
-          Use an external wallet instead
-        </button>
         <button onClick={logout} className={btnGhost}>
           Disconnect
         </button>
