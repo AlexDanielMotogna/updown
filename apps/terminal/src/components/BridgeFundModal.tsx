@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Connection, PublicKey } from '@solana/web3.js';
+import { createPublicClient, http, type Hex } from 'viem';
+import { arbitrum } from 'viem/chains';
 import { Modal } from './Modal';
 import { getBridgeQuote, type BridgeQuote } from '@/lib/api';
 import { useBridgeExecute } from '@/hooks/useBridgeExecute';
@@ -12,6 +14,10 @@ const fmtUsdc = (micro: string) => (Number(micro) / 1e6).toLocaleString(undefine
 // Solana USDC (mainnet) — the source balance shown in the modal.
 const SOLANA_USDC_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
 const SOLANA_RPC = process.env.NEXT_PUBLIC_SOLANA_MAINNET_RPC_URL || 'https://api.mainnet-beta.solana.com';
+const ARBITRUM_USDC: Hex = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
+const USDC_BALANCE_ABI = [
+  { type: 'function', name: 'balanceOf', stateMutability: 'view', inputs: [{ name: 'a', type: 'address' }], outputs: [{ type: 'uint256' }] },
+] as const;
 
 async function fetchSolanaUsdc(address: string): Promise<number> {
   const conn = new Connection(SOLANA_RPC, 'confirmed');
@@ -20,6 +26,12 @@ async function fetchSolanaUsdc(address: string): Promise<number> {
     const ui = (a.account.data as { parsed?: { info?: { tokenAmount?: { uiAmount?: number } } } }).parsed?.info?.tokenAmount?.uiAmount;
     return sum + (ui ?? 0);
   }, 0);
+}
+
+async function fetchArbitrumUsdc(address: string): Promise<number> {
+  const client = createPublicClient({ chain: arbitrum, transport: http(process.env.NEXT_PUBLIC_ARBITRUM_RPC_URL || undefined) });
+  const bal = (await client.readContract({ address: ARBITRUM_USDC, abi: USDC_BALANCE_ABI, functionName: 'balanceOf', args: [address as Hex] })) as bigint;
+  return Number(bal) / 1e6;
 }
 
 /**
@@ -43,6 +55,7 @@ export function BridgeFundModal({
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
+  const [arbBalance, setArbBalance] = useState<number | null>(null);
   const bridge = useBridgeExecute();
   const hl = useHlDeposit();
 
@@ -63,10 +76,23 @@ export function BridgeFundModal({
     fetchSolanaUsdc(solanaAddress).then((b) => { if (alive) setBalance(b); }).catch(() => { if (alive) setBalance(null); });
     return () => { alive = false; };
   }, [open, solanaAddress]);
+
+  // Load any USDC already on Arbitrum (e.g. a prior bridge that didn't reach HL) so
+  // we can offer a direct deposit / recovery. Refetch after a deposit completes.
+  useEffect(() => {
+    if (!open || !evmAddress) return;
+    let alive = true;
+    setArbBalance(null);
+    fetchArbitrumUsdc(evmAddress).then((b) => { if (alive) setArbBalance(b); }).catch(() => { if (alive) setArbBalance(null); });
+    return () => { alive = false; };
+  }, [open, evmAddress, hl.step]);
   const bridgeRunning = bridge.step === 'quoting' || bridge.step === 'signing' || bridge.step === 'bridging';
   const hlRunning = hl.step === 'permit' || hl.step === 'depositing';
   const busy = bridgeRunning || hlRunning;
-  const started = bridge.step !== 'idle';
+  const bridgeStarted = bridge.step !== 'idle';
+  // The progress view also covers a standalone deposit (recovery of USDC already
+  // on Arbitrum), so it triggers on the HL flow alone too.
+  const started = bridgeStarted || hl.step !== 'idle';
 
   useEffect(() => {
     if (!open) { bridge.reset(); hl.reset(); setAmount(''); setQuote(null); setErr(null); }
@@ -104,8 +130,12 @@ export function BridgeFundModal({
   // ── Progress view (once the flow starts) ────────────────────────────────
   if (started) {
     const steps: { label: string; state: 'done' | 'active' | 'pending' | 'error' }[] = [
-      { label: 'Sign on Solana', state: subState(bridge.step === 'quoting' || bridge.step === 'signing', bridge.step !== 'quoting' && bridge.step !== 'signing' && bridge.step !== 'idle', bridge.step === 'error') },
-      { label: 'Bridging to Arbitrum', state: subState(bridge.step === 'bridging', bridge.step === 'done', false) },
+      // Bridge steps only when an actual bridge is running (a standalone deposit
+      // of existing Arbitrum USDC skips straight to the deposit steps).
+      ...(bridgeStarted ? [
+        { label: 'Sign on Solana', state: subState(bridge.step === 'quoting' || bridge.step === 'signing', bridge.step !== 'quoting' && bridge.step !== 'signing' && bridge.step !== 'idle', bridge.step === 'error') },
+        { label: 'Bridging to Arbitrum', state: subState(bridge.step === 'bridging', bridge.step === 'done', false) },
+      ] : []),
       { label: 'Authorize deposit', state: subState(hl.step === 'permit', hl.step === 'depositing' || hl.step === 'done', hl.step === 'error') },
       { label: 'Deposit to HyperLiquid', state: subState(hl.step === 'depositing', hl.step === 'done', hl.step === 'error') },
     ];
@@ -167,6 +197,22 @@ export function BridgeFundModal({
           Move USDC from your Solana balance into your HyperLiquid trading account. You sign on
           Solana and a gasless permit; you never need ETH.
         </p>
+
+        {/* Recovery / direct deposit: USDC already sitting on Arbitrum (e.g. a
+            prior bridge that didn't reach HL) can be deposited without bridging. */}
+        {arbBalance != null && arbBalance >= 5 && (
+          <div className="rounded-lg border border-brand/40 bg-brand/5 p-3">
+            <div className="text-sm text-surface-100">
+              You have <span className="font-semibold">{arbBalance.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDC</span> on Arbitrum ready to deposit.
+            </div>
+            <button
+              onClick={() => evmAddress && hl.run(evmAddress)}
+              className="mt-2 w-full rounded-lg bg-brand py-2 text-sm font-semibold text-surface-950 transition-colors hover:bg-brand-600"
+            >
+              Deposit to HyperLiquid
+            </button>
+          </div>
+        )}
 
         <div>
           <div className="mb-1 flex items-center justify-between">
