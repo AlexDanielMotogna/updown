@@ -7,13 +7,15 @@ import { useIsMobile } from '@/hooks/useIsMobile';
 import { useToast } from './Toast';
 import { Modal } from './Modal';
 import { TokenIcon } from './TokenIcon';
+import { HoldingsTab } from './Holdings';
 
 type CloseMode = 'market' | 'limit' | 'reverse';
 
-type Tab = 'positions' | 'orders' | 'trades' | 'funding' | 'orderhistory';
+type Tab = 'positions' | 'orders' | 'holdings' | 'trades' | 'funding' | 'orderhistory';
 const TABS: { key: Tab; label: string; short: string }[] = [
   { key: 'positions', label: 'Positions', short: 'Positions' },
   { key: 'orders', label: 'Open Orders', short: 'Orders' },
+  { key: 'holdings', label: 'Spot Holdings', short: 'Spot' },
   { key: 'trades', label: 'Trade History', short: 'Trades' },
   { key: 'funding', label: 'Funding History', short: 'Funding' },
   { key: 'orderhistory', label: 'Order History', short: 'History' },
@@ -416,6 +418,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
   const counts: Record<Tab, number> = {
     positions: positions.length,
     orders: orders.length,
+    holdings: 0, // HoldingsTab self-fetches; no badge count
     trades: trades.length,
     funding: funding.length,
     orderhistory: orderHist.length,
@@ -441,8 +444,10 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
       <div className="min-h-0 flex-1 overflow-auto">
         {!address ? (
           <Empty>Connect to view {tab}.</Empty>
-        ) : (tab === 'positions' || tab === 'orders' ? !ws.ready : !loaded) ? (
+        ) : (tab === 'positions' || tab === 'orders' ? !ws.ready : tab === 'holdings' ? false : !loaded) ? (
           <Empty>loading…</Empty>
+        ) : tab === 'holdings' ? (
+          <HoldingsTab address={address} isMobile={isMobile} />
         ) : tab === 'positions' ? (
           positions.length === 0 ? <Empty>No open positions.</Empty> : isMobile ? (
             <div className="space-y-1.5 p-1.5">
