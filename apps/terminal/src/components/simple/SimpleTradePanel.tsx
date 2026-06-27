@@ -165,8 +165,8 @@ export function SimpleTradePanel({
                   className={`rounded-lg border py-2.5 text-sm font-bold transition-colors ${
                     active
                       ? isLong
-                        ? 'border-brand bg-transparent text-brand'
-                        : 'border-loss-500 bg-transparent text-loss-500'
+                        ? 'border-brand/40 bg-transparent text-brand'
+                        : 'border-loss-500/40 bg-transparent text-loss-500'
                       : 'border-transparent bg-surface-800 text-surface-400 hover:text-surface-200'
                   }`}>
                   {isLong ? 'Long' : 'Short'}

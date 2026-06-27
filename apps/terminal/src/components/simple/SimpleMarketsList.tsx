@@ -179,9 +179,9 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
                 {/* LONG / SHORT — same look as the Pro terminal's Buy/Sell (rounded, semibold) */}
                 <div className="grid grid-cols-2 gap-1.5" onClick={(e) => e.stopPropagation()}>
                   <button onClick={() => setTrade({ symbol: t.symbol, side: 'BUY' })}
-                    className="rounded border border-brand bg-transparent py-1.5 text-xs font-semibold text-brand transition-colors hover:bg-brand/10">Long</button>
+                    className="rounded border border-brand/40 bg-transparent py-1.5 text-xs font-semibold text-brand transition-colors hover:bg-brand/10">Long</button>
                   <button onClick={() => setTrade({ symbol: t.symbol, side: 'SELL' })}
-                    className="rounded border border-loss-500 bg-transparent py-1.5 text-xs font-semibold text-loss-500 transition-colors hover:bg-loss-500/10">Short</button>
+                    className="rounded border border-loss-500/40 bg-transparent py-1.5 text-xs font-semibold text-loss-500 transition-colors hover:bg-loss-500/10">Short</button>
                 </div>
               </div>
             );
@@ -219,9 +219,9 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
                 {/* Trade */}
                 <div className="ml-auto flex gap-1.5" onClick={(e) => e.stopPropagation()}>
                   <button onClick={() => setTrade({ symbol: t.symbol, side: 'BUY' })}
-                    className="rounded border border-brand bg-transparent px-4 py-1.5 text-xs font-semibold text-brand transition-colors hover:bg-brand/10">Long</button>
+                    className="rounded border border-brand/40 bg-transparent px-4 py-1.5 text-xs font-semibold text-brand transition-colors hover:bg-brand/10">Long</button>
                   <button onClick={() => setTrade({ symbol: t.symbol, side: 'SELL' })}
-                    className="rounded border border-loss-500 bg-transparent px-4 py-1.5 text-xs font-semibold text-loss-500 transition-colors hover:bg-loss-500/10">Short</button>
+                    className="rounded border border-loss-500/40 bg-transparent px-4 py-1.5 text-xs font-semibold text-loss-500 transition-colors hover:bg-loss-500/10">Short</button>
                 </div>
               </div>
             );
