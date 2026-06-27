@@ -62,10 +62,10 @@ export function Navbar() {
           </div>
           {/* Level + XP/coins chip — hidden on mobile (declutter the trade header;
               only money + notifications + wallet stay). */}
+          <FundButton />
           <div className="hidden md:block">
             <ProfileStats />
           </div>
-          <FundButton />
           <HeaderBalance />
           <NotificationBell />
           <ConnectButton />
