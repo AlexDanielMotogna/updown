@@ -47,6 +47,8 @@ coverage/
 *.key
 keypair.json
 *-keypair.json
+*-authority.json
+programs/parimutuel_pools-LOCAL-authority.json
 
 # Claude Code
 .claude/
