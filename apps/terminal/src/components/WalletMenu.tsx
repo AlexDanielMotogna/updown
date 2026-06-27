@@ -30,18 +30,23 @@ const NAV = [
 export function WalletMenu() {
   const t = useThemeTokens();
   const { logout } = usePrivy();
-  const { walletAddress, evmAddress } = useIdentity();
+  const { walletAddress } = useIdentity();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const anchorRef = useRef<HTMLButtonElement>(null);
 
-  const addr = evmAddress ?? '';
+  // Identity = the UpDown account (Solana address), NOT the EVM trading wallet —
+  // that's what carries the display name / level / coins, same as the app.
+  const addr = walletAddress ?? '';
   const identity = addr ? { walletAddress: addr, displayName: profile?.displayName ?? null, avatarUrl: profile?.avatarUrl ?? null } : null;
 
+  // Fetch eagerly (not only when the menu is open) so the collapsed chip shows
+  // the display name instead of a truncated address, and name edits persist.
   useEffect(() => {
-    if (open && walletAddress) fetchProfile(walletAddress).then(setProfile);
-  }, [open, walletAddress]);
+    if (walletAddress) fetchProfile(walletAddress).then(setProfile);
+    else setProfile(null);
+  }, [walletAddress]);
 
   function handleCopy() {
     if (!addr) return;
