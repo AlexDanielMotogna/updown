@@ -9,6 +9,7 @@
 import type {
   Account,
   AccountSetting,
+  Balance,
   Candle,
   ExchangeReadAdapter,
   KlineParams,
@@ -32,6 +33,8 @@ import {
   mapPositions,
   mapPrices,
   mapRecentTrade,
+  mapSpotMarkets,
+  mapSpotBalances,
 } from './mappers';
 import { toHlCoin } from './symbols';
 
@@ -119,6 +122,16 @@ export class HyperliquidReadAdapter implements ExchangeReadAdapter {
   async getPositions(accountId: string): Promise<Position[]> {
     const state = await this.info.clearinghouseState(accountId.toLowerCase());
     return mapPositions(state);
+  }
+
+  async getSpotMarkets(): Promise<Market[]> {
+    const [meta, ctxs] = await this.info.spotMetaAndAssetCtxs();
+    return mapSpotMarkets(meta, ctxs);
+  }
+
+  async getSpotBalances(accountId: string): Promise<Balance[]> {
+    const state = await this.info.spotClearinghouseState(accountId.toLowerCase());
+    return mapSpotBalances(state);
   }
 
   async getOpenOrders(accountId: string): Promise<Order[]> {

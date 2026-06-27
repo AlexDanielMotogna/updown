@@ -16,6 +16,7 @@ import { privateKeyToAccount } from 'viem/accounts';
 import type {
   CancelParams,
   ExchangeSigner,
+  MarketKind,
   OrderParams,
   OrderResult,
   OrderStatus,
@@ -140,6 +141,11 @@ export class HyperliquidSigner implements ExchangeSigner {
    * build the HL order request. Shared by single + grouped submits. */
   private async prepareOrder(params: OrderParams) {
     let p = params;
+    const kind: MarketKind = p.kind ?? 'perp';
+    const asset = await this.resolveAsset(p.symbol, kind);
+    // The allMids key differs by kind: perps use the bare coin ("BTC"); spot uses
+    // "@{spotIndex}" where spotIndex = assetId - 10000.
+    const midCoin = kind === 'spot' ? `@${asset.index - 10000}` : toHlCoin(p.symbol);
     // Market-type orders still need a price on HL (a slippage cap, crossing the
     // book in the fill direction) when the caller didn't pass one:
     //   - plain MARKET → cap off the current mid
@@ -148,13 +154,12 @@ export class HyperliquidSigner implements ExchangeSigner {
     if (p.price == null) {
       const slip = slippageFraction(p.maxSlippagePct);
       if (p.type === 'MARKET') {
-        p = { ...p, price: await this.marketSlippagePrice(p.symbol, p.side, slip) };
+        p = { ...p, price: await this.marketSlippagePrice(midCoin, p.side, slip) };
       } else if (p.type === 'STOP_MARKET' || p.type === 'TAKE_PROFIT_MARKET') {
         if (p.triggerPrice == null) throw new Error(`${p.type} requires triggerPrice`);
         p = { ...p, price: crossPrice(Number(p.triggerPrice), p.side, slip) };
       }
     }
-    const asset = await this.resolveAsset(p.symbol);
     return buildOrderRequest(p, asset.index, asset.szDecimals);
   }
 
@@ -245,9 +250,9 @@ export class HyperliquidSigner implements ExchangeSigner {
     return { success: true };
   }
 
-  /** A slippage-capped price for a MARKET order, from the current mid (±5%). */
-  private async marketSlippagePrice(symbol: string, side: OrderParams['side'], slip: number): Promise<string> {
-    const coin = toHlCoin(symbol);
+  /** A slippage-capped price for a MARKET order, from the current mid (±5%).
+   * `coin` is the allMids key: "BTC" for perps, "@{spotIndex}" for spot. */
+  private async marketSlippagePrice(coin: string, side: OrderParams['side'], slip: number): Promise<string> {
     // REST /info allMids returns a flat { coin: price } map; the WS feed wraps it
     // as { mids: {...} }. Handle both.
     const resp = (await this.info.allMids()) as unknown as Record<string, unknown>;
@@ -257,12 +262,37 @@ export class HyperliquidSigner implements ExchangeSigner {
     return crossPrice(mid, side, slip);
   }
 
-  private async resolveAsset(symbol: string): Promise<AssetInfo> {
+  private async resolveAsset(symbol: string, kind: MarketKind = 'perp'): Promise<AssetInfo> {
+    if (kind === 'spot') {
+      const map = await this.spotAssetMap();
+      const info = map.get(symbol);
+      if (!info) throw new Error(`Unknown HyperLiquid spot asset: ${symbol}`);
+      return info;
+    }
     const map = await this.assetMap();
     const coin = toHlCoin(symbol);
     const info = map.get(coin);
     if (!info) throw new Error(`Unknown HyperLiquid asset: ${coin}`);
     return info;
+  }
+
+  /** Cached spot asset map: pair symbol ("HYPE/USDC") → { index: 10000+pairIndex,
+   * szDecimals }. Keyed separately from the perp map so they don't clobber. */
+  private async spotAssetMap(): Promise<Map<string, AssetInfo>> {
+    const now = Date.now();
+    const key = `${this.apiUrl}:spot`;
+    const hit = ASSET_MAP_CACHE.get(key);
+    if (hit && hit.expires > now) return hit.map;
+    const meta = await this.info.spotMeta();
+    const map = new Map<string, AssetInfo>();
+    for (const pair of meta.universe) {
+      const base = meta.tokens[pair.tokens[0]];
+      const quote = meta.tokens[pair.tokens[1]];
+      if (!base || !quote) continue;
+      map.set(`${base.name}/${quote.name}`, { index: 10000 + pair.index, szDecimals: base.szDecimals });
+    }
+    ASSET_MAP_CACHE.set(key, { map, expires: now + ASSET_MAP_TTL_MS });
+    return map;
   }
 
   /** Cached (per-endpoint, TTL) asset index + szDecimals map. */

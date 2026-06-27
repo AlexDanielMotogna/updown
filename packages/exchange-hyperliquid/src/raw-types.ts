@@ -141,6 +141,64 @@ export interface HlOpenOrder {
   isPositionTpsl?: boolean;
 }
 
+// ── Spot ────────────────────────────────────────────────────────────────────
+// hyperliquid.gitbook.io/.../api/info-endpoint/spot
+
+/** A spot TOKEN (PURR, HYPE, USDC…). `index` is its position in `spotMeta.tokens`. */
+export interface HlSpotToken {
+  name: string;
+  szDecimals: number;
+  weiDecimals: number;
+  index: number;
+  tokenId: string;
+  isCanonical?: boolean;
+  evmContract?: unknown;
+  fullName?: string | null;
+}
+
+/** A spot PAIR (e.g. PURR/USDC). `tokens` = [baseTokenIndex, quoteTokenIndex];
+ * `index` is the pair's position in `spotMeta.universe`. The order/stream coin for
+ * this pair is `"@{index}"`, and the signing asset id is `10000 + index`. */
+export interface HlSpotUniverseAsset {
+  name: string;
+  tokens: [number, number];
+  index: number;
+  isCanonical?: boolean;
+}
+
+export interface HlSpotMeta {
+  tokens: HlSpotToken[];
+  universe: HlSpotUniverseAsset[];
+}
+
+/** Per-pair context, index-aligned with `spotMeta.universe`. */
+export interface HlSpotAssetCtx {
+  dayNtlVlm: string;
+  markPx: string;
+  midPx: string | null;
+  prevDayPx: string;
+  circulatingSupply?: string;
+  coin?: string;
+  dayBaseVlm?: string;
+}
+
+/** `spotMetaAndAssetCtxs` → [spotMeta, ctxs] (ctxs index-aligned with universe). */
+export type HlSpotMetaAndAssetCtxs = [HlSpotMeta, HlSpotAssetCtx[]];
+
+/** A spot balance row from `spotClearinghouseState`. `total` includes `hold`
+ * (amount locked in resting orders); free = total - hold. */
+export interface HlSpotBalance {
+  coin: string;
+  token: number;
+  total: string;
+  hold: string;
+  entryNtl?: string;
+}
+
+export interface HlSpotClearinghouseState {
+  balances: HlSpotBalance[];
+}
+
 /** `recentTrades` element. side: "B" (buy) | "A" (sell). */
 export interface HlRecentTrade {
   coin: string;

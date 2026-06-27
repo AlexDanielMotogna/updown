@@ -5,6 +5,7 @@
  */
 import type {
   Account,
+  Balance,
   Candle,
   Market,
   Order,
@@ -25,10 +26,15 @@ import type {
   HlRecentTrade,
   HlUniverseAsset,
   HlUserFill,
+  HlSpotMeta,
+  HlSpotAssetCtx,
+  HlSpotClearinghouseState,
 } from './raw-types';
 
 /** Perp price precision: at most (PERP_MAX_DECIMALS - szDecimals) decimals. */
 const PERP_MAX_DECIMALS = 6;
+/** Spot price precision: at most (SPOT_MAX_DECIMALS - szDecimals) decimals. */
+const SPOT_MAX_DECIMALS = 8;
 
 /** 10^-n as a plain decimal string: 0 → "1", 5 → "0.00001". */
 function pow10Neg(n: number): string {
@@ -103,6 +109,85 @@ export function mapPrice(asset: HlUniverseAsset, ctx: HlAssetCtx, now: number): 
 
 export function mapPrices(universe: HlUniverseAsset[], ctxs: HlAssetCtx[], now: number): Price[] {
   return universe.map((asset, i) => mapPrice(asset, ctxs[i], now)).filter((p) => p.mark != null);
+}
+
+// --- Spot markets / prices / balances --------------------------------------
+// Spot order/stream coin is "@{pairIndex}"; signing asset id is 10000+pairIndex.
+// The readable symbol is "BASE/QUOTE" (e.g. "HYPE/USDC") to avoid colliding with
+// the perp "BASE-USD" symbols. hlCoin + spotIndex live in metadata for the signer
+// and the stream layer.
+
+/** Display symbol for a spot pair, e.g. "HYPE/USDC". */
+export function spotPairSymbol(base: string, quote: string): string {
+  return `${base}/${quote}`;
+}
+
+export function mapSpotMarkets(meta: HlSpotMeta, ctxs: HlSpotAssetCtx[]): Market[] {
+  return meta.universe.map((pair, i) => {
+    const base = meta.tokens[pair.tokens[0]];
+    const quote = meta.tokens[pair.tokens[1]];
+    const szDecimals = base?.szDecimals ?? 0;
+    const priceDecimals = Math.max(0, SPOT_MAX_DECIMALS - szDecimals);
+    const ctx = ctxs[i];
+    return {
+      symbol: spotPairSymbol(base?.name ?? pair.name, quote?.name ?? 'USDC'),
+      baseAsset: base?.name ?? pair.name,
+      quoteAsset: quote?.name ?? 'USDC',
+      tickSize: pow10Neg(priceDecimals),
+      stepSize: pow10Neg(szDecimals),
+      minOrderSize: '0',
+      maxOrderSize: '0',
+      minNotional: '10',
+      maxLeverage: 0,
+      fundingRate: '0',
+      fundingInterval: 0,
+      kind: 'spot',
+      metadata: {
+        hlCoin: `@${pair.index}`,
+        spotIndex: pair.index,
+        assetId: 10000 + pair.index,
+        szDecimals,
+        baseTokenIndex: pair.tokens[0],
+        quoteTokenIndex: pair.tokens[1],
+        markPx: ctx?.markPx,
+        dayNtlVlm: ctx?.dayNtlVlm,
+        isCanonical: pair.isCanonical ?? false,
+      },
+    };
+  });
+}
+
+export function mapSpotPrices(meta: HlSpotMeta, ctxs: HlSpotAssetCtx[], now: number): Price[] {
+  return meta.universe
+    .map((pair, i) => {
+      const ctx = ctxs[i];
+      const base = meta.tokens[pair.tokens[0]];
+      const quote = meta.tokens[pair.tokens[1]];
+      if (!ctx) return null;
+      return {
+        symbol: spotPairSymbol(base?.name ?? pair.name, quote?.name ?? 'USDC'),
+        mark: ctx.markPx,
+        index: ctx.markPx,
+        last: ctx.midPx ?? ctx.markPx,
+        bid: '0',
+        ask: '0',
+        funding: '0',
+        volume24h: ctx.dayNtlVlm,
+        change24h: pctChange(ctx.markPx, ctx.prevDayPx),
+        timestamp: now,
+      } as Price;
+    })
+    .filter((p): p is Price => p != null && p.mark != null);
+}
+
+export function mapSpotBalances(state: HlSpotClearinghouseState): Balance[] {
+  return state.balances.map((b) => ({
+    asset: b.coin,
+    total: b.total,
+    available: String(Number(b.total) - Number(b.hold)),
+    entryNotional: b.entryNtl,
+    metadata: { token: b.token, hold: b.hold },
+  }));
 }
 
 // --- Orderbook / candles ---------------------------------------------------

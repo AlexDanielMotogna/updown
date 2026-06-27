@@ -13,6 +13,9 @@ import type {
   HlOpenOrder,
   HlRecentTrade,
   HlUserFill,
+  HlSpotMeta,
+  HlSpotMetaAndAssetCtxs,
+  HlSpotClearinghouseState,
 } from './raw-types';
 
 export interface HlEndpoint {
@@ -92,5 +95,19 @@ export class InfoClient {
 
   userFills(user: string): Promise<HlUserFill[]> {
     return this.post<HlUserFill[]>({ type: 'userFills', user });
+  }
+
+  // ── Spot ──────────────────────────────────────────────────────────────────
+
+  spotMeta(): Promise<HlSpotMeta> {
+    return this.post<HlSpotMeta>({ type: 'spotMeta' });
+  }
+
+  spotMetaAndAssetCtxs(): Promise<HlSpotMetaAndAssetCtxs> {
+    return this.post<HlSpotMetaAndAssetCtxs>({ type: 'spotMetaAndAssetCtxs' });
+  }
+
+  spotClearinghouseState(user: string): Promise<HlSpotClearinghouseState> {
+    return this.post<HlSpotClearinghouseState>({ type: 'spotClearinghouseState', user });
   }
 }

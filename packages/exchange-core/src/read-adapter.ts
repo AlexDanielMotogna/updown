@@ -12,6 +12,7 @@
 import type {
   Account,
   AccountSetting,
+  Balance,
   Candle,
   ExchangeName,
   KlineParams,
@@ -42,4 +43,10 @@ export interface ExchangeReadAdapter {
   getOpenOrders(accountId: string): Promise<Order[]>;
   getTradeHistory(params: TradeHistoryParams): Promise<TradeHistoryItem[]>;
   getAccountSettings(accountId: string): Promise<AccountSetting[]>;
+
+  // --- Spot (optional; only exchanges that support spot implement these) ---
+  /** Spot markets (token pairs). `kind: 'spot'`, maxLeverage 0. */
+  getSpotMarkets?(): Promise<Market[]>;
+  /** Spot token balances (holdings) for the real account address. */
+  getSpotBalances?(accountId: string): Promise<Balance[]>;
 }
