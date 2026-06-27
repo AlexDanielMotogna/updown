@@ -16,6 +16,7 @@ import { notificationsRouter } from './routes/notifications';
 import { milestonesRouter } from './routes/milestones';
 import { lineupsRouter } from './routes/lineups';
 import { exchangeRouter } from './routes/exchange';
+import { bridgeRouter } from './routes/bridge';
 import { getScheduler } from './scheduler';
 import { startTournamentScheduler } from './scheduler/tournament-scheduler';
 import { startSportsScheduler } from './scheduler/sports-scheduler';
@@ -64,6 +65,7 @@ app.use('/api/notifications', notificationsRouter);
 app.use('/api/milestones', milestonesRouter);
 app.use('/api/lineups', lineupsRouter);
 app.use('/api/exchange', exchangeRouter);
+app.use('/api/bridge', bridgeRouter);
 
 // Scheduler status endpoint
 app.get('/api/scheduler/status', (req, res) => {

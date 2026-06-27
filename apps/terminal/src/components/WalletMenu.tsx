@@ -9,6 +9,7 @@ import { fetchProfile, IS_TESTNET, type UserProfile } from '@/lib/api';
 import { useThemeTokens, getDisplayAvatar, getDisplayName, truncateWallet } from '@/lib/theme-tokens';
 import { UserLevelBadge } from './UserLevelBadge';
 import { XpProgressBar } from './XpProgressBar';
+import { BridgeFundModal } from './BridgeFundModal';
 
 const rawAppUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 // Prepend https:// if the env var omits the protocol (else it's treated relative).
@@ -30,8 +31,9 @@ const NAV = [
 export function WalletMenu() {
   const t = useThemeTokens();
   const { logout } = usePrivy();
-  const { walletAddress } = useIdentity();
+  const { walletAddress, evmAddress } = useIdentity();
   const [open, setOpen] = useState(false);
+  const [fundOpen, setFundOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const anchorRef = useRef<HTMLButtonElement>(null);
@@ -148,6 +150,15 @@ export function WalletMenu() {
                   })}
                 </Box>
 
+                {/* Fund trading from Solana (bridge) */}
+                <Button fullWidth onClick={() => { setOpen(false); setFundOpen(true); }} startIcon={<AccountBalanceWallet sx={{ fontSize: 16 }} />} sx={{
+                  justifyContent: 'flex-start', px: 2, py: 1.5, fontSize: '0.8rem', fontWeight: 500, fontFamily: 'inherit',
+                  color: t.text.secondary, textTransform: 'none', borderRadius: 1, borderBottom: border,
+                  '&:hover': { bgcolor: t.border.subtle, color: t.text.primary },
+                }}>
+                  Fund trading from Solana
+                </Button>
+
                 {/* Disconnect */}
                 <Button fullWidth onClick={() => { setOpen(false); logout(); }} startIcon={<Logout sx={{ fontSize: 16 }} />} sx={{
                   justifyContent: 'flex-start', px: 2, py: 1.5, fontSize: '0.8rem', fontWeight: 500, fontFamily: 'inherit',
@@ -159,6 +170,13 @@ export function WalletMenu() {
             </Fade>
           )}
         </Popper>
+
+        <BridgeFundModal
+          open={fundOpen}
+          onClose={() => setFundOpen(false)}
+          solanaAddress={walletAddress}
+          evmAddress={evmAddress}
+        />
       </Box>
     </ClickAwayListener>
   );
