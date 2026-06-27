@@ -271,9 +271,9 @@ export function Providers({ children, initialTheme = 'dark' }: { children: React
         appearance: {
           theme: mode,
           accentColor: '#FFFFFF',
-          walletChainType: 'solana-only',
           logo: mode === 'dark' ? '/updown-logos/Logo_cyan_text_white.png' : '/updown-logos/Logo_cyan_text_dark_Medium.png',
           walletList: ['phantom', 'solflare', 'backpack', 'coinbase_wallet', 'metamask', 'detected_solana_wallets'],
+          walletChainType: 'ethereum-and-solana',
           showWalletLoginFirst: false,
         },
         // Email-only for now: every user signs up WITHOUT an external wallet, so
@@ -283,7 +283,11 @@ export function Providers({ children, initialTheme = 'dark' }: { children: React
         // free from Privy's side but X's OAuth may need a paid X API tier.)
         loginMethods: ['email'],
         embeddedWallets: {
+          // One email login provisions BOTH embedded wallets: Solana (the app /
+          // gasless betting identity) AND Ethereum (the HyperLiquid trading
+          // account the terminal uses). Both are exportable from the profile.
           solana: { createOnLogin: 'all-users' },
+          ethereum: { createOnLogin: 'all-users' },
           // Sign silently — no Privy confirm modal. The app's bet UI is the
           // confirmation; the embedded wallet co-signs the relayer's tx without
           // a popup (gasless flow, see useWalletBridge.coSignAndSend).

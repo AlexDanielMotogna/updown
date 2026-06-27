@@ -33,7 +33,11 @@ export function Providers({ children }: { children: ReactNode }) {
         },
         loginMethods: ['wallet', 'email'],
         embeddedWallets: {
+          // Provision both chains so an email login here also yields the Solana
+          // identity + the EVM (HyperLiquid) wallet. BYO external wallets skip
+          // the embedded one for that chain (users-without-wallets).
           ethereum: { createOnLogin: 'users-without-wallets' },
+          solana: { createOnLogin: 'users-without-wallets' },
         },
         externalWallets: {
           solana: { connectors: solanaConnectors },

@@ -58,7 +58,7 @@ export function ProfileHeader({
   balance,
 }: ProfileHeaderProps) {
   const t = useThemeTokens();
-  const { isEmbedded, exportWallet } = useWalletBridge();
+  const { isEmbedded, exportWallet, evmAddress, exportEvmWallet } = useWalletBridge();
   const [copied, setCopied] = useState(false);
   const [refCopied, setRefCopied] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -70,6 +70,14 @@ export function ProfileHeader({
     setSettingsAnchor(null);
     setExporting(true);
     try { await exportWallet(); } catch { /* user closed the secure modal */ }
+    finally { setExporting(false); }
+  };
+
+  // The EVM (HyperLiquid trading) embedded wallet — same one-login provisioning.
+  const handleExportEvm = async () => {
+    setSettingsAnchor(null);
+    setExporting(true);
+    try { await exportEvmWallet(); } catch { /* user closed the secure modal */ }
     finally { setExporting(false); }
   };
 
@@ -261,8 +269,14 @@ export function ProfileHeader({
                         >
                           <MenuItem onClick={handleExport} disabled={exporting} sx={{ fontSize: '0.85rem', gap: 1 }}>
                             <ListItemIcon sx={{ minWidth: 'auto !important', color: t.text.secondary }}><VpnKey sx={{ fontSize: 17 }} /></ListItemIcon>
-                            {exporting ? 'Opening…' : 'Export wallet'}
+                            {exporting ? 'Opening…' : 'Export app wallet (SOL)'}
                           </MenuItem>
+                          {evmAddress && (
+                            <MenuItem onClick={handleExportEvm} disabled={exporting} sx={{ fontSize: '0.85rem', gap: 1 }}>
+                              <ListItemIcon sx={{ minWidth: 'auto !important', color: t.text.secondary }}><VpnKey sx={{ fontSize: 17 }} /></ListItemIcon>
+                              {exporting ? 'Opening…' : 'Export trading wallet (EVM)'}
+                            </MenuItem>
+                          )}
                         </Menu>
                       </>
                     )}

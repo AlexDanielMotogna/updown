@@ -12,7 +12,7 @@ import bs58 from 'bs58';
 import { useSolanaConnection } from '@/app/providers';
 
 export function useWalletBridge() {
-  const { ready, authenticated, user, login, logout, getAccessToken } = usePrivy();
+  const { ready, authenticated, user, login, logout, getAccessToken, exportWallet: privyExportEvmWallet } = usePrivy();
   const { wallets } = useWallets();
   const { wallets: standardWallets } = useConnectedStandardWallets();
   const connection = useSolanaConnection();
@@ -64,6 +64,20 @@ export function useWalletBridge() {
       (a) => a.type === 'wallet' && a.walletClientType === 'privy' && a.address === walletAddress,
     );
   }, [activeWallet, user, walletAddress]);
+
+  // The app-created EVM (Ethereum) embedded wallet — the HyperLiquid trading
+  // account provisioned alongside the Solana one. Canonical source is
+  // linkedAccounts; fall back to the wallets list.
+  const evmAddress = useMemo(() => {
+    const fromWallets = wallets.find(
+      (w) => w.address?.startsWith('0x') && w.connectorType === 'embedded',
+    )?.address;
+    if (fromWallets) return fromWallets;
+    const accts = (user?.linkedAccounts ?? []) as Array<{ type?: string; walletClientType?: string; address?: string }>;
+    return accts.find(
+      (a) => a.type === 'wallet' && a.walletClientType === 'privy' && (a.address ?? '').startsWith('0x'),
+    )?.address ?? null;
+  }, [wallets, user]);
 
   const publicKey = useMemo(() => {
     if (!walletAddress) return null;
@@ -167,14 +181,22 @@ export function useWalletBridge() {
     await privyExportWallet({ address: walletAddress });
   }, [privyExportWallet, walletAddress]);
 
+  /** Export the EVM (HyperLiquid trading) embedded wallet's private key. */
+  const exportEvmWallet = useCallback(async (): Promise<void> => {
+    if (!evmAddress) return;
+    await privyExportEvmWallet({ address: evmAddress });
+  }, [privyExportEvmWallet, evmAddress]);
+
   return {
     connected,
     publicKey,
     walletAddress,
+    evmAddress,
     isEmbedded,
     sendTransaction,
     coSignAndSend,
     exportWallet,
+    exportEvmWallet,
     login,
     logout,
   };
