@@ -54,7 +54,7 @@ export function MobileTerminal({
   ];
 
   return (
-    <div className="h-full overflow-y-auto overflow-x-hidden overscroll-contain pb-[calc(72px+env(safe-area-inset-bottom))]" style={{ overflowAnchor: 'none' }}>
+    <div className="h-full overflow-y-auto overflow-x-hidden overscroll-contain pb-[calc(64px+env(safe-area-inset-bottom))]" style={{ overflowAnchor: 'none' }}>
       {/* Market bar — collapsible (compact + chevron → stats grid) */}
       <MarketHeader symbol={symbol} initial={initial} mobile />
 
@@ -89,16 +89,16 @@ export function MobileTerminal({
       </div>
 
       {/* Sticky Buy/Long · Sell/Short (open the order sheet). */}
-      <div className="fixed inset-x-0 bottom-0 z-40 flex gap-3 bg-surface-900 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2.5 border-t border-surface-800 bg-surface-900 px-3 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
         <button
           onClick={() => openSheet('BUY')}
-          className="flex-1 rounded-lg bg-win-500 py-3 text-sm font-bold text-white transition-colors hover:bg-win-400"
+          className="flex-1 rounded-lg bg-win-500 py-2 text-sm font-bold text-white transition-colors hover:bg-win-400"
         >
           Buy / Long
         </button>
         <button
           onClick={() => openSheet('SELL')}
-          className="flex-1 rounded-lg bg-[#e8566d] py-3 text-sm font-bold text-white transition-colors hover:bg-[#ec6b7e]"
+          className="flex-1 rounded-lg bg-[#e8566d] py-2 text-sm font-bold text-white transition-colors hover:bg-[#ec6b7e]"
         >
           Sell / Short
         </button>
