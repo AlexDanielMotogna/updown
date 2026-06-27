@@ -524,7 +524,7 @@ export function OrderEntry({
         <button onClick={() => connectWallet({ walletChainType: 'ethereum-only' })} className={ctaCls}>Connect wallet</button>
       ) : needsDeposit ? (
         <button onClick={() => setShowFund(true)} className="w-full rounded bg-brand py-2.5 font-semibold text-surface-950 transition-colors hover:bg-brand-600">
-          Add USDC to start trading
+          Transfer USDC to start trading
         </button>
       ) : needsAgent ? (
         <button onClick={enableTrading} disabled={enabling} className={ctaCls}>

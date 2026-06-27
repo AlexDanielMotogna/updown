@@ -1,12 +1,26 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Connection, PublicKey } from '@solana/web3.js';
 import { Modal } from './Modal';
 import { getBridgeQuote, type BridgeQuote } from '@/lib/api';
 import { useBridgeExecute } from '@/hooks/useBridgeExecute';
 import { useHlDeposit } from '@/hooks/useHlDeposit';
 
 const fmtUsdc = (micro: string) => (Number(micro) / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+// Solana USDC (mainnet) — the source balance shown in the modal.
+const SOLANA_USDC_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+const SOLANA_RPC = process.env.NEXT_PUBLIC_SOLANA_MAINNET_RPC_URL || 'https://api.mainnet-beta.solana.com';
+
+async function fetchSolanaUsdc(address: string): Promise<number> {
+  const conn = new Connection(SOLANA_RPC, 'confirmed');
+  const res = await conn.getParsedTokenAccountsByOwner(new PublicKey(address), { mint: SOLANA_USDC_MINT });
+  return res.value.reduce((sum, a) => {
+    const ui = (a.account.data as { parsed?: { info?: { tokenAmount?: { uiAmount?: number } } } }).parsed?.info?.tokenAmount?.uiAmount;
+    return sum + (ui ?? 0);
+  }, 0);
+}
 
 /**
  * Full funding flow: bridge Solana USDC → Arbitrum (sign once on Solana), then
@@ -28,11 +42,22 @@ export function BridgeFundModal({
   const [quote, setQuote] = useState<BridgeQuote | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [balance, setBalance] = useState<number | null>(null);
   const bridge = useBridgeExecute();
   const hl = useHlDeposit();
 
   const amt = Number(amount);
-  const ready = !!solanaAddress && !!evmAddress && amt > 0;
+  const exceeds = balance != null && amt > balance;
+  const ready = !!solanaAddress && !!evmAddress && amt > 0 && !exceeds;
+
+  // Load the user's Solana USDC balance (the source) so they know the max.
+  useEffect(() => {
+    if (!open || !solanaAddress) return;
+    let alive = true;
+    setBalance(null);
+    fetchSolanaUsdc(solanaAddress).then((b) => { if (alive) setBalance(b); }).catch(() => { if (alive) setBalance(null); });
+    return () => { alive = false; };
+  }, [open, solanaAddress]);
   const bridgeRunning = bridge.step === 'quoting' || bridge.step === 'signing' || bridge.step === 'bridging';
   const hlRunning = hl.step === 'permit' || hl.step === 'depositing';
   const busy = bridgeRunning || hlRunning;
@@ -131,7 +156,7 @@ export function BridgeFundModal({
 
   // ── Quote / confirm view ────────────────────────────────────────────────
   return (
-    <Modal open={open} onClose={onClose} title="Fund trading from Solana">
+    <Modal open={open} onClose={onClose} title="Transfer to trading">
       <div className="space-y-4">
         <p className="text-xs leading-relaxed text-surface-400">
           Move USDC from your Solana balance into your HyperLiquid trading account. You sign on
@@ -139,15 +164,28 @@ export function BridgeFundModal({
         </p>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-surface-400">Amount (USDC)</label>
+          <div className="mb-1 flex items-center justify-between">
+            <label className="text-xs font-medium text-surface-400">Amount (USDC)</label>
+            <span className="text-xs text-surface-400">
+              Balance:{' '}
+              <button
+                type="button"
+                onClick={() => balance != null && setAmount(String(balance))}
+                className="font-semibold text-surface-200 hover:text-brand"
+              >
+                {balance != null ? `${balance.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDC` : '…'}
+              </button>
+            </span>
+          </div>
           <input
             type="text"
             inputMode="decimal"
             value={amount}
             onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
             placeholder="100"
-            className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-100 outline-none focus:border-brand"
+            className={`w-full rounded-lg border bg-surface-900 px-3 py-2 text-sm text-surface-100 outline-none focus:border-brand ${exceeds ? 'border-loss-500' : 'border-surface-700'}`}
           />
+          {exceeds && <div className="mt-1 text-xs text-loss-500">Amount exceeds your Solana USDC balance.</div>}
         </div>
 
         {ready && (
