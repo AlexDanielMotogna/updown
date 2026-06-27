@@ -44,15 +44,23 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
     if (!lockedSymbol && !symbol && tickers.length) setSymbol(tickers[0].symbol);
   }, [tickers, symbol, lockedSymbol]);
 
-  const mark = useMemo(() => Number(tickers.find((t) => t.symbol === symbol)?.mark ?? 0), [tickers, symbol]);
+  const selected = useMemo(() => tickers.find((t) => t.symbol === symbol), [tickers, symbol]);
+  const mark = Number(selected?.mark ?? 0);
+  const szDecimals = selected?.szDecimals ?? 0;
   const base = symbol.split('/')[0] || '';
   const amt = Number(amountUsd);
   // Size is priced off the limit price for LIMIT orders, else the current mark.
   const refPrice = type === 'LIMIT' ? Number(limitPrice) : mark;
-  const baseSize = refPrice > 0 && amt > 0 ? amt / refPrice : 0;
+  const rawSize = refPrice > 0 && amt > 0 ? amt / refPrice : 0;
+  // Round DOWN to the token's lot (10^-szDecimals) so we never exceed funds and
+  // never send a size that rounds to 0 server-side ("Order has zero size").
+  const factor = 10 ** szDecimals;
+  const baseSize = Math.floor(rawSize * factor) / factor;
+  const minUsd = refPrice > 0 ? refPrice / factor : 0; // cost of one lot
+  const tooSmall = amt > 0 && refPrice > 0 && baseSize <= 0;
   const belowMin = amt > 0 && amt < 10; // HL ~$10 min notional
   const limitMissing = type === 'LIMIT' && !(Number(limitPrice) > 0);
-  const canSubmit = !!walletAddress && !!symbol && refPrice > 0 && amt > 0 && !belowMin && !limitMissing && !busy;
+  const canSubmit = !!walletAddress && !!symbol && refPrice > 0 && amt > 0 && baseSize > 0 && !belowMin && !limitMissing && !busy;
 
   async function submit() {
     if (!canSubmit) return;
@@ -60,7 +68,7 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
     const tid = toast.loading(`${side === 'BUY' ? 'Buy' : 'Sell'} ${base} — pending`);
     const res = await placeOrder({
       walletAddress: walletAddress!, symbol, side, type,
-      amount: String(baseSize), kind: 'spot',
+      amount: baseSize.toFixed(szDecimals), kind: 'spot',
       ...(type === 'LIMIT' ? { price: limitPrice } : { maxSlippagePct: 8 }),
     });
     setBusy(false);
@@ -129,6 +137,7 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
         <span>You get ≈</span><span className="tabular text-surface-200">{baseSize > 0 ? `${baseSize.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${base}` : '--'}</span>
       </div>
       {belowMin && <div className="text-2xs text-loss-500">Minimum order is ~$10.</div>}
+      {!belowMin && tooSmall && <div className="text-2xs text-loss-500">Amount too small for {base} — min ≈ {usd(minUsd)} (1 unit).</div>}
 
       {/* CTA */}
       {!!walletAddress && !tradingEnabled ? (

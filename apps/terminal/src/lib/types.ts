@@ -17,4 +17,6 @@ export interface Ticker {
   openInterest: string; // in base units (× mark for notional)
   funding: string;
   maxLeverage: number | null;
+  /** Base-size decimals (spot only) — needed to size orders without rounding to 0. */
+  szDecimals?: number;
 }
