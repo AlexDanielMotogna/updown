@@ -87,6 +87,7 @@ const orderSchema = z.object({
   reduceOnly: z.boolean().optional(),
   clientOrderId: z.string().optional(),
   maxSlippagePct: z.number().positive().max(50).optional(),
+  kind: z.enum(['perp', 'spot']).optional(),
 });
 
 const cancelSchema = z.object({

@@ -15,10 +15,16 @@ import {
   TESTNET,
   type HlEndpoint,
 } from 'exchange-hyperliquid';
-import type { ExchangeReadAdapter } from 'exchange-core';
+import type { Balance, ExchangeReadAdapter } from 'exchange-core';
 import type { Ticker } from './types';
 
 export type { Ticker } from './types';
+
+function pctChange(curr: string, prev: string): string {
+  const np = Number(prev);
+  if (!np) return '0';
+  return String(((Number(curr) - np) / np) * 100);
+}
 
 export function hlEndpoint(): HlEndpoint {
   // Prefer the PUBLIC url — it's the network the terminal's client uses (stream,
@@ -77,4 +83,53 @@ export async function getTickers(): Promise<Ticker[]> {
     })
     .finally(() => { tickersInFlight = null; });
   return tickersInFlight;
+}
+
+// ── Spot ──────────────────────────────────────────────────────────────────
+
+let spotTickersCache: { data: Ticker[]; expires: number } | null = null;
+let spotTickersInFlight: Promise<Ticker[]> | null = null;
+
+async function computeSpotTickers(): Promise<Ticker[]> {
+  const a = readAdapter();
+  if (!a.getSpotMarkets) return [];
+  const markets = await a.getSpotMarkets();
+  return markets
+    .map((m) => {
+      const md = m.metadata ?? {};
+      const mark = String(md.markPx ?? md.midPx ?? '0');
+      return {
+        symbol: m.symbol,
+        mark,
+        index: mark,
+        change24h: pctChange(mark, String(md.prevDayPx ?? '0')),
+        volume24h: String(md.dayNtlVlm ?? '0'),
+        openInterest: '0',
+        funding: '0',
+        maxLeverage: null,
+      } as Ticker;
+    })
+    .filter((t) => Number(t.mark) > 0)
+    .sort((x, y) => Number(y.volume24h) - Number(x.volume24h));
+}
+
+/** Spot tickers (pairs), sorted by 24h volume desc. Cached briefly. */
+export async function getSpotTickers(): Promise<Ticker[]> {
+  const now = Date.now();
+  if (spotTickersCache && spotTickersCache.expires > now) return spotTickersCache.data;
+  if (spotTickersInFlight) return spotTickersInFlight;
+  spotTickersInFlight = computeSpotTickers()
+    .then((data) => {
+      spotTickersCache = { data, expires: Date.now() + TICKERS_TTL_MS };
+      return data;
+    })
+    .finally(() => { spotTickersInFlight = null; });
+  return spotTickersInFlight;
+}
+
+/** Spot token balances (holdings) for an account address. */
+export async function getSpotBalances(accountId: string): Promise<Balance[]> {
+  const a = readAdapter();
+  if (!a.getSpotBalances) return [];
+  return a.getSpotBalances(accountId);
 }

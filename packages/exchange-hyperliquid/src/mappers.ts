@@ -150,6 +150,8 @@ export function mapSpotMarkets(meta: HlSpotMeta, ctxs: HlSpotAssetCtx[]): Market
         baseTokenIndex: pair.tokens[0],
         quoteTokenIndex: pair.tokens[1],
         markPx: ctx?.markPx,
+        midPx: ctx?.midPx,
+        prevDayPx: ctx?.prevDayPx,
         dayNtlVlm: ctx?.dayNtlVlm,
         isCanonical: pair.isCanonical ?? false,
       },

@@ -27,6 +27,8 @@ export interface PlaceOrderInput {
   timeInForce?: 'GTC' | 'IOC' | 'FOK' | 'POST_ONLY';
   reduceOnly?: boolean;
   maxSlippagePct?: number;
+  /** 'perp' (default) or 'spot'. Spot routes to the spot asset map server-side. */
+  kind?: 'perp' | 'spot';
 }
 
 export interface ApiResult<T> {
