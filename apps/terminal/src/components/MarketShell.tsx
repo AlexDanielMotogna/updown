@@ -1,23 +1,27 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Ticker } from '@/lib/types';
 import { TerminalLayout } from './TerminalLayout';
-import { SimpleMarketView } from './simple/SimpleMarketView';
 import { useTradeMode } from '@/hooks/useTradeMode';
 
 /**
- * Picks the market shell by trade mode (PLAN-SIMPLE-MODE §3): Simple → the clean
- * SimpleMarketView, Pro → the full TerminalLayout. Renders after mount so a
- * returning Pro user never flashes the Simple shell (mode is client-only).
+ * Market shell. Pro → the full TerminalLayout. Simple mode has NO market detail
+ * page (the markets list + trade modal cover it), so a Simple session that lands
+ * on /market/X is sent back to the markets list. Renders after mount so a
+ * returning Pro user never flashes the wrong shell (mode is client-only).
  */
 export function MarketShell({ symbol, initial, devWallet, devEvm }: { symbol: string; initial?: Ticker | null; devWallet?: string; devEvm?: string }) {
   const [mode] = useTradeMode();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  if (!mounted) return null;
 
-  return mode === 'simple'
-    ? <SimpleMarketView symbol={symbol} devWallet={devWallet} devEvm={devEvm} />
-    : <TerminalLayout symbol={symbol} initial={initial} devWallet={devWallet} devEvm={devEvm} />;
+  useEffect(() => {
+    if (mounted && mode === 'simple') router.replace('/');
+  }, [mounted, mode, router]);
+
+  if (!mounted || mode === 'simple') return null;
+  return <TerminalLayout symbol={symbol} initial={initial} devWallet={devWallet} devEvm={devEvm} />;
 }
