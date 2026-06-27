@@ -18,6 +18,8 @@ COPY packages/market-data/package.json packages/market-data/package.json
 COPY packages/solana-client/package.json packages/solana-client/package.json
 COPY packages/exchange-core/package.json packages/exchange-core/package.json
 COPY packages/exchange-hyperliquid/package.json packages/exchange-hyperliquid/package.json
+COPY packages/bridge-core/package.json packages/bridge-core/package.json
+COPY packages/bridge-lifi/package.json packages/bridge-lifi/package.json
 
 # Copy prisma schema for generate
 COPY apps/api/prisma apps/api/prisma
@@ -47,6 +49,9 @@ ARG NEXT_PUBLIC_HYPERLIQUID_TESTNET
 ARG NEXT_PUBLIC_HYPERLIQUID_BUILDER_ADDRESS
 ARG NEXT_PUBLIC_HYPERLIQUID_BUILDER_MAX_FEE
 ARG HYPERLIQUID_API_URL
+# bridge (terminal) build-time RPCs — optional; fall back to public RPCs if unset
+ARG NEXT_PUBLIC_SOLANA_MAINNET_RPC_URL
+ARG NEXT_PUBLIC_ARBITRUM_RPC_URL
 
 ENV NEXT_PUBLIC_PRIVY_APP_ID=$NEXT_PUBLIC_PRIVY_APP_ID
 ENV NEXT_PUBLIC_PRIVY_CLIENT_ID=$NEXT_PUBLIC_PRIVY_CLIENT_ID
@@ -62,6 +67,8 @@ ENV NEXT_PUBLIC_HYPERLIQUID_TESTNET=$NEXT_PUBLIC_HYPERLIQUID_TESTNET
 ENV NEXT_PUBLIC_HYPERLIQUID_BUILDER_ADDRESS=$NEXT_PUBLIC_HYPERLIQUID_BUILDER_ADDRESS
 ENV NEXT_PUBLIC_HYPERLIQUID_BUILDER_MAX_FEE=$NEXT_PUBLIC_HYPERLIQUID_BUILDER_MAX_FEE
 ENV HYPERLIQUID_API_URL=$HYPERLIQUID_API_URL
+ENV NEXT_PUBLIC_SOLANA_MAINNET_RPC_URL=$NEXT_PUBLIC_SOLANA_MAINNET_RPC_URL
+ENV NEXT_PUBLIC_ARBITRUM_RPC_URL=$NEXT_PUBLIC_ARBITRUM_RPC_URL
 
 # Build everything
 RUN pnpm run build
