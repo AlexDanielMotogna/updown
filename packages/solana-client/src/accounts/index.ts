@@ -1,8 +1,16 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { Program, AnchorProvider } from '@coral-xyz/anchor';
 
-// Program ID - Devnet deployment
-export const PROGRAM_ID = new PublicKey('9H7k26HvHHnB4T6ErU7n2wVSFJhS1aigqFQGwvQyVuNG');
+// Program ID — env-driven so each environment (localhost / dev / prod) points at
+// its OWN deployed program. Sharing ONE program across environments (each with a
+// separate DB) makes every env see the others' on-chain pools as "orphans", and
+// makes orphan-recovery close pools that belong to other envs. The backend reads
+// `PROGRAM_ID`; the browser bundle inlines `NEXT_PUBLIC_PROGRAM_ID` at build time.
+const DEFAULT_PROGRAM_ID = '9H7k26HvHHnB4T6ErU7n2wVSFJhS1aigqFQGwvQyVuNG';
+const PROGRAM_ID_STR =
+  (typeof process !== 'undefined' && process.env &&
+    (process.env.PROGRAM_ID || process.env.NEXT_PUBLIC_PROGRAM_ID)) || DEFAULT_PROGRAM_ID;
+export const PROGRAM_ID = new PublicKey(PROGRAM_ID_STR);
 
 /**
  * Derive Pool PDA
