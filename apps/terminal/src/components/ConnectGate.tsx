@@ -54,8 +54,6 @@ function ConnectAnim({ danger = false }: { danger?: boolean }) {
   );
 }
 
-const EVM_WALLETS = ['MetaMask', 'Rabby', 'WalletConnect', 'Coinbase'];
-
 /** Clean full-panel overlay (no bordered modal) — gradient + blur, content stacked. */
 function Overlay({ children }: { children: React.ReactNode }) {
   return (
@@ -126,27 +124,21 @@ function Gate() {
     );
   }
 
-  // Authenticated but no EVM wallet (e.g. signed in with email or Solana only).
+  // Authenticated but no EVM wallet yet. Every account gets a Privy embedded EVM
+  // wallet provisioned at login, so this is normally a brief "setting up" moment.
+  // Power users can still bring their own external wallet as a fallback.
   return (
     <Overlay>
       <ConnectAnim />
       <div className="space-y-1.5">
-        <h2 className="text-base font-bold text-surface-100">Connect an EVM wallet</h2>
+        <h2 className="text-base font-bold text-surface-100">Setting up your trading wallet</h2>
         <p className="text-xs leading-relaxed text-surface-400">
-          HyperLiquid runs on an <span className="text-surface-200">EVM chain</span> — a Solana wallet
-          alone won&apos;t work for trading.
+          We&apos;re creating your HyperLiquid wallet. This only takes a moment.
         </p>
       </div>
-      <div className="flex flex-wrap justify-center gap-1.5">
-        {EVM_WALLETS.map((w) => (
-          <span key={w} className="rounded-md bg-surface-800/80 px-2 py-1 text-2xs font-medium text-surface-300">
-            {w}
-          </span>
-        ))}
-      </div>
       <div className="w-full max-w-[15rem] space-y-2">
-        <button onClick={() => connectWallet({ walletChainType: 'ethereum-only' })} className={btnPrimary}>
-          Connect EVM wallet
+        <button onClick={() => connectWallet({ walletChainType: 'ethereum-only' })} className={btnGhost}>
+          Use an external wallet instead
         </button>
         <button onClick={logout} className={btnGhost}>
           Disconnect

@@ -58,13 +58,15 @@ export function useIdentity(): Identity {
   const { wallets } = useWallets(); // actually-connected EVM wallets
   const accounts = (user?.linkedAccounts ?? []) as LinkedAccount[];
   const sessionSolana = accounts.find((a) => a.type === 'wallet' && a.chainType === 'solana')?.address;
-  // The HL account = the EXTERNAL connected EVM wallet (MetaMask/Rabby — where the
-  // funds are), NOT Privy's empty embedded wallet. Read from useWallets (a wallet
-  // can be connected for txns without being a "linked account"); prefer a non-Privy
-  // wallet, then any connected wallet, then a linked ethereum account.
+  // The HL account = the user's Privy EMBEDDED EVM wallet, provisioned at login
+  // (one identity, no "connect EVM wallet" prompt). A BYO external wallet is still
+  // honored as a fallback when the user has no embedded one (e.g. they logged into
+  // the terminal WITH MetaMask). Order: embedded → external → any → linked account.
   const linkedEvm = accounts.find((a) => a.type === 'wallet' && a.chainType === 'ethereum')?.address;
   const evmAddress =
-    (wallets.find((w) => w.walletClientType !== 'privy') ?? wallets[0])?.address ?? linkedEvm;
+    (wallets.find((w) => w.walletClientType === 'privy')
+      ?? wallets.find((w) => w.walletClientType !== 'privy')
+      ?? wallets[0])?.address ?? linkedEvm;
 
   // EVM-only session → try to resolve a previously-linked identity. `resolveDone`
   // distinguishes "still checking" (undefined) from "checked, none found" (null).
