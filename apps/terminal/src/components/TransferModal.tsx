@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useWallets } from '@privy-io/react-auth';
 import { ExchangeClient, HttpTransport } from '@nktkas/hyperliquid';
 import { createWalletClient, custom } from 'viem';
+import { arbitrum } from 'viem/chains';
 import { Modal } from './Modal';
 import { useToast } from './Toast';
 import { IS_TESTNET } from '@/lib/api';
@@ -45,7 +46,11 @@ function Inner({ evmAddress }: { evmAddress?: string }) {
       const wallet = wallets.find((w) => w.address.toLowerCase() === evmAddress.toLowerCase());
       if (!wallet) throw new Error('Connected wallet not found');
       const provider = await wallet.getEthereumProvider();
-      const walletClient = createWalletClient({ account: evmAddress as `0x${string}`, transport: custom(provider) });
+      // chain: arbitrum so the HL SDK resolves the right signatureChainId for the
+      // EIP-712 user action — without it the embedded wallet's signTypedData fails
+      // (same fix as the bridge permit in useHlDeposit).
+      try { await wallet.switchChain(arbitrum.id); } catch { /* already on it / not supported */ }
+      const walletClient = createWalletClient({ account: evmAddress as `0x${string}`, chain: arbitrum, transport: custom(provider) });
       const client = new ExchangeClient({ transport: new HttpTransport({ isTestnet: IS_TESTNET }), wallet: walletClient });
       await client.usdClassTransfer({ amount, toPerp });
       toast.update(tid, 'success', `Transferred ${amount} USDC (${dir})`);
