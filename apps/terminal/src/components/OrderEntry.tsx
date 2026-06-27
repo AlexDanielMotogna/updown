@@ -592,7 +592,7 @@ export function OrderEntry({
         {levMsg && !levMsg.ok && <p className="mb-3 text-xs text-loss-500">{levMsg.text}</p>}
         <div className="grid grid-cols-2 gap-2">
           <button onClick={() => setShowLeverage(false)} className="rounded border border-surface-700 py-2.5 text-sm text-surface-200 hover:bg-surface-800">Cancel</button>
-          <button onClick={confirmLeverage} disabled={levBusy} className="rounded bg-surface-100 py-2.5 text-sm font-semibold text-surface-900 hover:bg-surface-200 disabled:opacity-50">
+          <button onClick={confirmLeverage} disabled={levBusy} className="rounded bg-brand py-2.5 text-sm font-semibold text-surface-950 hover:bg-brand-600 disabled:opacity-50">
             {levBusy ? 'Confirming…' : 'Confirm'}
           </button>
         </div>
@@ -619,7 +619,7 @@ export function OrderEntry({
         {levMsg && !levMsg.ok && <p className="mb-3 text-xs text-loss-500">{levMsg.text}</p>}
         <div className="grid grid-cols-2 gap-2">
           <button onClick={() => setShowMargin(false)} className="rounded border border-surface-700 py-2.5 text-sm text-surface-200 hover:bg-surface-800">Cancel</button>
-          <button onClick={confirmMargin} disabled={levBusy} className="rounded bg-surface-100 py-2.5 text-sm font-semibold text-surface-900 hover:bg-surface-200 disabled:opacity-50">
+          <button onClick={confirmMargin} disabled={levBusy} className="rounded bg-brand py-2.5 text-sm font-semibold text-surface-950 hover:bg-brand-600 disabled:opacity-50">
             {levBusy ? 'Confirming…' : 'Confirm'}
           </button>
         </div>
@@ -655,7 +655,7 @@ export function OrderEntry({
         <p className="mb-4 text-xs text-surface-300">Market orders won&apos;t fill beyond this slippage from the mid price. Saved locally.</p>
         <div className="grid grid-cols-2 gap-2">
           <button onClick={() => setShowSlippage(false)} className="rounded border border-surface-700 py-2.5 text-sm text-surface-200 hover:bg-surface-800">Cancel</button>
-          <button onClick={confirmSlippage} className="rounded bg-surface-100 py-2.5 text-sm font-semibold text-surface-900 hover:bg-surface-200">Confirm</button>
+          <button onClick={confirmSlippage} className="rounded bg-brand py-2.5 text-sm font-semibold text-surface-950 hover:bg-brand-600">Confirm</button>
         </div>
       </Modal>
     </div>

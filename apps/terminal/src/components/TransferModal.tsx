@@ -94,7 +94,7 @@ function Inner({ evmAddress }: { evmAddress?: string }) {
       <button
         onClick={transfer}
         disabled={!evmAddress || !amount || Number(amount) <= 0 || (sourceBal != null && Number(amount) > sourceBal) || busy}
-        className="w-full rounded bg-surface-100 py-2.5 text-sm font-semibold text-surface-900 hover:bg-surface-200 disabled:opacity-40"
+        className="w-full rounded bg-brand py-2.5 text-sm font-semibold text-surface-950 hover:bg-brand-600 disabled:opacity-40"
       >
         {busy ? 'Transferring…' : 'Transfer'}
       </button>
