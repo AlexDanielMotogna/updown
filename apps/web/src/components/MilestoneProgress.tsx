@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Typography, Avatar } from '@mui/material';
-import { CheckCircle, CardGiftcard } from '@mui/icons-material';
+import { CheckCircle } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useThemeTokens } from '@/app/providers';
@@ -107,9 +107,7 @@ export function MilestoneProgress() {
 
       {self && (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1.5, px: 1.25, py: 0.75, borderRadius: 1, bgcolor: self.qualified ? withAlpha(t.gain, 0.1) : t.hover.light }}>
-          {self.qualified
-            ? <CheckCircle sx={{ fontSize: 16, color: t.gain }} />
-            : <CardGiftcard sx={{ fontSize: 16, color: t.gold }} />}
+          {self.qualified && <CheckCircle sx={{ fontSize: 16, color: t.gain }} />}
           <Typography sx={{ fontSize: '0.76rem', color: t.text.secondary }}>
             {self.qualified
               ? <>You <b style={{ color: t.gain }}>qualify</b> for milestone airdrops ({self.settledBets} predictions)</>
