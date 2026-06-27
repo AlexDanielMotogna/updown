@@ -39,6 +39,8 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
   const [filter, setFilter] = useState<string>('ALL');
   const [view, setView] = useState<'card' | 'row'>('card');
   const [trade, setTrade] = useState<{ symbol: string; side: OrderSide } | null>(null);
+  const [showActivity, setShowActivity] = useState(false); // mobile bottom-sheet for positions/orders
+  const activityCount = positions.length + orders.length;
 
   // Static-ish fields (24h change, volume, the list) over REST — slow poll, since
   // live price now comes from the WS below.
@@ -235,10 +237,41 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
         </div>
       </div>
 
-      {/* Right: what the user has open */}
+      {/* Right: what the user has open (desktop) */}
       <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-surface-800 bg-surface-900/40 lg:block">
         <SimplePositionsSidebar positions={positions} orders={orders} walletAddress={walletAddress} evmAddress={evmAddress} connected={!!evmAddress} />
       </aside>
+
+      {/* Mobile: floating button to open positions/orders (the desktop rail is hidden) */}
+      {!!evmAddress && (
+        <button
+          onClick={() => setShowActivity(true)}
+          className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full border border-surface-700 bg-surface-850 px-4 py-3 text-sm font-semibold text-surface-100 shadow-lg shadow-black/40 lg:hidden"
+          aria-label="Open positions and orders"
+        >
+          Positions & Orders
+          {activityCount > 0 && (
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-2xs font-bold text-surface-950">{activityCount}</span>
+          )}
+        </button>
+      )}
+
+      {/* Mobile: bottom sheet with the same positions/orders rail */}
+      {showActivity && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowActivity(false)} />
+          <div className="absolute inset-x-0 bottom-0 flex max-h-[82vh] flex-col rounded-t-2xl border-t border-surface-800 bg-surface-900">
+            {/* Grab handle + close (no redundant title — the rail labels its own sections) */}
+            <div className="relative flex items-center justify-center py-2">
+              <span className="h-1 w-10 rounded-full bg-surface-700" />
+              <button onClick={() => setShowActivity(false)} className="absolute right-3 top-1.5 text-lg text-surface-400 hover:text-surface-100" aria-label="Close">✕</button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <SimplePositionsSidebar positions={positions} orders={orders} walletAddress={walletAddress} evmAddress={evmAddress} connected={!!evmAddress} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
