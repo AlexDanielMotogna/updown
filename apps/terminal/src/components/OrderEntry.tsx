@@ -10,6 +10,7 @@ import { useTrading } from '@/hooks/useTrading';
 import { useToast } from './Toast';
 import { AccountInfo } from './AccountInfo';
 import { DepositModal } from './DepositModal';
+import { BridgeFundModal } from './BridgeFundModal';
 import { Modal } from './Modal';
 import type { OrderSide, OrderType } from '@/lib/types';
 
@@ -75,6 +76,7 @@ export function OrderEntry({
   const [pendingSlip, setPendingSlip] = useState('8');
   const [busy, setBusy] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
+  const [showFund, setShowFund] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
 
@@ -521,7 +523,9 @@ export function OrderEntry({
       ) : !evmAddress ? (
         <button onClick={() => connectWallet({ walletChainType: 'ethereum-only' })} className={ctaCls}>Connect wallet</button>
       ) : needsDeposit ? (
-        <button onClick={() => setShowDeposit(true)} className={ctaCls}>Deposit to trade</button>
+        <button onClick={() => setShowFund(true)} className="w-full rounded bg-brand py-2.5 font-semibold text-surface-950 transition-colors hover:bg-brand-600">
+          Add USDC to start trading
+        </button>
       ) : needsAgent ? (
         <button onClick={enableTrading} disabled={enabling} className={ctaCls}>
           {enabling ? 'Enabling…' : 'Enable Trading'}
@@ -553,6 +557,7 @@ export function OrderEntry({
 
       {/* Modals */}
       <DepositModal open={showDeposit} onClose={() => setShowDeposit(false)} evmAddress={evmAddress} />
+      <BridgeFundModal open={showFund} onClose={() => setShowFund(false)} solanaAddress={walletAddress} evmAddress={evmAddress} />
       {HAS_PRIVY && <WithdrawModal open={showWithdraw} onClose={() => setShowWithdraw(false)} evmAddress={evmAddress} />}
       {HAS_PRIVY && <TransferModal open={showTransfer} onClose={() => setShowTransfer(false)} evmAddress={evmAddress} />}
 
