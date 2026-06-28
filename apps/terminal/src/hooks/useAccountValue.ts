@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAccountStream } from './useAccountStream';
-import { fetchSpotAccountValue } from '@/lib/hlBalances';
+import { fetchSpotAccountValue, fetchSpotUsdcAvailable } from '@/lib/hlBalances';
 
 /**
  * Unified account value (HL Unified Account). The single balance lives in the spot
@@ -15,11 +15,15 @@ import { fetchSpotAccountValue } from '@/lib/hlBalances';
 export function useAccountValue(evmAddress?: string) {
   const { account } = useAccountStream(evmAddress);
   const [spotValue, setSpotValue] = useState<number | null>(null);
+  const [usdcAvailable, setUsdcAvailable] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!evmAddress) { setSpotValue(null); return; }
+    if (!evmAddress) { setSpotValue(null); setUsdcAvailable(null); return; }
     let alive = true;
-    const load = () => fetchSpotAccountValue(evmAddress).then((v) => alive && setSpotValue(v));
+    const load = () => {
+      fetchSpotAccountValue(evmAddress).then((v) => alive && setSpotValue(v));
+      fetchSpotUsdcAvailable(evmAddress).then((v) => alive && setUsdcAvailable(v));
+    };
     load();
     const id = window.setInterval(load, 10000);
     return () => { alive = false; window.clearInterval(id); };
@@ -29,5 +33,5 @@ export function useAccountValue(evmAddress?: string) {
   const total = (spotValue ?? 0) + upnl;
   // Ready once either source has reported, so the chip doesn't flash $0.00 forever.
   const ready = !!account || spotValue != null;
-  return { total, upnl, spotValue, ready };
+  return { total, upnl, spotValue, usdcAvailable, ready };
 }

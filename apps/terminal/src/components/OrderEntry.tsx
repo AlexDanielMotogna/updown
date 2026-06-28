@@ -6,6 +6,7 @@ import { placeOrder, setTpsl, setLeverage as setLeverageApi } from '@/lib/api';
 import { marginUsd as calcMargin, maxPositionUsd, liquidationPrice as calcLiq } from '@/lib/tradeMath';
 import { usePrivy } from '@privy-io/react-auth';
 import { useAccountStream } from '@/hooks/useAccountStream';
+import { useAccountValue } from '@/hooks/useAccountValue';
 import { useTrading } from '@/hooks/useTrading';
 import { useToast } from './Toast';
 import { AccountInfo } from './AccountInfo';
@@ -81,8 +82,12 @@ export function OrderEntry({
 
   const [mark, setMark] = useState(0);
   const [maxLev, setMaxLev] = useState(50);
-  const [available, setAvailable] = useState(0);
-  const { account: acct, positions, ready: accountReady } = useAccountStream(evmAddress);
+  const { positions, ready: accountReady } = useAccountStream(evmAddress);
+  // Buying power under Unified Account = free USDC in the (unified) balance — the
+  // perps clearinghouse equity reads ~0 there, so don't use it. total drives the
+  // "needs funding" gate; usdcAvailable is "Available to Trade".
+  const { total: unifiedValue, usdcAvailable } = useAccountValue(evmAddress);
+  const available = usdcAvailable ?? 0;
   const { enabled: tradingEnabled, builderApproved, busy: enabling, enableTrading, approveBuilder } = useTrading(walletAddress, evmAddress);
   const { ready: privyReady, authenticated, login, connectWallet } = usePrivy();
   const [approvingBuilder, setApprovingBuilder] = useState(false);
@@ -168,12 +173,6 @@ export function OrderEntry({
     const id = window.setInterval(tick, 4000);
     return () => { alive = false; window.clearInterval(id); };
   }, [symbol]);
-
-  // Available to trade = account value − margin already used (HL's "Available to
-  // Trade", the buying power for new orders), NOT withdrawable. Live over WS.
-  useEffect(() => {
-    setAvailable(acct ? Math.max(0, Number(acct.accountEquity) - Number(acct.marginUsed)) : 0);
-  }, [acct]);
 
   // clamp leverage to the market max
   useEffect(() => { setLeverage((l) => Math.min(l, maxLev)); }, [maxLev]);
@@ -375,10 +374,14 @@ export function OrderEntry({
   const buy = side === 'BUY';
   const needsAgent = !!walletAddress && !tradingEnabled;
   const needsBuilder = !!walletAddress && tradingEnabled && builderApproved === false;
-  // A brand-new HL account (created via our app, never funded) has 0 equity, and
+  // A brand-new HL account (created via our app, never funded) has 0 balance, and
   // HyperLiquid rejects approveAgent/orders with "Must deposit before performing
-  // actions". Prompt a deposit first instead of a failing "Enable Trading".
-  const needsDeposit = !!walletAddress && !!evmAddress && accountReady && !!acct && Number(acct.accountEquity) <= 0;
+  // actions". Prompt a deposit first instead of a failing "Enable Trading". Under
+  // Unified Account the balance lives in the spot clearinghouse (perps equity reads
+  // ~0), so gate on the UNIFIED value, not acct.accountEquity. Wait until it has
+  // loaded (usdcAvailable != null) so we don't flash the gate on a funded account.
+  const needsDeposit =
+    !!walletAddress && !!evmAddress && accountReady && usdcAvailable != null && unifiedValue <= 0;
   // Primary-action button gating, in order. All of it lives on the order button
   // (no separate cards): sign in → connect wallet → enable trading → approve
   // builder fee → Buy/Long.
@@ -523,7 +526,7 @@ export function OrderEntry({
         <button onClick={() => connectWallet({ walletChainType: 'ethereum-only' })} className={ctaCls}>Connect wallet</button>
       ) : needsDeposit ? (
         <button onClick={() => setShowFund(true)} className="w-full rounded bg-brand py-2.5 font-semibold text-surface-950 transition-colors hover:bg-brand-600">
-          Transfer USDC to start trading
+          Deposit USDC to start trading
         </button>
       ) : needsAgent ? (
         <button onClick={enableTrading} disabled={enabling} className={ctaCls}>

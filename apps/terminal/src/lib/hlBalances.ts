@@ -56,6 +56,18 @@ export async function fetchSpotUsdc(user: string): Promise<number> {
   return Number(usdc?.total ?? 0);
 }
 
+/** Free USDC = total − hold. Under Unified Account this is the perp buying power
+ * ("Available to Trade"): hold already covers margin + resting orders. */
+export async function fetchSpotUsdcAvailable(user: string): Promise<number | null> {
+  const s = await info<{ balances?: Array<{ coin: string; total: string; hold?: string }> }>({
+    type: 'spotClearinghouseState',
+    user,
+  });
+  if (!s?.balances) return null;
+  const usdc = s.balances.find((b) => b.coin === 'USDC');
+  return Math.max(0, Number(usdc?.total ?? 0) - Number(usdc?.hold ?? 0));
+}
+
 type SpotState = { balances?: Array<{ coin: string; token: number; total: string }> };
 type SpotMetaCtx = [
   { universe: Array<{ name: string; tokens: number[] }> },
