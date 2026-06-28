@@ -285,14 +285,15 @@ export class HyperliquidSigner implements ExchangeSigner {
     if (hit && hit.expires > now) return hit.map;
     const meta = await this.info.spotMeta();
     const map = new Map<string, AssetInfo>();
-    // Key by the HL coin (canonical name or "@arrayPos") and use the ARRAY POSITION
-    // for the asset id (10000 + pos) — matches allMids and the order routing. The
-    // pair `.index` field is a different id that does NOT match allMids.
+    // Per HL docs (Asset IDs): the spot ORDER asset id = 10000 + spotInfo.index
+    // (the pair's `.index` FIELD), NOT the array position. The coin used for
+    // allMids / orderbook is "@arrayPos" (or the canonical name) — a different
+    // number. So key the map by the coin (arrayPos) but store the .index asset id.
     meta.universe.forEach((pair, i) => {
       const base = meta.tokens[pair.tokens[0]];
       if (!base) return;
       const coin = pair.isCanonical ? pair.name : `@${i}`;
-      map.set(coin, { index: 10000 + i, szDecimals: base.szDecimals });
+      map.set(coin, { index: 10000 + pair.index, szDecimals: base.szDecimals });
     });
     ASSET_MAP_CACHE.set(key, { map, expires: now + ASSET_MAP_TTL_MS });
     return map;

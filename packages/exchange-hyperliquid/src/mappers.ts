@@ -157,8 +157,10 @@ export function mapSpotMarkets(meta: HlSpotMeta, ctxs: HlSpotAssetCtx[]): Market
       kind: 'spot',
       metadata: {
         hlCoin: coin,
-        spotIndex: i,
-        assetId: 10000 + i,
+        spotIndex: pair.index,
+        // ORDER asset id = 10000 + pair.index (.index field, per HL docs), NOT the
+        // array position. The coin (hlCoin) above uses arrayPos for allMids.
+        assetId: 10000 + pair.index,
         displayName: spotPairSymbol(base?.name ?? pair.name, quote?.name ?? 'USDC'),
         szDecimals,
         baseTokenIndex: pair.tokens[0],
