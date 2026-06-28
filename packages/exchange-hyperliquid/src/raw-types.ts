@@ -199,6 +199,16 @@ export interface HlSpotClearinghouseState {
   balances: HlSpotBalance[];
 }
 
+/** `tokenDetails` → per-token info. `markPx`/`midPx` is the token reference price
+ * HL uses to value spot holdings (can differ from the pair's orderbook mark). */
+export interface HlTokenDetails {
+  name?: string;
+  markPx?: string;
+  midPx?: string;
+  prevDayPx?: string;
+  circulatingSupply?: string;
+}
+
 /** `recentTrades` element. side: "B" (buy) | "A" (sell). */
 export interface HlRecentTrade {
   coin: string;

@@ -194,21 +194,12 @@ export function mapSpotPrices(meta: HlSpotMeta, ctxs: HlSpotAssetCtx[], now: num
     .filter((p): p is Price => p != null && p.mark != null);
 }
 
-export function mapSpotBalances(state: HlSpotClearinghouseState, meta?: HlSpotMeta, ctxs?: HlSpotAssetCtx[]): Balance[] {
-  // Price each balance by its TOKEN INDEX (not name — names collide). Build a map
-  // baseTokenIndex -> markPx from the pair whose base token is that index.
-  const priceByToken = new Map<number, string>();
-  if (meta && ctxs) {
-    meta.universe.forEach((pair, i) => {
-      const baseIdx = pair.tokens[0];
-      if (!priceByToken.has(baseIdx) && ctxs[i]?.markPx) priceByToken.set(baseIdx, ctxs[i].markPx);
-    });
-  }
+export function mapSpotBalances(state: HlSpotClearinghouseState, meta?: HlSpotMeta, priceByToken?: Map<number, string>): Balance[] {
   return state.balances.map((b) => {
     const tok = meta?.tokens[b.token];
     // HL's "Contract" column shows the tokenId (not the evmContract address).
     const contract = tok?.tokenId;
-    const price = b.coin === 'USDC' ? 1 : Number(priceByToken.get(b.token) ?? 0);
+    const price = b.coin === 'USDC' ? 1 : Number(priceByToken?.get(b.token) ?? 0);
     const usdValue = price > 0 ? String(Number(b.total) * price) : undefined;
     return {
       asset: b.coin,

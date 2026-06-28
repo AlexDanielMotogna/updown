@@ -16,6 +16,7 @@ import type {
   HlSpotMeta,
   HlSpotMetaAndAssetCtxs,
   HlSpotClearinghouseState,
+  HlTokenDetails,
 } from './raw-types';
 
 export interface HlEndpoint {
@@ -109,5 +110,11 @@ export class InfoClient {
 
   spotClearinghouseState(user: string): Promise<HlSpotClearinghouseState> {
     return this.post<HlSpotClearinghouseState>({ type: 'spotClearinghouseState', user });
+  }
+
+  /** Per-token details incl. the token markPx HL's UI uses to value spot holdings
+   * (differs from the pair's orderbook mark for illiquid tokens). */
+  tokenDetails(tokenId: string): Promise<HlTokenDetails> {
+    return this.post<HlTokenDetails>({ type: 'tokenDetails', tokenId });
   }
 }
