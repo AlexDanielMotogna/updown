@@ -146,7 +146,7 @@ export interface Balance {
   available: string;
   /** Mark value of `total` in quote (USDC), when derivable. */
   usdValue?: string;
-  /** Average entry notional, when HL reports it (for cost-basis P&L). */
+  /** Average entry notional, when the exchange reports it (for cost-basis P&L). */
   entryNotional?: string;
   metadata: Record<string, unknown>;
 }

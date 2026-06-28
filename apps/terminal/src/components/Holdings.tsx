@@ -2,19 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import { fetchSpotBalances, type SpotBalanceRow } from '@/lib/api';
-import type { Ticker } from '@/lib/types';
 
 const n = (s: string | number, dp = 4) => Number(s).toLocaleString(undefined, { maximumFractionDigits: dp });
 const usd = (v: number) => (Number.isFinite(v) ? `$${v.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '$0.00');
 
 /**
- * Spot holdings tab for the Pro Positions panel: token balances priced with the
- * spot catalog. The EVM/HL account is resolved server-side from the Solana
- * walletAddress (the client never needs its own EVM address).
+ * Spot holdings tab for the Pro Positions panel. Balances + USDC value + contract
+ * are computed server-side by TOKEN INDEX (not name — names collide), resolving
+ * the EVM/HL account from the Solana walletAddress. PnL/ROE vs HL's entryNtl.
  */
 export function HoldingsTab({ walletAddress, isMobile }: { walletAddress?: string; isMobile?: boolean }) {
   const [balances, setBalances] = useState<SpotBalanceRow[]>([]);
-  const [prices, setPrices] = useState<Record<string, number>>({}); // token -> USD mark
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -22,20 +20,9 @@ export function HoldingsTab({ walletAddress, isMobile }: { walletAddress?: strin
     let alive = true;
     const load = async () => {
       try {
-        const [bRes, mRes] = await Promise.all([
-          fetchSpotBalances(walletAddress),
-          fetch('/api/markets?kind=spot', { cache: 'no-store' }).then((r) => r.json()),
-        ]);
+        const bRes = await fetchSpotBalances(walletAddress);
         if (!alive) return;
         if (bRes.success) setBalances(bRes.data ?? []);
-        if (mRes.success) {
-          const map: Record<string, number> = {};
-          for (const t of (mRes.data ?? []) as Ticker[]) {
-            const base = (t.displayName ?? t.symbol).split('/')[0];
-            map[base] = Number(t.mark);
-          }
-          setPrices(map);
-        }
       } catch { /* keep last */ }
       finally { if (alive) setLoaded(true); }
     };
@@ -46,14 +33,13 @@ export function HoldingsTab({ walletAddress, isMobile }: { walletAddress?: strin
 
   const rows = balances
     .map((b) => {
-      const price = b.asset === 'USDC' ? 1 : prices[b.asset] ?? 0;
-      const value = Number(b.total) * price;
+      const value = Number(b.usdValue ?? 0);
       // Cost-basis P&L + ROE from HL's entryNtl (no fill persistence needed).
       const entry = Number(b.entryNotional ?? 0);
       const pnl = b.asset !== 'USDC' && entry > 0 ? value - entry : null;
       const roe = pnl != null && entry > 0 ? (pnl / entry) * 100 : null;
-      const contract = (b.metadata?.contract as string | undefined) ?? '';
-      return { ...b, price, value, pnl, roe, contract };
+      const contract = b.metadata?.contract ?? '';
+      return { ...b, value, pnl, roe, contract };
     })
     .filter((r) => Number(r.total) > 0)
     .sort((a, b) => b.value - a.value);
