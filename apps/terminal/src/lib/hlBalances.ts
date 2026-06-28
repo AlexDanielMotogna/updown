@@ -25,11 +25,25 @@ export async function fetchPerpsWithdrawable(user: string): Promise<number> {
   return Number(s?.withdrawable ?? 0);
 }
 
-/** The user's perps maker/taker fee rates (decimals, e.g. 0.00015 = 0.015%). */
-export async function fetchUserFees(user: string): Promise<{ maker: number; taker: number } | null> {
-  const s = await info<{ userAddRate?: string; userCrossRate?: string }>({ type: 'userFees', user });
+/** The user's maker/taker fee rates (decimals, e.g. 0.00015 = 0.015%). HL charges
+ * different rates for perps vs spot (spot is higher: 0.04%/0.07% base vs
+ * 0.015%/0.045%), so return both. */
+export async function fetchUserFees(
+  user: string,
+): Promise<{ maker: number; taker: number; spotMaker: number; spotTaker: number } | null> {
+  const s = await info<{
+    userAddRate?: string;
+    userCrossRate?: string;
+    userSpotAddRate?: string;
+    userSpotCrossRate?: string;
+  }>({ type: 'userFees', user });
   if (!s) return null;
-  return { maker: Number(s.userAddRate ?? 0), taker: Number(s.userCrossRate ?? 0) };
+  return {
+    maker: Number(s.userAddRate ?? 0),
+    taker: Number(s.userCrossRate ?? 0),
+    spotMaker: Number(s.userSpotAddRate ?? 0),
+    spotTaker: Number(s.userSpotCrossRate ?? 0),
+  };
 }
 
 /** USDC sitting in the Spot account. */

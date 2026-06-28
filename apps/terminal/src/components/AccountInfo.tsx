@@ -8,12 +8,13 @@ const usd = (n: number) => `$${(Number.isFinite(n) ? n : 0).toLocaleString(undef
 const signedUsd = (n: number) => `${n >= 0 ? '+' : '-'}$${Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 const pct = (n: number) => `${(n * 100).toFixed(4)}%`;
 
-/** Account breakdown — always expanded, live over the WS account stream. */
-export function AccountInfo({ evmAddress }: { evmAddress?: string }) {
+/** Account breakdown — always expanded, live over the WS account stream. `spot`
+ * selects the spot fee schedule (HL charges different maker/taker for spot). */
+export function AccountInfo({ evmAddress, spot: spotKind = false }: { evmAddress?: string; spot?: boolean }) {
   const { account: acct, orders } = useAccountStream(evmAddress);
   const restingValue = orders.reduce((s, o) => s + Number(o.price) * Number(o.remaining), 0);
   const [spot, setSpot] = useState<number | null>(null);
-  const [fees, setFees] = useState<{ maker: number; taker: number } | null>(null);
+  const [fees, setFees] = useState<{ maker: number; taker: number; spotMaker: number; spotTaker: number } | null>(null);
 
   // Spot balance + fee rates aren't in clearinghouseState — poll the info endpoints.
   useEffect(() => {
@@ -63,7 +64,7 @@ export function AccountInfo({ evmAddress }: { evmAddress?: string }) {
           <Row label="Cross Account Leverage" value={`${crossLev.toFixed(2)}x`} />
           <Row label="Idle Balance" value={usd(Number(acct?.availableToSpend ?? 0))} />
           <Row label="Resting Order Value" value={usd(restingValue)} />
-          <Row label="Fees (maker/taker)" value={fees ? `${pct(fees.maker)} / ${pct(fees.taker)}` : '…'} />
+          <Row label="Fees (maker/taker)" value={fees ? `${pct(spotKind ? fees.spotMaker : fees.maker)} / ${pct(spotKind ? fees.spotTaker : fees.taker)}` : '…'} />
         </Section>
 
         <div className="flex items-center gap-1 text-2xs text-win-500">

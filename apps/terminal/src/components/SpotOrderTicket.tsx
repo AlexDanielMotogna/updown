@@ -160,10 +160,9 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
         <span className="rounded border border-surface-700 px-2 py-0.5 text-2xs font-semibold uppercase tracking-wide text-surface-400">Spot</span>
       </div>
 
-      {/* Pair (locked from the route) or a fallback selector */}
-      {lockedSymbol ? (
-        <div className="mb-4 rounded border border-surface-800 bg-[#1c1c23] px-2.5 py-2 text-sm font-semibold text-surface-100">{display}</div>
-      ) : (
+      {/* Fallback selector only when not locked to a route pair (the chart header
+          already shows the pair, so no symbol box when locked). */}
+      {!lockedSymbol && (
         <select value={symbol} onChange={(e) => setSymbol(e.target.value)}
           className="mb-4 w-full rounded border border-surface-700 bg-[#1c1c23] px-2.5 py-2 text-sm text-surface-100 outline-none">
           {tickers.map((t) => <option key={t.symbol} value={t.symbol}>{t.displayName ?? t.symbol}</option>)}
@@ -254,7 +253,7 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
 
       {/* Account overview (same as perps): Account Equity Spot/Perps + overview. */}
       <div className="mt-4">
-        <AccountInfo evmAddress={evmAddress} />
+        <AccountInfo evmAddress={evmAddress} spot />
       </div>
 
       <DepositModal open={showDeposit} onClose={() => setShowDeposit(false)} evmAddress={evmAddress} />
