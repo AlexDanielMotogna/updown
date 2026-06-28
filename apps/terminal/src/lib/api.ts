@@ -59,6 +59,25 @@ export function placeOrder(input: PlaceOrderInput) {
   return post<OrderResult>('/api/exchange/order', { ...input, isTestnet: IS_TESTNET });
 }
 
+export interface SpotBalanceRow {
+  asset: string;
+  total: string;
+  available: string;
+  entryNotional?: string;
+  metadata?: { contract?: string } | null;
+}
+
+/** Spot holdings for the user's linked HL account (resolved server-side from the
+ * Solana wallet). The client never needs its own EVM address. */
+export async function fetchSpotBalances(walletAddress: string): Promise<ApiResult<SpotBalanceRow[]>> {
+  try {
+    const res = await fetch(`${API_BASE}/api/exchange/spot-balances?wallet=${encodeURIComponent(walletAddress)}&isTestnet=${IS_TESTNET}`, { cache: 'no-store' });
+    return (await res.json()) as ApiResult<SpotBalanceRow[]>;
+  } catch (e) {
+    return { success: false, error: { code: 'NETWORK', message: (e as Error).message } };
+  }
+}
+
 export function cancelOrder(input: { walletAddress: string; symbol: string; orderId: string | number }) {
   return post<{ success: boolean }>('/api/exchange/order/cancel', { ...input, isTestnet: IS_TESTNET });
 }

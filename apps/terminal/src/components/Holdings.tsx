@@ -1,29 +1,29 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { Balance } from 'exchange-core';
+import { fetchSpotBalances, type SpotBalanceRow } from '@/lib/api';
 import type { Ticker } from '@/lib/types';
 
 const n = (s: string | number, dp = 4) => Number(s).toLocaleString(undefined, { maximumFractionDigits: dp });
 const usd = (v: number) => (Number.isFinite(v) ? `$${v.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '$0.00');
 
 /**
- * Spot holdings tab for the Pro Positions panel: token balances from
- * `/api/spot-balances`, priced with the spot catalog (`/api/markets?kind=spot`).
- * Read-only for now (Phase 3); buy/sell + cost-basis P&L land in later phases.
+ * Spot holdings tab for the Pro Positions panel: token balances priced with the
+ * spot catalog. The EVM/HL account is resolved server-side from the Solana
+ * walletAddress (the client never needs its own EVM address).
  */
-export function HoldingsTab({ address, isMobile }: { address?: string; isMobile?: boolean }) {
-  const [balances, setBalances] = useState<Balance[]>([]);
+export function HoldingsTab({ walletAddress, isMobile }: { walletAddress?: string; isMobile?: boolean }) {
+  const [balances, setBalances] = useState<SpotBalanceRow[]>([]);
   const [prices, setPrices] = useState<Record<string, number>>({}); // token -> USD mark
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (!address) return;
+    if (!walletAddress) return;
     let alive = true;
     const load = async () => {
       try {
         const [bRes, mRes] = await Promise.all([
-          fetch(`/api/spot-balances?address=${encodeURIComponent(address)}`, { cache: 'no-store' }).then((r) => r.json()),
+          fetchSpotBalances(walletAddress),
           fetch('/api/markets?kind=spot', { cache: 'no-store' }).then((r) => r.json()),
         ]);
         if (!alive) return;
@@ -42,7 +42,7 @@ export function HoldingsTab({ address, isMobile }: { address?: string; isMobile?
     load();
     const id = setInterval(load, 15000);
     return () => { alive = false; clearInterval(id); };
-  }, [address]);
+  }, [walletAddress]);
 
   const rows = balances
     .map((b) => {
@@ -60,7 +60,7 @@ export function HoldingsTab({ address, isMobile }: { address?: string; isMobile?
 
   const shortContract = (c: string) => (c && c.length > 12 ? `${c.slice(0, 6)}…${c.slice(-4)}` : c || '--');
 
-  if (!address) return <div className="flex h-full items-center justify-center text-xs text-surface-500">Connect to view holdings.</div>;
+  if (!walletAddress) return <div className="flex h-full items-center justify-center text-xs text-surface-500">Connect to view holdings.</div>;
   if (!loaded) return <div className="flex h-full items-center justify-center text-xs text-surface-500">loading…</div>;
   if (rows.length === 0) return <div className="flex h-full items-center justify-center text-xs text-surface-500">No spot balances.</div>;
 

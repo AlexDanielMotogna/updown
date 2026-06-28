@@ -447,7 +447,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
         ) : (tab === 'positions' || tab === 'orders' ? !ws.ready : tab === 'holdings' ? false : !loaded) ? (
           <Empty>loading…</Empty>
         ) : tab === 'holdings' ? (
-          <HoldingsTab address={address} isMobile={isMobile} />
+          <HoldingsTab walletAddress={walletAddress} isMobile={isMobile} />
         ) : tab === 'positions' ? (
           positions.length === 0 ? <Empty>No open positions.</Empty> : isMobile ? (
             <div className="space-y-1.5 p-1.5">

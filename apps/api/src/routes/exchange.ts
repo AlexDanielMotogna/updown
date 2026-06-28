@@ -480,6 +480,26 @@ exchangeRouter.get('/positions', async (req, res) => {
   }
 });
 
+/** GET /api/exchange/spot-balances?wallet=&isTestnet= → spot token holdings.
+ *  Resolves the user's linked HL (EVM) account from the Solana wallet server-side,
+ *  so the client never needs to know its own EVM address. */
+exchangeRouter.get('/spot-balances', async (req, res) => {
+  try {
+    const parsed = statusQuerySchema.safeParse(req.query);
+    if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid query');
+    const userId = await resolveUserId(parsed.data.wallet);
+    if (!userId) return res.json({ success: true, data: [] });
+    const conn = await getConnection(userId, 'hyperliquid', parsed.data.isTestnet);
+    if (!conn?.accountAddress) return res.json({ success: true, data: [] });
+    const adapter = new HyperliquidReadAdapter({ endpoint: parsed.data.isTestnet ? TESTNET : MAINNET });
+    const balances = adapter.getSpotBalances ? await adapter.getSpotBalances(conn.accountAddress) : [];
+    res.json({ success: true, data: balances });
+  } catch (error) {
+    console.error('[Exchange] spot-balances error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load spot balances' } });
+  }
+});
+
 /** GET /api/exchange/trades/summary?wallet= → aggregates + cumulative PnL curve. */
 exchangeRouter.get('/trades/summary', async (req, res) => {
   try {
