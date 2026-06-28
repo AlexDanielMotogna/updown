@@ -8,6 +8,8 @@ import type { Ticker, OrderSide } from '@/lib/types';
 
 const usd = (n: number) => (Number.isFinite(n) ? `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '$0.00');
 const qty = (n: number, dp = 6) => (Number.isFinite(n) ? n.toLocaleString(undefined, { maximumFractionDigits: dp }) : '0');
+/** Price formatter that keeps precision for sub-dollar tokens ($0.002006). */
+const pxFmt = (n: number) => (!Number.isFinite(n) || n <= 0 ? '--' : n >= 1 ? usd(n) : `$${Number(n.toPrecision(4))}`);
 
 /**
  * Self-contained SPOT order ticket (Phase 3b). Own REST pair selector + price (no
@@ -66,10 +68,15 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
   const base = display.split('/')[0] || '';
   const isSell = side === 'SELL';
   const factor = 10 ** szDecimals;
-  const refPrice = type === 'LIMIT' ? Number(limitPrice) : mark; // orderbook mark for fills
 
+  const heldRow = balances.find((b) => b.asset === base);
   const usdcBal = Number(balances.find((b) => b.asset === 'USDC')?.available ?? 0);
-  const tokenBal = Number(balances.find((b) => b.asset === base)?.available ?? 0);
+  const tokenBal = Number(heldRow?.available ?? 0);
+  // SELL estimate uses the token's holdings-valuation price (tokenDetails oracle,
+  // = what Holdings shows) so "You get" is consistent; BUY uses the orderbook mark.
+  const oraclePrice = Number(heldRow?.metadata?.price ?? 0) || mark;
+  const marketPrice = isSell ? oraclePrice : mark;
+  const refPrice = type === 'LIMIT' ? Number(limitPrice) : marketPrice;
   const available = isSell ? tokenBal : usdcBal;
 
   const inAmt = Number(amountIn);
@@ -165,7 +172,7 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
 
       {/* Summary */}
       <div className="flex items-center justify-between text-2xs text-surface-400">
-        <span>Price</span><span className="tabular text-surface-200">{refPrice > 0 ? usd(refPrice) : '--'}</span>
+        <span>Price</span><span className="tabular text-surface-200">{pxFmt(refPrice)}</span>
       </div>
       <div className="flex items-center justify-between text-2xs text-surface-400">
         <span>{isSell ? 'You sell' : 'You pay'}</span>
