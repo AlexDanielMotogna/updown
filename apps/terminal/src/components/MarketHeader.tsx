@@ -127,7 +127,6 @@ export function MarketHeader({ symbol, initial, mobile }: { symbol: string; init
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <MarketSelector symbol={symbol} />
-            {t?.fullName && <span className="truncate text-2xs text-surface-400">{t.fullName}</span>}
           </div>
           <div className="flex items-center gap-2">
             <div className="text-right">
@@ -193,7 +192,6 @@ export function MarketHeader({ symbol, initial, mobile }: { symbol: string; init
       <div className="card flex flex-wrap items-center gap-x-10 gap-y-2 px-3 py-2">
         <div className="flex items-center gap-2">
           <MarketSelector symbol={symbol} />
-          {t?.fullName && <span className="text-sm text-surface-400">{t.fullName}</span>}
         </div>
         <Stat label="Price" value={mark ? fmtPrice(String(mark)) : '—'} />
         <Stat
