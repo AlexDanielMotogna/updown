@@ -105,7 +105,16 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
       ...(type === 'LIMIT' ? { price: limitPrice } : { maxSlippagePct: 8 }),
     });
     setBusy(false);
-    if (res.success) { toast.update(tid, 'success', `${isSell ? 'Sold' : 'Bought'} ${base}`); setAmountIn(''); setTimeout(loadBalances, 1500); }
+    if (res.success) {
+      toast.update(tid, 'success', `${isSell ? 'Sold' : 'Bought'} ${base}`);
+      setAmountIn('');
+      setTimeout(loadBalances, 1500);
+      // Tell the Holdings tab (separate component) to refresh now, not on its poll.
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('updown:spot-traded'));
+        setTimeout(() => window.dispatchEvent(new Event('updown:spot-traded')), 1500);
+      }
+    }
     else toast.update(tid, 'error', res.error?.message ?? 'Order failed');
   }
 

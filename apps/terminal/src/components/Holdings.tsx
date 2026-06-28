@@ -28,7 +28,10 @@ export function HoldingsTab({ walletAddress, isMobile }: { walletAddress?: strin
     };
     load();
     const id = setInterval(load, 15000);
-    return () => { alive = false; clearInterval(id); };
+    // Instant refresh when the user places a spot order (from SpotOrderTicket).
+    const onTraded = () => load();
+    window.addEventListener('updown:spot-traded', onTraded);
+    return () => { alive = false; clearInterval(id); window.removeEventListener('updown:spot-traded', onTraded); };
   }, [walletAddress]);
 
   const rows = balances
