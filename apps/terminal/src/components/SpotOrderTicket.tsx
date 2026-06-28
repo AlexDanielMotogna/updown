@@ -1,23 +1,31 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { placeOrder, fetchSpotBalances, type SpotBalanceRow } from '@/lib/api';
 import { useTrading } from '@/hooks/useTrading';
 import { useToast } from './Toast';
+import { DepositModal } from './DepositModal';
 import type { Ticker, OrderSide } from '@/lib/types';
+
+// Lazy: Withdraw/Transfer pull the HL SDK (signed actions). Only under Privy.
+const WithdrawModal = dynamic(() => import('./WithdrawModal').then((m) => m.WithdrawModal), { ssr: false });
+const TransferModal = dynamic(() => import('./TransferModal').then((m) => m.TransferModal), { ssr: false });
+const HAS_PRIVY = !!process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 
 const usd = (n: number) => (Number.isFinite(n) ? `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '$0.00');
 const qty = (n: number, dp = 6) => (Number.isFinite(n) ? n.toLocaleString(undefined, { maximumFractionDigits: dp }) : '0');
+const trimNum = (n: number, dp: number) => (Number.isFinite(n) && n > 0 ? n.toFixed(dp).replace(/\.?0+$/, '') : '');
 /** Price formatter that keeps precision for sub-dollar tokens ($0.002006). */
 const pxFmt = (n: number) => (!Number.isFinite(n) || n <= 0 ? '--' : n >= 1 ? usd(n) : `$${Number(n.toPrecision(4))}`);
 
 /**
- * Self-contained SPOT order ticket (Phase 3b). Own REST pair selector + price (no
- * WS), buy/sell, market/limit. BUY takes a USDC amount; SELL takes a token amount
- * (with the held balance, Max and % shortcuts) and shows the USDC you receive.
- * Sends `kind:'spot'`; the server rounds size to szDecimals and signs with the
- * same agent. No leverage. Fill price is the orderbook (mark), not the holdings
- * valuation oracle.
+ * SPOT order ticket. Visually matches the perps Place Order panel: tabs, Buy/Sell,
+ * a dual Size (token) ⇄ Total (USDC) input, % shortcuts, a summary and one CTA.
+ * BUY spends USDC, SELL delivers the token; both edit the same size. Sends
+ * `kind:'spot'`; the server rounds size to szDecimals and signs with the same
+ * agent. No leverage. SELL estimate uses the holdings-valuation oracle so it
+ * matches the Holdings tab; BUY uses the orderbook mark.
  */
 export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbol }: { walletAddress?: string; evmAddress?: string; symbol?: string }) {
   const toast = useToast();
@@ -27,9 +35,13 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
   const [symbol, setSymbol] = useState<string>(lockedSymbol ?? '');
   const [side, setSide] = useState<OrderSide>('BUY');
   const [type, setType] = useState<'MARKET' | 'LIMIT'>('MARKET');
-  const [amountIn, setAmountIn] = useState(''); // USDC for BUY, token qty for SELL
+  const [sizeTok, setSizeTok] = useState(''); // base token amount
+  const [totalUsd, setTotalUsd] = useState(''); // USDC amount
   const [limitPrice, setLimitPrice] = useState('');
   const [busy, setBusy] = useState(false);
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -73,29 +85,46 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
   const usdcBal = Number(balances.find((b) => b.asset === 'USDC')?.available ?? 0);
   const tokenBal = Number(heldRow?.available ?? 0);
   // SELL estimate uses the token's holdings-valuation price (tokenDetails oracle,
-  // = what Holdings shows) so "You get" is consistent; BUY uses the orderbook mark.
+  // = what Holdings shows) so the Total is consistent; BUY uses the orderbook mark.
   const oraclePrice = Number(heldRow?.metadata?.price ?? 0) || mark;
   const marketPrice = isSell ? oraclePrice : mark;
   const refPrice = type === 'LIMIT' ? Number(limitPrice) : marketPrice;
   const available = isSell ? tokenBal : usdcBal;
 
-  const inAmt = Number(amountIn);
-  // baseSize is always in token units, floored to the lot (avoids zero-size / over-funds).
-  const baseSize = isSell
-    ? (inAmt > 0 ? Math.floor(inAmt * factor) / factor : 0)
-    : (refPrice > 0 && inAmt > 0 ? Math.floor((inAmt / refPrice) * factor) / factor : 0);
+  // baseSize is always token units, floored to the lot (avoids zero-size / over-funds).
+  const baseSize = Number(sizeTok) > 0 ? Math.floor(Number(sizeTok) * factor) / factor : 0;
   const notional = baseSize * refPrice;
 
+  // Dual input: editing one side derives the other off refPrice.
+  function setTok(v: string) {
+    setSizeTok(v);
+    setTotalUsd(refPrice > 0 && Number(v) > 0 ? trimNum(Number(v) * refPrice, 2) : '');
+  }
+  function setUsd(v: string) {
+    setTotalUsd(v);
+    setSizeTok(refPrice > 0 && Number(v) > 0 ? trimNum(Number(v) / refPrice, szDecimals) : '');
+  }
+  function setPct(p: number) {
+    if (isSell) {
+      const tok = Math.floor(tokenBal * p * factor) / factor;
+      setSizeTok(trimNum(tok, szDecimals));
+      setTotalUsd(refPrice > 0 ? trimNum(tok * refPrice, 2) : '');
+    } else {
+      const target = usdcBal * p;
+      setTotalUsd(trimNum(target, 2));
+      setSizeTok(refPrice > 0 ? trimNum(target / refPrice, szDecimals) : '');
+    }
+  }
+  function setMax() { setPct(1); }
+  function resetAmounts() { setSizeTok(''); setTotalUsd(''); }
+
   const limitMissing = type === 'LIMIT' && !(Number(limitPrice) > 0);
-  const belowMin = !isSell && inAmt > 0 && notional > 0 && notional < 10; // ~$10 min (buys only; sells unrestricted)
-  const tooSmall = inAmt > 0 && refPrice > 0 && baseSize <= 0;
-  const exceedsBal = isSell ? (baseSize > tokenBal) : (inAmt > usdcBal);
+  const belowMin = !isSell && notional > 0 && notional < 10; // ~$10 min (buys only; sells unrestricted)
+  const tooSmall = Number(sizeTok) > 0 && refPrice > 0 && baseSize <= 0;
+  const exceedsBal = isSell ? baseSize > tokenBal : Number(totalUsd) > usdcBal;
   // Don't hard-block on the ~$10 min — let HL decide (it may allow a full small
   // sell). Only block on real client invariants (size / balance / limit price).
   const canSubmit = !!walletAddress && !!symbol && refPrice > 0 && baseSize > 0 && !exceedsBal && !limitMissing && !busy;
-
-  const setMax = () => setAmountIn(isSell ? String(tokenBal) : String(usdcBal));
-  const setPct = (p: number) => setAmountIn(isSell ? String(Math.floor(tokenBal * p * factor) / factor) : (usdcBal * p).toFixed(2));
 
   async function submit() {
     if (!canSubmit) return;
@@ -109,7 +138,7 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
     setBusy(false);
     if (res.success) {
       toast.update(tid, 'success', `${isSell ? 'Sold' : 'Bought'} ${base}`);
-      setAmountIn('');
+      resetAmounts();
       setTimeout(loadBalances, 1500);
       // Tell the Holdings tab (separate component) to refresh now, not on its poll.
       if (typeof window !== 'undefined') {
@@ -120,95 +149,134 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
     else toast.update(tid, 'error', res.error?.message ?? 'Order failed');
   }
 
+  const ctaCls = 'w-full rounded bg-surface-100 py-2.5 text-sm font-semibold text-surface-900 hover:bg-surface-200 disabled:opacity-50';
+
   return (
-    <div className="card space-y-2.5 p-3">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-surface-300">Spot</span>
-        <span className="text-2xs text-surface-500">{type === 'LIMIT' ? 'limit order' : 'market order'}</span>
+    <div className="card flex h-full flex-col p-3 text-sm">
+      {/* Header */}
+      <div className="mb-4 flex items-center justify-between">
+        <span className="text-sm font-semibold text-surface-200">Place Order</span>
+        <span className="rounded border border-surface-700 px-2 py-0.5 text-2xs font-semibold uppercase tracking-wide text-surface-400">Spot</span>
       </div>
 
+      {/* Pair (locked from the route) or a fallback selector */}
       {lockedSymbol ? (
-        <div className="rounded border border-surface-800 bg-[#1c1c23] px-2.5 py-2 text-sm font-semibold text-surface-100">{display}</div>
+        <div className="mb-4 rounded border border-surface-800 bg-[#1c1c23] px-2.5 py-2 text-sm font-semibold text-surface-100">{display}</div>
       ) : (
         <select value={symbol} onChange={(e) => setSymbol(e.target.value)}
-          className="w-full rounded border border-surface-700 bg-[#1c1c23] px-2.5 py-2 text-sm text-surface-100 outline-none">
+          className="mb-4 w-full rounded border border-surface-700 bg-[#1c1c23] px-2.5 py-2 text-sm text-surface-100 outline-none">
           {tickers.map((t) => <option key={t.symbol} value={t.symbol}>{t.displayName ?? t.symbol}</option>)}
         </select>
       )}
 
-      {/* Buy / Sell */}
-      <div className="flex gap-2">
-        <button onClick={() => { setSide('BUY'); setAmountIn(''); }}
-          className={`flex-1 rounded py-1.5 text-sm font-semibold transition-colors ${!isSell ? 'bg-win-500 text-black' : 'border border-surface-700 text-surface-300 hover:bg-surface-800'}`}>Buy</button>
-        <button onClick={() => { setSide('SELL'); setAmountIn(''); }}
-          className={`flex-1 rounded py-1.5 text-sm font-semibold transition-colors ${isSell ? 'bg-loss-500 text-black' : 'border border-surface-700 text-surface-300 hover:bg-surface-800'}`}>Sell</button>
-      </div>
-
-      {/* Market / Limit */}
-      <div className="flex rounded-lg bg-surface-800 p-0.5 text-2xs font-semibold">
+      {/* Order type tabs */}
+      <div className="mb-4 flex text-xs">
         {(['MARKET', 'LIMIT'] as const).map((t) => (
           <button key={t} onClick={() => setType(t)}
-            className={`flex-1 rounded-md py-1 transition-colors ${type === t ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:text-surface-200'}`}>
+            className={`flex-1 border-b-2 py-1.5 ${type === t ? 'border-surface-200 text-surface-100' : 'border-transparent text-surface-400 hover:text-surface-200'}`}>
             {t === 'MARKET' ? 'Market' : 'Limit'}
           </button>
         ))}
       </div>
+
+      {/* Buy / Sell */}
+      <div className="mb-4 grid grid-cols-2 gap-1.5">
+        <button onClick={() => { setSide('BUY'); resetAmounts(); }}
+          className={`rounded py-2 text-sm font-semibold ${!isSell ? 'bg-win-500 text-black' : 'bg-surface-800 text-surface-400 hover:text-surface-200'}`}>Buy</button>
+        <button onClick={() => { setSide('SELL'); resetAmounts(); }}
+          className={`rounded py-2 text-sm font-semibold ${isSell ? 'bg-loss-500 text-black' : 'bg-surface-800 text-surface-400 hover:text-surface-200'}`}>Sell</button>
+      </div>
+
+      {/* Limit price */}
       {type === 'LIMIT' && (
-        <label className="block">
-          <span className="text-2xs text-surface-400">Limit price</span>
-          <input value={limitPrice} onChange={(e) => setLimitPrice(e.target.value)} inputMode="decimal" placeholder={mark > 0 ? String(mark) : '0.00'}
-            className="mt-1 w-full rounded border border-surface-700 bg-[#1c1c23] px-2.5 py-2 text-base tabular text-surface-100 outline-none placeholder:text-surface-500" />
-        </label>
+        <div className="mb-4">
+          <div className="mb-1.5 text-xs text-surface-400">Price</div>
+          <InlineInput value={limitPrice} onChange={setLimitPrice} suffix="USDC" placeholder={mark > 0 ? String(mark) : '0.00'} />
+        </div>
       )}
 
-      {/* Amount — USDC for BUY, token qty for SELL */}
-      <label className="block">
-        <div className="mb-1 flex items-center justify-between text-2xs">
-          <span className="text-surface-400">Amount ({isSell ? base : 'USDC'})</span>
-          <button onClick={setMax} className="text-surface-300 hover:text-surface-100">
-            Available: {isSell ? `${qty(available, 4)} ${base}` : usd(available)} · Max
-          </button>
-        </div>
-        <input value={amountIn} onChange={(e) => setAmountIn(e.target.value)} inputMode="decimal" placeholder="0.00"
-          className="w-full rounded border border-surface-700 bg-[#1c1c23] px-2.5 py-2 text-base tabular text-surface-100 outline-none placeholder:text-surface-500" />
-      </label>
-      <div className="flex gap-1.5">
-        {[0.25, 0.5, 1].map((p) => (
+      {/* Size dual input — Size (token) ⇄ Total (USDC) */}
+      <div className="mb-1.5 flex items-center justify-between text-xs">
+        <span className="text-surface-400">Size</span>
+        <button onClick={setMax} className="text-surface-400 hover:text-surface-100">
+          Avail: {isSell ? `${qty(available, 4)} ${base}` : usd(available)} · Max
+        </button>
+      </div>
+      <div className="mb-3 grid grid-cols-2 gap-1.5">
+        <InlineInput value={sizeTok} onChange={setTok} suffix={base} />
+        <InlineInput value={totalUsd} onChange={setUsd} suffix="USDC" />
+      </div>
+
+      {/* % buttons */}
+      <div className="mb-4 grid grid-cols-4 gap-1.5">
+        {[0.25, 0.5, 0.75, 1].map((p) => (
           <button key={p} onClick={() => setPct(p)} disabled={available <= 0}
-            className="flex-1 rounded border border-surface-700 py-1 text-2xs text-surface-300 hover:bg-surface-800 disabled:opacity-40">
+            className="rounded bg-surface-800 py-1 text-xs text-surface-300 hover:bg-surface-700 disabled:opacity-40">
             {p === 1 ? '100%' : `${p * 100}%`}
           </button>
         ))}
       </div>
 
       {/* Summary */}
-      <div className="flex items-center justify-between text-2xs text-surface-400">
-        <span>Price</span><span className="tabular text-surface-200">{pxFmt(refPrice)}</span>
+      <div className="my-1 space-y-2 text-xs">
+        <Row label="Price" value={pxFmt(refPrice)} />
+        <Row label="Order Value" value={notional > 0 ? usd(notional) : 'N/A'} />
+        <Row label={isSell ? 'You receive ≈' : 'You get ≈'} value={baseSize > 0 ? (isSell ? usd(notional) : `${qty(baseSize)} ${base}`) : 'N/A'} />
       </div>
-      <div className="flex items-center justify-between text-2xs text-surface-400">
-        <span>{isSell ? 'You sell' : 'You pay'}</span>
-        <span className="tabular text-surface-200">{isSell ? `${qty(baseSize)} ${base}` : usd(inAmt || 0)}</span>
+      <div className="mt-2 min-h-[1rem]">
+        {belowMin && <div className="text-2xs text-surface-400">Heads up: HyperLiquid may reject orders under ~$10.</div>}
+        {!belowMin && tooSmall && <div className="text-2xs text-loss-500">Amount too small for {base}.</div>}
+        {exceedsBal && <div className="text-2xs text-loss-500">Exceeds your {isSell ? `${base} balance` : 'USDC balance'}.</div>}
       </div>
-      <div className="flex items-center justify-between text-2xs text-surface-400">
-        <span>You get ≈</span>
-        <span className="tabular text-surface-200">{baseSize > 0 ? (isSell ? usd(notional) : `${qty(baseSize)} ${base}`) : '--'}</span>
-      </div>
-      {belowMin && <div className="text-2xs text-surface-400">Heads up: HyperLiquid may reject orders under ~$10.</div>}
-      {!belowMin && tooSmall && <div className="text-2xs text-loss-500">Amount too small for {base}.</div>}
-      {exceedsBal && <div className="text-2xs text-loss-500">Exceeds your {isSell ? `${base} balance` : 'USDC balance'}.</div>}
 
-      {/* CTA */}
-      {!!walletAddress && !tradingEnabled ? (
-        <button onClick={enableTrading} disabled={enabling}
-          className="w-full rounded-lg bg-brand py-2.5 text-sm font-bold text-surface-950 disabled:opacity-50">
-          {enabling ? 'Enabling…' : 'Enable Trading'}
-        </button>
-      ) : (
-        <button onClick={submit} disabled={!canSubmit}
-          className={`w-full rounded-lg py-2.5 text-sm font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-40 ${!isSell ? 'bg-win-500' : 'bg-loss-500'}`}>
-          {busy ? 'Submitting…' : isSell ? `Sell ${base}` : `Buy ${base}`}
-        </button>
-      )}
+      {/* Primary action */}
+      <div className="mt-3">
+        {!!walletAddress && !tradingEnabled ? (
+          <button onClick={enableTrading} disabled={enabling} className={ctaCls}>
+            {enabling ? 'Enabling…' : 'Enable Trading'}
+          </button>
+        ) : (
+          <button onClick={submit} disabled={!canSubmit}
+            className={`w-full rounded py-2.5 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${!isSell ? 'bg-win-500' : 'bg-loss-500'}`}>
+            {busy ? 'Placing…' : isSell ? `Sell ${base}` : `Buy ${base}`}
+          </button>
+        )}
+      </div>
+
+      {/* Funding — spot orders settle from the Spot USDC balance; Transfer moves it
+          between Perps and Spot. */}
+      <div className="mt-4 grid grid-cols-3 gap-1.5">
+        <button onClick={() => setShowDeposit(true)} className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800">↓ Deposit</button>
+        <button onClick={() => setShowTransfer(true)} className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800" title="Move USDC between Perps and Spot">⇄ Transfer</button>
+        <button onClick={() => setShowWithdraw(true)} className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800">↑ Withdraw</button>
+      </div>
+
+      <DepositModal open={showDeposit} onClose={() => setShowDeposit(false)} evmAddress={evmAddress} />
+      {HAS_PRIVY && <WithdrawModal open={showWithdraw} onClose={() => setShowWithdraw(false)} evmAddress={evmAddress} />}
+      {HAS_PRIVY && <TransferModal open={showTransfer} onClose={() => setShowTransfer(false)} evmAddress={evmAddress} />}
+    </div>
+  );
+}
+
+function InlineInput({ value, onChange, suffix, placeholder = '0.00' }: { value: string; onChange: (v: string) => void; suffix: string; placeholder?: string }) {
+  return (
+    <div className="flex items-center rounded border border-surface-800 bg-[#1c1c23] px-2">
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        inputMode="decimal"
+        placeholder={placeholder}
+        className="w-full bg-transparent py-2 tabular outline-none placeholder:text-surface-500"
+      />
+      <span className="text-xs text-surface-500">{suffix}</span>
+    </div>
+  );
+}
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-surface-400">{label}</span>
+      <span className="tabular text-surface-200">{value}</span>
     </div>
   );
 }
