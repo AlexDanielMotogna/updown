@@ -21,4 +21,6 @@ export interface Ticker {
   szDecimals?: number;
   /** Human label for spot pairs (e.g. "HYPE/USDC"); `symbol` is the HL coin ("@N"). */
   displayName?: string;
+  /** Market cap (spot only) = circulatingSupply × price. */
+  marketCap?: string;
 }

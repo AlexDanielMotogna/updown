@@ -34,6 +34,7 @@ export function MarketSelector({ symbol }: { symbol: string }) {
   const [favs, setFavs] = useState<Set<string>>(new Set());
   const [hi, setHi] = useState(0);
   const [mode, setMode] = useState<'perp' | 'spot'>(isSpotSymbol(symbol) ? 'spot' : 'perp');
+  const [volDir, setVolDir] = useState<'desc' | 'asc'>('desc');
   const ref = useRef<HTMLDivElement>(null);
 
   // Load favorites + fetch markets on open.
@@ -82,14 +83,16 @@ export function MarketSelector({ symbol }: { symbol: string }) {
 
   const label = (m: Ticker) => m.displayName ?? m.symbol;
   const currentLabel = markets.find((m) => m.symbol === symbol)?.displayName ?? symbol;
+  const isSpotMode = mode === 'spot';
+  const cols = isSpotMode ? 'grid-cols-[1.6fr_1fr_1.2fr_1.1fr_1.1fr]' : 'grid-cols-[1.4fr_1fr_1.2fr_1fr_1fr_1fr]';
 
-  const filtered = useMemo(
-    () =>
-      markets
-        .filter((m) => (tab === 'all' || favs.has(m.symbol)) && label(m).toLowerCase().includes(q.toLowerCase()))
-        .slice(0, 100),
-    [markets, tab, favs, q]
-  );
+  const filtered = useMemo(() => {
+    const matched = markets.filter(
+      (m) => (tab === 'all' || favs.has(m.symbol)) && label(m).toLowerCase().includes(q.toLowerCase())
+    );
+    matched.sort((a, b) => (Number(a.volume24h) - Number(b.volume24h)) * (volDir === 'asc' ? 1 : -1));
+    return matched.slice(0, 100);
+  }, [markets, tab, favs, q, volDir]);
 
   useEffect(() => setHi(0), [q, tab, mode]);
 
@@ -154,13 +157,24 @@ export function MarketSelector({ symbol }: { symbol: string }) {
           </div>
 
           {/* Column headers */}
-          <div className="grid grid-cols-[1.4fr_1fr_1.2fr_1fr_1fr_1fr] gap-2 px-3 py-1 text-2xs text-surface-400">
+          <div className={`grid ${cols} gap-2 px-3 py-1 text-2xs text-surface-400`}>
             <span>Symbol</span>
-            <span className="text-right">Last</span>
+            <span className="text-right">Last Price</span>
             <span className="text-right">24h Change</span>
-            <span className="text-right">Funding</span>
-            <span className="text-right">Volume</span>
-            <span className="text-right">OI</span>
+            {isSpotMode ? (
+              <>
+                <button onClick={() => setVolDir((d) => (d === 'desc' ? 'asc' : 'desc'))} className="text-right hover:text-surface-200">
+                  Volume {volDir === 'desc' ? '↓' : '↑'}
+                </button>
+                <span className="text-right">Market Cap</span>
+              </>
+            ) : (
+              <>
+                <span className="text-right">Funding</span>
+                <span className="text-right">Volume</span>
+                <span className="text-right">OI</span>
+              </>
+            )}
           </div>
 
           <div className="max-h-80 overflow-y-auto">
@@ -178,7 +192,7 @@ export function MarketSelector({ symbol }: { symbol: string }) {
                   key={m.symbol}
                   onClick={() => select(m.symbol)}
                   onMouseEnter={() => setHi(i)}
-                  className={`grid w-full grid-cols-[1.4fr_1fr_1.2fr_1fr_1fr_1fr] items-center gap-2 px-3 py-1.5 text-left text-xs tabular ${
+                  className={`grid w-full ${cols} items-center gap-2 px-3 py-1.5 text-left text-xs tabular ${
                     i === hi ? 'bg-surface-800' : ''
                   } ${m.symbol === symbol ? 'border-l-2 border-info' : 'border-l-2 border-transparent'}`}
                 >
@@ -198,9 +212,18 @@ export function MarketSelector({ symbol }: { symbol: string }) {
                   <span className={`text-right ${chg >= 0 ? 'text-win-500' : 'text-loss-500'}`}>
                     {chg >= 0 ? '+' : ''}{fmtPrice(String(abs))} / {chg >= 0 ? '+' : ''}{chg.toFixed(2)}%
                   </span>
-                  <span className={`text-right ${isSpot ? 'text-surface-500' : fundPct >= 0 ? 'text-win-500' : 'text-loss-500'}`}>{isSpot ? '--' : `${fundPct.toFixed(4)}%`}</span>
-                  <span className="text-right text-surface-300">{fmtUsd(Number(m.volume24h))}</span>
-                  <span className="text-right text-surface-300">{isSpot ? '--' : fmtUsd(Number(m.openInterest) * mark)}</span>
+                  {isSpot ? (
+                    <>
+                      <span className="text-right text-surface-300">{fmtUsd(Number(m.volume24h))}</span>
+                      <span className="text-right text-surface-300">{m.marketCap ? fmtUsd(Number(m.marketCap)) : '--'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className={`text-right ${fundPct >= 0 ? 'text-win-500' : 'text-loss-500'}`}>{fundPct.toFixed(4)}%</span>
+                      <span className="text-right text-surface-300">{fmtUsd(Number(m.volume24h))}</span>
+                      <span className="text-right text-surface-300">{fmtUsd(Number(m.openInterest) * mark)}</span>
+                    </>
+                  )}
                 </button>
               );
             })}
