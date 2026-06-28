@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { placeOrder, fetchSpotBalances, type SpotBalanceRow } from '@/lib/api';
 import { useTrading } from '@/hooks/useTrading';
 import { useToast } from './Toast';
+import { AccountInfo } from './AccountInfo';
 import { DepositModal } from './DepositModal';
 import type { Ticker, OrderSide } from '@/lib/types';
 
@@ -152,7 +153,7 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
   const ctaCls = 'w-full rounded bg-surface-100 py-2.5 text-sm font-semibold text-surface-900 hover:bg-surface-200 disabled:opacity-50';
 
   return (
-    <div className="card flex h-full flex-col p-3 text-sm">
+    <div className="card flex flex-1 flex-col p-3 text-sm">
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <span className="text-sm font-semibold text-surface-200">Place Order</span>
@@ -249,6 +250,11 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
         <button onClick={() => setShowDeposit(true)} className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800">↓ Deposit</button>
         <button onClick={() => setShowTransfer(true)} className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800" title="Move USDC between Perps and Spot">⇄ Transfer</button>
         <button onClick={() => setShowWithdraw(true)} className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800">↑ Withdraw</button>
+      </div>
+
+      {/* Account overview (same as perps): Account Equity Spot/Perps + overview. */}
+      <div className="mt-4">
+        <AccountInfo evmAddress={evmAddress} />
       </div>
 
       <DepositModal open={showDeposit} onClose={() => setShowDeposit(false)} evmAddress={evmAddress} />

@@ -25,7 +25,7 @@ const SPOT_ENABLED = process.env.NEXT_PUBLIC_SPOT_ENABLED === 'true';
 function OrderPanelInner({ symbol, walletAddress, evmAddress, initialSide }: { symbol: string; walletAddress?: string; evmAddress?: string; initialSide?: OrderSide }) {
   if (SPOT_ENABLED && isSpotSymbol(symbol)) {
     return (
-      <div className="space-y-1">
+      <div className="flex min-h-full flex-col">
         <SpotOrderTicket walletAddress={walletAddress} evmAddress={evmAddress} symbol={symbol} />
       </div>
     );
