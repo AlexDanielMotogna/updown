@@ -55,3 +55,40 @@ export async function fetchSpotUsdc(user: string): Promise<number> {
   const usdc = s?.balances?.find((b) => b.coin === 'USDC');
   return Number(usdc?.total ?? 0);
 }
+
+type SpotState = { balances?: Array<{ coin: string; token: number; total: string }> };
+type SpotMetaCtx = [
+  { universe: Array<{ name: string; tokens: number[] }> },
+  Array<{ coin: string; markPx?: string }>,
+];
+
+/** Total Spot account value in USD = USDC + each token's balance × its USDC pair
+ * mark. Mirrors HL's "Spot" equity (USDC-only balance undervalues it). */
+export async function fetchSpotAccountValue(user: string): Promise<number | null> {
+  const [state, mc] = await Promise.all([
+    info<SpotState>({ type: 'spotClearinghouseState', user }),
+    info<SpotMetaCtx>({ type: 'spotMetaAndAssetCtxs' }),
+  ]);
+  if (!state?.balances) return null;
+  let total = 0;
+  if (mc) {
+    const [meta, ctxs] = mc;
+    const ctxByCoin = new Map(ctxs.map((c) => [c.coin, c]));
+    // tokenIndex → mark of its canonical USDC pair (quote token index 0 = USDC).
+    const markByToken = new Map<number, number>();
+    for (const p of meta.universe) {
+      if (p.tokens[1] === 0) {
+        const ctx = ctxByCoin.get(p.name);
+        if (ctx?.markPx) markByToken.set(p.tokens[0], Number(ctx.markPx));
+      }
+    }
+    for (const b of state.balances) {
+      if (b.coin === 'USDC') total += Number(b.total);
+      else {
+        const px = markByToken.get(b.token);
+        if (px) total += Number(b.total) * px;
+      }
+    }
+  }
+  return total;
+}

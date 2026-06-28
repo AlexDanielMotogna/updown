@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAccountStream } from '@/hooks/useAccountStream';
-import { fetchSpotUsdc, fetchUserFees } from '@/lib/hlBalances';
+import { fetchSpotUsdc, fetchSpotAccountValue, fetchUserFees } from '@/lib/hlBalances';
 
 const usd = (n: number) => `$${(Number.isFinite(n) ? n : 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 const signedUsd = (n: number) => `${n >= 0 ? '+' : '-'}$${Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
@@ -13,15 +13,18 @@ const pct = (n: number) => `${(n * 100).toFixed(4)}%`;
 export function AccountInfo({ evmAddress, spot: spotKind = false }: { evmAddress?: string; spot?: boolean }) {
   const { account: acct, orders } = useAccountStream(evmAddress);
   const restingValue = orders.reduce((s, o) => s + Number(o.price) * Number(o.remaining), 0);
-  const [spot, setSpot] = useState<number | null>(null);
+  const [spotUsdc, setSpotUsdc] = useState<number | null>(null);
+  const [spotValue, setSpotValue] = useState<number | null>(null);
   const [fees, setFees] = useState<{ maker: number; taker: number; spotMaker: number; spotTaker: number } | null>(null);
 
-  // Spot balance + fee rates aren't in clearinghouseState — poll the info endpoints.
+  // Spot balances + fee rates aren't in the perps clearinghouseState — poll the
+  // info endpoints. All live (10s), per-account, never hardcoded.
   useEffect(() => {
-    if (!evmAddress) { setSpot(null); setFees(null); return; }
+    if (!evmAddress) { setSpotUsdc(null); setSpotValue(null); setFees(null); return; }
     let alive = true;
     const load = () => {
-      fetchSpotUsdc(evmAddress).then((v) => alive && setSpot(v));
+      fetchSpotUsdc(evmAddress).then((v) => alive && setSpotUsdc(v));
+      fetchSpotAccountValue(evmAddress).then((v) => alive && setSpotValue(v));
       fetchUserFees(evmAddress).then((v) => alive && v && setFees(v));
     };
     load();
@@ -37,7 +40,12 @@ export function AccountInfo({ evmAddress, spot: spotKind = false }: { evmAddress
   const maint = Number(meta.crossMaintenanceMarginUsed ?? 0);
   const crossLev = equity > 0 ? ntl / equity : 0;
   const crossMarginRatio = equity > 0 ? (maint / equity) * 100 : 0;
-  const total = (spot ?? 0) + equity;
+  // Spot equity = full value (USDC + tokens); fall back to USDC-only until it loads.
+  const spotEquity = spotValue ?? spotUsdc;
+  const holdingsValue = spotValue != null && spotUsdc != null ? Math.max(0, spotValue - spotUsdc) : null;
+  const total = (spotEquity ?? 0) + equity;
+  const feeMaker = fees ? (spotKind ? fees.spotMaker : fees.maker) : null;
+  const feeTaker = fees ? (spotKind ? fees.spotTaker : fees.taker) : null;
 
   return (
     <div className="pt-2 text-xs">
@@ -48,24 +56,33 @@ export function AccountInfo({ evmAddress, spot: spotKind = false }: { evmAddress
 
       <div className="mt-3 space-y-3">
         <Section title="Account Equity">
-          <Row label="Spot" value={spot == null ? '…' : usd(spot)} />
+          <Row label="Spot" value={spotEquity == null ? '…' : usd(spotEquity)} />
           <Row label="Perps" value={usd(equity)} />
         </Section>
 
-        <Section title="Perps Overview">
-          <Row label="Balance" value={usd(balance)} />
-          <Row label="Unrealized PnL" value={signedUsd(upnl)} cls={upnl >= 0 ? 'text-win-500' : 'text-loss-500'} />
-          <Row
-            label="Cross Margin Ratio"
-            value={`${crossMarginRatio.toFixed(2)}%`}
-            cls={crossMarginRatio >= 80 ? 'text-loss-500' : crossMarginRatio >= 50 ? 'text-warning' : 'text-win-500'}
-          />
-          <Row label="Maintenance Margin" value={usd(maint)} />
-          <Row label="Cross Account Leverage" value={`${crossLev.toFixed(2)}x`} />
-          <Row label="Idle Balance" value={usd(Number(acct?.availableToSpend ?? 0))} />
-          <Row label="Resting Order Value" value={usd(restingValue)} />
-          <Row label="Fees (maker/taker)" value={fees ? `${pct(spotKind ? fees.spotMaker : fees.maker)} / ${pct(spotKind ? fees.spotTaker : fees.taker)}` : '…'} />
-        </Section>
+        {spotKind ? (
+          <Section title="Spot Overview">
+            <Row label="Account Value" value={spotValue == null ? '…' : usd(spotValue)} />
+            <Row label="Available (USDC)" value={spotUsdc == null ? '…' : usd(spotUsdc)} />
+            <Row label="Holdings Value" value={holdingsValue == null ? '…' : usd(holdingsValue)} />
+            <Row label="Fees (maker/taker)" value={fees ? `${pct(feeMaker!)} / ${pct(feeTaker!)}` : '…'} />
+          </Section>
+        ) : (
+          <Section title="Perps Overview">
+            <Row label="Balance" value={usd(balance)} />
+            <Row label="Unrealized PnL" value={signedUsd(upnl)} cls={upnl >= 0 ? 'text-win-500' : 'text-loss-500'} />
+            <Row
+              label="Cross Margin Ratio"
+              value={`${crossMarginRatio.toFixed(2)}%`}
+              cls={crossMarginRatio >= 80 ? 'text-loss-500' : crossMarginRatio >= 50 ? 'text-warning' : 'text-win-500'}
+            />
+            <Row label="Maintenance Margin" value={usd(maint)} />
+            <Row label="Cross Account Leverage" value={`${crossLev.toFixed(2)}x`} />
+            <Row label="Idle Balance" value={usd(Number(acct?.availableToSpend ?? 0))} />
+            <Row label="Resting Order Value" value={usd(restingValue)} />
+            <Row label="Fees (maker/taker)" value={fees ? `${pct(feeMaker!)} / ${pct(feeTaker!)}` : '…'} />
+          </Section>
+        )}
 
         <div className="flex items-center gap-1 text-2xs text-win-500">
           <span className="h-1.5 w-1.5 rounded-full bg-win-500" /> Real-time updates
