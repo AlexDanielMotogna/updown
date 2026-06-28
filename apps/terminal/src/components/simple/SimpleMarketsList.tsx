@@ -187,7 +187,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
                 {/* Asset row */}
                 <div className="flex items-center justify-between">
                   <div className="flex min-w-0 items-center gap-2">
-                    <TokenIcon symbol={t.symbol} size="lg" />
+                    <TokenIcon symbol={baseSym} size="lg" spot={kind === 'spot'} />
                     <div className="min-w-0 leading-tight">
                       <div className="truncate text-sm font-semibold text-surface-100">{baseSym}</div>
                       <div className="text-2xs font-medium text-surface-500">{kind === 'spot' ? 'SPOT' : 'PERP'}</div>
@@ -231,7 +231,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
                 className="flex cursor-pointer items-center gap-3 px-3 py-2.5 transition-colors hover:bg-surface-800/50">
                 {/* Asset */}
                 <div className="flex w-36 min-w-0 items-center gap-2">
-                  <TokenIcon symbol={t.symbol} size="md" />
+                  <TokenIcon symbol={baseSym} size="md" spot={kind === 'spot'} />
                   <div className="min-w-0 leading-tight">
                     <div className="truncate text-sm font-semibold text-surface-100">{baseSym}</div>
                     <div className="text-2xs font-medium text-surface-500">{kind === 'spot' ? 'SPOT' : 'PERP'}</div>

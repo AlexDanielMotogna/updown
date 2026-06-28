@@ -112,7 +112,7 @@ export function MarketSelector({ symbol }: { symbol: string }) {
   return (
     <div className="relative" ref={ref}>
       <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-2 rounded px-2 py-1 hover:bg-surface-800">
-        <TokenIcon symbol={symbol} size="md" />
+        <TokenIcon symbol={isSpotMode ? currentLabel.split('/')[0] ?? symbol : symbol} size="md" spot={isSpotMode} />
         <span className="text-base font-semibold">{currentLabel}</span>
         <svg width="12" height="12" viewBox="0 0 12 12" className="text-surface-400">
           <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
@@ -204,7 +204,7 @@ export function MarketSelector({ symbol }: { symbol: string }) {
                     >
                       ★
                     </span>
-                    <TokenIcon symbol={iconSym} size="sm" />
+                    <TokenIcon symbol={iconSym} size="sm" spot={isSpot} />
                     <span className="font-medium text-surface-100">{disp}</span>
                     {m.maxLeverage ? <span className="rounded bg-surface-800 px-1 text-2xs text-surface-400">{m.maxLeverage}x</span> : null}
                   </span>

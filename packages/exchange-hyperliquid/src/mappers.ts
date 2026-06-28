@@ -172,6 +172,8 @@ export function mapSpotMarkets(meta: HlSpotMeta, ctxs: HlSpotAssetCtx[]): Market
         dayNtlVlm: ctx?.dayNtlVlm,
         circulatingSupply: ctx?.circulatingSupply,
         marketCap: ctx?.circulatingSupply ? String(Number(ctx.circulatingSupply) * Number(ctx.markPx ?? 0)) : undefined,
+        fullName: base?.fullName ?? undefined,
+        contract: base?.tokenId,
         isCanonical: pair.isCanonical ?? false,
       },
     };

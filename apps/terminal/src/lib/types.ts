@@ -23,4 +23,7 @@ export interface Ticker {
   displayName?: string;
   /** Market cap (spot only) = circulatingSupply × price. */
   marketCap?: string;
+  /** Token full name (spot, e.g. "Kinetiq") + tokenId contract. */
+  fullName?: string;
+  contract?: string;
 }
