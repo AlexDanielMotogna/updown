@@ -117,6 +117,36 @@ export function mapPrices(universe: HlUniverseAsset[], ctxs: HlAssetCtx[], now: 
 // the perp "BASE-USD" symbols. hlCoin + spotIndex live in metadata for the signer
 // and the stream layer.
 
+// HL's frontend shows curated display tickers for some spot tokens that don't
+// follow any algorithmic rule from the API (Unit Fartcoin → FARTCOIN, not FART;
+// Unit DoubleZero → 2Z; hSEI → SEI; USDT0 → USDT). These are the exceptions to
+// the generic Unit-strip below; everything else uses the raw token name.
+const SPOT_TICKER_OVERRIDE: Record<string, string> = {
+  USDT0: 'USDT',
+  XAUT0: 'XAUT',
+  HSEI: 'SEI',
+  HPENGU: 'PENGU',
+  UFART: 'FARTCOIN',
+  UDZ: '2Z',
+  UUUSPX: 'SPX',
+  UVIRT: 'VIRTUAL',
+};
+
+/** HL frontend display ticker for a spot token. Unit-bridged tokens are named
+ * "U<TICKER>" (UBTC, UETH, UZEC) with a "Unit <Asset>" fullName; HL's UI shows
+ * them without the leading "U" (BTC, ETH, ZEC). A few don't follow that rule and
+ * are curated in SPOT_TICKER_OVERRIDE. Stablecoins (USDC/USDT/USDE…) also start
+ * with "U" but aren't Unit (fullName not "Unit …"), so the strip gates on it. */
+export function spotTokenTicker(token?: { name: string; fullName?: string | null }): string {
+  if (!token) return '';
+  const { name, fullName } = token;
+  if (SPOT_TICKER_OVERRIDE[name]) return SPOT_TICKER_OVERRIDE[name];
+  if (fullName && /^unit\s/i.test(fullName) && name.length > 1 && name[0]?.toUpperCase() === 'U') {
+    return name.slice(1);
+  }
+  return name;
+}
+
 /** Display symbol for a spot pair, e.g. "HYPE/USDC". */
 export function spotPairSymbol(base: string, quote: string): string {
   return `${base}/${quote}`;
@@ -162,7 +192,7 @@ export function mapSpotMarkets(meta: HlSpotMeta, ctxs: HlSpotAssetCtx[]): Market
         // coin/hlCoin = pair.name (allMids/orderbook key). ORDER asset id =
         // 10000 + pair.index (the .index field / HL spot id), per HL docs.
         assetId: 10000 + pair.index,
-        displayName: spotPairSymbol(base?.name ?? pair.name, quote?.name ?? 'USDC'),
+        displayName: spotPairSymbol(spotTokenTicker(base) || pair.name, spotTokenTicker(quote) || 'USDC'),
         szDecimals,
         baseTokenIndex: pair.tokens[0],
         quoteTokenIndex: pair.tokens[1],
@@ -210,7 +240,8 @@ export function mapSpotBalances(state: HlSpotClearinghouseState, meta?: HlSpotMe
     const price = b.coin === 'USDC' ? 1 : Number(priceByToken?.get(b.token) ?? 0);
     const usdValue = price > 0 ? String(Number(b.total) * price) : undefined;
     return {
-      asset: b.coin,
+      // Display ticker (Unit tokens shown without the "U" prefix, like HL).
+      asset: spotTokenTicker(tok) || b.coin,
       total: b.total,
       available: String(Number(b.total) - Number(b.hold)),
       entryNotional: b.entryNtl,
