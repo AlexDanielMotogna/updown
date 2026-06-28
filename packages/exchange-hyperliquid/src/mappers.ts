@@ -122,23 +122,24 @@ export function spotPairSymbol(base: string, quote: string): string {
   return `${base}/${quote}`;
 }
 
-/** The HL coin/allMids key for a spot pair: the pair name for canonical pairs
- * (e.g. "PURR/USDC"), else "@{arrayPosition}". NOTE: this is the ARRAY POSITION in
- * spotMeta.universe, NOT the pair's `.index` field — HL keys allMids/orderbook and
- * the order asset id (10000 + arrayPosition) by array position; `.index` is a
- * different token-pair id that does NOT match allMids. */
-export function spotCoin(pair: { name: string; isCanonical?: boolean }, arrayPos: number): string {
-  return pair.isCanonical ? pair.name : `@${arrayPos}`;
+/** The HL coin/allMids/orderbook key for a spot pair = the universe entry's `name`
+ * field: "PURR/USDC" for canonical pairs, else "@{index}" where index is the pair's
+ * `.index` FIELD (HL's spot id). The order asset id is 10000 + that same `.index`.
+ * (allMids/l2Book are keyed by this name, NOT by the array position.) */
+export function spotCoin(pair: { name: string }): string {
+  return pair.name;
 }
 
 export function mapSpotMarkets(meta: HlSpotMeta, ctxs: HlSpotAssetCtx[]): Market[] {
-  return meta.universe.map((pair, i) => {
+  // ctxs is NOT positionally aligned with universe — match by ctx.coin (= pair.name).
+  const ctxByCoin = new Map(ctxs.map((c) => [c.coin, c]));
+  return meta.universe.map((pair) => {
     const base = meta.tokens[pair.tokens[0]];
     const quote = meta.tokens[pair.tokens[1]];
     const szDecimals = base?.szDecimals ?? 0;
     const priceDecimals = Math.max(0, SPOT_MAX_DECIMALS - szDecimals);
-    const ctx = ctxs[i];
-    const coin = spotCoin(pair, i);
+    const coin = spotCoin(pair);
+    const ctx = ctxByCoin.get(coin);
     return {
       // symbol = the HL coin (unique, matches allMids + the order). Display uses
       // metadata.displayName ("BASE/QUOTE"). Keying by name collides (HL has dup
@@ -158,8 +159,8 @@ export function mapSpotMarkets(meta: HlSpotMeta, ctxs: HlSpotAssetCtx[]): Market
       metadata: {
         hlCoin: coin,
         spotIndex: pair.index,
-        // ORDER asset id = 10000 + pair.index (.index field, per HL docs), NOT the
-        // array position. The coin (hlCoin) above uses arrayPos for allMids.
+        // coin/hlCoin = pair.name (allMids/orderbook key). ORDER asset id =
+        // 10000 + pair.index (the .index field / HL spot id), per HL docs.
         assetId: 10000 + pair.index,
         displayName: spotPairSymbol(base?.name ?? pair.name, quote?.name ?? 'USDC'),
         szDecimals,
@@ -176,12 +177,13 @@ export function mapSpotMarkets(meta: HlSpotMeta, ctxs: HlSpotAssetCtx[]): Market
 }
 
 export function mapSpotPrices(meta: HlSpotMeta, ctxs: HlSpotAssetCtx[], now: number): Price[] {
+  const ctxByCoin = new Map(ctxs.map((c) => [c.coin, c]));
   return meta.universe
-    .map((pair, i) => {
-      const ctx = ctxs[i];
+    .map((pair) => {
+      const ctx = ctxByCoin.get(pair.name);
       if (!ctx) return null;
       return {
-        symbol: spotCoin(pair, i),
+        symbol: spotCoin(pair),
         mark: ctx.markPx,
         index: ctx.markPx,
         last: ctx.midPx ?? ctx.markPx,

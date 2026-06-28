@@ -62,7 +62,9 @@ export type HlOrderType =
 export function buildOrderTypeField(params: OrderParams, szDecimals: number, kind: 'perp' | 'spot' = 'perp'): HlOrderType {
   switch (params.type) {
     case 'MARKET':
-      return { limit: { tif: 'FrontendMarket' } };
+      // Spot uses a plain IOC at the slippage-cap price (FrontendMarket can fail to
+      // cross on spot books → "could not immediately match"); perps keep FrontendMarket.
+      return { limit: { tif: kind === 'spot' ? 'Ioc' : 'FrontendMarket' } };
     case 'LIMIT':
       return { limit: { tif: mapTif(params.timeInForce) } };
     case 'STOP_MARKET':
