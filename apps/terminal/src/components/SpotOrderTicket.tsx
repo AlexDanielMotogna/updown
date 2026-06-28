@@ -30,7 +30,7 @@ const pxFmt = (n: number) => (!Number.isFinite(n) || n <= 0 ? '--' : n >= 1 ? us
  */
 export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbol }: { walletAddress?: string; evmAddress?: string; symbol?: string }) {
   const toast = useToast();
-  const { enabled: tradingEnabled, busy: enabling, enableTrading } = useTrading(walletAddress, evmAddress);
+  const { enabled: tradingEnabled, busy: enabling, enableTrading, checked } = useTrading(walletAddress, evmAddress);
   const [tickers, setTickers] = useState<Ticker[]>([]);
   const [balances, setBalances] = useState<SpotBalanceRow[]>([]);
   const [symbol, setSymbol] = useState<string>(lockedSymbol ?? '');
@@ -228,9 +228,12 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
         {exceedsBal && <div className="text-2xs text-loss-500">Exceeds your {isSell ? `${base} balance` : 'USDC balance'}.</div>}
       </div>
 
-      {/* Primary action */}
+      {/* Primary action. Wait for `checked` so it doesn't flash "Enable Trading"
+          before the connection check resolves on refresh. */}
       <div className="mt-3">
-        {!!walletAddress && !tradingEnabled ? (
+        {!!walletAddress && !checked ? (
+          <button disabled className={ctaCls}>Loading…</button>
+        ) : !!walletAddress && !tradingEnabled ? (
           <button onClick={enableTrading} disabled={enabling} className={ctaCls}>
             {enabling ? 'Enabling…' : 'Enable Trading'}
           </button>

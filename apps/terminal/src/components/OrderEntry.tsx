@@ -88,9 +88,8 @@ export function OrderEntry({
   // "needs funding" gate; usdcAvailable is "Available to Trade".
   const { total: unifiedValue, usdcAvailable } = useAccountValue(evmAddress);
   const available = usdcAvailable ?? 0;
-  const { enabled: tradingEnabled, builderApproved, busy: enabling, enableTrading, approveBuilder } = useTrading(walletAddress, evmAddress);
+  const { enabled: tradingEnabled, busy: enabling, enableTrading, approveBuilder, checked } = useTrading(walletAddress, evmAddress);
   const { ready: privyReady, authenticated, login, connectWallet } = usePrivy();
-  const [approvingBuilder, setApprovingBuilder] = useState(false);
   const toast = useToast();
 
   // Leverage / margin-mode application to HyperLiquid (signed by the agent key
@@ -358,22 +357,8 @@ export function OrderEntry({
     toast.update(tid, 'success', ok);
   }
 
-  async function handleApproveBuilder() {
-    setApprovingBuilder(true);
-    const tid = toast.loading('Approving builder fee — sign in your wallet…');
-    try {
-      await approveBuilder();
-      toast.update(tid, 'success', 'Builder fee approved — you can trade now');
-    } catch (e) {
-      toast.update(tid, 'error', (e as Error).message || 'Builder approval failed');
-    } finally {
-      setApprovingBuilder(false);
-    }
-  }
-
   const buy = side === 'BUY';
   const needsAgent = !!walletAddress && !tradingEnabled;
-  const needsBuilder = !!walletAddress && tradingEnabled && builderApproved === false;
   // A brand-new HL account (created via our app, never funded) has 0 balance, and
   // HyperLiquid rejects approveAgent/orders with "Must deposit before performing
   // actions". Prompt a deposit first instead of a failing "Enable Trading". Under
@@ -517,13 +502,18 @@ export function OrderEntry({
         <Row label="Available to Trade" value={usd(available)} />
       </div>
 
-      {/* Primary action — sign in / connect / enable / approve all on this button. */}
+      {/* Primary action — sign in / connect / enable, then Buy/Sell. The builder
+          fee is approved during Enable Trading and self-heals at order time (no
+          separate prompt). We wait for `checked` before showing enable/deposit
+          gates so the button doesn't flash "Enable Trading" on every refresh. */}
       {!privyReady ? (
         <button disabled className={ctaCls}>…</button>
       ) : !authenticated ? (
         <button onClick={login} className={ctaCls}>Connect to trade</button>
       ) : !evmAddress ? (
         <button onClick={() => connectWallet({ walletChainType: 'ethereum-only' })} className={ctaCls}>Connect wallet</button>
+      ) : !checked ? (
+        <button disabled className={ctaCls}>Loading…</button>
       ) : needsDeposit ? (
         <button onClick={() => setShowFund(true)} className="w-full rounded bg-brand py-2.5 font-semibold text-surface-950 transition-colors hover:bg-brand-600">
           Deposit USDC to start trading
@@ -531,10 +521,6 @@ export function OrderEntry({
       ) : needsAgent ? (
         <button onClick={enableTrading} disabled={enabling} className={ctaCls}>
           {enabling ? 'Enabling…' : 'Enable Trading'}
-        </button>
-      ) : needsBuilder ? (
-        <button onClick={handleApproveBuilder} disabled={approvingBuilder} className={ctaCls}>
-          {approvingBuilder ? 'Approving…' : 'Approve Builder Fee'}
         </button>
       ) : (
         <button

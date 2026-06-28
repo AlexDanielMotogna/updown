@@ -98,6 +98,8 @@ export interface TradingState {
   /** Approve just the builder fee (e.g. for an agent enabled before this existed).
    * Returns true on success. Throws are surfaced to the caller. */
   approveBuilder: () => Promise<boolean>;
+  /** False until the first connection check resolves (avoid CTA flicker). */
+  checked: boolean;
   refresh: () => void;
 }
 
@@ -112,14 +114,17 @@ export function useTrading(walletAddress?: string, evmAddress?: string): Trading
   const { wallets } = useWallets();
   const toast = useToast();
   const [conn, setConn] = useState<ConnectionStatus | null>(null);
+  // false until the first getConnection resolves — lets the UI show a neutral
+  // "Loading…" instead of flashing "Enable Trading" before the check completes.
+  const [checked, setChecked] = useState(false);
   const [builderApproved, setBuilderApproved] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   // null = unknown/checking (fail-open), false = confirmed NOT approved on-chain.
   const [agentLive, setAgentLive] = useState<boolean | null>(null);
 
   const refresh = useCallback(() => {
-    if (walletAddress) getConnection(walletAddress).then(setConn);
-    else setConn(null);
+    if (walletAddress) getConnection(walletAddress).then((c) => { setConn(c); setChecked(true); });
+    else { setConn(null); setChecked(true); }
   }, [walletAddress]);
 
   useEffect(() => { refresh(); }, [refresh]);
@@ -211,5 +216,5 @@ export function useTrading(walletAddress?: string, evmAddress?: string): Trading
 
   // Enabled only if the connection is active AND the agent hasn't been confirmed
   // revoked on-chain (agentLive === false). null/true → treat as enabled (fail-open).
-  return { conn, enabled: !!conn?.active && agentLive !== false, builderApproved, busy, enableTrading, approveBuilder, refresh };
+  return { conn, enabled: !!conn?.active && agentLive !== false, builderApproved, busy, enableTrading, approveBuilder, checked, refresh };
 }
