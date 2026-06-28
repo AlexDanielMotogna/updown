@@ -16,6 +16,10 @@ const API_BASE = apiBase();
 /** Whether this terminal targets HyperLiquid testnet (default true for now). */
 export const IS_TESTNET = process.env.NEXT_PUBLIC_HYPERLIQUID_TESTNET !== 'false';
 
+/** A spot market symbol is the HL coin ("@<index>") or a canonical pair ("PURR/USDC");
+ * perps are "BASE-USD". Used to route the symbol to the spot vs perp UI. */
+export const isSpotSymbol = (symbol: string): boolean => symbol.startsWith('@') || symbol.includes('/');
+
 export interface PlaceOrderInput {
   walletAddress: string;
   symbol: string;

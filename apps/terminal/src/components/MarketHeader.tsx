@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { MarketSelector } from './MarketSelector';
 import { getStream } from '@/lib/stream';
+import { isSpotSymbol } from '@/lib/api';
 import type { Ticker } from '@/lib/types';
 
 function fmtPrice(s?: string) {
@@ -75,9 +76,10 @@ export function MarketHeader({ symbol, initial, mobile }: { symbol: string; init
   // Full ticker (funding/volume/OI/oracle/24h) — polled; the mid moves slower.
   useEffect(() => {
     let alive = true;
+    const url = isSpotSymbol(symbol) ? '/api/markets?kind=spot' : '/api/markets';
     const tick = async () => {
       try {
-        const res = await fetch('/api/markets', { cache: 'no-store' });
+        const res = await fetch(url, { cache: 'no-store' });
         const json = await res.json();
         if (alive && json.success) setT((json.data as Ticker[]).find((m) => m.symbol === symbol) ?? null);
       } catch {/* keep */}

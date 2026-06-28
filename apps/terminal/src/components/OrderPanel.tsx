@@ -1,11 +1,11 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useState } from 'react';
 import { OrderEntry } from './OrderEntry';
 import { SpotOrderTicket } from './SpotOrderTicket';
 import { useIdentity } from '@/hooks/useIdentity';
 import { useTradeRewardCredit } from '@/hooks/useTradeRewardCredit';
+import { isSpotSymbol } from '@/lib/api';
 import type { OrderSide } from '@/lib/types';
 
 // Lazy: AgentSetup pulls the HL SDK (approveAgent signing). Keep it out of the
@@ -19,38 +19,21 @@ const AgentSetup = dynamic(() => import('./AgentSetup').then((m) => m.AgentSetup
 
 const SPOT_ENABLED = process.env.NEXT_PUBLIC_SPOT_ENABLED === 'true';
 
-/** Perps order entry + agent setup, or the self-contained spot ticket. A small
- * Perps|Spot toggle (only when NEXT_PUBLIC_SPOT_ENABLED) switches between them. */
+/** The symbol drives the form: a spot symbol ("@N" / "X/USDC", via the market
+ * selector's Spot tab) shows the spot ticket locked to that pair; otherwise the
+ * perps order entry + agent setup. */
 function OrderPanelInner({ symbol, walletAddress, evmAddress, initialSide }: { symbol: string; walletAddress?: string; evmAddress?: string; initialSide?: OrderSide }) {
-  const [kind, setKind] = useState<'perp' | 'spot'>(() => {
-    if (typeof window === 'undefined') return 'perp';
-    return (window.localStorage.getItem('updown-trade-kind') as 'perp' | 'spot') || 'perp';
-  });
-  const setKindPersist = (k: 'perp' | 'spot') => {
-    setKind(k);
-    try { window.localStorage.setItem('updown-trade-kind', k); } catch { /* ignore */ }
-  };
-
+  if (SPOT_ENABLED && isSpotSymbol(symbol)) {
+    return (
+      <div className="space-y-1">
+        <SpotOrderTicket walletAddress={walletAddress} evmAddress={evmAddress} symbol={symbol} />
+      </div>
+    );
+  }
   return (
     <div className="space-y-1">
-      {SPOT_ENABLED && (
-        <div className="flex rounded-lg bg-surface-800 p-0.5 text-xs font-semibold">
-          {(['perp', 'spot'] as const).map((k) => (
-            <button key={k} onClick={() => setKindPersist(k)}
-              className={`flex-1 rounded-md py-1.5 transition-colors ${kind === k ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:text-surface-200'}`}>
-              {k === 'perp' ? 'Perps' : 'Spot'}
-            </button>
-          ))}
-        </div>
-      )}
-      {SPOT_ENABLED && kind === 'spot' ? (
-        <SpotOrderTicket walletAddress={walletAddress} evmAddress={evmAddress} />
-      ) : (
-        <>
-          <OrderEntry symbol={symbol} walletAddress={walletAddress} evmAddress={evmAddress} initialSide={initialSide} />
-          <AgentSetup />
-        </>
-      )}
+      <OrderEntry symbol={symbol} walletAddress={walletAddress} evmAddress={evmAddress} initialSide={initialSide} />
+      <AgentSetup />
     </div>
   );
 }

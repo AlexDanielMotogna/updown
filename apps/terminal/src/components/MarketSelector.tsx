@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TokenIcon } from './TokenIcon';
+import { isSpotSymbol } from '@/lib/api';
 import type { Ticker } from '@/lib/types';
+
+const SPOT_ENABLED = process.env.NEXT_PUBLIC_SPOT_ENABLED === 'true';
 
 function fmtPrice(s: string) {
   const v = Number(s);
@@ -30,6 +33,7 @@ export function MarketSelector({ symbol }: { symbol: string }) {
   const [markets, setMarkets] = useState<Ticker[]>([]);
   const [favs, setFavs] = useState<Set<string>>(new Set());
   const [hi, setHi] = useState(0);
+  const [mode, setMode] = useState<'perp' | 'spot'>(isSpotSymbol(symbol) ? 'spot' : 'perp');
   const ref = useRef<HTMLDivElement>(null);
 
   // Load favorites + fetch markets on open.
@@ -40,11 +44,12 @@ export function MarketSelector({ symbol }: { symbol: string }) {
     } catch {/* ignore */}
   }, []);
   useEffect(() => {
-    if (!open) return;
-    fetch('/api/markets', { cache: 'no-store' })
+    const url = mode === 'spot' ? '/api/markets?kind=spot' : '/api/markets';
+    fetch(url, { cache: 'no-store' })
       .then((r) => r.json())
-      .then((j) => j.success && setMarkets(j.data));
-  }, [open]);
+      .then((j) => j.success && setMarkets(j.data))
+      .catch(() => {/* keep last */});
+  }, [open, mode]);
 
   // Outside-click + global Cmd/Ctrl+K to open.
   useEffect(() => {
@@ -75,15 +80,18 @@ export function MarketSelector({ symbol }: { symbol: string }) {
     });
   }
 
+  const label = (m: Ticker) => m.displayName ?? m.symbol;
+  const currentLabel = markets.find((m) => m.symbol === symbol)?.displayName ?? symbol;
+
   const filtered = useMemo(
     () =>
       markets
-        .filter((m) => (tab === 'all' || favs.has(m.symbol)) && m.symbol.toLowerCase().includes(q.toLowerCase()))
+        .filter((m) => (tab === 'all' || favs.has(m.symbol)) && label(m).toLowerCase().includes(q.toLowerCase()))
         .slice(0, 100),
     [markets, tab, favs, q]
   );
 
-  useEffect(() => setHi(0), [q, tab]);
+  useEffect(() => setHi(0), [q, tab, mode]);
 
   function select(sym: string) {
     setOpen(false);
@@ -102,7 +110,7 @@ export function MarketSelector({ symbol }: { symbol: string }) {
     <div className="relative" ref={ref}>
       <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-2 rounded px-2 py-1 hover:bg-surface-800">
         <TokenIcon symbol={symbol} size="md" />
-        <span className="text-base font-semibold">{symbol}</span>
+        <span className="text-base font-semibold">{currentLabel}</span>
         <svg width="12" height="12" viewBox="0 0 12 12" className="text-surface-400">
           <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
         </svg>
@@ -111,6 +119,19 @@ export function MarketSelector({ symbol }: { symbol: string }) {
       {open && (
         <div className="absolute left-0 top-full z-50 mt-1 w-[820px] max-w-[94vw] card-elevated animate-fade-in">
           <div className="flex items-center gap-2 p-2">
+            {SPOT_ENABLED && (
+              <div className="flex rounded bg-surface-900 p-0.5 text-xs">
+                {(['perp', 'spot'] as const).map((mk) => (
+                  <button
+                    key={mk}
+                    onClick={() => setMode(mk)}
+                    className={`rounded px-2 py-1 ${mode === mk ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:text-surface-100'}`}
+                  >
+                    {mk === 'perp' ? 'Perps' : 'Spot'}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="flex rounded bg-surface-900 p-0.5 text-xs">
               {(['favorites', 'all'] as const).map((tk) => (
                 <button
@@ -149,6 +170,9 @@ export function MarketSelector({ symbol }: { symbol: string }) {
               const mark = Number(m.mark);
               const abs = mark - mark / (1 + chg / 100);
               const fundPct = Number(m.funding) * 100;
+              const isSpot = mode === 'spot';
+              const disp = label(m);
+              const iconSym = isSpot ? disp.split('/')[0] : m.symbol;
               return (
                 <button
                   key={m.symbol}
@@ -166,17 +190,17 @@ export function MarketSelector({ symbol }: { symbol: string }) {
                     >
                       ★
                     </span>
-                    <TokenIcon symbol={m.symbol} size="sm" />
-                    <span className="font-medium text-surface-100">{m.symbol}</span>
+                    <TokenIcon symbol={iconSym} size="sm" />
+                    <span className="font-medium text-surface-100">{disp}</span>
                     {m.maxLeverage ? <span className="rounded bg-surface-800 px-1 text-2xs text-surface-400">{m.maxLeverage}x</span> : null}
                   </span>
                   <span className="text-right text-surface-100">{fmtPrice(m.mark)}</span>
                   <span className={`text-right ${chg >= 0 ? 'text-win-500' : 'text-loss-500'}`}>
                     {chg >= 0 ? '+' : ''}{fmtPrice(String(abs))} / {chg >= 0 ? '+' : ''}{chg.toFixed(2)}%
                   </span>
-                  <span className={`text-right ${fundPct >= 0 ? 'text-win-500' : 'text-loss-500'}`}>{fundPct.toFixed(4)}%</span>
+                  <span className={`text-right ${isSpot ? 'text-surface-500' : fundPct >= 0 ? 'text-win-500' : 'text-loss-500'}`}>{isSpot ? '--' : `${fundPct.toFixed(4)}%`}</span>
                   <span className="text-right text-surface-300">{fmtUsd(Number(m.volume24h))}</span>
-                  <span className="text-right text-surface-300">{fmtUsd(Number(m.openInterest) * mark)}</span>
+                  <span className="text-right text-surface-300">{isSpot ? '--' : fmtUsd(Number(m.openInterest) * mark)}</span>
                 </button>
               );
             })}
