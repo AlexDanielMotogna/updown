@@ -25,7 +25,7 @@ import type {
   WalletSigner,
 } from 'exchange-core';
 import { buildOrderRequest } from './formatting';
-import { InfoClient, MAINNET, type HlEndpoint } from './info-client';
+import { InfoClient, MAINNET, type HlEndpoint, type HlAbstractionMode } from './info-client';
 import { toHlCoin } from './symbols';
 
 /** A viem local account (privateKeyToAccount output) or compatible signer. */
@@ -248,6 +248,34 @@ export class HyperliquidSigner implements ExchangeSigner {
     if (!builder) throw new Error('approveBuilderFee: no builder address (pass one or set opts.builder)');
     await client.approveBuilderFee({ maxFeeRate, builder });
     return { success: true };
+  }
+
+  /** Read the account's abstraction mode (unifiedAccount / dexAbstraction / …). */
+  async getAbstraction(user: string): Promise<HlAbstractionMode> {
+    return this.info.userAbstraction(user);
+  }
+
+  /**
+   * Set the account's abstraction mode via the AGENT key (no user popup): `'u'`
+   * unifiedAccount, `'p'` portfolioMargin, `'i'` disabled. HL-specific.
+   */
+  async setAbstraction(mode: 'i' | 'u' | 'p'): Promise<Result> {
+    const client = await this.getClient();
+    await client.agentSetAbstraction({ abstraction: mode });
+    return { success: true };
+  }
+
+  /**
+   * Ensure the account is on Unified Account (HL's recommended default: one
+   * balance per asset shared across spot + perps, so no Spot↔Perps transfers).
+   * Idempotent — reads the mode first and only sets when needed. Leaves an
+   * already-portfolioMargin account untouched (that's a deliberate upgrade).
+   */
+  async ensureUnified(user: string): Promise<{ changed: boolean; mode: HlAbstractionMode }> {
+    const mode = await this.info.userAbstraction(user);
+    if (mode === 'unifiedAccount' || mode === 'portfolioMargin') return { changed: false, mode };
+    await this.setAbstraction('u');
+    return { changed: true, mode: 'unifiedAccount' };
   }
 
   /** A slippage-capped price for a MARKET order, from the current mid (±5%).

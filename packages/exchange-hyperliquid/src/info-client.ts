@@ -39,6 +39,16 @@ export interface CandleSnapshotReq {
   endTime?: number;
 }
 
+/** Account abstraction mode (how spot + perps balances interact). `unifiedAccount`
+ * shares one balance per asset across spot and perps; `default`/`dexAbstraction`
+ * keep them separate (the legacy split). */
+export type HlAbstractionMode =
+  | 'unifiedAccount'
+  | 'portfolioMargin'
+  | 'disabled'
+  | 'default'
+  | 'dexAbstraction';
+
 export class InfoClient {
   constructor(
     private readonly endpoint: HlEndpoint = MAINNET,
@@ -96,6 +106,11 @@ export class InfoClient {
 
   userFills(user: string): Promise<HlUserFill[]> {
     return this.post<HlUserFill[]>({ type: 'userFills', user });
+  }
+
+  /** The account's abstraction mode. */
+  userAbstraction(user: string): Promise<HlAbstractionMode> {
+    return this.post<HlAbstractionMode>({ type: 'userAbstraction', user });
   }
 
   // ── Spot ──────────────────────────────────────────────────────────────────

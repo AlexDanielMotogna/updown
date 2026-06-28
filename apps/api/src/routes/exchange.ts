@@ -222,6 +222,21 @@ exchangeRouter.post('/agent/confirm', async (req, res) => {
     }
 
     const conn = await activateConnection(userId, 'hyperliquid', parsed.data.isTestnet);
+
+    // Optionally put the account on HL Unified Account so spot + perps share one
+    // balance (no Spot↔Perps transfers). Agent-signed, idempotent, never blocks
+    // confirm. Gated OFF until the balance-reading refactor lands (under unified,
+    // balances move to the spot clearinghouse), so we don't break existing reads.
+    if (process.env.HL_FORCE_UNIFIED === 'on' && conn.accountAddress) {
+      try {
+        const signer = await buildHyperliquidSigner(userId, { isTestnet: parsed.data.isTestnet });
+        const r = await signer.ensureUnified(conn.accountAddress);
+        console.log(`[Exchange] abstraction for ${conn.accountAddress}: ${r.mode}${r.changed ? ' (set to unifiedAccount)' : ''}`);
+      } catch (e) {
+        console.error('[Exchange] ensureUnified failed (non-fatal):', (e as Error).message);
+      }
+    }
+
     res.json({ success: true, data: serializeConnection(conn) });
   } catch (error) {
     console.error('[Exchange] agent/confirm error:', error);
