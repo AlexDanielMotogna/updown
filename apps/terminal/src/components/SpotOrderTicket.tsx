@@ -87,7 +87,7 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
   const notional = baseSize * refPrice;
 
   const limitMissing = type === 'LIMIT' && !(Number(limitPrice) > 0);
-  const belowMin = inAmt > 0 && notional > 0 && notional < 10; // HL ~$10 min (advisory)
+  const belowMin = !isSell && inAmt > 0 && notional > 0 && notional < 10; // ~$10 min (buys only; sells unrestricted)
   const tooSmall = inAmt > 0 && refPrice > 0 && baseSize <= 0;
   const exceedsBal = isSell ? (baseSize > tokenBal) : (inAmt > usdcBal);
   // Don't hard-block on the ~$10 min — let HL decide (it may allow a full small
