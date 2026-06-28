@@ -9,7 +9,7 @@ import { useTradeMode } from '@/hooks/useTradeMode';
 /**
  * Market shell. Pro → the full TerminalLayout. Simple mode has NO market detail
  * page (the markets list + trade modal cover it), so a Simple session that lands
- * on /market/X is sent back to the markets list. Renders after mount so a
+ * on /trade/X is sent back to the markets list. Renders after mount so a
  * returning Pro user never flashes the wrong shell (mode is client-only).
  */
 export function MarketShell({ symbol, initial, devWallet, devEvm }: { symbol: string; initial?: Ticker | null; devWallet?: string; devEvm?: string }) {

@@ -20,6 +20,19 @@ export const IS_TESTNET = process.env.NEXT_PUBLIC_HYPERLIQUID_TESTNET !== 'false
  * perps are "BASE-USD". Used to route the symbol to the spot vs perp UI. */
 export const isSpotSymbol = (symbol: string): boolean => symbol.startsWith('@') || symbol.includes('/');
 
+/** Canonical trade URL for a market. Perp "PUMP-USD" → /trade/PUMP/USDC ;
+ *  spot coin "@261" (displayName "PUMP/USDC") → /trade/spot/PUMP/USDC. Spot needs
+ *  the displayName to recover base/quote (the coin "@N" carries no pair name). */
+export function tradeHref(m: { symbol: string; displayName?: string | null }): string {
+  if (isSpotSymbol(m.symbol)) {
+    const disp = m.displayName ?? m.symbol; // "PUMP/USDC"
+    const [base = disp, quote = 'USDC'] = disp.split('/');
+    return `/trade/spot/${encodeURIComponent(base)}/${encodeURIComponent(quote)}`;
+  }
+  const base = m.symbol.replace(/-USD$/i, ''); // "PUMP"
+  return `/trade/${encodeURIComponent(base)}/USDC`;
+}
+
 export interface PlaceOrderInput {
   walletAddress: string;
   symbol: string;

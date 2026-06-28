@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TokenIcon } from './TokenIcon';
-import { isSpotSymbol } from '@/lib/api';
+import { isSpotSymbol, tradeHref } from '@/lib/api';
 import type { Ticker } from '@/lib/types';
 
 const SPOT_ENABLED = process.env.NEXT_PUBLIC_SPOT_ENABLED === 'true';
@@ -96,16 +96,16 @@ export function MarketSelector({ symbol }: { symbol: string }) {
 
   useEffect(() => setHi(0), [q, tab, mode]);
 
-  function select(sym: string) {
+  function select(m: Ticker) {
     setOpen(false);
     setQ('');
-    router.push(`/market/${encodeURIComponent(sym)}`);
+    router.push(tradeHref(m));
   }
 
   function onListKey(e: React.KeyboardEvent) {
     if (e.key === 'ArrowDown') { e.preventDefault(); setHi((h) => Math.min(h + 1, filtered.length - 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setHi((h) => Math.max(h - 1, 0)); }
-    else if (e.key === 'Enter') { e.preventDefault(); if (filtered[hi]) select(filtered[hi].symbol); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (filtered[hi]) select(filtered[hi]); }
     else if (e.key === 'Escape') setOpen(false);
   }
 
@@ -190,7 +190,7 @@ export function MarketSelector({ symbol }: { symbol: string }) {
               return (
                 <button
                   key={m.symbol}
-                  onClick={() => select(m.symbol)}
+                  onClick={() => select(m)}
                   onMouseEnter={() => setHi(i)}
                   className={`grid w-full ${cols} items-center gap-2 px-3 py-1.5 text-left text-xs tabular ${
                     i === hi ? 'bg-surface-800' : ''
