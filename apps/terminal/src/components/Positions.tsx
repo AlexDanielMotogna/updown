@@ -646,7 +646,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
                   value={tradeFilter}
                   onChange={(e) => setTradeFilter(e.target.value)}
                   placeholder="Search coin"
-                  className="w-28 rounded border border-surface-800 bg-[#1c1c23] px-2 py-1 outline-none placeholder:text-surface-500"
+                  className="w-28 rounded-md border border-surface-700 bg-transparent px-2 py-1 outline-none transition-colors focus:border-brand placeholder:text-surface-500"
                 />
                 <button onClick={exportTradesCsv} className="ml-auto rounded border border-surface-700 px-2 py-1 text-surface-300 hover:bg-surface-800">
                   Export CSV
@@ -715,7 +715,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
                   value={fundFilter}
                   onChange={(e) => setFundFilter(e.target.value)}
                   placeholder="Search coin"
-                  className="w-28 rounded border border-surface-800 bg-[#1c1c23] px-2 py-1 outline-none placeholder:text-surface-500"
+                  className="w-28 rounded-md border border-surface-700 bg-transparent px-2 py-1 outline-none transition-colors focus:border-brand placeholder:text-surface-500"
                 />
                 <button onClick={exportFundingCsv} className="ml-auto rounded border border-surface-700 px-2 py-1 text-surface-300 hover:bg-surface-800">
                   Export CSV
@@ -774,7 +774,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
                   value={ohFilter}
                   onChange={(e) => setOhFilter(e.target.value)}
                   placeholder="Search coin / order id"
-                  className="w-40 rounded border border-surface-800 bg-[#1c1c23] px-2 py-1 outline-none placeholder:text-surface-500"
+                  className="w-40 rounded-md border border-surface-700 bg-transparent px-2 py-1 outline-none transition-colors focus:border-brand placeholder:text-surface-500"
                 />
                 <button onClick={exportOhCsv} className="ml-auto rounded border border-surface-700 px-2 py-1 text-surface-300 hover:bg-surface-800">
                   Export CSV

@@ -67,7 +67,7 @@ function Inner({ evmAddress }: { evmAddress?: string }) {
             Perps available: {available == null ? '…' : fmt(available)} · Max
           </button>
         </div>
-        <div className="flex items-center rounded border border-surface-700 bg-[#1c1c23] px-3">
+        <div className="flex items-center rounded-md border border-surface-700 bg-transparent px-3 transition-colors focus-within:border-brand">
           <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0.00" className="w-full bg-transparent py-2.5 text-base tabular text-surface-100 outline-none placeholder:text-surface-500" />
           <span className="text-surface-400">USDC</span>
         </div>

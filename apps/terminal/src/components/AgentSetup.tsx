@@ -28,7 +28,7 @@ function Setup() {
           value={solInput}
           onChange={(e) => setSolInput(e.target.value)}
           placeholder="Your UpDown (Solana) wallet"
-          className="flex-1 rounded border border-surface-700 bg-[#1c1c23] px-2 py-1.5 outline-none focus:border-surface-500"
+          className="flex-1 rounded-md border border-surface-700 bg-transparent px-2 py-1.5 outline-none transition-colors focus:border-brand"
         />
         <button
           disabled={!solInput || busy}

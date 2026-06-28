@@ -163,7 +163,7 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
           already shows the pair, so no symbol box when locked). */}
       {!lockedSymbol && (
         <select value={symbol} onChange={(e) => setSymbol(e.target.value)}
-          className="mb-4 w-full rounded border border-surface-700 bg-[#1c1c23] px-2.5 py-2 text-sm text-surface-100 outline-none">
+          className="mb-4 w-full rounded-md border border-surface-700 bg-transparent px-2.5 py-2 text-sm text-surface-100 outline-none transition-colors focus:border-brand">
           {tickers.map((t) => <option key={t.symbol} value={t.symbol}>{t.displayName ?? t.symbol}</option>)}
         </select>
       )}
@@ -261,7 +261,7 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
 
 function InlineInput({ value, onChange, suffix, placeholder = '0.00' }: { value: string; onChange: (v: string) => void; suffix: string; placeholder?: string }) {
   return (
-    <div className="flex items-center rounded border border-surface-800 bg-[#1c1c23] px-2">
+    <div className="flex items-center rounded-md border border-surface-700 bg-transparent px-2.5 transition-colors focus-within:border-brand">
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}

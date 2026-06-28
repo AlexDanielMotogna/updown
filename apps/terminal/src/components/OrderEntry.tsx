@@ -452,8 +452,8 @@ export function OrderEntry({
       {/* Size dual input */}
       <div className="mb-1.5 text-xs text-surface-400">Size</div>
       <div className="mb-3 grid grid-cols-2 gap-1.5">
-        <InlineInput value={sizeBtc} onChange={setBtc} suffix={base} />
-        <InlineInput value={sizeUsd} onChange={setUsd} suffix="USD" />
+        <InlineInput value={sizeBtc} onChange={setBtc} suffix={base} className={INPUT_WRAP} />
+        <InlineInput value={sizeUsd} onChange={setUsd} suffix="USD" className={INPUT_WRAP} />
       </div>
       <div className="mb-3 flex justify-between text-xs text-surface-400">
         <span>Margin: {usd(marginUsd)}</span>
@@ -629,7 +629,7 @@ export function OrderEntry({
       <Modal open={showSlippage} onClose={() => setShowSlippage(false)} title="Max Slippage" size="md">
         <label className="block">
           <span className="text-sm text-surface-300">Maximum slippage (%)</span>
-          <div className="mt-1.5 flex items-center rounded border border-surface-700 bg-[#1c1c23] px-3">
+          <div className="mt-1.5 flex items-center rounded-md border border-surface-700 bg-transparent px-3 transition-colors focus-within:border-brand">
             <input
               autoFocus
               value={pendingSlip}
@@ -678,9 +678,12 @@ function LabeledInput({ label, value, onChange, suffix }: { label: string; value
     </div>
   );
 }
-function InlineInput({ value, onChange, suffix }: { value: string; onChange: (v: string) => void; suffix: string }) {
+// Clean field: transparent (matches the panel background), thin border, brand-cyan
+// border on focus.
+const INPUT_WRAP = 'flex items-center rounded-md border border-surface-700 bg-transparent px-2.5 transition-colors focus-within:border-brand';
+function InlineInput({ value, onChange, suffix, className }: { value: string; onChange: (v: string) => void; suffix: string; className?: string }) {
   return (
-    <div className="flex items-center rounded border border-surface-800 bg-[#1c1c23] px-2">
+    <div className={className ?? INPUT_WRAP}>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
