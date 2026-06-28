@@ -143,9 +143,9 @@ export class HyperliquidSigner implements ExchangeSigner {
     let p = params;
     const kind: MarketKind = p.kind ?? 'perp';
     const asset = await this.resolveAsset(p.symbol, kind);
-    // The allMids key differs by kind: perps use the bare coin ("BTC"); spot uses
-    // "@{spotIndex}" where spotIndex = assetId - 10000.
-    const midCoin = kind === 'spot' ? `@${asset.index - 10000}` : toHlCoin(p.symbol);
+    // The allMids key differs by kind: perps use the bare coin ("BTC"); for spot
+    // the symbol IS already the HL coin ("@arrayPos" or "PURR/USDC").
+    const midCoin = kind === 'spot' ? p.symbol : toHlCoin(p.symbol);
     // Market-type orders still need a price on HL (a slippage cap, crossing the
     // book in the fill direction) when the caller didn't pass one:
     //   - plain MARKET → cap off the current mid
@@ -285,12 +285,15 @@ export class HyperliquidSigner implements ExchangeSigner {
     if (hit && hit.expires > now) return hit.map;
     const meta = await this.info.spotMeta();
     const map = new Map<string, AssetInfo>();
-    for (const pair of meta.universe) {
+    // Key by the HL coin (canonical name or "@arrayPos") and use the ARRAY POSITION
+    // for the asset id (10000 + pos) — matches allMids and the order routing. The
+    // pair `.index` field is a different id that does NOT match allMids.
+    meta.universe.forEach((pair, i) => {
       const base = meta.tokens[pair.tokens[0]];
-      const quote = meta.tokens[pair.tokens[1]];
-      if (!base || !quote) continue;
-      map.set(`${base.name}/${quote.name}`, { index: 10000 + pair.index, szDecimals: base.szDecimals });
-    }
+      if (!base) return;
+      const coin = pair.isCanonical ? pair.name : `@${i}`;
+      map.set(coin, { index: 10000 + i, szDecimals: base.szDecimals });
+    });
     ASSET_MAP_CACHE.set(key, { map, expires: now + ASSET_MAP_TTL_MS });
     return map;
   }

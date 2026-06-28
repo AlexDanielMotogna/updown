@@ -108,6 +108,7 @@ async function computeSpotTickers(): Promise<Ticker[]> {
         funding: '0',
         maxLeverage: null,
         szDecimals: typeof md.szDecimals === 'number' ? md.szDecimals : Number(md.szDecimals ?? 0),
+        displayName: String(md.displayName ?? m.symbol),
       } as Ticker;
     })
     .filter((t) => Number(t.mark) > 0)

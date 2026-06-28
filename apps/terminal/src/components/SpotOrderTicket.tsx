@@ -47,7 +47,8 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
   const selected = useMemo(() => tickers.find((t) => t.symbol === symbol), [tickers, symbol]);
   const mark = Number(selected?.mark ?? 0);
   const szDecimals = selected?.szDecimals ?? 0;
-  const base = symbol.split('/')[0] || '';
+  const display = selected?.displayName ?? symbol;
+  const base = display.split('/')[0] || '';
   const amt = Number(amountUsd);
   // Size is priced off the limit price for LIMIT orders, else the current mark.
   const refPrice = type === 'LIMIT' ? Number(limitPrice) : mark;
@@ -87,14 +88,14 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
 
       {/* Pair selector (hidden when locked to a symbol) */}
       {lockedSymbol ? (
-        <div className="rounded border border-surface-800 bg-[#1c1c23] px-2.5 py-2 text-sm font-semibold text-surface-100">{symbol}</div>
+        <div className="rounded border border-surface-800 bg-[#1c1c23] px-2.5 py-2 text-sm font-semibold text-surface-100">{display}</div>
       ) : (
         <select
           value={symbol}
           onChange={(e) => setSymbol(e.target.value)}
           className="w-full rounded border border-surface-700 bg-[#1c1c23] px-2.5 py-2 text-sm text-surface-100 outline-none"
         >
-          {tickers.map((t) => <option key={t.symbol} value={t.symbol}>{t.symbol}</option>)}
+          {tickers.map((t) => <option key={t.symbol} value={t.symbol}>{t.displayName ?? t.symbol}</option>)}
         </select>
       )}
 

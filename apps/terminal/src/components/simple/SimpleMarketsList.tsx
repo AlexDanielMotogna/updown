@@ -83,11 +83,13 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
     () => [...tickers].sort((a, b) => Number(b.volume24h) - Number(a.volume24h)).slice(0, TOP_N),
     [tickers],
   );
-  const tabs = useMemo(() => ['ALL', ...top.map((t) => t.symbol.replace('-USD', ''))], [top]);
+  // Display label: spot uses the pair displayName base ("HYPE"); perp strips -USD.
+  const lbl = (t: Ticker) => (kind === 'spot' ? (t.displayName ?? t.symbol).split('/')[0] : t.symbol.replace('-USD', ''));
+  const tabs = useMemo(() => ['ALL', ...top.map(lbl)], [top, kind]);
 
   const rows = useMemo(
-    () => (filter === 'ALL' ? top : tickers.filter((t) => t.symbol.replace('-USD', '') === filter)),
-    [top, tickers, filter],
+    () => (filter === 'ALL' ? top : tickers.filter((t) => lbl(t) === filter)),
+    [top, tickers, filter, kind],
   );
 
   // Row/button action: spot opens the spot ticket; perp opens the perp trade modal.
@@ -106,7 +108,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
         {SPOT_ENABLED && (
           <div className="flex rounded-lg bg-surface-800 p-0.5 text-xs font-semibold">
             {(['perp', 'spot'] as const).map((k) => (
-              <button key={k} onClick={() => setKind(k)}
+              <button key={k} onClick={() => { setKind(k); setFilter('ALL'); }}
                 className={`rounded-md px-3 py-1 transition-colors ${kind === k ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:text-surface-200'}`}>
                 {k === 'perp' ? 'Perps' : 'Spot'}
               </button>
@@ -173,7 +175,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
       ) : view === 'card' ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {rows.map((t) => {
-            const baseSym = t.symbol.replace('-USD', '');
+            const baseSym = lbl(t);
             const chg = Number(t.change24h);
             const up = chg >= 0;
             const chgColor = up ? 'text-win-500' : 'text-loss-500';
@@ -218,7 +220,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
         /* Row / list view */
         <div className="flex flex-col divide-y divide-surface-800 overflow-hidden rounded-xl border border-surface-800 bg-surface-850">
           {rows.map((t) => {
-            const baseSym = t.symbol.replace('-USD', '');
+            const baseSym = lbl(t);
             const chg = Number(t.change24h);
             const up = chg >= 0;
             const chgColor = up ? 'text-win-500' : 'text-loss-500';

@@ -31,7 +31,7 @@ export function HoldingsTab({ address, isMobile }: { address?: string; isMobile?
         if (mRes.success) {
           const map: Record<string, number> = {};
           for (const t of (mRes.data ?? []) as Ticker[]) {
-            const base = t.symbol.split('/')[0];
+            const base = (t.displayName ?? t.symbol).split('/')[0];
             map[base] = Number(t.mark);
           }
           setPrices(map);

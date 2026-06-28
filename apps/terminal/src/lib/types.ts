@@ -19,4 +19,6 @@ export interface Ticker {
   maxLeverage: number | null;
   /** Base-size decimals (spot only) — needed to size orders without rounding to 0. */
   szDecimals?: number;
+  /** Human label for spot pairs (e.g. "HYPE/USDC"); `symbol` is the HL coin ("@N"). */
+  displayName?: string;
 }

@@ -122,6 +122,15 @@ export function spotPairSymbol(base: string, quote: string): string {
   return `${base}/${quote}`;
 }
 
+/** The HL coin/allMids key for a spot pair: the pair name for canonical pairs
+ * (e.g. "PURR/USDC"), else "@{arrayPosition}". NOTE: this is the ARRAY POSITION in
+ * spotMeta.universe, NOT the pair's `.index` field — HL keys allMids/orderbook and
+ * the order asset id (10000 + arrayPosition) by array position; `.index` is a
+ * different token-pair id that does NOT match allMids. */
+export function spotCoin(pair: { name: string; isCanonical?: boolean }, arrayPos: number): string {
+  return pair.isCanonical ? pair.name : `@${arrayPos}`;
+}
+
 export function mapSpotMarkets(meta: HlSpotMeta, ctxs: HlSpotAssetCtx[]): Market[] {
   return meta.universe.map((pair, i) => {
     const base = meta.tokens[pair.tokens[0]];
@@ -129,8 +138,12 @@ export function mapSpotMarkets(meta: HlSpotMeta, ctxs: HlSpotAssetCtx[]): Market
     const szDecimals = base?.szDecimals ?? 0;
     const priceDecimals = Math.max(0, SPOT_MAX_DECIMALS - szDecimals);
     const ctx = ctxs[i];
+    const coin = spotCoin(pair, i);
     return {
-      symbol: spotPairSymbol(base?.name ?? pair.name, quote?.name ?? 'USDC'),
+      // symbol = the HL coin (unique, matches allMids + the order). Display uses
+      // metadata.displayName ("BASE/QUOTE"). Keying by name collides (HL has dup
+      // token names) and mismatches the asset id — that caused wrong price/size.
+      symbol: coin,
       baseAsset: base?.name ?? pair.name,
       quoteAsset: quote?.name ?? 'USDC',
       tickSize: pow10Neg(priceDecimals),
@@ -143,9 +156,10 @@ export function mapSpotMarkets(meta: HlSpotMeta, ctxs: HlSpotAssetCtx[]): Market
       fundingInterval: 0,
       kind: 'spot',
       metadata: {
-        hlCoin: `@${pair.index}`,
-        spotIndex: pair.index,
-        assetId: 10000 + pair.index,
+        hlCoin: coin,
+        spotIndex: i,
+        assetId: 10000 + i,
+        displayName: spotPairSymbol(base?.name ?? pair.name, quote?.name ?? 'USDC'),
         szDecimals,
         baseTokenIndex: pair.tokens[0],
         quoteTokenIndex: pair.tokens[1],
@@ -163,11 +177,9 @@ export function mapSpotPrices(meta: HlSpotMeta, ctxs: HlSpotAssetCtx[], now: num
   return meta.universe
     .map((pair, i) => {
       const ctx = ctxs[i];
-      const base = meta.tokens[pair.tokens[0]];
-      const quote = meta.tokens[pair.tokens[1]];
       if (!ctx) return null;
       return {
-        symbol: spotPairSymbol(base?.name ?? pair.name, quote?.name ?? 'USDC'),
+        symbol: spotCoin(pair, i),
         mark: ctx.markPx,
         index: ctx.markPx,
         last: ctx.midPx ?? ctx.markPx,
