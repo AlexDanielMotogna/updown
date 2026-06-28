@@ -48,13 +48,17 @@ export function HoldingsTab({ address, isMobile }: { address?: string; isMobile?
     .map((b) => {
       const price = b.asset === 'USDC' ? 1 : prices[b.asset] ?? 0;
       const value = Number(b.total) * price;
-      // Cost-basis P&L from HL's entryNtl (no fill persistence needed). USDC has none.
+      // Cost-basis P&L + ROE from HL's entryNtl (no fill persistence needed).
       const entry = Number(b.entryNotional ?? 0);
       const pnl = b.asset !== 'USDC' && entry > 0 ? value - entry : null;
-      return { ...b, price, value, pnl };
+      const roe = pnl != null && entry > 0 ? (pnl / entry) * 100 : null;
+      const contract = (b.metadata?.contract as string | undefined) ?? '';
+      return { ...b, price, value, pnl, roe, contract };
     })
     .filter((r) => Number(r.total) > 0)
     .sort((a, b) => b.value - a.value);
+
+  const shortContract = (c: string) => (c && c.length > 12 ? `${c.slice(0, 6)}…${c.slice(-4)}` : c || '--');
 
   if (!address) return <div className="flex h-full items-center justify-center text-xs text-surface-500">Connect to view holdings.</div>;
   if (!loaded) return <div className="flex h-full items-center justify-center text-xs text-surface-500">loading…</div>;
@@ -65,10 +69,13 @@ export function HoldingsTab({ address, isMobile }: { address?: string; isMobile?
       <div className="space-y-1.5 p-1.5">
         {rows.map((r) => (
           <div key={r.asset} className="flex items-center justify-between rounded-lg border border-surface-800/60 bg-surface-900/50 px-3 py-2">
-            <span className="text-sm font-medium text-surface-100">{r.asset}</span>
-            <span className="text-right text-xs tabular text-surface-300">
-              <div>{n(r.total)} </div>
-              <div className="text-surface-500">{usd(r.value)}</div>
+            <span className="min-w-0">
+              <div className="text-sm font-medium text-surface-100">{r.asset}</div>
+              <div className="text-2xs text-surface-500">{n(r.total)} · {usd(r.value)}</div>
+            </span>
+            <span className={`text-right text-xs tabular ${r.pnl == null ? 'text-surface-500' : r.pnl >= 0 ? 'text-win-400' : 'text-loss-400'}`}>
+              {r.pnl == null ? '--' : `${r.pnl >= 0 ? '+' : ''}${usd(r.pnl)}`}
+              {r.roe != null && <div className="text-2xs">{r.roe >= 0 ? '+' : ''}{r.roe.toFixed(2)}%</div>}
             </span>
           </div>
         ))}
@@ -80,12 +87,12 @@ export function HoldingsTab({ address, isMobile }: { address?: string; isMobile?
     <table className="w-full text-xs">
       <thead className="sticky top-0 bg-surface-900 text-surface-400">
         <tr className="text-left">
-          <th className="px-3 py-2 font-medium">Asset</th>
-          <th className="px-3 py-2 text-right font-medium">Total</th>
-          <th className="px-3 py-2 text-right font-medium">Available</th>
-          <th className="px-3 py-2 text-right font-medium">Price</th>
-          <th className="px-3 py-2 text-right font-medium">Value</th>
-          <th className="px-3 py-2 text-right font-medium">PnL</th>
+          <th className="px-3 py-2 font-medium">Coin</th>
+          <th className="px-3 py-2 text-right font-medium">Total Balance</th>
+          <th className="px-3 py-2 text-right font-medium">Available Balance</th>
+          <th className="px-3 py-2 text-right font-medium">USDC Value</th>
+          <th className="px-3 py-2 text-right font-medium">PNL (ROE %)</th>
+          <th className="px-3 py-2 text-right font-medium">Contract</th>
         </tr>
       </thead>
       <tbody className="tabular">
@@ -94,11 +101,11 @@ export function HoldingsTab({ address, isMobile }: { address?: string; isMobile?
             <td className="px-3 py-2 font-medium text-surface-100">{r.asset}</td>
             <td className="px-3 py-2 text-right text-surface-200">{n(r.total)}</td>
             <td className="px-3 py-2 text-right text-surface-300">{n(r.available)}</td>
-            <td className="px-3 py-2 text-right text-surface-300">{r.asset === 'USDC' ? '--' : usd(r.price)}</td>
             <td className="px-3 py-2 text-right text-surface-100">{usd(r.value)}</td>
             <td className={`px-3 py-2 text-right ${r.pnl == null ? 'text-surface-500' : r.pnl >= 0 ? 'text-win-400' : 'text-loss-400'}`}>
-              {r.pnl == null ? '--' : `${r.pnl >= 0 ? '+' : ''}${usd(r.pnl)}`}
+              {r.pnl == null ? '--' : `${r.pnl >= 0 ? '+' : ''}${usd(r.pnl)}${r.roe != null ? ` (${r.roe >= 0 ? '+' : ''}${r.roe.toFixed(2)}%)` : ''}`}
             </td>
+            <td className="px-3 py-2 text-right font-mono text-2xs text-surface-400" title={r.contract}>{shortContract(r.contract)}</td>
           </tr>
         ))}
       </tbody>

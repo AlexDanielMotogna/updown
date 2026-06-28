@@ -194,14 +194,19 @@ export function mapSpotPrices(meta: HlSpotMeta, ctxs: HlSpotAssetCtx[], now: num
     .filter((p): p is Price => p != null && p.mark != null);
 }
 
-export function mapSpotBalances(state: HlSpotClearinghouseState): Balance[] {
-  return state.balances.map((b) => ({
-    asset: b.coin,
-    total: b.total,
-    available: String(Number(b.total) - Number(b.hold)),
-    entryNotional: b.entryNtl,
-    metadata: { token: b.token, hold: b.hold },
-  }));
+export function mapSpotBalances(state: HlSpotClearinghouseState, meta?: HlSpotMeta): Balance[] {
+  return state.balances.map((b) => {
+    const tok = meta?.tokens[b.token];
+    const evm = tok?.evmContract as { address?: string } | null | undefined;
+    const contract = evm?.address ?? tok?.tokenId;
+    return {
+      asset: b.coin,
+      total: b.total,
+      available: String(Number(b.total) - Number(b.hold)),
+      entryNotional: b.entryNtl,
+      metadata: { token: b.token, hold: b.hold, contract },
+    };
+  });
 }
 
 // --- Orderbook / candles ---------------------------------------------------

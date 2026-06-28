@@ -130,8 +130,11 @@ export class HyperliquidReadAdapter implements ExchangeReadAdapter {
   }
 
   async getSpotBalances(accountId: string): Promise<Balance[]> {
-    const state = await this.info.spotClearinghouseState(accountId.toLowerCase());
-    return mapSpotBalances(state);
+    const [state, meta] = await Promise.all([
+      this.info.spotClearinghouseState(accountId.toLowerCase()),
+      this.info.spotMeta(),
+    ]);
+    return mapSpotBalances(state, meta);
   }
 
   async getOpenOrders(accountId: string): Promise<Order[]> {
