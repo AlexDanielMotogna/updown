@@ -211,7 +211,9 @@ export function mapSpotBalances(state: HlSpotClearinghouseState, meta?: HlSpotMe
       available: String(Number(b.total) - Number(b.hold)),
       entryNotional: b.entryNtl,
       usdValue,
-      metadata: { token: b.token, hold: b.hold, contract, price: String(price) },
+      // szDecimals → the client can hide sub-lot dust (< 10^-szDecimals), which is
+      // unsellable on the book (HL auto-dusts it daily).
+      metadata: { token: b.token, hold: b.hold, contract, price: String(price), szDecimals: tok?.szDecimals ?? 0 },
     };
   });
 }

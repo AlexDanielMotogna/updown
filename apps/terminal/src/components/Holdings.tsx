@@ -41,7 +41,14 @@ export function HoldingsTab({ walletAddress, isMobile }: { walletAddress?: strin
       const contract = b.metadata?.contract ?? '';
       return { ...b, value, pnl, roe, contract };
     })
-    .filter((r) => Number(r.total) > 0)
+    // Hide sub-lot dust (< 1 lot = 10^-szDecimals): unsellable on the book, HL
+    // auto-dusts it. Always keep USDC.
+    .filter((r) => {
+      if (Number(r.total) <= 0) return false;
+      if (r.asset === 'USDC') return true;
+      const sz = r.metadata?.szDecimals ?? 0;
+      return Number(r.total) >= Math.pow(10, -sz);
+    })
     .sort((a, b) => b.value - a.value);
 
   const shortContract = (c: string) => (c && c.length > 12 ? `${c.slice(0, 6)}…${c.slice(-4)}` : c || '--');

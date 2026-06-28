@@ -65,7 +65,7 @@ export interface SpotBalanceRow {
   available: string;
   entryNotional?: string;
   usdValue?: string;
-  metadata?: { contract?: string; price?: string } | null;
+  metadata?: { contract?: string; price?: string; szDecimals?: number } | null;
 }
 
 /** Spot holdings for the user's linked HL account (resolved server-side from the
