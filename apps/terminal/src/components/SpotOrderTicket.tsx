@@ -9,9 +9,9 @@ import { AccountInfo } from './AccountInfo';
 import { DepositModal } from './DepositModal';
 import type { Ticker, OrderSide } from '@/lib/types';
 
-// Lazy: Withdraw/Transfer pull the HL SDK (signed actions). Only under Privy.
+// Lazy: Withdraw pulls the HL SDK (signed action). Only under Privy. No Spot↔Perps
+// Transfer: under HL Unified Account spot + perps share one balance.
 const WithdrawModal = dynamic(() => import('./WithdrawModal').then((m) => m.WithdrawModal), { ssr: false });
-const TransferModal = dynamic(() => import('./TransferModal').then((m) => m.TransferModal), { ssr: false });
 const HAS_PRIVY = !!process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 
 const usd = (n: number) => (Number.isFinite(n) ? `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '$0.00');
@@ -41,7 +41,6 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
   const [limitPrice, setLimitPrice] = useState('');
   const [busy, setBusy] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
-  const [showTransfer, setShowTransfer] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
 
   useEffect(() => {
@@ -243,11 +242,9 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
         )}
       </div>
 
-      {/* Funding — spot orders settle from the Spot USDC balance; Transfer moves it
-          between Perps and Spot. */}
-      <div className="mt-4 grid grid-cols-3 gap-1.5">
+      {/* Funding — one unified balance (Unified Account), so no Spot↔Perps transfer. */}
+      <div className="mt-4 grid grid-cols-2 gap-1.5">
         <button onClick={() => setShowDeposit(true)} className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800">↓ Deposit</button>
-        <button onClick={() => setShowTransfer(true)} className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800" title="Move USDC between Perps and Spot">⇄ Transfer</button>
         <button onClick={() => setShowWithdraw(true)} className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800">↑ Withdraw</button>
       </div>
 
@@ -258,7 +255,6 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
 
       <DepositModal open={showDeposit} onClose={() => setShowDeposit(false)} evmAddress={evmAddress} />
       {HAS_PRIVY && <WithdrawModal open={showWithdraw} onClose={() => setShowWithdraw(false)} evmAddress={evmAddress} />}
-      {HAS_PRIVY && <TransferModal open={showTransfer} onClose={() => setShowTransfer(false)} evmAddress={evmAddress} />}
     </div>
   );
 }

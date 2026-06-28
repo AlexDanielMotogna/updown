@@ -39,14 +39,19 @@ Other notes: unified & PM are capped at 50k user actions/day (fine for retail).
 ## Status / phases
 - [x] **Fase 0 (capability)** — `InfoClient.userAbstraction`, `HyperliquidSigner.
   getAbstraction/setAbstraction/ensureUnified` (idempotent: read, set `"u"` only if
-  needed; leaves portfolioMargin alone). Wired into `/agent/confirm`, **gated by
-  `HL_FORCE_UNIFIED=on` (default OFF)** so we don't break reads before the refactor.
-- [ ] **Spike** — set `HL_FORCE_UNIFIED=on` locally, enable trading on a test
-  account (mainnet), confirm `userAbstraction` flips to `unifiedAccount`, and observe
-  how spot/perps balances then read (clearinghouseState vs spotClearinghouseState).
-- [ ] **Fase 1** — refactor balance reads to the spot clearinghouse under unified;
-  hide the Transfer button; unify "Available". Then enable `HL_FORCE_UNIFIED` by
-  default / for all and backfill existing connections.
+  needed; leaves portfolioMargin alone).
+- [x] **Fase 1 (all-in, default ON)** — `HL_FORCE_UNIFIED` now defaults ON (set
+  `=off` to disable). `/agent/confirm` ensures unified for new accounts;
+  `buildHyperliquidSigner` backfills existing ones (once per process, fire-and-forget).
+  Balance reads: account value = **spot value + perps uPnL** (spot clearinghouse
+  holds the USDC incl. perp margin, so we add uPnL not full equity to avoid
+  double-count). `useAccountValue` hook drives the navbar chip (HeaderBalance) and
+  AccountInfo's total (a single "Account Value: Total / Available"). **Spot↔Perps
+  Transfer button removed** from both order panels (Deposit/Withdraw stay).
+- [ ] **Verify on mainnet** — confirm `userAbstraction` flips to `unifiedAccount`,
+  the navbar + AccountInfo totals match HL, and there's no double-count once a perp
+  position is open. If perps `accountEquity` turns out non-zero/meaningful under
+  unified, revisit the total formula.
 - [ ] (optional, later) Pro-only Account Type selector exposing PM/Manual with
   warnings + eligibility checks.
 

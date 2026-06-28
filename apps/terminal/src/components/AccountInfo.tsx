@@ -40,10 +40,12 @@ export function AccountInfo({ evmAddress, spot: spotKind = false }: { evmAddress
   const maint = Number(meta.crossMaintenanceMarginUsed ?? 0);
   const crossLev = equity > 0 ? ntl / equity : 0;
   const crossMarginRatio = equity > 0 ? (maint / equity) * 100 : 0;
-  // Spot equity = full value (USDC + tokens); fall back to USDC-only until it loads.
-  const spotEquity = spotValue ?? spotUsdc;
+  // Unified Account: one balance lives in the spot clearinghouse (incl. perp
+  // margin), so account value = spot value + perps uPnL (NOT + full perps equity,
+  // which would double-count the margin). Matches the navbar chip (useAccountValue).
+  const spotEquity = spotValue ?? spotUsdc; // USDC + tokens (USDC-only until loaded)
   const holdingsValue = spotValue != null && spotUsdc != null ? Math.max(0, spotValue - spotUsdc) : null;
-  const total = (spotEquity ?? 0) + equity;
+  const total = (spotEquity ?? 0) + upnl;
   const feeMaker = fees ? (spotKind ? fees.spotMaker : fees.maker) : null;
   const feeTaker = fees ? (spotKind ? fees.spotTaker : fees.taker) : null;
 
@@ -55,9 +57,9 @@ export function AccountInfo({ evmAddress, spot: spotKind = false }: { evmAddress
       </div>
 
       <div className="mt-3 space-y-3">
-        <Section title="Account Equity">
-          <Row label="Spot" value={spotEquity == null ? '…' : usd(spotEquity)} />
-          <Row label="Perps" value={usd(equity)} />
+        <Section title="Account Value">
+          <Row label="Total" value={spotEquity == null ? '…' : usd(total)} />
+          <Row label="Available (USDC)" value={spotUsdc == null ? '…' : usd(spotUsdc)} />
         </Section>
 
         {spotKind ? (

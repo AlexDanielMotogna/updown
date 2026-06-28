@@ -223,11 +223,10 @@ exchangeRouter.post('/agent/confirm', async (req, res) => {
 
     const conn = await activateConnection(userId, 'hyperliquid', parsed.data.isTestnet);
 
-    // Optionally put the account on HL Unified Account so spot + perps share one
-    // balance (no Spot↔Perps transfers). Agent-signed, idempotent, never blocks
-    // confirm. Gated OFF until the balance-reading refactor lands (under unified,
-    // balances move to the spot clearinghouse), so we don't break existing reads.
-    if (process.env.HL_FORCE_UNIFIED === 'on' && conn.accountAddress) {
+    // Put the account on HL Unified Account so spot + perps share one balance (no
+    // Spot↔Perps transfers). Agent-signed, idempotent, never blocks confirm.
+    // On by default; set HL_FORCE_UNIFIED=off to disable.
+    if (process.env.HL_FORCE_UNIFIED !== 'off' && conn.accountAddress) {
       try {
         const signer = await buildHyperliquidSigner(userId, { isTestnet: parsed.data.isTestnet });
         const r = await signer.ensureUnified(conn.accountAddress);

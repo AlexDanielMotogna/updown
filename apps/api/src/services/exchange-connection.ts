@@ -193,6 +193,10 @@ export function decryptAgentKey(encryptedKeyData: string): `0x${string}` {
  * Build a ready-to-sign HyperliquidSigner for a user by decrypting their stored
  * agent key. Throws if there is no active connection.
  */
+// Accounts already nudged onto Unified Account this process (avoids re-checking on
+// every order/cancel). Keyed by lowercased account address.
+const ensuredUnified = new Set<string>();
+
 export async function buildHyperliquidSigner(
   userId: string,
   opts: { isTestnet?: boolean } = {}
@@ -202,9 +206,23 @@ export async function buildHyperliquidSigner(
   if (!conn || !conn.active) {
     throw new Error(`No active hyperliquid connection for user ${userId} (testnet=${isTestnet})`);
   }
-  return new HyperliquidSigner({
+  const signer = new HyperliquidSigner({
     privateKey: decryptAgentKey(conn.encryptedKeyData),
     endpoint: hlEndpoint(isTestnet),
     builder: builderConfig(),
   });
+
+  // Backfill: ensure existing (already-active) accounts are on Unified Account too,
+  // once per process. Fire-and-forget so it never delays the order/action.
+  // On by default; HL_FORCE_UNIFIED=off disables.
+  const acct = conn.accountAddress?.toLowerCase();
+  if (process.env.HL_FORCE_UNIFIED !== 'off' && acct && !ensuredUnified.has(acct)) {
+    ensuredUnified.add(acct);
+    signer
+      .ensureUnified(conn.accountAddress!)
+      .then((r) => { if (r.changed) console.log(`[Exchange] backfilled Unified Account for ${acct}`); })
+      .catch((e) => { ensuredUnified.delete(acct); console.error('[Exchange] ensureUnified backfill failed:', (e as Error).message); });
+  }
+
+  return signer;
 }
