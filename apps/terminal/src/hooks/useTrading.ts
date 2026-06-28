@@ -16,20 +16,34 @@ const HL_API =
   process.env.NEXT_PUBLIC_HYPERLIQUID_API_URL ??
   (IS_TESTNET ? 'https://api.hyperliquid-testnet.xyz' : 'https://api.hyperliquid.xyz');
 
-/** Query the max builder fee the user has approved for `builder` (0 = none). */
-async function fetchMaxBuilderFee(user: string, builder: string): Promise<number> {
+/** Query the max builder fee the user has approved for `builder`. Returns the
+ * number (0 = none), or `null` when the check itself couldn't run (network / !ok)
+ * — callers must treat null as "unknown" (fail-open), NOT as "not approved". */
+async function fetchMaxBuilderFee(user: string, builder: string): Promise<number | null> {
   try {
     const r = await fetch(`${HL_API}/info`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'maxBuilderFee', user, builder }),
     });
-    if (!r.ok) return 0;
+    if (!r.ok) return null;
     const v = await r.json();
-    return typeof v === 'number' ? v : Number(v) || 0;
+    return typeof v === 'number' ? v : Number.isFinite(Number(v)) ? Number(v) : null;
   } catch {
-    return 0;
+    return null;
   }
+}
+
+/** Remember a confirmed builder-fee approval locally so a later flaky check can't
+ * re-nag on every refresh (the order path self-heals if it's ever truly missing). */
+function builderOkKey(user: string) {
+  return `updown-builder-ok:${IS_TESTNET ? 't' : 'm'}:${user.toLowerCase()}`;
+}
+function getBuilderOk(user: string): boolean {
+  try { return localStorage.getItem(builderOkKey(user)) === '1'; } catch { return false; }
+}
+function setBuilderOk(user: string) {
+  try { localStorage.setItem(builderOkKey(user), '1'); } catch { /* ignore */ }
 }
 
 /**
@@ -121,10 +135,16 @@ export function useTrading(walletAddress?: string, evmAddress?: string): Trading
   }, [conn?.active, conn?.agentAddress, evmAddress]);
 
   // Check whether the builder fee is approved once the agent connection is active.
+  // Fail-OPEN: once approved (remembered locally) we trust it and never re-nag, and
+  // a check that couldn't run (null) never downgrades to "not approved" — otherwise
+  // the burst of HL calls on each refresh occasionally returns 0/errs and re-prompts.
   const refreshBuilder = useCallback(async () => {
     if (!evmAddress || !BUILDER_ADDRESS || !conn?.active) { setBuilderApproved(null); return; }
+    if (getBuilderOk(evmAddress)) { setBuilderApproved(true); return; }
     const max = await fetchMaxBuilderFee(evmAddress, BUILDER_ADDRESS);
-    setBuilderApproved(max > 0);
+    if (max == null) return; // couldn't check — leave as-is (no false "not approved")
+    if (max > 0) { setBuilderOk(evmAddress); setBuilderApproved(true); }
+    else setBuilderApproved(false);
   }, [evmAddress, conn?.active]);
 
   useEffect(() => { refreshBuilder(); }, [refreshBuilder]);
@@ -156,6 +176,7 @@ export function useTrading(walletAddress?: string, evmAddress?: string): Trading
       // 2) Approve the builder fee so builder-coded orders aren't rejected.
       if (BUILDER_ADDRESS) {
         await client.approveBuilderFee({ maxFeeRate: BUILDER_MAX_FEE, builder: BUILDER_ADDRESS });
+        setBuilderOk(evmAddress);
         setBuilderApproved(true);
       }
 
@@ -183,10 +204,10 @@ export function useTrading(walletAddress?: string, evmAddress?: string): Trading
     const walletClient = createWalletClient({ account: evmAddress as `0x${string}`, transport: custom(provider) });
     const client = new ExchangeClient({ transport: new HttpTransport({ isTestnet: IS_TESTNET }), wallet: walletClient });
     await client.approveBuilderFee({ maxFeeRate: BUILDER_MAX_FEE, builder: BUILDER_ADDRESS });
-    setBuilderApproved(true); // optimistic; the next check confirms
-    void refreshBuilder();
+    setBuilderOk(evmAddress);
+    setBuilderApproved(true); // optimistic; remembered locally so it won't re-nag
     return true;
-  }, [evmAddress, wallets, refreshBuilder]);
+  }, [evmAddress, wallets]);
 
   // Enabled only if the connection is active AND the agent hasn't been confirmed
   // revoked on-chain (agentLive === false). null/true → treat as enabled (fail-open).
