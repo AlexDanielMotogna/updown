@@ -160,7 +160,7 @@ export class HyperliquidSigner implements ExchangeSigner {
         p = { ...p, price: crossPrice(Number(p.triggerPrice), p.side, slip) };
       }
     }
-    return buildOrderRequest(p, asset.index, asset.szDecimals);
+    return buildOrderRequest(p, asset.index, asset.szDecimals, kind);
   }
 
   /** Lowercase `b` so it's byte-identical to the (lowercased) approved builder —
