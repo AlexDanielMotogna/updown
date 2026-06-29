@@ -36,4 +36,10 @@ cp -r "${TMP}/charting_library" "${DEST}/charting_library"
 cp -r "${TMP}/datafeeds" "${DEST}/datafeeds"
 rm -rf "${TMP}"
 
+# Drop the UpDown navy theme inside the library so custom_css_url='charting-theme.css'
+# (relative to library_path) resolves. The source CSS is committed; the library is not.
+if [ -f "apps/terminal/charting-library-theme.css" ]; then
+  cp "apps/terminal/charting-library-theme.css" "${DEST}/charting_library/charting-theme.css"
+fi
+
 echo "✓ Installed TradingView Charting Library to ${DEST}/charting_library (+ datafeeds)."

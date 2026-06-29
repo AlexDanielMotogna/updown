@@ -46,6 +46,9 @@ export function TVChart({ symbol }: { symbol: string }) {
           datafeed: createTvDatafeed(),
           autosize: true,
           theme: 'dark',
+          // Navy theme for the header/toolbars/popups (custom_css_url is resolved
+          // relative to library_path; the file is dropped there by the install script).
+          custom_css_url: 'charting-theme.css',
           timezone: 'Etc/UTC',
           locale: 'en',
           disabled_features: ['header_symbol_search', 'symbol_search_hot_key', 'header_compare'],
