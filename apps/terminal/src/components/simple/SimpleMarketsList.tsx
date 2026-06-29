@@ -6,8 +6,7 @@ import { TokenIcon } from '../TokenIcon';
 import { Sparkline } from './Sparkline';
 import { SimpleTradeModal } from './SimpleTradeModal';
 import { SimplePositionsSidebar } from './SimplePositionsSidebar';
-import { Modal } from '../Modal';
-import { SpotOrderTicket } from '../SpotOrderTicket';
+import { SimpleSpotPanel } from './SimpleSpotPanel';
 import { useIdentity } from '@/hooks/useIdentity';
 import { useAccountStream } from '@/hooks/useAccountStream';
 import { getStream } from '@/lib/stream';
@@ -262,9 +261,12 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
         <SimpleTradeModal open onClose={() => setTrade(null)} symbol={trade.symbol} initialSide={trade.side} devWallet={devWallet} devEvm={devEvm} />
       )}
       {spotTrade && (
-        <Modal open onClose={() => setSpotTrade(null)} title={`Spot · ${spotTrade}`}>
-          <SpotOrderTicket walletAddress={walletAddress} evmAddress={evmAddress} symbol={spotTrade} />
-        </Modal>
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSpotTrade(null)} />
+          <div className="relative z-10 w-[440px] max-w-[94vw] animate-fade-in overflow-hidden rounded-2xl border border-surface-700 bg-surface-850 shadow-card">
+            <SimpleSpotPanel walletAddress={walletAddress} evmAddress={evmAddress} symbol={spotTrade} onClose={() => setSpotTrade(null)} />
+          </div>
+        </div>
       )}
         </div>
       </div>
