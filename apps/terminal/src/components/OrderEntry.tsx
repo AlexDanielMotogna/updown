@@ -512,9 +512,9 @@ export function OrderEntry({
       {!privyReady ? (
         <button disabled className={loadingCls}>Loading…</button>
       ) : !authenticated ? (
-        <button onClick={login} className={ctaCls}>Connect to trade</button>
+        <button onClick={login} className={ctaCls}>Connect</button>
       ) : !evmAddress ? (
-        <button onClick={() => connectWallet({ walletChainType: 'ethereum-only' })} className={ctaCls}>Connect wallet</button>
+        <button onClick={() => connectWallet({ walletChainType: 'ethereum-only' })} className={ctaCls}>Connect</button>
       ) : !checked ? (
         <button disabled className={loadingCls}>Loading…</button>
       ) : needsDeposit ? (
@@ -531,7 +531,7 @@ export function OrderEntry({
           disabled={!canSubmit}
           className={`w-full rounded py-2.5 font-semibold ${buy ? 'bg-win-500 text-black' : 'bg-loss-500 text-black'} disabled:cursor-not-allowed disabled:opacity-40`}
         >
-          {busy ? 'Placing…' : !walletAddress ? 'Connect to trade' : buy ? `Buy / Long` : `Sell / Short`}
+          {busy ? 'Placing…' : !walletAddress ? 'Connect' : buy ? `Buy / Long` : `Sell / Short`}
         </button>
       )}
 
