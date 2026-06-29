@@ -371,6 +371,8 @@ export function OrderEntry({
   // (no separate cards): sign in → connect wallet → enable trading → approve
   // builder fee → Buy/Long.
   const ctaCls = 'w-full rounded bg-surface-100 py-2.5 font-semibold text-surface-900 hover:bg-surface-200 disabled:opacity-50';
+  // Muted neutral button for the brief loading/checking states (no white flash).
+  const loadingCls = 'w-full rounded bg-surface-800 py-2.5 font-semibold text-surface-400';
 
   return (
     <div className="card flex h-full flex-col p-3 text-sm">
@@ -507,13 +509,13 @@ export function OrderEntry({
           separate prompt). We wait for `checked` before showing enable/deposit
           gates so the button doesn't flash "Enable Trading" on every refresh. */}
       {!privyReady ? (
-        <button disabled className={ctaCls}>…</button>
+        <button disabled className={loadingCls}>Loading…</button>
       ) : !authenticated ? (
         <button onClick={login} className={ctaCls}>Connect to trade</button>
       ) : !evmAddress ? (
         <button onClick={() => connectWallet({ walletChainType: 'ethereum-only' })} className={ctaCls}>Connect wallet</button>
       ) : !checked ? (
-        <button disabled className={ctaCls}>Loading…</button>
+        <button disabled className={loadingCls}>Loading…</button>
       ) : needsDeposit ? (
         <button onClick={() => setShowFund(true)} className="w-full rounded bg-brand py-2.5 font-semibold text-surface-950 transition-colors hover:bg-brand-600">
           Deposit USDC to start trading

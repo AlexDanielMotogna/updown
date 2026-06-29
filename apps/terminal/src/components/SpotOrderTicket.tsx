@@ -232,7 +232,7 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
           before the connection check resolves on refresh. */}
       <div className="mt-3">
         {!!walletAddress && !checked ? (
-          <button disabled className={ctaCls}>Loading…</button>
+          <button disabled className="w-full rounded bg-surface-800 py-2.5 text-sm font-semibold text-surface-400">Loading…</button>
         ) : !!walletAddress && !tradingEnabled ? (
           <button onClick={enableTrading} disabled={enabling} className={ctaCls}>
             {enabling ? 'Enabling…' : 'Enable Trading'}
