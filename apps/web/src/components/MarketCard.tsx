@@ -127,7 +127,9 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
 
   // ── Category chip ──
   const catColor = isCrypto ? t.up : category?.color || (isPrediction ? t.prediction : t.draw);
-  const catLabel = isCrypto ? 'Crypto' : category?.shortLabel || category?.label || pool.league || 'Sports';
+  // Show the FULL league/category name (e.g. "FIFA World Cup", not "FWC"): users
+  // often don't recognise our acronyms. shortLabel is only a last-resort fallback.
+  const catLabel = isCrypto ? 'Crypto' : category?.label || category?.shortLabel || pool.league || 'Sports';
   const CatIcon = getIcon(category?.iconKey);
   const catBadge = category?.badgeUrl;
 
