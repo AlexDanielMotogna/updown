@@ -149,7 +149,7 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
     else toast.update(tid, 'error', res.error?.message ?? 'Order failed');
   }
 
-  const ctaCls = 'w-full rounded bg-surface-100 py-2.5 text-sm font-semibold text-surface-900 hover:bg-surface-200 disabled:opacity-50';
+  const ctaCls = 'w-full rounded bg-brand py-2.5 text-sm font-semibold text-surface-950 hover:bg-brand-600 disabled:opacity-50';
 
   return (
     <div className="card flex flex-1 flex-col p-3 text-sm">

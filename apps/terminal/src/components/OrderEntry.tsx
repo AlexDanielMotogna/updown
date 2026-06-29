@@ -370,8 +370,9 @@ export function OrderEntry({
   // Primary-action button gating, in order. All of it lives on the order button
   // (no separate cards): sign in → connect wallet → enable trading → approve
   // builder fee → Buy/Long.
-  const ctaCls = 'w-full rounded bg-surface-100 py-2.5 font-semibold text-surface-900 hover:bg-surface-200 disabled:opacity-50';
-  // Muted neutral button for the brief loading/checking states (no white flash).
+  // Brand cyan for connect/enable actions (no white flash on load).
+  const ctaCls = 'w-full rounded bg-brand py-2.5 font-semibold text-surface-950 hover:bg-brand-600 disabled:opacity-50';
+  // Muted neutral button for the brief loading/checking states.
   const loadingCls = 'w-full rounded bg-surface-800 py-2.5 font-semibold text-surface-400';
 
   return (
