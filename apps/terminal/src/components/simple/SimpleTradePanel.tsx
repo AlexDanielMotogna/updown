@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { placeOrder, setLeverage as setLeverageApi } from '@/lib/api';
 import { useAccountStream } from '@/hooks/useAccountStream';
+import { useAccountValue } from '@/hooks/useAccountValue';
 import { useTrading } from '@/hooks/useTrading';
 import { useTradeMath } from '@/hooks/useTradeMath';
 import { useToast } from '../Toast';
@@ -44,8 +45,11 @@ export function SimpleTradePanel({
 }) {
   const base = symbol.replace('-USD', '');
   const toast = useToast();
-  const { account: acct, positions, ready: accountReady } = useAccountStream(evmAddress);
-  const { enabled: tradingEnabled, builderApproved, busy: enabling, enableTrading, approveBuilder } = useTrading(walletAddress, evmAddress);
+  const { positions, ready: accountReady } = useAccountStream(evmAddress);
+  const { enabled: tradingEnabled, busy: enabling, enableTrading, approveBuilder, checked } = useTrading(walletAddress, evmAddress);
+  // Buying power under Unified Account = free USDC (shared store), NOT perps equity
+  // (which reads ~0 there). total drives the deposit gate.
+  const { total: unifiedValue, usdcAvailable, loaded: balanceLoaded } = useAccountValue(evmAddress);
 
   const [tab, setTab] = useState<'OPEN' | 'CLOSE'>('OPEN');
   const [side, setSide] = useState<OrderSide>(initialSide ?? 'BUY');
@@ -66,14 +70,13 @@ export function SimpleTradePanel({
   const pos = useMemo(() => positions.find((p) => p.symbol === symbol), [positions, symbol]);
   const leverage = pos?.leverage && pos.leverage > 0 ? pos.leverage : readLeverage(symbol);
   const marginMode = (pos?.metadata?.leverageType as 'cross' | 'isolated' | undefined) ?? 'cross';
-  const available = acct ? Math.max(0, Number(acct.accountEquity) - Number(acct.marginUsed)) : 0;
+  const available = usdcAvailable ?? 0;
 
   const math = useTradeMath({ side, leverage, mark, available, amountUsd });
 
   const long = side === 'BUY';
   const needsAgent = !!walletAddress && !tradingEnabled;
-  const needsBuilder = !!walletAddress && tradingEnabled && builderApproved === false;
-  const needsDeposit = !!walletAddress && !!evmAddress && accountReady && !!acct && Number(acct.accountEquity) <= 0;
+  const needsDeposit = !!walletAddress && !!evmAddress && accountReady && balanceLoaded && unifiedValue <= 0;
   const canSubmit = !!walletAddress && mark > 0 && math.cost > 0 && !math.exceedsBalance && !busy;
 
   function quick(pct: number) {
@@ -209,13 +212,14 @@ export function SimpleTradePanel({
           </div>
           {math.exceedsBalance && <div className="text-xs text-loss-500">Amount exceeds your balance ({usd(math.maxUsd)} available).</div>}
 
-          {/* CTA */}
-          {needsDeposit ? (
+          {/* CTA — builder fee self-heals at order time (openPosition retries), so
+              no separate gate. Wait for `checked` to avoid an Enable Trading flash. */}
+          {!!walletAddress && !checked ? (
+            <button disabled className="w-full rounded-xl bg-white/[0.04] py-3.5 text-sm font-bold text-surface-400">Loading…</button>
+          ) : needsDeposit ? (
             <button onClick={() => setShowDeposit(true)} className="w-full rounded-xl bg-brand py-3.5 text-sm font-bold text-surface-950">Deposit USDC to trade</button>
           ) : needsAgent ? (
             <button onClick={enableTrading} disabled={enabling} className="w-full rounded-xl bg-brand py-3.5 text-sm font-bold text-surface-950 disabled:opacity-50">{enabling ? 'Enabling…' : 'Enable Trading'}</button>
-          ) : needsBuilder ? (
-            <button onClick={approveBuilder} className="w-full rounded-xl bg-brand py-3.5 text-sm font-bold text-surface-950">Approve builder fee</button>
           ) : (
             <button onClick={openPosition} disabled={!canSubmit}
               className={`w-full rounded-xl py-3.5 text-base font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-40 ${long ? 'bg-win-500' : 'bg-loss-500'}`}>

@@ -16,13 +16,17 @@ const STOCK_LOGOS: Record<string, string> = {
 
 export const baseSymbol = (s: string): string => (s.includes('-') ? s.split('-')[0] ?? s : s).toUpperCase();
 
-function iconUrls(symbol: string): string[] {
+function iconUrls(symbol: string, spot = false): string[] {
   const b = baseSymbol(symbol);
   // HL hosts coin SVGs per network; try the active one first, then the other.
   const hosts = IS_TESTNET
     ? ['app.hyperliquid-testnet.xyz', 'app.hyperliquid.xyz']
     : ['app.hyperliquid.xyz', 'app.hyperliquid-testnet.xyz'];
-  const urls = hosts.map((h) => `https://${h}/coins/${b}.svg`);
+  // Spot tokens are served as `${BASE}_spot.svg`; perps as `${BASE}.svg`. Try the
+  // likely one first (by `spot`), then the other, so both kinds resolve.
+  const perp = hosts.map((h) => `https://${h}/coins/${b}.svg`);
+  const spotUrls = hosts.map((h) => `https://${h}/coins/${b}_spot.svg`);
+  const urls = spot ? [...spotUrls, ...perp] : [...perp, ...spotUrls];
   if (STOCK_LOGOS[b]) urls.push(STOCK_LOGOS[b]);
   urls.push(`https://coinicons-api.vercel.app/api/icon/${b.toLowerCase()}`);
   return urls;
@@ -41,8 +45,8 @@ const FALLBACK_COLORS = [
 ];
 
 /** Asset icon: HyperLiquid coin SVG → coinicons → colored letter fallback. */
-export function TokenIcon({ symbol, size = 'sm', className = '' }: { symbol: string; size?: keyof typeof SIZE; className?: string }) {
-  const urls = useMemo(() => iconUrls(symbol), [symbol]);
+export function TokenIcon({ symbol, size = 'sm', className = '', spot = false }: { symbol: string; size?: keyof typeof SIZE; className?: string; spot?: boolean }) {
+  const urls = useMemo(() => iconUrls(symbol, spot), [symbol, spot]);
   const [i, setI] = useState(0);
   const [failed, setFailed] = useState(false);
   const b = baseSymbol(symbol);

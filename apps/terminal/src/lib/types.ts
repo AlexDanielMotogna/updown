@@ -17,4 +17,13 @@ export interface Ticker {
   openInterest: string; // in base units (× mark for notional)
   funding: string;
   maxLeverage: number | null;
+  /** Base-size decimals (spot only) — needed to size orders without rounding to 0. */
+  szDecimals?: number;
+  /** Human label for spot pairs (e.g. "HYPE/USDC"); `symbol` is the HL coin ("@N"). */
+  displayName?: string;
+  /** Market cap (spot only) = circulatingSupply × price. */
+  marketCap?: string;
+  /** Token full name (spot, e.g. "Kinetiq") + tokenId contract. */
+  fullName?: string;
+  contract?: string;
 }

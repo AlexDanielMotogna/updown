@@ -6,11 +6,15 @@ import { TokenIcon } from '../TokenIcon';
 import { Sparkline } from './Sparkline';
 import { SimpleTradeModal } from './SimpleTradeModal';
 import { SimplePositionsSidebar } from './SimplePositionsSidebar';
+import { SimpleSpotPanel } from './SimpleSpotPanel';
 import { useIdentity } from '@/hooks/useIdentity';
 import { useAccountStream } from '@/hooks/useAccountStream';
 import { getStream } from '@/lib/stream';
+import { useMarkets } from '@/lib/marketsCache';
+import { pollWhileVisible } from '@/lib/poll';
 
 const TOP_N = 20; // cap the catalog to the top markets by volume (API load + clarity)
+const SPOT_ENABLED = process.env.NEXT_PUBLIC_SPOT_ENABLED === 'true';
 
 function fmtPrice(s: string) {
   const n = Number(s);
@@ -34,29 +38,17 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
   const walletAddress = id.walletAddress ?? devWallet;
   const evmAddress = id.evmAddress ?? devEvm;
   const { positions, orders } = useAccountStream(evmAddress);
-  const [tickers, setTickers] = useState<Ticker[]>([]);
+  const [kind, setKind] = useState<'perp' | 'spot'>('perp');
+  // Shared cache: instant when warm, so the perp↔spot toggle doesn't refetch/flash.
+  const tickers = useMarkets(kind);
   const [livePrices, setLivePrices] = useState<Record<string, string>>({});
+  const [sparks, setSparks] = useState<Record<string, number[]>>({});
   const [filter, setFilter] = useState<string>('ALL');
   const [view, setView] = useState<'card' | 'row'>('card');
   const [trade, setTrade] = useState<{ symbol: string; side: OrderSide } | null>(null);
+  const [spotTrade, setSpotTrade] = useState<string | null>(null); // open spot ticket for a pair
   const [showActivity, setShowActivity] = useState(false); // mobile bottom-sheet for positions/orders
   const activityCount = positions.length + orders.length;
-
-  // Static-ish fields (24h change, volume, the list) over REST — slow poll, since
-  // live price now comes from the WS below.
-  useEffect(() => {
-    let alive = true;
-    const tick = async () => {
-      try {
-        const r = await fetch('/api/markets', { cache: 'no-store' });
-        const j = await r.json();
-        if (alive && j.success) setTickers(j.data);
-      } catch {/* keep last */}
-    };
-    tick();
-    const id = setInterval(tick, 15000);
-    return () => { alive = false; clearInterval(id); };
-  }, []);
 
   // Live mark prices over ONE WS subscription (allMids) — every coin in a single
   // feed, so cards update in realtime without hammering the REST endpoint.
@@ -76,19 +68,58 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
     () => [...tickers].sort((a, b) => Number(b.volume24h) - Number(a.volume24h)).slice(0, TOP_N),
     [tickers],
   );
-  const tabs = useMemo(() => ['ALL', ...top.map((t) => t.symbol.replace('-USD', ''))], [top]);
+
+  // Sparklines: ONE batched request for all visible perp symbols (spot has none),
+  // instead of one /api/klines per card. Slow, visibility-aware refresh.
+  const sparkSymbols = useMemo(() => (kind === 'spot' ? '' : top.map((t) => t.symbol).join(',')), [top, kind]);
+  useEffect(() => {
+    if (!sparkSymbols) { setSparks({}); return; }
+    let alive = true;
+    const load = () => fetch(`/api/sparklines?symbols=${encodeURIComponent(sparkSymbols)}&interval=1h`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => { if (alive && j.success) setSparks(j.data); })
+      .catch(() => {/* keep last */});
+    load();
+    const stop = pollWhileVisible(load, 60_000);
+    return () => { alive = false; stop(); };
+  }, [sparkSymbols]);
+  // Display label: spot uses the pair displayName base ("HYPE"); perp strips -USD.
+  const lbl = (t: Ticker) => (kind === 'spot' ? (t.displayName ?? t.symbol).split('/')[0] : t.symbol.replace('-USD', ''));
+  const tabs = useMemo(() => ['ALL', ...top.map(lbl)], [top, kind]);
 
   const rows = useMemo(
-    () => (filter === 'ALL' ? top : tickers.filter((t) => t.symbol.replace('-USD', '') === filter)),
-    [top, tickers, filter],
+    () => (filter === 'ALL' ? top : tickers.filter((t) => lbl(t) === filter)),
+    [top, tickers, filter, kind],
   );
+
+  // Row/button action: spot opens the spot ticket; perp opens the perp trade modal.
+  const onPick = (symbol: string, side: OrderSide) => {
+    if (kind === 'spot') setSpotTrade(symbol);
+    else setTrade({ symbol, side });
+  };
 
   return (
     <div className="flex h-full">
       {/* Left: catalog (left-aligned, fills the space) */}
       <div className="min-w-0 flex-1 overflow-y-auto">
         <div className="px-4 py-5 lg:px-6">
-      <h1 className="mb-4 text-xl font-bold text-surface-100">Perpetuals</h1>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h1 className="text-xl font-bold text-surface-100">{kind === 'spot' ? 'Spot' : 'Perpetuals'}</h1>
+        {SPOT_ENABLED && (
+          <div className="relative grid grid-cols-2 overflow-hidden rounded-lg border border-surface-700 bg-surface-900/50 text-xs font-semibold">
+            {/* Sliding brand-cyan indicator (futuristic) — exact 50% geometry. */}
+            <span
+              className={`pointer-events-none absolute inset-y-0 left-0 w-1/2 rounded-[7px] bg-brand/15 ring-1 ring-inset ring-brand/40 shadow-[0_0_14px_-2px_rgba(95,216,239,0.5)] transition-transform duration-300 ease-out ${kind === 'spot' ? 'translate-x-full' : 'translate-x-0'}`}
+            />
+            {(['perp', 'spot'] as const).map((k) => (
+              <button key={k} onClick={() => { setKind(k); setFilter('ALL'); }}
+                className={`relative z-10 px-5 py-1.5 transition-colors ${kind === k ? 'text-brand' : 'text-surface-400 hover:text-surface-200'}`}>
+                {k === 'perp' ? 'Perps' : 'Spot'}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Asset filter tabs + view toggle */}
       <div className="mb-4 flex items-center justify-between gap-2">
@@ -96,20 +127,20 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
           {tabs.map((t) => (
             <button key={t} onClick={() => setFilter(t)}
               className={`whitespace-nowrap rounded-md px-3.5 py-1.5 text-sm font-semibold transition-colors ${
-                filter === t ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:bg-surface-800/60 hover:text-surface-100'
+                filter === t ? 'bg-white/[0.08] text-surface-100' : 'text-surface-400 hover:bg-white/[0.04] hover:text-surface-100'
               }`}>
               {t}
             </button>
           ))}
         </div>
         {/* card | row view switch */}
-        <div className="flex shrink-0 items-center rounded-md bg-surface-800 p-0.5">
+        <div className="flex shrink-0 items-center rounded-md border border-surface-700 p-0.5">
           {([
             ['card', <svg key="g" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>],
             ['row', <svg key="l" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" /></svg>],
           ] as const).map(([v, icon]) => (
             <button key={v} onClick={() => setView(v)} aria-label={`${v} view`}
-              className={`rounded px-2 py-1 transition-colors ${view === v ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:text-surface-100'}`}>
+              className={`rounded px-2 py-1 transition-colors ${view === v ? 'bg-white/[0.08] text-surface-100' : 'text-surface-400 hover:text-surface-100'}`}>
               {icon}
             </button>
           ))}
@@ -148,22 +179,22 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
       ) : view === 'card' ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {rows.map((t) => {
-            const baseSym = t.symbol.replace('-USD', '');
+            const baseSym = lbl(t);
             const chg = Number(t.change24h);
             const up = chg >= 0;
             const chgColor = up ? 'text-win-500' : 'text-loss-500';
             const mark = livePrices[t.symbol] ?? t.mark; // live (WS) price, REST fallback
             return (
               <div key={t.symbol}
-                onClick={() => setTrade({ symbol: t.symbol, side: 'BUY' })}
+                onClick={() => onPick(t.symbol, 'BUY')}
                 className="group flex cursor-pointer flex-col gap-2 rounded-xl border border-surface-800 bg-surface-850 p-3 transition-colors hover:border-surface-600">
                 {/* Asset row */}
                 <div className="flex items-center justify-between">
                   <div className="flex min-w-0 items-center gap-2">
-                    <TokenIcon symbol={t.symbol} size="lg" />
+                    <TokenIcon symbol={baseSym} size="lg" spot={kind === 'spot'} />
                     <div className="min-w-0 leading-tight">
                       <div className="truncate text-sm font-semibold text-surface-100">{baseSym}</div>
-                      <div className="text-2xs font-medium text-surface-500">PERP</div>
+                      <div className="text-2xs font-medium text-surface-500">{kind === 'spot' ? 'SPOT' : 'PERP'}</div>
                     </div>
                   </div>
                   <span className="text-xs font-medium text-surface-300">Vol {fmtVol(t.volume24h)}</span>
@@ -175,14 +206,14 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
                   <span className={`${chgColor} text-sm font-semibold tabular-nums`}>{up ? '▲' : '▼'} {Math.abs(chg).toFixed(2)}%</span>
                 </div>
 
-                {/* Sparkline */}
-                <div className="py-1"><Sparkline symbol={t.symbol} height={36} /></div>
+                {/* Sparkline (perp only — spot has no WS series wired yet) */}
+                {kind !== 'spot' && <div className="py-1"><Sparkline points={sparks[t.symbol]} height={36} /></div>}
 
                 {/* LONG / SHORT — same look as the Pro terminal's Buy/Sell (rounded, semibold) */}
                 <div className="grid grid-cols-2 gap-1.5" onClick={(e) => e.stopPropagation()}>
-                  <button onClick={() => setTrade({ symbol: t.symbol, side: 'BUY' })}
+                  <button onClick={() => onPick(t.symbol, 'BUY')}
                     className="rounded border border-brand/40 bg-transparent py-1.5 text-xs font-semibold text-brand transition-colors hover:bg-brand/10">Long</button>
-                  <button onClick={() => setTrade({ symbol: t.symbol, side: 'SELL' })}
+                  <button onClick={() => onPick(t.symbol, 'SELL')}
                     className="rounded border border-loss-500/40 bg-transparent py-1.5 text-xs font-semibold text-loss-500 transition-colors hover:bg-loss-500/10">Short</button>
                 </div>
               </div>
@@ -193,21 +224,21 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
         /* Row / list view */
         <div className="flex flex-col divide-y divide-surface-800 overflow-hidden rounded-xl border border-surface-800 bg-surface-850">
           {rows.map((t) => {
-            const baseSym = t.symbol.replace('-USD', '');
+            const baseSym = lbl(t);
             const chg = Number(t.change24h);
             const up = chg >= 0;
             const chgColor = up ? 'text-win-500' : 'text-loss-500';
             const mark = livePrices[t.symbol] ?? t.mark;
             return (
               <div key={t.symbol}
-                onClick={() => setTrade({ symbol: t.symbol, side: 'BUY' })}
+                onClick={() => onPick(t.symbol, 'BUY')}
                 className="flex cursor-pointer items-center gap-3 px-3 py-2.5 transition-colors hover:bg-surface-800/50">
                 {/* Asset */}
                 <div className="flex w-36 min-w-0 items-center gap-2">
-                  <TokenIcon symbol={t.symbol} size="md" />
+                  <TokenIcon symbol={baseSym} size="md" spot={kind === 'spot'} />
                   <div className="min-w-0 leading-tight">
                     <div className="truncate text-sm font-semibold text-surface-100">{baseSym}</div>
-                    <div className="text-2xs font-medium text-surface-500">PERP</div>
+                    <div className="text-2xs font-medium text-surface-500">{kind === 'spot' ? 'SPOT' : 'PERP'}</div>
                   </div>
                 </div>
                 {/* Price */}
@@ -216,13 +247,13 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
                 <span className={`${chgColor} w-20 text-right text-sm font-semibold tabular-nums`}>{up ? '▲' : '▼'} {Math.abs(chg).toFixed(2)}%</span>
                 {/* Volume */}
                 <span className="hidden w-24 text-right text-xs font-medium text-surface-300 md:block">{fmtVol(t.volume24h)}</span>
-                {/* Sparkline */}
-                <div className="hidden w-28 lg:block"><Sparkline symbol={t.symbol} height={28} /></div>
+                {/* Sparkline (perp only) */}
+                {kind !== 'spot' && <div className="hidden w-28 lg:block"><Sparkline points={sparks[t.symbol]} height={28} /></div>}
                 {/* Trade */}
                 <div className="ml-auto flex gap-1.5" onClick={(e) => e.stopPropagation()}>
-                  <button onClick={() => setTrade({ symbol: t.symbol, side: 'BUY' })}
+                  <button onClick={() => onPick(t.symbol, 'BUY')}
                     className="rounded border border-brand/40 bg-transparent px-4 py-1.5 text-xs font-semibold text-brand transition-colors hover:bg-brand/10">Long</button>
-                  <button onClick={() => setTrade({ symbol: t.symbol, side: 'SELL' })}
+                  <button onClick={() => onPick(t.symbol, 'SELL')}
                     className="rounded border border-loss-500/40 bg-transparent px-4 py-1.5 text-xs font-semibold text-loss-500 transition-colors hover:bg-loss-500/10">Short</button>
                 </div>
               </div>
@@ -233,6 +264,14 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
 
       {trade && (
         <SimpleTradeModal open onClose={() => setTrade(null)} symbol={trade.symbol} initialSide={trade.side} devWallet={devWallet} devEvm={devEvm} />
+      )}
+      {spotTrade && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSpotTrade(null)} />
+          <div className="relative z-10 w-[440px] max-w-[94vw] animate-fade-in overflow-hidden rounded-2xl border border-surface-700 bg-surface-850 shadow-card">
+            <SimpleSpotPanel walletAddress={walletAddress} evmAddress={evmAddress} symbol={spotTrade} onClose={() => setSpotTrade(null)} />
+          </div>
+        </div>
       )}
         </div>
       </div>

@@ -8,7 +8,7 @@ import { useTradeMode, type TradeMode } from '@/hooks/useTradeMode';
  * "Trade ▾" nav dropdown — picks the trading UI (Simple | Pro). Replaces the old
  * segmented SimpleProToggle: same spot in both modes, grouped under the Trade nav
  * item. Persists via useTradeMode and navigates to that mode's home so the change
- * is immediately visible (pro → /market/BTC-USD, simple → /).
+ * is immediately visible (pro → /trade/BTC/USDC, simple → /).
  */
 export function TradeModeMenu() {
   const [mode, setMode] = useTradeMode();
@@ -28,7 +28,7 @@ export function TradeModeMenu() {
   const choose = (value: TradeMode) => {
     setOpen(false);
     setMode(value);
-    router.push(value === 'pro' ? '/market/BTC-USD' : '/');
+    router.push(value === 'pro' ? '/trade/BTC/USDC' : '/');
   };
 
   const item = (value: TradeMode, label: string, desc: string) => {

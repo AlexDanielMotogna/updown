@@ -6,6 +6,7 @@ import { placeOrder, setTpsl, setLeverage as setLeverageApi } from '@/lib/api';
 import { marginUsd as calcMargin, maxPositionUsd, liquidationPrice as calcLiq } from '@/lib/tradeMath';
 import { usePrivy } from '@privy-io/react-auth';
 import { useAccountStream } from '@/hooks/useAccountStream';
+import { useAccountValue } from '@/hooks/useAccountValue';
 import { useTrading } from '@/hooks/useTrading';
 import { useToast } from './Toast';
 import { AccountInfo } from './AccountInfo';
@@ -14,9 +15,9 @@ import { BridgeFundModal } from './BridgeFundModal';
 import { Modal } from './Modal';
 import type { OrderSide, OrderType } from '@/lib/types';
 
-// Lazy: Withdraw/Transfer pull the HL SDK (signed actions). Only under Privy.
+// Lazy: Withdraw pulls the HL SDK (signed action). Only under Privy. No Spot↔Perps
+// Transfer: under HL Unified Account spot + perps share one balance.
 const WithdrawModal = dynamic(() => import('./WithdrawModal').then((m) => m.WithdrawModal), { ssr: false });
-const TransferModal = dynamic(() => import('./TransferModal').then((m) => m.TransferModal), { ssr: false });
 const HAS_PRIVY = !!process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 
 type Tab = 'MARKET' | 'LIMIT' | 'STOP' | 'STOP_LIMIT';
@@ -78,15 +79,17 @@ export function OrderEntry({
   const [showDeposit, setShowDeposit] = useState(false);
   const [showFund, setShowFund] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
-  const [showTransfer, setShowTransfer] = useState(false);
 
   const [mark, setMark] = useState(0);
   const [maxLev, setMaxLev] = useState(50);
-  const [available, setAvailable] = useState(0);
-  const { account: acct, positions, ready: accountReady } = useAccountStream(evmAddress);
-  const { enabled: tradingEnabled, builderApproved, busy: enabling, enableTrading, approveBuilder } = useTrading(walletAddress, evmAddress);
+  const { positions, ready: accountReady } = useAccountStream(evmAddress);
+  // Buying power under Unified Account = free USDC in the (unified) balance — the
+  // perps clearinghouse equity reads ~0 there, so don't use it. total drives the
+  // "needs funding" gate; usdcAvailable is "Available to Trade".
+  const { total: unifiedValue, usdcAvailable, loaded: balanceLoaded } = useAccountValue(evmAddress);
+  const available = usdcAvailable ?? 0;
+  const { enabled: tradingEnabled, busy: enabling, enableTrading, approveBuilder, checked } = useTrading(walletAddress, evmAddress);
   const { ready: privyReady, authenticated, login, connectWallet } = usePrivy();
-  const [approvingBuilder, setApprovingBuilder] = useState(false);
   const toast = useToast();
 
   // Leverage / margin-mode application to HyperLiquid (signed by the agent key
@@ -169,12 +172,6 @@ export function OrderEntry({
     const id = window.setInterval(tick, 4000);
     return () => { alive = false; window.clearInterval(id); };
   }, [symbol]);
-
-  // Available to trade = account value − margin already used (HL's "Available to
-  // Trade", the buying power for new orders), NOT withdrawable. Live over WS.
-  useEffect(() => {
-    setAvailable(acct ? Math.max(0, Number(acct.accountEquity) - Number(acct.marginUsed)) : 0);
-  }, [acct]);
 
   // clamp leverage to the market max
   useEffect(() => { setLeverage((l) => Math.min(l, maxLev)); }, [maxLev]);
@@ -360,30 +357,23 @@ export function OrderEntry({
     toast.update(tid, 'success', ok);
   }
 
-  async function handleApproveBuilder() {
-    setApprovingBuilder(true);
-    const tid = toast.loading('Approving builder fee — sign in your wallet…');
-    try {
-      await approveBuilder();
-      toast.update(tid, 'success', 'Builder fee approved — you can trade now');
-    } catch (e) {
-      toast.update(tid, 'error', (e as Error).message || 'Builder approval failed');
-    } finally {
-      setApprovingBuilder(false);
-    }
-  }
-
   const buy = side === 'BUY';
   const needsAgent = !!walletAddress && !tradingEnabled;
-  const needsBuilder = !!walletAddress && tradingEnabled && builderApproved === false;
-  // A brand-new HL account (created via our app, never funded) has 0 equity, and
+  // A brand-new HL account (created via our app, never funded) has 0 balance, and
   // HyperLiquid rejects approveAgent/orders with "Must deposit before performing
-  // actions". Prompt a deposit first instead of a failing "Enable Trading".
-  const needsDeposit = !!walletAddress && !!evmAddress && accountReady && !!acct && Number(acct.accountEquity) <= 0;
+  // actions". Prompt a deposit first instead of a failing "Enable Trading". Under
+  // Unified Account the balance lives in the spot clearinghouse (perps equity reads
+  // ~0), so gate on the UNIFIED value, not acct.accountEquity. Wait until it has
+  // loaded (usdcAvailable != null) so we don't flash the gate on a funded account.
+  const needsDeposit =
+    !!walletAddress && !!evmAddress && accountReady && balanceLoaded && unifiedValue <= 0;
   // Primary-action button gating, in order. All of it lives on the order button
   // (no separate cards): sign in → connect wallet → enable trading → approve
   // builder fee → Buy/Long.
-  const ctaCls = 'w-full rounded bg-surface-100 py-2.5 font-semibold text-surface-900 hover:bg-surface-200 disabled:opacity-50';
+  // Brand cyan for connect/enable actions (no white flash on load).
+  const ctaCls = 'w-full rounded bg-brand py-2.5 font-semibold text-surface-950 hover:bg-brand-600 disabled:opacity-50';
+  // Muted neutral button for the brief loading/checking states.
+  const loadingCls = 'w-full rounded bg-surface-800 py-2.5 font-semibold text-surface-400';
 
   return (
     <div className="card flex h-full flex-col p-3 text-sm">
@@ -416,13 +406,13 @@ export function OrderEntry({
       <div className="mb-4 grid grid-cols-2 gap-1.5">
         <button
           onClick={() => setSide('BUY')}
-          className={`rounded py-2 text-sm font-semibold ${buy ? 'bg-win-500 text-black' : 'bg-surface-800 text-surface-400 hover:text-surface-200'}`}
+          className={`rounded py-2 text-sm font-semibold ${buy ? 'bg-win-500 text-black' : 'bg-white/[0.04] text-surface-400 hover:bg-white/[0.06] hover:text-surface-200'}`}
         >
           Buy / Long
         </button>
         <button
           onClick={() => setSide('SELL')}
-          className={`rounded py-2 text-sm font-semibold ${!buy ? 'bg-loss-500 text-black' : 'bg-surface-800 text-surface-400 hover:text-surface-200'}`}
+          className={`rounded py-2 text-sm font-semibold ${!buy ? 'bg-loss-500 text-black' : 'bg-white/[0.04] text-surface-400 hover:bg-white/[0.06] hover:text-surface-200'}`}
         >
           Sell / Short
         </button>
@@ -450,8 +440,8 @@ export function OrderEntry({
       {/* Size dual input */}
       <div className="mb-1.5 text-xs text-surface-400">Size</div>
       <div className="mb-3 grid grid-cols-2 gap-1.5">
-        <InlineInput value={sizeBtc} onChange={setBtc} suffix={base} />
-        <InlineInput value={sizeUsd} onChange={setUsd} suffix="USD" />
+        <InlineInput value={sizeBtc} onChange={setBtc} suffix={base} className={INPUT_WRAP} />
+        <InlineInput value={sizeUsd} onChange={setUsd} suffix="USD" className={INPUT_WRAP} />
       </div>
       <div className="mb-3 flex justify-between text-xs text-surface-400">
         <span>Margin: {usd(marginUsd)}</span>
@@ -461,7 +451,7 @@ export function OrderEntry({
       {/* % buttons */}
       <div className="mb-4 grid grid-cols-4 gap-1.5">
         {PCTS.map((p) => (
-          <button key={p} onClick={() => setPct(p)} className="rounded bg-surface-800 py-1 text-xs text-surface-300 hover:bg-surface-700">
+          <button key={p} onClick={() => setPct(p)} className="rounded bg-white/[0.04] py-1 text-xs text-surface-300 hover:bg-white/[0.08]">
             {p}%
           </button>
         ))}
@@ -515,24 +505,25 @@ export function OrderEntry({
         <Row label="Available to Trade" value={usd(available)} />
       </div>
 
-      {/* Primary action — sign in / connect / enable / approve all on this button. */}
+      {/* Primary action — sign in / connect / enable, then Buy/Sell. The builder
+          fee is approved during Enable Trading and self-heals at order time (no
+          separate prompt). We wait for `checked` before showing enable/deposit
+          gates so the button doesn't flash "Enable Trading" on every refresh. */}
       {!privyReady ? (
-        <button disabled className={ctaCls}>…</button>
+        <button disabled className={loadingCls}>Loading…</button>
       ) : !authenticated ? (
         <button onClick={login} className={ctaCls}>Connect to trade</button>
       ) : !evmAddress ? (
         <button onClick={() => connectWallet({ walletChainType: 'ethereum-only' })} className={ctaCls}>Connect wallet</button>
+      ) : !checked ? (
+        <button disabled className={loadingCls}>Loading…</button>
       ) : needsDeposit ? (
         <button onClick={() => setShowFund(true)} className="w-full rounded bg-brand py-2.5 font-semibold text-surface-950 transition-colors hover:bg-brand-600">
-          Transfer USDC to start trading
+          Deposit USDC to start trading
         </button>
       ) : needsAgent ? (
         <button onClick={enableTrading} disabled={enabling} className={ctaCls}>
           {enabling ? 'Enabling…' : 'Enable Trading'}
-        </button>
-      ) : needsBuilder ? (
-        <button onClick={handleApproveBuilder} disabled={approvingBuilder} className={ctaCls}>
-          {approvingBuilder ? 'Approving…' : 'Approve Builder Fee'}
         </button>
       ) : (
         <button
@@ -545,10 +536,9 @@ export function OrderEntry({
       )}
 
 
-      {/* Deposit / Transfer / Withdraw */}
-      <div className="mt-4 grid grid-cols-3 gap-1.5">
+      {/* Deposit / Withdraw — one unified balance (Unified Account), no Spot↔Perps transfer. */}
+      <div className="mt-4 grid grid-cols-2 gap-1.5">
         <button onClick={() => setShowDeposit(true)} className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800">↓ Deposit</button>
-        <button onClick={() => setShowTransfer(true)} className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800" title="Move USDC between Spot and Perps">⇄ Transfer</button>
         <button onClick={() => setShowWithdraw(true)} className="rounded border border-surface-700 py-1.5 text-xs text-surface-300 hover:bg-surface-800">↑ Withdraw</button>
       </div>
       <div className="mt-4">
@@ -559,7 +549,6 @@ export function OrderEntry({
       <DepositModal open={showDeposit} onClose={() => setShowDeposit(false)} evmAddress={evmAddress} />
       <BridgeFundModal open={showFund} onClose={() => setShowFund(false)} solanaAddress={walletAddress} evmAddress={evmAddress} />
       {HAS_PRIVY && <WithdrawModal open={showWithdraw} onClose={() => setShowWithdraw(false)} evmAddress={evmAddress} />}
-      {HAS_PRIVY && <TransferModal open={showTransfer} onClose={() => setShowTransfer(false)} evmAddress={evmAddress} />}
 
       {/* Adjust Leverage */}
       <Modal open={showLeverage} onClose={() => setShowLeverage(false)} title="Adjust Leverage" size="md">
@@ -580,7 +569,7 @@ export function OrderEntry({
             <button
               key={v}
               onClick={() => setPendingLev(v)}
-              className={`flex-1 rounded border py-1.5 text-sm ${pendingLev === v ? 'border-surface-400 bg-surface-700 text-surface-100' : 'border-surface-700 text-surface-300 hover:bg-surface-800'}`}
+              className={`flex-1 rounded border py-1.5 text-sm ${pendingLev === v ? 'border-surface-400 bg-white/[0.08] text-surface-100' : 'border-surface-700 text-surface-300 hover:bg-surface-800'}`}
             >
               {v}x
             </button>
@@ -629,7 +618,7 @@ export function OrderEntry({
       <Modal open={showSlippage} onClose={() => setShowSlippage(false)} title="Max Slippage" size="md">
         <label className="block">
           <span className="text-sm text-surface-300">Maximum slippage (%)</span>
-          <div className="mt-1.5 flex items-center rounded border border-surface-700 bg-[#1c1c23] px-3">
+          <div className="mt-1.5 flex items-center rounded-md border border-surface-700 bg-transparent px-3 transition-colors focus-within:border-brand">
             <input
               autoFocus
               value={pendingSlip}
@@ -646,7 +635,7 @@ export function OrderEntry({
             <button
               key={v}
               onClick={() => setPendingSlip(v)}
-              className={`flex-1 rounded border py-1.5 text-sm ${pendingSlip === v ? 'border-surface-400 bg-surface-700 text-surface-100' : 'border-surface-700 text-surface-300 hover:bg-surface-800'}`}
+              className={`flex-1 rounded border py-1.5 text-sm ${pendingSlip === v ? 'border-surface-400 bg-white/[0.08] text-surface-100' : 'border-surface-700 text-surface-300 hover:bg-surface-800'}`}
             >
               {v}%
             </button>
@@ -678,9 +667,12 @@ function LabeledInput({ label, value, onChange, suffix }: { label: string; value
     </div>
   );
 }
-function InlineInput({ value, onChange, suffix }: { value: string; onChange: (v: string) => void; suffix: string }) {
+// Clean field: transparent (matches the panel background), thin border, brand-cyan
+// border on focus.
+const INPUT_WRAP = 'flex items-center rounded-md border border-surface-700 bg-transparent px-2.5 transition-colors focus-within:border-brand';
+function InlineInput({ value, onChange, suffix, className }: { value: string; onChange: (v: string) => void; suffix: string; className?: string }) {
   return (
-    <div className="flex items-center rounded border border-surface-800 bg-[#1c1c23] px-2">
+    <div className={className ?? INPUT_WRAP}>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}

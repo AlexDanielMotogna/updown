@@ -43,6 +43,9 @@ export type OrderStatus =
 
 export type PositionSide = 'LONG' | 'SHORT';
 
+/** Perp (derivatives, leverage/funding) vs spot (hold the token, no leverage). */
+export type MarketKind = 'perp' | 'spot';
+
 // ---------------------------------------------------------------------------
 // Market data
 // ---------------------------------------------------------------------------
@@ -59,6 +62,8 @@ export interface Market {
   maxLeverage: number;
   fundingRate: string;
   fundingInterval: number; // hours
+  /** 'perp' (default) or 'spot'. Spot markets have maxLeverage 0 and no funding. */
+  kind?: MarketKind;
   metadata: Record<string, unknown>;
 }
 
@@ -130,6 +135,19 @@ export interface Position {
   unrealizedPnl: string;
   liquidationPrice: string;
   funding: string;
+  metadata: Record<string, unknown>;
+}
+
+/** A spot holding: a token balance you own (no leverage/liquidation/funding).
+ * `available = total - locked` (locked = amount reserved by resting orders). */
+export interface Balance {
+  asset: string;
+  total: string;
+  available: string;
+  /** Mark value of `total` in quote (USDC), when derivable. */
+  usdValue?: string;
+  /** Average entry notional, when the exchange reports it (for cost-basis P&L). */
+  entryNotional?: string;
   metadata: Record<string, unknown>;
 }
 
@@ -208,6 +226,9 @@ export interface OrderParams {
   /** Max slippage for market-type orders, as a percent (e.g. 8 = 8%). The
    * adapter derives the worst-acceptable price from this; defaults if omitted. */
   maxSlippagePct?: number;
+  /** 'perp' (default) or 'spot'. Spot routes to the spot asset map (10000+index)
+   * and ignores leverage/reduceOnly. Defaulting to perp keeps the existing flow. */
+  kind?: MarketKind;
 }
 
 export interface CancelParams {

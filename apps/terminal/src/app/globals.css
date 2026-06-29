@@ -41,11 +41,12 @@ body {
   .card-elevated {
     @apply bg-surface-800 shadow-card;
   }
+  /* Clean field: transparent (matches the panel background), thin border, brand
+     border on focus. */
   .input {
-    @apply w-full border border-surface-800 rounded px-3 py-2 text-surface-100;
-    background-color: #1c1c23;
+    @apply w-full bg-transparent border border-surface-700 rounded-md px-3 py-2 text-surface-100;
     @apply placeholder:text-surface-500 transition-colors duration-150;
-    @apply focus:outline-none focus:border-surface-500;
+    @apply focus:outline-none focus:border-brand;
   }
   .tabular {
     font-variant-numeric: tabular-nums;

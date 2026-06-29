@@ -94,9 +94,14 @@ export function BridgeFundModal({
   // on Arbitrum), so it triggers on the HL flow alone too.
   const started = bridgeStarted || hl.step !== 'idle';
 
+  // Reset when the modal closes. Depend ONLY on `open` — bridge/hl are fresh objects
+  // each render, so including them would re-run every render and (while closed) loop
+  // setState → re-render → setState (Maximum update depth exceeded). The reset/setters
+  // are stable.
   useEffect(() => {
     if (!open) { bridge.reset(); hl.reset(); setAmount(''); setQuote(null); setErr(null); }
-  }, [open, bridge, hl]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   // Debounced quote preview (only before the flow starts).
   useEffect(() => {

@@ -16,6 +16,23 @@ const API_BASE = apiBase();
 /** Whether this terminal targets HyperLiquid testnet (default true for now). */
 export const IS_TESTNET = process.env.NEXT_PUBLIC_HYPERLIQUID_TESTNET !== 'false';
 
+/** A spot market symbol is the HL coin ("@<index>") or a canonical pair ("PURR/USDC");
+ * perps are "BASE-USD". Used to route the symbol to the spot vs perp UI. */
+export const isSpotSymbol = (symbol: string): boolean => symbol.startsWith('@') || symbol.includes('/');
+
+/** Canonical trade URL for a market. Perp "PUMP-USD" → /trade/PUMP/USDC ;
+ *  spot coin "@261" (displayName "PUMP/USDC") → /trade/spot/PUMP/USDC. Spot needs
+ *  the displayName to recover base/quote (the coin "@N" carries no pair name). */
+export function tradeHref(m: { symbol: string; displayName?: string | null }): string {
+  if (isSpotSymbol(m.symbol)) {
+    const disp = m.displayName ?? m.symbol; // "PUMP/USDC"
+    const [base = disp, quote = 'USDC'] = disp.split('/');
+    return `/trade/spot/${encodeURIComponent(base)}/${encodeURIComponent(quote)}`;
+  }
+  const base = m.symbol.replace(/-USD$/i, ''); // "PUMP"
+  return `/trade/${encodeURIComponent(base)}/USDC`;
+}
+
 export interface PlaceOrderInput {
   walletAddress: string;
   symbol: string;
@@ -27,6 +44,8 @@ export interface PlaceOrderInput {
   timeInForce?: 'GTC' | 'IOC' | 'FOK' | 'POST_ONLY';
   reduceOnly?: boolean;
   maxSlippagePct?: number;
+  /** 'perp' (default) or 'spot'. Spot routes to the spot asset map server-side. */
+  kind?: 'perp' | 'spot';
 }
 
 export interface ApiResult<T> {
@@ -55,6 +74,26 @@ export interface OrderResult {
 
 export function placeOrder(input: PlaceOrderInput) {
   return post<OrderResult>('/api/exchange/order', { ...input, isTestnet: IS_TESTNET });
+}
+
+export interface SpotBalanceRow {
+  asset: string;
+  total: string;
+  available: string;
+  entryNotional?: string;
+  usdValue?: string;
+  metadata?: { contract?: string; price?: string; szDecimals?: number } | null;
+}
+
+/** Spot holdings for the user's linked HL account (resolved server-side from the
+ * Solana wallet). The client never needs its own EVM address. */
+export async function fetchSpotBalances(walletAddress: string): Promise<ApiResult<SpotBalanceRow[]>> {
+  try {
+    const res = await fetch(`${API_BASE}/api/exchange/spot-balances?wallet=${encodeURIComponent(walletAddress)}&isTestnet=${IS_TESTNET}`, { cache: 'no-store' });
+    return (await res.json()) as ApiResult<SpotBalanceRow[]>;
+  } catch (e) {
+    return { success: false, error: { code: 'NETWORK', message: (e as Error).message } };
+  }
 }
 
 export function cancelOrder(input: { walletAddress: string; symbol: string; orderId: string | number }) {

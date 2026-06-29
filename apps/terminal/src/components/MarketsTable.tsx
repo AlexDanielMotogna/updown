@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { tradeHref } from '@/lib/api';
 import type { Ticker } from '@/lib/types';
 
 function fmtPrice(s: string) {
@@ -65,7 +66,7 @@ export function MarketsTable({ initial }: { initial: Ticker[] }) {
             return (
               <tr key={t.symbol} className="border-b border-border/50 hover:bg-bg-elevated">
                 <td className="px-3 py-1.5 text-left font-medium">
-                  <Link href={`/market/${encodeURIComponent(t.symbol)}`} className="hover:text-up">
+                  <Link href={tradeHref(t)} className="hover:text-up">
                     {t.symbol}
                   </Link>
                 </td>

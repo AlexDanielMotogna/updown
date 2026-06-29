@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
-import { getTickers } from '@/lib/exchange';
+import { getTickers, getSpotTickers } from '@/lib/exchange';
 
 export const dynamic = 'force-dynamic';
 
-/** GET /api/markets → normalized tickers (symbol, mark, 24h change, volume, max leverage). */
-export async function GET() {
+/** GET /api/markets[?kind=spot] → normalized tickers. Perps by default; spot pairs
+ *  when `kind=spot`. */
+export async function GET(req: Request) {
   try {
-    return NextResponse.json({ success: true, data: await getTickers() });
+    const kind = new URL(req.url).searchParams.get('kind');
+    const data = kind === 'spot' ? await getSpotTickers() : await getTickers();
+    return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error('[terminal] /api/markets error:', error);
     return NextResponse.json(
