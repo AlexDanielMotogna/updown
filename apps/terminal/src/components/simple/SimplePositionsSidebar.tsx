@@ -58,6 +58,9 @@ export function SimplePositionsSidebar({
   const toast = useToast();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [view, setView] = useState<'card' | 'row'>('card');
+  // One-time, GLOBAL agent approval. MUST be called before any early return below
+  // (the spot branch) so the hook order is stable across perp↔spot (React #300).
+  const { enabled: tradingEnabled, busy: enabling, enableTrading } = useTrading(walletAddress, evmAddress);
 
   // Spot mode: the right rail shows token HOLDINGS (your "open" things in spot),
   // not perp positions/orders. Exclude USDC (cash) + sub-lot dust.
@@ -99,10 +102,6 @@ export function SimplePositionsSidebar({
       </div>
     );
   }
-  // One-time, GLOBAL agent approval. Single source of truth for the whole sidebar
-  // so enabling once unlocks Close on every card (a per-card useTrading meant
-  // approving on one card left the others stuck on "Enable").
-  const { enabled: tradingEnabled, busy: enabling, enableTrading } = useTrading(walletAddress, evmAddress);
   const needsAgent = !!walletAddress && positions.length > 0 && !tradingEnabled;
 
   async function cancel(o: Order) {
