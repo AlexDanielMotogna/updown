@@ -5,7 +5,7 @@ import { Avatar, Box, Button, ClickAwayListener, Fade, Popper, Typography } from
 import { ContentCopy, CheckCircle, Logout, ShowChart, AccountCircle, EmojiEvents, MenuBook, AccountBalanceWallet, PeopleOutline } from '@mui/icons-material';
 import { usePrivy } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
-import { useIdentity } from '@/hooks/useIdentity';
+import { useIdentity, clearActiveWallet } from '@/hooks/useIdentity';
 import { useTradeMode, type TradeMode } from '@/hooks/useTradeMode';
 import { fetchProfile, IS_TESTNET, type UserProfile } from '@/lib/api';
 import { useThemeTokens, getDisplayAvatar, getDisplayName, truncateWallet } from '@/lib/theme-tokens';
@@ -202,7 +202,7 @@ export function WalletMenu() {
                 </Box>
 
                 {/* Disconnect */}
-                <Button fullWidth onClick={() => { setOpen(false); logout(); }} startIcon={<Logout sx={{ fontSize: 16 }} />} sx={{
+                <Button fullWidth onClick={() => { setOpen(false); clearActiveWallet(); logout(); }} startIcon={<Logout sx={{ fontSize: 16 }} />} sx={{
                   justifyContent: 'flex-start', px: 2, py: 1.5, fontSize: '0.8rem', fontWeight: 500, fontFamily: 'inherit',
                   color: t.text.secondary, textTransform: 'none', borderRadius: 1, '&:hover': { bgcolor: t.border.subtle, color: t.text.primary },
                 }}>
