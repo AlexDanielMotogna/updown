@@ -1,4 +1,5 @@
 import { Router, type Router as RouterType } from 'express';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../db';
 import { registerUser } from '../services/rewards';
@@ -353,6 +354,37 @@ usersRouter.patch('/profile', async (req, res) => {
   }
 });
 
+// Pool statuses where a bet's outcome is final (won/lost/refunded). Open bets
+// (UPCOMING/JOINING/ACTIVE) have money still at stake and must NOT count toward
+// realized profit, otherwise an active position reads as a loss on the board.
+const SETTLED_STATUSES = ['RESOLVED', 'CLAIMABLE', 'CANCELLED'] as const;
+
+// Leaderboard shows real player identities only. Ghost rows keyed by an EVM
+// address (the HL/builder wallets that auto-register on the terminal side) start
+// with "0x" and are never a Solana account, so they're excluded everywhere.
+const NOT_EVM = { NOT: { walletAddress: { startsWith: '0x', mode: 'insensitive' as const } } };
+
+/**
+ * Realized profit (micro-USDC) per wallet = Σ(payout − stake) over SETTLED bets
+ * only. Pass a wallet list to scope the aggregation to a page; omit it to rank
+ * the whole board. Returns a map; wallets with no settled bets are absent (→ 0).
+ */
+async function realizedProfitMap(wallets?: string[]): Promise<Map<string, bigint>> {
+  if (wallets && wallets.length === 0) return new Map();
+  const scope = wallets
+    ? Prisma.sql`AND b.wallet_address IN (${Prisma.join(wallets)})`
+    : Prisma.empty;
+  const rows = await prisma.$queryRaw<{ wallet: string; profit: string }[]>`
+    SELECT b.wallet_address AS wallet,
+           COALESCE(SUM(COALESCE(b.payout_amount, 0) - b.amount), 0)::text AS profit
+    FROM bets b
+    JOIN pools p ON p.id = b.pool_id
+    WHERE p.status::text IN (${Prisma.join(SETTLED_STATUSES as unknown as string[])})
+    ${scope}
+    GROUP BY b.wallet_address`;
+  return new Map(rows.map((r) => [r.wallet, BigInt(r.profit)]));
+}
+
 usersRouter.get('/leaderboard', async (req, res) => {
   try {
     const parsed = leaderboardSchema.safeParse(req.query);
@@ -367,7 +399,7 @@ usersRouter.get('/leaderboard', async (req, res) => {
     const skip = (page - 1) * limit;
 
     type Row = Awaited<ReturnType<typeof prisma.user.findMany>>[number];
-    const serialize = (u: Row, rank: number) => ({
+    const serialize = (u: Row, rank: number, profit: bigint) => ({
       rank,
       walletAddress: u.walletAddress,
       // displayName + avatarUrl let the leaderboard render the user's chosen
@@ -386,21 +418,24 @@ usersRouter.get('/leaderboard', async (req, res) => {
       // Kalshi-style boards.
       totalWagered: u.totalWagered.toString(),
       totalWon: u.totalWon.toString(),
-      profit: (u.totalWon - u.totalWagered).toString(),
+      // Realized profit (settled bets only). NOT totalWon − totalWagered, which
+      // subtracts stakes still locked in open positions and shows them as losses.
+      profit: profit.toString(),
     });
 
     let data: ReturnType<typeof serialize>[];
     let total: number;
 
     if (sort === 'profit') {
-      // Profit is a computed metric (totalWon − totalWagered) that Prisma
-      // can't order by directly, so rank in JS. Fine at current scale.
-      const all = await prisma.user.findMany({ orderBy: { createdAt: 'asc' } });
+      // Realized profit is computed from settled bets (not a User column), so
+      // Prisma can't order by it — rank in JS. Fine at current scale.
+      const all = await prisma.user.findMany({ where: NOT_EVM, orderBy: { createdAt: 'asc' } });
+      const pmap = await realizedProfitMap();
       const ranked = all
-        .map(u => ({ u, profit: u.totalWon - u.totalWagered }))
+        .map(u => ({ u, profit: pmap.get(u.walletAddress) ?? 0n }))
         .sort((a, b) => (b.profit > a.profit ? 1 : b.profit < a.profit ? -1 : 0));
       total = ranked.length;
-      data = ranked.slice(skip, skip + limit).map((r, i) => serialize(r.u, skip + i + 1));
+      data = ranked.slice(skip, skip + limit).map((r, i) => serialize(r.u, skip + i + 1, r.profit));
     } else {
       const orderBy: Record<string, 'desc'> =
         sort === 'coins' ? { coinsLifetime: 'desc' }
@@ -409,11 +444,12 @@ usersRouter.get('/leaderboard', async (req, res) => {
         : sort === 'predictions' ? { totalBets: 'desc' }
         : { totalXp: 'desc' };
       const [users, count] = await Promise.all([
-        prisma.user.findMany({ orderBy: [orderBy, { createdAt: 'asc' }], skip, take: limit }),
-        prisma.user.count(),
+        prisma.user.findMany({ where: NOT_EVM, orderBy: [orderBy, { createdAt: 'asc' }], skip, take: limit }),
+        prisma.user.count({ where: NOT_EVM }),
       ]);
       total = count;
-      data = users.map((u, i) => serialize(u, skip + i + 1));
+      const pmap = await realizedProfitMap(users.map(u => u.walletAddress));
+      data = users.map((u, i) => serialize(u, skip + i + 1, pmap.get(u.walletAddress) ?? 0n));
     }
 
     // The requesting wallet's own ranked entry — so the UI can pin it below
@@ -422,24 +458,36 @@ usersRouter.get('/leaderboard', async (req, res) => {
     if (wallet) {
       const u = await prisma.user.findUnique({ where: { walletAddress: wallet } });
       if (u) {
+        const myProfit = (await realizedProfitMap([wallet])).get(wallet) ?? 0n;
         let higher = 0;
         if (sort === 'volume') {
-          higher = await prisma.user.count({ where: { totalWagered: { gt: u.totalWagered } } });
+          higher = await prisma.user.count({ where: { ...NOT_EVM, totalWagered: { gt: u.totalWagered } } });
         } else if (sort === 'predictions') {
-          higher = await prisma.user.count({ where: { totalBets: { gt: u.totalBets } } });
+          higher = await prisma.user.count({ where: { ...NOT_EVM, totalBets: { gt: u.totalBets } } });
         } else if (sort === 'profit') {
-          const p = u.totalWon - u.totalWagered;
+          // Count real players whose realized profit (settled bets, 0 if none)
+          // beats mine, matching the JS ranking used for the main board.
           const rows = await prisma.$queryRaw<{ c: bigint }[]>`
-            SELECT count(*)::bigint AS c FROM users WHERE (total_won - total_wagered) > ${p}`;
+            SELECT count(*)::bigint AS c
+            FROM users us
+            LEFT JOIN (
+              SELECT b.wallet_address AS w,
+                     SUM(COALESCE(b.payout_amount, 0) - b.amount) AS p
+              FROM bets b
+              JOIN pools pp ON pp.id = b.pool_id
+              WHERE pp.status::text IN (${Prisma.join(SETTLED_STATUSES as unknown as string[])})
+              GROUP BY b.wallet_address
+            ) t ON t.w = us.wallet_address
+            WHERE us.wallet_address NOT ILIKE '0x%' AND COALESCE(t.p, 0) > ${myProfit}`;
           higher = Number(rows[0]?.c ?? 0n);
         } else if (sort === 'coins') {
-          higher = await prisma.user.count({ where: { coinsLifetime: { gt: u.coinsLifetime } } });
+          higher = await prisma.user.count({ where: { ...NOT_EVM, coinsLifetime: { gt: u.coinsLifetime } } });
         } else if (sort === 'level') {
-          higher = await prisma.user.count({ where: { level: { gt: u.level } } });
+          higher = await prisma.user.count({ where: { ...NOT_EVM, level: { gt: u.level } } });
         } else {
-          higher = await prisma.user.count({ where: { totalXp: { gt: u.totalXp } } });
+          higher = await prisma.user.count({ where: { ...NOT_EVM, totalXp: { gt: u.totalXp } } });
         }
-        self = serialize(u, higher + 1);
+        self = serialize(u, higher + 1, myProfit);
       }
     }
 
