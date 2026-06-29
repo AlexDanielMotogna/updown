@@ -78,7 +78,7 @@ export function TerminalLayout({
                   <div className="flex h-full flex-col gap-1 overflow-hidden">
                     <MarketHeader symbol={symbol} initial={initial} />
                     <div className="min-h-0 flex-1 overflow-hidden">
-                      <ChartView symbol={symbol} />
+                      <ChartView symbol={symbol} devWallet={devWallet} devEvm={devEvm} />
                     </div>
                   </div>
                 </Panel>
