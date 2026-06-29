@@ -13,13 +13,13 @@ const HAS_PRIVY = !!process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 
 // Resolve the live identity (only under Privy) so the chart can draw the entry line
 // for the user's position/holding. useIdentity needs the Privy provider.
-function TVWithIdentity({ symbol, devWallet, devEvm }: { symbol: string; devWallet?: string; devEvm?: string }) {
-  const { walletAddress, evmAddress } = useIdentity();
-  return <TVChart symbol={symbol} walletAddress={walletAddress ?? devWallet} evmAddress={evmAddress ?? devEvm} />;
+function TVWithIdentity({ symbol, devEvm }: { symbol: string; devEvm?: string }) {
+  const { evmAddress } = useIdentity();
+  return <TVChart symbol={symbol} evmAddress={evmAddress ?? devEvm} />;
 }
 
-export function ChartView({ symbol, minimal = false, devWallet, devEvm }: { symbol: string; minimal?: boolean; devWallet?: string; devEvm?: string }) {
+export function ChartView({ symbol, minimal = false, devWallet: _devWallet, devEvm }: { symbol: string; minimal?: boolean; devWallet?: string; devEvm?: string }) {
   if (!TV_ENABLED || minimal) return <Chart symbol={symbol} minimal={minimal} />;
-  if (!HAS_PRIVY) return <TVChart symbol={symbol} walletAddress={devWallet} evmAddress={devEvm} />;
-  return <TVWithIdentity symbol={symbol} devWallet={devWallet} devEvm={devEvm} />;
+  if (!HAS_PRIVY) return <TVChart symbol={symbol} evmAddress={devEvm} />;
+  return <TVWithIdentity symbol={symbol} devEvm={devEvm} />;
 }

@@ -41,6 +41,7 @@ export async function GET(req: Request) {
         coin: f.coin ?? '?',
         symbol: `${f.coin ?? '?'}-USD`,
         direction: f.dir ?? (f.side === 'B' ? 'Buy' : 'Sell'),
+        isBuy: f.side === 'B',
         price: f.px ?? '0',
         size: f.sz ?? '0',
         tradeValue: String(Number(f.px ?? 0) * Number(f.sz ?? 0)),

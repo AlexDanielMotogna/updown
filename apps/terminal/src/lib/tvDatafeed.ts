@@ -27,13 +27,50 @@ function priceScale(price: number): number {
   return 100000000;                 // 8dp
 }
 
-/** Build a Charting Library datafeed backed by our klines route + WS candle feed. */
-export function createTvDatafeed(): any {
+/** The HL coin for a chart symbol: "BTC-USD" → "BTC"; spot "@N" stays "@N". */
+function coinOf(ticker: string): string {
+  return ticker.endsWith('-USD') ? ticker.slice(0, -4) : ticker;
+}
+
+/** Build a Charting Library datafeed backed by our klines route + WS candle feed.
+ * `evmAddress` (optional) enables B/S trade marks on the bars from /api/trades. */
+export function createTvDatafeed(evmAddress?: string): any {
   const subs = new Map<string, () => void>();
 
   return {
     onReady(cb: (config: any) => void) {
-      setTimeout(() => cb({ supported_resolutions: SUPPORTED_RESOLUTIONS, supports_time: true, supports_marks: false, supports_timescale_marks: false }), 0);
+      setTimeout(() => cb({ supported_resolutions: SUPPORTED_RESOLUTIONS, supports_time: true, supports_marks: !!evmAddress, supports_timescale_marks: false }), 0);
+    },
+
+    // Buy/Sell markers on the candles for the user's own fills (HL userFills).
+    async getMarks(symbolInfo: any, from: number, to: number, onData: (marks: any[]) => void, _resolution: string) {
+      if (!evmAddress) { onData([]); return; }
+      try {
+        const r = await fetch(`/api/trades?address=${evmAddress}`, { cache: 'no-store' });
+        const j = await r.json();
+        if (!j.success) { onData([]); return; }
+        const coin = coinOf(symbolInfo.ticker);
+        const marks = (j.data as any[])
+          .filter((f) => f.coin === coin || f.coin === symbolInfo.ticker)
+          .map((f) => {
+            const time = Math.floor(Number(f.time) / 1000);
+            if (!(time >= from && time <= to)) return null;
+            const color = f.isBuy ? '#26A69A' : '#EF5350';
+            return {
+              id: String(f.id),
+              time,
+              color: { border: color, background: color },
+              text: `${f.direction} ${f.size} @ ${f.price}`,
+              label: f.isBuy ? 'B' : 'S',
+              labelFontColor: '#ffffff',
+              minSize: 16,
+            };
+          })
+          .filter(Boolean);
+        onData(marks);
+      } catch {
+        onData([]);
+      }
     },
 
     searchSymbols(_userInput: string, _exchange: string, _type: string, onResult: (r: any[]) => void) {
