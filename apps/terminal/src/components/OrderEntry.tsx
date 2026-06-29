@@ -86,7 +86,7 @@ export function OrderEntry({
   // Buying power under Unified Account = free USDC in the (unified) balance — the
   // perps clearinghouse equity reads ~0 there, so don't use it. total drives the
   // "needs funding" gate; usdcAvailable is "Available to Trade".
-  const { total: unifiedValue, usdcAvailable } = useAccountValue(evmAddress);
+  const { total: unifiedValue, usdcAvailable, loaded: balanceLoaded } = useAccountValue(evmAddress);
   const available = usdcAvailable ?? 0;
   const { enabled: tradingEnabled, busy: enabling, enableTrading, approveBuilder, checked } = useTrading(walletAddress, evmAddress);
   const { ready: privyReady, authenticated, login, connectWallet } = usePrivy();
@@ -366,7 +366,7 @@ export function OrderEntry({
   // ~0), so gate on the UNIFIED value, not acct.accountEquity. Wait until it has
   // loaded (usdcAvailable != null) so we don't flash the gate on a funded account.
   const needsDeposit =
-    !!walletAddress && !!evmAddress && accountReady && usdcAvailable != null && unifiedValue <= 0;
+    !!walletAddress && !!evmAddress && accountReady && balanceLoaded && unifiedValue <= 0;
   // Primary-action button gating, in order. All of it lives on the order button
   // (no separate cards): sign in → connect wallet → enable trading → approve
   // builder fee → Buy/Long.

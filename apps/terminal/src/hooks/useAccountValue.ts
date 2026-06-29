@@ -33,5 +33,9 @@ export function useAccountValue(evmAddress?: string) {
   const total = (spotValue ?? 0) + upnl;
   // Ready once either source has reported, so the chip doesn't flash $0.00 forever.
   const ready = !!account || spotValue != null;
-  return { total, upnl, spotValue, usdcAvailable, ready };
+  // Loaded = BOTH spot fetches resolved. Gate funding/needs-deposit on this so a
+  // half-loaded state (one fetch back, the other still null → total reads 0) can't
+  // flash "Deposit to start trading" on a funded account.
+  const loaded = spotValue != null && usdcAvailable != null;
+  return { total, upnl, spotValue, usdcAvailable, ready, loaded };
 }
