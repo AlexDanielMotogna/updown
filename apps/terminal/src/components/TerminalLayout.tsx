@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { MarketHeader } from './MarketHeader';
-import { Chart } from './Chart';
+import { ChartView } from './ChartView';
 import { Orderbook } from './Orderbook';
 import { OrderPanel } from './OrderPanel';
 import { PositionsPanel } from './PositionsPanel';
@@ -78,7 +78,7 @@ export function TerminalLayout({
                   <div className="flex h-full flex-col gap-1 overflow-hidden">
                     <MarketHeader symbol={symbol} initial={initial} />
                     <div className="min-h-0 flex-1 overflow-hidden">
-                      <Chart symbol={symbol} />
+                      <ChartView symbol={symbol} />
                     </div>
                   </div>
                 </Panel>
