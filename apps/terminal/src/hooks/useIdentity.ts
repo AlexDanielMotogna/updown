@@ -1,8 +1,35 @@
 'use client';
 
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { linkEvm, registerUser, resolveIdentity } from '@/lib/api';
+
+// ── Chosen EVM wallet (module-level, persisted) ─────────────────────────────
+// useWallets() can return MULTIPLE connected wallets (the embedded one + a hung
+// session from another account). The naive "prefer embedded" pick then FLIPS the
+// active account mid-session as wallets load async, so the tables read the wrong
+// wallet. We lock onto one chosen address, shared across all useIdentity instances
+// and persisted, and only re-pick when it's no longer connected (or the user
+// switches/disconnects via the menu).
+const EVM_KEY = 'updown-terminal-evm';
+let chosenEvm: string | null | undefined; // undefined = not yet read from storage
+const evmSubs = new Set<() => void>();
+function getChosenEvm(): string | null {
+  if (chosenEvm === undefined) {
+    try { chosenEvm = localStorage.getItem(EVM_KEY); } catch { chosenEvm = null; }
+  }
+  return chosenEvm;
+}
+function setChosenEvm(addr: string | null) {
+  const v = addr || null;
+  if ((chosenEvm ?? null) === v) return;
+  chosenEvm = v;
+  try { if (v) localStorage.setItem(EVM_KEY, v); else localStorage.removeItem(EVM_KEY); } catch { /* ignore */ }
+  evmSubs.forEach((f) => f());
+}
+function subscribeEvm(cb: () => void) { evmSubs.add(cb); return () => { evmSubs.delete(cb); }; }
+/** Clear the locked wallet — re-resolves on next render (used by disconnect/logout). */
+export function clearActiveWallet() { setChosenEvm(null); }
 
 // ── Shared link state (module-level) ────────────────────────────────────────
 // useIdentity is called by MANY components. The register+link must fire ONCE per
@@ -58,15 +85,35 @@ export function useIdentity(): Identity {
   const { wallets } = useWallets(); // actually-connected EVM wallets
   const accounts = (user?.linkedAccounts ?? []) as LinkedAccount[];
   const sessionSolana = accounts.find((a) => a.type === 'wallet' && a.chainType === 'solana')?.address;
-  // The HL account = the user's Privy EMBEDDED EVM wallet, provisioned at login
-  // (one identity, no "connect EVM wallet" prompt). A BYO external wallet is still
-  // honored as a fallback when the user has no embedded one (e.g. they logged into
-  // the terminal WITH MetaMask). Order: embedded → external → any → linked account.
-  const linkedEvm = accounts.find((a) => a.type === 'wallet' && a.chainType === 'ethereum')?.address;
-  const evmAddress =
-    (wallets.find((w) => w.walletClientType === 'privy')
-      ?? wallets.find((w) => w.walletClientType !== 'privy')
-      ?? wallets[0])?.address ?? linkedEvm;
+  // The HL account = the CURRENT account's embedded EVM wallet from the Privy user
+  // (login is email/Google + embedded only). We prefer this over useWallets() because
+  // that connection list can leak a hung wallet from a previous account and flip the
+  // active account mid-session (tables then read the wrong wallet). A locked `chosen`
+  // address keeps it stable when the user object is briefly loading; the menu can
+  // clear it (disconnect). useWallets() is only a last-resort fallback.
+  const embeddedEvm = accounts.find((a) => a.type === 'wallet' && a.chainType === 'ethereum' && a.walletClientType === 'privy')?.address;
+  const linkedEvm = embeddedEvm ?? accounts.find((a) => a.type === 'wallet' && a.chainType === 'ethereum')?.address;
+  const candidateEvm =
+    linkedEvm
+    ?? (wallets.find((w) => w.walletClientType === 'privy')
+        ?? wallets.find((w) => w.walletClientType !== 'privy')
+        ?? wallets[0])?.address;
+
+  const chosen = useSyncExternalStore(subscribeEvm, getChosenEvm, () => null);
+  const connectedEvms = useMemo(() => {
+    const s = wallets.map((w) => w.address?.toLowerCase()).filter(Boolean) as string[];
+    if (linkedEvm) s.push(linkedEvm.toLowerCase());
+    return s;
+  }, [wallets, linkedEvm]);
+  const chosenValid = !!chosen && connectedEvms.includes(chosen.toLowerCase());
+  // Current account's embedded wallet wins; else the locked choice; else candidate.
+  const evmAddress = linkedEvm ?? (chosenValid ? chosen! : candidateEvm);
+
+  // Keep the locked choice mirrored to the active wallet (so it persists + the menu's
+  // disconnect can clear it). When linkedEvm changes (account switch) this follows.
+  useEffect(() => {
+    if (evmAddress && (chosen ?? null) !== evmAddress) setChosenEvm(evmAddress);
+  }, [evmAddress, chosen]);
 
   // EVM-only session → try to resolve a previously-linked identity. `resolveDone`
   // distinguishes "still checking" (undefined) from "checked, none found" (null).
