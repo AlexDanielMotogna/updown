@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 import type { Order, Position } from 'exchange-core';
-import { cancelOrder, type SpotBalanceRow } from '@/lib/api';
-import { useToast } from '../Toast';
+import { type SpotBalanceRow } from '@/lib/api';
 import { useTrading } from '@/hooks/useTrading';
 import { SimplePosition } from './SimplePosition';
 import { TokenIcon } from '../TokenIcon';
@@ -41,7 +40,6 @@ function EmptyState({ connected }: { connected: boolean }) {
 export function SimplePositionsSidebar({
   kind = 'perp',
   positions,
-  orders,
   holdings = [],
   walletAddress,
   evmAddress,
@@ -49,14 +47,14 @@ export function SimplePositionsSidebar({
 }: {
   kind?: 'perp' | 'spot';
   positions: Position[];
-  orders: Order[];
+  // Resting orders are intentionally NOT shown in Simple mode (positions only).
+  // Kept in the props so the Pro-side callers can pass it without a type error.
+  orders?: Order[];
   holdings?: SpotBalanceRow[];
   walletAddress?: string;
   evmAddress?: string;
   connected: boolean;
 }) {
-  const toast = useToast();
-  const [busyId, setBusyId] = useState<string | null>(null);
   const [view, setView] = useState<'card' | 'row'>('card');
   // One-time, GLOBAL agent approval. MUST be called before any early return below
   // (the spot branch) so the hook order is stable across perp↔spot (React #300).
@@ -104,17 +102,8 @@ export function SimplePositionsSidebar({
   }
   const needsAgent = !!walletAddress && positions.length > 0 && !tradingEnabled;
 
-  async function cancel(o: Order) {
-    if (!walletAddress) return;
-    setBusyId(String(o.orderId));
-    const tid = toast.loading('Cancelling order…');
-    const res = await cancelOrder({ walletAddress, symbol: o.symbol, orderId: o.orderId });
-    setBusyId(null);
-    toast.update(tid, res.success ? 'success' : 'error', res.success ? 'Order cancelled' : res.error?.message ?? 'Cancel failed');
-  }
-
-  // Centered empty state (not connected, or connected with nothing open).
-  if (!connected || (positions.length === 0 && orders.length === 0)) {
+  // Centered empty state (not connected, or connected with no open positions).
+  if (!connected || positions.length === 0) {
     return <EmptyState connected={connected} />;
   }
 
@@ -155,33 +144,6 @@ export function SimplePositionsSidebar({
           </div>
         )}
       </section>
-
-      {orders.length > 0 && (
-        <section>
-          <h2 className="mb-2 text-sm font-bold text-surface-100">Open Orders</h2>
-          <div className="flex flex-col gap-2">
-            {orders.map((o) => {
-              const base = o.symbol.replace('-USD', '');
-              const long = o.side === 'BUY';
-              return (
-                <div key={o.orderId} className="rounded-lg border border-surface-800 bg-surface-850 p-2.5 text-xs">
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className="font-semibold text-surface-100">{base}</span>
-                    <span className={long ? 'text-win-500' : 'text-loss-500'}>{long ? 'Long' : 'Short'} · {o.type}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-surface-400">
-                    <span className="tabular-nums">{o.remaining} @ {Number(o.price) > 0 ? usd(Number(o.price)) : 'mkt'}</span>
-                    <button onClick={() => cancel(o)} disabled={busyId === String(o.orderId)}
-                      className="rounded border border-surface-700 px-2 py-0.5 font-medium text-surface-300 hover:bg-surface-800 disabled:opacity-50">
-                      {busyId === String(o.orderId) ? '…' : 'Cancel'}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
     </div>
   );
 }
