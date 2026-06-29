@@ -355,6 +355,12 @@ export function OrderEntry({
     }
     const ok = `${verb} ${sizeBtc} ${base} — ${String(res.data?.status ?? 'submitted').toLowerCase()}${res.data?.orderId ? ` · #${res.data.orderId}` : ''}`;
     toast.update(tid, 'success', ok);
+    // Nudge the chart to refresh its B/S trade marks (+ a delayed one once the fill
+    // lands in userFills past the route's short cache).
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('updown:order-filled'));
+      setTimeout(() => window.dispatchEvent(new Event('updown:order-filled')), 3000);
+    }
   }
 
   const buy = side === 'BUY';
