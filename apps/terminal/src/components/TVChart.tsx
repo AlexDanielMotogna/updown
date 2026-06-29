@@ -32,6 +32,7 @@ function loadLibrary(): Promise<void> {
 export function TVChart({ symbol, evmAddress }: { symbol: string; evmAddress?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<any>(null);
+  const cleanupMarks = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     let dead = false;
@@ -69,10 +70,27 @@ export function TVChart({ symbol, evmAddress }: { symbol: string; evmAddress?: s
           },
         });
         widgetRef.current = widget;
+        // TradingView only requests marks on load/range change — refresh them so a
+        // just-placed trade shows up: periodically + on order/spot-trade events.
+        widget.onChartReady?.(() => {
+          if (dead) return;
+          const refresh = () => { try { widget.activeChart().refreshMarks(); } catch { /* not ready */ } };
+          const id = window.setInterval(refresh, 15000);
+          const onTraded = () => refresh();
+          window.addEventListener('updown:spot-traded', onTraded);
+          window.addEventListener('updown:order-filled', onTraded);
+          cleanupMarks.current = () => {
+            window.clearInterval(id);
+            window.removeEventListener('updown:spot-traded', onTraded);
+            window.removeEventListener('updown:order-filled', onTraded);
+          };
+        });
       })
       .catch(() => { /* library missing → parent fallback handles it */ });
     return () => {
       dead = true;
+      cleanupMarks.current?.();
+      cleanupMarks.current = null;
       try { widgetRef.current?.remove?.(); } catch { /* ignore */ }
       widgetRef.current = null;
     };
