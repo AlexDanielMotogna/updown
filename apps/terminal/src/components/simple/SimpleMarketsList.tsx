@@ -7,6 +7,7 @@ import { Sparkline } from './Sparkline';
 import { SimpleTradeModal } from './SimpleTradeModal';
 import { SimplePositionsSidebar } from './SimplePositionsSidebar';
 import { SimpleSpotPanel } from './SimpleSpotPanel';
+import { useSpotHoldings } from '../Holdings';
 import { useIdentity } from '@/hooks/useIdentity';
 import { useAccountStream } from '@/hooks/useAccountStream';
 import { getStream } from '@/lib/stream';
@@ -39,6 +40,8 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
   const evmAddress = id.evmAddress ?? devEvm;
   const { positions, orders } = useAccountStream(evmAddress);
   const [kind, setKind] = useState<'perp' | 'spot'>('perp');
+  // Spot holdings for the right rail when in spot mode (perps uses positions/orders).
+  const holdings = useSpotHoldings(walletAddress);
   // Shared cache: instant when warm, so the perp↔spot toggle doesn't refetch/flash.
   const tickers = useMarkets(kind);
   const [livePrices, setLivePrices] = useState<Record<string, string>>({});
@@ -48,7 +51,11 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
   const [trade, setTrade] = useState<{ symbol: string; side: OrderSide } | null>(null);
   const [spotTrade, setSpotTrade] = useState<string | null>(null); // open spot ticket for a pair
   const [showActivity, setShowActivity] = useState(false); // mobile bottom-sheet for positions/orders
-  const activityCount = positions.length + orders.length;
+  // Non-USDC, non-dust spot holdings (the "open" things in spot mode).
+  const spotHoldingCount = holdings.balances.filter(
+    (b) => b.asset !== 'USDC' && Number(b.total) > 0 && Number(b.total) >= Math.pow(10, -(b.metadata?.szDecimals ?? 0)),
+  ).length;
+  const activityCount = kind === 'spot' ? spotHoldingCount : positions.length + orders.length;
 
   // Live mark prices over ONE WS subscription (allMids) — every coin in a single
   // feed, so cards update in realtime without hammering the REST endpoint.
@@ -278,7 +285,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
 
       {/* Right: what the user has open (desktop) */}
       <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-surface-800 bg-surface-900/40 lg:block">
-        <SimplePositionsSidebar positions={positions} orders={orders} walletAddress={walletAddress} evmAddress={evmAddress} connected={!!evmAddress} />
+        <SimplePositionsSidebar kind={kind} positions={positions} orders={orders} holdings={holdings.balances} walletAddress={walletAddress} evmAddress={evmAddress} connected={!!evmAddress} />
       </aside>
 
       {/* Mobile: floating button to open positions/orders (the desktop rail is hidden) */}
@@ -306,7 +313,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
               <button onClick={() => setShowActivity(false)} className="absolute right-3 top-1.5 text-lg text-surface-400 hover:text-surface-100" aria-label="Close">✕</button>
             </div>
             <div className="flex-1 overflow-y-auto">
-              <SimplePositionsSidebar positions={positions} orders={orders} walletAddress={walletAddress} evmAddress={evmAddress} connected={!!evmAddress} />
+              <SimplePositionsSidebar kind={kind} positions={positions} orders={orders} holdings={holdings.balances} walletAddress={walletAddress} evmAddress={evmAddress} connected={!!evmAddress} />
             </div>
           </div>
         </div>
