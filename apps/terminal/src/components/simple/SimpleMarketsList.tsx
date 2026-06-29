@@ -102,7 +102,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
       {/* Left: catalog (left-aligned, fills the space) */}
       <div className="min-w-0 flex-1 overflow-y-auto">
         <div className="px-4 py-5 lg:px-6">
-      <div className="mb-4 flex items-center gap-3">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-surface-100">{kind === 'spot' ? 'Spot' : 'Perpetuals'}</h1>
         {SPOT_ENABLED && (
           <div className="relative grid grid-cols-2 overflow-hidden rounded-lg border border-surface-700 bg-surface-900/50 text-xs font-semibold">
