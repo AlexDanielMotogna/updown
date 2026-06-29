@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { cancelOrder, placeOrder, setTpsl, IS_TESTNET } from '@/lib/api';
 import { useAccountStream } from '@/hooks/useAccountStream';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { pollWhileVisible } from '@/lib/poll';
 import { useToast } from './Toast';
 import { Modal } from './Modal';
 import { TokenIcon } from './TokenIcon';
@@ -242,8 +243,10 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
   useEffect(() => {
     if (tab === 'positions' || tab === 'orders') return; // WS-driven tabs
     refresh();
-    const id = window.setInterval(refresh, 4000);
-    return () => window.clearInterval(id);
+    // History changes slowly + the routes cache server-side; a 15s visibility-aware
+    // poll avoids hammering HL (was 4s → caused 429s).
+    const stop = pollWhileVisible(refresh, 15000);
+    return () => stop();
   }, [refresh, tab]);
 
   // Prefetch all history tabs ONCE on mount / address change, so their count
