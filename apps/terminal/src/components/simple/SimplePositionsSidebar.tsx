@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import type { Order, Position } from 'exchange-core';
-import { cancelOrder } from '@/lib/api';
+import { cancelOrder, type SpotBalanceRow } from '@/lib/api';
 import { useToast } from '../Toast';
 import { useTrading } from '@/hooks/useTrading';
 import { SimplePosition } from './SimplePosition';
+import { TokenIcon } from '../TokenIcon';
 
 const usd = (n: number) => (Number.isFinite(n) ? `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '$0.00');
+const qty = (n: number, dp = 4) => (Number.isFinite(n) ? n.toLocaleString(undefined, { maximumFractionDigits: dp }) : '0');
 
 /** Centered empty / connect state — UpDown-icon node in a brand-tinted box with a
  *  soft pulse, matching the ConnectGate look the user liked. */
@@ -37,14 +39,18 @@ function EmptyState({ connected }: { connected: boolean }) {
  * SimplePosition; reads nothing itself (data passed from the catalog's stream).
  */
 export function SimplePositionsSidebar({
+  kind = 'perp',
   positions,
   orders,
+  holdings = [],
   walletAddress,
   evmAddress,
   connected,
 }: {
+  kind?: 'perp' | 'spot';
   positions: Position[];
   orders: Order[];
+  holdings?: SpotBalanceRow[];
   walletAddress?: string;
   evmAddress?: string;
   connected: boolean;
@@ -52,6 +58,47 @@ export function SimplePositionsSidebar({
   const toast = useToast();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [view, setView] = useState<'card' | 'row'>('card');
+
+  // Spot mode: the right rail shows token HOLDINGS (your "open" things in spot),
+  // not perp positions/orders. Exclude USDC (cash) + sub-lot dust.
+  if (kind === 'spot') {
+    const rows = holdings
+      .filter((b) => b.asset !== 'USDC' && Number(b.total) > 0 && Number(b.total) >= Math.pow(10, -(b.metadata?.szDecimals ?? 0)))
+      .map((b) => {
+        const value = Number(b.usdValue ?? 0);
+        const entry = Number(b.entryNotional ?? 0);
+        const pnl = entry > 0 ? value - entry : null;
+        const roe = pnl != null && entry > 0 ? (pnl / entry) * 100 : null;
+        return { ...b, value, pnl, roe };
+      })
+      .sort((a, b) => b.value - a.value);
+
+    if (!connected || rows.length === 0) return <EmptyState connected={connected} />;
+    return (
+      <div className="flex h-full flex-col gap-4 p-3">
+        <h2 className="text-sm font-bold text-surface-100">Holdings</h2>
+        <div className="flex flex-col gap-2">
+          {rows.map((r) => (
+            <div key={r.asset} className="rounded-lg border border-surface-800 bg-surface-850 p-2.5 text-xs">
+              <div className="mb-1 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <TokenIcon symbol={r.asset} size="sm" spot />
+                  <span className="font-semibold text-surface-100">{r.asset}</span>
+                </span>
+                <span className="tabular-nums text-surface-100">{usd(r.value)}</span>
+              </div>
+              <div className="flex items-center justify-between text-surface-400">
+                <span className="tabular-nums">{qty(Number(r.total))} {r.asset}</span>
+                <span className={`tabular-nums ${r.pnl == null ? 'text-surface-500' : r.pnl >= 0 ? 'text-win-500' : 'text-loss-500'}`}>
+                  {r.pnl == null ? '--' : `${r.pnl >= 0 ? '+' : ''}${usd(r.pnl)}${r.roe != null ? ` (${r.roe >= 0 ? '+' : ''}${r.roe.toFixed(1)}%)` : ''}`}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
   // One-time, GLOBAL agent approval. Single source of truth for the whole sidebar
   // so enabling once unlocks Close on every card (a per-card useTrading meant
   // approving on one card left the others stuck on "Enable").
