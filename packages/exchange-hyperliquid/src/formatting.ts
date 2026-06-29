@@ -9,7 +9,13 @@
 import type { OrderParams, TimeInForce } from 'exchange-core';
 
 const PERP_MAX_DECIMALS = 6;
+const SPOT_MAX_DECIMALS = 8;
 const MAX_SIG_FIGS = 5;
+
+/** HL price decimal cap: MAX_DECIMALS - szDecimals, MAX_DECIMALS = 6 perp / 8 spot. */
+export function maxPriceDecimals(szDecimals: number, kind: 'perp' | 'spot' = 'perp'): number {
+  return Math.max(0, (kind === 'spot' ? SPOT_MAX_DECIMALS : PERP_MAX_DECIMALS) - szDecimals);
+}
 
 /** Drop trailing zeros (and a dangling dot): "1.2300" → "1.23", "5.0" → "5". */
 export function stripTrailingZeros(s: string): string {
@@ -21,12 +27,12 @@ export function formatSize(size: string | number, szDecimals: number): string {
   return stripTrailingZeros(Number(size).toFixed(szDecimals));
 }
 
-export function formatPrice(price: string | number, szDecimals: number): string {
+export function formatPrice(price: string | number, szDecimals: number, kind: 'perp' | 'spot' = 'perp'): string {
   const n = Number(price);
   if (!Number.isFinite(n) || n <= 0) {
     throw new Error(`Invalid price: ${price}`);
   }
-  const maxDecimals = Math.max(0, PERP_MAX_DECIMALS - szDecimals);
+  const maxDecimals = maxPriceDecimals(szDecimals, kind);
   // Clamp decimals, then enforce 5 significant figures (integers stay exact).
   const clamped = Number(n.toFixed(maxDecimals));
   const sigFig = Number(clamped.toPrecision(MAX_SIG_FIGS));
@@ -53,10 +59,12 @@ export type HlOrderType =
   | { limit: { tif: 'Gtc' | 'Ioc' | 'Alo' | 'FrontendMarket' } }
   | { trigger: { isMarket: boolean; triggerPx: string; tpsl: 'tp' | 'sl' } };
 
-export function buildOrderTypeField(params: OrderParams, szDecimals: number): HlOrderType {
+export function buildOrderTypeField(params: OrderParams, szDecimals: number, kind: 'perp' | 'spot' = 'perp'): HlOrderType {
   switch (params.type) {
     case 'MARKET':
-      return { limit: { tif: 'FrontendMarket' } };
+      // Spot uses a plain IOC at the slippage-cap price (FrontendMarket can fail to
+      // cross on spot books → "could not immediately match"); perps keep FrontendMarket.
+      return { limit: { tif: kind === 'spot' ? 'Ioc' : 'FrontendMarket' } };
     case 'LIMIT':
       return { limit: { tif: mapTif(params.timeInForce) } };
     case 'STOP_MARKET':
@@ -69,7 +77,7 @@ export function buildOrderTypeField(params: OrderParams, szDecimals: number): Hl
       const isMarket = params.type === 'STOP_MARKET' || params.type === 'TAKE_PROFIT_MARKET';
       const tpsl = params.type.startsWith('TAKE_PROFIT') ? 'tp' : 'sl';
       return {
-        trigger: { isMarket, triggerPx: formatPrice(params.triggerPrice, szDecimals), tpsl },
+        trigger: { isMarket, triggerPx: formatPrice(params.triggerPrice, szDecimals, kind), tpsl },
       };
     }
   }
@@ -92,7 +100,8 @@ export interface HlOrderRequest {
 export function buildOrderRequest(
   params: OrderParams,
   assetIndex: number,
-  szDecimals: number
+  szDecimals: number,
+  kind: 'perp' | 'spot' = 'perp'
 ): HlOrderRequest {
   if (params.price == null) {
     throw new Error(`HyperLiquid order requires a price (MARKET: pass a slippage-cap price)`);
@@ -100,9 +109,9 @@ export function buildOrderRequest(
   return {
     a: assetIndex,
     b: params.side === 'BUY',
-    p: formatPrice(params.price, szDecimals),
+    p: formatPrice(params.price, szDecimals, kind),
     s: formatSize(params.amount, szDecimals),
     r: params.reduceOnly ?? false,
-    t: buildOrderTypeField(params, szDecimals),
+    t: buildOrderTypeField(params, szDecimals, kind),
   };
 }

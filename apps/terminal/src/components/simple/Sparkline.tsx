@@ -1,27 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-
-/** Tiny inline price sparkline from /api/klines (no TradingView). Fetches once on
- *  mount — the klines route is cached + in-flight-deduped server-side, so many rows
- *  are cheap. Green/red by net direction over the window. */
-export function Sparkline({ symbol, width = 96, height = 28 }: { symbol: string; width?: number; height?: number }) {
-  const [pts, setPts] = useState<number[]>([]);
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const r = await fetch(`/api/klines?symbol=${encodeURIComponent(symbol)}&interval=1h`, { cache: 'no-store' });
-        const j = await r.json();
-        if (!alive || !j.success) return;
-        const closes = (j.data as Array<{ close: string }>).slice(-24).map((c) => Number(c.close)).filter(Number.isFinite);
-        setPts(closes);
-      } catch {/* leave empty */}
-    })();
-    return () => { alive = false; };
-  }, [symbol]);
-
+/** Tiny inline price sparkline. Presentational: `points` come from the catalog's
+ *  one batched /api/sparklines request (no per-card fetch). Green/red by net
+ *  direction over the window. */
+export function Sparkline({ points, width = 96, height = 28 }: { points?: number[]; width?: number; height?: number }) {
+  const pts = points ?? [];
   if (pts.length < 2) return <div style={{ height }} className="w-full opacity-40" />;
 
   const min = Math.min(...pts);

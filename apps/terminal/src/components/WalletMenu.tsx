@@ -49,7 +49,7 @@ export function WalletMenu() {
   const chooseMode = (m: TradeMode) => {
     setMode(m);
     setOpen(false);
-    router.push(m === 'pro' ? '/market/BTC-USD' : '/');
+    router.push(m === 'pro' ? '/trade/BTC/USDC' : '/');
   };
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const anchorRef = useRef<HTMLButtonElement>(null);

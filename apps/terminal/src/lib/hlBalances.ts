@@ -25,11 +25,25 @@ export async function fetchPerpsWithdrawable(user: string): Promise<number> {
   return Number(s?.withdrawable ?? 0);
 }
 
-/** The user's perps maker/taker fee rates (decimals, e.g. 0.00015 = 0.015%). */
-export async function fetchUserFees(user: string): Promise<{ maker: number; taker: number } | null> {
-  const s = await info<{ userAddRate?: string; userCrossRate?: string }>({ type: 'userFees', user });
+/** The user's maker/taker fee rates (decimals, e.g. 0.00015 = 0.015%). HL charges
+ * different rates for perps vs spot (spot is higher: 0.04%/0.07% base vs
+ * 0.015%/0.045%), so return both. */
+export async function fetchUserFees(
+  user: string,
+): Promise<{ maker: number; taker: number; spotMaker: number; spotTaker: number } | null> {
+  const s = await info<{
+    userAddRate?: string;
+    userCrossRate?: string;
+    userSpotAddRate?: string;
+    userSpotCrossRate?: string;
+  }>({ type: 'userFees', user });
   if (!s) return null;
-  return { maker: Number(s.userAddRate ?? 0), taker: Number(s.userCrossRate ?? 0) };
+  return {
+    maker: Number(s.userAddRate ?? 0),
+    taker: Number(s.userCrossRate ?? 0),
+    spotMaker: Number(s.userSpotAddRate ?? 0),
+    spotTaker: Number(s.userSpotCrossRate ?? 0),
+  };
 }
 
 /** USDC sitting in the Spot account. */
@@ -40,4 +54,50 @@ export async function fetchSpotUsdc(user: string): Promise<number> {
   });
   const usdc = s?.balances?.find((b) => b.coin === 'USDC');
   return Number(usdc?.total ?? 0);
+}
+
+type SpotState = { balances?: Array<{ coin: string; token: number; total: string; hold?: string }> };
+type SpotMetaCtx = [
+  { universe: Array<{ name: string; tokens: number[] }> },
+  Array<{ coin: string; markPx?: string }>,
+];
+
+export interface SpotSummary {
+  /** Total spot value (USDC + tokens × mark). */
+  value: number;
+  /** USDC balance (total). */
+  usdcTotal: number;
+  /** Free USDC (total − hold) = perp buying power under Unified Account. */
+  usdcAvailable: number;
+}
+
+/** One-shot spot summary from a SINGLE spotClearinghouseState + spotMetaAndAssetCtxs
+ * pair (value + USDC total/available), so the shared account store doesn't fire
+ * three overlapping requests. */
+export async function fetchSpotSummary(user: string): Promise<SpotSummary | null> {
+  const [state, mc] = await Promise.all([
+    info<SpotState>({ type: 'spotClearinghouseState', user }),
+    info<SpotMetaCtx>({ type: 'spotMetaAndAssetCtxs' }),
+  ]);
+  if (!state?.balances) return null;
+  const markByToken = new Map<number, number>();
+  if (mc) {
+    const [meta, ctxs] = mc;
+    const ctxByCoin = new Map(ctxs.map((c) => [c.coin, c]));
+    for (const p of meta.universe) {
+      if (p.tokens[1] === 0) {
+        const ctx = ctxByCoin.get(p.name);
+        if (ctx?.markPx) markByToken.set(p.tokens[0], Number(ctx.markPx));
+      }
+    }
+  }
+  let value = 0;
+  const usdc = state.balances.find((b) => b.coin === 'USDC');
+  for (const b of state.balances) {
+    if (b.coin === 'USDC') value += Number(b.total);
+    else { const px = markByToken.get(b.token); if (px) value += Number(b.total) * px; }
+  }
+  const usdcTotal = Number(usdc?.total ?? 0);
+  const usdcAvailable = Math.max(0, usdcTotal - Number(usdc?.hold ?? 0));
+  return { value, usdcTotal, usdcAvailable };
 }

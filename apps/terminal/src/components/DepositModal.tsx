@@ -51,7 +51,7 @@ function TestnetDeposit({ evmAddress }: { evmAddress?: string }) {
       </p>
       <div>
         <div className="mb-1.5 text-xs text-surface-400">Your account (faucet credits this address)</div>
-        <div className="flex items-center gap-2 rounded border border-surface-700 bg-[#1c1c23] px-2.5 py-2">
+        <div className="flex items-center gap-2 rounded-md border border-surface-700 bg-transparent px-2.5 py-2">
           <span className="truncate font-mono text-xs text-surface-100">{evmAddress ?? 'not connected'}</span>
           {evmAddress && (
             <button
@@ -172,7 +172,7 @@ function MainnetDeposit({ evmAddress }: { evmAddress?: string }) {
             In wallet: {walletUsdc == null ? '…' : fmt(walletUsdc)} · Max
           </button>
         </div>
-        <div className="flex items-center rounded border border-surface-700 bg-[#1c1c23] px-3">
+        <div className="flex items-center rounded-md border border-surface-700 bg-transparent px-3 transition-colors focus-within:border-brand">
           <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0.00" className="w-full bg-transparent py-2.5 text-base tabular text-surface-100 outline-none placeholder:text-surface-500" />
           <span className="text-surface-400">USDC</span>
         </div>

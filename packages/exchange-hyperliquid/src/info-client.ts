@@ -13,6 +13,10 @@ import type {
   HlOpenOrder,
   HlRecentTrade,
   HlUserFill,
+  HlSpotMeta,
+  HlSpotMetaAndAssetCtxs,
+  HlSpotClearinghouseState,
+  HlTokenDetails,
 } from './raw-types';
 
 export interface HlEndpoint {
@@ -34,6 +38,16 @@ export interface CandleSnapshotReq {
   startTime: number;
   endTime?: number;
 }
+
+/** Account abstraction mode (how spot + perps balances interact). `unifiedAccount`
+ * shares one balance per asset across spot and perps; `default`/`dexAbstraction`
+ * keep them separate (the legacy split). */
+export type HlAbstractionMode =
+  | 'unifiedAccount'
+  | 'portfolioMargin'
+  | 'disabled'
+  | 'default'
+  | 'dexAbstraction';
 
 export class InfoClient {
   constructor(
@@ -92,5 +106,30 @@ export class InfoClient {
 
   userFills(user: string): Promise<HlUserFill[]> {
     return this.post<HlUserFill[]>({ type: 'userFills', user });
+  }
+
+  /** The account's abstraction mode. */
+  userAbstraction(user: string): Promise<HlAbstractionMode> {
+    return this.post<HlAbstractionMode>({ type: 'userAbstraction', user });
+  }
+
+  // ── Spot ──────────────────────────────────────────────────────────────────
+
+  spotMeta(): Promise<HlSpotMeta> {
+    return this.post<HlSpotMeta>({ type: 'spotMeta' });
+  }
+
+  spotMetaAndAssetCtxs(): Promise<HlSpotMetaAndAssetCtxs> {
+    return this.post<HlSpotMetaAndAssetCtxs>({ type: 'spotMetaAndAssetCtxs' });
+  }
+
+  spotClearinghouseState(user: string): Promise<HlSpotClearinghouseState> {
+    return this.post<HlSpotClearinghouseState>({ type: 'spotClearinghouseState', user });
+  }
+
+  /** Per-token details incl. the token markPx HL's UI uses to value spot holdings
+   * (differs from the pair's orderbook mark for illiquid tokens). */
+  tokenDetails(tokenId: string): Promise<HlTokenDetails> {
+    return this.post<HlTokenDetails>({ type: 'tokenDetails', tokenId });
   }
 }

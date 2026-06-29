@@ -18,7 +18,7 @@ export default function Home() {
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    if (mounted && mode === 'pro') router.replace('/market/BTC-USD');
+    if (mounted && mode === 'pro') router.replace('/trade/BTC/USDC');
   }, [mounted, mode, router]);
 
   if (!mounted || mode === 'pro') return null;

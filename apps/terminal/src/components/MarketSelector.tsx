@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TokenIcon } from './TokenIcon';
+import { isSpotSymbol, tradeHref } from '@/lib/api';
 import type { Ticker } from '@/lib/types';
+
+const SPOT_ENABLED = process.env.NEXT_PUBLIC_SPOT_ENABLED === 'true';
 
 function fmtPrice(s: string) {
   const v = Number(s);
@@ -30,6 +33,8 @@ export function MarketSelector({ symbol }: { symbol: string }) {
   const [markets, setMarkets] = useState<Ticker[]>([]);
   const [favs, setFavs] = useState<Set<string>>(new Set());
   const [hi, setHi] = useState(0);
+  const [mode, setMode] = useState<'perp' | 'spot'>(isSpotSymbol(symbol) ? 'spot' : 'perp');
+  const [volDir, setVolDir] = useState<'desc' | 'asc'>('desc');
   const ref = useRef<HTMLDivElement>(null);
 
   // Load favorites + fetch markets on open.
@@ -40,11 +45,12 @@ export function MarketSelector({ symbol }: { symbol: string }) {
     } catch {/* ignore */}
   }, []);
   useEffect(() => {
-    if (!open) return;
-    fetch('/api/markets', { cache: 'no-store' })
+    const url = mode === 'spot' ? '/api/markets?kind=spot' : '/api/markets';
+    fetch(url, { cache: 'no-store' })
       .then((r) => r.json())
-      .then((j) => j.success && setMarkets(j.data));
-  }, [open]);
+      .then((j) => j.success && setMarkets(j.data))
+      .catch(() => {/* keep last */});
+  }, [open, mode]);
 
   // Outside-click + global Cmd/Ctrl+K to open.
   useEffect(() => {
@@ -75,34 +81,39 @@ export function MarketSelector({ symbol }: { symbol: string }) {
     });
   }
 
-  const filtered = useMemo(
-    () =>
-      markets
-        .filter((m) => (tab === 'all' || favs.has(m.symbol)) && m.symbol.toLowerCase().includes(q.toLowerCase()))
-        .slice(0, 100),
-    [markets, tab, favs, q]
-  );
+  const label = (m: Ticker) => m.displayName ?? m.symbol;
+  const currentLabel = markets.find((m) => m.symbol === symbol)?.displayName ?? symbol;
+  const isSpotMode = mode === 'spot';
+  const cols = isSpotMode ? 'grid-cols-[1.6fr_1fr_1.2fr_1.1fr_1.1fr]' : 'grid-cols-[1.4fr_1fr_1.2fr_1fr_1fr_1fr]';
 
-  useEffect(() => setHi(0), [q, tab]);
+  const filtered = useMemo(() => {
+    const matched = markets.filter(
+      (m) => (tab === 'all' || favs.has(m.symbol)) && label(m).toLowerCase().includes(q.toLowerCase())
+    );
+    matched.sort((a, b) => (Number(a.volume24h) - Number(b.volume24h)) * (volDir === 'asc' ? 1 : -1));
+    return matched.slice(0, 100);
+  }, [markets, tab, favs, q, volDir]);
 
-  function select(sym: string) {
+  useEffect(() => setHi(0), [q, tab, mode]);
+
+  function select(m: Ticker) {
     setOpen(false);
     setQ('');
-    router.push(`/market/${encodeURIComponent(sym)}`);
+    router.push(tradeHref(m));
   }
 
   function onListKey(e: React.KeyboardEvent) {
     if (e.key === 'ArrowDown') { e.preventDefault(); setHi((h) => Math.min(h + 1, filtered.length - 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setHi((h) => Math.max(h - 1, 0)); }
-    else if (e.key === 'Enter') { e.preventDefault(); if (filtered[hi]) select(filtered[hi].symbol); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (filtered[hi]) select(filtered[hi]); }
     else if (e.key === 'Escape') setOpen(false);
   }
 
   return (
     <div className="relative" ref={ref}>
       <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-2 rounded px-2 py-1 hover:bg-surface-800">
-        <TokenIcon symbol={symbol} size="md" />
-        <span className="text-base font-semibold">{symbol}</span>
+        <TokenIcon symbol={isSpotMode ? currentLabel.split('/')[0] ?? symbol : symbol} size="md" spot={isSpotMode} />
+        <span className="text-base font-semibold">{currentLabel}</span>
         <svg width="12" height="12" viewBox="0 0 12 12" className="text-surface-400">
           <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
         </svg>
@@ -111,12 +122,25 @@ export function MarketSelector({ symbol }: { symbol: string }) {
       {open && (
         <div className="absolute left-0 top-full z-50 mt-1 w-[820px] max-w-[94vw] card-elevated animate-fade-in">
           <div className="flex items-center gap-2 p-2">
+            {SPOT_ENABLED && (
+              <div className="flex rounded border border-surface-700 p-0.5 text-xs">
+                {(['perp', 'spot'] as const).map((mk) => (
+                  <button
+                    key={mk}
+                    onClick={() => setMode(mk)}
+                    className={`rounded px-2 py-1 ${mode === mk ? 'bg-white/[0.08] text-surface-100' : 'text-surface-400 hover:text-surface-100'}`}
+                  >
+                    {mk === 'perp' ? 'Perps' : 'Spot'}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="flex rounded bg-surface-900 p-0.5 text-xs">
               {(['favorites', 'all'] as const).map((tk) => (
                 <button
                   key={tk}
                   onClick={() => setTab(tk)}
-                  className={`rounded px-2 py-1 capitalize ${tab === tk ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:text-surface-100'}`}
+                  className={`rounded px-2 py-1 capitalize ${tab === tk ? 'bg-white/[0.08] text-surface-100' : 'text-surface-400 hover:text-surface-100'}`}
                 >
                   {tk === 'favorites' ? '★ Favorites' : 'All'}
                 </button>
@@ -133,13 +157,24 @@ export function MarketSelector({ symbol }: { symbol: string }) {
           </div>
 
           {/* Column headers */}
-          <div className="grid grid-cols-[1.4fr_1fr_1.2fr_1fr_1fr_1fr] gap-2 px-3 py-1 text-2xs text-surface-400">
+          <div className={`grid ${cols} gap-2 px-3 py-1 text-2xs text-surface-400`}>
             <span>Symbol</span>
-            <span className="text-right">Last</span>
+            <span className="text-right">Last Price</span>
             <span className="text-right">24h Change</span>
-            <span className="text-right">Funding</span>
-            <span className="text-right">Volume</span>
-            <span className="text-right">OI</span>
+            {isSpotMode ? (
+              <>
+                <button onClick={() => setVolDir((d) => (d === 'desc' ? 'asc' : 'desc'))} className="text-right hover:text-surface-200">
+                  Volume {volDir === 'desc' ? '↓' : '↑'}
+                </button>
+                <span className="text-right">Market Cap</span>
+              </>
+            ) : (
+              <>
+                <span className="text-right">Funding</span>
+                <span className="text-right">Volume</span>
+                <span className="text-right">OI</span>
+              </>
+            )}
           </div>
 
           <div className="max-h-80 overflow-y-auto">
@@ -149,12 +184,15 @@ export function MarketSelector({ symbol }: { symbol: string }) {
               const mark = Number(m.mark);
               const abs = mark - mark / (1 + chg / 100);
               const fundPct = Number(m.funding) * 100;
+              const isSpot = mode === 'spot';
+              const disp = label(m);
+              const iconSym = isSpot ? disp.split('/')[0] : m.symbol;
               return (
                 <button
                   key={m.symbol}
-                  onClick={() => select(m.symbol)}
+                  onClick={() => select(m)}
                   onMouseEnter={() => setHi(i)}
-                  className={`grid w-full grid-cols-[1.4fr_1fr_1.2fr_1fr_1fr_1fr] items-center gap-2 px-3 py-1.5 text-left text-xs tabular ${
+                  className={`grid w-full ${cols} items-center gap-2 px-3 py-1.5 text-left text-xs tabular ${
                     i === hi ? 'bg-surface-800' : ''
                   } ${m.symbol === symbol ? 'border-l-2 border-info' : 'border-l-2 border-transparent'}`}
                 >
@@ -166,17 +204,26 @@ export function MarketSelector({ symbol }: { symbol: string }) {
                     >
                       ★
                     </span>
-                    <TokenIcon symbol={m.symbol} size="sm" />
-                    <span className="font-medium text-surface-100">{m.symbol}</span>
+                    <TokenIcon symbol={iconSym} size="sm" spot={isSpot} />
+                    <span className="font-medium text-surface-100">{disp}</span>
                     {m.maxLeverage ? <span className="rounded bg-surface-800 px-1 text-2xs text-surface-400">{m.maxLeverage}x</span> : null}
                   </span>
                   <span className="text-right text-surface-100">{fmtPrice(m.mark)}</span>
                   <span className={`text-right ${chg >= 0 ? 'text-win-500' : 'text-loss-500'}`}>
                     {chg >= 0 ? '+' : ''}{fmtPrice(String(abs))} / {chg >= 0 ? '+' : ''}{chg.toFixed(2)}%
                   </span>
-                  <span className={`text-right ${fundPct >= 0 ? 'text-win-500' : 'text-loss-500'}`}>{fundPct.toFixed(4)}%</span>
-                  <span className="text-right text-surface-300">{fmtUsd(Number(m.volume24h))}</span>
-                  <span className="text-right text-surface-300">{fmtUsd(Number(m.openInterest) * mark)}</span>
+                  {isSpot ? (
+                    <>
+                      <span className="text-right text-surface-300">{fmtUsd(Number(m.volume24h))}</span>
+                      <span className="text-right text-surface-300">{m.marketCap ? fmtUsd(Number(m.marketCap)) : '--'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className={`text-right ${fundPct >= 0 ? 'text-win-500' : 'text-loss-500'}`}>{fundPct.toFixed(4)}%</span>
+                      <span className="text-right text-surface-300">{fmtUsd(Number(m.volume24h))}</span>
+                      <span className="text-right text-surface-300">{fmtUsd(Number(m.openInterest) * mark)}</span>
+                    </>
+                  )}
                 </button>
               );
             })}

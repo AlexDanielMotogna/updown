@@ -87,6 +87,7 @@ const orderSchema = z.object({
   reduceOnly: z.boolean().optional(),
   clientOrderId: z.string().optional(),
   maxSlippagePct: z.number().positive().max(50).optional(),
+  kind: z.enum(['perp', 'spot']).optional(),
 });
 
 const cancelSchema = z.object({
@@ -221,6 +222,20 @@ exchangeRouter.post('/agent/confirm', async (req, res) => {
     }
 
     const conn = await activateConnection(userId, 'hyperliquid', parsed.data.isTestnet);
+
+    // Put the account on HL Unified Account so spot + perps share one balance (no
+    // Spot↔Perps transfers). Agent-signed, idempotent, never blocks confirm.
+    // On by default; set HL_FORCE_UNIFIED=off to disable.
+    if (process.env.HL_FORCE_UNIFIED !== 'off' && conn.accountAddress) {
+      try {
+        const signer = await buildHyperliquidSigner(userId, { isTestnet: parsed.data.isTestnet });
+        const r = await signer.ensureUnified(conn.accountAddress);
+        console.log(`[Exchange] abstraction for ${conn.accountAddress}: ${r.mode}${r.changed ? ' (set to unifiedAccount)' : ''}`);
+      } catch (e) {
+        console.error('[Exchange] ensureUnified failed (non-fatal):', (e as Error).message);
+      }
+    }
+
     res.json({ success: true, data: serializeConnection(conn) });
   } catch (error) {
     console.error('[Exchange] agent/confirm error:', error);
@@ -476,6 +491,26 @@ exchangeRouter.get('/positions', async (req, res) => {
   } catch (error) {
     console.error('[Exchange] positions error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load positions' } });
+  }
+});
+
+/** GET /api/exchange/spot-balances?wallet=&isTestnet= → spot token holdings.
+ *  Resolves the user's linked HL (EVM) account from the Solana wallet server-side,
+ *  so the client never needs to know its own EVM address. */
+exchangeRouter.get('/spot-balances', async (req, res) => {
+  try {
+    const parsed = statusQuerySchema.safeParse(req.query);
+    if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid query');
+    const userId = await resolveUserId(parsed.data.wallet);
+    if (!userId) return res.json({ success: true, data: [] });
+    const conn = await getConnection(userId, 'hyperliquid', parsed.data.isTestnet);
+    if (!conn?.accountAddress) return res.json({ success: true, data: [] });
+    const adapter = new HyperliquidReadAdapter({ endpoint: parsed.data.isTestnet ? TESTNET : MAINNET });
+    const balances = adapter.getSpotBalances ? await adapter.getSpotBalances(conn.accountAddress) : [];
+    res.json({ success: true, data: balances });
+  } catch (error) {
+    console.error('[Exchange] spot-balances error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load spot balances' } });
   }
 });
 

@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { MarketSelector } from './MarketSelector';
 import { getStream } from '@/lib/stream';
+import { isSpotSymbol } from '@/lib/api';
+import { useMarkets } from '@/lib/marketsCache';
 import type { Ticker } from '@/lib/types';
 
 function fmtPrice(s?: string) {
@@ -20,6 +22,17 @@ function fmtUsd(v: number) {
   if (a >= 1e6) return `$${(v / 1e6).toFixed(2)}M`;
   if (a >= 1e3) return `$${(v / 1e3).toFixed(2)}K`;
   return `$${v.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+}
+/** Full number with thousands separators + " USDC" (spot volume / market cap). */
+function fmtUsdc(s?: string) {
+  const v = Number(s);
+  if (!Number.isFinite(v)) return '—';
+  return `${v.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDC`;
+}
+/** Shorten a contract/tokenId to 0x1234…abcde. */
+function shortContract(c?: string) {
+  if (!c) return '—';
+  return c.length > 13 ? `${c.slice(0, 6)}…${c.slice(-5)}` : c;
 }
 
 /** Countdown (HH:mm:ss) to the next top-of-hour funding settlement. */
@@ -67,25 +80,15 @@ function Stat({ label, value, sub, cls }: { label: string; value: string; sub?: 
 }
 
 export function MarketHeader({ symbol, initial, mobile }: { symbol: string; initial?: Ticker | null; mobile?: boolean }) {
-  const [t, setT] = useState<Ticker | null>(initial ?? null);
   const [liveMark, setLiveMark] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
   const countdown = useFundingCountdown();
 
-  // Full ticker (funding/volume/OI/oracle/24h) — polled; the mid moves slower.
-  useEffect(() => {
-    let alive = true;
-    const tick = async () => {
-      try {
-        const res = await fetch('/api/markets', { cache: 'no-store' });
-        const json = await res.json();
-        if (alive && json.success) setT((json.data as Ticker[]).find((m) => m.symbol === symbol) ?? null);
-      } catch {/* keep */}
-    };
-    tick();
-    const id = window.setInterval(tick, 3000);
-    return () => { alive = false; window.clearInterval(id); };
-  }, [symbol]);
+  // Full ticker (funding/volume/OI/oracle/24h) from the shared markets cache (deduped
+  // with the order panel + selector); the live mid comes from the WS below. Fall back
+  // to the SSR `initial` until the cache warms.
+  const markets = useMarkets(isSpotSymbol(symbol) ? 'spot' : 'perp');
+  const t = useMemo(() => markets.find((m) => m.symbol === symbol) ?? initial ?? null, [markets, symbol, initial]);
 
   // Live mark price over the WS allMids feed (mid only — the rest stays polled).
   useEffect(() => {
@@ -104,6 +107,39 @@ export function MarketHeader({ symbol, initial, mobile }: { symbol: string; init
   const chgUp = chgPct >= 0;
   const fundingPct = t ? Number(t.funding) * 100 : 0;
   const oiUsd = t ? Number(t.openInterest) * mark : 0;
+  const spot = isSpotSymbol(symbol);
+
+  // Spot mobile: same compact bar, but the expanded grid shows token stats
+  // (price/24h/volume/market cap/contract) instead of perp funding/OI.
+  if (mobile && spot) {
+    return (
+      <div className="card px-3 py-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <MarketSelector symbol={symbol} />
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="text-right">
+              <div className="tabular text-sm font-semibold text-surface-100">{mark ? fmtPrice(String(mark)) : '—'}</div>
+              <div className={`tabular text-xs font-medium ${chgUp ? 'text-win-500' : 'text-loss-500'}`}>{t ? `${chgUp ? '+' : ''}${chgPct.toFixed(2)}%` : '—'}</div>
+            </div>
+            <button onClick={() => setExpanded((e) => !e)} className="rounded p-1.5 text-surface-400 hover:bg-surface-800">
+              <svg className={`transition-transform ${expanded ? 'rotate-180' : ''}`} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+            </button>
+          </div>
+        </div>
+        {expanded && (
+          <div className="mt-2 grid grid-cols-3 gap-y-2.5 border-t border-surface-800/50 pt-2 text-[11px] tabular">
+            <MiniStat label="Price" v={mark ? fmtPrice(String(mark)) : '—'} />
+            <MiniStat label="24h Change" v={t ? `${chgUp ? '+' : ''}${fmtPrice(String(chgAbs))}` : '—'} cls={chgUp ? 'text-win-500' : 'text-loss-500'} />
+            <MiniStat label="24h Volume" v={fmtUsdc(t?.volume24h)} />
+            <MiniStat label="Market Cap" v={fmtUsdc(t?.marketCap)} />
+            <MiniStat label="Contract" v={shortContract(t?.contract)} />
+          </div>
+        )}
+      </div>
+    );
+  }
 
   // Mobile: compact bar (selector + price + 24h%) with a chevron that expands a
   // stats grid — per docs/Terminal-Migration/mobile-terminal-style.md §5.1.
@@ -135,6 +171,27 @@ export function MarketHeader({ symbol, initial, mobile }: { symbol: string; init
             <MiniStat label="Countdown" v={countdown} />
           </div>
         )}
+      </div>
+    );
+  }
+
+  // Spot desktop: token-centric stats (price / 24h / volume / market cap /
+  // contract) — no leverage, funding, OI or oracle (those are perp-only).
+  if (spot) {
+    return (
+      <div className="card flex flex-wrap items-center gap-x-10 gap-y-2 px-3 py-2">
+        <div className="flex items-center gap-2">
+          <MarketSelector symbol={symbol} />
+        </div>
+        <Stat label="Price" value={mark ? fmtPrice(String(mark)) : '—'} />
+        <Stat
+          label="24h Change"
+          value={t ? `${chgUp ? '+' : ''}${fmtPrice(String(chgAbs))} / ${chgUp ? '+' : ''}${chgPct.toFixed(2)}%` : '—'}
+          cls={chgUp ? 'text-win-500' : 'text-loss-500'}
+        />
+        <Stat label="24h Volume" value={fmtUsdc(t?.volume24h)} />
+        <Stat label="Market Cap" value={fmtUsdc(t?.marketCap)} />
+        <Stat label="Contract" value={shortContract(t?.contract)} />
       </div>
     );
   }

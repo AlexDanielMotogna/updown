@@ -5,6 +5,7 @@
  */
 import type {
   Account,
+  Balance,
   Candle,
   Market,
   Order,
@@ -25,10 +26,15 @@ import type {
   HlRecentTrade,
   HlUniverseAsset,
   HlUserFill,
+  HlSpotMeta,
+  HlSpotAssetCtx,
+  HlSpotClearinghouseState,
 } from './raw-types';
 
 /** Perp price precision: at most (PERP_MAX_DECIMALS - szDecimals) decimals. */
 const PERP_MAX_DECIMALS = 6;
+/** Spot price precision: at most (SPOT_MAX_DECIMALS - szDecimals) decimals. */
+const SPOT_MAX_DECIMALS = 8;
 
 /** 10^-n as a plain decimal string: 0 → "1", 5 → "0.00001". */
 function pow10Neg(n: number): string {
@@ -103,6 +109,148 @@ export function mapPrice(asset: HlUniverseAsset, ctx: HlAssetCtx, now: number): 
 
 export function mapPrices(universe: HlUniverseAsset[], ctxs: HlAssetCtx[], now: number): Price[] {
   return universe.map((asset, i) => mapPrice(asset, ctxs[i], now)).filter((p) => p.mark != null);
+}
+
+// --- Spot markets / prices / balances --------------------------------------
+// Spot order/stream coin is "@{pairIndex}"; signing asset id is 10000+pairIndex.
+// The readable symbol is "BASE/QUOTE" (e.g. "HYPE/USDC") to avoid colliding with
+// the perp "BASE-USD" symbols. hlCoin + spotIndex live in metadata for the signer
+// and the stream layer.
+
+// HL's frontend shows curated display tickers for some spot tokens that don't
+// follow any algorithmic rule from the API (Unit Fartcoin → FARTCOIN, not FART;
+// Unit DoubleZero → 2Z; hSEI → SEI; USDT0 → USDT). These are the exceptions to
+// the generic Unit-strip below; everything else uses the raw token name.
+const SPOT_TICKER_OVERRIDE: Record<string, string> = {
+  USDT0: 'USDT',
+  XAUT0: 'XAUT',
+  HSEI: 'SEI',
+  HPENGU: 'PENGU',
+  UFART: 'FARTCOIN',
+  UDZ: '2Z',
+  UUUSPX: 'SPX',
+  UVIRT: 'VIRTUAL',
+};
+
+/** HL frontend display ticker for a spot token. Unit-bridged tokens are named
+ * "U<TICKER>" (UBTC, UETH, UZEC) with a "Unit <Asset>" fullName; HL's UI shows
+ * them without the leading "U" (BTC, ETH, ZEC). A few don't follow that rule and
+ * are curated in SPOT_TICKER_OVERRIDE. Stablecoins (USDC/USDT/USDE…) also start
+ * with "U" but aren't Unit (fullName not "Unit …"), so the strip gates on it. */
+export function spotTokenTicker(token?: { name: string; fullName?: string | null }): string {
+  if (!token) return '';
+  const { name, fullName } = token;
+  if (SPOT_TICKER_OVERRIDE[name]) return SPOT_TICKER_OVERRIDE[name];
+  if (fullName && /^unit\s/i.test(fullName) && name.length > 1 && name[0]?.toUpperCase() === 'U') {
+    return name.slice(1);
+  }
+  return name;
+}
+
+/** Display symbol for a spot pair, e.g. "HYPE/USDC". */
+export function spotPairSymbol(base: string, quote: string): string {
+  return `${base}/${quote}`;
+}
+
+/** The HL coin/allMids/orderbook key for a spot pair = the universe entry's `name`
+ * field: "PURR/USDC" for canonical pairs, else "@{index}" where index is the pair's
+ * `.index` FIELD (HL's spot id). The order asset id is 10000 + that same `.index`.
+ * (allMids/l2Book are keyed by this name, NOT by the array position.) */
+export function spotCoin(pair: { name: string }): string {
+  return pair.name;
+}
+
+export function mapSpotMarkets(meta: HlSpotMeta, ctxs: HlSpotAssetCtx[]): Market[] {
+  // ctxs is NOT positionally aligned with universe — match by ctx.coin (= pair.name).
+  const ctxByCoin = new Map(ctxs.map((c) => [c.coin, c]));
+  return meta.universe.map((pair) => {
+    const base = meta.tokens[pair.tokens[0]];
+    const quote = meta.tokens[pair.tokens[1]];
+    const szDecimals = base?.szDecimals ?? 0;
+    const priceDecimals = Math.max(0, SPOT_MAX_DECIMALS - szDecimals);
+    const coin = spotCoin(pair);
+    const ctx = ctxByCoin.get(coin);
+    return {
+      // symbol = the HL coin (unique, matches allMids + the order). Display uses
+      // metadata.displayName ("BASE/QUOTE"). Keying by name collides (HL has dup
+      // token names) and mismatches the asset id — that caused wrong price/size.
+      symbol: coin,
+      baseAsset: base?.name ?? pair.name,
+      quoteAsset: quote?.name ?? 'USDC',
+      tickSize: pow10Neg(priceDecimals),
+      stepSize: pow10Neg(szDecimals),
+      minOrderSize: '0',
+      maxOrderSize: '0',
+      minNotional: '10',
+      maxLeverage: 0,
+      fundingRate: '0',
+      fundingInterval: 0,
+      kind: 'spot',
+      metadata: {
+        hlCoin: coin,
+        spotIndex: pair.index,
+        // coin/hlCoin = pair.name (allMids/orderbook key). ORDER asset id =
+        // 10000 + pair.index (the .index field / HL spot id), per HL docs.
+        assetId: 10000 + pair.index,
+        displayName: spotPairSymbol(spotTokenTicker(base) || pair.name, spotTokenTicker(quote) || 'USDC'),
+        szDecimals,
+        baseTokenIndex: pair.tokens[0],
+        quoteTokenIndex: pair.tokens[1],
+        markPx: ctx?.markPx,
+        midPx: ctx?.midPx,
+        prevDayPx: ctx?.prevDayPx,
+        dayNtlVlm: ctx?.dayNtlVlm,
+        circulatingSupply: ctx?.circulatingSupply,
+        marketCap: ctx?.circulatingSupply ? String(Number(ctx.circulatingSupply) * Number(ctx.markPx ?? 0)) : undefined,
+        fullName: base?.fullName ?? undefined,
+        contract: base?.tokenId,
+        isCanonical: pair.isCanonical ?? false,
+      },
+    };
+  });
+}
+
+export function mapSpotPrices(meta: HlSpotMeta, ctxs: HlSpotAssetCtx[], now: number): Price[] {
+  const ctxByCoin = new Map(ctxs.map((c) => [c.coin, c]));
+  return meta.universe
+    .map((pair) => {
+      const ctx = ctxByCoin.get(pair.name);
+      if (!ctx) return null;
+      return {
+        symbol: spotCoin(pair),
+        mark: ctx.markPx,
+        index: ctx.markPx,
+        last: ctx.midPx ?? ctx.markPx,
+        bid: '0',
+        ask: '0',
+        funding: '0',
+        volume24h: ctx.dayNtlVlm,
+        change24h: pctChange(ctx.markPx, ctx.prevDayPx),
+        timestamp: now,
+      } as Price;
+    })
+    .filter((p): p is Price => p != null && p.mark != null);
+}
+
+export function mapSpotBalances(state: HlSpotClearinghouseState, meta?: HlSpotMeta, priceByToken?: Map<number, string>): Balance[] {
+  return state.balances.map((b) => {
+    const tok = meta?.tokens[b.token];
+    // HL's "Contract" column shows the tokenId (not the evmContract address).
+    const contract = tok?.tokenId;
+    const price = b.coin === 'USDC' ? 1 : Number(priceByToken?.get(b.token) ?? 0);
+    const usdValue = price > 0 ? String(Number(b.total) * price) : undefined;
+    return {
+      // Display ticker (Unit tokens shown without the "U" prefix, like HL).
+      asset: spotTokenTicker(tok) || b.coin,
+      total: b.total,
+      available: String(Number(b.total) - Number(b.hold)),
+      entryNotional: b.entryNtl,
+      usdValue,
+      // szDecimals → the client can hide sub-lot dust (< 10^-szDecimals), which is
+      // unsellable on the book (HL auto-dusts it daily).
+      metadata: { token: b.token, hold: b.hold, contract, price: String(price), szDecimals: tok?.szDecimals ?? 0 },
+    };
+  });
 }
 
 // --- Orderbook / candles ---------------------------------------------------

@@ -9,6 +9,7 @@
 import type {
   Account,
   AccountSetting,
+  Balance,
   Candle,
   ExchangeReadAdapter,
   KlineParams,
@@ -32,6 +33,8 @@ import {
   mapPositions,
   mapPrices,
   mapRecentTrade,
+  mapSpotMarkets,
+  mapSpotBalances,
 } from './mappers';
 import { toHlCoin } from './symbols';
 
@@ -119,6 +122,33 @@ export class HyperliquidReadAdapter implements ExchangeReadAdapter {
   async getPositions(accountId: string): Promise<Position[]> {
     const state = await this.info.clearinghouseState(accountId.toLowerCase());
     return mapPositions(state);
+  }
+
+  async getSpotMarkets(): Promise<Market[]> {
+    const [meta, ctxs] = await this.info.spotMetaAndAssetCtxs();
+    return mapSpotMarkets(meta, ctxs);
+  }
+
+  async getSpotBalances(accountId: string): Promise<Balance[]> {
+    const [state, meta] = await Promise.all([
+      this.info.spotClearinghouseState(accountId.toLowerCase()),
+      this.info.spotMeta(),
+    ]);
+    // Value each held token by its tokenDetails markPx — the same reference price
+    // HL's UI uses (differs from the pair orderbook mark for illiquid tokens).
+    const priceByToken = new Map<number, string>();
+    const held = state.balances.filter((b) => b.coin !== 'USDC' && Number(b.total) > 0);
+    await Promise.all(
+      held.map(async (b) => {
+        const tid = meta.tokens[b.token]?.tokenId;
+        if (!tid) return;
+        try {
+          const d = await this.info.tokenDetails(tid);
+          if (d?.markPx) priceByToken.set(b.token, d.markPx);
+        } catch { /* leave unpriced */ }
+      })
+    );
+    return mapSpotBalances(state, meta, priceByToken);
   }
 
   async getOpenOrders(accountId: string): Promise<Order[]> {

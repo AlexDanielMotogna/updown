@@ -4,16 +4,19 @@ import { useCallback, useEffect, useState } from 'react';
 import { cancelOrder, placeOrder, setTpsl, IS_TESTNET } from '@/lib/api';
 import { useAccountStream } from '@/hooks/useAccountStream';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { pollWhileVisible } from '@/lib/poll';
 import { useToast } from './Toast';
 import { Modal } from './Modal';
 import { TokenIcon } from './TokenIcon';
+import { HoldingsTab, useSpotHoldings } from './Holdings';
 
 type CloseMode = 'market' | 'limit' | 'reverse';
 
-type Tab = 'positions' | 'orders' | 'trades' | 'funding' | 'orderhistory';
+type Tab = 'positions' | 'orders' | 'holdings' | 'trades' | 'funding' | 'orderhistory';
 const TABS: { key: Tab; label: string; short: string }[] = [
   { key: 'positions', label: 'Positions', short: 'Positions' },
   { key: 'orders', label: 'Open Orders', short: 'Orders' },
+  { key: 'holdings', label: 'Spot Holdings', short: 'Spot' },
   { key: 'trades', label: 'Trade History', short: 'Trades' },
   { key: 'funding', label: 'Funding History', short: 'Funding' },
   { key: 'orderhistory', label: 'Order History', short: 'History' },
@@ -175,6 +178,9 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
   // same data, incl. trigger orders, reliably and live — so derive from it.
   const ws = useAccountStream(address);
   const positions: Position[] = ws.positions;
+  // Pre-load spot holdings at the panel level so the Spot Holdings tab is ready on
+  // first open (not only fetched on click).
+  const holdings = useSpotHoldings(walletAddress);
 
   const orders: OpenOrder[] = ws.orders.map((o) => {
     const m = (o.metadata ?? {}) as { orderType?: string; isTrigger?: boolean; triggerPx?: string; triggerCondition?: string };
@@ -237,8 +243,10 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
   useEffect(() => {
     if (tab === 'positions' || tab === 'orders') return; // WS-driven tabs
     refresh();
-    const id = window.setInterval(refresh, 4000);
-    return () => window.clearInterval(id);
+    // History changes slowly + the routes cache server-side; a 15s visibility-aware
+    // poll avoids hammering HL (was 4s → caused 429s).
+    const stop = pollWhileVisible(refresh, 15000);
+    return () => stop();
   }, [refresh, tab]);
 
   // Prefetch all history tabs ONCE on mount / address change, so their count
@@ -416,6 +424,8 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
   const counts: Record<Tab, number> = {
     positions: positions.length,
     orders: orders.length,
+    // Non-dust spot balances (same filter the table uses) — pre-loaded via useSpotHoldings.
+    holdings: holdings.balances.filter((b) => Number(b.total) > 0 && (b.asset === 'USDC' || Number(b.total) >= Math.pow(10, -(b.metadata?.szDecimals ?? 0)))).length,
     trades: trades.length,
     funding: funding.length,
     orderhistory: orderHist.length,
@@ -433,7 +443,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
             className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 ${tab === t.key ? 'border-surface-200 text-surface-100' : 'border-transparent text-surface-400 hover:text-surface-200'}`}
           >
             {isMobile ? t.short : t.label}
-            {counts[t.key] > 0 && <span className="rounded bg-surface-700 px-1.5 py-0.5 text-2xs">{counts[t.key]}</span>}
+            {counts[t.key] > 0 && <span className="rounded bg-white/[0.08] px-1.5 py-0.5 text-2xs text-surface-300">{counts[t.key]}</span>}
           </button>
         ))}
       </div>
@@ -441,8 +451,10 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
       <div className="min-h-0 flex-1 overflow-auto">
         {!address ? (
           <Empty>Connect to view {tab}.</Empty>
-        ) : (tab === 'positions' || tab === 'orders' ? !ws.ready : !loaded) ? (
+        ) : (tab === 'positions' || tab === 'orders' ? !ws.ready : tab === 'holdings' ? false : !loaded) ? (
           <Empty>loading…</Empty>
+        ) : tab === 'holdings' ? (
+          <HoldingsTab balances={holdings.balances} loaded={holdings.loaded} walletAddress={walletAddress} isMobile={isMobile} />
         ) : tab === 'positions' ? (
           positions.length === 0 ? <Empty>No open positions.</Empty> : isMobile ? (
             <div className="space-y-1.5 p-1.5">
@@ -641,7 +653,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
                   value={tradeFilter}
                   onChange={(e) => setTradeFilter(e.target.value)}
                   placeholder="Search coin"
-                  className="w-28 rounded border border-surface-800 bg-[#1c1c23] px-2 py-1 outline-none placeholder:text-surface-500"
+                  className="w-28 rounded-md border border-surface-700 bg-transparent px-2 py-1 outline-none transition-colors focus:border-brand placeholder:text-surface-500"
                 />
                 <button onClick={exportTradesCsv} className="ml-auto rounded border border-surface-700 px-2 py-1 text-surface-300 hover:bg-surface-800">
                   Export CSV
@@ -710,7 +722,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
                   value={fundFilter}
                   onChange={(e) => setFundFilter(e.target.value)}
                   placeholder="Search coin"
-                  className="w-28 rounded border border-surface-800 bg-[#1c1c23] px-2 py-1 outline-none placeholder:text-surface-500"
+                  className="w-28 rounded-md border border-surface-700 bg-transparent px-2 py-1 outline-none transition-colors focus:border-brand placeholder:text-surface-500"
                 />
                 <button onClick={exportFundingCsv} className="ml-auto rounded border border-surface-700 px-2 py-1 text-surface-300 hover:bg-surface-800">
                   Export CSV
@@ -769,7 +781,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
                   value={ohFilter}
                   onChange={(e) => setOhFilter(e.target.value)}
                   placeholder="Search coin / order id"
-                  className="w-40 rounded border border-surface-800 bg-[#1c1c23] px-2 py-1 outline-none placeholder:text-surface-500"
+                  className="w-40 rounded-md border border-surface-700 bg-transparent px-2 py-1 outline-none transition-colors focus:border-brand placeholder:text-surface-500"
                 />
                 <button onClick={exportOhCsv} className="ml-auto rounded border border-surface-700 px-2 py-1 text-surface-300 hover:bg-surface-800">
                   Export CSV
@@ -1051,7 +1063,7 @@ function Table({ head, children }: { head: React.ReactNode[]; children: React.Re
       <thead className="sticky top-0 bg-surface-850 text-xs text-surface-300">
         <tr>
           {head.map((h, i) => (
-            <th key={i} className="px-3 py-2 text-left font-semibold">{h}</th>
+            <th key={i} className="px-3 py-2 text-left font-medium">{h}</th>
           ))}
         </tr>
       </thead>
@@ -1065,7 +1077,7 @@ function Td({ children, className = '' }: { children: React.ReactNode; className
 
 function SortTh({ label, active, dir, onClick }: { label: string; active: boolean; dir: 'asc' | 'desc'; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="whitespace-nowrap font-semibold text-surface-300 hover:text-surface-100">
+    <button onClick={onClick} className="whitespace-nowrap font-medium text-surface-300 hover:text-surface-100">
       {label} {active ? (dir === 'asc' ? '↑' : '↓') : ''}
     </button>
   );
