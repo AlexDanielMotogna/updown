@@ -105,10 +105,14 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
       <div className="mb-4 flex items-center gap-3">
         <h1 className="text-xl font-bold text-surface-100">{kind === 'spot' ? 'Spot' : 'Perpetuals'}</h1>
         {SPOT_ENABLED && (
-          <div className="flex rounded-lg bg-surface-800 p-0.5 text-xs font-semibold">
+          <div className="relative grid grid-cols-2 overflow-hidden rounded-lg border border-surface-700 bg-surface-900/50 text-xs font-semibold">
+            {/* Sliding brand-cyan indicator (futuristic) — exact 50% geometry. */}
+            <span
+              className={`pointer-events-none absolute inset-y-0 left-0 w-1/2 rounded-[7px] bg-brand/15 ring-1 ring-inset ring-brand/40 shadow-[0_0_14px_-2px_rgba(95,216,239,0.5)] transition-transform duration-300 ease-out ${kind === 'spot' ? 'translate-x-full' : 'translate-x-0'}`}
+            />
             {(['perp', 'spot'] as const).map((k) => (
               <button key={k} onClick={() => { setKind(k); setFilter('ALL'); }}
-                className={`rounded-md px-3 py-1 transition-colors ${kind === k ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:text-surface-200'}`}>
+                className={`relative z-10 px-5 py-1.5 transition-colors ${kind === k ? 'text-brand' : 'text-surface-400 hover:text-surface-200'}`}>
                 {k === 'perp' ? 'Perps' : 'Spot'}
               </button>
             ))}
