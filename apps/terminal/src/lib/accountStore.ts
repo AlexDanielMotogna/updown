@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from 'react';
 import { fetchSpotSummary, fetchUserFees } from './hlBalances';
+import { pollWhileVisible } from './poll';
 
 /**
  * Shared HyperLiquid account-state store. The navbar chip, the account overview and
@@ -28,8 +29,8 @@ class Store {
   snap: AccountSnapshot = EMPTY;
   private listeners = new Set<() => void>();
   private refs = 0;
-  private summaryTimer: ReturnType<typeof setInterval> | null = null;
-  private feesTimer: ReturnType<typeof setInterval> | null = null;
+  private stopSummary: (() => void) | null = null;
+  private stopFees: (() => void) | null = null;
   private readonly onTraded = () => { void this.loadSummary(); };
 
   constructor(private readonly user: string) {}
@@ -59,14 +60,14 @@ class Store {
   private start() {
     void this.loadSummary();
     void this.loadFees();
-    this.summaryTimer = setInterval(() => { void this.loadSummary(); }, SUMMARY_MS);
-    this.feesTimer = setInterval(() => { void this.loadFees(); }, FEES_MS);
+    // Visibility-aware: stop polling HL while the tab is hidden, refresh on return.
+    this.stopSummary = pollWhileVisible(() => { void this.loadSummary(); }, SUMMARY_MS);
+    this.stopFees = pollWhileVisible(() => { void this.loadFees(); }, FEES_MS);
     if (typeof window !== 'undefined') window.addEventListener('updown:spot-traded', this.onTraded);
   }
   private stop() {
-    if (this.summaryTimer) clearInterval(this.summaryTimer);
-    if (this.feesTimer) clearInterval(this.feesTimer);
-    this.summaryTimer = this.feesTimer = null;
+    this.stopSummary?.(); this.stopFees?.();
+    this.stopSummary = this.stopFees = null;
     if (typeof window !== 'undefined') window.removeEventListener('updown:spot-traded', this.onTraded);
     this.snap = EMPTY; // reset so a later remount refetches fresh
   }

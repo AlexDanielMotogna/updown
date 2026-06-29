@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { fetchSpotBalances, type SpotBalanceRow } from '@/lib/api';
+import { pollWhileVisible } from '@/lib/poll';
 import { TokenIcon } from './TokenIcon';
 
 const n = (s: string | number, dp = 4) => Number(s).toLocaleString(undefined, { maximumFractionDigits: dp });
@@ -33,10 +34,10 @@ export function useSpotHoldings(walletAddress?: string): SpotHoldings {
       finally { if (alive) setLoaded(true); }
     };
     load();
-    const id = setInterval(load, 15000);
+    const stop = pollWhileVisible(load, 15000);
     const onTraded = () => load();
     window.addEventListener('updown:spot-traded', onTraded);
-    return () => { alive = false; clearInterval(id); window.removeEventListener('updown:spot-traded', onTraded); };
+    return () => { alive = false; stop(); window.removeEventListener('updown:spot-traded', onTraded); };
   }, [walletAddress]);
 
   return { balances, loaded };

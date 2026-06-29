@@ -10,6 +10,8 @@ import { SimpleSpotPanel } from './SimpleSpotPanel';
 import { useIdentity } from '@/hooks/useIdentity';
 import { useAccountStream } from '@/hooks/useAccountStream';
 import { getStream } from '@/lib/stream';
+import { useMarkets } from '@/lib/marketsCache';
+import { pollWhileVisible } from '@/lib/poll';
 
 const TOP_N = 20; // cap the catalog to the top markets by volume (API load + clarity)
 const SPOT_ENABLED = process.env.NEXT_PUBLIC_SPOT_ENABLED === 'true';
@@ -36,33 +38,17 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
   const walletAddress = id.walletAddress ?? devWallet;
   const evmAddress = id.evmAddress ?? devEvm;
   const { positions, orders } = useAccountStream(evmAddress);
-  const [tickers, setTickers] = useState<Ticker[]>([]);
+  const [kind, setKind] = useState<'perp' | 'spot'>('perp');
+  // Shared cache: instant when warm, so the perp↔spot toggle doesn't refetch/flash.
+  const tickers = useMarkets(kind);
   const [livePrices, setLivePrices] = useState<Record<string, string>>({});
+  const [sparks, setSparks] = useState<Record<string, number[]>>({});
   const [filter, setFilter] = useState<string>('ALL');
   const [view, setView] = useState<'card' | 'row'>('card');
   const [trade, setTrade] = useState<{ symbol: string; side: OrderSide } | null>(null);
   const [spotTrade, setSpotTrade] = useState<string | null>(null); // open spot ticket for a pair
-  const [kind, setKind] = useState<'perp' | 'spot'>('perp');
   const [showActivity, setShowActivity] = useState(false); // mobile bottom-sheet for positions/orders
   const activityCount = positions.length + orders.length;
-
-  // Static-ish fields (24h change, volume, the list) over REST — slow poll, since
-  // live price now comes from the WS below.
-  useEffect(() => {
-    let alive = true;
-    setTickers([]); // show skeleton while switching perp <-> spot
-    const url = kind === 'spot' ? '/api/markets?kind=spot' : '/api/markets';
-    const tick = async () => {
-      try {
-        const r = await fetch(url, { cache: 'no-store' });
-        const j = await r.json();
-        if (alive && j.success) setTickers(j.data);
-      } catch {/* keep last */}
-    };
-    tick();
-    const id = setInterval(tick, 15000);
-    return () => { alive = false; clearInterval(id); };
-  }, [kind]);
 
   // Live mark prices over ONE WS subscription (allMids) — every coin in a single
   // feed, so cards update in realtime without hammering the REST endpoint.
@@ -82,6 +68,21 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
     () => [...tickers].sort((a, b) => Number(b.volume24h) - Number(a.volume24h)).slice(0, TOP_N),
     [tickers],
   );
+
+  // Sparklines: ONE batched request for all visible perp symbols (spot has none),
+  // instead of one /api/klines per card. Slow, visibility-aware refresh.
+  const sparkSymbols = useMemo(() => (kind === 'spot' ? '' : top.map((t) => t.symbol).join(',')), [top, kind]);
+  useEffect(() => {
+    if (!sparkSymbols) { setSparks({}); return; }
+    let alive = true;
+    const load = () => fetch(`/api/sparklines?symbols=${encodeURIComponent(sparkSymbols)}&interval=1h`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => { if (alive && j.success) setSparks(j.data); })
+      .catch(() => {/* keep last */});
+    load();
+    const stop = pollWhileVisible(load, 60_000);
+    return () => { alive = false; stop(); };
+  }, [sparkSymbols]);
   // Display label: spot uses the pair displayName base ("HYPE"); perp strips -USD.
   const lbl = (t: Ticker) => (kind === 'spot' ? (t.displayName ?? t.symbol).split('/')[0] : t.symbol.replace('-USD', ''));
   const tabs = useMemo(() => ['ALL', ...top.map(lbl)], [top, kind]);
@@ -206,7 +207,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
                 </div>
 
                 {/* Sparkline (perp only — spot has no WS series wired yet) */}
-                {kind !== 'spot' && <div className="py-1"><Sparkline symbol={t.symbol} height={36} /></div>}
+                {kind !== 'spot' && <div className="py-1"><Sparkline points={sparks[t.symbol]} height={36} /></div>}
 
                 {/* LONG / SHORT — same look as the Pro terminal's Buy/Sell (rounded, semibold) */}
                 <div className="grid grid-cols-2 gap-1.5" onClick={(e) => e.stopPropagation()}>
@@ -247,7 +248,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
                 {/* Volume */}
                 <span className="hidden w-24 text-right text-xs font-medium text-surface-300 md:block">{fmtVol(t.volume24h)}</span>
                 {/* Sparkline (perp only) */}
-                {kind !== 'spot' && <div className="hidden w-28 lg:block"><Sparkline symbol={t.symbol} height={28} /></div>}
+                {kind !== 'spot' && <div className="hidden w-28 lg:block"><Sparkline points={sparks[t.symbol]} height={28} /></div>}
                 {/* Trade */}
                 <div className="ml-auto flex gap-1.5" onClick={(e) => e.stopPropagation()}>
                   <button onClick={() => onPick(t.symbol, 'BUY')}

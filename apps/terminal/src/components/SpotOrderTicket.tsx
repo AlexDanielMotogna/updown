@@ -4,10 +4,12 @@ import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { placeOrder, fetchSpotBalances, type SpotBalanceRow } from '@/lib/api';
 import { useTrading } from '@/hooks/useTrading';
+import { useMarkets } from '@/lib/marketsCache';
+import { pollWhileVisible } from '@/lib/poll';
 import { useToast } from './Toast';
 import { AccountInfo } from './AccountInfo';
 import { DepositModal } from './DepositModal';
-import type { Ticker, OrderSide } from '@/lib/types';
+import type { OrderSide } from '@/lib/types';
 
 // Lazy: Withdraw pulls the HL SDK (signed action). Only under Privy. No Spot↔Perps
 // Transfer: under HL Unified Account spot + perps share one balance.
@@ -31,7 +33,7 @@ const pxFmt = (n: number) => (!Number.isFinite(n) || n <= 0 ? '--' : n >= 1 ? us
 export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbol }: { walletAddress?: string; evmAddress?: string; symbol?: string }) {
   const toast = useToast();
   const { enabled: tradingEnabled, busy: enabling, enableTrading, checked } = useTrading(walletAddress, evmAddress);
-  const [tickers, setTickers] = useState<Ticker[]>([]);
+  const tickers = useMarkets('spot'); // shared cache + dedupe
   const [balances, setBalances] = useState<SpotBalanceRow[]>([]);
   const [symbol, setSymbol] = useState<string>(lockedSymbol ?? '');
   const [side, setSide] = useState<OrderSide>('BUY');
@@ -43,19 +45,6 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
-    const load = async () => {
-      try {
-        const j = await fetch('/api/markets?kind=spot', { cache: 'no-store' }).then((r) => r.json());
-        if (alive && j.success) setTickers(j.data ?? []);
-      } catch { /* keep last */ }
-    };
-    load();
-    const id = setInterval(load, 15000);
-    return () => { alive = false; clearInterval(id); };
-  }, []);
-
   const loadBalances = useMemo(() => async () => {
     if (!walletAddress) return;
     const r = await fetchSpotBalances(walletAddress);
@@ -65,8 +54,8 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
     let alive = true;
     const run = () => { if (alive) loadBalances(); };
     run();
-    const id = setInterval(run, 15000);
-    return () => { alive = false; clearInterval(id); };
+    const stop = pollWhileVisible(run, 15000);
+    return () => { alive = false; stop(); };
   }, [loadBalances]);
 
   useEffect(() => {

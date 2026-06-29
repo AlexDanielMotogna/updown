@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { MarketSelector } from './MarketSelector';
 import { getStream } from '@/lib/stream';
 import { isSpotSymbol } from '@/lib/api';
+import { useMarkets } from '@/lib/marketsCache';
 import type { Ticker } from '@/lib/types';
 
 function fmtPrice(s?: string) {
@@ -79,26 +80,15 @@ function Stat({ label, value, sub, cls }: { label: string; value: string; sub?: 
 }
 
 export function MarketHeader({ symbol, initial, mobile }: { symbol: string; initial?: Ticker | null; mobile?: boolean }) {
-  const [t, setT] = useState<Ticker | null>(initial ?? null);
   const [liveMark, setLiveMark] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
   const countdown = useFundingCountdown();
 
-  // Full ticker (funding/volume/OI/oracle/24h) — polled; the mid moves slower.
-  useEffect(() => {
-    let alive = true;
-    const url = isSpotSymbol(symbol) ? '/api/markets?kind=spot' : '/api/markets';
-    const tick = async () => {
-      try {
-        const res = await fetch(url, { cache: 'no-store' });
-        const json = await res.json();
-        if (alive && json.success) setT((json.data as Ticker[]).find((m) => m.symbol === symbol) ?? null);
-      } catch {/* keep */}
-    };
-    tick();
-    const id = window.setInterval(tick, 3000);
-    return () => { alive = false; window.clearInterval(id); };
-  }, [symbol]);
+  // Full ticker (funding/volume/OI/oracle/24h) from the shared markets cache (deduped
+  // with the order panel + selector); the live mid comes from the WS below. Fall back
+  // to the SSR `initial` until the cache warms.
+  const markets = useMarkets(isSpotSymbol(symbol) ? 'spot' : 'perp');
+  const t = useMemo(() => markets.find((m) => m.symbol === symbol) ?? initial ?? null, [markets, symbol, initial]);
 
   // Live mark price over the WS allMids feed (mid only — the rest stays polled).
   useEffect(() => {

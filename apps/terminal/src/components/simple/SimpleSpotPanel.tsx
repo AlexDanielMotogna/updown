@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { placeOrder, fetchSpotBalances, type SpotBalanceRow } from '@/lib/api';
 import { useTrading } from '@/hooks/useTrading';
+import { useMarkets } from '@/lib/marketsCache';
+import { pollWhileVisible } from '@/lib/poll';
 import { useToast } from '../Toast';
 import { ConnectGate } from '../ConnectGate';
 import { DepositModal } from '../DepositModal';
 import { TokenIcon } from '../TokenIcon';
-import type { Ticker, OrderSide } from '@/lib/types';
+import type { OrderSide } from '@/lib/types';
 
 const usd = (n: number) => (Number.isFinite(n) ? `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '$0.00');
 const qty = (n: number, dp = 6) => (Number.isFinite(n) ? n.toLocaleString(undefined, { maximumFractionDigits: dp }) : '0');
@@ -34,26 +36,12 @@ export function SimpleSpotPanel({
 }) {
   const toast = useToast();
   const { enabled: tradingEnabled, busy: enabling, enableTrading, checked } = useTrading(walletAddress, evmAddress);
-  const [ticker, setTicker] = useState<Ticker | null>(null);
+  const ticker = useMarkets('spot').find((t) => t.symbol === symbol) ?? null; // shared cache
   const [balances, setBalances] = useState<SpotBalanceRow[]>([]);
   const [side, setSide] = useState<OrderSide>(initialSide ?? 'BUY');
   const [amount, setAmount] = useState(''); // USDC for BUY, token qty for SELL
   const [busy, setBusy] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
-
-  // Spot ticker (mark / displayName / szDecimals) — REST, polled.
-  useEffect(() => {
-    let alive = true;
-    const load = async () => {
-      try {
-        const j = await fetch('/api/markets?kind=spot', { cache: 'no-store' }).then((r) => r.json());
-        if (alive && j.success) setTicker((j.data as Ticker[]).find((t) => t.symbol === symbol) ?? null);
-      } catch { /* keep */ }
-    };
-    load();
-    const id = setInterval(load, 15000);
-    return () => { alive = false; clearInterval(id); };
-  }, [symbol]);
 
   // Spot balances (available USDC / token), polled + instant on a spot trade.
   useEffect(() => {
@@ -64,10 +52,10 @@ export function SimpleSpotPanel({
       if (alive && r.success) setBalances(r.data ?? []);
     };
     load();
-    const id = setInterval(load, 15000);
+    const stop = pollWhileVisible(load, 15000);
     const onTraded = () => load();
     window.addEventListener('updown:spot-traded', onTraded);
-    return () => { alive = false; clearInterval(id); window.removeEventListener('updown:spot-traded', onTraded); };
+    return () => { alive = false; stop(); window.removeEventListener('updown:spot-traded', onTraded); };
   }, [walletAddress]);
 
   const mark = Number(ticker?.mark ?? 0);
