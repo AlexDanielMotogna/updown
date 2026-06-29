@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useAccountStream } from '@/hooks/useAccountStream';
-import { fetchSpotUsdc, fetchSpotAccountValue, fetchUserFees } from '@/lib/hlBalances';
+import { useAccountState } from '@/lib/accountStore';
 
 const usd = (n: number) => `$${(Number.isFinite(n) ? n : 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 const signedUsd = (n: number) => `${n >= 0 ? '+' : '-'}$${Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
@@ -13,24 +12,9 @@ const pct = (n: number) => `${(n * 100).toFixed(4)}%`;
 export function AccountInfo({ evmAddress, spot: spotKind = false }: { evmAddress?: string; spot?: boolean }) {
   const { account: acct, orders } = useAccountStream(evmAddress);
   const restingValue = orders.reduce((s, o) => s + Number(o.price) * Number(o.remaining), 0);
-  const [spotUsdc, setSpotUsdc] = useState<number | null>(null);
-  const [spotValue, setSpotValue] = useState<number | null>(null);
-  const [fees, setFees] = useState<{ maker: number; taker: number; spotMaker: number; spotTaker: number } | null>(null);
-
-  // Spot balances + fee rates aren't in the perps clearinghouseState — poll the
-  // info endpoints. All live (10s), per-account, never hardcoded.
-  useEffect(() => {
-    if (!evmAddress) { setSpotUsdc(null); setSpotValue(null); setFees(null); return; }
-    let alive = true;
-    const load = () => {
-      fetchSpotUsdc(evmAddress).then((v) => alive && setSpotUsdc(v));
-      fetchSpotAccountValue(evmAddress).then((v) => alive && setSpotValue(v));
-      fetchUserFees(evmAddress).then((v) => alive && v && setFees(v));
-    };
-    load();
-    const id = window.setInterval(load, 10000);
-    return () => { alive = false; window.clearInterval(id); };
-  }, [evmAddress]);
+  // Spot value / USDC / fees from the shared account store (one poll for navbar +
+  // overview + order panel). spotUsdc = USDC total balance.
+  const { spotValue, usdcTotal: spotUsdc, fees } = useAccountState(evmAddress);
 
   const meta = (acct?.metadata ?? {}) as { totalNtlPos?: string; crossMaintenanceMarginUsed?: string };
   const equity = Number(acct?.accountEquity ?? 0); // perps account value (incl. uPnL)

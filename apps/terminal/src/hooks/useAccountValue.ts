@@ -1,41 +1,27 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useAccountStream } from './useAccountStream';
-import { fetchSpotAccountValue, fetchSpotUsdcAvailable } from '@/lib/hlBalances';
+import { useAccountState } from '@/lib/accountStore';
 
 /**
  * Unified account value (HL Unified Account). The single balance lives in the spot
  * clearinghouse — including the USDC backing perp margin — so account value =
  * spot account value (USDC + tokens × mark) + perps unrealized PnL. We add uPnL,
  * NOT the full perps equity, to avoid double-counting the margin (already in spot).
- * This is the "Account Info" total — used by the navbar chip and the account
- * overview so they always agree.
+ *
+ * Spot data comes from the shared account store (one poll for all consumers); uPnL
+ * comes from the WS account stream. The "Account Info" total — navbar chip + overview.
  */
 export function useAccountValue(evmAddress?: string) {
   const { account } = useAccountStream(evmAddress);
-  const [spotValue, setSpotValue] = useState<number | null>(null);
-  const [usdcAvailable, setUsdcAvailable] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!evmAddress) { setSpotValue(null); setUsdcAvailable(null); return; }
-    let alive = true;
-    const load = () => {
-      fetchSpotAccountValue(evmAddress).then((v) => alive && setSpotValue(v));
-      fetchSpotUsdcAvailable(evmAddress).then((v) => alive && setUsdcAvailable(v));
-    };
-    load();
-    const id = window.setInterval(load, 10000);
-    return () => { alive = false; window.clearInterval(id); };
-  }, [evmAddress]);
+  const { spotValue, usdcAvailable } = useAccountState(evmAddress);
 
   const upnl = account ? Number(account.unrealizedPnl ?? 0) : 0;
   const total = (spotValue ?? 0) + upnl;
   // Ready once either source has reported, so the chip doesn't flash $0.00 forever.
   const ready = !!account || spotValue != null;
-  // Loaded = BOTH spot fetches resolved. Gate funding/needs-deposit on this so a
-  // half-loaded state (one fetch back, the other still null → total reads 0) can't
-  // flash "Deposit to start trading" on a funded account.
+  // Loaded = both spot fields resolved (gate funding/needs-deposit so a half-loaded
+  // state can't flash "Deposit to start trading" on a funded account).
   const loaded = spotValue != null && usdcAvailable != null;
   return { total, upnl, spotValue, usdcAvailable, ready, loaded };
 }

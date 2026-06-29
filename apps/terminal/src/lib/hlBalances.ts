@@ -56,51 +56,48 @@ export async function fetchSpotUsdc(user: string): Promise<number> {
   return Number(usdc?.total ?? 0);
 }
 
-/** Free USDC = total − hold. Under Unified Account this is the perp buying power
- * ("Available to Trade"): hold already covers margin + resting orders. */
-export async function fetchSpotUsdcAvailable(user: string): Promise<number | null> {
-  const s = await info<{ balances?: Array<{ coin: string; total: string; hold?: string }> }>({
-    type: 'spotClearinghouseState',
-    user,
-  });
-  if (!s?.balances) return null;
-  const usdc = s.balances.find((b) => b.coin === 'USDC');
-  return Math.max(0, Number(usdc?.total ?? 0) - Number(usdc?.hold ?? 0));
-}
-
-type SpotState = { balances?: Array<{ coin: string; token: number; total: string }> };
+type SpotState = { balances?: Array<{ coin: string; token: number; total: string; hold?: string }> };
 type SpotMetaCtx = [
   { universe: Array<{ name: string; tokens: number[] }> },
   Array<{ coin: string; markPx?: string }>,
 ];
 
-/** Total Spot account value in USD = USDC + each token's balance × its USDC pair
- * mark. Mirrors HL's "Spot" equity (USDC-only balance undervalues it). */
-export async function fetchSpotAccountValue(user: string): Promise<number | null> {
+export interface SpotSummary {
+  /** Total spot value (USDC + tokens × mark). */
+  value: number;
+  /** USDC balance (total). */
+  usdcTotal: number;
+  /** Free USDC (total − hold) = perp buying power under Unified Account. */
+  usdcAvailable: number;
+}
+
+/** One-shot spot summary from a SINGLE spotClearinghouseState + spotMetaAndAssetCtxs
+ * pair (value + USDC total/available), so the shared account store doesn't fire
+ * three overlapping requests. */
+export async function fetchSpotSummary(user: string): Promise<SpotSummary | null> {
   const [state, mc] = await Promise.all([
     info<SpotState>({ type: 'spotClearinghouseState', user }),
     info<SpotMetaCtx>({ type: 'spotMetaAndAssetCtxs' }),
   ]);
   if (!state?.balances) return null;
-  let total = 0;
+  const markByToken = new Map<number, number>();
   if (mc) {
     const [meta, ctxs] = mc;
     const ctxByCoin = new Map(ctxs.map((c) => [c.coin, c]));
-    // tokenIndex → mark of its canonical USDC pair (quote token index 0 = USDC).
-    const markByToken = new Map<number, number>();
     for (const p of meta.universe) {
       if (p.tokens[1] === 0) {
         const ctx = ctxByCoin.get(p.name);
         if (ctx?.markPx) markByToken.set(p.tokens[0], Number(ctx.markPx));
       }
     }
-    for (const b of state.balances) {
-      if (b.coin === 'USDC') total += Number(b.total);
-      else {
-        const px = markByToken.get(b.token);
-        if (px) total += Number(b.total) * px;
-      }
-    }
   }
-  return total;
+  let value = 0;
+  const usdc = state.balances.find((b) => b.coin === 'USDC');
+  for (const b of state.balances) {
+    if (b.coin === 'USDC') value += Number(b.total);
+    else { const px = markByToken.get(b.token); if (px) value += Number(b.total) * px; }
+  }
+  const usdcTotal = Number(usdc?.total ?? 0);
+  const usdcAvailable = Math.max(0, usdcTotal - Number(usdc?.hold ?? 0));
+  return { value, usdcTotal, usdcAvailable };
 }
