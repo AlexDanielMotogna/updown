@@ -31,6 +31,15 @@ RUN pnpm --filter api db:generate
 # Copy source code
 COPY packages/ packages/
 COPY apps/ apps/
+COPY scripts/ scripts/
+
+# TradingView Charting Library (private/licensed, gitignored) — fetch into the
+# terminal's public/ at build with a repo-read token. Build still succeeds without
+# the token (the terminal falls back to the lightweight chart). git+bash for the script.
+ARG GH_TOKEN
+RUN apk add --no-cache git bash && \
+    GH_TOKEN="$GH_TOKEN" bash scripts/install-charting-library.sh \
+    || echo "[build] TradingView charting library skipped (no GH_TOKEN / no access)"
 
 # Next.js inlines NEXT_PUBLIC_* at build time, so they must be ARGs
 ARG NEXT_PUBLIC_PRIVY_APP_ID
@@ -49,6 +58,7 @@ ARG NEXT_PUBLIC_HYPERLIQUID_TESTNET
 ARG NEXT_PUBLIC_HYPERLIQUID_BUILDER_ADDRESS
 ARG NEXT_PUBLIC_HYPERLIQUID_BUILDER_MAX_FEE
 ARG NEXT_PUBLIC_SPOT_ENABLED
+ARG NEXT_PUBLIC_TV_ENABLED
 ARG HYPERLIQUID_API_URL
 # bridge (terminal) build-time RPCs — optional; fall back to public RPCs if unset
 ARG NEXT_PUBLIC_SOLANA_MAINNET_RPC_URL
@@ -68,6 +78,7 @@ ENV NEXT_PUBLIC_HYPERLIQUID_TESTNET=$NEXT_PUBLIC_HYPERLIQUID_TESTNET
 ENV NEXT_PUBLIC_HYPERLIQUID_BUILDER_ADDRESS=$NEXT_PUBLIC_HYPERLIQUID_BUILDER_ADDRESS
 ENV NEXT_PUBLIC_HYPERLIQUID_BUILDER_MAX_FEE=$NEXT_PUBLIC_HYPERLIQUID_BUILDER_MAX_FEE
 ENV NEXT_PUBLIC_SPOT_ENABLED=$NEXT_PUBLIC_SPOT_ENABLED
+ENV NEXT_PUBLIC_TV_ENABLED=$NEXT_PUBLIC_TV_ENABLED
 ENV HYPERLIQUID_API_URL=$HYPERLIQUID_API_URL
 ENV NEXT_PUBLIC_SOLANA_MAINNET_RPC_URL=$NEXT_PUBLIC_SOLANA_MAINNET_RPC_URL
 ENV NEXT_PUBLIC_ARBITRUM_RPC_URL=$NEXT_PUBLIC_ARBITRUM_RPC_URL
