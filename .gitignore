@@ -50,6 +50,11 @@ keypair.json
 *-authority.json
 programs/parimutuel_pools-LOCAL-authority.json
 
+# TradingView Charting Library (private/licensed — NOT for this public repo).
+# Install locally/CI with scripts/install-charting-library.sh (needs repo access).
+apps/terminal/public/charting_library/
+apps/terminal/public/datafeeds/
+
 # Claude Code
 .claude/
 
