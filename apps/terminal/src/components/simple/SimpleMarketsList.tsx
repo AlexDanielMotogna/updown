@@ -47,7 +47,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
   const [livePrices, setLivePrices] = useState<Record<string, string>>({});
   const [sparks, setSparks] = useState<Record<string, number[]>>({});
   const [filter, setFilter] = useState<string>('ALL');
-  const [view, setView] = useState<'card' | 'row'>('card');
+  const [view, setView] = useState<'card' | 'row'>('row');
   const [trade, setTrade] = useState<{ symbol: string; side: OrderSide } | null>(null);
   const [spotTrade, setSpotTrade] = useState<string | null>(null); // open spot ticket for a pair
   const [showActivity, setShowActivity] = useState(false); // mobile bottom-sheet for positions/orders
