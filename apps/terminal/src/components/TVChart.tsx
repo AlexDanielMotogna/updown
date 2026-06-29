@@ -49,11 +49,25 @@ export function TVChart({ symbol }: { symbol: string }) {
           timezone: 'Etc/UTC',
           locale: 'en',
           disabled_features: ['header_symbol_search', 'symbol_search_hot_key', 'header_compare'],
-          loading_screen: { backgroundColor: '#0A121C' },
+          loading_screen: { backgroundColor: '#0A121C', foregroundColor: '#5FD8EF' },
+          // Match the app's navy panels (surface-850 #0A121C). toolbar_bg colors the
+          // top toolbar (intervals/indicators) + left drawing tools; overrides color
+          // the chart pane, the time/price axes (days) and the grid.
+          toolbar_bg: '#0A121C',
           overrides: {
             'paneProperties.background': '#0A121C',
             'paneProperties.backgroundType': 'solid',
+            'paneProperties.vertGridProperties.color': '#121A26',
+            'paneProperties.horzGridProperties.color': '#121A26',
+            'scalesProperties.backgroundColor': '#0A121C',
             'scalesProperties.textColor': '#8a94a6',
+            'scalesProperties.lineColor': '#232a36',
+            'mainSeriesProperties.candleStyle.upColor': '#26A69A',
+            'mainSeriesProperties.candleStyle.downColor': '#EF5350',
+            'mainSeriesProperties.candleStyle.borderUpColor': '#26A69A',
+            'mainSeriesProperties.candleStyle.borderDownColor': '#EF5350',
+            'mainSeriesProperties.candleStyle.wickUpColor': '#26A69A',
+            'mainSeriesProperties.candleStyle.wickDownColor': '#EF5350',
           },
         });
         widgetRef.current = widget;
