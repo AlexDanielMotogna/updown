@@ -1060,7 +1060,7 @@ function Table({ head, children }: { head: React.ReactNode[]; children: React.Re
       <thead className="sticky top-0 bg-surface-850 text-xs text-surface-300">
         <tr>
           {head.map((h, i) => (
-            <th key={i} className="px-3 py-2 text-left font-semibold">{h}</th>
+            <th key={i} className="px-3 py-2 text-left font-medium">{h}</th>
           ))}
         </tr>
       </thead>
@@ -1074,7 +1074,7 @@ function Td({ children, className = '' }: { children: React.ReactNode; className
 
 function SortTh({ label, active, dir, onClick }: { label: string; active: boolean; dir: 'asc' | 'desc'; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="whitespace-nowrap font-semibold text-surface-300 hover:text-surface-100">
+    <button onClick={onClick} className="whitespace-nowrap font-medium text-surface-300 hover:text-surface-100">
       {label} {active ? (dir === 'asc' ? '↑' : '↓') : ''}
     </button>
   );

@@ -111,7 +111,7 @@ export function HoldingsTab({
       <thead className="sticky top-0 bg-surface-850 text-xs text-surface-300">
         <tr>
           {['Coin', 'Total Balance', 'Available', 'USDC Value', 'PnL (ROE %)', 'Contract'].map((h, i) => (
-            <th key={i} className="px-3 py-2 text-left font-semibold">{h}</th>
+            <th key={i} className="px-3 py-2 text-left font-medium">{h}</th>
           ))}
         </tr>
       </thead>
