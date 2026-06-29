@@ -1,12 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { createTvDatafeed } from '@/lib/tvDatafeed';
-import { useAccountStream } from '@/hooks/useAccountStream';
-import { useSpotHoldings } from './Holdings';
-import { useMarkets } from '@/lib/marketsCache';
-import { isSpotSymbol } from '@/lib/api';
 
 declare global {
   interface Window { TradingView?: { widget: new (cfg: any) => any } }
@@ -30,81 +26,15 @@ function loadLibrary(): Promise<void> {
   return scriptPromise;
 }
 
-interface Entry { price: number; side: 'LONG' | 'SHORT' }
-
-const fmtPx = (n: number) => (n >= 1000 ? n.toFixed(2) : n >= 1 ? n.toFixed(3) : n >= 0.01 ? n.toFixed(5) : n.toPrecision(4));
-
-/** Full TradingView Charting Library chart, wired to the HL datafeed. Draws a
- * horizontal "Entry" line at the open position's / spot holding's average price for
- * the current symbol. Recreates the widget on symbol change. */
-export function TVChart({ symbol, walletAddress, evmAddress }: { symbol: string; walletAddress?: string; evmAddress?: string }) {
-  const { positions } = useAccountStream(evmAddress);
-  const spot = isSpotSymbol(symbol);
-  const spotMarkets = useMarkets('spot');
-  const holdings = useSpotHoldings(walletAddress);
-
-  // Entry for the current symbol: perps → position entryPrice + side; spot → avg
-  // cost (entryNotional / total) of the held token, always a "long".
-  const entry: Entry | null = useMemo(() => {
-    if (spot) {
-      const base = (spotMarkets.find((m) => m.symbol === symbol)?.displayName ?? '').split('/')[0];
-      if (!base) return null;
-      const h = holdings.balances.find((b) => b.asset === base);
-      const total = Number(h?.total ?? 0);
-      const notional = Number(h?.entryNotional ?? 0);
-      if (!(total > 0) || !(notional > 0)) return null;
-      return { price: notional / total, side: 'LONG' };
-    }
-    const p = positions.find((pp) => pp.symbol === symbol);
-    if (!p || !(Number(p.entryPrice) > 0)) return null;
-    return { price: Number(p.entryPrice), side: p.side as 'LONG' | 'SHORT' };
-  }, [spot, symbol, spotMarkets, holdings.balances, positions]);
-
+/** Full TradingView Charting Library chart, wired to the HL datafeed. Shows B/S
+ * trade marks on the bars for the user's own fills (via the datafeed's getMarks,
+ * which needs the EVM address). Recreated on symbol change. */
+export function TVChart({ symbol, evmAddress }: { symbol: string; evmAddress?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<any>(null);
-  const readyRef = useRef(false);
-  const shapeRef = useRef<any>(null);
-  const entryRef = useRef<Entry | null>(null);
-  entryRef.current = entry;
 
-  const drawEntry = () => {
-    const w = widgetRef.current;
-    if (!w || !readyRef.current) return;
-    let chart: any;
-    try { chart = w.activeChart(); } catch { return; }
-    if (shapeRef.current != null) { try { chart.removeEntity(shapeRef.current); } catch { /* gone */ } shapeRef.current = null; }
-    const e = entryRef.current;
-    if (!e) return;
-    const color = e.side === 'SHORT' ? '#EF5350' : '#26A69A';
-    try {
-      shapeRef.current = chart.createShape(
-        { time: Math.floor(Date.now() / 1000), price: e.price },
-        {
-          shape: 'horizontal_line',
-          lock: true,
-          disableSelection: true,
-          disableSave: true,
-          disableUndo: true,
-          overrides: {
-            linecolor: color,
-            linewidth: 1,
-            linestyle: 2, // dashed
-            showLabel: true,
-            text: `Entry ${fmtPx(e.price)}`,
-            textcolor: color,
-            horzLabelsAlign: 'right',
-            vertLabelsAlign: 'bottom',
-          },
-        },
-      );
-    } catch { /* createShape unsupported / chart not ready */ }
-  };
-
-  // Create the widget on symbol change.
   useEffect(() => {
     let dead = false;
-    readyRef.current = false;
-    shapeRef.current = null;
     loadLibrary()
       .then(() => {
         if (dead || !ref.current || !window.TradingView) return;
@@ -113,7 +43,7 @@ export function TVChart({ symbol, walletAddress, evmAddress }: { symbol: string;
           library_path: '/charting_library/',
           symbol,
           interval: '60',
-          datafeed: createTvDatafeed(),
+          datafeed: createTvDatafeed(evmAddress),
           autosize: true,
           theme: 'dark',
           custom_css_url: 'charting-theme.css',
@@ -139,26 +69,14 @@ export function TVChart({ symbol, walletAddress, evmAddress }: { symbol: string;
           },
         });
         widgetRef.current = widget;
-        widget.onChartReady?.(() => {
-          if (dead) return;
-          readyRef.current = true;
-          drawEntry();
-        });
       })
       .catch(() => { /* library missing → parent fallback handles it */ });
     return () => {
       dead = true;
-      readyRef.current = false;
       try { widgetRef.current?.remove?.(); } catch { /* ignore */ }
       widgetRef.current = null;
-      shapeRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbol]);
-
-  // Redraw the entry line when the position/holding changes.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { drawEntry(); }, [entry]);
+  }, [symbol, evmAddress]);
 
   return (
     <div className="card h-full w-full overflow-hidden">
