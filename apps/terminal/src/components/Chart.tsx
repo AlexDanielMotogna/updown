@@ -159,7 +159,7 @@ export function Chart({ symbol, minimal = false }: { symbol: string; minimal?: b
             <button
               key={i}
               onClick={() => setInterval(i)}
-              className={`rounded px-1.5 py-1 ${interval === i ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:text-surface-100'}`}
+              className={`rounded px-1.5 py-1 ${interval === i ? 'bg-white/[0.08] text-surface-100' : 'text-surface-400 hover:bg-white/[0.04] hover:text-surface-100'}`}
             >
               {i}
             </button>

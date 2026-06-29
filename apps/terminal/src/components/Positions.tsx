@@ -440,7 +440,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
             className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 ${tab === t.key ? 'border-surface-200 text-surface-100' : 'border-transparent text-surface-400 hover:text-surface-200'}`}
           >
             {isMobile ? t.short : t.label}
-            {counts[t.key] > 0 && <span className="rounded bg-surface-700 px-1.5 py-0.5 text-2xs">{counts[t.key]}</span>}
+            {counts[t.key] > 0 && <span className="rounded bg-white/[0.08] px-1.5 py-0.5 text-2xs text-surface-300">{counts[t.key]}</span>}
           </button>
         ))}
       </div>

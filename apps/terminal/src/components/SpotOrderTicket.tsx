@@ -181,9 +181,9 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
       {/* Buy / Sell */}
       <div className="mb-4 grid grid-cols-2 gap-1.5">
         <button onClick={() => { setSide('BUY'); resetAmounts(); }}
-          className={`rounded py-2 text-sm font-semibold ${!isSell ? 'bg-win-500 text-black' : 'bg-surface-800 text-surface-400 hover:text-surface-200'}`}>Buy</button>
+          className={`rounded py-2 text-sm font-semibold ${!isSell ? 'bg-win-500 text-black' : 'bg-white/[0.04] text-surface-400 hover:bg-white/[0.06] hover:text-surface-200'}`}>Buy</button>
         <button onClick={() => { setSide('SELL'); resetAmounts(); }}
-          className={`rounded py-2 text-sm font-semibold ${isSell ? 'bg-loss-500 text-black' : 'bg-surface-800 text-surface-400 hover:text-surface-200'}`}>Sell</button>
+          className={`rounded py-2 text-sm font-semibold ${isSell ? 'bg-loss-500 text-black' : 'bg-white/[0.04] text-surface-400 hover:bg-white/[0.06] hover:text-surface-200'}`}>Sell</button>
       </div>
 
       {/* Limit price */}
@@ -210,7 +210,7 @@ export function SpotOrderTicket({ walletAddress, evmAddress, symbol: lockedSymbo
       <div className="mb-4 grid grid-cols-4 gap-1.5">
         {[0.25, 0.5, 0.75, 1].map((p) => (
           <button key={p} onClick={() => setPct(p)} disabled={available <= 0}
-            className="rounded bg-surface-800 py-1 text-xs text-surface-300 hover:bg-surface-700 disabled:opacity-40">
+            className="rounded bg-white/[0.04] py-1 text-xs text-surface-300 hover:bg-white/[0.08] disabled:opacity-40">
             {p === 1 ? '100%' : `${p * 100}%`}
           </button>
         ))}

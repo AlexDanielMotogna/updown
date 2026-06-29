@@ -406,13 +406,13 @@ export function OrderEntry({
       <div className="mb-4 grid grid-cols-2 gap-1.5">
         <button
           onClick={() => setSide('BUY')}
-          className={`rounded py-2 text-sm font-semibold ${buy ? 'bg-win-500 text-black' : 'bg-surface-800 text-surface-400 hover:text-surface-200'}`}
+          className={`rounded py-2 text-sm font-semibold ${buy ? 'bg-win-500 text-black' : 'bg-white/[0.04] text-surface-400 hover:bg-white/[0.06] hover:text-surface-200'}`}
         >
           Buy / Long
         </button>
         <button
           onClick={() => setSide('SELL')}
-          className={`rounded py-2 text-sm font-semibold ${!buy ? 'bg-loss-500 text-black' : 'bg-surface-800 text-surface-400 hover:text-surface-200'}`}
+          className={`rounded py-2 text-sm font-semibold ${!buy ? 'bg-loss-500 text-black' : 'bg-white/[0.04] text-surface-400 hover:bg-white/[0.06] hover:text-surface-200'}`}
         >
           Sell / Short
         </button>
@@ -451,7 +451,7 @@ export function OrderEntry({
       {/* % buttons */}
       <div className="mb-4 grid grid-cols-4 gap-1.5">
         {PCTS.map((p) => (
-          <button key={p} onClick={() => setPct(p)} className="rounded bg-surface-800 py-1 text-xs text-surface-300 hover:bg-surface-700">
+          <button key={p} onClick={() => setPct(p)} className="rounded bg-white/[0.04] py-1 text-xs text-surface-300 hover:bg-white/[0.08]">
             {p}%
           </button>
         ))}
@@ -569,7 +569,7 @@ export function OrderEntry({
             <button
               key={v}
               onClick={() => setPendingLev(v)}
-              className={`flex-1 rounded border py-1.5 text-sm ${pendingLev === v ? 'border-surface-400 bg-surface-700 text-surface-100' : 'border-surface-700 text-surface-300 hover:bg-surface-800'}`}
+              className={`flex-1 rounded border py-1.5 text-sm ${pendingLev === v ? 'border-surface-400 bg-white/[0.08] text-surface-100' : 'border-surface-700 text-surface-300 hover:bg-surface-800'}`}
             >
               {v}x
             </button>
@@ -635,7 +635,7 @@ export function OrderEntry({
             <button
               key={v}
               onClick={() => setPendingSlip(v)}
-              className={`flex-1 rounded border py-1.5 text-sm ${pendingSlip === v ? 'border-surface-400 bg-surface-700 text-surface-100' : 'border-surface-700 text-surface-300 hover:bg-surface-800'}`}
+              className={`flex-1 rounded border py-1.5 text-sm ${pendingSlip === v ? 'border-surface-400 bg-white/[0.08] text-surface-100' : 'border-surface-700 text-surface-300 hover:bg-surface-800'}`}
             >
               {v}%
             </button>

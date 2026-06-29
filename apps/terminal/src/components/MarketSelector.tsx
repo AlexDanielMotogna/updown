@@ -123,12 +123,12 @@ export function MarketSelector({ symbol }: { symbol: string }) {
         <div className="absolute left-0 top-full z-50 mt-1 w-[820px] max-w-[94vw] card-elevated animate-fade-in">
           <div className="flex items-center gap-2 p-2">
             {SPOT_ENABLED && (
-              <div className="flex rounded bg-surface-900 p-0.5 text-xs">
+              <div className="flex rounded border border-surface-700 p-0.5 text-xs">
                 {(['perp', 'spot'] as const).map((mk) => (
                   <button
                     key={mk}
                     onClick={() => setMode(mk)}
-                    className={`rounded px-2 py-1 ${mode === mk ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:text-surface-100'}`}
+                    className={`rounded px-2 py-1 ${mode === mk ? 'bg-white/[0.08] text-surface-100' : 'text-surface-400 hover:text-surface-100'}`}
                   >
                     {mk === 'perp' ? 'Perps' : 'Spot'}
                   </button>
@@ -140,7 +140,7 @@ export function MarketSelector({ symbol }: { symbol: string }) {
                 <button
                   key={tk}
                   onClick={() => setTab(tk)}
-                  className={`rounded px-2 py-1 capitalize ${tab === tk ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:text-surface-100'}`}
+                  className={`rounded px-2 py-1 capitalize ${tab === tk ? 'bg-white/[0.08] text-surface-100' : 'text-surface-400 hover:text-surface-100'}`}
                 >
                   {tk === 'favorites' ? '★ Favorites' : 'All'}
                 </button>
