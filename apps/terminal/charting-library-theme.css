@@ -1,0 +1,33 @@
+/*
+ * UpDown navy theme for the TradingView Charting Library (loaded via custom_css_url).
+ * Uses TradingView's documented --tv-color-* custom properties so the header, toolbars
+ * and popups match the app's surface-850 (#0A121C). Injected INTO the widget iframe;
+ * the install script copies this into public/charting_library/charting-theme.css.
+ */
+:root {
+  /* Header + overall chrome background */
+  --tv-color-platform-background: #0A121C;
+  --tv-color-pane-background: #0A121C;
+  --tv-color-toolbar-button-background-hover: rgba(255, 255, 255, 0.06);
+  --tv-color-toolbar-button-background-secondary-hover: rgba(255, 255, 255, 0.06);
+  --tv-color-toolbar-button-background-expanded: rgba(255, 255, 255, 0.10);
+  --tv-color-toolbar-button-text: #a1a1aa;
+  --tv-color-toolbar-button-text-hover: #f4f4f5;
+  --tv-color-toolbar-button-text-active: #5FD8EF;
+  --tv-color-toolbar-button-text-active-hover: #7FE2F5;
+  --tv-color-toolbar-divider-background: #232a36;
+
+  /* Popups / dropdown menus / dialogs */
+  --tv-color-popup-background: #0A121C;
+  --tv-color-popup-element-text: #d4d4d8;
+  --tv-color-popup-element-text-hover: #f4f4f5;
+  --tv-color-popup-element-background-hover: rgba(255, 255, 255, 0.06);
+  --tv-color-popup-element-divider-background: #232a36;
+  --tv-color-popup-element-secondary-text: #71717a;
+  --tv-color-popup-element-hint-text: #71717a;
+  --tv-color-popup-element-toolbox-text: #a1a1aa;
+  --tv-color-popup-element-toolbox-text-hover: #f4f4f5;
+  --tv-color-popup-element-toolbox-text-active-hover: #f4f4f5;
+  --tv-color-popup-element-toolbox-background-hover: rgba(255, 255, 255, 0.06);
+  --tv-color-popup-element-toolbox-background-active-hover: rgba(255, 255, 255, 0.08);
+}
