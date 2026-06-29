@@ -1,6 +1,6 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 import { fetchSpotSummary, fetchUserFees } from './hlBalances';
 import { pollWhileVisible } from './poll';
 
@@ -69,7 +69,9 @@ class Store {
     this.stopSummary?.(); this.stopFees?.();
     this.stopSummary = this.stopFees = null;
     if (typeof window !== 'undefined') window.removeEventListener('updown:spot-traded', this.onTraded);
-    this.snap = EMPTY; // reset so a later remount refetches fresh
+    // Keep the last snapshot cached — a remount gets the value instantly and a fresh
+    // poll restarts. (Don't reset to EMPTY: with React's brief unsub/resub that would
+    // flash + refetch needlessly.)
   }
 }
 
@@ -80,11 +82,15 @@ function store(user: string): Store {
   return s;
 }
 
-/** Live shared account snapshot for an EVM address (null/undefined → empty). */
+/** Live shared account snapshot for an EVM address (null/undefined → empty).
+ * subscribe/getSnapshot are memoized per `user` — a fresh inline subscribe would make
+ * useSyncExternalStore re-subscribe every render, thrashing the store's ref count
+ * (start→fetch on each render) and hammering HL with 429s. */
 export function useAccountState(user?: string): AccountSnapshot {
-  return useSyncExternalStore(
-    (cb) => (user ? store(user).subscribe(cb) : () => {}),
-    () => (user ? store(user).snap : EMPTY),
-    () => EMPTY,
+  const subscribe = useCallback(
+    (cb: () => void) => (user ? store(user).subscribe(cb) : () => {}),
+    [user],
   );
+  const getSnapshot = useCallback(() => (user ? store(user).snap : EMPTY), [user]);
+  return useSyncExternalStore(subscribe, getSnapshot, () => EMPTY);
 }
