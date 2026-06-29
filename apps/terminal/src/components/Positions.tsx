@@ -7,7 +7,7 @@ import { useIsMobile } from '@/hooks/useIsMobile';
 import { useToast } from './Toast';
 import { Modal } from './Modal';
 import { TokenIcon } from './TokenIcon';
-import { HoldingsTab } from './Holdings';
+import { HoldingsTab, useSpotHoldings } from './Holdings';
 
 type CloseMode = 'market' | 'limit' | 'reverse';
 
@@ -177,6 +177,9 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
   // same data, incl. trigger orders, reliably and live — so derive from it.
   const ws = useAccountStream(address);
   const positions: Position[] = ws.positions;
+  // Pre-load spot holdings at the panel level so the Spot Holdings tab is ready on
+  // first open (not only fetched on click).
+  const holdings = useSpotHoldings(walletAddress);
 
   const orders: OpenOrder[] = ws.orders.map((o) => {
     const m = (o.metadata ?? {}) as { orderType?: string; isTrigger?: boolean; triggerPx?: string; triggerCondition?: string };
@@ -418,7 +421,8 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
   const counts: Record<Tab, number> = {
     positions: positions.length,
     orders: orders.length,
-    holdings: 0, // HoldingsTab self-fetches; no badge count
+    // Non-dust spot balances (same filter the table uses) — pre-loaded via useSpotHoldings.
+    holdings: holdings.balances.filter((b) => Number(b.total) > 0 && (b.asset === 'USDC' || Number(b.total) >= Math.pow(10, -(b.metadata?.szDecimals ?? 0)))).length,
     trades: trades.length,
     funding: funding.length,
     orderhistory: orderHist.length,
@@ -447,7 +451,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
         ) : (tab === 'positions' || tab === 'orders' ? !ws.ready : tab === 'holdings' ? false : !loaded) ? (
           <Empty>loading…</Empty>
         ) : tab === 'holdings' ? (
-          <HoldingsTab walletAddress={walletAddress} isMobile={isMobile} />
+          <HoldingsTab balances={holdings.balances} loaded={holdings.loaded} walletAddress={walletAddress} isMobile={isMobile} />
         ) : tab === 'positions' ? (
           positions.length === 0 ? <Empty>No open positions.</Empty> : isMobile ? (
             <div className="space-y-1.5 p-1.5">
