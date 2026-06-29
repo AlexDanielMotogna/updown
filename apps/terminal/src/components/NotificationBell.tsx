@@ -100,7 +100,7 @@ export function NotificationBell() {
         <Popper open={open} anchorEl={anchorRef.current} placement="bottom-end" transition sx={{ zIndex: 1400, maxWidth: 'calc(100vw - 16px)' }}>
           {({ TransitionProps }) => (
             <Fade {...TransitionProps} timeout={150}>
-              <Box sx={{ mt: 1, width: 320, maxWidth: 'calc(100vw - 16px)', maxHeight: 'calc(100vh - 90px)', overflowY: 'auto', bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, borderRadius: '8px', boxShadow: t.surfaceShadow, fontFamily: 'inherit' }}>
+              <Box sx={{ mt: 1, width: 320, maxWidth: 'calc(100vw - 16px)', bgcolor: t.bg.surfaceAlt, border: t.surfaceBorder, borderRadius: '8px', boxShadow: t.surfaceShadow, fontFamily: 'inherit', overflow: 'hidden' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.5, borderBottom: `1px solid ${t.border.default}` }}>
                   <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: t.text.primary }}>Notifications</Typography>
                   {unread > 0 && (
@@ -114,24 +114,27 @@ export function NotificationBell() {
                     <Typography sx={{ fontSize: '0.8rem', color: t.text.tertiary }}>No notifications</Typography>
                   </Box>
                 ) : (
-                  items.map((n) => (
-                    <Box
-                      key={n.id}
-                      onClick={() => readOne(n)}
-                      sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.25, px: 2, py: 1.25, borderBottom: `1px solid ${t.border.subtle}`, cursor: n.poolId ? 'pointer' : 'default', bgcolor: n.read ? 'transparent' : t.hover.subtle, '&:hover': { bgcolor: t.hover.default } }}
-                    >
-                      <Box sx={{ pt: 0.25, flexShrink: 0 }}>
-                        <NotifIcon type={n.type} severity={n.severity} t={t} />
-                      </Box>
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-                          <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</Typography>
-                          <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, flexShrink: 0 }}>{timeAgo(n.createdAt)}</Typography>
+                  // Fixed-height scroll list (header stays put) — like the app's markets panel.
+                  <Box sx={{ maxHeight: 360, overflowY: 'auto' }}>
+                    {items.map((n) => (
+                      <Box
+                        key={n.id}
+                        onClick={() => readOne(n)}
+                        sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.25, px: 2, py: 1.25, borderBottom: `1px solid ${t.border.subtle}`, cursor: n.poolId ? 'pointer' : 'default', bgcolor: n.read ? 'transparent' : t.hover.subtle, '&:hover': { bgcolor: t.hover.default } }}
+                      >
+                        <Box sx={{ pt: 0.25, flexShrink: 0 }}>
+                          <NotifIcon type={n.type} severity={n.severity} t={t} />
                         </Box>
-                        <Typography sx={{ fontSize: '0.72rem', color: t.text.tertiary, mt: 0.25, lineHeight: 1.4 }}>{n.message}</Typography>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</Typography>
+                            <Typography sx={{ fontSize: '0.65rem', color: t.text.quaternary, flexShrink: 0 }}>{timeAgo(n.createdAt)}</Typography>
+                          </Box>
+                          <Typography sx={{ fontSize: '0.72rem', color: t.text.tertiary, mt: 0.25, lineHeight: 1.4 }}>{n.message}</Typography>
+                        </Box>
                       </Box>
-                    </Box>
-                  ))
+                    ))}
+                  </Box>
                 )}
               </Box>
             </Fade>
