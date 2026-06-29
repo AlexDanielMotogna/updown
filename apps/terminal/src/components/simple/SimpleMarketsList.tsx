@@ -126,20 +126,20 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
           {tabs.map((t) => (
             <button key={t} onClick={() => setFilter(t)}
               className={`whitespace-nowrap rounded-md px-3.5 py-1.5 text-sm font-semibold transition-colors ${
-                filter === t ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:bg-surface-800/60 hover:text-surface-100'
+                filter === t ? 'bg-white/[0.08] text-surface-100' : 'text-surface-400 hover:bg-white/[0.04] hover:text-surface-100'
               }`}>
               {t}
             </button>
           ))}
         </div>
         {/* card | row view switch */}
-        <div className="flex shrink-0 items-center rounded-md bg-surface-800 p-0.5">
+        <div className="flex shrink-0 items-center rounded-md border border-surface-700 p-0.5">
           {([
             ['card', <svg key="g" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>],
             ['row', <svg key="l" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" /></svg>],
           ] as const).map(([v, icon]) => (
             <button key={v} onClick={() => setView(v)} aria-label={`${v} view`}
-              className={`rounded px-2 py-1 transition-colors ${view === v ? 'bg-surface-700 text-surface-100' : 'text-surface-400 hover:text-surface-100'}`}>
+              className={`rounded px-2 py-1 transition-colors ${view === v ? 'bg-white/[0.08] text-surface-100' : 'text-surface-400 hover:text-surface-100'}`}>
               {icon}
             </button>
           ))}
