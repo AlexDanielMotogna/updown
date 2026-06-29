@@ -14,7 +14,7 @@ import {
   IconButton,
   Collapse,
 } from '@mui/material';
-import { EmojiEvents, ShowChart, SportsSoccer, FilterList, GridView } from '@mui/icons-material';
+import { EmojiEvents, CurrencyBitcoin, SportsSoccer, FilterList, GridView } from '@mui/icons-material';
 import { FilterDropdown } from '@/components/sports/MarketFilter';
 import Link from 'next/link';
 import { AppShell, AssetIcon } from '@/components';
@@ -335,7 +335,7 @@ export default function TournamentsPage() {
     const pmCats = cats.filter(c => c.type === 'POLYMARKET' && c.enabled);
     const footballCats = cats.filter(c => c.type === 'FOOTBALL_LEAGUE' && c.enabled);
     const tabs = [
-      { key: 'CRYPTO', label: 'Crypto', icon: <ShowChart sx={{ fontSize: 16 }} />, color: t.up },
+      { key: 'CRYPTO', label: 'Crypto', icon: <CurrencyBitcoin sx={{ fontSize: 16 }} />, color: t.up },
       { key: 'SPORTS', label: 'Sports', icon: <SportsSoccer sx={{ fontSize: 16 }} />, color: t.draw },
       ...pmCats.map(c => ({ key: c.code, label: c.shortLabel || c.label, icon: buildIcon(c), color: c.color || t.prediction })),
     ];

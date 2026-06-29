@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { ShowChart, SportsSoccer, Gavel, Public, TheaterComedy, AccountBalance, HelpOutline } from '@mui/icons-material';
+import { CurrencyBitcoin, SportsSoccer, Gavel, Public, TheaterComedy, AccountBalance, HelpOutline } from '@mui/icons-material';
 import { useThemeTokens } from '@/app/providers';
 
 type Tokens = ReturnType<typeof useThemeTokens>;
@@ -19,7 +19,7 @@ export interface CategoryMeta {
  */
 export function getCategoryMeta(key: string, t: Tokens, size = 16): CategoryMeta {
   switch (key) {
-    case 'CRYPTO': return { label: 'Crypto', color: t.up, icon: <ShowChart sx={{ fontSize: size }} /> };
+    case 'CRYPTO': return { label: 'Crypto', color: t.up, icon: <CurrencyBitcoin sx={{ fontSize: size }} /> };
     case 'SPORTS': return { label: 'Sports', color: t.draw, icon: <SportsSoccer sx={{ fontSize: size }} /> };
     case 'PM_POLITICS': return { label: 'Politics', color: t.prediction, icon: <Gavel sx={{ fontSize: size }} /> };
     case 'PM_GEO': return { label: 'Geopolitics', color: t.info, icon: <Public sx={{ fontSize: size }} /> };

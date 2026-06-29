@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { Box, Typography } from '@mui/material';
-import { ChevronRight, ShowChart, SportsSoccer } from '@mui/icons-material';
+import { ChevronRight, CurrencyBitcoin, SportsSoccer } from '@mui/icons-material';
 import { getIcon } from '@/lib/icon-registry';
 import { useThemeTokens } from '@/app/providers';
 import { MarketCard } from './MarketCard';
@@ -53,7 +53,7 @@ export function MarketSections({ pools, categoryMap, liveScores, userBetByPoolId
   }
 
   const meta = (key: string): { label: string; color: string; icon: ReactNode } => {
-    if (key === 'CRYPTO') return { label: 'Crypto', color: t.up, icon: <ShowChart sx={{ fontSize: 18 }} /> };
+    if (key === 'CRYPTO') return { label: 'Crypto', color: t.up, icon: <CurrencyBitcoin sx={{ fontSize: 18 }} /> };
     if (key === 'SPORTS') return { label: 'Sports', color: t.draw, icon: <SportsSoccer sx={{ fontSize: 18 }} /> };
     const cat = categoryMap.get(key);
     const Icon = getIcon(cat?.iconKey);

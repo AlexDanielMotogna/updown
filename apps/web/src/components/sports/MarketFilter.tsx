@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import { Box, Typography, IconButton, Collapse, Popover, Chip, Skeleton } from '@mui/material';
-import { ShowChart, FilterList, KeyboardArrowDown, Schedule, GridView, SportsSoccer, LocalFireDepartment, Sort, FiberManualRecord, NewReleases, History, BarChart, Timer, CheckCircleOutline } from '@mui/icons-material';
+import { CurrencyBitcoin, FilterList, KeyboardArrowDown, Schedule, GridView, SportsSoccer, LocalFireDepartment, Sort, FiberManualRecord, NewReleases, History, BarChart, Timer, CheckCircleOutline } from '@mui/icons-material';
 import { useRouter, usePathname } from 'next/navigation';
 import { useCategories, type CategoryConfig } from '@/hooks/useCategories';
 import { getIcon } from '@/lib/icon-registry';
@@ -218,7 +218,7 @@ export function MarketFilter({
       { key: 'LIVE', label: 'Live', color: t.down, isLive: true,
         icon: <FiberManualRecord sx={{ fontSize: 11, animation: 'mfLivePulse 1.4s ease-in-out infinite', '@keyframes mfLivePulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.3 } } }} /> },
       { key: 'TRENDING', label: 'Trending', icon: <LocalFireDepartment sx={{ fontSize: 16 }} />, color: t.accent },
-      { key: 'CRYPTO', label: 'Crypto', icon: <ShowChart sx={{ fontSize: 16 }} />, color: t.up },
+      { key: 'CRYPTO', label: 'Crypto', icon: <CurrencyBitcoin sx={{ fontSize: 16 }} />, color: t.up },
       { key: 'SPORTS', label: 'Sports', icon: <SportsSoccer sx={{ fontSize: 16 }} />, color: t.draw },
       ...pmCats.map(c => ({
         key: c.code,

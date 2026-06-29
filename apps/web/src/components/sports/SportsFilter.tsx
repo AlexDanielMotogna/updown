@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Typography } from '@mui/material';
-import { ShowChart, SportsSoccer } from '@mui/icons-material';
+import { CurrencyBitcoin, SportsSoccer } from '@mui/icons-material';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 
@@ -12,7 +12,7 @@ interface Props {
 
 const TABS = [
   { key: 'ALL' as const, label: 'All' },
-  { key: 'CRYPTO' as const, label: 'Crypto', icon: <ShowChart sx={{ fontSize: 14 }} /> },
+  { key: 'CRYPTO' as const, label: 'Crypto', icon: <CurrencyBitcoin sx={{ fontSize: 14 }} /> },
   { key: 'SPORTS' as const, label: 'Sports', icon: <SportsSoccer sx={{ fontSize: 14 }} /> },
 ] as const;
 
