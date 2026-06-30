@@ -40,6 +40,17 @@ function relTime(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+// Sport cards show the actual kickoff (day + clock time) so users know exactly
+// when the match starts, instead of a vague "6h". Same-day gets a "Today"
+// prefix; anything else shows the date.
+function matchStartLabel(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+  if (d.toDateString() === now.toDateString()) return `Today ${time}`;
+  return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${time}`;
+}
+
 function fmtMult(m: number): string {
   if (!isFinite(m) || m <= 0) return '-';
   if (m >= 100) return '99+x';
@@ -236,7 +247,9 @@ export function MarketCard({ pool, onClick, category, userBet, onClaim, liveScor
         ? formatLiveStatus(liveScore.status, liveScore.progress)
         : matchFinished
           ? 'Full time'
-          : relTime(pool.status === 'UPCOMING' ? pool.startTime : pool.endTime);
+          : kind === 'sports' && new Date(pool.startTime).getTime() > Date.now()
+            ? matchStartLabel(pool.startTime)
+            : relTime(pool.status === 'UPCOMING' ? pool.startTime : pool.endTime);
 
   const canClaim = isResolved && userBet?.isWinner && !userBet.claimed && userBet.betId && onClaim;
 
