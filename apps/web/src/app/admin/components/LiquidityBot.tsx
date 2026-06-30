@@ -15,6 +15,15 @@ interface BotConfig {
   intervalSeconds: number; lockMarginSeconds: number; walletSolTopup: number;
   poolTypesCrypto: boolean; poolTypesSports: boolean; poolTypesPm: boolean;
   sideStrategy: string;
+  targetPoolIds: string[];
+}
+interface AdminPool {
+  id: string;
+  asset: string | null;
+  homeTeam: string | null;
+  awayTeam: string | null;
+  poolType: string;
+  status: string;
 }
 interface BotStatus {
   cluster: string;
@@ -53,16 +62,21 @@ export function LiquidityBot() {
   const [err, setErr] = useState<string | null>(null);
   // USDC fields edited as decimal strings.
   const [usdcInputs, setUsdcInputs] = useState<Record<string, string>>({});
+  // Pool picker (target specific pools).
+  const [openPools, setOpenPools] = useState<AdminPool[]>([]);
+  const [poolSearch, setPoolSearch] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true); setErr(null);
     try {
-      const [c, s] = await Promise.all([
+      const [c, s, p] = await Promise.all([
         adminFetch<{ data: BotConfig }>('/liquidity-bot'),
         adminFetch<{ data: BotStatus }>('/liquidity-bot/status'),
+        adminFetch<{ data: AdminPool[] }>('/pools?status=JOINING,ACTIVE&limit=200'),
       ]);
-      setCfg(c.data);
+      setCfg({ ...c.data, targetPoolIds: c.data.targetPoolIds ?? [] });
       setStatus(s.data);
+      setOpenPools(p.data ?? []);
       const inputs: Record<string, string> = {};
       for (const f of USDC_FIELDS) inputs[f.key] = fromMicro(c.data[f.key] as string);
       setUsdcInputs(inputs);
@@ -89,6 +103,7 @@ export function LiquidityBot() {
         poolTypesSports: cfg.poolTypesSports,
         poolTypesPm: cfg.poolTypesPm,
         sideStrategy: cfg.sideStrategy,
+        targetPoolIds: cfg.targetPoolIds,
       };
       for (const f of USDC_FIELDS) body[f.key] = toMicro(usdcInputs[f.key] || '0');
       const r = await adminFetch<{ data: BotConfig }>('/liquidity-bot', { method: 'PUT', body: JSON.stringify(body) });
@@ -130,6 +145,12 @@ export function LiquidityBot() {
       <AppSwitch checked={val} onChange={onChange} size="sm" tokens={t} />
     </Box>
   );
+  const poolLabel = (p: AdminPool) => (p.homeTeam && p.awayTeam ? `${p.homeTeam} vs ${p.awayTeam}` : (p.asset || p.id.slice(0, 8)));
+  const selectedIds = new Set(cfg.targetPoolIds);
+  const q = poolSearch.trim().toLowerCase();
+  const availablePools = openPools
+    .filter(p => !selectedIds.has(p.id) && (q === '' || poolLabel(p).toLowerCase().includes(q) || p.id.toLowerCase().includes(q)))
+    .slice(0, 40);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -211,6 +232,50 @@ export function LiquidityBot() {
           {toggle('Crypto', cfg.poolTypesCrypto, v => setCfg({ ...cfg, poolTypesCrypto: v }))}
           {toggle('Sports', cfg.poolTypesSports, v => setCfg({ ...cfg, poolTypesSports: v }))}
           {toggle('PM', cfg.poolTypesPm, v => setCfg({ ...cfg, poolTypesPm: v }))}
+        </Box>
+
+        {/* Target specific pools - when any are selected the bot bets ONLY on them */}
+        <Box sx={{ mb: 2, p: 1.5, borderRadius: 1, border: `1px solid ${cfg.targetPoolIds.length > 0 ? t.success : t.border.subtle}`, bgcolor: t.bg.app }}>
+          <Box sx={{ fontSize: '0.82rem', fontWeight: 700, color: t.text.primary }}>
+            Target pools {cfg.targetPoolIds.length > 0 && <Box component="span" sx={{ color: t.success }}>· bot bets ONLY on these ({cfg.targetPoolIds.length})</Box>}
+          </Box>
+          <Box sx={{ fontSize: '0.68rem', color: t.text.tertiary, mb: 1 }}>
+            Empty = all open pools by type. Pick pools to bet only on them until you clear the list or stop the bot. Per-pool/cycle caps still apply.
+          </Box>
+
+          {cfg.targetPoolIds.length > 0 && (
+            <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mb: 1 }}>
+              {cfg.targetPoolIds.map(id => {
+                const p = openPools.find(x => x.id === id);
+                return (
+                  <Box key={id} sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, px: 1, py: 0.4, borderRadius: '8px', bgcolor: `${t.success}22`, border: `1px solid ${t.border.medium}`, fontSize: '0.74rem', color: t.text.primary }}>
+                    <span>{p ? poolLabel(p) : `${id.slice(0, 8)}…`}</span>
+                    <Box component="button" onClick={() => setCfg({ ...cfg, targetPoolIds: cfg.targetPoolIds.filter(x => x !== id) })}
+                      sx={{ border: 'none', bgcolor: 'transparent', color: t.text.tertiary, cursor: 'pointer', fontSize: '0.95rem', lineHeight: 1, p: 0, '&:hover': { color: t.error } }}>×</Box>
+                  </Box>
+                );
+              })}
+              <Box component="button" onClick={() => setCfg({ ...cfg, targetPoolIds: [] })}
+                sx={{ px: 1, py: 0.4, borderRadius: '8px', border: `1px solid ${t.border.subtle}`, bgcolor: 'transparent', color: t.text.secondary, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>Clear all</Box>
+            </Box>
+          )}
+
+          <Box component="input" value={poolSearch} placeholder="Search open pools to add…"
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPoolSearch(e.target.value)}
+            sx={{ width: '100%', px: 1, py: 0.6, fontSize: '0.82rem', borderRadius: 1, bgcolor: t.bg.surface, color: t.text.primary, border: `1px solid ${t.border.subtle}`, outline: 'none', mb: 1, '&:focus': { borderColor: t.border.medium } }} />
+
+          <Box sx={{ maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 0.3 }}>
+            {availablePools.length === 0 ? (
+              <Box sx={{ fontSize: '0.74rem', color: t.text.tertiary, py: 0.5 }}>{openPools.length === 0 ? 'No open pools.' : 'No matches.'}</Box>
+            ) : availablePools.map(p => (
+              <Box key={p.id} component="button"
+                onClick={() => setCfg({ ...cfg, targetPoolIds: [...cfg.targetPoolIds, p.id] })}
+                sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, px: 1, py: 0.55, borderRadius: 0.5, border: 'none', textAlign: 'left', cursor: 'pointer', bgcolor: 'transparent', color: t.text.secondary, '&:hover': { bgcolor: t.bg.surface } }}>
+                <Box sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: t.text.primary, fontSize: '0.78rem' }}>{poolLabel(p)}</Box>
+                <Box sx={{ flexShrink: 0, fontSize: '0.66rem', color: t.text.tertiary }}>{p.poolType} · {p.status}</Box>
+              </Box>
+            ))}
+          </Box>
         </Box>
 
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 1.5, mb: 2 }}>

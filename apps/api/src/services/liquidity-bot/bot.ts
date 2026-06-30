@@ -83,18 +83,29 @@ export async function runLiquidityBotCycle(): Promise<{ placed: number; spent: b
   let exposure = openBets.reduce((s, b) => s + b.amount, 0n);
   if (exposure >= cfg.maxTotalExposure) return { placed: 0, spent: 0n };
 
+  // Targeted mode: a non-empty targetPoolIds list pins the bot to those pools
+  // only (ignoring the poolTypes filter) until the admin clears the list or
+  // stops the bot. Empty list = default behavior (all open pools by type).
+  const targetIds = Array.isArray(cfg.targetPoolIds) ? cfg.targetPoolIds.filter(Boolean) : [];
+  const targeting = targetIds.length > 0;
+
   const types: string[] = [];
   if (cfg.poolTypesCrypto) types.push('CRYPTO');
   if (cfg.poolTypesSports) types.push('SPORTS');
   if (cfg.poolTypesPm) types.push('POLYMARKET');
-  if (types.length === 0) return { placed: 0, spent: 0n };
+  if (!targeting && types.length === 0) return { placed: 0, spent: 0n };
 
   const lockCutoff = new Date(Date.now() + cfg.lockMarginSeconds * 1000);
   const pools = await prisma.pool.findMany({
-    where: { squadId: null, status: { in: ['JOINING', 'ACTIVE'] }, lockTime: { gt: lockCutoff }, poolType: { in: types } },
+    where: {
+      squadId: null,
+      status: { in: ['JOINING', 'ACTIVE'] },
+      lockTime: { gt: lockCutoff },
+      ...(targeting ? { id: { in: targetIds } } : { poolType: { in: types } }),
+    },
     select: { id: true, startTime: true, lockTime: true, numSides: true },
     orderBy: { createdAt: 'desc' }, // freshest pools first = highest time-weight
-    take: 60,
+    take: targeting ? targetIds.length : 60,
   });
 
   let cycleSpent = 0n;

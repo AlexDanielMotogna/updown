@@ -27,6 +27,7 @@ function serializeConfig(c: Awaited<ReturnType<typeof getLiquidityBotConfig>>) {
     poolTypesSports: c.poolTypesSports,
     poolTypesPm: c.poolTypesPm,
     sideStrategy: c.sideStrategy,
+    targetPoolIds: c.targetPoolIds,
   };
 }
 
@@ -45,7 +46,7 @@ adminLiquidityBotRouter.get('/', async (_req, res) => {
 adminLiquidityBotRouter.put('/', async (req, res) => {
   try {
     const b = req.body ?? {};
-    const data: Record<string, bigint | number | boolean | string> = {};
+    const data: Record<string, bigint | number | boolean | string | string[]> = {};
     const bigFields = ['perPoolCap', 'perCycleCap', 'maxTotalExposure', 'treasuryFloor', 'betMin', 'betMax', 'walletUsdcTopup'];
     for (const f of bigFields) {
       if (b[f] != null && b[f] !== '') {
@@ -62,6 +63,11 @@ adminLiquidityBotRouter.put('/', async (req, res) => {
       if (typeof b[f] === 'boolean') data[f] = b[f];
     }
     if (typeof b.sideStrategy === 'string' && ['balanced', 'skew'].includes(b.sideStrategy)) data.sideStrategy = b.sideStrategy;
+    // Targeted pools: array of Pool.id UUID strings. Empty array = clear targeting
+    // (back to all pools by type). Cap the list so the loop's `IN (...)` stays sane.
+    if (Array.isArray(b.targetPoolIds)) {
+      data.targetPoolIds = b.targetPoolIds.filter((x: unknown): x is string => typeof x === 'string' && x.length > 0).slice(0, 50);
+    }
 
     await getLiquidityBotConfig(); // ensure row exists
     const updated = await prisma.liquidityBotConfig.update({ where: { id: 'default' }, data: data as Prisma.LiquidityBotConfigUpdateInput });
