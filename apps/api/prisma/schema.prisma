@@ -835,6 +835,10 @@ model LiquidityBotConfig {
   poolTypesSports   Boolean  @default(true)
   poolTypesPm       Boolean  @default(true)
   sideStrategy      String   @default("balanced")       // balanced | skew
+  // When non-empty, the bot bets ONLY on these pool IDs (Pool.id UUIDs),
+  // ignoring the poolTypes filter, until the list is cleared or the bot is
+  // stopped. Empty = default behavior (all open pools by enabled type).
+  targetPoolIds     String[] @default([])
   updatedAt         DateTime @updatedAt
   createdAt         DateTime @default(now())
 
