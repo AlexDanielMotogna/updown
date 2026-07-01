@@ -4,13 +4,13 @@ import { ReactNode, createContext, useContext, useMemo, useState, useCallback, u
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PrivyProvider } from '@privy-io/react-auth';
-import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
 import { Connection, clusterApiUrl } from '@solana/web3.js';
 import { createSolanaRpc, createSolanaRpcSubscriptions } from '@solana/kit';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { NotificationToasts } from '@/components/NotificationToasts';
 import { ReferralDialog } from '@/components/ReferralDialog';
 import { ReferralBanner } from '@/components/ReferralBanner';
+import { VersionGate } from '@/components/VersionGate';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useReferral } from '@/hooks/useReferral';
 import { darkTokens, lightTokens, type ThemeTokens } from '@/lib/theme';
@@ -215,10 +215,6 @@ export function useSolanaConnection(): Connection {
   return connection;
 }
 
-const solanaConnectors = toSolanaWalletConnectors({
-  shouldAutoConnect: true,
-});
-
 export function Providers({ children, initialTheme = 'dark' }: { children: ReactNode; initialTheme?: 'dark' | 'light' }) {
   const [mode, setModeState] = useState<ThemeMode>(initialTheme);
 
@@ -272,9 +268,9 @@ export function Providers({ children, initialTheme = 'dark' }: { children: React
           theme: mode,
           accentColor: '#FFFFFF',
           logo: mode === 'dark' ? '/updown-logos/Logo_cyan_text_white.png' : '/updown-logos/Logo_cyan_text_dark_Medium.png',
-          walletList: ['phantom', 'solflare', 'backpack', 'coinbase_wallet', 'metamask', 'detected_solana_wallets'],
-          walletChainType: 'ethereum-and-solana',
-          showWalletLoginFirst: false,
+          // No wallet login — email/Google only. No walletList/externalWallets so a
+          // detected browser extension (Phantom/Solflare) can NEVER connect or be
+          // picked as the signer. Every user is embedded-only → gasless silent flow.
         },
         // Email + Google (both free, no external wallet): every user signs up
         // WITHOUT an external wallet, so Privy always creates the embedded
@@ -292,9 +288,6 @@ export function Providers({ children, initialTheme = 'dark' }: { children: React
           // a popup (gasless flow, see useWalletBridge.coSignAndSend).
           showWalletUIs: false,
         },
-        externalWallets: {
-          solana: { connectors: solanaConnectors },
-        },
         solanaClusters: [{ name: 'devnet', rpcUrl: endpoint }],
         solana: { rpcs: solanaRpcs },
       }}
@@ -304,6 +297,7 @@ export function Providers({ children, initialTheme = 'dark' }: { children: React
           <ThemeModeContext.Provider value={themeModeValue}>
             <ThemeProvider theme={muiTheme}>
               <CssBaseline />
+              <VersionGate />
               <ErrorBoundary>
                 <NotificationLayer>
                   <ReferralLayer>

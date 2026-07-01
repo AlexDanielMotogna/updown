@@ -1,51 +1,31 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import {
   useSendTransaction,
   useSignTransaction,
   useExportWallet,
-  useConnectedStandardWallets,
-  useStandardSignAndSendTransaction,
 } from '@privy-io/react-auth/solana';
 import { Transaction, PublicKey } from '@solana/web3.js';
-import bs58 from 'bs58';
 import { useSolanaConnection } from '@/app/providers';
 
 export function useWalletBridge() {
   const { ready, authenticated, user, login, logout, getAccessToken, exportWallet: privyExportEvmWallet } = usePrivy();
   const { wallets } = useWallets();
-  const { wallets: standardWallets } = useConnectedStandardWallets();
   const connection = useSolanaConnection();
   const { sendTransaction: embeddedSend } = useSendTransaction();
   const { signTransaction: embeddedSign } = useSignTransaction();
   const { exportWallet: privyExportWallet } = useExportWallet();
-  const { signAndSendTransaction: standardSignAndSend } = useStandardSignAndSendTransaction();
 
-  // Keep a ref to standardWallets so the sendTransaction callback
-  // always sees the latest value (avoids stale closure)
-  const standardWalletsRef = useRef(standardWallets);
-  standardWalletsRef.current = standardWallets;
-
-  // Prefer external wallet ONLY if its standard adapter is connected,
-  // otherwise fall back to embedded (avoids building transactions for a
-  // wallet that can't actually sign  e.g. deployed env without extension).
-  // SOLANA-ONLY: a user can also link an EVM wallet (0x…) for the trading
+  // Embedded-only: login is email/Google and external wallets are disabled in the
+  // Privy config, so the Solana signer is ALWAYS the app-created embedded wallet.
+  // SOLANA-ONLY: the user also has an EVM embedded wallet (0x…) for the trading
   // terminal — that must NEVER be treated as the Solana signer (new PublicKey
   // would throw "Non-base58 character" and break the whole app).
   const activeWallet = useMemo(() => {
     const sol = wallets.filter((w) => !w.address.startsWith('0x'));
     if (!sol.length) return null;
-
-    const external = sol.find((w) => w.connectorType !== 'embedded');
-    const hasAdapter = external && standardWallets.some((sw) => sw.address === external.address);
-
-    if (external && hasAdapter) return external;
-
-    return (
-      sol.find((w) => w.connectorType === 'embedded') ??
-      sol[0]
-    );
-  }, [wallets, standardWallets]);
+    return sol.find((w) => w.connectorType === 'embedded') ?? sol[0];
+  }, [wallets]);
 
   const connected = ready && authenticated;
 
@@ -98,52 +78,11 @@ export function useWalletBridge() {
           'SESSION_EXPIRED: Your wallet session has expired. Please log in again.',
         );
       }
-
-      // Embedded wallet → use Privy's built-in send
-      if (isEmbedded) {
-        const receipt = await embeddedSend({ transaction, connection });
-        return receipt.signature;
-      }
-
-      // External wallet → try standard wallet adapter first
-      const findStdWallet = () =>
-        standardWalletsRef.current.find((w) => w.address === walletAddress);
-
-      let stdWallet = findStdWallet();
-
-      // Standard wallet adapter may still be auto-connecting  wait briefly
-      if (!stdWallet) {
-        for (let i = 0; i < 5; i++) {
-          await new Promise((r) => setTimeout(r, 500));
-          stdWallet = findStdWallet();
-          if (stdWallet) break;
-        }
-      }
-
-      if (stdWallet) {
-        const serialized = transaction.serialize({
-          requireAllSignatures: false,
-        });
-        const { signature } = await standardSignAndSend({
-          transaction: serialized,
-          wallet: stdWallet,
-          chain: 'solana:devnet',
-        });
-        return bs58.encode(signature);
-      }
-
-      throw new Error(
-        'Wallet not available for signing. Please reconnect your wallet or refresh the page.',
-      );
+      // Embedded-only: Privy's built-in send (silent, showWalletUIs:false).
+      const receipt = await embeddedSend({ transaction, connection });
+      return receipt.signature;
     },
-    [
-      isEmbedded,
-      embeddedSend,
-      standardSignAndSend,
-      walletAddress,
-      connection,
-      getAccessToken,
-    ],
+    [embeddedSend, connection, getAccessToken],
   );
 
   /**

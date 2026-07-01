@@ -399,8 +399,8 @@ export default function DocsPage() {
               <strong style={{ color: t.text.primary }}>UpDown</strong> is a parimutuel prediction platform on Solana. Pick a crypto asset (BTC, ETH, SOL), predict whether its price will go <strong style={{ color: t.text.primary }}>UP or DOWN</strong> within a timeframe, and stake USDC. If your side wins, you split the entire pool proportionally. All bets, payouts, and refunds happen on-chain - transparent and verifiable.
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
-              <StepCard step={1} title="Connect Wallet" desc="Click Connect Wallet. Choose embedded (no extension) or external (Phantom, Solflare)." />
-              <StepCard step={2} title="Fund Your Wallet" desc="Deposit USDC (Solana) into your wallet. You need USDC to place predictions and a small amount of SOL for transaction fees." />
+              <StepCard step={1} title="Sign In" desc="Sign in with your email or Google account. A secure wallet is created for you automatically, no extension needed." />
+              <StepCard step={2} title="Fund Your Wallet" desc="Deposit USDC (Solana) into your wallet. You only need USDC to predict, fees are covered for you (gasless)." />
               <StepCard step={3} title="Pick a Pool" desc="Browse Markets. Pools marked JOINING are open for predictions." />
               <StepCard step={4} title="Predict UP or DOWN" desc="Toggle your side, enter USDC stake, confirm the transaction." />
               <StepCard step={5} title="Wait for Result" desc="Pool locks (ACTIVE) and resolves after 3 min - 1 hour." />
