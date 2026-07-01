@@ -9,6 +9,7 @@ export const adminPoolsRouter: RouterType = Router();
 const poolFilterSchema = z.object({
   status: z.string().optional(),
   asset: z.string().optional(),
+  poolType: z.string().optional(),
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(200).default(50),
 });
@@ -21,7 +22,7 @@ adminPoolsRouter.get('/', async (req, res) => {
       return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid query', details: parsed.error.flatten() } });
     }
 
-    const { status, asset, page, limit } = parsed.data;
+    const { status, asset, poolType, page, limit } = parsed.data;
     const skip = (page - 1) * limit;
     const where: Record<string, unknown> = {};
     if (status) {
@@ -30,6 +31,10 @@ adminPoolsRouter.get('/', async (req, res) => {
       else where.status = { in: statuses };
     }
     if (asset) where.asset = asset.toUpperCase();
+    if (poolType) {
+      const types = poolType.split(',').map(s => s.trim().toUpperCase());
+      where.poolType = types.length === 1 ? types[0] : { in: types };
+    }
 
     const [pools, total] = await Promise.all([
       prisma.pool.findMany({
