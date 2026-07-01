@@ -35,11 +35,12 @@ export function Providers({ children }: { children: ReactNode }) {
         // EVM (HyperLiquid) wallets, so no external-wallet picker on (re)connect.
         loginMethods: ['email', 'google'],
         embeddedWallets: {
-          // Provision both chains so an email login here also yields the Solana
-          // identity + the EVM (HyperLiquid) wallet. BYO external wallets skip
-          // the embedded one for that chain (users-without-wallets).
-          ethereum: { createOnLogin: 'users-without-wallets' },
-          solana: { createOnLogin: 'users-without-wallets' },
+          // Provision both chains for EVERY login (matches the web app's
+          // 'all-users'), so a user who lands on the terminal first still gets
+          // the Solana identity + the EVM (HyperLiquid) wallet — and SSO from the
+          // web app resolves to the same embedded wallets.
+          ethereum: { createOnLogin: 'all-users' },
+          solana: { createOnLogin: 'all-users' },
         },
         externalWallets: {
           solana: { connectors: solanaConnectors },
