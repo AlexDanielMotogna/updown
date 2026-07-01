@@ -11,6 +11,24 @@ import { recordConfirmedBet } from '../bet-recording';
 type Side = 'UP' | 'DOWN' | 'DRAW';
 const sideIndex = (s: Side): 0 | 1 | 2 => (s === 'UP' ? 0 : s === 'DOWN' ? 1 : 2);
 
+// Last-cycle diagnostics, surfaced in the admin so you can see WHY the bot isn't
+// betting (disabled, no pools, all deposits failing, etc.) without digging into
+// Railway logs.
+export interface BotDiagnostics {
+  at: string | null;         // ISO time of the last cycle
+  enabled: boolean;
+  reason: string | null;     // why 0 bets were placed (null when it bet)
+  poolsConsidered: number;
+  placed: number;
+  spent: string;             // micro-USDC
+  lastError: string | null;  // last deposit/loop error message
+  lastErrorAt: string | null;
+}
+let diag: BotDiagnostics = {
+  at: null, enabled: false, reason: null, poolsConsidered: 0, placed: 0, spent: '0', lastError: null, lastErrorAt: null,
+};
+export function getLiquidityBotDiagnostics(): BotDiagnostics { return diag; }
+
 function randBigInt(min: bigint, max: bigint): bigint {
   if (max <= min) return min;
   const range = Number(max - min);
@@ -58,19 +76,20 @@ async function placeBotDeposit(
  */
 export async function runLiquidityBotCycle(): Promise<{ placed: number; spent: bigint }> {
   const cfg = await getLiquidityBotConfig();
-  if (!cfg.enabled) return { placed: 0, spent: 0n };
+  diag = { ...diag, at: new Date().toISOString(), enabled: cfg.enabled, reason: null, poolsConsidered: 0, placed: 0, spent: '0' };
+  if (!cfg.enabled) { diag.reason = 'bot disabled'; return { placed: 0, spent: 0n }; }
 
   const wallets = getLiquidityBotKeypairs();
-  if (wallets.length === 0) { console.warn('[LiquidityBot] no LIQUIDITY_BOT_KEYS configured'); return { placed: 0, spent: 0n }; }
+  if (wallets.length === 0) { diag.reason = 'no LIQUIDITY_BOT_KEYS configured'; console.warn('[LiquidityBot] no LIQUIDITY_BOT_KEYS configured'); return { placed: 0, spent: 0n }; }
 
   const funder = getFunderKeypair();
-  if (!funder) { console.warn('[LiquidityBot] no funder (set TREASURY_SECRET_KEY on mainnet)'); return { placed: 0, spent: 0n }; }
+  if (!funder) { diag.reason = 'no funder (TREASURY_SECRET_KEY not set)'; console.warn('[LiquidityBot] no funder (set TREASURY_SECRET_KEY on mainnet)'); return { placed: 0, spent: 0n }; }
   // Treasury floor guard — only on mainnet (real, finite USDC). On devnet the
   // funder is the mint authority (unlimited mint, doesn't hold USDC), so the
   // floor check would wrongly block the bot.
   if (!isDevnet()) {
     const funderUsdc = await getUsdcBalance(funder.publicKey);
-    if (funderUsdc < cfg.treasuryFloor) { console.warn('[LiquidityBot] funder below treasuryFloor, skipping'); return { placed: 0, spent: 0n }; }
+    if (funderUsdc < cfg.treasuryFloor) { diag.reason = 'funder below treasury floor'; console.warn('[LiquidityBot] funder below treasuryFloor, skipping'); return { placed: 0, spent: 0n }; }
   }
 
   const botAddrs = wallets.map(w => w.publicKey.toBase58());
@@ -81,7 +100,7 @@ export async function runLiquidityBotCycle(): Promise<{ placed: number; spent: b
     select: { amount: true },
   });
   let exposure = openBets.reduce((s, b) => s + b.amount, 0n);
-  if (exposure >= cfg.maxTotalExposure) return { placed: 0, spent: 0n };
+  if (exposure >= cfg.maxTotalExposure) { diag.reason = 'max total exposure reached'; return { placed: 0, spent: 0n }; }
 
   // Targeted mode: a non-empty targetPoolIds list pins the bot to those pools
   // only (ignoring the poolTypes filter) until the admin clears the list or
@@ -93,7 +112,7 @@ export async function runLiquidityBotCycle(): Promise<{ placed: number; spent: b
   if (cfg.poolTypesCrypto) types.push('CRYPTO');
   if (cfg.poolTypesSports) types.push('SPORTS');
   if (cfg.poolTypesPm) types.push('POLYMARKET');
-  if (!targeting && types.length === 0) return { placed: 0, spent: 0n };
+  if (!targeting && types.length === 0) { diag.reason = 'no pool types enabled'; return { placed: 0, spent: 0n }; }
 
   const lockCutoff = new Date(Date.now() + cfg.lockMarginSeconds * 1000);
   const pools = await prisma.pool.findMany({
@@ -107,6 +126,7 @@ export async function runLiquidityBotCycle(): Promise<{ placed: number; spent: b
     orderBy: { createdAt: 'desc' }, // freshest pools first = highest time-weight
     take: targeting ? targetIds.length : 60,
   });
+  diag.poolsConsidered = pools.length;
 
   let cycleSpent = 0n;
   let placed = 0;
@@ -161,7 +181,10 @@ export async function runLiquidityBotCycle(): Promise<{ placed: number; spent: b
         onSide.add(wallet.publicKey.toBase58());
         console.log(`[LiquidityBot] +${Number(amount) / 1e6} USDC ${side} pool=${pool.id.slice(0, 8)} wallet=${wallet.publicKey.toBase58().slice(0, 6)}`);
       } catch (e) {
-        console.warn(`[LiquidityBot] deposit failed pool=${pool.id.slice(0, 8)}:`, e instanceof Error ? e.message : e);
+        const msg = e instanceof Error ? e.message : String(e);
+        diag.lastError = `deposit pool=${pool.id.slice(0, 8)}: ${msg}`.slice(0, 300);
+        diag.lastErrorAt = new Date().toISOString();
+        console.warn(`[LiquidityBot] deposit failed pool=${pool.id.slice(0, 8)}:`, msg);
       }
       // Throttle: space out the RPC-heavy fund+deposit+confirm calls so the bot
       // doesn't burst hundreds of requests per cycle and trigger 429s.
@@ -169,6 +192,15 @@ export async function runLiquidityBotCycle(): Promise<{ placed: number; spent: b
     }
   }
 
+  diag.placed = placed;
+  diag.spent = cycleSpent.toString();
+  if (placed === 0 && !diag.reason) {
+    diag.reason = pools.length === 0
+      ? (targeting ? 'target pools not open/bettable' : 'no open pools match')
+      : diag.lastError
+        ? 'all deposits failing (see last error)'
+        : 'pools already at target volume';
+  }
   if (placed > 0) console.log(`[LiquidityBot] cycle: ${placed} bets, ${Number(cycleSpent) / 1e6} USDC`);
   return { placed, spent: cycleSpent };
 }
@@ -188,7 +220,11 @@ export function startLiquidityBotScheduler(): void {
         try { await runLiquidityBotCycle(); } finally { running = false; }
       }
     } catch (e) {
-      console.error('[LiquidityBot] loop error:', e instanceof Error ? e.message : e);
+      const msg = e instanceof Error ? e.message : String(e);
+      diag.lastError = `loop: ${msg}`.slice(0, 300);
+      diag.lastErrorAt = new Date().toISOString();
+      diag.reason = 'cycle threw (see last error)';
+      console.error('[LiquidityBot] loop error:', msg);
     }
     timer = setTimeout(loop, delayMs);
   };

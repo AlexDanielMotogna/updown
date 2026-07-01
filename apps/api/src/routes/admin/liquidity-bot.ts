@@ -5,6 +5,7 @@ import { prisma } from '../../db';
 import { getLiquidityBotConfig } from '../../services/liquidity-bot/config';
 import { getUsdcBalance, getSolBalance, getFunderKeypair } from '../../services/liquidity-bot/funding';
 import { getLiquidityBotKeypairs, getCluster } from '../../utils/solana';
+import { getLiquidityBotDiagnostics } from '../../services/liquidity-bot/bot';
 
 export const adminLiquidityBotRouter: RouterType = Router();
 
@@ -136,6 +137,7 @@ adminLiquidityBotRouter.get('/status', async (_req, res) => {
         walletCount: wallets.length,
         wallets: walletInfos,
         openExposure: exposure,
+        diagnostics: getLiquidityBotDiagnostics(),
         recentBets: recent.map(r => ({ ...r, amount: r.amount.toString() })),
       },
     });
