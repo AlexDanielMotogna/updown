@@ -1,16 +1,14 @@
 import { useState, useCallback } from 'react';
-import { Transaction, PublicKey, Connection } from '@solana/web3.js';
+import { Transaction, Connection } from '@solana/web3.js';
 import { useWalletBridge } from './useWalletBridge';
 import { useSolanaConnection } from '@/app/providers';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  prepareDeposit,
   prepareGaslessDeposit,
   confirmDeposit,
   prepareClaim,
   confirmClaim,
 } from '@/lib/api';
-import { buildDepositIx, sideToIndex } from 'solana-client';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { buildNotification } from '@/lib/notifications';
 
@@ -77,7 +75,7 @@ export interface TransactionState {
 
 export function useDeposit() {
   const connection = useSolanaConnection();
-  const { publicKey, sendTransaction, coSignAndSend, isEmbedded, login } = useWalletBridge();
+  const { publicKey, coSignAndSend, login } = useWalletBridge();
   const queryClient = useQueryClient();
   const [state, setState] = useState<TransactionState>({ status: 'idle' });
 
@@ -91,68 +89,22 @@ export function useDeposit() {
       try {
         setState({ status: 'preparing' });
 
-        let signature: string;
-        let poolAsset: string;
-
-        if (isEmbedded) {
-          // Gasless path: the server builds the tx, pays the fee (feePayer =
-          // authority) and funds any ATA/UserBet rent, and partial-signs it. The
-          // embedded wallet co-signs SILENTLY and submits → user needs ZERO SOL,
-          // no popup.
-          const prep = await prepareGaslessDeposit({
-            poolId,
-            walletAddress: publicKey.toBase58(),
-            side,
-            amount,
-          });
-          if (!prep.success || !prep.data) {
-            throw new Error(prep.error?.message || 'Failed to prepare deposit');
-          }
-          setState({ status: 'signing' });
-          poolAsset = prep.data.asset;
-          signature = await coSignAndSend(prep.data.tx);
-        } else {
-          // External wallet: pay-your-own-gas flow (user is feePayer + signer).
-          const response = await prepareDeposit({
-            poolId,
-            walletAddress: publicKey.toBase58(),
-            side,
-            amount,
-          });
-
-          if (!response.success || !response.data) {
-            throw new Error(response.error?.message || 'Failed to prepare deposit');
-          }
-
-          setState({ status: 'signing' });
-          poolAsset = response.data.pool.asset;
-
-          // Build Anchor deposit instruction
-          const { accounts } = response.data;
-          const poolPubkey = new PublicKey(accounts.pool);
-          const userBetPubkey = new PublicKey(accounts.userBet);
-          const vaultPubkey = new PublicKey(accounts.vault);
-          const userTokenAccount = new PublicKey(accounts.userTokenAccount);
-          const sideValue = sideToIndex(side);
-
-          const ix = buildDepositIx(
-            poolPubkey,
-            userBetPubkey,
-            vaultPubkey,
-            userTokenAccount,
-            publicKey,
-            sideValue,
-            BigInt(amount),
-          );
-
-          const transaction = new Transaction().add(ix);
-
-          const { blockhash } = await connection.getLatestBlockhash();
-          transaction.recentBlockhash = blockhash;
-          transaction.feePayer = publicKey;
-
-          signature = await sendTransaction(transaction);
+        // Gasless path (the ONLY path — every user is embedded): the server builds
+        // the tx, pays the fee (feePayer = authority) and funds any ATA/UserBet
+        // rent, and partial-signs it. The embedded wallet co-signs SILENTLY and
+        // submits → user needs ZERO SOL, no popup.
+        const prep = await prepareGaslessDeposit({
+          poolId,
+          walletAddress: publicKey.toBase58(),
+          side,
+          amount,
+        });
+        if (!prep.success || !prep.data) {
+          throw new Error(prep.error?.message || 'Failed to prepare deposit');
         }
+        setState({ status: 'signing' });
+        const poolAsset = prep.data.asset;
+        const signature = await coSignAndSend(prep.data.tx);
 
         setState({ status: 'confirming', txSignature: signature });
 
@@ -215,7 +167,7 @@ export function useDeposit() {
         throw error;
       }
     },
-    [publicKey, connection, sendTransaction, coSignAndSend, isEmbedded, login, queryClient, state.txSignature]
+    [publicKey, connection, coSignAndSend, login, queryClient, state.txSignature]
   );
 
   const reset = useCallback(() => {
