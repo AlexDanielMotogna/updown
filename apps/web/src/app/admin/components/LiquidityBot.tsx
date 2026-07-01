@@ -32,6 +32,11 @@ interface BotStatus {
   walletCount: number;
   wallets: { pubkey: string; usdc: string; sol: number }[];
   openExposure: string;
+  diagnostics?: {
+    at: string | null; enabled: boolean; reason: string | null;
+    poolsConsidered: number; placed: number; spent: string;
+    lastError: string | null; lastErrorAt: string | null;
+  };
   recentBets: {
     id: string; poolId: string; side: string; amount: string; createdAt: string; walletAddress: string;
     pool: { asset: string; interval: string | null; poolType: string; homeTeam: string | null; awayTeam: string | null; status: string } | null;
@@ -218,6 +223,26 @@ export function LiquidityBot() {
         </Box>
         {isMainnet && !status?.treasuryConfigured && (
           <Box sx={{ color: t.warning, fontSize: '0.8rem', mb: 1 }}>⚠ Mainnet: TREASURY_SECRET_KEY not configured - bot cannot fund wallets.</Box>
+        )}
+        {/* Last-cycle diagnostics — why the bot is or isn't betting */}
+        {status?.diagnostics && (
+          <Box sx={{ mb: 1, p: 1, borderRadius: 1, bgcolor: t.bg.app, border: `1px solid ${status.diagnostics.lastError ? t.error : t.border.subtle}` }}>
+            <Box sx={{ fontSize: '0.74rem', color: t.text.secondary }}>
+              <Label>Last cycle</Label>{' '}
+              {status.diagnostics.at ? new Date(status.diagnostics.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'never run'}
+              {' · '}<Box component="span" sx={{ color: status.diagnostics.placed > 0 ? t.success : t.text.tertiary }}>{status.diagnostics.placed} bets</Box>
+              {' · '}{status.diagnostics.poolsConsidered} pools seen
+            </Box>
+            {status.diagnostics.reason && (
+              <Box sx={{ fontSize: '0.74rem', color: t.warning, mt: 0.3 }}>Reason no bets: {status.diagnostics.reason}</Box>
+            )}
+            {status.diagnostics.lastError && (
+              <Box sx={{ fontSize: '0.7rem', color: t.error, mt: 0.3, fontFamily: 'monospace', wordBreak: 'break-word' }}>
+                {status.diagnostics.lastError}
+                {status.diagnostics.lastErrorAt && ` (${new Date(status.diagnostics.lastErrorAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`}
+              </Box>
+            )}
+          </Box>
         )}
         {status?.funder && (
           <Box sx={{ fontSize: '0.78rem', color: t.text.secondary, mb: 1 }}>
