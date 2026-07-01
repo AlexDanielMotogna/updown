@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Box } from '@mui/material';
 import { adminFetch } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
@@ -42,6 +42,17 @@ const USDC = (micro: string) => (Number(micro) / 1e6).toLocaleString(undefined, 
 const toMicro = (usdc: string) => String(Math.round(Number(usdc) * 1e6));
 const fromMicro = (micro: string) => String(Number(micro) / 1e6);
 
+// Human label for a pool (match name for sports/PM, asset for crypto, id fallback).
+type PoolLike = { id: string; asset?: string | null; homeTeam?: string | null; awayTeam?: string | null };
+const poolLabelOf = (p: PoolLike) => (p.homeTeam && p.awayTeam ? `${p.homeTeam} vs ${p.awayTeam}` : (p.asset || p.id.slice(0, 8)));
+
+const POOL_TYPE_FILTERS: { key: string; label: string }[] = [
+  { key: 'ALL', label: 'All' },
+  { key: 'CRYPTO', label: 'Crypto' },
+  { key: 'SPORTS', label: 'Sports' },
+  { key: 'POLYMARKET', label: 'PM' },
+];
+
 // USDC-denominated config fields (stored as micro-USDC).
 const USDC_FIELDS: { key: keyof BotConfig; label: string }[] = [
   { key: 'perPoolCap', label: 'Per-pool cap (USDC)' },
@@ -65,18 +76,37 @@ export function LiquidityBot() {
   // Pool picker (target specific pools).
   const [openPools, setOpenPools] = useState<AdminPool[]>([]);
   const [poolSearch, setPoolSearch] = useState('');
+  const [poolTypeFilter, setPoolTypeFilter] = useState('ALL');
+  // id -> label, so selected chips can show a name even when the pool isn't in
+  // the current (crypto-dominated) open-pool page.
+  const [namesById, setNamesById] = useState<Record<string, string>>({});
+  const fetchedNames = useRef<Set<string>>(new Set());
+
+  // Fetch the picker's open-pool list, filtered by type at the API so sports/PM
+  // pools aren't buried under the flood of short-lived crypto pools.
+  const loadPools = useCallback(async (type: string) => {
+    try {
+      const qs = `/pools?status=JOINING,ACTIVE&limit=200${type !== 'ALL' ? `&poolType=${type}` : ''}`;
+      const p = await adminFetch<{ data: AdminPool[] }>(qs);
+      const pools = p.data ?? [];
+      setOpenPools(pools);
+      setNamesById(prev => {
+        const next = { ...prev };
+        for (const pool of pools) next[pool.id] = poolLabelOf(pool);
+        return next;
+      });
+    } catch { /* ignore */ }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true); setErr(null);
     try {
-      const [c, s, p] = await Promise.all([
+      const [c, s] = await Promise.all([
         adminFetch<{ data: BotConfig }>('/liquidity-bot'),
         adminFetch<{ data: BotStatus }>('/liquidity-bot/status'),
-        adminFetch<{ data: AdminPool[] }>('/pools?status=JOINING,ACTIVE&limit=200'),
       ]);
       setCfg({ ...c.data, targetPoolIds: c.data.targetPoolIds ?? [] });
       setStatus(s.data);
-      setOpenPools(p.data ?? []);
       const inputs: Record<string, string> = {};
       for (const f of USDC_FIELDS) inputs[f.key] = fromMicro(c.data[f.key] as string);
       setUsdcInputs(inputs);
@@ -88,6 +118,27 @@ export function LiquidityBot() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadPools(poolTypeFilter); }, [poolTypeFilter, loadPools]);
+
+  // Resolve names for selected target pools that aren't in the current page
+  // (e.g. sports pools while the picker shows crypto). Fetch each by id once.
+  useEffect(() => {
+    const ids = cfg?.targetPoolIds ?? [];
+    const inOpen = new Set(openPools.map(p => p.id));
+    const toFetch = ids.filter(id => !inOpen.has(id) && !fetchedNames.current.has(id));
+    if (toFetch.length === 0) return;
+    toFetch.forEach(id => fetchedNames.current.add(id));
+    (async () => {
+      const results = await Promise.all(
+        toFetch.map(id => adminFetch<{ data: PoolLike }>(`/pools/${id}`).catch(() => null)),
+      );
+      setNamesById(prev => {
+        const next = { ...prev };
+        for (const r of results) if (r?.data) next[r.data.id] = poolLabelOf(r.data);
+        return next;
+      });
+    })();
+  }, [cfg?.targetPoolIds, openPools]);
 
   const save = async () => {
     if (!cfg) return;
@@ -145,11 +196,10 @@ export function LiquidityBot() {
       <AppSwitch checked={val} onChange={onChange} size="sm" tokens={t} />
     </Box>
   );
-  const poolLabel = (p: AdminPool) => (p.homeTeam && p.awayTeam ? `${p.homeTeam} vs ${p.awayTeam}` : (p.asset || p.id.slice(0, 8)));
   const selectedIds = new Set(cfg.targetPoolIds);
   const q = poolSearch.trim().toLowerCase();
   const availablePools = openPools
-    .filter(p => !selectedIds.has(p.id) && (q === '' || poolLabel(p).toLowerCase().includes(q) || p.id.toLowerCase().includes(q)))
+    .filter(p => !selectedIds.has(p.id) && (q === '' || poolLabelOf(p).toLowerCase().includes(q) || p.id.toLowerCase().includes(q)))
     .slice(0, 40);
 
   return (
@@ -245,20 +295,29 @@ export function LiquidityBot() {
 
           {cfg.targetPoolIds.length > 0 && (
             <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mb: 1 }}>
-              {cfg.targetPoolIds.map(id => {
-                const p = openPools.find(x => x.id === id);
-                return (
-                  <Box key={id} sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, px: 1, py: 0.4, borderRadius: '8px', bgcolor: `${t.success}22`, border: `1px solid ${t.border.medium}`, fontSize: '0.74rem', color: t.text.primary }}>
-                    <span>{p ? poolLabel(p) : `${id.slice(0, 8)}…`}</span>
-                    <Box component="button" onClick={() => setCfg({ ...cfg, targetPoolIds: cfg.targetPoolIds.filter(x => x !== id) })}
-                      sx={{ border: 'none', bgcolor: 'transparent', color: t.text.tertiary, cursor: 'pointer', fontSize: '0.95rem', lineHeight: 1, p: 0, '&:hover': { color: t.error } }}>×</Box>
-                  </Box>
-                );
-              })}
+              {cfg.targetPoolIds.map(id => (
+                <Box key={id} sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, px: 1, py: 0.4, borderRadius: '8px', bgcolor: `${t.success}22`, border: `1px solid ${t.border.medium}`, fontSize: '0.74rem', color: t.text.primary }}>
+                  <span>{namesById[id] ?? `${id.slice(0, 8)}…`}</span>
+                  <Box component="button" onClick={() => setCfg({ ...cfg, targetPoolIds: cfg.targetPoolIds.filter(x => x !== id) })}
+                    sx={{ border: 'none', bgcolor: 'transparent', color: t.text.tertiary, cursor: 'pointer', fontSize: '0.95rem', lineHeight: 1, p: 0, '&:hover': { color: t.error } }}>×</Box>
+                </Box>
+              ))}
               <Box component="button" onClick={() => setCfg({ ...cfg, targetPoolIds: [] })}
                 sx={{ px: 1, py: 0.4, borderRadius: '8px', border: `1px solid ${t.border.subtle}`, bgcolor: 'transparent', color: t.text.secondary, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>Clear all</Box>
             </Box>
           )}
+
+          {/* Type filter — API-side, so sports/PM aren't buried under crypto pools */}
+          <Box sx={{ display: 'flex', gap: 0.5, mb: 1 }}>
+            {POOL_TYPE_FILTERS.map(f => (
+              <Box key={f.key} component="button" onClick={() => setPoolTypeFilter(f.key)}
+                sx={{ px: 1.25, py: 0.4, borderRadius: '8px', border: `1px solid ${poolTypeFilter === f.key ? t.border.medium : t.border.subtle}`, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700,
+                  bgcolor: poolTypeFilter === f.key ? `${t.success}22` : 'transparent',
+                  color: poolTypeFilter === f.key ? t.text.primary : t.text.secondary }}>
+                {f.label}
+              </Box>
+            ))}
+          </Box>
 
           <Box component="input" value={poolSearch} placeholder="Search open pools to add…"
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPoolSearch(e.target.value)}
@@ -271,7 +330,7 @@ export function LiquidityBot() {
               <Box key={p.id} component="button"
                 onClick={() => setCfg({ ...cfg, targetPoolIds: [...cfg.targetPoolIds, p.id] })}
                 sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, px: 1, py: 0.55, borderRadius: 0.5, border: 'none', textAlign: 'left', cursor: 'pointer', bgcolor: 'transparent', color: t.text.secondary, '&:hover': { bgcolor: t.bg.surface } }}>
-                <Box sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: t.text.primary, fontSize: '0.78rem' }}>{poolLabel(p)}</Box>
+                <Box sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: t.text.primary, fontSize: '0.78rem' }}>{poolLabelOf(p)}</Box>
                 <Box sx={{ flexShrink: 0, fontSize: '0.66rem', color: t.text.tertiary }}>{p.poolType} · {p.status}</Box>
               </Box>
             ))}
