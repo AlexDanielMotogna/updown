@@ -295,6 +295,18 @@ export async function handleNoStrikePricePool(
 }
 
 /**
+ * The on-chain Resolve instruction rejects an already-Resolved pool with
+ * InvalidPoolStatus (custom program error 0x177a = 6010). When we see that, the
+ * pool is ALREADY settled on-chain — the DB is just out of sync. We must NOT
+ * revert it to JOINING and retry (that loop hammers the RPC every cycle and
+ * burns credits); instead finalize the DB from the winner we already computed.
+ */
+function isAlreadyResolvedOnChain(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.includes('0x177a') || msg.includes('InvalidPoolStatus') || msg.includes('6010');
+}
+
+/**
  * Resolve a single pool: capture final price, determine winner.
  * Uses atomic status claim to prevent race conditions.
  */
@@ -388,7 +400,9 @@ export async function resolvePool(
           await deps.prisma.pool.deleteMany({ where: { id: pool.id } }).catch(() => {});
           return;
         }
-        throw err; // re-throw other errors
+        // Already resolved on-chain: fall through to mark CLAIMABLE (don't loop).
+        if (!isAlreadyResolvedOnChain(err)) throw err;
+        console.log(`[Scheduler] Empty pool ${pool.id} already resolved on-chain — reconciling DB.`);
       }
       await deps.prisma.pool.updateMany({
         where: { id: pool.id },
@@ -437,7 +451,15 @@ export async function resolvePool(
     }
 
     // Normal resolution - both sides have bets
-    await resolvePoolOnChain(deps, pool.id, strikePrice, finalPrice);
+    try {
+      await resolvePoolOnChain(deps, pool.id, strikePrice, finalPrice);
+    } catch (err) {
+      // Already resolved on-chain → don't rethrow (which would revert to JOINING
+      // and retry forever). Fall through and reconcile the DB with the winner we
+      // already computed. Any OTHER error still reverts + retries as before.
+      if (!isAlreadyResolvedOnChain(err)) throw err;
+      console.log(`[Scheduler] Pool ${pool.id} already resolved on-chain — reconciling DB (winner=${winner}).`);
+    }
 
     await deps.prisma.pool.update({
       where: { id: pool.id },
