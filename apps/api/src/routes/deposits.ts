@@ -338,11 +338,21 @@ depositsRouter.post('/confirm-deposit', async (req, res) => {
 
     // Both-sides allowed: no side-lock. Each (pool, wallet, side) is its own row.
 
-    // Verify transaction on-chain
-    const tx = await getConnection().getTransaction(txSignature, {
-      commitment: 'confirmed',
-      maxSupportedTransactionVersion: 0,
-    });
+    // Verify transaction on-chain. Retry a few times: the client's own RPC may be
+    // rate-limited (429) and hand us the signature slightly before this server's
+    // RPC indexes it — a single lookup would wrongly report TX_NOT_FOUND for a
+    // deposit that actually landed. Poll briefly before giving up.
+    let tx = null;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      try {
+        tx = await getConnection().getTransaction(txSignature, {
+          commitment: 'confirmed',
+          maxSupportedTransactionVersion: 0,
+        });
+      } catch { /* RPC error/429 — retry */ }
+      if (tx) break;
+      if (attempt < 5) await new Promise(r => setTimeout(r, 2500));
+    }
 
     if (!tx) {
       return res.status(400).json({
