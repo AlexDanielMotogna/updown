@@ -108,12 +108,12 @@ export function useDeposit() {
 
         setState({ status: 'confirming', txSignature: signature });
 
-        // Wait for confirmation with retry logic (devnet can be slow)
-        const confirmed = await confirmTransactionWithRetry(connection, signature);
-
-        if (!confirmed) {
-          throw new Error('Transaction confirmation failed. Please check the explorer.');
-        }
+        // Best-effort client-side wait so the tx has time to land. Do NOT hard-fail
+        // on timeout: a rate-limited devnet RPC (429) often can't confirm even
+        // though the tx landed. The backend confirmDeposit verifies the tx on-chain
+        // with its own RPC and is the authoritative check, so we proceed to it
+        // regardless and only surface an error if the SERVER can't find the tx.
+        await confirmTransactionWithRetry(connection, signature).catch(() => false);
 
         // Confirm with backend (side is verified by user signing, amount verified on-chain)
         const confirmResponse = await confirmDeposit({

@@ -101,10 +101,18 @@ export function useWalletBridge() {
       const tx = Transaction.from(bytes);
       // Embedded wallet co-signs (silent, no broadcast) → fully-signed tx.
       const signed = (await embeddedSign({ transaction: tx, connection })) as Transaction;
+      // Send with skipPreflight to avoid an extra simulate call (one more RPC hit
+      // that 429s on a rate-limited devnet endpoint) — the server already built +
+      // validated this tx. We deliberately do NOT confirm here: connection.
+      // confirmTransaction uses signatureSubscribe (WebSocket), which throws a
+      // TransactionExpiredTimeoutError under RPC 429s even when the tx actually
+      // landed. The caller confirms via getSignatureStatus polling
+      // (confirmTransactionWithRetry), which tolerates 429s and slow devnet.
       const sig = await connection.sendRawTransaction(signed.serialize(), {
+        skipPreflight: true,
         preflightCommitment: 'confirmed',
+        maxRetries: 5,
       });
-      await connection.confirmTransaction(sig, 'confirmed');
       return sig;
     },
     [embeddedSign, connection, getAccessToken],
