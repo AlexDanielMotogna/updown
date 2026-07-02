@@ -106,7 +106,18 @@ export async function forceClosePool(
 
   // Measure rent reclaimed
   const balanceBefore = await connection.getBalance(deps.wallet.publicKey);
-  const txSig = await closePoolOnChain(deps, poolId);
+  // If the pool PDA is already gone on-chain (AccountNotInitialized / 0xbc4 =
+  // 3012), it was already closed — don't surface that as an error. Skip the
+  // on-chain step and still clean up the DB records so the pool stops showing
+  // up as stuck in the admin.
+  let txSig = 'already-closed-on-chain';
+  try {
+    txSig = await closePoolOnChain(deps, poolId);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!(msg.includes('AccountNotInitialized') || msg.includes('0xbc4') || msg.includes('3012'))) throw err;
+    console.log(`[Admin] Pool ${poolId} already closed on-chain — cleaning up DB only.`);
+  }
   const balanceAfter = await connection.getBalance(deps.wallet.publicKey);
   const rentReclaimed = balanceAfter - balanceBefore;
 
