@@ -201,6 +201,18 @@ NEXT_PUBLIC_HYPERLIQUID_BUILDER_ADDRESS / MAX_FEE=<tu builder address + fee>
 > CRÍTICO: `NEXT_PUBLIC_HYPERLIQUID_TESTNET=false` y el API url de HL mainnet. Si se
 > queda el default, `lib/exchange.ts` ya resuelve a mainnet, pero déjalo explícito.
 
+> CRÍTICO (SSO web ↔ terminal): `NEXT_PUBLIC_PRIVY_APP_ID` en prod DEBE ser el
+> **App ID de PRODUCCIÓN** de Privy (mismo valor en el servicio web y en el
+> terminal). Con el App ID de **producción**, Privy setea la cookie de sesión
+> desde su servidor con `Domain=.updown.my` → se comparte entre subdominios y al
+> pasar de `updown.my` a `terminal.updown.my` **no vuelve a pedir login**. Con un
+> App ID de **desarrollo** la cookie es **host-only** (`Domain=updown.my`, sin
+> punto), no se comparte, y el terminal pide login cada vez. En el dashboard de
+> Privy (app de prod): activa **HttpOnly cookies**, App domain **`updown.my`**
+> (verificado por DNS), **SameSite Lax**, y añade allowed origins `updown.my` y
+> `terminal.updown.my`. Como es `NEXT_PUBLIC_*`, requiere **redeploy** de ambos
+> servicios. El App ID de desarrollo se queda solo para localhost.
+
 ### Paso 5 — Base de datos
 
 - DB de producción **limpia** (sin pools de test). Si reusas una DB, wipea los datos
