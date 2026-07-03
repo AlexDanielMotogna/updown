@@ -27,10 +27,22 @@ export function useWalletBridge() {
     return sol.find((w) => w.connectorType === 'embedded') ?? sol[0];
   }, [wallets]);
 
+  // The embedded Solana wallet from linkedAccounts — the CANONICAL source. In
+  // Privy v2 `useWallets()` surfaces EVM wallets, so the embedded Solana wallet
+  // does NOT reliably appear there; without this fallback the web resolves no
+  // Solana address (header stuck "connected" but empty). The terminal reads it
+  // the same way (chainType 'solana').
+  const linkedSolAddress = useMemo(() => {
+    const accts = (user?.linkedAccounts ?? []) as Array<{ type?: string; chainType?: string; address?: string }>;
+    return accts.find(
+      (a) => a.type === 'wallet' && a.chainType === 'solana' && !!a.address && !a.address.startsWith('0x'),
+    )?.address ?? null;
+  }, [user]);
+
   const connected = ready && authenticated;
 
   // Never let an EVM address through as the Solana wallet identity.
-  const rawAddress = activeWallet?.address ?? user?.wallet?.address ?? null;
+  const rawAddress = activeWallet?.address ?? linkedSolAddress ?? user?.wallet?.address ?? null;
   const walletAddress = rawAddress && !rawAddress.startsWith('0x') ? rawAddress : null;
 
   // Is the ACTIVE wallet an app-created (Privy embedded) one? `connectorType`
