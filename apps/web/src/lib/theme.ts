@@ -192,6 +192,7 @@ export interface ThemeTokens {
   // ─── Token allocation colors ─────────────────────
   allocationColors: {
     playToEarn: string;
+    presale: string;
     liquidity: string;
     team: string;
     treasury: string;
@@ -337,6 +338,7 @@ export const darkTokens: ThemeTokens = {
   // Allocation colors
   allocationColors: {
     playToEarn: palette.green500,
+    presale: palette.cyan500,
     liquidity: palette.green400,
     team: palette.amber500,
     treasury: palette.violet300,
@@ -483,6 +485,7 @@ export const lightTokens: ThemeTokens = {
 
   allocationColors: {
     playToEarn: palette.green600,
+    presale: palette.cyan500,
     liquidity: palette.green500,
     team: palette.amber600,
     treasury: palette.violet500,
