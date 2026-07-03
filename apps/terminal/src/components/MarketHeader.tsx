@@ -192,6 +192,7 @@ export function MarketHeader({ symbol, initial, mobile }: { symbol: string; init
         <Stat label="24h Volume" value={fmtUsdc(t?.volume24h)} />
         <Stat label="Market Cap" value={fmtUsdc(t?.marketCap)} />
         <Stat label="Contract" value={shortContract(t?.contract)} />
+        <TradingViewLink />
       </div>
     );
   }
@@ -219,6 +220,24 @@ export function MarketHeader({ symbol, initial, mobile }: { symbol: string; init
         sub={countdown}
         cls={fundingPct >= 0 ? 'text-win-500' : 'text-loss-500'}
       />
+      <TradingViewLink />
     </div>
+  );
+}
+
+/** TradingView attribution, pushed to the right corner of the market header. */
+function TradingViewLink() {
+  return (
+    <span className="ml-auto text-2xs text-surface-500">
+      Charts by{' '}
+      <a
+        href="https://www.tradingview.com/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-surface-400 underline hover:text-surface-200"
+      >
+        TradingView
+      </a>
+    </span>
   );
 }
