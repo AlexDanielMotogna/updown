@@ -29,6 +29,18 @@ function fmtVol(s: string) {
   return `$${n.toFixed(0)}`;
 }
 
+// Persist the current tab/filter/view in the URL query so a refresh keeps them.
+// Written on user action (no effect races); defaults are omitted to keep URLs clean.
+function writeMarketsUrl(kind: 'perp' | 'spot', filter: string, view: 'card' | 'row') {
+  if (typeof window === 'undefined') return;
+  const params = new URLSearchParams(window.location.search);
+  if (kind === 'spot') params.set('tab', 'spot'); else params.delete('tab');
+  if (filter !== 'ALL') params.set('filter', filter); else params.delete('filter');
+  if (view === 'card') params.set('view', 'card'); else params.delete('view');
+  const qs = params.toString();
+  window.history.replaceState(null, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
+}
+
 /**
  * Kalshi/Robinhood-style perps catalog — the Simple Mode landing
  * (PLAN-SIMPLE-MODE §4.1). Styled with the app's tokens (surface/brand/win/loss,
@@ -56,6 +68,17 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
     (b) => b.asset !== 'USDC' && Number(b.total) > 0 && Number(b.total) >= Math.pow(10, -(b.metadata?.szDecimals ?? 0)),
   ).length;
   const activityCount = kind === 'spot' ? spotHoldingCount : positions.length + orders.length;
+
+  // Restore tab/filter/view from the URL on mount (survives a page refresh).
+  // Runs client-only after hydration, so no SSR mismatch; the brief default
+  // flash is hidden by the loading skeletons.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (SPOT_ENABLED && p.get('tab') === 'spot') setKind('spot');
+    const f = p.get('filter');
+    if (f) setFilter(f);
+    if (p.get('view') === 'card') setView('card');
+  }, []);
 
   // Live mark prices over ONE WS subscription (allMids) — every coin in a single
   // feed, so cards update in realtime without hammering the REST endpoint.
@@ -109,7 +132,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
     <div className="flex h-full">
       {/* Left: catalog (left-aligned, fills the space) */}
       <div className="min-w-0 flex-1 overflow-y-auto">
-        <div className="px-4 py-5 lg:px-6">
+        <div className="flex min-h-full flex-col px-4 py-5 lg:px-6">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-surface-100">{kind === 'spot' ? 'Spot' : 'Perpetuals'}</h1>
         {SPOT_ENABLED && (
@@ -119,7 +142,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
               className={`pointer-events-none absolute inset-y-0 left-0 w-1/2 rounded-[7px] bg-brand/15 ring-1 ring-inset ring-brand/40 shadow-[0_0_14px_-2px_rgba(95,216,239,0.5)] transition-transform duration-300 ease-out ${kind === 'spot' ? 'translate-x-full' : 'translate-x-0'}`}
             />
             {(['perp', 'spot'] as const).map((k) => (
-              <button key={k} onClick={() => { setKind(k); setFilter('ALL'); }}
+              <button key={k} onClick={() => { setKind(k); setFilter('ALL'); writeMarketsUrl(k, 'ALL', view); }}
                 className={`relative z-10 px-5 py-1.5 transition-colors ${kind === k ? 'text-brand' : 'text-surface-400 hover:text-surface-200'}`}>
                 {k === 'perp' ? 'Perps' : 'Spot'}
               </button>
@@ -132,7 +155,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
       <div className="mb-4 flex items-center justify-between gap-2">
         <div className="flex gap-1 overflow-x-auto">
           {tabs.map((t) => (
-            <button key={t} onClick={() => setFilter(t)}
+            <button key={t} onClick={() => { setFilter(t); writeMarketsUrl(kind, t, view); }}
               className={`whitespace-nowrap rounded-md px-3.5 py-1.5 text-sm font-semibold transition-colors ${
                 filter === t ? 'bg-white/[0.08] text-surface-100' : 'text-surface-400 hover:bg-white/[0.04] hover:text-surface-100'
               }`}>
@@ -146,7 +169,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
             ['card', <svg key="g" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>],
             ['row', <svg key="l" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" /></svg>],
           ] as const).map(([v, icon]) => (
-            <button key={v} onClick={() => setView(v)} aria-label={`${v} view`}
+            <button key={v} onClick={() => { setView(v); writeMarketsUrl(kind, filter, v); }} aria-label={`${v} view`}
               className={`rounded px-2 py-1 transition-colors ${view === v ? 'bg-white/[0.08] text-surface-100' : 'text-surface-400 hover:text-surface-100'}`}>
               {icon}
             </button>
@@ -156,7 +179,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
 
       {tickers.length === 0 ? (
         view === 'card' ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid flex-1 content-start grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {Array.from({ length: 16 }).map((_, i) => (
               <div key={i} className="flex flex-col gap-2 rounded-xl border border-surface-800 bg-surface-850 p-3">
                 <div className="flex items-center gap-2">
@@ -173,18 +196,36 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
             ))}
           </div>
         ) : (
-          <div className="flex flex-col divide-y divide-surface-800 overflow-hidden rounded-xl border border-surface-800 bg-surface-850">
-            {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 px-3 py-3">
-                <div className="h-6 w-6 animate-pulse rounded-full bg-surface-800" />
+          <div className="flex flex-1 flex-col divide-y divide-surface-800 overflow-hidden rounded-xl border border-surface-800 bg-surface-850">
+            {Array.from({ length: 14 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-3 py-2.5">
+                {/* Asset (icon + name), mirrors the real row's w-36 column */}
+                <div className="flex w-36 items-center gap-2">
+                  <div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-surface-800" />
+                  <div className="flex min-w-0 flex-col gap-1.5">
+                    <div className="h-3 w-16 animate-pulse rounded bg-surface-800" />
+                    <div className="h-2 w-9 animate-pulse rounded bg-surface-800" />
+                  </div>
+                </div>
+                {/* Price */}
                 <div className="h-3 w-24 animate-pulse rounded bg-surface-800" />
-                <div className="ml-auto h-7 w-36 animate-pulse rounded bg-surface-800" />
+                {/* 24h */}
+                <div className="h-3 w-20 animate-pulse rounded bg-surface-800" />
+                {/* Volume (md+) */}
+                <div className="hidden h-3 w-24 animate-pulse rounded bg-surface-800 md:block" />
+                {/* Sparkline (lg+) */}
+                <div className="hidden h-7 w-28 animate-pulse rounded bg-surface-800 lg:block" />
+                {/* Long / Short */}
+                <div className="ml-auto flex gap-1.5">
+                  <div className="h-8 w-16 animate-pulse rounded bg-surface-800" />
+                  <div className="h-8 w-16 animate-pulse rounded bg-surface-800" />
+                </div>
               </div>
             ))}
           </div>
         )
       ) : view === 'card' ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid flex-1 content-start grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {rows.map((t) => {
             const baseSym = lbl(t);
             const chg = Number(t.change24h);
@@ -229,7 +270,7 @@ export function SimpleMarketsList({ devWallet, devEvm }: { devWallet?: string; d
         </div>
       ) : (
         /* Row / list view */
-        <div className="flex flex-col divide-y divide-surface-800 overflow-hidden rounded-xl border border-surface-800 bg-surface-850">
+        <div className="flex flex-1 flex-col divide-y divide-surface-800 overflow-hidden rounded-xl border border-surface-800 bg-surface-850">
           {rows.map((t) => {
             const baseSym = lbl(t);
             const chg = Number(t.change24h);
