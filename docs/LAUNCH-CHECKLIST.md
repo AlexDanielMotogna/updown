@@ -17,7 +17,7 @@
 - [ ] 🧑‍⚖️ **Legal opinion** (token classification) — required by curated launchpads and serious investors.
 - [ ] 🧑‍⚖️ **Geo-restrictions** policy (block US / sanctioned) + **Terms of sale** + risk disclaimers.
 - [ ] 🧑‍💼 Confirm **tokenomics** final (10B, 15% presale, buckets) — see `TOKENOMICS-PRESALE.md`.
-- [ ] 👨‍💻 **UP utility spec**: fee discount + staking + XP/rewards boost + governance, wired to the existing rewards/XP infra in `apps/api`. (Utility = credibility; do before pitching investors.)
+- [ ] 👨‍💻 **UP utility spec** — see `docs/UP-UTILITY-SPEC.md`: emission (earn-by-using) + sinks (fee discount, staking, entries, boosts, governance) + buyback&burn, wired to the existing rewards/XP infra in `apps/api`. (Utility = credibility; do before pitching investors.)
 - [ ] 🧑‍💼 **Litepaper / whitepaper** (tokenomics + utility + roadmap) from existing pitch content (`docs/pitch-deck-content.md`).
 - [ ] 🧑‍💼 **Fundraise materials**: pitch deck, data room, cap table.
 
