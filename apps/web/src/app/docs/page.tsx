@@ -151,21 +151,23 @@ const LEVELS = [
 ];
 
 const ALLOCATIONS = [
-  { label: 'Play-to-Earn', pct: 40, tokens: '4,000,000,000', color: darkTokens.allocationColors.playToEarn, desc: 'Distributed to players through gameplay' },
+  { label: 'Play-to-Earn', pct: 32, tokens: '3,200,000,000', color: darkTokens.allocationColors.playToEarn, desc: 'Distributed to players through gameplay' },
+  { label: 'Presale', pct: 15, tokens: '1,500,000,000', color: darkTokens.allocationColors.presale, desc: 'Seed / Private / Public rounds, vested on-chain' },
   { label: 'Liquidity', pct: 15, tokens: '1,500,000,000', color: darkTokens.allocationColors.liquidity, desc: 'DEX liquidity on Raydium / Orca' },
   { label: 'Team', pct: 15, tokens: '1,500,000,000', color: darkTokens.allocationColors.team, desc: '24-month vesting, 6-month cliff' },
-  { label: 'Treasury', pct: 10, tokens: '1,000,000,000', color: darkTokens.allocationColors.treasury, desc: 'Protocol growth & partnerships' },
-  { label: 'Community', pct: 10, tokens: '1,000,000,000', color: darkTokens.allocationColors.community, desc: 'Community initiatives & early adopters' },
+  { label: 'Community', pct: 7, tokens: '700,000,000', color: darkTokens.allocationColors.community, desc: 'Community initiatives & early adopters' },
+  { label: 'Treasury', pct: 6, tokens: '600,000,000', color: darkTokens.allocationColors.treasury, desc: 'Protocol growth & partnerships' },
   { label: 'Marketing', pct: 5, tokens: '500,000,000', color: darkTokens.allocationColors.marketing, desc: 'Exchange listings, campaigns, KOLs' },
   { label: 'Advisors', pct: 5, tokens: '500,000,000', color: darkTokens.allocationColors.advisors, desc: '18-month vesting, 3-month cliff' },
 ];
 
 const VESTING = [
   { label: 'Play-to-Earn', color: darkTokens.allocationColors.playToEarn, cliff: 0, end: 30, note: 'Ongoing via gameplay' },
+  { label: 'Presale', color: darkTokens.allocationColors.presale, cliff: 1, end: 15, note: 'TGE 5-15%, 1-3mo cliff, up to 12mo linear' },
   { label: 'Liquidity', color: darkTokens.allocationColors.liquidity, cliff: 0, end: 1, note: '100% at TGE' },
   { label: 'Team', color: darkTokens.allocationColors.team, cliff: 6, end: 30, note: '6mo cliff, 24mo linear' },
-  { label: 'Treasury', color: darkTokens.allocationColors.treasury, cliff: 0, end: 12, note: '12mo linear' },
   { label: 'Community', color: darkTokens.allocationColors.community, cliff: 0, end: 24, note: 'Airdrop waves' },
+  { label: 'Treasury', color: darkTokens.allocationColors.treasury, cliff: 0, end: 12, note: '12mo linear' },
   { label: 'Marketing', color: darkTokens.allocationColors.marketing, cliff: 0, end: 24, note: 'Per milestone' },
   { label: 'Advisors', color: darkTokens.allocationColors.advisors, cliff: 3, end: 21, note: '3mo cliff, 18mo linear' },
 ];
