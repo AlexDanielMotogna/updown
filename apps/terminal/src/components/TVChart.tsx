@@ -97,21 +97,8 @@ export function TVChart({ symbol, evmAddress }: { symbol: string; evmAddress?: s
   }, [symbol, evmAddress]);
 
   return (
-    <div className="card relative h-full w-full overflow-hidden">
+    <div className="card h-full w-full overflow-hidden">
       <div ref={ref} className="h-full w-full" />
-      {/* TradingView attribution link — overlaid top-right so it lives in the chart
-          header area without stealing layout space from the widget. */}
-      <span className="pointer-events-none absolute right-2 top-1.5 z-10 text-2xs text-surface-500">
-        Charts by{' '}
-        <a
-          href="https://www.tradingview.com/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="pointer-events-auto text-surface-400 underline hover:text-surface-200"
-        >
-          TradingView
-        </a>
-      </span>
     </div>
   );
 }
