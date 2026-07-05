@@ -227,6 +227,10 @@ model User {
   currentStreak  Int       @default(0) @map("current_streak")
   bestStreak     Int       @default(0) @map("best_streak")
   lastActiveDate DateTime? @map("last_active_date")
+  /// UP-Coin sink inventory: streak-savers protect the current streak on a loss
+  /// (one saver consumed per losing bet instead of resetting). Bought via
+  /// spendCoins. See docs/PLAN-UP-UTILITY-IMPL.md §3.
+  streakSavers   Int       @default(0) @map("streak_savers")
 
   // Daily tracking
   dailyBetCount  Int       @default(0) @map("daily_bet_count")
@@ -390,19 +394,132 @@ model RewardGrant {
   @@map("reward_grants")
 }
 
+/// Emission budget config for the UP Coins faucet. One row per epoch; the active
+/// row (active = true, highest epoch) gates coin emission. The decay schedule is
+/// expressed as DATA: successive epochs are seeded with a smaller `totalAllocated`
+/// so the P2E bucket (3.2B) lasts years. `dailyCoinsCap` is a global (all-users)
+/// per-day throttle. When no active row exists, emission is uncapped (legacy
+/// behavior). See docs/PLAN-UP-UTILITY-IMPL.md §1.
 model EmissionConfig {
   id               String    @id @default(uuid())
   epoch            Int       @unique
   coinsPerUsdcBet  BigInt    @map("coins_per_usdc_bet") // coins per $1 bet (8 decimals)
   winMultiplier    Int       @map("win_multiplier") // basis points (5000 = 50%)
-  dailyCoinsCap    BigInt    @map("daily_coins_cap") // global daily cap
+  dailyCoinsCap    BigInt    @map("daily_coins_cap") // global daily cap (0 = unlimited)
   epochStartDate   DateTime  @map("epoch_start_date")
   epochEndDate     DateTime? @map("epoch_end_date")
-  totalAllocated   BigInt    @default(0) @map("total_allocated")
-  totalDistributed BigInt    @default(0) @map("total_distributed")
+  totalAllocated   BigInt    @default(0) @map("total_allocated") // epoch budget (0 = unlimited)
+  totalDistributed BigInt    @default(0) @map("total_distributed") // coins emitted this epoch
   active           Boolean   @default(false)
 
   @@map("emission_configs")
+}
+
+/// Global per-day emission counter (across all users), keyed by UTC day
+/// 'YYYY-MM-DD'. Enforces `EmissionConfig.dailyCoinsCap` and feeds the
+/// emission-vs-sink dashboard. Historical rows are kept for the timeseries.
+model EmissionDaily {
+  id          String   @id @default(uuid())
+  day         String   @unique // UTC 'YYYY-MM-DD'
+  distributed BigInt   @default(0) // stored units of UP coins emitted that day
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("emission_daily")
+}
+
+/// Append-only ledger of UP Coin SPENDS (the sink side). Every purchase of a
+/// streak-saver / cosmetic / boost debits `User.coinsBalance` and credits
+/// `User.coinsRedeemed` atomically and writes one row here. `burned` marks Coins
+/// that are destroyed (deflationary) vs routed to treasury. `idempotencyKey` makes
+/// a client retry safe. See docs/PLAN-UP-UTILITY-IMPL.md §2.
+model CoinSpend {
+  id             String   @id @default(uuid())
+  walletAddress  String   @map("wallet_address")
+  /// Sink category: 'STREAK_SAVER' | 'COSMETIC' | 'BOOST' | …
+  type           String
+  /// Specific catalog item within the category (nullable for simple sinks).
+  sku            String?
+  /// UP coins spent, stored units (display = /100). Always positive.
+  amount         BigInt
+  /// true = coins destroyed (hard sink); false = routed to treasury.
+  burned         Boolean  @default(true)
+  metadata       Json?
+  /// Optional client-supplied key; unique so a retried purchase is a no-op.
+  idempotencyKey String?  @unique @map("idempotency_key")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([walletAddress, createdAt])
+  @@index([type])
+  @@map("coin_spends")
+}
+
+enum CosmeticKind {
+  BADGE
+  FRAME
+  TITLE
+  NAME_COLOR
+}
+
+/// Cosmetic catalog (UP-Coin sink, docs/PLAN-UP-UTILITY-IMPL.md §3 Sink 2). Pure
+/// status items with zero economic effect — the safest sink. `value` is the render
+/// payload interpreted per kind: hex color for NAME_COLOR/FRAME, icon path for
+/// BADGE, display text for TITLE.
+model Cosmetic {
+  id        String       @id @default(uuid())
+  sku       String       @unique
+  kind      CosmeticKind
+  name      String
+  /// Price in stored UP-coin units (display = /100).
+  price     BigInt
+  value     String
+  active    Boolean      @default(true)
+  sortOrder Int          @default(0) @map("sort_order")
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  owners UserCosmetic[]
+
+  @@map("cosmetics")
+}
+
+/// Ownership of a cosmetic by a wallet. `kind` is denormalized so equipping can
+/// unequip the same-kind item in one updateMany (one equipped item per kind).
+model UserCosmetic {
+  id            String       @id @default(uuid())
+  walletAddress String       @map("wallet_address")
+  cosmeticId    String       @map("cosmetic_id")
+  kind          CosmeticKind
+  equipped      Boolean      @default(false)
+  acquiredAt    DateTime     @default(now()) @map("acquired_at")
+
+  cosmetic Cosmetic @relation(fields: [cosmeticId], references: [id], onDelete: Cascade)
+
+  @@unique([walletAddress, cosmeticId])
+  @@index([walletAddress])
+  @@map("user_cosmetics")
+}
+
+enum BoostKind {
+  XP
+  COINS
+}
+
+/// A time-limited XP or COINS multiplier bought with UP Coins (sink, docs/
+/// PLAN-UP-UTILITY-IMPL.md §3 Sink 3). At most one active per kind (unique
+/// wallet+kind, upserted on re-buy). `multiplierBps` is basis points (20000 = 2.0x)
+/// applied on top of the level-based amount at the award site; boosted emission
+/// still passes through the EmissionConfig budget. Expired rows are ignored (kept
+/// until the next buy replaces them).
+model ActiveBoost {
+  id            String    @id @default(uuid())
+  walletAddress String    @map("wallet_address")
+  kind          BoostKind
+  multiplierBps Int       @map("multiplier_bps")
+  expiresAt     DateTime  @map("expires_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@unique([walletAddress, kind])
+  @@index([walletAddress])
+  @@map("active_boosts")
 }
 
 model EventLog {
