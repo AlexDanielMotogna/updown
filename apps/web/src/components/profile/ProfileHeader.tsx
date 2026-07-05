@@ -20,6 +20,7 @@ import {
   Edit,
   Settings,
   VpnKey,
+  BackpackOutlined,
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
@@ -30,7 +31,9 @@ import { getAvatarUrl } from '@/lib/constants';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import type { UserProfile } from '@/lib/api';
+import { STORE_UI_ENABLED } from '@/lib/features';
 import { EditProfileDialog } from './EditProfileDialog';
+import { InventoryDialog } from './InventoryDialog';
 import { LevelMilestones } from './LevelMilestones';
 
 function truncateAddress(address: string): string {
@@ -62,6 +65,7 @@ export function ProfileHeader({
   const [copied, setCopied] = useState(false);
   const [refCopied, setRefCopied] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
   const [settingsAnchor, setSettingsAnchor] = useState<HTMLElement | null>(null);
   const [exporting, setExporting] = useState(false);
 
@@ -117,6 +121,15 @@ export function ProfileHeader({
   const level = userProfile?.level ?? 1;
   const tierIndex = Math.min(Math.floor((level - 1) / 4), 9);
   const ringColor = t.levelTiers[tierIndex];
+
+  // Equipped cosmetics (UP-Coin sink) applied to the identity. Each is null until
+  // the user buys + equips one of that kind; the wallet/level defaults win otherwise.
+  const equipped = userProfile?.equippedCosmetics ?? [];
+  const cosmeticOf = (kind: string) => equipped.find((c) => c.kind === kind)?.value ?? null;
+  const nameColor = cosmeticOf('NAME_COLOR');
+  const titleCosmetic = cosmeticOf('TITLE');
+  const badgeCosmetic = cosmeticOf('BADGE');
+  const frameColor = cosmeticOf('FRAME');
 
   const memberSince = userProfile?.createdAt
     ? new Date(userProfile.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
@@ -222,7 +235,8 @@ export function ProfileHeader({
                       sx={{
                         width: { xs: 64, md: 84 },
                         height: { xs: 64, md: 84 },
-                        border: `3px solid ${ringColor}`,
+                        // Equipped FRAME cosmetic overrides the level-tier ring.
+                        border: `3px solid ${frameColor ?? ringColor}`,
                         boxShadow: `0 0 0 4px ${t.bg.app}`,
                         bgcolor: t.bg.surface,
                       }}
@@ -240,9 +254,21 @@ export function ProfileHeader({
                 {/* Name + meta */}
                 <Box sx={{ minWidth: 0, flex: 1, pb: { xs: 0, sm: 0.5 } }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                    <Typography sx={{ fontSize: { xs: '0.95rem', md: '1.4rem' }, fontWeight: 700, color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {badgeCosmetic && (
+                      <Box component="span" sx={{ fontSize: { xs: '1rem', md: '1.3rem' }, lineHeight: 1, flexShrink: 0 }}>
+                        {badgeCosmetic}
+                      </Box>
+                    )}
+                    <Typography sx={{ fontSize: { xs: '0.95rem', md: '1.4rem' }, fontWeight: 700, color: nameColor ?? t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {displayedName}
                     </Typography>
+                    {titleCosmetic && (
+                      <Box sx={{ px: 0.9, py: 0.2, borderRadius: 1, bgcolor: withAlpha(t.accent, 0.14), flexShrink: 0 }}>
+                        <Typography sx={{ fontSize: { xs: '0.68rem', md: '0.78rem' }, fontWeight: 800, fontStyle: 'italic', color: t.accent, lineHeight: 1.3, whiteSpace: 'nowrap' }}>
+                          {titleCosmetic}
+                        </Typography>
+                      </Box>
+                    )}
                     <Tooltip
                       title={copied ? 'Copied!' : (walletAddress ? truncateAddress(walletAddress) : '')}
                       arrow
@@ -321,6 +347,14 @@ export function ProfileHeader({
                       </Typography>
                     </Box>
                   </Tooltip>
+                  {STORE_UI_ENABLED && (
+                    <Tooltip title="Inventory (equip cosmetics, see boosts)" arrow placement="bottom" slotProps={tooltipSlotProps(t)}>
+                      <Box component="button" onClick={() => setInventoryOpen(true)} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 1.25, py: 0.8, borderRadius: 1, cursor: 'pointer', border: `1px solid ${t.border.subtle}`, bgcolor: t.hover.light, color: t.text.secondary, transition: 'all 0.15s', '&:hover': { color: t.accent, borderColor: t.border.default } }}>
+                        <BackpackOutlined sx={{ fontSize: 16 }} />
+                        <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, display: { xs: 'none', sm: 'block' } }}>Bag</Typography>
+                      </Box>
+                    </Tooltip>
+                  )}
                   {userProfile?.referralCode && (
                     <Tooltip title={refCopied ? 'Invite link copied!' : 'Copy your invite link'} arrow placement="bottom" slotProps={tooltipSlotProps(t)}>
                       <Box component="button" onClick={handleShareReferral} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 1.25, py: 0.8, borderRadius: 1, cursor: 'pointer', border: `1px solid ${t.border.subtle}`, bgcolor: refCopied ? withAlpha(t.gain, 0.12) : t.hover.light, color: refCopied ? t.gain : t.text.secondary, transition: 'all 0.15s', '&:hover': { color: t.accent, borderColor: t.border.default } }}>
@@ -351,6 +385,14 @@ export function ProfileHeader({
         <EditProfileDialog
           open={editOpen}
           onClose={() => setEditOpen(false)}
+          walletAddress={walletAddress}
+          profile={userProfile}
+        />
+      )}
+      {walletAddress && (
+        <InventoryDialog
+          open={inventoryOpen}
+          onClose={() => setInventoryOpen(false)}
           walletAddress={walletAddress}
           profile={userProfile}
         />

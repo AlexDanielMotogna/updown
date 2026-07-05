@@ -19,6 +19,7 @@ import { adminLiquidityBotRouter } from './liquidity-bot';
 import { adminPoolCreationRouter } from './pool-creation';
 import { adminBuilderRevenueRouter } from './builder-revenue';
 import { adminXPosterRouter } from './x-poster';
+import { adminEconomyRouter } from './economy';
 
 export const adminRouter: RouterType = Router();
 
@@ -50,3 +51,4 @@ adminRouter.use('/liquidity-bot', adminLiquidityBotRouter);
 adminRouter.use('/pool-creation', adminPoolCreationRouter);
 adminRouter.use('/builder-revenue', adminBuilderRevenueRouter);
 adminRouter.use('/x-poster', adminXPosterRouter);
+adminRouter.use('/economy', adminEconomyRouter);

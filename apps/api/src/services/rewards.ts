@@ -8,6 +8,8 @@ import {
   calculateLevelUpBonus,
 } from '../utils/coins';
 import { emitUserReward } from '../websocket';
+import { reserveEmission, recordEmission, scaleComponents } from './emission';
+import { getBoostMultipliers, applyBoost } from './boosts';
 import { ensureReferralCode } from './referrals';
 import { checkAndDistributeMilestones } from './milestones';
 import { TESTING_MODE, ACTIVE_BET_THRESHOLD, BET_MILESTONE_REWARD, BET_MILESTONE_TYPE, REFERRER_REWARD, REFERRER_REWARD_TYPE } from '../utils/testing';
@@ -266,6 +268,8 @@ export async function awardTradeFills(
     const user = await prisma.user.findUnique({ where: { walletAddress } });
     if (!user) return empty;
 
+    const boosts = await getBoostMultipliers(walletAddress);
+
     let xpAward = 0n;
     let coinsAward = 0n;
     const rows = fresh.map((f) => {
@@ -289,23 +293,31 @@ export async function awardTradeFills(
       };
     });
 
+    // Apply active boosts to the credited totals (per-fill stored xp stays base).
+    xpAward = applyBoost(xpAward, boosts.xpBps);
+    coinsAward = applyBoost(coinsAward, boosts.coinsBps);
+
     const newTotalXp = user.totalXp + xpAward;
     const newLevel = getLevelForXp(newTotalXp);
     const levelUp = newLevel > user.level;
     const totalNotional = fresh.reduce((s, f) => s + f.notionalUsd, 0);
     const totalFee = fresh.reduce((s, f) => s + Math.max(0, f.feeUsd), 0);
 
+    let grantedCoins = 0n;
     await prisma.$transaction(async (tx) => {
       // createMany with skipDuplicates guards a concurrent poller racing on tid.
       await tx.tradeFill.createMany({ data: rows, skipDuplicates: true });
-      if (xpAward > 0n || coinsAward > 0n) {
+      // Gate coin emission against the active EmissionConfig budget. Fills are still
+      // stored above (idempotency) and XP still credited; only coins are throttled.
+      grantedCoins = coinsAward > 0n ? await reserveEmission(tx, coinsAward) : 0n;
+      if (xpAward > 0n || grantedCoins > 0n) {
         await tx.user.update({
           where: { walletAddress },
           data: {
             totalXp: { increment: xpAward },
             level: newLevel,
-            coinsBalance: { increment: coinsAward },
-            coinsLifetime: { increment: coinsAward },
+            coinsBalance: { increment: grantedCoins },
+            coinsLifetime: { increment: grantedCoins },
           },
         });
         if (xpAward > 0n) {
@@ -319,13 +331,13 @@ export async function awardTradeFills(
             },
           });
         }
-        if (coinsAward > 0n) {
+        if (grantedCoins > 0n) {
           await tx.rewardLog.create({
             data: {
               walletAddress,
               rewardType: 'COINS',
               reason: 'TRADE_VOLUME',
-              amount: coinsAward,
+              amount: grantedCoins,
               metadata: { fills: fresh.length, totalNotional },
             },
           });
@@ -333,10 +345,10 @@ export async function awardTradeFills(
       }
     });
 
-    if (xpAward > 0n || coinsAward > 0n) {
+    if (xpAward > 0n || grantedCoins > 0n) {
       emitUserReward(walletAddress, {
         xp: Number(xpAward),
-        coins: Number(coinsAward),
+        coins: Number(grantedCoins),
         level: newLevel,
         levelUp,
         totalXp: Number(newTotalXp),
@@ -344,7 +356,7 @@ export async function awardTradeFills(
       });
     }
 
-    return { newFills: fresh.length, xpAwarded: xpAward, coinsAwarded: coinsAward, newLevel, levelUp };
+    return { newFills: fresh.length, xpAwarded: xpAward, coinsAwarded: grantedCoins, newLevel, levelUp };
   } catch (error) {
     console.error('[Rewards] awardTradeFills failed:', error);
     return empty;
@@ -373,12 +385,16 @@ export async function grantReferrerReward(referredWallet: string, referredSettle
     if ((e as { code?: string }).code === 'P2002') return; // already rewarded for this referral
     throw e;
   }
-  const u = await prisma.user.update({
-    where: { walletAddress: ref.referrerWallet },
-    data: {
-      coinsBalance: { increment: REFERRER_REWARD },
-      coinsLifetime: { increment: REFERRER_REWARD },
-    },
+  const u = await prisma.$transaction(async (tx) => {
+    // Fixed reward: always paid in full, but accounted against the emission budget.
+    await recordEmission(tx, REFERRER_REWARD);
+    return tx.user.update({
+      where: { walletAddress: ref.referrerWallet },
+      data: {
+        coinsBalance: { increment: REFERRER_REWARD },
+        coinsLifetime: { increment: REFERRER_REWARD },
+      },
+    });
   });
   await prisma.eventLog.create({
     data: {
@@ -414,12 +430,16 @@ export async function grantBetMilestoneReward(walletAddress: string, settledBets
     if ((e as { code?: string }).code === 'P2002') return; // already granted
     throw e;
   }
-  const u = await prisma.user.update({
-    where: { walletAddress },
-    data: {
-      coinsBalance: { increment: BET_MILESTONE_REWARD },
-      coinsLifetime: { increment: BET_MILESTONE_REWARD },
-    },
+  const u = await prisma.$transaction(async (tx) => {
+    // Fixed reward: always paid in full, but accounted against the emission budget.
+    await recordEmission(tx, BET_MILESTONE_REWARD);
+    return tx.user.update({
+      where: { walletAddress },
+      data: {
+        coinsBalance: { increment: BET_MILESTONE_REWARD },
+        coinsLifetime: { increment: BET_MILESTONE_REWARD },
+      },
+    });
   });
   await prisma.eventLog.create({
     data: {
@@ -479,13 +499,16 @@ export async function awardBetWin(
     let user = await ensureDailyReset(walletAddress);
     if (!user) user = await registerUser(walletAddress);
 
+    // Active XP/COINS boosts (consumable sink), applied on top of level amounts.
+    const boosts = await getBoostMultipliers(walletAddress);
+
     // Update streak
     const newStreak = user.currentStreak + 1;
     const bestStreak = Math.max(newStreak, user.bestStreak);
 
     const xpWin = XP_ACTIONS.BET_WON;
     const xpStreak = XP_ACTIONS.winStreakBonus(newStreak);
-    const totalXpAward = xpWin + xpStreak;
+    const totalXpAward = applyBoost(xpWin + xpStreak, boosts.xpBps);
 
     // Base coins for the bet (moved here from awardBetPlacement)
     const betCoins = calculateCoinsForBet(
@@ -507,20 +530,36 @@ export async function awardBetWin(
       levelUpCoins = calculateLevelUpBonus(newLevel, user.dailyCoins + betCoins + winCoins + streakCoins);
     }
 
-    const totalCoins = betCoins + winCoins + streakCoins + levelUpCoins;
+    // Apply an active COINS boost on top of the level-based amounts before budgeting.
+    const bBet = applyBoost(betCoins, boosts.coinsBps);
+    const bWin = applyBoost(winCoins, boosts.coinsBps);
+    const bStreak = applyBoost(streakCoins, boosts.coinsBps);
+    const bLevelUp = applyBoost(levelUpCoins, boosts.coinsBps);
+    const requestedCoins = bBet + bWin + bStreak + bLevelUp;
+    let grantedCoins = 0n;
 
     await prisma.$transaction(async (tx) => {
+      // Gate coin emission against the active EmissionConfig budget (epoch + daily
+      // caps). Returns how much may be granted now; scale the component amounts so
+      // the per-reason RewardLog rows still sum to what's actually credited.
+      grantedCoins = await reserveEmission(tx, requestedCoins);
+      const [awardedBet, awardedWin, awardedStreak, awardedLevelUp] = scaleComponents(
+        [bBet, bWin, bStreak, bLevelUp],
+        grantedCoins,
+        requestedCoins,
+      );
+
       const updated = await tx.user.update({
         where: { walletAddress },
         data: {
           totalXp: { increment: totalXpAward },
           level: newLevel,
-          coinsBalance: { increment: totalCoins },
-          coinsLifetime: { increment: totalCoins },
+          coinsBalance: { increment: grantedCoins },
+          coinsLifetime: { increment: grantedCoins },
           totalWins: { increment: 1 },
           currentStreak: newStreak,
           bestStreak,
-          dailyCoins: { increment: totalCoins },
+          dailyCoins: { increment: grantedCoins },
         },
       });
 
@@ -544,37 +583,37 @@ export async function awardBetWin(
       });
 
       // Log base bet coins
-      if (betCoins > 0n) {
+      if (awardedBet > 0n) {
         await tx.rewardLog.create({
           data: {
             walletAddress,
             rewardType: 'COINS',
             reason: 'BET_PLACED',
-            amount: betCoins,
+            amount: awardedBet,
             metadata: { betAmount: betAmountRaw.toString() },
           },
         });
       }
 
       // Log win bonus coins
-      if (winCoins > 0n) {
+      if (awardedWin > 0n) {
         await tx.rewardLog.create({
           data: {
             walletAddress,
             rewardType: 'COINS',
             reason: 'BET_WON',
-            amount: winCoins,
+            amount: awardedWin,
           },
         });
       }
 
-      if (streakCoins > 0n) {
+      if (awardedStreak > 0n) {
         await tx.rewardLog.create({
           data: {
             walletAddress,
             rewardType: 'COINS',
             reason: 'WIN_STREAK',
-            amount: streakCoins,
+            amount: awardedStreak,
             metadata: { streak: newStreak },
           },
         });
@@ -592,13 +631,13 @@ export async function awardBetWin(
         });
       }
 
-      if (didLevelUp && levelUpCoins > 0n) {
+      if (didLevelUp && awardedLevelUp > 0n) {
         await tx.rewardLog.create({
           data: {
             walletAddress,
             rewardType: 'COINS',
             reason: 'LEVEL_UP',
-            amount: levelUpCoins,
+            amount: awardedLevelUp,
             metadata: { newLevel },
           },
         });
@@ -607,7 +646,7 @@ export async function awardBetWin(
 
     emitUserReward(walletAddress, {
       xp: Number(totalXpAward),
-      coins: Number(totalCoins),
+      coins: Number(grantedCoins),
       level: newLevel,
       levelUp: didLevelUp,
       totalXp: Number(newTotalXp),
@@ -672,10 +711,33 @@ export async function awardClaimCompleted(walletAddress: string): Promise<void> 
 }
 
 /**
- * Reset streak when a user loses a bet.
+ * Reset streak when a user loses a bet — unless they hold a streak-saver, in which
+ * case one saver is consumed and the streak is PRESERVED. Fires once per losing bet
+ * at resolution, so one saver protects one losing bet. See services/streak-saver.ts.
  */
 export async function resetStreak(walletAddress: string): Promise<void> {
   try {
+    // Atomic protect: the conditional updateMany only matches when the user has
+    // BOTH an active streak and a saver, so it can never over-consume or fire on a
+    // zero streak. If it matches, the streak stays and we're done.
+    const saved = await prisma.user.updateMany({
+      where: { walletAddress, currentStreak: { gt: 0 }, streakSavers: { gt: 0 } },
+      data: { streakSavers: { decrement: 1 } },
+    });
+    if (saved.count > 0) {
+      await prisma.eventLog
+        .create({
+          data: {
+            eventType: 'STREAK_SAVER_CONSUMED',
+            entityType: 'user',
+            entityId: walletAddress,
+            payload: {},
+          },
+        })
+        .catch(() => { /* best-effort audit */ });
+      return; // streak protected
+    }
+
     await prisma.user.updateMany({
       where: { walletAddress, currentStreak: { gt: 0 } },
       data: { currentStreak: 0 },
