@@ -59,6 +59,7 @@ export async function getBoostMultipliers(wallet: string): Promise<{ xpBps: numb
 
 export interface ActiveBoostView {
   kind: BoostKind;
+  sku: string;
   multiplierBps: number;
   expiresAt: string;
 }
@@ -80,7 +81,7 @@ export async function getBoostState(wallet?: string): Promise<BoostState> {
   });
   return {
     products,
-    active: rows.map((r) => ({ kind: r.kind, multiplierBps: r.multiplierBps, expiresAt: r.expiresAt.toISOString() })),
+    active: rows.map((r) => ({ kind: r.kind, sku: r.sku, multiplierBps: r.multiplierBps, expiresAt: r.expiresAt.toISOString() })),
   };
 }
 
@@ -113,8 +114,8 @@ export async function buyBoost(wallet: string, sku: string, idempotencyKey?: str
       // Unique (wallet, kind) → upsert replaces an expired boost of the same kind.
       await tx.activeBoost.upsert({
         where: { walletAddress_kind: { walletAddress: wallet, kind: product.kind } },
-        create: { walletAddress: wallet, kind: product.kind, multiplierBps: product.multiplierBps, expiresAt },
-        update: { multiplierBps: product.multiplierBps, expiresAt },
+        create: { walletAddress: wallet, kind: product.kind, sku, multiplierBps: product.multiplierBps, expiresAt },
+        update: { sku, multiplierBps: product.multiplierBps, expiresAt },
       });
     },
   });

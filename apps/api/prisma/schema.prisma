@@ -513,6 +513,9 @@ model ActiveBoost {
   id            String    @id @default(uuid())
   walletAddress String    @map("wallet_address")
   kind          BoostKind
+  /// The product sku that activated this boost (e.g. 'xp-2x-24h'), so the UI can
+  /// mark the exact tile active vs. same-kind tiles that are merely locked.
+  sku           String    @default("")
   multiplierBps Int       @map("multiplier_bps")
   expiresAt     DateTime  @map("expires_at")
   createdAt     DateTime  @default(now()) @map("created_at")
