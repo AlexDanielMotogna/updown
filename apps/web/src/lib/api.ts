@@ -1276,6 +1276,16 @@ export async function fetchWorldCupMatches(): Promise<ApiResponse<WorldCupMatch[
   return fetchApi<WorldCupMatch[]>('/api/worldcup/matches');
 }
 
+export interface WorldCupGoal {
+  side: 'home' | 'away';
+  player: string;
+  minute: number | null;
+  kind: 'GOAL' | 'PENALTY' | 'OWN_GOAL';
+}
+export async function fetchWorldCupTimeline(matchId: string): Promise<ApiResponse<WorldCupGoal[]>> {
+  return fetchApi<WorldCupGoal[]>(`/api/worldcup/match/${matchId}/timeline`);
+}
+
 export interface WorldCupPredictionDto {
   matchId: string;
   homeScore: number;

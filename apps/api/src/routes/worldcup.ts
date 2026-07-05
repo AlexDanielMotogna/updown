@@ -1,7 +1,7 @@
 import { Router, type Router as RouterType, type Request } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db';
-import { getWorldCupMatches } from '../services/worldcup';
+import { getWorldCupMatches, getWorldCupTimeline } from '../services/worldcup';
 import { verifyPrivyDid, bearerToken } from '../services/worldcup-auth';
 
 /** Public World Cup predictions endpoints (free-to-play). */
@@ -15,6 +15,16 @@ worldcupRouter.get('/matches', async (_req, res) => {
   } catch (error) {
     console.error('[WorldCup] matches error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load matches' } });
+  }
+});
+
+/** GET /api/worldcup/match/:matchId/timeline — goals (scorer + minute) for a match. */
+worldcupRouter.get('/match/:matchId/timeline', async (req, res) => {
+  try {
+    res.json({ success: true, data: await getWorldCupTimeline(req.params.matchId) });
+  } catch (error) {
+    console.error('[WorldCup] timeline error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load goals' } });
   }
 });
 

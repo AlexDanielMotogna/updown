@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { Box, Typography } from '@mui/material';
-import { Add, Remove, CheckCircle } from '@mui/icons-material';
+import { Add, Remove, CheckCircle, KeyboardArrowDown, SportsSoccer } from '@mui/icons-material';
+import { useQuery } from '@tanstack/react-query';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import { WC_NEON_GREEN } from '@/lib/worldcup';
-import type { WorldCupMatch, WorldCupPredictionDto, WorldCupPhase } from '@/lib/api';
+import { fetchWorldCupTimeline } from '@/lib/api';
+import type { WorldCupMatch, WorldCupPredictionDto, WorldCupPhase, WorldCupGoal } from '@/lib/api';
 
 // The API already returns a normalized round label (e.g. "Round of 16").
 export const roundLabel = (r: string | null) => (r ? r.toUpperCase() : 'WORLD CUP');
@@ -36,6 +38,19 @@ interface Props {
   onLogin: () => void;
 }
 
+function GoalLine({ g }: { g: WorldCupGoal }) {
+  const t = useThemeTokens();
+  const tag = g.kind === 'PENALTY' ? ' (P)' : g.kind === 'OWN_GOAL' ? ' (OG)' : '';
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
+      <SportsSoccer sx={{ fontSize: 13, color: t.text.tertiary, flexShrink: 0 }} />
+      <Typography sx={{ fontSize: '0.78rem', color: t.text.secondary }}>
+        <Box component="span" sx={{ fontWeight: 700, color: t.text.primary }}>{g.minute != null ? `${g.minute}'` : ''}</Box> {g.player}{tag}
+      </Typography>
+    </Box>
+  );
+}
+
 export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Props) {
   const t = useThemeTokens();
   const editable = m.status === 'SCHEDULED';
@@ -46,6 +61,16 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
   useEffect(() => {
     if (prediction) { setHome(prediction.homeScore); setAway(prediction.awayScore); setPhase(prediction.phase); }
   }, [prediction]);
+
+  const [open, setOpen] = useState(false);
+  const { data: goalsRes, isLoading: goalsLoading } = useQuery({
+    queryKey: ['wc-timeline', m.matchId],
+    queryFn: () => fetchWorldCupTimeline(m.matchId),
+    enabled: open && m.status !== 'SCHEDULED',
+    staleTime: 30_000,
+    refetchInterval: open && m.status === 'LIVE' ? 30_000 : false,
+  });
+  const goals = goalsRes?.data ?? [];
 
   const dirty = !prediction || prediction.homeScore !== home || prediction.awayScore !== away || prediction.phase !== phase;
   const clamp = (n: number) => Math.max(0, Math.min(30, n));
@@ -165,7 +190,33 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
             chromeBtn(saving ? 'Saving…' : prediction ? 'Update pick' : 'Make your pick', handleClick, 'primary')
           )}
         </Box>
+
+        {m.status !== 'SCHEDULED' && (
+          <Box onClick={() => setOpen((o) => !o)} title="Goals" sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', cursor: 'pointer', color: t.text.tertiary, '&:hover': { color: t.text.secondary } }}>
+            <KeyboardArrowDown sx={{ fontSize: 20, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+          </Box>
+        )}
       </Box>
+
+      {open && m.status !== 'SCHEDULED' && (
+        <Box sx={{ mt: 1.25, pt: 1.25, borderTop: `1px solid ${t.border.subtle}` }}>
+          {goalsLoading ? (
+            <Typography sx={{ fontSize: '0.75rem', color: t.text.tertiary, textAlign: 'center' }}>Loading goals…</Typography>
+          ) : goals.length === 0 ? (
+            <Typography sx={{ fontSize: '0.75rem', color: t.text.tertiary, textAlign: 'center' }}>No goals</Typography>
+          ) : (
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0.5, minWidth: 0 }}>
+                {goals.filter((g) => g.side === 'home').map((g, i) => <GoalLine key={i} g={g} />)}
+              </Box>
+              <Box sx={{ width: '1px', bgcolor: t.border.subtle, flexShrink: 0 }} />
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-end', minWidth: 0 }}>
+                {goals.filter((g) => g.side === 'away').map((g, i) => <GoalLine key={i} g={g} />)}
+              </Box>
+            </Box>
+          )}
+        </Box>
+      )}
     </Box>
   );
 }

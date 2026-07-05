@@ -124,6 +124,48 @@ function mapEvent(e: SdbEvent): WorldCupMatch {
   };
 }
 
+export interface WorldCupGoal {
+  side: 'home' | 'away';
+  player: string;
+  minute: number | null;
+  kind: 'GOAL' | 'PENALTY' | 'OWN_GOAL';
+}
+
+interface SdbTimelineItem {
+  strTimeline?: string;
+  strTimelineDetail?: string;
+  strHome?: string;
+  strPlayer?: string;
+  intTime?: string;
+}
+
+const timelineCache = new Map<string, { at: number; data: WorldCupGoal[] }>();
+
+/** Goals (scorer + minute) for a match, from SDB's timeline endpoint. Excludes the
+ *  penalty shootout (only goals in regulation/ET count towards the 1-1 etc.). */
+export async function getWorldCupTimeline(matchId: string): Promise<WorldCupGoal[]> {
+  const hit = timelineCache.get(matchId);
+  if (hit && Date.now() - hit.at < 60_000) return hit.data;
+
+  const res = await sportsDbFetch<{ timeline: SdbTimelineItem[] | null }>(`lookuptimeline.php?id=${matchId}`).catch(() => ({ timeline: null }));
+  const goals: WorldCupGoal[] = [];
+  for (const it of res.timeline ?? []) {
+    if ((it.strTimeline || '').toLowerCase() !== 'goal') continue;
+    const detail = (it.strTimelineDetail || '').toLowerCase();
+    // SDB logs missed/saved/disallowed penalties as strTimeline "Goal" too — those aren't goals.
+    if (detail.includes('miss') || detail.includes('saved') || detail.includes('cancel') || detail.includes('disallow')) continue;
+    const minute = it.intTime != null && it.intTime !== '' ? Number(it.intTime) : null;
+    if (minute != null && (!Number.isFinite(minute) || minute > 125)) continue; // skip shootout pens
+    // SDB attributes each goal (own goals included) to the team that gets it, via strHome.
+    const side: 'home' | 'away' = it.strHome === 'Yes' ? 'home' : 'away';
+    const kind = detail.includes('own') ? 'OWN_GOAL' : detail.includes('penalty') ? 'PENALTY' : 'GOAL';
+    goals.push({ side, player: it.strPlayer || 'Unknown', minute, kind });
+  }
+  goals.sort((a, b) => (a.minute ?? 999) - (b.minute ?? 999));
+  timelineCache.set(matchId, { at: Date.now(), data: goals });
+  return goals;
+}
+
 let cache: { at: number; data: WorldCupMatch[] } | null = null;
 
 // Background ChatGPT lookup for a penalty shootout SDB didn't expose (display only). Writes
