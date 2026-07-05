@@ -1,6 +1,7 @@
 import { prisma } from '../db';
 import { sportsDbFetch } from './sports/api-sports-fetch';
 import { isFinishedStatus, normalizeStatus } from './sports/livescore';
+import { fetchWorldCupResultFromChatGPT } from './worldcup-llm';
 
 /**
  * FIFA World Cup matches for the free predictions page (SDB league 4429).
@@ -125,6 +126,31 @@ function mapEvent(e: SdbEvent): WorldCupMatch {
 
 let cache: { at: number; data: WorldCupMatch[] } | null = null;
 
+// Background ChatGPT lookup for a penalty shootout SDB didn't expose (display only). Writes
+// to the cache so a later poll shows "Penalties X-Y"; never blocks the request or grading.
+const pensInFlight = new Set<string>();
+const PENS_RETRY_MS = 3_600_000; // re-ask hourly while a match stays unresolved
+async function fillPenaltyShootout(m: WorldCupMatch): Promise<void> {
+  if (pensInFlight.has(m.matchId)) return;
+  pensInFlight.add(m.matchId);
+  try {
+    const date = m.kickoff ? m.kickoff.slice(0, 10) : '';
+    const { result } = await fetchWorldCupResultFromChatGPT({ homeTeam: m.homeTeam, awayTeam: m.awayTeam, date });
+    const ok = result?.phase === 'PENALTIES' && result.confident;
+    const hp = ok ? result!.homePens : null;
+    const ap = ok ? result!.awayPens : null;
+    await prisma.worldCupPenaltyCache.upsert({
+      where: { matchId: m.matchId },
+      update: { homePens: hp, awayPens: ap, checkedAt: new Date() },
+      create: { matchId: m.matchId, homePens: hp, awayPens: ap },
+    });
+  } catch {
+    /* best-effort; a later poll retries */
+  } finally {
+    pensInFlight.delete(m.matchId);
+  }
+}
+
 export async function getWorldCupMatches(): Promise<WorldCupMatch[]> {
   if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.data;
 
@@ -196,6 +222,23 @@ export async function getWorldCupMatches(): Promise<WorldCupMatch[]> {
       m.phase = r.phase;
       m.homePens = r.homePens ?? null;
       m.awayPens = r.awayPens ?? null;
+    }
+  }
+
+  // For penalty matches SDB left without a shootout score (and no admin result), overlay the
+  // ChatGPT display cache, and kick off a background lookup for any not cached yet.
+  const pensNeeded = [...byId.values()].filter((m) => m.status === 'FINISHED' && m.phase === 'PENALTIES' && m.homePens == null);
+  if (pensNeeded.length > 0) {
+    const cached = await prisma.worldCupPenaltyCache.findMany({ where: { matchId: { in: pensNeeded.map((m) => m.matchId) } } }).catch(() => []);
+    const cacheBy = new Map(cached.map((c) => [c.matchId, c]));
+    for (const m of pensNeeded) {
+      const c = cacheBy.get(m.matchId);
+      if (c?.homePens != null && c.awayPens != null) {
+        m.homePens = c.homePens;
+        m.awayPens = c.awayPens;
+      } else if (!c || Date.now() - new Date(c.checkedAt).getTime() > PENS_RETRY_MS) {
+        void fillPenaltyShootout(m);
+      }
     }
   }
 
