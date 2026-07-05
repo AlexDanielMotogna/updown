@@ -243,6 +243,8 @@ export interface UserProfileExtras {
   /** Payout from settled, non-refund bets only (NULL payouts collapse to 0).
    *  Net P&L = realizedWon − realizedStaked. */
   realizedWon?: bigint;
+  /** Currently-equipped cosmetics (at most one per kind) for identity rendering. */
+  equippedCosmetics?: Array<{ sku: string; kind: string; name: string; value: string }>;
 }
 
 export function serializeUserProfile(user: {
@@ -261,6 +263,7 @@ export function serializeUserProfile(user: {
   settledBets: number;
   currentStreak: number;
   bestStreak: number;
+  streakSavers: number;
   referralCode: string | null;
   createdAt: Date;
 }, extras: UserProfileExtras = {}) {
@@ -289,6 +292,8 @@ export function serializeUserProfile(user: {
     coinsBalance: user.coinsBalance.toString(),
     coinsLifetime: user.coinsLifetime.toString(),
     coinsRedeemed: user.coinsRedeemed.toString(),
+    streakSavers: user.streakSavers,
+    equippedCosmetics: extras.equippedCosmetics ?? [],
     feeBps: getFeeBps(level),
     feePercent: (getFeeBps(level) / 100).toFixed(2),
     coinMultiplier: getLevelMultiplier(level),
