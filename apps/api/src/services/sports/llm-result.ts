@@ -25,7 +25,7 @@ export interface LlmResultPayload {
 }
 
 /** Pull the assistant text out of a Responses API payload. */
-function extractResponsesText(data: unknown): string {
+export function extractResponsesText(data: unknown): string {
   const root = (data ?? {}) as { output_text?: unknown; output?: unknown };
   if (typeof root.output_text === 'string' && root.output_text) return root.output_text;
   const out = root.output;
@@ -42,7 +42,7 @@ function extractResponsesText(data: unknown): string {
 }
 
 /** Extract the first JSON object from the model's text (handles ``` fences). */
-function extractJson(text: string): Record<string, unknown> | null {
+export function extractJson(text: string): Record<string, unknown> | null {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const candidate = fenced ? fenced[1] : text;
   const start = candidate.indexOf('{');

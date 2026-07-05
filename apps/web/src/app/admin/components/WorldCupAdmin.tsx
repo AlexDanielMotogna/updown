@@ -28,10 +28,11 @@ interface Pick {
 interface Detail {
   match: { matchId: string; homeTeam: string; awayTeam: string; round: string | null } | null;
   suggestion: { homeScore: number; awayScore: number; phase: Phase } | null;
-  result: { homeScore: number; awayScore: number; phase: Phase } | null;
+  result: { homeScore: number; awayScore: number; phase: Phase; homePens: number | null; awayPens: number | null } | null;
   predictions: Pick[];
 }
 interface Winner { provider: string | null; xHandle: string | null; email: string | null; displayName: string | null }
+interface LlmResult { homeScore: number | null; awayScore: number | null; phase: Phase | null; homePens: number | null; awayPens: number | null; confident: boolean; note?: string }
 
 const contact = (p: { xHandle: string | null; email: string | null; displayName: string | null }) =>
   p.xHandle ? `@${p.xHandle}` : p.email ?? p.displayName ?? '—';
@@ -53,6 +54,8 @@ export function WorldCupAdmin() {
   const [home, setHome] = useState(0);
   const [away, setAway] = useState(0);
   const [phase, setPhase] = useState<Phase>('REGULATION');
+  const [homePens, setHomePens] = useState(0);
+  const [awayPens, setAwayPens] = useState(0);
   const [busy, setBusy] = useState(false);
   const [winners, setWinners] = useState<Winner[] | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -61,6 +64,7 @@ export function WorldCupAdmin() {
   useEffect(() => {
     const r = detail?.result ?? detail?.suggestion;
     if (r) { setHome(r.homeScore); setAway(r.awayScore); setPhase(r.phase); } else { setHome(0); setAway(0); setPhase('REGULATION'); }
+    setHomePens(detail?.result?.homePens ?? 0); setAwayPens(detail?.result?.awayPens ?? 0);
     setWinners(null); setMsg(null);
   }, [detail]);
 
@@ -75,8 +79,23 @@ export function WorldCupAdmin() {
     if (!selected) return;
     setBusy(true); setMsg(null);
     try {
-      await adminFetch(`/worldcup/match/${selected}/result`, { method: 'POST', body: JSON.stringify({ homeScore: home, awayScore: away, phase }) });
+      const body = { homeScore: home, awayScore: away, phase, homePens: phase === 'PENALTIES' ? homePens : null, awayPens: phase === 'PENALTIES' ? awayPens : null };
+      await adminFetch(`/worldcup/match/${selected}/result`, { method: 'POST', body: JSON.stringify(body) });
       await detailQ.refetch(); refetch(); setMsg('Result saved — picks graded.');
+    } catch (e) { setMsg((e as Error).message); } finally { setBusy(false); }
+  };
+  const askLlm = async () => {
+    if (!selected) return;
+    setBusy(true); setMsg('Asking ChatGPT…');
+    try {
+      const r = await adminFetch<{ data: { result: LlmResult | null; error?: string } }>(`/worldcup/match/${selected}/ask-llm`, { method: 'POST' });
+      const res = r.data.result;
+      if (!res) { setMsg(r.data.error ?? 'ChatGPT could not find it.'); return; }
+      if (res.homeScore != null) setHome(res.homeScore);
+      if (res.awayScore != null) setAway(res.awayScore);
+      if (res.phase) setPhase(res.phase);
+      setHomePens(res.homePens ?? 0); setAwayPens(res.awayPens ?? 0);
+      setMsg(`ChatGPT${res.confident ? '' : ' (low confidence)'}: ${res.note ?? 'review and save.'}`);
     } catch (e) { setMsg((e as Error).message); } finally { setBusy(false); }
   };
   const runRaffle = async () => {
@@ -159,6 +178,17 @@ export function WorldCupAdmin() {
                 ))}
               </Box>
             </Box>
+            {phase === 'PENALTIES' && (
+              <Box>
+                <Label>Shootout (display)</Label>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                  <Box component="input" type="number" min={0} value={homePens} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setHomePens(Number(e.target.value))} sx={inputSx} />
+                  <Typography sx={{ color: t.text.tertiary }}>-</Typography>
+                  <Box component="input" type="number" min={0} value={awayPens} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAwayPens(Number(e.target.value))} sx={inputSx} />
+                </Box>
+              </Box>
+            )}
+            <Box component="button" disabled={busy} onClick={askLlm} title="Look up the result with ChatGPT web search" sx={{ ...btnSx(false), mt: 2.5 }}>Ask ChatGPT</Box>
             <Box component="button" disabled={busy} onClick={saveResult} sx={{ ...btnSx(true), mt: 2.5 }}>Save result</Box>
             <Box component="button" disabled={busy || !detail.result} onClick={runRaffle} sx={{ ...btnSx(false), mt: 2.5, opacity: detail.result ? (busy ? 0.6 : 1) : 0.4 }}>Raffle 2 winners</Box>
           </Box>

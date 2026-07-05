@@ -1,6 +1,7 @@
 import type { WorldCupPhase } from '@prisma/client';
 import { prisma } from '../db';
 import { getWorldCupMatches } from './worldcup';
+import { fetchWorldCupResultFromChatGPT } from './worldcup-llm';
 
 /**
  * World Cup contest admin: confirm the official result per match (auto-suggested
@@ -81,17 +82,32 @@ export async function getWorldCupMatchDetail(matchId: string) {
   return {
     match: m ? { matchId: m.matchId, homeTeam: m.homeTeam, awayTeam: m.awayTeam, round: m.round, kickoff: m.kickoff, status: m.status } : null,
     suggestion,
-    result: result ? { homeScore: result.homeScore, awayScore: result.awayScore, phase: result.phase } : null,
+    result: result ? { homeScore: result.homeScore, awayScore: result.awayScore, phase: result.phase, homePens: result.homePens, awayPens: result.awayPens } : null,
     predictions: graded,
   };
 }
 
-export async function saveWorldCupResult(matchId: string, homeScore: number, awayScore: number, phase: WorldCupPhase) {
+export async function saveWorldCupResult(
+  matchId: string, homeScore: number, awayScore: number, phase: WorldCupPhase,
+  homePens?: number | null, awayPens?: number | null,
+) {
+  // Only keep a shootout score when the match was decided on penalties.
+  const hp = phase === 'PENALTIES' ? homePens ?? null : null;
+  const ap = phase === 'PENALTIES' ? awayPens ?? null : null;
   return prisma.worldCupResult.upsert({
     where: { matchId },
-    update: { homeScore, awayScore, phase },
-    create: { matchId, homeScore, awayScore, phase },
+    update: { homeScore, awayScore, phase, homePens: hp, awayPens: ap },
+    create: { matchId, homeScore, awayScore, phase, homePens: hp, awayPens: ap },
   });
+}
+
+/** Ask ChatGPT (web search) for a finished match result to pre-fill the admin form. Suggest only. */
+export async function askWorldCupResultLlm(matchId: string) {
+  const matches = await getWorldCupMatches();
+  const m = matches.find((x) => x.matchId === matchId);
+  if (!m) return { sent: null, model: '', result: null, error: 'Match not found' };
+  const date = m.kickoff ? m.kickoff.slice(0, 10) : '';
+  return fetchWorldCupResultFromChatGPT({ homeTeam: m.homeTeam, awayTeam: m.awayTeam, date });
 }
 
 export interface RaffleWinner {

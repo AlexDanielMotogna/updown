@@ -48,3 +48,9 @@ OAuth setup needed; it just works once `twitter` is in the login methods (alread
   `NEXT_PUBLIC_ENABLE_STORE=true`, so nothing changes locally. To preview the lockdown
   locally, set `NEXT_PUBLIC_PROD_LOCKDOWN=true` and restart `next dev`.
 - No new envs are required for the **football resolver fix** (PR #137).
+
+## CHAT_GPT_API_KEY (api, optional)
+Enables the admin "Ask ChatGPT" button on a finished match, which uses OpenAI web search to
+look up the real result (score + how it was decided + the penalty shootout score SDB doesn't
+expose) and pre-fills the result form. Without it the button returns a "not configured" note;
+the admin can still enter results by hand. Same key already used by the sports LLM result fallback.

@@ -29,6 +29,8 @@ export interface WorldCupMatch {
   awayScore: number | null;
   progress: string | null; // live minute, e.g. "72"
   phase: MatchPhase | null; // only for finished matches
+  homePens: number | null; // penalty shootout score (finished + admin-confirmed)
+  awayPens: number | null;
 }
 
 interface SdbEvent {
@@ -116,6 +118,8 @@ function mapEvent(e: SdbEvent): WorldCupMatch {
     awayScore: status === 'SCHEDULED' ? null : toNum(e.intAwayScore),
     progress: null,
     phase: finished ? derivePhase(raw) : null,
+    homePens: null,
+    awayPens: null,
   };
 }
 
@@ -176,6 +180,22 @@ export async function getWorldCupMatches(): Promise<WorldCupMatch[]> {
         m.progress = row.progress || null;
         m.phase = null;
       }
+    }
+  }
+
+  // Overlay admin-confirmed official results so completed matches show the REAL result,
+  // including the penalty shootout SDB doesn't expose (populated via the admin, ChatGPT-assisted).
+  const finishedIds = [...byId.values()].filter((m) => m.status === 'FINISHED').map((m) => m.matchId);
+  if (finishedIds.length > 0) {
+    const results = await prisma.worldCupResult.findMany({ where: { matchId: { in: finishedIds } } }).catch(() => []);
+    for (const r of results) {
+      const m = byId.get(r.matchId);
+      if (!m) continue;
+      m.homeScore = r.homeScore;
+      m.awayScore = r.awayScore;
+      m.phase = r.phase;
+      m.homePens = r.homePens ?? null;
+      m.awayPens = r.awayPens ?? null;
     }
   }
 

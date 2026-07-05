@@ -127,16 +127,24 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
               {canEdit && stepBtn(1, setAway, away)}
             </Box>
           </Box>
-          <Box sx={{ display: 'flex', gap: '4px' }}>
-            {PHASE_OPTS.map((p) => {
-              const active = phase === p.value;
-              return (
-                <Box key={p.value} onClick={() => canEdit && setPhase(p.value)} sx={{ flex: 1, py: 0.6, textAlign: 'center', cursor: canEdit ? 'pointer' : 'default', borderRadius: '5px', bgcolor: active ? withAlpha('#ffffff', 0.16) : t.hover.light, transition: 'all 0.15s', '&:hover': canEdit ? { bgcolor: active ? withAlpha('#ffffff', 0.16) : t.hover.medium } : {} }}>
-                  <Typography sx={{ fontSize: '0.68rem', fontWeight: 700, color: active ? t.text.primary : t.text.tertiary }}>{p.label}</Typography>
-                </Box>
-              );
-            })}
-          </Box>
+          {canEdit ? (
+            <Box sx={{ display: 'flex', gap: '4px' }}>
+              {PHASE_OPTS.map((p) => {
+                const active = phase === p.value;
+                return (
+                  <Box key={p.value} onClick={() => setPhase(p.value)} sx={{ flex: 1, py: 0.6, textAlign: 'center', cursor: 'pointer', borderRadius: '5px', bgcolor: active ? withAlpha('#ffffff', 0.16) : t.hover.light, transition: 'all 0.15s', '&:hover': { bgcolor: active ? withAlpha('#ffffff', 0.16) : t.hover.medium } }}>
+                    <Typography sx={{ fontSize: '0.68rem', fontWeight: 700, color: active ? t.text.primary : t.text.tertiary }}>{p.label}</Typography>
+                  </Box>
+                );
+              })}
+            </Box>
+          ) : m.status === 'FINISHED' && (m.phase === 'PENALTIES' || m.phase === 'EXTRA_TIME') ? (
+            <Typography sx={{ textAlign: 'center', fontSize: '0.68rem', fontWeight: 700, color: t.text.tertiary }}>
+              {m.phase === 'PENALTIES'
+                ? m.homePens != null && m.awayPens != null ? `Penalties ${m.homePens}-${m.awayPens}` : 'Decided on penalties'
+                : 'After extra time'}
+            </Typography>
+          ) : null}
         </Box>
 
         {/* Away */}

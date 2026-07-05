@@ -1268,6 +1268,8 @@ export interface WorldCupMatch {
   awayScore: number | null;
   progress: string | null;
   phase: WorldCupPhase | null;
+  homePens: number | null;
+  awayPens: number | null;
 }
 
 export async function fetchWorldCupMatches(): Promise<ApiResponse<WorldCupMatch[]>> {

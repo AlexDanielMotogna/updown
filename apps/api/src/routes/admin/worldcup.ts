@@ -5,6 +5,7 @@ import {
   getWorldCupMatchDetail,
   saveWorldCupResult,
   runWorldCupRaffle,
+  askWorldCupResultLlm,
 } from '../../services/worldcup-admin';
 
 /** Admin: grade World Cup predictions + raffle winners. */
@@ -34,6 +35,8 @@ const resultSchema = z.object({
   homeScore: z.coerce.number().int().min(0).max(30),
   awayScore: z.coerce.number().int().min(0).max(30),
   phase: z.enum(['REGULATION', 'EXTRA_TIME', 'PENALTIES']),
+  homePens: z.coerce.number().int().min(0).max(30).nullish(),
+  awayPens: z.coerce.number().int().min(0).max(30).nullish(),
 });
 
 /** POST /api/admin/worldcup/match/:matchId/result — set the official result (grades picks). */
@@ -43,11 +46,22 @@ adminWorldCupRouter.post('/match/:matchId/result', async (req, res) => {
     if (!parsed.success) {
       return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.errors[0]?.message ?? 'Invalid input' } });
     }
-    await saveWorldCupResult(req.params.matchId, parsed.data.homeScore, parsed.data.awayScore, parsed.data.phase);
+    const { homeScore, awayScore, phase, homePens, awayPens } = parsed.data;
+    await saveWorldCupResult(req.params.matchId, homeScore, awayScore, phase, homePens, awayPens);
     res.json({ success: true, data: await getWorldCupMatchDetail(req.params.matchId) });
   } catch (error) {
     console.error('[Admin WorldCup] save result error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to save result' } });
+  }
+});
+
+/** POST /api/admin/worldcup/match/:matchId/ask-llm — ChatGPT web-search suggestion (no save). */
+adminWorldCupRouter.post('/match/:matchId/ask-llm', async (req, res) => {
+  try {
+    res.json({ success: true, data: await askWorldCupResultLlm(req.params.matchId) });
+  } catch (error) {
+    console.error('[Admin WorldCup] ask-llm error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'ChatGPT lookup failed' } });
   }
 });
 
