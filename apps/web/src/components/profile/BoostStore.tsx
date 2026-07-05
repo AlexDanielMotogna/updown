@@ -10,6 +10,7 @@ import {
   fetchBoosts,
   buyBoost,
   type BoostProductEntry,
+  type ActiveBoostEntry,
   type BoostKind,
   type UserProfile,
 } from '@/lib/api';
@@ -22,12 +23,14 @@ interface Props {
 function timeLeft(expiresAt: string, now: number): string {
   const ms = new Date(expiresAt).getTime() - now;
   if (ms <= 0) return 'expired';
-  const totalMin = Math.floor(ms / 60000);
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  if (h > 0) return `${h}h ${m}m left`;
-  if (m > 0) return `${m}m left`;
-  return `${Math.max(1, Math.floor(ms / 1000))}s left`;
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const ss = String(s).padStart(2, '0');
+  if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m ${ss}s left`;
+  if (m > 0) return `${m}m ${ss}s left`;
+  return `${s}s left`;
 }
 
 /**
@@ -73,7 +76,7 @@ export function BoostStore({ walletAddress, profile }: Props) {
 
   const coins = Number(profile.coinsBalance) / UP_COINS_DIVISOR;
   const products = data?.products ?? [];
-  const activeByKind = new Map<BoostKind, string>((data?.active ?? []).map((a) => [a.kind, a.expiresAt]));
+  const activeByKind = new Map<BoostKind, ActiveBoostEntry>((data?.active ?? []).map((a) => [a.kind, a]));
 
   const onBuy = (p: BoostProductEntry) => {
     setError(null);
@@ -102,14 +105,28 @@ export function BoostStore({ walletAddress, profile }: Props) {
           <CircularProgress size={20} sx={{ color: t.accent }} />
         </Box>
       ) : (
+        <>
+        {(data?.active ?? []).length > 0 && (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1.5 }}>
+            {(data!.active).map((a) => (
+              <Box key={a.kind} sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.5, borderRadius: 1, bgcolor: `${t.accent}1a`, border: `1px solid ${t.accent}` }}>
+                <BoltOutlined sx={{ fontSize: 14, color: t.accent }} />
+                <Typography sx={{ fontSize: '0.72rem', fontWeight: 800, color: t.accent }}>
+                  {a.multiplierBps / 10000}x {a.kind === 'XP' ? 'XP' : 'Coins'} active · {timeLeft(a.expiresAt, now)}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        )}
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 1 }}>
           {products.map((p) => {
             const price = Number(p.price) / UP_COINS_DIVISOR;
-            const activeExpiry = activeByKind.get(p.kind);
-            const kindActive = !!activeExpiry;
+            const active = activeByKind.get(p.kind);
+            const isThisActive = !!active && active.sku === p.sku;
+            const kindLocked = !!active && !isThisActive; // same kind active, different product
             const canAfford = coins >= price;
             const thisPending = buyMut.isPending && pendingSku === p.sku;
-            const disabled = buyMut.isPending || kindActive || !canAfford;
+            const disabled = buyMut.isPending || !!active || !canAfford;
             return (
               <Box
                 key={p.sku}
@@ -117,7 +134,8 @@ export function BoostStore({ walletAddress, profile }: Props) {
                   p: 1.25,
                   borderRadius: 1,
                   bgcolor: t.bg.surfaceAlt,
-                  border: `1px solid ${kindActive ? t.accent : t.border.subtle}`,
+                  border: `1px solid ${isThisActive ? t.accent : t.border.subtle}`,
+                  opacity: kindLocked ? 0.55 : 1,
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 0.75,
@@ -125,11 +143,15 @@ export function BoostStore({ walletAddress, profile }: Props) {
               >
                 <Box>
                   <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: t.text.primary }}>{p.label}</Typography>
-                  {kindActive && (
+                  {isThisActive ? (
                     <Typography sx={{ fontSize: '0.68rem', fontWeight: 700, color: t.accent }}>
-                      Active · {timeLeft(activeExpiry!, now)}
+                      Active · {timeLeft(active!.expiresAt, now)}
                     </Typography>
-                  )}
+                  ) : kindLocked ? (
+                    <Typography sx={{ fontSize: '0.68rem', fontWeight: 700, color: t.text.tertiary }}>
+                      {p.kind === 'XP' ? 'XP' : 'Coins'} boost already running
+                    </Typography>
+                  ) : null}
                 </Box>
                 <Button
                   onClick={() => onBuy(p)}
@@ -145,8 +167,10 @@ export function BoostStore({ walletAddress, profile }: Props) {
                 >
                   {thisPending ? (
                     <CircularProgress size={13} sx={{ color: t.text.contrast }} />
-                  ) : kindActive ? (
+                  ) : isThisActive ? (
                     'Active'
+                  ) : kindLocked ? (
+                    'Locked'
                   ) : (
                     `Buy · ${price.toLocaleString(undefined, { maximumFractionDigits: 0 })} UP`
                   )}
@@ -155,6 +179,7 @@ export function BoostStore({ walletAddress, profile }: Props) {
             );
           })}
         </Box>
+        </>
       )}
     </Box>
   );

@@ -22,9 +22,6 @@ import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 import { PositionsTab } from '@/components/profile/PositionsTab';
 import { PnLChart } from '@/components/profile/PnLChart';
 import { ProfileStatsPanel } from '@/components/profile/ProfileStatsPanel';
-import { StreakSaverCard } from '@/components/profile/StreakSaverCard';
-import { CosmeticsStore } from '@/components/profile/CosmeticsStore';
-import { BoostStore } from '@/components/profile/BoostStore';
 import { BetRewardProgress } from '@/components/profile/BetRewardProgress';
 import { TradingTab } from '@/components/profile/TradingTab';
 
@@ -232,15 +229,6 @@ export default function MyBetsPage() {
                 <ProfileStatsPanel userProfile={userProfile} />
               </Box>
             </Box>
-
-            {/* Streak-saver store (first UP-Coin sink) */}
-            <StreakSaverCard walletAddress={walletAddress} profile={userProfile} />
-
-            {/* Boost store (UP-Coin sink) */}
-            <BoostStore walletAddress={walletAddress} profile={userProfile} />
-
-            {/* Cosmetics store (UP-Coin sink) */}
-            <CosmeticsStore walletAddress={walletAddress} profile={userProfile} />
 
             {/* Positions */}
             {betsError ? (

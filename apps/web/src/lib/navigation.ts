@@ -1,5 +1,6 @@
-import { ShowChart, CandlestickChart, AccountCircle, EmojiEvents, MenuBook, AccountBalanceWallet, PeopleOutline } from '@mui/icons-material';
+import { ShowChart, CandlestickChart, AccountCircle, EmojiEvents, MenuBook, AccountBalanceWallet, PeopleOutline, Storefront } from '@mui/icons-material';
 import type { SvgIconComponent } from '@mui/icons-material';
+import { STORE_UI_ENABLED } from './features';
 
 export interface NavItem {
   label: string;
@@ -19,6 +20,7 @@ export const NAV_ITEMS: NavItem[] = [
   // server redirect on `/`, so a bare TERMINAL_URL can't reliably land Pro users
   // on the trade view. /trade/BTC/USDC works in both Simple and Pro.
   { label: 'Trade', href: `${TERMINAL_URL}/trade/BTC/USDC`, icon: CandlestickChart, external: true },
+  ...(STORE_UI_ENABLED ? [{ label: 'Store', href: '/store', icon: Storefront } as NavItem] : []),
   // Tournaments + Squads temporarily disabled (under construction) — also
   // redirected to / in next.config.js. Re-add here to re-enable.
   // { label: 'Tournaments', href: '/tournaments', icon: MilitaryTech },

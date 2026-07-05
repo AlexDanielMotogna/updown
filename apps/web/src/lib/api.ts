@@ -656,6 +656,7 @@ export interface BoostProductEntry {
 
 export interface ActiveBoostEntry {
   kind: BoostKind;
+  sku: string;
   multiplierBps: number;
   expiresAt: string;
 }
