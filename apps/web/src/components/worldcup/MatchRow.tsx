@@ -114,7 +114,7 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
   );
 
   return (
-    <Box sx={{ position: 'relative', overflow: 'hidden', bgcolor: t.bg.surfaceAlt, borderRadius: 1.5, px: { xs: 1.5, md: 2 }, py: 1.5, border: `1px solid ${t.border.subtle}` }}>
+    <Box sx={{ position: 'relative', overflow: 'hidden', bgcolor: t.bg.surfaceAlt, borderRadius: 1.5, px: { xs: 1.5, md: 2 }, py: { xs: 1.75, md: 2.25 }, border: `1px solid ${t.border.subtle}` }}>
       {m.status === 'LIVE' && (
         <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '4px', bgcolor: WC_NEON_GREEN, boxShadow: `0 0 10px 1px ${withAlpha(WC_NEON_GREEN, 0.75)}` }} />
       )}
@@ -138,7 +138,7 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
         </Box>
 
         {/* Predictor */}
-        <Box sx={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 0.75, width: { xs: '100%', md: 300 } }}>
+        <Box sx={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 1.1, width: { xs: '100%', md: 300 } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
             <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
               {canEdit && stepBtn(-1, setHome, home)}
@@ -163,11 +163,11 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
                 );
               })}
             </Box>
-          ) : m.status === 'FINISHED' && (m.phase === 'PENALTIES' || m.phase === 'EXTRA_TIME') ? (
+          ) : m.status === 'FINISHED' ? (
             <Typography sx={{ textAlign: 'center', fontSize: '0.68rem', fontWeight: 700, color: t.text.tertiary }}>
               {m.phase === 'PENALTIES'
                 ? m.homePens != null && m.awayPens != null ? `Penalties ${m.homePens}-${m.awayPens}` : 'Decided on penalties'
-                : 'After extra time'}
+                : m.phase === 'EXTRA_TIME' ? 'After extra time' : 'Full Time'}
             </Typography>
           ) : null}
         </Box>
@@ -183,7 +183,7 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
           {!editable ? (
             prediction
               ? chromeBtn('Pick saved', undefined, 'saved')
-              : <Typography sx={{ width: '100%', textAlign: 'center', fontSize: '0.72rem', fontWeight: 600, color: t.text.tertiary }}>{m.status === 'FINISHED' ? 'Full Time' : 'Locked'}</Typography>
+              : <Typography sx={{ width: '100%', textAlign: 'center', fontSize: '0.72rem', fontWeight: 600, color: t.text.quaternary }}>{m.status === 'FINISHED' ? 'No prediction' : 'Locked'}</Typography>
           ) : prediction && !dirty ? (
             chromeBtn('Pick saved', undefined, 'saved')
           ) : (

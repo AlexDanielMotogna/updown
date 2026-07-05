@@ -153,7 +153,7 @@ export function WorldCupApp() {
                     <Typography sx={{ fontSize: '0.72rem', color: t.text.secondary, lineHeight: 1.2 }}>to 2 winners<br />per correct score</Typography>
                   </Box>
                 </Box>
-                <Countdown targetIso={nextKickoff} matchLabel={nextLabel} />
+                {isLoading ? <Skeleton variant="rounded" width={210} height={58} sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} /> : <Countdown targetIso={nextKickoff} matchLabel={nextLabel} />}
               </Box>
             </Box>
           </Box>
@@ -183,7 +183,7 @@ export function WorldCupApp() {
         {/* Rows */}
         {isLoading ? (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} variant="rounded" height={78} sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} />)}
+            {[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} variant="rounded" height={108} sx={{ borderRadius: 1.5, bgcolor: 'rgba(255,255,255,0.05)' }} />)}
           </Box>
         ) : filtered.length === 0 ? (
           <Typography sx={{ fontSize: '0.9rem', color: t.text.tertiary, textAlign: 'center', py: 5 }}>No matches in this view.</Typography>
@@ -196,7 +196,11 @@ export function WorldCupApp() {
 
       {/* Sidebar */}
       <Box sx={{ width: { xs: '100%', lg: 360 }, flexShrink: 0, position: { lg: 'sticky' }, top: { lg: 84 } }}>
-        {!isLoading && list.length > 0 && <MyPicksSidebar matches={list} predByMatch={predByMatch} />}
+        {isLoading ? (
+          <Skeleton variant="rounded" height={440} sx={{ borderRadius: 2, bgcolor: 'rgba(255,255,255,0.05)' }} />
+        ) : list.length > 0 ? (
+          <MyPicksSidebar matches={list} predByMatch={predByMatch} />
+        ) : null}
       </Box>
     </Box>
   );
