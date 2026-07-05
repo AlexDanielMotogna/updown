@@ -118,6 +118,15 @@ export function ProfileHeader({
   const tierIndex = Math.min(Math.floor((level - 1) / 4), 9);
   const ringColor = t.levelTiers[tierIndex];
 
+  // Equipped cosmetics (UP-Coin sink) applied to the identity. Each is null until
+  // the user buys + equips one of that kind; the wallet/level defaults win otherwise.
+  const equipped = userProfile?.equippedCosmetics ?? [];
+  const cosmeticOf = (kind: string) => equipped.find((c) => c.kind === kind)?.value ?? null;
+  const nameColor = cosmeticOf('NAME_COLOR');
+  const titleCosmetic = cosmeticOf('TITLE');
+  const badgeCosmetic = cosmeticOf('BADGE');
+  const frameColor = cosmeticOf('FRAME');
+
   const memberSince = userProfile?.createdAt
     ? new Date(userProfile.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
     : null;
@@ -222,7 +231,8 @@ export function ProfileHeader({
                       sx={{
                         width: { xs: 64, md: 84 },
                         height: { xs: 64, md: 84 },
-                        border: `3px solid ${ringColor}`,
+                        // Equipped FRAME cosmetic overrides the level-tier ring.
+                        border: `3px solid ${frameColor ?? ringColor}`,
                         boxShadow: `0 0 0 4px ${t.bg.app}`,
                         bgcolor: t.bg.surface,
                       }}
@@ -240,9 +250,21 @@ export function ProfileHeader({
                 {/* Name + meta */}
                 <Box sx={{ minWidth: 0, flex: 1, pb: { xs: 0, sm: 0.5 } }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                    <Typography sx={{ fontSize: { xs: '0.95rem', md: '1.4rem' }, fontWeight: 700, color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {badgeCosmetic && (
+                      <Box component="span" sx={{ fontSize: { xs: '1rem', md: '1.3rem' }, lineHeight: 1, flexShrink: 0 }}>
+                        {badgeCosmetic}
+                      </Box>
+                    )}
+                    <Typography sx={{ fontSize: { xs: '0.95rem', md: '1.4rem' }, fontWeight: 700, color: nameColor ?? t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {displayedName}
                     </Typography>
+                    {titleCosmetic && (
+                      <Box sx={{ px: 0.9, py: 0.2, borderRadius: 1, bgcolor: withAlpha(t.accent, 0.14), flexShrink: 0 }}>
+                        <Typography sx={{ fontSize: { xs: '0.68rem', md: '0.78rem' }, fontWeight: 800, fontStyle: 'italic', color: t.accent, lineHeight: 1.3, whiteSpace: 'nowrap' }}>
+                          {titleCosmetic}
+                        </Typography>
+                      </Box>
+                    )}
                     <Tooltip
                       title={copied ? 'Copied!' : (walletAddress ? truncateAddress(walletAddress) : '')}
                       arrow

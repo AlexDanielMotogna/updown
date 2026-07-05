@@ -396,6 +396,10 @@ export interface UserProfile {
   coinsBalance: string;
   coinsLifetime: string;
   coinsRedeemed: string;
+  /** Streak-saver inventory (consumable that protects the streak on a loss). */
+  streakSavers: number;
+  /** Currently-equipped cosmetics (at most one per kind). */
+  equippedCosmetics: EquippedCosmetic[];
   feeBps: number;
   feePercent: string;
   coinMultiplier: number;
@@ -590,6 +594,96 @@ export async function updateUserProfile(
 ): Promise<ApiResponse<UserProfile>> {
   return fetchApi<UserProfile>('/api/users/profile', {
     method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export interface StreakSaverResult {
+  streakSavers: number;
+  coinsBalance: string;
+  spent: string;
+}
+
+export type CosmeticKind = 'BADGE' | 'FRAME' | 'TITLE' | 'NAME_COLOR';
+
+export interface CosmeticEntry {
+  id: string;
+  sku: string;
+  kind: CosmeticKind;
+  name: string;
+  price: string; // stored units (display = /100)
+  value: string; // hex color / icon / title text, interpreted per kind
+  owned: boolean;
+  equipped: boolean;
+}
+
+export interface EquippedCosmetic {
+  sku: string;
+  kind: CosmeticKind;
+  name: string;
+  value: string;
+}
+
+/** Cosmetics store: catalog + this wallet's owned/equipped flags. */
+export async function fetchCosmetics(wallet: string): Promise<ApiResponse<CosmeticEntry[]>> {
+  return fetchApi<CosmeticEntry[]>(`/api/users/cosmetics?wallet=${wallet}`);
+}
+
+/** Buy a cosmetic (burns UP Coins). */
+export async function buyCosmetic(
+  body: { walletAddress: string; sku: string; idempotencyKey?: string },
+): Promise<ApiResponse<{ cosmeticId: string; coinsBalance: string }>> {
+  return fetchApi('/api/users/cosmetics', { method: 'POST', body: JSON.stringify(body) });
+}
+
+/** Equip / unequip an owned cosmetic (one active per kind). */
+export async function equipCosmetic(
+  body: { walletAddress: string; cosmeticId: string; equipped: boolean },
+): Promise<ApiResponse<{ equipped: boolean }>> {
+  return fetchApi('/api/users/cosmetics/equip', { method: 'PATCH', body: JSON.stringify(body) });
+}
+
+export type BoostKind = 'XP' | 'COINS';
+
+export interface BoostProductEntry {
+  sku: string;
+  kind: BoostKind;
+  multiplierBps: number;
+  durationHours: number;
+  price: string; // stored units
+  label: string;
+}
+
+export interface ActiveBoostEntry {
+  kind: BoostKind;
+  multiplierBps: number;
+  expiresAt: string;
+}
+
+export interface BoostStateResponse {
+  products: BoostProductEntry[];
+  active: ActiveBoostEntry[];
+}
+
+/** Boost store: catalog + this wallet's currently-active boosts. */
+export async function fetchBoosts(wallet: string): Promise<ApiResponse<BoostStateResponse>> {
+  return fetchApi<BoostStateResponse>(`/api/users/boosts?wallet=${wallet}`);
+}
+
+/** Buy a time-limited XP/COINS boost (burns UP Coins). */
+export async function buyBoost(
+  body: { walletAddress: string; sku: string; idempotencyKey?: string },
+): Promise<ApiResponse<{ kind: BoostKind; expiresAt: string; coinsBalance: string }>> {
+  return fetchApi('/api/users/boosts', { method: 'POST', body: JSON.stringify(body) });
+}
+
+/** Buy streak-saver consumables with UP Coins. `walletAddress` in the body is the
+ *  auth signal (same convention as the other /api/users routes). */
+export async function buyStreakSaver(
+  body: { walletAddress: string; quantity?: number; idempotencyKey?: string },
+): Promise<ApiResponse<StreakSaverResult>> {
+  return fetchApi<StreakSaverResult>('/api/users/streak-saver', {
+    method: 'POST',
     body: JSON.stringify(body),
   });
 }

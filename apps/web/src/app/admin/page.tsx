@@ -36,6 +36,7 @@ import { ResolutionInspector } from './components/ResolutionInspector';
 import { ResolutionSuggestions } from './components/ResolutionSuggestions';
 import { LiquidityBot } from './components/LiquidityBot';
 import { XPoster } from './components/XPoster';
+import { UpEconomy } from './components/UpEconomy';
 import { PoolCreation } from './components/PoolCreation';
 
 // Grouped navigation (Phase 1 of PLAN-ADMIN-RESTRUCTURE): the flat 17-tab bar
@@ -68,6 +69,7 @@ const NAV_GROUPS: { group: string; items: NavEntry[] }[] = [
     { id: 'actions', label: 'Actions', Component: ManualActions },
   ] },
   { group: 'Economy', items: [
+    { id: 'up-economy', label: 'UP Economy', Component: UpEconomy },
     { id: 'growth', label: 'Growth', Component: GrowthOverview },
     { id: 'trading', label: 'Trading', Component: BuilderRevenue },
     { id: 'liquidity', label: 'Liquidity', Component: LiquidityBot },
