@@ -3,7 +3,7 @@ import { prisma } from '../../db';
 import type { Match, MatchResult, MatchStatus } from './types';
 import { sportsDbFetchV2 } from './api-sports-fetch';
 import { FINISHED_STATUSES, API_LOOKUP_LIMIT, isFinishedStatus, normalizeStatus } from './livescore';
-import { regulationWinner, isNoTieSport } from './regulation-time';
+import { regulationWinner, finishedWinner, isNoTieSport } from './regulation-time';
 
 /**
  * Fixture cache read service.
@@ -167,9 +167,11 @@ export async function getCachedFixtureResults(
         where: { eventId: { in: missing1 }, status: { in: [...FINISHED_STATUSES] } },
       });
       for (const row of liveRows) {
-        const winner = row.homeScore > row.awayScore ? 'HOME' as const
-          : row.awayScore > row.homeScore ? 'AWAY' as const
-          : 'DRAW' as const;
+        // Apply the 90-minute rule for soccer (AET/PEN/ET → DRAW), same as the
+        // other resolution sources. This path previously used the raw score and
+        // wrongly resolved extra-time/penalty matches to the ET winner (e.g. a
+        // World Cup tie decided in ET). Non-soccer keeps the final-score winner.
+        const winner = finishedWinner(row.sport, row.homeScore, row.awayScore, row.status);
         // Skip phantom draws for no-tie sports — leave the pool for admin / next sync.
         if (winner === 'DRAW' && isNoTieSport(row.sport)) continue;
         map.set(row.eventId, {
