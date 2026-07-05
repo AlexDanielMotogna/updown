@@ -36,6 +36,7 @@ import { ResolutionInspector } from './components/ResolutionInspector';
 import { ResolutionSuggestions } from './components/ResolutionSuggestions';
 import { LiquidityBot } from './components/LiquidityBot';
 import { XPoster } from './components/XPoster';
+import { WorldCupAdmin } from './components/WorldCupAdmin';
 import { UpEconomy } from './components/UpEconomy';
 import { PoolCreation } from './components/PoolCreation';
 
@@ -74,6 +75,7 @@ const NAV_GROUPS: { group: string; items: NavEntry[] }[] = [
     { id: 'trading', label: 'Trading', Component: BuilderRevenue },
     { id: 'liquidity', label: 'Liquidity', Component: LiquidityBot },
     { id: 'x-poster', label: 'X Poster', Component: XPoster },
+    { id: 'worldcup', label: 'World Cup', Component: WorldCupAdmin },
   ] },
 ];
 
