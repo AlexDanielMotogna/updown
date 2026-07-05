@@ -9,7 +9,7 @@ import { WC_NEON_GREEN } from '@/lib/worldcup';
 import type { WorldCupMatch, WorldCupPredictionDto } from '@/lib/api';
 import { roundLabel, matchDateLabel } from './MatchRow';
 
-const PHASE_TAG: Record<string, string> = { REGULATION: "90'", EXTRA_TIME: 'AET', PENALTIES: 'Pens' };
+const PHASE_TAG: Record<string, string> = { REGULATION: "90'", EXTRA_TIME: 'AET', PENALTIES: 'Penalties' };
 
 function Crest({ src }: { src: string | null }) {
   const t = useThemeTokens();

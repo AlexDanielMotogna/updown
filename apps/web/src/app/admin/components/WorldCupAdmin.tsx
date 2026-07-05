@@ -11,11 +11,10 @@ import { adminFetch } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
 import { SectionCard, StatCard, LoadingState, EmptyState, ErrorState, Label, POLL_MEDIUM_MS } from '../ui';
 
-const ROUND: Record<string, string> = { '32': 'R32', '16': 'R16', '8': 'QF', '4': 'SF', '3': '3rd', '2': 'Final', '1': 'Final' };
-const roundLabel = (r: string | null) => (r ? ROUND[r] ?? `R${r}` : '—');
-const PHASE_TAG: Record<string, string> = { REGULATION: "90'", EXTRA_TIME: 'AET', PENALTIES: 'Pens' };
+const roundLabel = (r: string | null) => r ?? '—';
+const PHASE_TAG: Record<string, string> = { REGULATION: "90'", EXTRA_TIME: 'AET', PENALTIES: 'Penalties' };
 type Phase = 'REGULATION' | 'EXTRA_TIME' | 'PENALTIES';
-const PHASES: { v: Phase; l: string }[] = [{ v: 'REGULATION', l: "90'" }, { v: 'EXTRA_TIME', l: 'ET' }, { v: 'PENALTIES', l: 'Pens' }];
+const PHASES: { v: Phase; l: string }[] = [{ v: 'REGULATION', l: "90'" }, { v: 'EXTRA_TIME', l: 'ET' }, { v: 'PENALTIES', l: 'Penalties' }];
 
 interface OverviewItem {
   matchId: string; homeTeam: string; awayTeam: string; round: string | null; kickoff: string | null; status: string;

@@ -73,6 +73,28 @@ function derivePhase(rawStatus: string | null | undefined): MatchPhase {
   return 'REGULATION';
 }
 
+// SDB encodes knockout rounds as numeric codes (125 = Round of 16, 150 = QF, ...) and is
+// inconsistent (some FWC events use "16", others "125" for the same round). Normalize to a
+// clean label. Group matchdays come as 1-3; anything >=4 or a known code is a knockout round.
+const ROUND_LABELS: Record<string, string> = {
+  '32': 'Round of 32',
+  '16': 'Round of 16', '125': 'Round of 16',
+  '8': 'Quarter-final', '150': 'Quarter-final',
+  '4': 'Semi-final', '160': 'Semi-final',
+  '170': 'Third place',
+  '200': 'Final',
+};
+function normalizeRound(strRound?: string | null, intRound?: string | null): string | null {
+  const rawStr = (strRound || '').trim();
+  if (rawStr && /[a-z]/i.test(rawStr)) return rawStr; // SDB already gave a human label
+  const raw = rawStr || (intRound || '').toString().trim();
+  if (!raw) return null;
+  if (ROUND_LABELS[raw]) return ROUND_LABELS[raw];
+  const n = Number(raw);
+  if (Number.isFinite(n) && n >= 1 && n <= 3) return `Matchday ${n}`;
+  return `Round ${raw}`;
+}
+
 function mapEvent(e: SdbEvent): WorldCupMatch {
   const raw = (e.strStatus || '').trim();
   const kickoff = kickoffIso(e);
@@ -83,7 +105,7 @@ function mapEvent(e: SdbEvent): WorldCupMatch {
   const status: MatchStatus = finished ? 'FINISHED' : started ? 'LIVE' : 'SCHEDULED';
   return {
     matchId: String(e.idEvent),
-    round: e.strRound || e.intRound || null,
+    round: normalizeRound(e.strRound, e.intRound),
     homeTeam: e.strHomeTeam || '',
     awayTeam: e.strAwayTeam || '',
     homeCrest: e.strHomeTeamBadge || null,

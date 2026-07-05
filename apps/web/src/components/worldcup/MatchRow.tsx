@@ -8,11 +8,8 @@ import { withAlpha } from '@/lib/theme';
 import { WC_NEON_GREEN } from '@/lib/worldcup';
 import type { WorldCupMatch, WorldCupPredictionDto, WorldCupPhase } from '@/lib/api';
 
-const ROUND_LABEL: Record<string, string> = {
-  '32': 'Round of 32', '16': 'Round of 16', '8': 'Quarter-final',
-  '4': 'Semi-final', '3': 'Third place', '2': 'Final', '1': 'Final',
-};
-export const roundLabel = (r: string | null) => (r ? (ROUND_LABEL[r] ?? `Round ${r}`).toUpperCase() : 'WORLD CUP');
+// The API already returns a normalized round label (e.g. "Round of 16").
+export const roundLabel = (r: string | null) => (r ? r.toUpperCase() : 'WORLD CUP');
 const PHASE_OPTS: { value: WorldCupPhase; label: string }[] = [
   { value: 'REGULATION', label: "90'" },
   { value: 'EXTRA_TIME', label: 'Extra time' },
