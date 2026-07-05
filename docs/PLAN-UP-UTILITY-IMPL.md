@@ -22,6 +22,69 @@ players). The Phase A sinks are all safe on that axis.
 
 ---
 
+## STATUS (2026-07-05) — Phase A SHIPPED (branch `feature/up-token-utility`, not merged)
+
+All of Phase A is built + verified (backend live-tested, web typechecked; not yet
+browser click-tested end to end). **Backend ships to prod + dev; the user-facing UI is
+dev-only for now** (gated, see below) while it gets polished.
+
+DONE:
+- **Emission budget** wired. `services/emission.ts` (`reserveEmission` clamps continuous
+  faucets, `recordEmission` accounts fixed grants, `scaleComponents`, `getEmissionStats`).
+  Gated into `awardBetWin` / `awardTradeFills` + one-time grants. New `EmissionDaily`
+  table. Back-compat: no active config = passthrough. Seed/activate via
+  `scripts/seed-emission.mjs` or the admin tab. **Still DORMANT** (never activated in any env).
+- **Spend primitive** `services/coin-spend.ts` `spendCoins()` — atomic overspend guard,
+  idempotent, writes `coinsRedeemed` (was dead) + a `CoinSpend` row (`burned` flag).
+  `applyInTx` hook grants the item atomically with the debit. `getSinkStats()`.
+- **Sink 1 Streak-savers** (`services/streak-saver.ts`): buy (burns), auto-consumed in
+  `resetStreak` on a loss to protect the streak (1 saver / losing bet). Route
+  `POST /api/users/streak-saver`.
+- **Sink 2 Cosmetics** (`services/cosmetics.ts`): `Cosmetic` + `UserCosmetic`, buy (burns) +
+  equip (one per kind). Routes `GET/POST /api/users/cosmetics`, `PATCH .../equip`. Seed
+  `scripts/seed-cosmetics.mjs` (10 items). `equippedCosmetics` in profile.
+- **Sink 3 Boosts** (`services/boosts.ts`): time-limited 2x XP/COINS (1h/24h, capped 2x,
+  one active per kind). Applied at award site; boosted coins still pass the emission budget.
+  `ActiveBoost` (+`sku` so the store marks the exact bought tile). Routes `GET/POST /api/users/boosts`.
+- **Admin** `routes/admin/economy.ts` + `admin/components/UpEconomy.tsx` (tab Economy →
+  "UP Economy"): emission-vs-sink dashboard + epoch controls. NOT gated (operator tooling,
+  stays in prod so emission can be managed there).
+- **Web UX**: dedicated **`/store`** page (buy-only, sections Boosts/StreakSavers/Cosmetics);
+  profile **Inventory "backpack"** dialog to equip cosmetics + see consumables/active boosts;
+  equipped cosmetics render on the **own profile header** (name color, title, badge, avatar
+  frame); floating **boost badges** (bottom-left, icon-per-kind + live H:MM:SS countdown);
+  shared `useBoosts` hook; `CosmeticsGrid` (buy|equip modes).
+- **Dev gating** `lib/features.ts` `STORE_UI_ENABLED` (true on local `next dev` + LOCAL/DEV;
+  false on PROD/UNKNOWN; override `NEXT_PUBLIC_ENABLE_STORE`). Hides in prod: Store nav
+  (header+mobile), profile backpack, `/store` page, boost badges. Backend un-gated.
+- **UP Coins are 100% off-chain DB** (no SPL mint, nothing sent on-chain). Dev helper
+  `scripts/grant-coins.mjs` to fund a wallet for testing.
+
+## REMAINING UI WORK (before enabling the Store in prod)
+The backend is solid; the UI still needs polish (this is why it's dev-gated). Open items:
+1. **Public cosmetic rendering** — equipped cosmetics only show on the user's OWN profile
+   header. Extend to the **leaderboard**, activity feed, and how OTHERS see a user, or the
+   status sink has little social value. (Backend already returns `equippedCosmetics`.)
+2. **Real cosmetic art** — badges are emoji, frames/name-colors are raw hex, titles are
+   plain text. Needs designed assets + a nicer preview. Consider rarity tiers.
+3. **Store visual design** — the `/store` page is functional but plain. Wants proper
+   sectioning/tabs, item cards with art, "owned/new" states, empty states, mobile layout.
+4. **Inventory polish** — currently a modal; consider a full page or richer layout; item art.
+5. **Feedback/notifications** — toast when a streak-saver is consumed on a loss; when a boost
+   is about to expire / expires; success toasts on purchase (currently inline).
+6. **Boost UX** — option to extend/replace an active boost (today buying same-kind is blocked);
+   pre-`sku` active boosts (bought before the sku field) show as "Locked" without highlighting
+   the exact tile until they expire — cosmetic, self-heals.
+7. **Balancing** — prices (streak-saver 20 UP, boosts 30/400, cosmetics 50-400) and the
+   emission caps are placeholders; tune with the economy model + the emission dashboard.
+8. **i18n** — UI strings are English; primary user is Spanish-speaking.
+9. **Onboarding/discovery** — explain what UP Coins buy; surface the Store to new users.
+
+OPS (not UI): activate an emission epoch per env via the admin UP Economy tab when ready
+(it stays dormant until then). Apply migrations on deploy (`prisma migrate deploy`).
+
+---
+
 ## Current state (verified in code)
 - Coins ledger: `User.coinsBalance / coinsLifetime / coinsRedeemed`
   (`apps/api/prisma/schema.prisma:209-212`), BigInt, stored units, display = /100
