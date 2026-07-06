@@ -124,20 +124,20 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
 
   return (
     <Box sx={{ bgcolor: t.bg.surfaceAlt, borderRadius: 1.5, px: { xs: 1.5, md: 2 }, py: { xs: 1.75, md: 2.25 }, border: `1px solid ${t.border.subtle}` }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, md: 2 }, flexWrap: { xs: 'wrap', md: 'nowrap' } }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.25, md: 2 }, flexWrap: { xs: 'wrap', md: 'nowrap' } }}>
         {/* Meta */}
         <Box sx={{ width: { xs: '100%', md: 118 }, flexShrink: 0 }}>
           <Typography sx={{ fontSize: '0.72rem', fontWeight: 600, color: t.text.tertiary }}>{matchDateLabel(m.kickoff)}</Typography>
         </Box>
 
         {/* Home */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1, flex: 1, minWidth: 100 }}>
-          <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: t.text.primary, textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.homeTeam}</Typography>
+        <Box sx={{ order: { xs: 1, md: 0 }, display: 'flex', alignItems: 'center', justifyContent: { xs: 'flex-start', md: 'flex-end' }, gap: 1, flex: 1, minWidth: { xs: 130, md: 100 } }}>
+          <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: t.text.primary, textAlign: { xs: 'left', md: 'right' }, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.homeTeam}</Typography>
           <Crest src={m.homeCrest} alt={m.homeTeam} />
         </Box>
 
         {/* Predictor */}
-        <Box sx={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 1.1, width: { xs: '100%', md: 300 } }}>
+        <Box sx={{ order: { xs: 3, md: 0 }, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 1.1, width: { xs: '100%', md: 300 } }}>
           {m.status === 'LIVE' && (
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.6 }}>
               <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: WC_NEON_GREEN, boxShadow: `0 0 6px ${WC_NEON_GREEN}`, animation: 'wcpulse 1.2s infinite', '@keyframes wcpulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.35 } } }} />
@@ -178,13 +178,13 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
         </Box>
 
         {/* Away */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 100 }}>
+        <Box sx={{ order: { xs: 2, md: 0 }, display: 'flex', alignItems: 'center', justifyContent: { xs: 'flex-end', md: 'flex-start' }, gap: 1, flex: 1, minWidth: { xs: 130, md: 100 } }}>
           <Crest src={m.awayCrest} alt={m.awayTeam} />
           <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: t.text.primary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.awayTeam}</Typography>
         </Box>
 
         {/* Action */}
-        <Box sx={{ width: { xs: '100%', md: 138 }, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+        <Box sx={{ order: { xs: 4, md: 0 }, width: { xs: '100%', md: 138 }, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
           {!editable ? (
             prediction
               ? chromeBtn('Pick saved', undefined, 'saved')
@@ -199,7 +199,7 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
         </Box>
 
         {m.status === 'FINISHED' && (
-          <Box onClick={() => setOpen((o) => !o)} onMouseEnter={prefetchGoals} title="Goals" sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', cursor: 'pointer', color: t.text.tertiary, '&:hover': { color: t.text.secondary } }}>
+          <Box onClick={() => setOpen((o) => !o)} onMouseEnter={prefetchGoals} title="Goals" sx={{ order: { xs: 5, md: 0 }, width: { xs: '100%', md: 'auto' }, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.text.tertiary, '&:hover': { color: t.text.secondary } }}>
             <KeyboardArrowDown sx={{ fontSize: 20, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
           </Box>
         )}
