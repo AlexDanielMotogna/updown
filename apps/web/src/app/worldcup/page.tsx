@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Box, Typography, Button, CircularProgress, Menu, MenuItem, ListItemIcon, Tooltip, Avatar } from '@mui/material';
+import { Box, Typography, Button, Skeleton, Menu, MenuItem, ListItemIcon, Tooltip, Avatar } from '@mui/material';
 import { KeyboardArrowDown, Logout, InfoOutlined, CardGiftcard, SportsSoccer, Groups, EmojiEvents } from '@mui/icons-material';
 import { usePrivy } from '@privy-io/react-auth';
 import { useThemeTokens } from '@/app/providers';
@@ -56,7 +56,7 @@ export default function WorldCupPage() {
         </Box>
 
         {!ready ? (
-          <CircularProgress size={20} sx={{ color: t.text.secondary }} />
+          <Skeleton variant="rounded" sx={{ width: { xs: 100, sm: 132 }, height: { xs: 34, sm: 38 }, borderRadius: '4px', bgcolor: 'rgba(255,255,255,0.06)' }} />
         ) : authenticated ? (
           <>
             <Box
