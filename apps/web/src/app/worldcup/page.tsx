@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Box, Typography, Button, Skeleton, Menu, MenuItem, ListItemIcon, Tooltip, Avatar } from '@mui/material';
-import { KeyboardArrowDown, Logout, InfoOutlined, CardGiftcard, SportsSoccer, Groups, EmojiEvents } from '@mui/icons-material';
+import { KeyboardArrowDown, Logout, InfoOutlined } from '@mui/icons-material';
 import { usePrivy } from '@privy-io/react-auth';
 import { useThemeTokens } from '@/app/providers';
 import { WorldCupApp } from '@/components/worldcup/WorldCupApp';
@@ -13,13 +13,6 @@ function identityLabel(user: ReturnType<typeof usePrivy>['user']): string | null
   if (twitter) return `@${twitter}`;
   return user.google?.email ?? user.email?.address ?? null;
 }
-
-const FOOTER_ITEMS = [
-  { icon: CardGiftcard, title: '100% Free', sub: 'No money, just fun' },
-  { icon: SportsSoccer, title: 'Real Scores', sub: 'Predict the exact score' },
-  { icon: Groups, title: '2 Winners', sub: 'Per correct score' },
-  { icon: EmojiEvents, title: 'Bragging Rights', sub: 'And real prizes' },
-];
 
 export default function WorldCupPage() {
   const t = useThemeTokens();
@@ -91,20 +84,18 @@ export default function WorldCupPage() {
         <WorldCupApp />
       </Box>
 
-      {/* Footer feature bar */}
+      {/* Footer */}
       <Box sx={{ borderTop: `1px solid ${t.border.subtle}`, mt: 2 }}>
-        <Box sx={{ maxWidth: 1400, mx: 'auto', px: { xs: 2, md: 3 }, py: 2.5, display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 2 }}>
-          {FOOTER_ITEMS.map(({ icon: Icon, title, sub }) => (
-            <Box key={title} sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-              <Box sx={{ width: 36, height: 36, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: t.hover.light, border: `1px solid ${t.border.subtle}`, flexShrink: 0 }}>
-                <Icon sx={{ fontSize: 19, color: t.text.secondary }} />
-              </Box>
-              <Box sx={{ minWidth: 0 }}>
-                <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: t.text.primary }}>{title}</Typography>
-                <Typography sx={{ fontSize: '0.7rem', color: t.text.tertiary }}>{sub}</Typography>
-              </Box>
-            </Box>
-          ))}
+        <Box sx={{ maxWidth: 1400, mx: 'auto', px: { xs: 2, md: 3 }, py: 2.5, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', gap: 1.5 }}>
+          <Typography sx={{ fontSize: '0.72rem', color: t.text.tertiary, lineHeight: 1.6, maxWidth: 680 }}>
+            Free to play, no purchase necessary. The $100 prize applies only once at least 20 users have submitted a prediction. 2 winners are drawn at random among the users with the exact correct score and phase.
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+            <Typography component="a" href="/privacy" target="_blank" rel="noopener noreferrer"
+              sx={{ fontSize: '0.75rem', fontWeight: 600, color: t.text.secondary, textDecoration: 'none', '&:hover': { color: t.text.primary } }}>
+              Privacy Policy
+            </Typography>
+          </Box>
         </Box>
       </Box>
     </Box>
