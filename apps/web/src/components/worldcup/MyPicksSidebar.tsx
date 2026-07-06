@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Box, Typography, Collapse } from '@mui/material';
+import { Box, Typography, Collapse, useMediaQuery, useTheme } from '@mui/material';
 import { ExpandLess, ExpandMore, Schedule } from '@mui/icons-material';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
@@ -24,12 +24,16 @@ interface Props {
 
 export function MyPicksSidebar({ matches, predByMatch }: Props) {
   const t = useThemeTokens();
-  const [open, setOpen] = useState(true);
+  // Open by default on desktop, collapsed on mobile (it stacks below the matches there),
+  // until the user toggles it.
+  const isDesktop = useMediaQuery(useTheme().breakpoints.up('lg'));
+  const [manualOpen, setManualOpen] = useState<boolean | null>(null);
+  const open = manualOpen ?? isDesktop;
   const pickedCount = matches.filter((m) => predByMatch.has(m.matchId)).length;
 
   return (
     <Box sx={{ bgcolor: t.bg.surface, border: `1px solid ${t.border.subtle}`, borderRadius: 2, p: 2 }}>
-      <Box onClick={() => setOpen((v) => !v)} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+      <Box onClick={() => setManualOpen(!open)} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Typography sx={{ fontSize: '1.05rem', fontWeight: 800, color: t.text.primary }}>My Picks</Typography>
           <Box sx={{ px: 0.8, py: 0.1, borderRadius: '999px', bgcolor: t.hover.light }}>

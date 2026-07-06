@@ -231,19 +231,24 @@ export function WorldCupApp() {
           </Box>
         </Box>
 
-        {/* Toolbar */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
-          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-            {FILTERS.map((f) => {
-              const active = filter === f;
-              return (
-                <Box key={f} onClick={() => setFilter(f)} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 1.5, py: 0.7, borderRadius: '999px', cursor: 'pointer', bgcolor: active ? withAlpha('#ffffff', 0.12) : 'transparent', '&:hover': { bgcolor: active ? withAlpha('#ffffff', 0.12) : t.hover.light } }}>
-                  {f === 'Live' && <FiberManualRecord sx={{ fontSize: 9, color: WC_NEON_GREEN }} />}
-                  <Typography sx={{ fontSize: '0.82rem', fontWeight: active ? 700 : 500, color: active ? t.text.primary : t.text.tertiary }}>{f}</Typography>
-                </Box>
-              );
-            })}
-          </Box>
+        {/* Toolbar: filters scroll horizontally on mobile instead of wrapping */}
+        <Box
+          sx={{
+            display: 'flex', gap: 0.5, width: '100%',
+            flexWrap: { xs: 'nowrap', md: 'wrap' },
+            overflowX: { xs: 'auto', md: 'visible' }, pb: { xs: 0.5, md: 0 },
+            scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' },
+          }}
+        >
+          {FILTERS.map((f) => {
+            const active = filter === f;
+            return (
+              <Box key={f} onClick={() => setFilter(f)} sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 0.5, px: 1.5, py: 0.7, borderRadius: '999px', cursor: 'pointer', bgcolor: active ? withAlpha('#ffffff', 0.12) : 'transparent', '&:hover': { bgcolor: active ? withAlpha('#ffffff', 0.12) : t.hover.light } }}>
+                {f === 'Live' && <FiberManualRecord sx={{ fontSize: 9, color: WC_NEON_GREEN }} />}
+                <Typography sx={{ fontSize: '0.82rem', fontWeight: active ? 700 : 500, color: active ? t.text.primary : t.text.tertiary }}>{f}</Typography>
+              </Box>
+            );
+          })}
         </Box>
 
         {/* Rows */}
