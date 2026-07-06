@@ -99,14 +99,22 @@ function normalizeRound(strRound?: string | null, intRound?: string | null): str
   return `Round ${raw}`;
 }
 
+/** SDB explicitly says the match has NOT started (or is empty/postponed). */
+function isNotStartedStatus(raw: string | null | undefined): boolean {
+  const s = (raw || '').trim().toLowerCase();
+  return s === '' || ['ns', 'not started', 'tbd', 'sched', 'scheduled', 'postponed', 'postp', 'ppd', 'cancelled', 'canceled', 'canc', 'abandoned'].includes(s);
+}
+
 function mapEvent(e: SdbEvent): WorldCupMatch {
   const raw = (e.strStatus || '').trim();
   const kickoff = kickoffIso(e);
   const finished = isFinishedStatus(raw);
-  // A match in the "past events" feed can still be IN PROGRESS (kickoff passed but
-  // not finished) — don't trust the feed, derive from status + kickoff time.
+  const notStarted = isNotStartedStatus(raw);
+  // Trust SDB's explicit "not started" (NS) over the stored kickoff time — SDB's time can be
+  // off (early), and a passed-but-NS match must stay SCHEDULED, not flip to LIVE and vanish.
+  // Only fall back to the kickoff heuristic for a non-NS, non-finished (in-progress) status.
   const started = kickoff != null && Date.parse(kickoff) <= Date.now();
-  const status: MatchStatus = finished ? 'FINISHED' : started ? 'LIVE' : 'SCHEDULED';
+  const status: MatchStatus = finished ? 'FINISHED' : notStarted ? 'SCHEDULED' : started ? 'LIVE' : 'SCHEDULED';
   return {
     matchId: String(e.idEvent),
     round: normalizeRound(e.strRound, e.intRound),

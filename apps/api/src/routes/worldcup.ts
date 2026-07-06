@@ -99,11 +99,11 @@ worldcupRouter.post('/predictions', async (req, res) => {
 
     const { matchId, homeScore, awayScore, phase } = parsed.data;
 
-    // Lock at kickoff: only SCHEDULED matches whose kickoff is still in the future.
+    // Lock once the match is live/finished. Rely on the classified status (which trusts SDB's
+    // NS flag + the live-score overlay) rather than the stored kickoff time, which can be off.
     const match = (await getWorldCupMatches()).find((m) => m.matchId === matchId);
     if (!match) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Match not found' } });
-    const started = match.status !== 'SCHEDULED' || (match.kickoff != null && Date.parse(match.kickoff) <= Date.now());
-    if (started) return res.status(409).json({ success: false, error: { code: 'LOCKED', message: 'Predictions are closed — the match has started' } });
+    if (match.status !== 'SCHEDULED') return res.status(409).json({ success: false, error: { code: 'LOCKED', message: 'Predictions are closed — the match has started' } });
 
     await prisma.worldCupPrediction.upsert({
       where: { contestUserId_matchId: { contestUserId: userId, matchId } },
