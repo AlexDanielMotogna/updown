@@ -37,16 +37,17 @@ const HERO_TEASERS = [
 ] as const;
 const HERO_SLIDE_COUNT = 1 + HERO_TEASERS.length;
 
-// Group matches by round for the round-header layout, ordered group stage -> final.
+// Group matches by round for the round-header layout. Higher rank = further in the tournament;
+// we sort descending so the newest (most advanced) round shows on top and Round of 32 sits last.
 const ROUND_ORDER: Record<string, number> = {
   'Round of 32': 30, 'Round of 16': 40, 'Quarter-final': 50, 'Semi-final': 60, 'Third place': 65, 'Final': 70,
 };
 function roundRank(r: string | null): number {
-  if (!r) return 100;
+  if (!r) return 0;
   if (ROUND_ORDER[r] != null) return ROUND_ORDER[r];
   const md = r.match(/Matchday (\d+)/);
-  if (md) return Number(md[1]); // group-stage matchdays first
-  return 99;
+  if (md) return Number(md[1]); // group-stage matchdays sit below the knockouts
+  return 0;
 }
 function groupByRound(matches: WorldCupMatch[]): { round: string; matches: WorldCupMatch[] }[] {
   const by = new Map<string, WorldCupMatch[]>();
@@ -56,7 +57,7 @@ function groupByRound(matches: WorldCupMatch[]): { round: string; matches: World
     if (arr) arr.push(m);
     else by.set(key, [m]);
   }
-  return [...by.entries()].map(([round, ms]) => ({ round, matches: ms })).sort((a, b) => roundRank(a.round) - roundRank(b.round));
+  return [...by.entries()].map(([round, ms]) => ({ round, matches: ms })).sort((a, b) => roundRank(b.round) - roundRank(a.round));
 }
 
 function CountdownUnit({ value, label }: { value: number; label: string }) {
