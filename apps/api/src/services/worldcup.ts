@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import { sportsDbFetch } from './sports/api-sports-fetch';
 import { isFinishedStatus, normalizeStatus } from './sports/livescore';
@@ -139,17 +140,9 @@ interface SdbTimelineItem {
   intTime?: string;
 }
 
-const timelineCache = new Map<string, { at: number; data: WorldCupGoal[] }>();
-
-/** Goals (scorer + minute) for a match, from SDB's timeline endpoint. Excludes the
- *  penalty shootout (only goals in regulation/ET count towards the 1-1 etc.). */
-export async function getWorldCupTimeline(matchId: string): Promise<WorldCupGoal[]> {
-  const hit = timelineCache.get(matchId);
-  if (hit && Date.now() - hit.at < 60_000) return hit.data;
-
-  const res = await sportsDbFetch<{ timeline: SdbTimelineItem[] | null }>(`lookuptimeline.php?id=${matchId}`).catch(() => ({ timeline: null }));
+function parseTimeline(items: SdbTimelineItem[] | null | undefined): WorldCupGoal[] {
   const goals: WorldCupGoal[] = [];
-  for (const it of res.timeline ?? []) {
+  for (const it of items ?? []) {
     if ((it.strTimeline || '').toLowerCase() !== 'goal') continue;
     const detail = (it.strTimelineDetail || '').toLowerCase();
     // SDB logs missed/saved/disallowed penalties as strTimeline "Goal" too — those aren't goals.
@@ -162,8 +155,38 @@ export async function getWorldCupTimeline(matchId: string): Promise<WorldCupGoal
     goals.push({ side, player: it.strPlayer || 'Unknown', minute, kind });
   }
   goals.sort((a, b) => (a.minute ?? 999) - (b.minute ?? 999));
-  timelineCache.set(matchId, { at: Date.now(), data: goals });
   return goals;
+}
+
+async function fetchTimelineFromSdb(matchId: string): Promise<WorldCupGoal[]> {
+  const res = await sportsDbFetch<{ timeline: SdbTimelineItem[] | null }>(`lookuptimeline.php?id=${matchId}`).catch(() => ({ timeline: null }));
+  return parseTimeline(res.timeline);
+}
+
+/** Goals (scorer + minute) for a match. Persisted in the DB so the accordion loads fast:
+ *  finished matches are served permanently from cache; live ones refresh every ~45s. */
+export async function getWorldCupTimeline(matchId: string): Promise<WorldCupGoal[]> {
+  const match = (await getWorldCupMatches()).find((m) => m.matchId === matchId);
+  if (match && match.status === 'SCHEDULED') return []; // no goals before kickoff
+  const finished = match?.status === 'FINISHED';
+
+  const cached = await prisma.worldCupGoalCache.findUnique({ where: { matchId } }).catch(() => null);
+  if (cached && (finished || Date.now() - new Date(cached.updatedAt).getTime() < 45_000)) {
+    return cached.goals as unknown as WorldCupGoal[];
+  }
+
+  const goals = await fetchTimelineFromSdb(matchId);
+  if (goals.length > 0 || !cached) {
+    await prisma.worldCupGoalCache
+      .upsert({
+        where: { matchId },
+        update: { goals: goals as unknown as Prisma.InputJsonValue },
+        create: { matchId, goals: goals as unknown as Prisma.InputJsonValue },
+      })
+      .catch(() => {});
+  }
+  // If SDB momentarily returned nothing, keep whatever we had cached.
+  return goals.length > 0 ? goals : ((cached?.goals as unknown as WorldCupGoal[]) ?? []);
 }
 
 let cache: { at: number; data: WorldCupMatch[] } | null = null;

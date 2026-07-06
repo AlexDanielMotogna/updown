@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Box, Typography } from '@mui/material';
 import { Add, Remove, CheckCircle, KeyboardArrowDown, SportsSoccer } from '@mui/icons-material';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import { WC_NEON_GREEN } from '@/lib/worldcup';
@@ -63,14 +63,21 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
   }, [prediction]);
 
   const [open, setOpen] = useState(false);
-  const { data: goalsRes, isLoading: goalsLoading } = useQuery({
-    queryKey: ['wc-timeline', m.matchId],
+  const queryClient = useQueryClient();
+  const timelineOpts = {
+    queryKey: ['wc-timeline', m.matchId] as const,
     queryFn: () => fetchWorldCupTimeline(m.matchId),
+    // Finished games never change, so keep them cached forever (no reload on reopen).
+    staleTime: m.status === 'FINISHED' ? Infinity : 30_000,
+    gcTime: 10 * 60_000,
+  };
+  const { data: goalsRes, isLoading: goalsLoading } = useQuery({
+    ...timelineOpts,
     enabled: open && m.status !== 'SCHEDULED',
-    staleTime: 30_000,
     refetchInterval: open && m.status === 'LIVE' ? 30_000 : false,
   });
   const goals = goalsRes?.data ?? [];
+  const prefetchGoals = () => { if (m.status !== 'SCHEDULED') void queryClient.prefetchQuery(timelineOpts); };
 
   const dirty = !prediction || prediction.homeScore !== home || prediction.awayScore !== away || prediction.phase !== phase;
   const clamp = (n: number) => Math.max(0, Math.min(30, n));
@@ -192,7 +199,7 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
         </Box>
 
         {m.status !== 'SCHEDULED' && (
-          <Box onClick={() => setOpen((o) => !o)} title="Goals" sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', cursor: 'pointer', color: t.text.tertiary, '&:hover': { color: t.text.secondary } }}>
+          <Box onClick={() => setOpen((o) => !o)} onMouseEnter={prefetchGoals} title="Goals" sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', cursor: 'pointer', color: t.text.tertiary, '&:hover': { color: t.text.secondary } }}>
             <KeyboardArrowDown sx={{ fontSize: 20, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
           </Box>
         )}

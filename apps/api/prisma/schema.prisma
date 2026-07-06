@@ -1089,6 +1089,17 @@ model WorldCupResult {
   @@map("worldcup_results")
 }
 
+/// Cached goal timeline (scorer + minute) for a match, so opening the goals accordion reads
+/// from the DB instead of hitting SDB each time. Finished matches are permanent; live ~45s.
+model WorldCupGoalCache {
+  id        String   @id @default(uuid())
+  matchId   String   @unique @map("match_id")
+  goals     Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("worldcup_goal_cache")
+}
+
 /// Display-only cache of a finished match's penalty shootout score, fetched from ChatGPT
 /// when SDB doesn't expose it and no admin result is confirmed. NEVER used for grading
 /// (that only trusts WorldCupResult). A row with null pens means "checked, not found yet".
