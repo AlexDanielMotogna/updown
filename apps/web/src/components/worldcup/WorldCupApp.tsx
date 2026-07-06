@@ -32,7 +32,7 @@ type Filter = typeof FILTERS[number];
 // Hero carousel: slide 0 is the World Cup game; the rest explain what UpDown is (placeholder copy).
 const HERO_LOGO = '/updown-logos/Logo_512px_White.png';
 const HERO_TEASERS = [
-  { title: 'This is just the start', body: 'UpDown is being built. Your home to predict real world events and trade live markets. This free World Cup game is a first taste.', tag: 'Under development' },
+  { title: 'This is just the start', body: 'UpDown is being built. Your home to predict real world events and trade live markets. The parimutuel prediction market where knowledge pays.', tag: 'Under development' },
   { title: 'Predict. Trade. Win.', body: 'Sports, crypto and prediction markets, all in one place. Sign in now and you are on the list for launch.', tag: 'Towards mainnet' },
 ] as const;
 const HERO_SLIDE_COUNT = 1 + HERO_TEASERS.length;
