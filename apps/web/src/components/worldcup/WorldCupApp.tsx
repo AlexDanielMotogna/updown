@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Box, Typography, Skeleton } from '@mui/material';
-import { Tune, FiberManualRecord } from '@mui/icons-material';
+import { FiberManualRecord } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usePrivy } from '@privy-io/react-auth';
 import { useThemeTokens } from '@/app/providers';
@@ -219,12 +219,6 @@ export function WorldCupApp() {
                 </Box>
               );
             })}
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 0.5, px: 1.5, py: 0.7, borderRadius: '6px', bgcolor: t.hover.light }}>
-              <Typography sx={{ fontSize: '0.78rem', color: t.text.tertiary }}>Group by: <Box component="span" sx={{ color: t.text.primary, fontWeight: 600 }}>Round</Box></Typography>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: '6px', bgcolor: t.hover.light, cursor: 'pointer' }}><Tune sx={{ fontSize: 18, color: t.text.tertiary }} /></Box>
           </Box>
         </Box>
 
