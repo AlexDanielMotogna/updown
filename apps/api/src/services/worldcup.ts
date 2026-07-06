@@ -179,7 +179,7 @@ export async function getWorldCupTimeline(matchId: string): Promise<WorldCupGoal
   const finished = match?.status === 'FINISHED';
 
   const cached = await prisma.worldCupGoalCache.findUnique({ where: { matchId } }).catch(() => null);
-  if (cached && (finished || Date.now() - new Date(cached.updatedAt).getTime() < 45_000)) {
+  if (cached && (finished || Date.now() - new Date(cached.updatedAt).getTime() < 30_000)) {
     return cached.goals as unknown as WorldCupGoal[];
   }
 
