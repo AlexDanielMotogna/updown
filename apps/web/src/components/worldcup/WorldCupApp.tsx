@@ -170,34 +170,34 @@ export function WorldCupApp() {
   });
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3, alignItems: 'flex-start' }}>
+    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3, alignItems: { xs: 'stretch', lg: 'flex-start' } }}>
       {/* Main */}
       <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
         {/* Hero slider */}
         <Box sx={{
           position: 'relative', overflow: 'hidden', borderRadius: 2.5,
           bgcolor: t.bg.surface, border: `1px solid ${t.border.subtle}`,
-          backgroundImage: `linear-gradient(100deg, ${t.bg.surface} 45%, ${withAlpha(t.bg.surface, 0.4)} 70%), url(${WORLD_CUP.fanart})`,
+          backgroundImage: `linear-gradient(100deg, ${t.bg.surface} 38%, ${withAlpha(t.bg.surface, 0.85)} 72%, ${withAlpha(t.bg.surface, 0.55)} 100%), url(${WORLD_CUP.fanart})`,
           backgroundSize: 'cover', backgroundPosition: 'right center',
         }}>
           <Box sx={{ display: 'flex', transform: `translateX(-${slide * 100}%)`, transition: 'transform 0.5s ease' }}>
             {/* Slide 0 — World Cup game */}
-            <Box sx={{ flex: '0 0 100%', minWidth: 0, p: { xs: 2, md: 3 }, pb: { xs: 3.5, md: 4 } }}>
-              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: { xs: 1.5, md: 3 }, minHeight: { md: 148 } }}>
-                <Box component="img" src={WORLD_CUP.badge} alt={WORLD_CUP.name} sx={{ height: { xs: 48, md: 92 }, width: 'auto', flexShrink: 0 }} />
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontSize: { xs: '1.5rem', md: '2rem' }, fontWeight: 900, letterSpacing: '-0.02em', color: t.text.primary, lineHeight: 1.1 }}>
+            <Box sx={{ flex: '0 0 100%', minWidth: 0, p: { xs: 2.5, md: 3 }, pb: { xs: 4, md: 4 } }}>
+              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'flex-start', gap: { xs: 1.75, md: 3 }, minHeight: { md: 148 } }}>
+                <Box component="img" src={WORLD_CUP.badge} alt={WORLD_CUP.name} sx={{ height: { xs: 54, md: 92 }, width: 'auto', flexShrink: 0 }} />
+                <Box sx={{ minWidth: 0, width: '100%' }}>
+                  <Typography sx={{ fontSize: { xs: '1.5rem', md: '2rem' }, fontWeight: 900, letterSpacing: '-0.02em', color: t.text.primary, lineHeight: 1.15 }}>
                     World Cup Predictions
                   </Typography>
-                  <Typography sx={{ fontSize: { xs: '0.82rem', md: '0.92rem' }, color: t.text.secondary, mt: 0.5 }}>
+                  <Typography sx={{ fontSize: { xs: '0.85rem', md: '0.92rem' }, color: t.text.primary, mt: 1, lineHeight: 1.5 }}>
                     Call the score before kickoff. No money, just bragging rights and a prize.
                   </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 2, md: 6 }, mt: 2, flexWrap: 'wrap' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 3, md: 6 }, mt: { xs: 2.75, md: 2 }, flexWrap: 'wrap' }}>
                     <Box>
-                      <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, color: t.text.tertiary, letterSpacing: '0.08em' }}>PRIZE POOL</Typography>
+                      <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: t.text.tertiary, letterSpacing: '0.08em' }}>PRIZE POOL</Typography>
                       <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-                        <Typography sx={{ fontSize: { xs: '1.8rem', md: '2.4rem' }, fontWeight: 900, color: t.gold, lineHeight: 1 }}>$100</Typography>
-                        <Typography sx={{ fontSize: '0.72rem', color: t.text.secondary, lineHeight: 1.2 }}>to 2 winners<br />per correct score</Typography>
+                        <Typography sx={{ fontSize: { xs: '1.55rem', md: '2.4rem' }, fontWeight: 900, color: t.gold, lineHeight: 1 }}>$100</Typography>
+                        <Typography sx={{ fontSize: { xs: '0.68rem', md: '0.72rem' }, color: t.text.primary, lineHeight: 1.2 }}>to 2 winners<br />per correct score</Typography>
                       </Box>
                     </Box>
                     {isLoading ? <Skeleton variant="rounded" width={210} height={58} sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} /> : <Countdown targetIso={nextKickoff} matchLabel={nextLabel} />}
@@ -208,12 +208,12 @@ export function WorldCupApp() {
 
             {/* Teaser slides — what UpDown is / what's coming */}
             {HERO_TEASERS.map((s) => (
-              <Box key={s.title} sx={{ flex: '0 0 100%', minWidth: 0, p: { xs: 2, md: 3 }, pb: { xs: 3.5, md: 4 } }}>
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: { xs: 1.5, md: 3 }, minHeight: { md: 148 } }}>
-                  <Box component="img" src={HERO_LOGO} alt="UpDown" sx={{ height: { xs: 46, md: 84 }, width: 'auto', flexShrink: 0, opacity: 0.92 }} />
-                  <Box sx={{ minWidth: 0, maxWidth: 560 }}>
-                    <Typography sx={{ fontSize: { xs: '1.5rem', md: '2rem' }, fontWeight: 900, letterSpacing: '-0.02em', color: t.text.primary, lineHeight: 1.1 }}>{s.title}</Typography>
-                    <Typography sx={{ fontSize: { xs: '0.85rem', md: '0.95rem' }, color: t.text.secondary, mt: 1 }}>{s.body}</Typography>
+              <Box key={s.title} sx={{ flex: '0 0 100%', minWidth: 0, p: { xs: 2.5, md: 3 }, pb: { xs: 4, md: 4 } }}>
+                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'flex-start', gap: { xs: 1.75, md: 3 }, minHeight: { md: 148 } }}>
+                  <Box component="img" src={HERO_LOGO} alt="UpDown" sx={{ height: { xs: 50, md: 84 }, width: 'auto', flexShrink: 0, opacity: 0.92 }} />
+                  <Box sx={{ minWidth: 0, width: '100%', maxWidth: { md: 560 } }}>
+                    <Typography sx={{ fontSize: { xs: '1.5rem', md: '2rem' }, fontWeight: 900, letterSpacing: '-0.02em', color: t.text.primary, lineHeight: 1.15 }}>{s.title}</Typography>
+                    <Typography sx={{ fontSize: { xs: '0.85rem', md: '0.95rem' }, color: t.text.primary, mt: 1, lineHeight: 1.5 }}>{s.body}</Typography>
                     <Box sx={{ display: 'inline-flex', mt: 2, px: 1.25, py: 0.5, borderRadius: '999px', bgcolor: withAlpha('#ffffff', 0.08), border: `1px solid ${t.border.subtle}` }}>
                       <Typography sx={{ fontSize: '0.68rem', fontWeight: 700, color: t.text.tertiary, letterSpacing: '0.05em' }}>{s.tag}</Typography>
                     </Box>
