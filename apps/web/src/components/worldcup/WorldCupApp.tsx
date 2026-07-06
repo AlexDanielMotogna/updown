@@ -96,7 +96,11 @@ export function WorldCupApp() {
   });
 
   const list = matches ?? [];
-  const nextMatch = list.find((m) => m.status === 'SCHEDULED') ?? null;
+  // Countdown to the next match whose kickoff is still in the future — skip any SCHEDULED match
+  // whose (possibly early) SDB kickoff time has already passed, so the timer never sits at zero.
+  const nowMs = Date.now();
+  const nextMatch =
+    list.find((m) => m.status === 'SCHEDULED' && m.kickoff != null && Date.parse(m.kickoff) > nowMs) ?? null;
   const nextKickoff = nextMatch?.kickoff ?? null;
   const nextLabel = nextMatch ? `${nextMatch.homeTeam} v ${nextMatch.awayTeam}` : null;
 
