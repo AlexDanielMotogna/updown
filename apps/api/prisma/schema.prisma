@@ -1028,3 +1028,100 @@ model PoolCreationConfig {
 
   @@map("pool_creation_config")
 }
+
+enum WorldCupPhase {
+  REGULATION
+  EXTRA_TIME
+  PENALTIES
+}
+
+/// Identity for the free World Cup predictions contest. Keyed by the verified
+/// Privy DID (from the login token); contact info (X handle / email) is best-effort
+/// from the client, used to pay + tag promo winners. No wallet, no money.
+model ContestUser {
+  id          String   @id @default(uuid())
+  privyDid    String   @unique @map("privy_did")
+  provider    String?
+  xHandle     String?  @map("x_handle")
+  email       String?
+  displayName String?  @map("display_name")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  predictions WorldCupPrediction[]
+
+  @@map("contest_users")
+}
+
+/// A user's free score prediction for one World Cup match. Winning requires the
+/// exact score AND the correct phase (90'/ET/penalties). One editable prediction
+/// per user per match; locked at kickoff.
+model WorldCupPrediction {
+  id            String        @id @default(uuid())
+  contestUserId String        @map("contest_user_id")
+  matchId       String        @map("match_id")
+  homeScore     Int           @map("home_score")
+  awayScore     Int           @map("away_score")
+  phase         WorldCupPhase
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  user ContestUser @relation(fields: [contestUserId], references: [id], onDelete: Cascade)
+
+  @@unique([contestUserId, matchId])
+  @@index([matchId])
+  @@map("worldcup_predictions")
+}
+
+/// Admin-confirmed official result for a World Cup match, used to grade predictions.
+/// Auto-suggested from SDB but editable (penalty shootouts aren't reliably exposed by
+/// SDB, so the admin enters those). Winning = exact score + this phase.
+model WorldCupResult {
+  id        String        @id @default(uuid())
+  matchId   String        @unique @map("match_id")
+  homeScore Int           @map("home_score")
+  awayScore Int           @map("away_score")
+  phase     WorldCupPhase
+  homePens  Int?          @map("home_pens") // penalty shootout score (display only)
+  awayPens  Int?          @map("away_pens")
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  @@map("worldcup_results")
+}
+
+/// Cached goal timeline (scorer + minute) for a match, so opening the goals accordion reads
+/// from the DB instead of hitting SDB each time. Finished matches are permanent; live ~45s.
+model WorldCupGoalCache {
+  id        String   @id @default(uuid())
+  matchId   String   @unique @map("match_id")
+  goals     Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("worldcup_goal_cache")
+}
+
+/// Display-only cache of a finished match's penalty shootout score, fetched from ChatGPT
+/// when SDB doesn't expose it and no admin result is confirmed. NEVER used for grading
+/// (that only trusts WorldCupResult). A row with null pens means "checked, not found yet".
+model WorldCupPenaltyCache {
+  id        String   @id @default(uuid())
+  matchId   String   @unique @map("match_id")
+  homePens  Int?     @map("home_pens")
+  awayPens  Int?     @map("away_pens")
+  checkedAt DateTime @default(now()) @map("checked_at")
+
+  @@map("worldcup_penalty_cache")
+}
+
+/// Raffle winners for a match (2 random among the correct predictors). Recorded so
+/// re-opening the admin shows the same winners (idempotent per (match, user)).
+model WorldCupWinner {
+  id            String   @id @default(uuid())
+  matchId       String   @map("match_id")
+  contestUserId String   @map("contest_user_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@unique([matchId, contestUserId])
+  @@index([matchId])
+  @@map("worldcup_winners")
+}

@@ -31,3 +31,16 @@ export const STORE_UI_ENABLED: boolean = (() => {
   const env = detectEnv();
   return env === 'LOCAL' || env === 'DEV';
 })();
+
+/**
+ * Production "coming soon" lockdown: in prod the whole app is hidden behind the
+ * free World Cup predictions page (/worldcup, "UpDown is under development"). The
+ * full app runs only in dev. Override with NEXT_PUBLIC_PROD_LOCKDOWN ('true' to
+ * force the lockdown locally for testing, 'false' to disable it in prod).
+ */
+export const PROD_LOCKDOWN: boolean = (() => {
+  const override = process.env.NEXT_PUBLIC_PROD_LOCKDOWN;
+  if (override === 'true') return true;
+  if (override === 'false') return false;
+  return detectEnv() === 'PROD';
+})();

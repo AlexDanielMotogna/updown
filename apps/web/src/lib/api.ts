@@ -1250,3 +1250,68 @@ export async function claimTournamentPrize(tournamentId: string, walletAddress: 
     body: JSON.stringify({ walletAddress }),
   });
 }
+
+// ── World Cup predictions (free-to-play) ──
+export type WorldCupStatus = 'SCHEDULED' | 'LIVE' | 'FINISHED';
+export type WorldCupPhase = 'REGULATION' | 'EXTRA_TIME' | 'PENALTIES';
+
+export interface WorldCupMatch {
+  matchId: string;
+  round: string | null;
+  homeTeam: string;
+  awayTeam: string;
+  homeCrest: string | null;
+  awayCrest: string | null;
+  kickoff: string | null;
+  status: WorldCupStatus;
+  homeScore: number | null;
+  awayScore: number | null;
+  progress: string | null;
+  phase: WorldCupPhase | null;
+  homePens: number | null;
+  awayPens: number | null;
+}
+
+export async function fetchWorldCupMatches(): Promise<ApiResponse<WorldCupMatch[]>> {
+  return fetchApi<WorldCupMatch[]>('/api/worldcup/matches');
+}
+
+export interface WorldCupGoal {
+  side: 'home' | 'away';
+  player: string;
+  minute: number | null;
+  kind: 'GOAL' | 'PENALTY' | 'OWN_GOAL';
+}
+export async function fetchWorldCupTimeline(matchId: string): Promise<ApiResponse<WorldCupGoal[]>> {
+  return fetchApi<WorldCupGoal[]>(`/api/worldcup/match/${matchId}/timeline`);
+}
+
+export interface WorldCupPredictionDto {
+  matchId: string;
+  homeScore: number;
+  awayScore: number;
+  phase: WorldCupPhase;
+}
+export interface WorldCupIdentity {
+  provider?: string;
+  xHandle?: string;
+  email?: string;
+  displayName?: string;
+}
+
+export async function fetchMyWorldCupPredictions(token: string): Promise<ApiResponse<WorldCupPredictionDto[]>> {
+  return fetchApi<WorldCupPredictionDto[]>('/api/worldcup/predictions', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function saveWorldCupPrediction(
+  token: string,
+  body: { matchId: string; homeScore: number; awayScore: number; phase: WorldCupPhase; identity?: WorldCupIdentity },
+): Promise<ApiResponse<WorldCupPredictionDto>> {
+  return fetchApi<WorldCupPredictionDto>('/api/worldcup/predictions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+}
