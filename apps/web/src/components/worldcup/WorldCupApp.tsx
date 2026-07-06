@@ -29,6 +29,13 @@ function buildIdentity(user: ReturnType<typeof usePrivy>['user']): WorldCupIdent
 const FILTERS = ['All matches', 'Today', 'Live', 'Upcoming', 'Completed', 'My picks'] as const;
 type Filter = typeof FILTERS[number];
 
+// Hero carousel: slide 0 is the World Cup game; the rest explain what UpDown is (placeholder copy).
+const HERO_TEASERS = [
+  { emoji: '🔮', title: 'This is just the start', body: 'UpDown is being built — your home to predict real-world events and trade live markets. This free World Cup game is a first taste.', tag: 'Under development' },
+  { emoji: '📈', title: 'Predict. Trade. Win.', body: 'Sports, crypto and prediction markets, all in one place. Sign in now and you are on the list for launch.', tag: 'Towards mainnet' },
+] as const;
+const HERO_SLIDE_COUNT = 1 + HERO_TEASERS.length;
+
 function CountdownUnit({ value, label }: { value: number; label: string }) {
   const t = useThemeTokens();
   return (
@@ -74,6 +81,11 @@ export function WorldCupApp() {
   const queryClient = useQueryClient();
   const { authenticated, user, getAccessToken, login } = usePrivy();
   const [filter, setFilter] = useState<Filter>('All matches');
+  const [slide, setSlide] = useState(0);
+  useEffect(() => {
+    const id = setTimeout(() => setSlide((s) => (s + 1) % HERO_SLIDE_COUNT), 10_000);
+    return () => clearTimeout(id);
+  }, [slide]);
 
   const { data: matches, isLoading } = useQuery({
     queryKey: ['worldcup-matches'], queryFn: fetchWorldCupMatches, refetchInterval: 30_000, select: (r) => r.data ?? [],
@@ -133,33 +145,61 @@ export function WorldCupApp() {
     <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3, alignItems: 'flex-start' }}>
       {/* Main */}
       <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-        {/* Hero */}
+        {/* Hero slider */}
         <Box sx={{
-          position: 'relative', overflow: 'hidden', borderRadius: 2.5, p: { xs: 2.5, md: 3 },
+          position: 'relative', overflow: 'hidden', borderRadius: 2.5,
           bgcolor: t.bg.surface, border: `1px solid ${t.border.subtle}`,
           backgroundImage: `linear-gradient(100deg, ${t.bg.surface} 45%, ${withAlpha(t.bg.surface, 0.4)} 70%), url(${WORLD_CUP.fanart})`,
           backgroundSize: 'cover', backgroundPosition: 'right center',
         }}>
-          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: { xs: 2, md: 3 } }}>
-            <Box component="img" src={WORLD_CUP.badge} alt={WORLD_CUP.name} sx={{ height: { xs: 66, md: 92 }, width: 'auto', flexShrink: 0 }} />
-            <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontSize: { xs: '1.5rem', md: '2rem' }, fontWeight: 900, letterSpacing: '-0.02em', color: t.text.primary, lineHeight: 1.1 }}>
-                World Cup Predictions
-              </Typography>
-              <Typography sx={{ fontSize: { xs: '0.82rem', md: '0.92rem' }, color: t.text.secondary, mt: 0.5 }}>
-                Call the score before kickoff. No money, just bragging rights and a prize.
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 3, md: 6 }, mt: 2, flexWrap: 'wrap' }}>
-                <Box>
-                  <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, color: t.text.tertiary, letterSpacing: '0.08em' }}>PRIZE POOL</Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-                    <Typography sx={{ fontSize: { xs: '1.8rem', md: '2.4rem' }, fontWeight: 900, color: t.gold, lineHeight: 1 }}>$100</Typography>
-                    <Typography sx={{ fontSize: '0.72rem', color: t.text.secondary, lineHeight: 1.2 }}>to 2 winners<br />per correct score</Typography>
+          <Box sx={{ display: 'flex', transform: `translateX(-${slide * 100}%)`, transition: 'transform 0.5s ease' }}>
+            {/* Slide 0 — World Cup game */}
+            <Box sx={{ flex: '0 0 100%', minWidth: 0, p: { xs: 2.5, md: 3 }, pb: { xs: 3.5, md: 4 } }}>
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: { xs: 2, md: 3 }, minHeight: { md: 148 } }}>
+                <Box component="img" src={WORLD_CUP.badge} alt={WORLD_CUP.name} sx={{ height: { xs: 66, md: 92 }, width: 'auto', flexShrink: 0 }} />
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography sx={{ fontSize: { xs: '1.5rem', md: '2rem' }, fontWeight: 900, letterSpacing: '-0.02em', color: t.text.primary, lineHeight: 1.1 }}>
+                    World Cup Predictions
+                  </Typography>
+                  <Typography sx={{ fontSize: { xs: '0.82rem', md: '0.92rem' }, color: t.text.secondary, mt: 0.5 }}>
+                    Call the score before kickoff. No money, just bragging rights and a prize.
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 3, md: 6 }, mt: 2, flexWrap: 'wrap' }}>
+                    <Box>
+                      <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, color: t.text.tertiary, letterSpacing: '0.08em' }}>PRIZE POOL</Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                        <Typography sx={{ fontSize: { xs: '1.8rem', md: '2.4rem' }, fontWeight: 900, color: t.gold, lineHeight: 1 }}>$100</Typography>
+                        <Typography sx={{ fontSize: '0.72rem', color: t.text.secondary, lineHeight: 1.2 }}>to 2 winners<br />per correct score</Typography>
+                      </Box>
+                    </Box>
+                    {isLoading ? <Skeleton variant="rounded" width={210} height={58} sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} /> : <Countdown targetIso={nextKickoff} matchLabel={nextLabel} />}
                   </Box>
                 </Box>
-                {isLoading ? <Skeleton variant="rounded" width={210} height={58} sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} /> : <Countdown targetIso={nextKickoff} matchLabel={nextLabel} />}
               </Box>
             </Box>
+
+            {/* Teaser slides — what UpDown is / what's coming */}
+            {HERO_TEASERS.map((s) => (
+              <Box key={s.title} sx={{ flex: '0 0 100%', minWidth: 0, p: { xs: 2.5, md: 3 }, pb: { xs: 3.5, md: 4 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: { xs: 2, md: 3 }, minHeight: { md: 148 } }}>
+                  <Typography sx={{ fontSize: { xs: '2.6rem', md: '3.8rem' }, lineHeight: 1, flexShrink: 0 }}>{s.emoji}</Typography>
+                  <Box sx={{ minWidth: 0, maxWidth: 560 }}>
+                    <Typography sx={{ fontSize: { xs: '1.5rem', md: '2rem' }, fontWeight: 900, letterSpacing: '-0.02em', color: t.text.primary, lineHeight: 1.1 }}>{s.title}</Typography>
+                    <Typography sx={{ fontSize: { xs: '0.85rem', md: '0.95rem' }, color: t.text.secondary, mt: 1 }}>{s.body}</Typography>
+                    <Box sx={{ display: 'inline-flex', mt: 2, px: 1.25, py: 0.5, borderRadius: '999px', bgcolor: withAlpha('#ffffff', 0.08), border: `1px solid ${t.border.subtle}` }}>
+                      <Typography sx={{ fontSize: '0.68rem', fontWeight: 700, color: t.text.tertiary, letterSpacing: '0.05em' }}>{s.tag}</Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              </Box>
+            ))}
+          </Box>
+
+          {/* Slide dots */}
+          <Box sx={{ position: 'absolute', bottom: 12, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 0.75 }}>
+            {Array.from({ length: HERO_SLIDE_COUNT }).map((_, i) => (
+              <Box key={i} onClick={() => setSlide(i)} sx={{ width: i === slide ? 20 : 7, height: 7, borderRadius: '999px', cursor: 'pointer', transition: 'all 0.25s ease', bgcolor: i === slide ? t.text.primary : withAlpha('#ffffff', 0.3), '&:hover': { bgcolor: i === slide ? t.text.primary : withAlpha('#ffffff', 0.5) } }} />
+            ))}
           </Box>
         </Box>
 
