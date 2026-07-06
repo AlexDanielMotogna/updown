@@ -30,9 +30,10 @@ const FILTERS = ['All matches', 'Today', 'Live', 'Upcoming', 'Completed', 'My pi
 type Filter = typeof FILTERS[number];
 
 // Hero carousel: slide 0 is the World Cup game; the rest explain what UpDown is (placeholder copy).
+const HERO_LOGO = '/updown-logos/Logo_512px_White.png';
 const HERO_TEASERS = [
-  { emoji: '🔮', title: 'This is just the start', body: 'UpDown is being built — your home to predict real-world events and trade live markets. This free World Cup game is a first taste.', tag: 'Under development' },
-  { emoji: '📈', title: 'Predict. Trade. Win.', body: 'Sports, crypto and prediction markets, all in one place. Sign in now and you are on the list for launch.', tag: 'Towards mainnet' },
+  { title: 'This is just the start', body: 'UpDown is being built. Your home to predict real world events and trade live markets. This free World Cup game is a first taste.', tag: 'Under development' },
+  { title: 'Predict. Trade. Win.', body: 'Sports, crypto and prediction markets, all in one place. Sign in now and you are on the list for launch.', tag: 'Towards mainnet' },
 ] as const;
 const HERO_SLIDE_COUNT = 1 + HERO_TEASERS.length;
 
@@ -182,7 +183,7 @@ export function WorldCupApp() {
             {HERO_TEASERS.map((s) => (
               <Box key={s.title} sx={{ flex: '0 0 100%', minWidth: 0, p: { xs: 2.5, md: 3 }, pb: { xs: 3.5, md: 4 } }}>
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: { xs: 2, md: 3 }, minHeight: { md: 148 } }}>
-                  <Typography sx={{ fontSize: { xs: '2.6rem', md: '3.8rem' }, lineHeight: 1, flexShrink: 0 }}>{s.emoji}</Typography>
+                  <Box component="img" src={HERO_LOGO} alt="UpDown" sx={{ height: { xs: 56, md: 84 }, width: 'auto', flexShrink: 0, opacity: 0.92 }} />
                   <Box sx={{ minWidth: 0, maxWidth: 560 }}>
                     <Typography sx={{ fontSize: { xs: '1.5rem', md: '2rem' }, fontWeight: 900, letterSpacing: '-0.02em', color: t.text.primary, lineHeight: 1.1 }}>{s.title}</Typography>
                     <Typography sx={{ fontSize: { xs: '0.85rem', md: '0.95rem' }, color: t.text.secondary, mt: 1 }}>{s.body}</Typography>
