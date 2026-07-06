@@ -210,7 +210,7 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
           {goalsLoading ? (
             <Typography sx={{ fontSize: '0.75rem', color: t.text.tertiary, textAlign: 'center' }}>Loading goals…</Typography>
           ) : goals.length === 0 ? (
-            <Typography sx={{ fontSize: '0.75rem', color: t.text.tertiary, textAlign: 'center' }}>No goals</Typography>
+            <Typography sx={{ fontSize: '0.75rem', color: t.text.tertiary, textAlign: 'center' }}>{m.status === 'LIVE' ? 'Scorers appear after the match' : 'No goals'}</Typography>
           ) : (
             <Box sx={{ display: 'flex', gap: 2 }}>
               <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0.5, minWidth: 0 }}>
