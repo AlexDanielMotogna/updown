@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Box, Typography, Button, CircularProgress, Menu, MenuItem, ListItemIcon, Tooltip } from '@mui/material';
-import { KeyboardArrowDown, AccountCircle, Logout, InfoOutlined, CardGiftcard, SportsSoccer, Groups, EmojiEvents } from '@mui/icons-material';
+import { Box, Typography, Button, CircularProgress, Menu, MenuItem, ListItemIcon, Tooltip, Avatar } from '@mui/material';
+import { KeyboardArrowDown, Logout, InfoOutlined, CardGiftcard, SportsSoccer, Groups, EmojiEvents } from '@mui/icons-material';
 import { usePrivy } from '@privy-io/react-auth';
 import { useThemeTokens } from '@/app/providers';
 import { WorldCupApp } from '@/components/worldcup/WorldCupApp';
@@ -26,6 +26,12 @@ export default function WorldCupPage() {
   const { ready, authenticated, user, login, logout } = usePrivy();
   const who = identityLabel(user);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+
+  // X provides a profile picture (small "_normal"; strip it for the original size). Google/email
+  // don't expose one via Privy, so fall back to the initial of the handle/email.
+  const pfp = user?.twitter?.profilePictureUrl;
+  const avatarSrc = pfp ? pfp.replace('_normal', '_400x400') : undefined;
+  const initial = (who ?? 'U').replace('@', '').charAt(0).toUpperCase();
 
   return (
     <Box sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', bgcolor: t.bg.app, color: t.text.primary }}>
@@ -57,7 +63,7 @@ export default function WorldCupPage() {
               onClick={(e) => setAnchor(e.currentTarget)}
               sx={{ display: 'flex', alignItems: 'center', gap: 0.75, height: { xs: 34, sm: 38 }, px: 1.25, borderRadius: '4px', cursor: 'pointer', bgcolor: t.hover.medium, '&:hover': { bgcolor: t.hover.strong } }}
             >
-              <AccountCircle sx={{ fontSize: 20, color: t.text.secondary }} />
+              <Avatar src={avatarSrc} sx={{ width: 22, height: 22, fontSize: '0.72rem', fontWeight: 700, bgcolor: t.hover.strong, color: t.text.secondary }}>{initial}</Avatar>
               <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color: t.text.primary, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{who ?? 'Account'}</Typography>
               <KeyboardArrowDown sx={{ fontSize: 18, color: t.text.tertiary }} />
             </Box>
