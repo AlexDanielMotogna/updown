@@ -127,8 +127,7 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
       <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, md: 2 }, flexWrap: { xs: 'wrap', md: 'nowrap' } }}>
         {/* Meta */}
         <Box sx={{ width: { xs: '100%', md: 118 }, flexShrink: 0 }}>
-          <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, color: t.text.tertiary, letterSpacing: '0.05em' }}>{roundLabel(m.round)}</Typography>
-          <Typography sx={{ fontSize: '0.68rem', color: t.text.quaternary }}>{matchDateLabel(m.kickoff)}</Typography>
+          <Typography sx={{ fontSize: '0.72rem', fontWeight: 600, color: t.text.tertiary }}>{matchDateLabel(m.kickoff)}</Typography>
         </Box>
 
         {/* Home */}
