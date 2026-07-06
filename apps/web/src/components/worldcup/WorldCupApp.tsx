@@ -80,7 +80,7 @@ function Countdown({ targetIso, matchLabel }: { targetIso: string | null; matchL
 export function WorldCupApp() {
   const t = useThemeTokens();
   const queryClient = useQueryClient();
-  const { authenticated, user, getAccessToken, login } = usePrivy();
+  const { ready, authenticated, user, getAccessToken, login } = usePrivy();
   const [filter, setFilter] = useState<Filter>('All matches');
   const [slide, setSlide] = useState(0);
   useEffect(() => {
@@ -88,14 +88,17 @@ export function WorldCupApp() {
     return () => clearTimeout(id);
   }, [slide]);
 
-  const { data: matches, isLoading } = useQuery({
+  const { data: matches, isLoading: matchesLoading } = useQuery({
     queryKey: ['worldcup-matches'], queryFn: fetchWorldCupMatches, refetchInterval: 30_000, select: (r) => r.data ?? [],
   });
-  const { data: myPredictions } = useQuery({
+  const { data: myPredictions, isLoading: predsLoading } = useQuery({
     queryKey: ['worldcup-my-predictions'], enabled: authenticated,
     queryFn: async () => { const token = await getAccessToken(); if (!token) return [] as WorldCupPredictionDto[]; return (await fetchMyWorldCupPredictions(token)).data ?? []; },
   });
   const predByMatch = useMemo(() => new Map((myPredictions ?? []).map((p) => [p.matchId, p])), [myPredictions]);
+  // Keep the row skeletons up until we know the user's picks too (and Privy is ready), so rows
+  // don't render in a default state and then visibly flip to "Pick saved"/selected scores.
+  const isLoading = !ready || matchesLoading || predsLoading;
 
   const saveMut = useMutation({
     mutationFn: async (v: { matchId: string; home: number; away: number; phase: WorldCupPhase }) => {
