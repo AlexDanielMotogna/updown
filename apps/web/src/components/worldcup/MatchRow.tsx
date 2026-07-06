@@ -71,13 +71,15 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
     staleTime: m.status === 'FINISHED' ? Infinity : 30_000,
     gcTime: 10 * 60_000,
   };
+  // Live matches show their goals open automatically; finished matches show them behind a chevron.
+  const goalsShown = m.status === 'LIVE' || (open && m.status === 'FINISHED');
   const { data: goalsRes, isLoading: goalsLoading } = useQuery({
     ...timelineOpts,
-    enabled: open && m.status !== 'SCHEDULED',
-    refetchInterval: open && m.status === 'LIVE' ? 30_000 : false,
+    enabled: goalsShown,
+    refetchInterval: m.status === 'LIVE' ? 30_000 : false,
   });
   const goals = goalsRes?.data ?? [];
-  const prefetchGoals = () => { if (m.status !== 'SCHEDULED') void queryClient.prefetchQuery(timelineOpts); };
+  const prefetchGoals = () => { if (m.status === 'FINISHED') void queryClient.prefetchQuery(timelineOpts); };
 
   const dirty = !prediction || prediction.homeScore !== home || prediction.awayScore !== away || prediction.phase !== phase;
   const clamp = (n: number) => Math.max(0, Math.min(30, n));
@@ -121,21 +123,12 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
   );
 
   return (
-    <Box sx={{ position: 'relative', overflow: 'hidden', bgcolor: t.bg.surfaceAlt, borderRadius: 1.5, px: { xs: 1.5, md: 2 }, py: { xs: 1.75, md: 2.25 }, border: `1px solid ${t.border.subtle}` }}>
-      {m.status === 'LIVE' && (
-        <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '4px', bgcolor: WC_NEON_GREEN, boxShadow: `0 0 10px 1px ${withAlpha(WC_NEON_GREEN, 0.75)}` }} />
-      )}
+    <Box sx={{ bgcolor: t.bg.surfaceAlt, borderRadius: 1.5, px: { xs: 1.5, md: 2 }, py: { xs: 1.75, md: 2.25 }, border: `1px solid ${t.border.subtle}` }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, md: 2 }, flexWrap: { xs: 'wrap', md: 'nowrap' } }}>
         {/* Meta */}
         <Box sx={{ width: { xs: '100%', md: 118 }, flexShrink: 0 }}>
           <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, color: t.text.tertiary, letterSpacing: '0.05em' }}>{roundLabel(m.round)}</Typography>
           <Typography sx={{ fontSize: '0.68rem', color: t.text.quaternary }}>{matchDateLabel(m.kickoff)}</Typography>
-          {m.status === 'LIVE' && (
-            <Box sx={{ mt: 0.5, display: 'flex', alignItems: 'center', gap: 0.6 }}>
-              <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: WC_NEON_GREEN, boxShadow: `0 0 6px ${WC_NEON_GREEN}`, animation: 'wcpulse 1.2s infinite', '@keyframes wcpulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.35 } } }} />
-              <Typography sx={{ fontSize: '0.63rem', fontWeight: 800, color: WC_NEON_GREEN, letterSpacing: '0.06em', fontVariantNumeric: 'tabular-nums' }}>LIVE{m.progress ? ` ${m.progress}'` : ''}</Typography>
-            </Box>
-          )}
         </Box>
 
         {/* Home */}
@@ -146,6 +139,12 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
 
         {/* Predictor */}
         <Box sx={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 1.1, width: { xs: '100%', md: 300 } }}>
+          {m.status === 'LIVE' && (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.6 }}>
+              <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: WC_NEON_GREEN, boxShadow: `0 0 6px ${WC_NEON_GREEN}`, animation: 'wcpulse 1.2s infinite', '@keyframes wcpulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.35 } } }} />
+              <Typography sx={{ fontSize: '0.66rem', fontWeight: 800, color: WC_NEON_GREEN, letterSpacing: '0.06em', fontVariantNumeric: 'tabular-nums' }}>LIVE{m.progress ? ` ${m.progress}'` : ''}</Typography>
+            </Box>
+          )}
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
             <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
               {canEdit && stepBtn(-1, setHome, home)}
@@ -190,7 +189,9 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
           {!editable ? (
             prediction
               ? chromeBtn('Pick saved', undefined, 'saved')
-              : <Typography sx={{ width: '100%', textAlign: 'center', fontSize: '0.72rem', fontWeight: 600, color: t.text.quaternary }}>{m.status === 'FINISHED' ? 'No prediction' : 'Locked'}</Typography>
+              : m.status === 'FINISHED'
+                ? <Typography sx={{ width: '100%', textAlign: 'center', fontSize: '0.72rem', fontWeight: 600, color: t.text.quaternary }}>No prediction</Typography>
+                : null
           ) : prediction && !dirty ? (
             chromeBtn('Pick saved', undefined, 'saved')
           ) : (
@@ -198,14 +199,14 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
           )}
         </Box>
 
-        {m.status !== 'SCHEDULED' && (
+        {m.status === 'FINISHED' && (
           <Box onClick={() => setOpen((o) => !o)} onMouseEnter={prefetchGoals} title="Goals" sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', cursor: 'pointer', color: t.text.tertiary, '&:hover': { color: t.text.secondary } }}>
             <KeyboardArrowDown sx={{ fontSize: 20, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
           </Box>
         )}
       </Box>
 
-      {open && m.status !== 'SCHEDULED' && (
+      {goalsShown && (
         <Box sx={{ mt: 1.25, pt: 1.25, borderTop: `1px solid ${t.border.subtle}` }}>
           {goalsLoading ? (
             <Typography sx={{ fontSize: '0.75rem', color: t.text.tertiary, textAlign: 'center' }}>Loading goals…</Typography>
