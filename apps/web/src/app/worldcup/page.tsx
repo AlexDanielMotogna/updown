@@ -34,11 +34,10 @@ export default function WorldCupPage() {
         component="header"
         sx={{
           position: 'sticky', top: 0, zIndex: 100,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          px: { xs: 2, md: 3 }, height: { xs: 52, md: 60 },
           bgcolor: t.bg.app, borderBottom: `1px solid ${t.border.subtle}`,
         }}
       >
+      <Box sx={{ width: '100%', maxWidth: 1400, mx: 'auto', px: { xs: 2, md: 3 }, height: { xs: 52, md: 60 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
           <Box component="img" src="/updown-logos/Logo_cyan_text_white.png" alt="UpDown" sx={{ height: { xs: 24, md: 30 } }} />
           <Tooltip
@@ -78,6 +77,7 @@ export default function WorldCupPage() {
             Sign in
           </Button>
         )}
+      </Box>
       </Box>
 
       {/* Body */}
