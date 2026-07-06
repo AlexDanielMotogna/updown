@@ -84,18 +84,12 @@ export default function WorldCupPage() {
         <WorldCupApp />
       </Box>
 
-      {/* Footer */}
+      {/* Footer disclaimer */}
       <Box sx={{ borderTop: `1px solid ${t.border.subtle}`, mt: 2 }}>
-        <Box sx={{ maxWidth: 1400, mx: 'auto', px: { xs: 2, md: 3 }, py: 2.5, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', gap: 1.5 }}>
-          <Typography sx={{ fontSize: '0.72rem', color: t.text.tertiary, lineHeight: 1.6, maxWidth: 680 }}>
-            Free to play, no purchase necessary. The $100 prize applies only once at least 20 users have submitted a prediction. 2 winners are drawn at random among the users with the exact correct score and phase.
+        <Box sx={{ maxWidth: 1400, mx: 'auto', px: { xs: 2, md: 3 }, py: 2.5 }}>
+          <Typography sx={{ fontSize: '0.72rem', color: t.text.tertiary, lineHeight: 1.7 }}>
+            Free to play, no purchase necessary. The $100 prize applies only once at least 20 users have submitted a prediction. 2 winners are drawn at random among the users with the exact correct score and phase. By signing in you agree we store your X handle or email only to identify and contact prize winners; we do not sell your data.
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
-            <Typography component="a" href="/privacy" target="_blank" rel="noopener noreferrer"
-              sx={{ fontSize: '0.75rem', fontWeight: 600, color: t.text.secondary, textDecoration: 'none', '&:hover': { color: t.text.primary } }}>
-              Privacy Policy
-            </Typography>
-          </Box>
         </Box>
       </Box>
     </Box>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Box, Typography, Skeleton } from '@mui/material';
-import { Tune, FiberManualRecord } from '@mui/icons-material';
+import { FiberManualRecord } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usePrivy } from '@privy-io/react-auth';
 import { useThemeTokens } from '@/app/providers';
@@ -36,6 +36,29 @@ const HERO_TEASERS = [
   { title: 'Predict. Trade. Win.', body: 'Sports, crypto and prediction markets, all in one place. Sign in now and you are on the list for launch.', tag: 'Towards mainnet' },
 ] as const;
 const HERO_SLIDE_COUNT = 1 + HERO_TEASERS.length;
+
+// Group matches by round for the round-header layout. Higher rank = further in the tournament;
+// we sort descending so the newest (most advanced) round shows on top and Round of 32 sits last.
+const ROUND_ORDER: Record<string, number> = {
+  'Round of 32': 30, 'Round of 16': 40, 'Quarter-final': 50, 'Semi-final': 60, 'Third place': 65, 'Final': 70,
+};
+function roundRank(r: string | null): number {
+  if (!r) return 0;
+  if (ROUND_ORDER[r] != null) return ROUND_ORDER[r];
+  const md = r.match(/Matchday (\d+)/);
+  if (md) return Number(md[1]); // group-stage matchdays sit below the knockouts
+  return 0;
+}
+function groupByRound(matches: WorldCupMatch[]): { round: string; matches: WorldCupMatch[] }[] {
+  const by = new Map<string, WorldCupMatch[]>();
+  for (const m of matches) {
+    const key = m.round ?? 'Other';
+    const arr = by.get(key);
+    if (arr) arr.push(m);
+    else by.set(key, [m]);
+  }
+  return [...by.entries()].map(([round, ms]) => ({ round, matches: ms })).sort((a, b) => roundRank(b.round) - roundRank(a.round));
+}
 
 function CountdownUnit({ value, label }: { value: number; label: string }) {
   const t = useThemeTokens();
@@ -135,6 +158,7 @@ export function WorldCupApp() {
       default: return true;
     }
   });
+  const groups = groupByRound(filtered);
 
   const rowProps = (m: WorldCupMatch) => ({
     m,
@@ -220,12 +244,6 @@ export function WorldCupApp() {
               );
             })}
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 0.5, px: 1.5, py: 0.7, borderRadius: '6px', bgcolor: t.hover.light }}>
-              <Typography sx={{ fontSize: '0.78rem', color: t.text.tertiary }}>Group by: <Box component="span" sx={{ color: t.text.primary, fontWeight: 600 }}>Round</Box></Typography>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: '6px', bgcolor: t.hover.light, cursor: 'pointer' }}><Tune sx={{ fontSize: 18, color: t.text.tertiary }} /></Box>
-          </Box>
         </Box>
 
         {/* Rows */}
@@ -236,8 +254,17 @@ export function WorldCupApp() {
         ) : filtered.length === 0 ? (
           <Typography sx={{ fontSize: '0.9rem', color: t.text.tertiary, textAlign: 'center', py: 5 }}>No matches in this view.</Typography>
         ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            {filtered.map((m) => <MatchRow key={m.matchId} {...rowProps(m)} />)}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+            {groups.map((g) => (
+              <Box key={g.round} sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                <Typography sx={{ fontSize: '0.72rem', fontWeight: 800, color: t.text.secondary, textTransform: 'uppercase', letterSpacing: '0.06em', px: 0.5 }}>
+                  {g.round}
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  {g.matches.map((m) => <MatchRow key={m.matchId} {...rowProps(m)} />)}
+                </Box>
+              </Box>
+            ))}
           </Box>
         )}
       </Box>
