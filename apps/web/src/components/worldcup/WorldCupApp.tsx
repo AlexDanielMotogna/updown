@@ -102,7 +102,7 @@ export function WorldCupApp() {
   const nextMatch =
     list.find((m) => m.status === 'SCHEDULED' && m.kickoff != null && Date.parse(m.kickoff) > nowMs) ?? null;
   const nextKickoff = nextMatch?.kickoff ?? null;
-  const nextLabel = nextMatch ? `${nextMatch.homeTeam} v ${nextMatch.awayTeam}` : null;
+  const nextLabel = nextMatch ? `${nextMatch.homeTeam} vs ${nextMatch.awayTeam}` : null;
 
   const isToday = (iso: string | null) => {
     if (!iso) return false;
