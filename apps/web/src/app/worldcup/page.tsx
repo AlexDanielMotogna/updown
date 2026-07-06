@@ -27,7 +27,7 @@ export default function WorldCupPage() {
   const initial = (who ?? 'U').replace('@', '').charAt(0).toUpperCase();
 
   return (
-    <Box sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', bgcolor: t.bg.app, color: t.text.primary }}>
+    <Box sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', bgcolor: t.bg.app, color: t.text.primary, overflowX: 'hidden' }}>
       {/* Header (app-style) */}
       <Box
         component="header"

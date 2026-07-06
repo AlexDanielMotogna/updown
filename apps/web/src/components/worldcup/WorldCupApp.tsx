@@ -63,11 +63,11 @@ function groupByRound(matches: WorldCupMatch[]): { round: string; matches: World
 function CountdownUnit({ value, label }: { value: number; label: string }) {
   const t = useThemeTokens();
   return (
-    <Box sx={{ textAlign: 'center', minWidth: 46 }}>
-      <Typography sx={{ fontSize: '1.5rem', fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+    <Box sx={{ textAlign: 'center', minWidth: { xs: 38, md: 46 } }}>
+      <Typography sx={{ fontSize: { xs: '1.25rem', md: '1.5rem' }, fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
         {String(value).padStart(2, '0')}
       </Typography>
-      <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: t.text.quaternary, letterSpacing: '0.08em' }}>{label}</Typography>
+      <Typography sx={{ fontSize: '0.58rem', fontWeight: 700, color: t.text.quaternary, letterSpacing: '0.06em' }}>{label}</Typography>
     </Box>
   );
 }
@@ -90,7 +90,7 @@ function Countdown({ targetIso, matchLabel }: { targetIso: string | null; matchL
           {matchLabel}
         </Typography>
       )}
-      <Box sx={{ display: 'flex', gap: 1.5 }}>
+      <Box sx={{ display: 'flex', gap: { xs: 0.75, md: 1.5 } }}>
         <CountdownUnit value={days} label="DAYS" />
         <CountdownUnit value={hrs} label="HRS" />
         <CountdownUnit value={min} label="MIN" />
@@ -182,9 +182,9 @@ export function WorldCupApp() {
         }}>
           <Box sx={{ display: 'flex', transform: `translateX(-${slide * 100}%)`, transition: 'transform 0.5s ease' }}>
             {/* Slide 0 — World Cup game */}
-            <Box sx={{ flex: '0 0 100%', minWidth: 0, p: { xs: 2.5, md: 3 }, pb: { xs: 3.5, md: 4 } }}>
-              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: { xs: 2, md: 3 }, minHeight: { md: 148 } }}>
-                <Box component="img" src={WORLD_CUP.badge} alt={WORLD_CUP.name} sx={{ height: { xs: 66, md: 92 }, width: 'auto', flexShrink: 0 }} />
+            <Box sx={{ flex: '0 0 100%', minWidth: 0, p: { xs: 2, md: 3 }, pb: { xs: 3.5, md: 4 } }}>
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: { xs: 1.5, md: 3 }, minHeight: { md: 148 } }}>
+                <Box component="img" src={WORLD_CUP.badge} alt={WORLD_CUP.name} sx={{ height: { xs: 48, md: 92 }, width: 'auto', flexShrink: 0 }} />
                 <Box sx={{ minWidth: 0 }}>
                   <Typography sx={{ fontSize: { xs: '1.5rem', md: '2rem' }, fontWeight: 900, letterSpacing: '-0.02em', color: t.text.primary, lineHeight: 1.1 }}>
                     World Cup Predictions
@@ -192,7 +192,7 @@ export function WorldCupApp() {
                   <Typography sx={{ fontSize: { xs: '0.82rem', md: '0.92rem' }, color: t.text.secondary, mt: 0.5 }}>
                     Call the score before kickoff. No money, just bragging rights and a prize.
                   </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 3, md: 6 }, mt: 2, flexWrap: 'wrap' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 2, md: 6 }, mt: 2, flexWrap: 'wrap' }}>
                     <Box>
                       <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, color: t.text.tertiary, letterSpacing: '0.08em' }}>PRIZE POOL</Typography>
                       <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
@@ -208,9 +208,9 @@ export function WorldCupApp() {
 
             {/* Teaser slides — what UpDown is / what's coming */}
             {HERO_TEASERS.map((s) => (
-              <Box key={s.title} sx={{ flex: '0 0 100%', minWidth: 0, p: { xs: 2.5, md: 3 }, pb: { xs: 3.5, md: 4 } }}>
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: { xs: 2, md: 3 }, minHeight: { md: 148 } }}>
-                  <Box component="img" src={HERO_LOGO} alt="UpDown" sx={{ height: { xs: 56, md: 84 }, width: 'auto', flexShrink: 0, opacity: 0.92 }} />
+              <Box key={s.title} sx={{ flex: '0 0 100%', minWidth: 0, p: { xs: 2, md: 3 }, pb: { xs: 3.5, md: 4 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: { xs: 1.5, md: 3 }, minHeight: { md: 148 } }}>
+                  <Box component="img" src={HERO_LOGO} alt="UpDown" sx={{ height: { xs: 46, md: 84 }, width: 'auto', flexShrink: 0, opacity: 0.92 }} />
                   <Box sx={{ minWidth: 0, maxWidth: 560 }}>
                     <Typography sx={{ fontSize: { xs: '1.5rem', md: '2rem' }, fontWeight: 900, letterSpacing: '-0.02em', color: t.text.primary, lineHeight: 1.1 }}>{s.title}</Typography>
                     <Typography sx={{ fontSize: { xs: '0.85rem', md: '0.95rem' }, color: t.text.secondary, mt: 1 }}>{s.body}</Typography>

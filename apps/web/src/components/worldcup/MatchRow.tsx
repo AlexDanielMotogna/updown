@@ -25,8 +25,8 @@ export function matchDateLabel(iso: string | null): string {
 
 function Crest({ src, alt }: { src: string | null; alt: string }) {
   const t = useThemeTokens();
-  return src ? <Box component="img" src={src} alt={alt} sx={{ width: 30, height: 30, objectFit: 'contain' }} />
-             : <Box sx={{ width: 30, height: 30, borderRadius: '50%', bgcolor: t.hover.light }} />;
+  return src ? <Box component="img" src={src} alt={alt} sx={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }} />
+             : <Box sx={{ width: 28, height: 28, borderRadius: '50%', bgcolor: t.hover.light, flexShrink: 0 }} />;
 }
 
 interface Props {
@@ -42,9 +42,9 @@ function GoalLine({ g }: { g: WorldCupGoal }) {
   const t = useThemeTokens();
   const tag = g.kind === 'PENALTY' ? ' (P)' : g.kind === 'OWN_GOAL' ? ' (OG)' : '';
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6, minWidth: 0 }}>
       <SportsSoccer sx={{ fontSize: 13, color: t.text.tertiary, flexShrink: 0 }} />
-      <Typography sx={{ fontSize: '0.78rem', color: t.text.secondary }}>
+      <Typography sx={{ fontSize: '0.78rem', color: t.text.secondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         <Box component="span" sx={{ fontWeight: 700, color: t.text.primary }}>{g.minute != null ? `${g.minute}'` : ''}</Box> {g.player}{tag}
       </Typography>
     </Box>
@@ -67,11 +67,9 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
   const timelineOpts = {
     queryKey: ['wc-timeline', m.matchId] as const,
     queryFn: () => fetchWorldCupTimeline(m.matchId),
-    // Finished games never change, so keep them cached forever (no reload on reopen).
     staleTime: m.status === 'FINISHED' ? Infinity : 30_000,
     gcTime: 10 * 60_000,
   };
-  // Live matches show their goals open automatically; finished matches show them behind a chevron.
   const goalsShown = m.status === 'LIVE' || (open && m.status === 'FINISHED');
   const { data: goalsRes, isLoading: goalsLoading } = useQuery({
     ...timelineOpts,
@@ -91,17 +89,19 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
     if (dirty && !saving) onSave(m.matchId, home, away, phase);
   };
 
+  const nameSx = (align: 'left' | 'right') => ({ fontSize: '0.9rem', fontWeight: 700, color: t.text.primary, textAlign: align, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } as const);
+
   const stepBtn = (dir: -1 | 1, set: (n: number) => void, value: number) => (
     <Box
       onClick={() => canEdit && set(clamp(value + dir))}
-      sx={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', bgcolor: t.hover.light, color: t.text.secondary, cursor: canEdit ? 'pointer' : 'default', opacity: canEdit ? 1 : 0.5, '&:hover': canEdit ? { bgcolor: t.hover.medium } : {} }}
+      sx={{ width: 28, height: 30, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', bgcolor: t.hover.light, color: t.text.secondary, cursor: canEdit ? 'pointer' : 'default', opacity: canEdit ? 1 : 0.5, '&:hover': canEdit ? { bgcolor: t.hover.medium } : {} }}
     >
-      {dir < 0 ? <Remove sx={{ fontSize: 17 }} /> : <Add sx={{ fontSize: 17 }} />}
+      {dir < 0 ? <Remove sx={{ fontSize: 16 }} /> : <Add sx={{ fontSize: 16 }} />}
     </Box>
   );
 
   const scoreCell = (value: number) => (
-    <Box sx={{ width: 44, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', bgcolor: withAlpha('#000', 0.25), border: `1px solid ${t.border.subtle}` }}>
+    <Box sx={{ width: 40, height: 34, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', bgcolor: withAlpha('#000', 0.25), border: `1px solid ${t.border.subtle}` }}>
       <Typography sx={{ fontSize: '1.15rem', fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>{value}</Typography>
     </Box>
   );
@@ -122,87 +122,111 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
     </Box>
   );
 
+  // ---- Shared building blocks (reused by both the desktop row and the mobile card) ----
+  const liveIndicator = m.status === 'LIVE' ? (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6, flexShrink: 0 }}>
+      <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: WC_NEON_GREEN, boxShadow: `0 0 6px ${WC_NEON_GREEN}`, animation: 'wcpulse 1.2s infinite', '@keyframes wcpulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.35 } } }} />
+      <Typography sx={{ fontSize: '0.66rem', fontWeight: 800, color: WC_NEON_GREEN, letterSpacing: '0.06em', fontVariantNumeric: 'tabular-nums' }}>LIVE{m.progress ? ` ${m.progress}'` : ''}</Typography>
+    </Box>
+  ) : null;
+
+  const scoreControls = (
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+      <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+        {canEdit && stepBtn(-1, setHome, home)}
+        {scoreCell(canEdit ? home : (m.homeScore ?? 0))}
+        {canEdit && stepBtn(1, setHome, home)}
+      </Box>
+      <Typography sx={{ color: t.text.tertiary, fontWeight: 700 }}>-</Typography>
+      <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+        {canEdit && stepBtn(-1, setAway, away)}
+        {scoreCell(canEdit ? away : (m.awayScore ?? 0))}
+        {canEdit && stepBtn(1, setAway, away)}
+      </Box>
+    </Box>
+  );
+
+  const phaseOrLabel = canEdit ? (
+    <Box sx={{ display: 'flex', gap: '4px' }}>
+      {PHASE_OPTS.map((p) => {
+        const active = phase === p.value;
+        return (
+          <Box key={p.value} onClick={() => setPhase(p.value)} sx={{ flex: 1, minWidth: 0, py: 0.6, textAlign: 'center', cursor: 'pointer', borderRadius: '5px', bgcolor: active ? withAlpha('#ffffff', 0.16) : t.hover.light, transition: 'all 0.15s', '&:hover': { bgcolor: active ? withAlpha('#ffffff', 0.16) : t.hover.medium } }}>
+            <Typography sx={{ fontSize: '0.68rem', fontWeight: 700, color: active ? t.text.primary : t.text.tertiary }}>{p.label}</Typography>
+          </Box>
+        );
+      })}
+    </Box>
+  ) : m.status === 'FINISHED' ? (
+    <Typography sx={{ textAlign: 'center', fontSize: '0.68rem', fontWeight: 700, color: t.text.tertiary }}>
+      {m.phase === 'PENALTIES'
+        ? m.homePens != null && m.awayPens != null ? `Penalties ${m.homePens}-${m.awayPens}` : 'Decided on penalties'
+        : m.phase === 'EXTRA_TIME' ? 'After extra time' : 'Full Time'}
+    </Typography>
+  ) : null;
+
+  const actionEl = !editable ? (
+    prediction
+      ? chromeBtn('Pick saved', undefined, 'saved')
+      : m.status === 'FINISHED'
+        ? <Typography sx={{ width: '100%', textAlign: 'center', fontSize: '0.72rem', fontWeight: 600, color: t.text.quaternary }}>No prediction</Typography>
+        : null
+  ) : prediction && !dirty ? (
+    chromeBtn('Pick saved', undefined, 'saved')
+  ) : (
+    chromeBtn(saving ? 'Saving…' : prediction ? 'Update pick' : 'Make your pick', handleClick, 'primary')
+  );
+
+  const chevron = m.status === 'FINISHED' ? (
+    <Box onClick={() => setOpen((o) => !o)} onMouseEnter={prefetchGoals} title="Goals" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.text.tertiary, '&:hover': { color: t.text.secondary } }}>
+      <KeyboardArrowDown sx={{ fontSize: 20, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+    </Box>
+  ) : null;
+
   return (
-    <Box sx={{ bgcolor: t.bg.surfaceAlt, borderRadius: 1.5, px: { xs: 1.5, md: 2 }, py: { xs: 1.75, md: 2.25 }, border: `1px solid ${t.border.subtle}` }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.25, md: 2 }, flexWrap: { xs: 'wrap', md: 'nowrap' } }}>
-        {/* Meta */}
-        <Box sx={{ width: { xs: '100%', md: 118 }, flexShrink: 0 }}>
+    <Box sx={{ bgcolor: t.bg.surfaceAlt, borderRadius: 1.5, px: { xs: 1.5, md: 2 }, py: { xs: 1.5, md: 2.25 }, border: `1px solid ${t.border.subtle}`, overflow: 'hidden' }}>
+      {/* Desktop: single horizontal row */}
+      <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 2 }}>
+        <Box sx={{ width: 118, flexShrink: 0 }}>
           <Typography sx={{ fontSize: '0.72rem', fontWeight: 600, color: t.text.tertiary }}>{matchDateLabel(m.kickoff)}</Typography>
         </Box>
-
-        {/* Home */}
-        <Box sx={{ order: { xs: 1, md: 0 }, display: 'flex', alignItems: 'center', justifyContent: { xs: 'flex-start', md: 'flex-end' }, gap: 1, flex: 1, minWidth: { xs: 130, md: 100 } }}>
-          <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: t.text.primary, textAlign: { xs: 'left', md: 'right' }, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.homeTeam}</Typography>
+        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
+          <Typography sx={nameSx('right')}>{m.homeTeam}</Typography>
           <Crest src={m.homeCrest} alt={m.homeTeam} />
         </Box>
-
-        {/* Predictor */}
-        <Box sx={{ order: { xs: 3, md: 0 }, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 1.1, width: { xs: '100%', md: 300 } }}>
-          {m.status === 'LIVE' && (
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.6 }}>
-              <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: WC_NEON_GREEN, boxShadow: `0 0 6px ${WC_NEON_GREEN}`, animation: 'wcpulse 1.2s infinite', '@keyframes wcpulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.35 } } }} />
-              <Typography sx={{ fontSize: '0.66rem', fontWeight: 800, color: WC_NEON_GREEN, letterSpacing: '0.06em', fontVariantNumeric: 'tabular-nums' }}>LIVE{m.progress ? ` ${m.progress}'` : ''}</Typography>
-            </Box>
-          )}
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-              {canEdit && stepBtn(-1, setHome, home)}
-              {scoreCell(canEdit ? home : (m.homeScore ?? 0))}
-              {canEdit && stepBtn(1, setHome, home)}
-            </Box>
-            <Typography sx={{ color: t.text.tertiary, fontWeight: 700 }}>-</Typography>
-            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-              {canEdit && stepBtn(-1, setAway, away)}
-              {scoreCell(canEdit ? away : (m.awayScore ?? 0))}
-              {canEdit && stepBtn(1, setAway, away)}
-            </Box>
-          </Box>
-          {canEdit ? (
-            <Box sx={{ display: 'flex', gap: '4px' }}>
-              {PHASE_OPTS.map((p) => {
-                const active = phase === p.value;
-                return (
-                  <Box key={p.value} onClick={() => setPhase(p.value)} sx={{ flex: 1, py: 0.6, textAlign: 'center', cursor: 'pointer', borderRadius: '5px', bgcolor: active ? withAlpha('#ffffff', 0.16) : t.hover.light, transition: 'all 0.15s', '&:hover': { bgcolor: active ? withAlpha('#ffffff', 0.16) : t.hover.medium } }}>
-                    <Typography sx={{ fontSize: '0.68rem', fontWeight: 700, color: active ? t.text.primary : t.text.tertiary }}>{p.label}</Typography>
-                  </Box>
-                );
-              })}
-            </Box>
-          ) : m.status === 'FINISHED' ? (
-            <Typography sx={{ textAlign: 'center', fontSize: '0.68rem', fontWeight: 700, color: t.text.tertiary }}>
-              {m.phase === 'PENALTIES'
-                ? m.homePens != null && m.awayPens != null ? `Penalties ${m.homePens}-${m.awayPens}` : 'Decided on penalties'
-                : m.phase === 'EXTRA_TIME' ? 'After extra time' : 'Full Time'}
-            </Typography>
-          ) : null}
+        <Box sx={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 1.1 }}>
+          {liveIndicator && <Box sx={{ display: 'flex', justifyContent: 'center' }}>{liveIndicator}</Box>}
+          {scoreControls}
+          {phaseOrLabel}
         </Box>
-
-        {/* Away */}
-        <Box sx={{ order: { xs: 2, md: 0 }, display: 'flex', alignItems: 'center', justifyContent: { xs: 'flex-end', md: 'flex-start' }, gap: 1, flex: 1, minWidth: { xs: 130, md: 100 } }}>
+        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 1 }}>
           <Crest src={m.awayCrest} alt={m.awayTeam} />
-          <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: t.text.primary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.awayTeam}</Typography>
+          <Typography sx={nameSx('left')}>{m.awayTeam}</Typography>
         </Box>
+        <Box sx={{ width: 138, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>{actionEl}</Box>
+        {chevron}
+      </Box>
 
-        {/* Action */}
-        <Box sx={{ order: { xs: 4, md: 0 }, width: { xs: '100%', md: 138 }, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-          {!editable ? (
-            prediction
-              ? chromeBtn('Pick saved', undefined, 'saved')
-              : m.status === 'FINISHED'
-                ? <Typography sx={{ width: '100%', textAlign: 'center', fontSize: '0.72rem', fontWeight: 600, color: t.text.quaternary }}>No prediction</Typography>
-                : null
-          ) : prediction && !dirty ? (
-            chromeBtn('Pick saved', undefined, 'saved')
-          ) : (
-            chromeBtn(saving ? 'Saving…' : prediction ? 'Update pick' : 'Make your pick', handleClick, 'primary')
-          )}
+      {/* Mobile: stacked card */}
+      <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', gap: 1.25 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+          <Typography sx={{ fontSize: '0.72rem', fontWeight: 600, color: t.text.tertiary }}>{matchDateLabel(m.kickoff)}</Typography>
+          {liveIndicator}
         </Box>
-
-        {m.status === 'FINISHED' && (
-          <Box onClick={() => setOpen((o) => !o)} onMouseEnter={prefetchGoals} title="Goals" sx={{ order: { xs: 5, md: 0 }, width: { xs: '100%', md: 'auto' }, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.text.tertiary, '&:hover': { color: t.text.secondary } }}>
-            <KeyboardArrowDown sx={{ fontSize: 20, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Crest src={m.homeCrest} alt={m.homeTeam} />
+            <Typography sx={nameSx('left')}>{m.homeTeam}</Typography>
           </Box>
-        )}
+          <Box sx={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
+            <Typography sx={nameSx('right')}>{m.awayTeam}</Typography>
+            <Crest src={m.awayCrest} alt={m.awayTeam} />
+          </Box>
+        </Box>
+        {scoreControls}
+        {phaseOrLabel}
+        {actionEl && <Box>{actionEl}</Box>}
+        {chevron}
       </Box>
 
       {goalsShown && (
@@ -213,11 +237,11 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
             <Typography sx={{ fontSize: '0.75rem', color: t.text.tertiary, textAlign: 'center' }}>{m.status === 'LIVE' ? 'No goals yet' : 'No goals'}</Typography>
           ) : (
             <Box sx={{ display: 'flex', gap: 2 }}>
-              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0.5, minWidth: 0 }}>
+              <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                 {goals.filter((g) => g.side === 'home').map((g, i) => <GoalLine key={i} g={g} />)}
               </Box>
               <Box sx={{ width: '1px', bgcolor: t.border.subtle, flexShrink: 0 }} />
-              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-end', minWidth: 0 }}>
+              <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-end' }}>
                 {goals.filter((g) => g.side === 'away').map((g, i) => <GoalLine key={i} g={g} />)}
               </Box>
             </Box>
