@@ -872,6 +872,23 @@ model Notification {
   @@map("notifications")
 }
 
+// Web Push subscription (one row per browser/device that opted in). A wallet can
+// hold several — phone + laptop + installed PWA. Keyed by the push endpoint URL,
+// which is unique per subscription. Stale endpoints (404/410 from the push
+// service) are pruned by the webpush service on send.
+model PushSubscription {
+  id            String   @id @default(uuid())
+  walletAddress String   @map("wallet_address")
+  endpoint      String   @unique
+  p256dh        String
+  auth          String
+  userAgent     String?  @map("user_agent")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([walletAddress])
+  @@map("push_subscriptions")
+}
+
 model PoolCategory {
   id           String   @id @default(uuid())
   code         String   @unique

@@ -14,18 +14,21 @@ import {
 } from '@mui/material';
 import {
   Notifications,
+  NotificationsActive,
   CheckCircleOutline,
   ErrorOutline,
   WarningAmber,
   InfoOutlined,
   EmojiEvents,
   TrendingDown,
+  InstallMobile,
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 import { useNotificationStore, type Notification, type NotificationSeverity } from '@/stores/notificationStore';
 import { markAllNotificationsRead, markNotificationRead } from '@/lib/api';
 import { formatTimeAgo } from '@/lib/format';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { AssetIcon } from '../AssetIcon';
 import { UserLevelBadge } from '../UserLevelBadge';
 import { GAIN_COLOR, ACCENT_COLOR, DOWN_COLOR } from '@/lib/constants';
@@ -57,6 +60,7 @@ export function NotificationPanel() {
   const router = useRouter();
   const getBadge = useBadgeLookup();
   const { walletAddress } = useWalletBridge();
+  const { state: pushState, enable: enablePush, disable: disablePush } = usePushNotifications();
   const notifications = useNotificationStore((s) => s.notifications);
   const dismissAll = useNotificationStore((s) => s.dismissAll);
   const dismiss = useNotificationStore((s) => s.dismiss);
@@ -183,6 +187,60 @@ export function NotificationPanel() {
                     </Button>
                   )}
                 </Box>
+
+                {/* Push opt-in strip — only for logged-in wallets, and only when
+                    the browser can actually do (or be steered toward) push. */}
+                {walletAddress && (pushState === 'prompt' || pushState === 'subscribed' || pushState === 'needs-install' || pushState === 'denied') && (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 1,
+                      px: 2,
+                      py: 1,
+                      borderBottom: `1px solid ${t.border.default}`,
+                      bgcolor: t.bg.surface,
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                      {pushState === 'subscribed' ? (
+                        <NotificationsActive sx={{ fontSize: 16, color: GAIN_COLOR, flexShrink: 0 }} />
+                      ) : pushState === 'needs-install' ? (
+                        <InstallMobile sx={{ fontSize: 16, color: ACCENT_COLOR, flexShrink: 0 }} />
+                      ) : (
+                        <Notifications sx={{ fontSize: 16, color: ACCENT_COLOR, flexShrink: 0 }} />
+                      )}
+                      <Typography sx={{ fontSize: '0.72rem', color: t.text.soft, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {pushState === 'subscribed'
+                          ? 'Push alerts on'
+                          : pushState === 'needs-install'
+                            ? 'Install the app to get alerts'
+                            : pushState === 'denied'
+                              ? 'Alerts blocked in browser settings'
+                              : 'Get alerted when your pools settle'}
+                      </Typography>
+                    </Box>
+                    {pushState === 'prompt' && (
+                      <Button
+                        size="small"
+                        onClick={() => { void enablePush(); }}
+                        sx={{ fontSize: '0.68rem', color: ACCENT_COLOR, textTransform: 'none', minWidth: 'auto', px: 1, flexShrink: 0, '&:hover': { color: t.text.bright } }}
+                      >
+                        Enable
+                      </Button>
+                    )}
+                    {pushState === 'subscribed' && (
+                      <Button
+                        size="small"
+                        onClick={() => { void disablePush(); }}
+                        sx={{ fontSize: '0.68rem', color: t.text.tertiary, textTransform: 'none', minWidth: 'auto', px: 1, flexShrink: 0, '&:hover': { color: t.text.bright } }}
+                      >
+                        Turn off
+                      </Button>
+                    )}
+                  </Box>
+                )}
 
                 {/* Notification list */}
                 <Box sx={{ maxHeight: 360, overflowY: 'auto' }}>

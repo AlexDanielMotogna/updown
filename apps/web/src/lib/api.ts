@@ -286,6 +286,29 @@ export async function markAllNotificationsRead(wallet: string): Promise<ApiRespo
   });
 }
 
+// Web Push endpoints
+export async function fetchVapidKey(): Promise<ApiResponse<{ publicKey: string | null; enabled: boolean }>> {
+  return fetchApi<{ publicKey: string | null; enabled: boolean }>('/api/notifications/vapid-key');
+}
+
+export async function subscribePush(
+  wallet: string,
+  subscription: PushSubscriptionJSON,
+  userAgent?: string,
+): Promise<ApiResponse<void>> {
+  return fetchApi<void>('/api/notifications/subscribe', {
+    method: 'POST',
+    body: JSON.stringify({ wallet, subscription, userAgent }),
+  });
+}
+
+export async function unsubscribePush(endpoint: string): Promise<ApiResponse<void>> {
+  return fetchApi<void>('/api/notifications/unsubscribe', {
+    method: 'POST',
+    body: JSON.stringify({ endpoint }),
+  });
+}
+
 // Transaction endpoints
 export async function prepareDeposit(params: {
   poolId: string;

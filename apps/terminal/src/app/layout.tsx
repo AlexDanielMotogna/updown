@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
@@ -11,15 +11,26 @@ import { Navbar } from '@/components/Navbar';
 // renders in Inter instead of falling back to a system font.
 const inter = Inter({ subsets: ['latin'], variable: '--font-satoshi', display: 'swap' });
 
+export const viewport: Viewport = {
+  viewportFit: 'cover',
+  themeColor: '#0c0c0e',
+};
+
 export const metadata: Metadata = {
   title: 'UpDown Terminal',
   description: 'Pro trading terminal — HyperLiquid',
+  manifest: '/manifest.json',
   icons: {
     icon: [
       { url: '/updown-logos/Logo_32px_Cyan_Transparent.png', sizes: '32x32', type: 'image/png' },
       { url: '/updown-logos/Logo_16px_Cyan_Transparent.png', sizes: '16x16', type: 'image/png' },
     ],
     apple: '/updown-logos/Logo_512px_Cyan_Transparent.png',
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'UpDown Pro',
   },
 };
 

@@ -3,6 +3,14 @@ import { prisma } from '../db';
 import { autoPayoutEnabledFor } from '../utils/auto-payout-flag';
 import { calculateWeightedPayout, resolveFeeBps } from '../utils/payout';
 import { poolKind } from '../utils/pool-kind';
+import { sendPushToWallet } from './webpush';
+
+/** Deep-link path for a notification, mirroring the web NotificationPanel router:
+ *  crypto pools → /pool/:id, everything else (sports/PM) → /match/:id. */
+function pushUrlFor(poolId?: string | null, poolType?: string | null): string {
+  if (!poolId) return '/';
+  return poolType === 'CRYPTO' ? `/pool/${poolId}` : `/match/${poolId}`;
+}
 
 /** Human label for a pool: PM → its question, sports → "A vs B", crypto → asset. */
 function matchLabelFor(pool: { poolType?: string | null; league?: string | null; homeTeam?: string | null; awayTeam?: string | null; asset: string }): string {
@@ -22,10 +30,16 @@ interface NotificationInput {
   poolType?: string;
 }
 
-/** Create a single notification record. */
+/** Create a single notification record (and fire a web push, if subscribed). */
 export async function createNotification(input: NotificationInput): Promise<void> {
   try {
     await prisma.notification.create({ data: input });
+    void sendPushToWallet(input.walletAddress, {
+      title: input.title,
+      body: input.message,
+      url: pushUrlFor(input.poolId, input.poolType),
+      tag: input.type,
+    });
   } catch (error) {
     console.error('[Notifications] Failed to create:', (error as Error).message);
   }
@@ -131,6 +145,15 @@ export async function notifyPoolResolved(pool: {
     if (notifications.length === 0) return;
 
     await prisma.notification.createMany({ data: notifications });
+    // Fire a push per bettor (fire-and-forget; never blocks resolution).
+    for (const n of notifications) {
+      void sendPushToWallet(n.walletAddress, {
+        title: n.title,
+        body: n.message,
+        url: pushUrlFor(n.poolId, n.poolType),
+        tag: n.type,
+      });
+    }
     console.log(`[Notifications] Created ${notifications.length} net result(s) for pool ${pool.id}${autoEnabled ? ' (auto-payout: pure winners via BET_PAID)' : ''}`);
   } catch (error) {
     console.error('[Notifications] Failed to notify pool resolved:', (error as Error).message);
@@ -169,6 +192,14 @@ export async function notifyPoolClaimable(pool: {
     }));
 
     await prisma.notification.createMany({ data: notifications });
+    for (const n of notifications) {
+      void sendPushToWallet(n.walletAddress, {
+        title: n.title,
+        body: n.message,
+        url: pushUrlFor(n.poolId, n.poolType),
+        tag: n.type,
+      });
+    }
   } catch (error) {
     console.error('[Notifications] Failed to notify claimable:', (error as Error).message);
   }
