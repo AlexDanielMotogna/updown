@@ -67,7 +67,9 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
   const timelineOpts = {
     queryKey: ['wc-timeline', m.matchId] as const,
     queryFn: () => fetchWorldCupTimeline(m.matchId),
-    staleTime: m.status === 'FINISHED' ? Infinity : 30_000,
+    // Finished timelines rarely change, but SDB can populate scorers late, so re-validate
+    // occasionally (not Infinity) to pick up a completed timeline.
+    staleTime: m.status === 'FINISHED' ? 3 * 60_000 : 30_000,
     gcTime: 10 * 60_000,
   };
   const goalsShown = m.status === 'LIVE' || (open && m.status === 'FINISHED');

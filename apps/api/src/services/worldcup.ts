@@ -171,30 +171,37 @@ async function fetchTimelineFromSdb(matchId: string): Promise<WorldCupGoal[]> {
   return parseTimeline(res.timeline);
 }
 
-/** Goals (scorer + minute) for a match. Persisted in the DB so the accordion loads fast:
- *  finished matches are served permanently from cache; live ones refresh every ~45s. */
+/** Goals (scorer + minute) for a match. Persisted in the DB so the accordion loads fast.
+ *  Finished matches are served from cache once the timeline looks COMPLETE (as many goals as
+ *  the final score); if SDB lagged and the cache is empty/partial, we re-fetch (at most every
+ *  ~45s) so a stale empty cache doesn't stick forever. Live matches refresh every ~30s. */
 export async function getWorldCupTimeline(matchId: string): Promise<WorldCupGoal[]> {
   const match = (await getWorldCupMatches()).find((m) => m.matchId === matchId);
   if (match && match.status === 'SCHEDULED') return []; // no goals before kickoff
   const finished = match?.status === 'FINISHED';
+  const expected = (match?.homeScore ?? 0) + (match?.awayScore ?? 0); // total goals per the score
 
   const cached = await prisma.worldCupGoalCache.findUnique({ where: { matchId } }).catch(() => null);
-  if (cached && (finished || Date.now() - new Date(cached.updatedAt).getTime() < 30_000)) {
-    return cached.goals as unknown as WorldCupGoal[];
-  }
+  const cachedGoals = (cached?.goals as unknown as WorldCupGoal[]) ?? [];
+  const ageMs = cached ? Date.now() - new Date(cached.updatedAt).getTime() : Infinity;
+
+  let serveCache: boolean;
+  if (!cached) serveCache = false;
+  else if (finished) serveCache = cachedGoals.length >= expected || ageMs < 45_000; // complete, or just checked
+  else serveCache = ageMs < 30_000; // live: fresh
+  if (serveCache) return cachedGoals;
 
   const goals = await fetchTimelineFromSdb(matchId);
-  if (goals.length > 0 || !cached) {
-    await prisma.worldCupGoalCache
-      .upsert({
-        where: { matchId },
-        update: { goals: goals as unknown as Prisma.InputJsonValue },
-        create: { matchId, goals: goals as unknown as Prisma.InputJsonValue },
-      })
-      .catch(() => {});
-  }
-  // If SDB momentarily returned nothing, keep whatever we had cached.
-  return goals.length > 0 ? goals : ((cached?.goals as unknown as WorldCupGoal[]) ?? []);
+  // Keep the more complete of the two (SDB can briefly return fewer, e.g. mid-refresh).
+  const best = goals.length >= cachedGoals.length ? goals : cachedGoals;
+  await prisma.worldCupGoalCache
+    .upsert({
+      where: { matchId },
+      update: { goals: best as unknown as Prisma.InputJsonValue },
+      create: { matchId, goals: best as unknown as Prisma.InputJsonValue },
+    })
+    .catch(() => {});
+  return best;
 }
 
 let cache: { at: number; data: WorldCupMatch[] } | null = null;
