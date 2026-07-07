@@ -33,14 +33,18 @@ function uniq(list) {
 
 // Privy embedded-wallet + WalletConnect + Cloudflare Turnstile allowlist,
 // straight from Privy's CSP guidance. Getting these wrong breaks the wallet.
+// `privy.updown.my` is our CUSTOM Privy auth domain (prod proxies Privy through
+// it instead of auth.privy.io) — it must be allowed in both frame-src and
+// connect-src or login + the embedded-wallet iframe break under enforce.
+const PRIVY_AUTH = ['https://auth.privy.io', 'https://privy.updown.my'];
 const PRIVY_FRAME = [
-  'https://auth.privy.io',
+  ...PRIVY_AUTH,
   'https://verify.walletconnect.com',
   'https://verify.walletconnect.org',
   'https://challenges.cloudflare.com',
 ];
 const PRIVY_CONNECT = [
-  'https://auth.privy.io',
+  ...PRIVY_AUTH,
   'https://*.rpc.privy.systems',
   'https://explorer-api.walletconnect.com',
   'wss://relay.walletconnect.com',
