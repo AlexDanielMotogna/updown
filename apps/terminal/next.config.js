@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const { buildSecurityHeaders } = require('../../config/security-headers');
+
 const nextConfig = {
   // Workspace packages ship TS; let Next transpile them.
   transpilePackages: ['exchange-core', 'exchange-hyperliquid'],
@@ -13,6 +15,19 @@ const nextConfig = {
       tls: false,
     };
     return config;
+  },
+  // Security headers (Privy "Secure your app"). CSP is env-derived + Report-Only
+  // until CSP_ENFORCE=true. TradingView charting_library needs its CDN allowed.
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: buildSecurityHeaders({
+          connect: ['https://www.tradingview.com', 'https://s3.tradingview.com'],
+          frame: ['https://www.tradingview.com'],
+        }),
+      },
+    ];
   },
 };
 
