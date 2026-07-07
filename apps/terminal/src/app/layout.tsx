@@ -32,6 +32,10 @@ export const metadata: Metadata = {
     statusBarStyle: 'black-translucent',
     title: 'UpDown Pro',
   },
+  // Standard replacement for the deprecated apple-mobile-web-app-capable.
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
