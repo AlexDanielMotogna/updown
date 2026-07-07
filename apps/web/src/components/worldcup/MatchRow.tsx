@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Box, Typography } from '@mui/material';
-import { Add, Remove, CheckCircle, KeyboardArrowDown, SportsSoccer } from '@mui/icons-material';
+import { Add, Remove, CheckCircle, SportsSoccer } from '@mui/icons-material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
@@ -177,9 +177,12 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
     chromeBtn(saving ? 'Saving…' : prediction ? 'Update pick' : 'Make your pick', handleClick, 'primary')
   );
 
-  const chevron = m.status === 'FINISHED' ? (
-    <Box onClick={() => setOpen((o) => !o)} onMouseEnter={prefetchGoals} title="Goals" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.text.tertiary, '&:hover': { color: t.text.secondary } }}>
-      <KeyboardArrowDown sx={{ fontSize: 20, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+  const goalsToggle = m.status === 'FINISHED' ? (
+    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+      <Box onClick={() => setOpen((o) => !o)} onMouseEnter={prefetchGoals} sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, px: 1.25, py: 0.4, borderRadius: '999px', cursor: 'pointer', color: t.text.tertiary, transition: 'all 0.15s', '&:hover': { color: t.text.secondary, bgcolor: t.hover.light } }}>
+        <SportsSoccer sx={{ fontSize: 15 }} />
+        <Typography sx={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.03em' }}>{open ? 'Hide goals' : 'Goals'}</Typography>
+      </Box>
     </Box>
   ) : null;
 
@@ -204,7 +207,6 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
           <Typography sx={nameSx('left')}>{m.awayTeam}</Typography>
         </Box>
         <Box sx={{ width: 138, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>{actionEl}</Box>
-        {chevron}
       </Box>
 
       {/* Mobile: stacked card */}
@@ -226,8 +228,9 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
         {scoreControls}
         {phaseOrLabel}
         {actionEl && <Box>{actionEl}</Box>}
-        {chevron}
       </Box>
+
+      {goalsToggle}
 
       {goalsShown && (
         <Box sx={{ mt: 1.25, pt: 1.25, borderTop: `1px solid ${t.border.subtle}` }}>
