@@ -192,7 +192,7 @@ export function MatchRow({ m, prediction, authed, saving, onSave, onLogin }: Pro
     <Box sx={{ bgcolor: t.bg.surfaceAlt, borderRadius: 1.5, px: { xs: 1.5, md: 2 }, py: { xs: 1.5, md: 2.25 }, border: `1px solid ${t.border.subtle}`, overflow: 'hidden' }}>
       {/* Desktop: single horizontal row */}
       <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 2 }}>
-        <Box sx={{ width: 118, flexShrink: 0 }}>
+        <Box sx={{ width: 138, flexShrink: 0 }}>
           <Typography sx={{ fontSize: '0.72rem', fontWeight: 600, color: t.text.tertiary }}>{matchDateLabel(m.kickoff)}</Typography>
         </Box>
         <Box sx={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
