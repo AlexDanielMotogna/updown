@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Box, Typography,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
@@ -33,6 +33,7 @@ interface Detail {
 }
 interface Winner { provider: string | null; xHandle: string | null; email: string | null; displayName: string | null }
 interface LlmResult { homeScore: number | null; awayScore: number | null; phase: Phase | null; homePens: number | null; awayPens: number | null; confident: boolean; note?: string }
+interface ContestUserRow { provider: string | null; xHandle: string | null; email: string | null; displayName: string | null; createdAt: string; predictionCount: number }
 
 const contact = (p: { xHandle: string | null; email: string | null; displayName: string | null }) =>
   p.xHandle ? `@${p.xHandle}` : p.email ?? p.displayName ?? '—';
@@ -43,6 +44,13 @@ export function WorldCupAdmin() {
     queryFn: () => adminFetch<{ data: { matches: OverviewItem[]; contestUsers: number } }>('/worldcup'),
     refetchInterval: POLL_MEDIUM_MS,
   });
+
+  const usersQ = useQuery({
+    queryKey: ['admin-worldcup-users'],
+    queryFn: () => adminFetch<{ data: ContestUserRow[] }>('/worldcup/users'),
+    refetchInterval: POLL_MEDIUM_MS,
+  });
+  const contestUserRows = usersQ.data?.data ?? [];
 
   const [selected, setSelected] = useState<string | null>(null);
   const detailQ = useQuery({
@@ -59,6 +67,14 @@ export function WorldCupAdmin() {
   const [busy, setBusy] = useState(false);
   const [winners, setWinners] = useState<Winner[] | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+
+  // The detail panel renders below the (long) matches table, so scroll it into view on Manage.
+  const detailRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!selected) return;
+    const id = setTimeout(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+    return () => clearTimeout(id);
+  }, [selected]);
 
   const detail = detailQ.data?.data;
   useEffect(() => {
@@ -112,6 +128,16 @@ export function WorldCupAdmin() {
   const inputSx = { width: 56, px: 1, py: 0.6, borderRadius: 1, fontSize: '1rem', textAlign: 'center', border: `1px solid ${t.border.medium}`, bgcolor: t.bg.app, color: t.text.primary, fontFamily: 'inherit', outline: 'none' } as const;
   const btnSx = (primary?: boolean) => ({ px: 2, py: 0.8, borderRadius: 1, fontSize: '0.8rem', fontWeight: 800, cursor: busy ? 'default' : 'pointer', border: primary ? 'none' : `1px solid ${t.border.medium}`, bgcolor: primary ? t.success : t.bg.surfaceAlt, color: primary ? '#000' : t.text.primary, opacity: busy ? 0.6 : 1, '&:hover': { filter: 'brightness(1.1)' } } as const);
 
+  const exportCsv = () => {
+    const header = ['Handle', 'Email', 'Provider', 'Joined', 'Picks'];
+    const rows = contestUserRows.map((u) => [u.xHandle ? `@${u.xHandle}` : '', u.email ?? '', u.provider ?? '', u.createdAt, String(u.predictionCount)]);
+    const csv = [header, ...rows].map((r) => r.map((c) => `"${(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = 'worldcup-contest-users.csv'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(5, 1fr)' }, gap: 2 }}>
@@ -121,6 +147,45 @@ export function WorldCupAdmin() {
         <StatCard label="Graded" value={`${graded}/${matches.length}`} hint="Result confirmed" />
         <StatCard label="Winners drawn" value={matches.reduce((s, m) => s + m.winnerCount, 0)} color={t.gold} />
       </Box>
+
+      <SectionCard title={`Contest users (${contestUserRows.length})`}>
+        {contestUserRows.length > 0 && (
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1.5 }}>
+            <Box component="button" onClick={exportCsv} sx={btnSx(false)}>Export CSV</Box>
+          </Box>
+        )}
+        {usersQ.isLoading ? (
+          <LoadingState variant="block" />
+        ) : contestUserRows.length === 0 ? (
+          <EmptyState title="No contest signups yet" />
+        ) : (
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell><Label>User</Label></TableCell>
+                  <TableCell><Label>Provider</Label></TableCell>
+                  <TableCell><Label>Joined</Label></TableCell>
+                  <TableCell align="right"><Label>Picks</Label></TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {contestUserRows.map((u, i) => (
+                  <TableRow key={i}>
+                    <TableCell sx={{ color: t.text.primary }}>
+                      {u.xHandle ? `@${u.xHandle}` : u.email ?? u.displayName ?? '—'}
+                      {u.xHandle && u.email ? <Box component="span" sx={{ color: t.text.tertiary, fontSize: '0.72rem' }}> · {u.email}</Box> : null}
+                    </TableCell>
+                    <TableCell sx={{ color: t.text.secondary }}>{u.provider ?? '—'}</TableCell>
+                    <TableCell sx={{ color: t.text.secondary, whiteSpace: 'nowrap' }}>{new Date(u.createdAt).toLocaleString()}</TableCell>
+                    <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{u.predictionCount}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </SectionCard>
 
       <SectionCard title="Matches">
         <Typography sx={{ fontSize: '0.78rem', color: t.text.secondary, mb: 1.5 }}>
@@ -163,6 +228,7 @@ export function WorldCupAdmin() {
         </TableContainer>
       </SectionCard>
 
+      <Box ref={detailRef} sx={{ scrollMarginTop: 16 }} />
       {selected && detailQ.isLoading && (
         <SectionCard title="Loading match…"><LoadingState variant="block" /></SectionCard>
       )}

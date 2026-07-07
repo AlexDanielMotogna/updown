@@ -56,6 +56,22 @@ export async function getWorldCupAdminOverview() {
   return { matches: items, contestUsers };
 }
 
+/** All World Cup contest signups (X/Google/email) with when they joined and how many picks. */
+export async function getWorldCupContestUsers() {
+  const users = await prisma.contestUser.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: { _count: { select: { predictions: true } } },
+  });
+  return users.map((u) => ({
+    provider: u.provider,
+    xHandle: u.xHandle,
+    email: u.email,
+    displayName: u.displayName,
+    createdAt: u.createdAt.toISOString(),
+    predictionCount: u._count.predictions,
+  }));
+}
+
 export async function getWorldCupMatchDetail(matchId: string) {
   const matches = await getWorldCupMatches();
   const m = matches.find((x) => x.matchId === matchId) ?? null;

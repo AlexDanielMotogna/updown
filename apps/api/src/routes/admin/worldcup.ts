@@ -2,6 +2,7 @@ import { Router, type Router as RouterType } from 'express';
 import { z } from 'zod';
 import {
   getWorldCupAdminOverview,
+  getWorldCupContestUsers,
   getWorldCupMatchDetail,
   saveWorldCupResult,
   runWorldCupRaffle,
@@ -18,6 +19,16 @@ adminWorldCupRouter.get('/', async (_req, res) => {
   } catch (error) {
     console.error('[Admin WorldCup] overview error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load overview' } });
+  }
+});
+
+/** GET /api/admin/worldcup/users — all contest signups (join date + pick count). */
+adminWorldCupRouter.get('/users', async (_req, res) => {
+  try {
+    res.json({ success: true, data: await getWorldCupContestUsers() });
+  } catch (error) {
+    console.error('[Admin WorldCup] users error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load contest users' } });
   }
 });
 
