@@ -34,7 +34,7 @@ export async function getWorldCupAdminOverview() {
     correctBy.set(r.matchId, c);
   }
 
-  return matches.map((m) => {
+  const items = matches.map((m) => {
     const r = resultBy.get(m.matchId);
     return {
       matchId: m.matchId,
@@ -49,6 +49,11 @@ export async function getWorldCupAdminOverview() {
       winnerCount: winnerCountBy.get(m.matchId) ?? 0,
     };
   });
+
+  // ContestUsers are the World Cup contest signups (X/Google/email). They are a SEPARATE
+  // table from the app's `User` model, so they never show in the normal Users admin tab.
+  const contestUsers = await prisma.contestUser.count();
+  return { matches: items, contestUsers };
 }
 
 export async function getWorldCupMatchDetail(matchId: string) {

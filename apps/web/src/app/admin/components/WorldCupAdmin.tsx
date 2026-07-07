@@ -40,7 +40,7 @@ const contact = (p: { xHandle: string | null; email: string | null; displayName:
 export function WorldCupAdmin() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['admin-worldcup'],
-    queryFn: () => adminFetch<{ data: OverviewItem[] }>('/worldcup'),
+    queryFn: () => adminFetch<{ data: { matches: OverviewItem[]; contestUsers: number } }>('/worldcup'),
     refetchInterval: POLL_MEDIUM_MS,
   });
 
@@ -71,7 +71,8 @@ export function WorldCupAdmin() {
   if (isLoading) return <LoadingState variant="block" />;
   if (error) return <ErrorState title="Couldn’t load World Cup admin" message={(error as Error).message} details={error} onRetry={() => refetch()} />;
 
-  const matches = data!.data;
+  const matches = data!.data.matches;
+  const contestUsers = data!.data.contestUsers;
   const totalPreds = matches.reduce((s, m) => s + m.predictionCount, 0);
   const graded = matches.filter((m) => m.result).length;
 
@@ -113,7 +114,8 @@ export function WorldCupAdmin() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(5, 1fr)' }, gap: 2 }}>
+        <StatCard label="Contest users" value={contestUsers.toLocaleString()} hint="X / Google / email signups" />
         <StatCard label="Matches" value={matches.length} />
         <StatCard label="Total predictions" value={totalPreds.toLocaleString()} />
         <StatCard label="Graded" value={`${graded}/${matches.length}`} hint="Result confirmed" />
@@ -121,6 +123,9 @@ export function WorldCupAdmin() {
       </Box>
 
       <SectionCard title="Matches">
+        <Typography sx={{ fontSize: '0.78rem', color: t.text.secondary, mb: 1.5 }}>
+          Contest users are separate from the app&apos;s Users tab (a World Cup signup, not a wallet). Click <Box component="span" sx={{ fontWeight: 700, color: t.text.primary }}>Manage</Box> on a match to see who predicted it, set the official result (or use <Box component="span" sx={{ fontWeight: 700, color: t.text.primary }}>Ask ChatGPT</Box>), then <Box component="span" sx={{ fontWeight: 700, color: t.text.primary }}>Raffle 2 winners</Box> among the exact-correct picks.
+        </Typography>
         <TableContainer>
           <Table size="small">
             <TableHead>
@@ -158,6 +163,14 @@ export function WorldCupAdmin() {
         </TableContainer>
       </SectionCard>
 
+      {selected && detailQ.isLoading && (
+        <SectionCard title="Loading match…"><LoadingState variant="block" /></SectionCard>
+      )}
+      {selected && !detailQ.isLoading && detailQ.error && (
+        <SectionCard title="Match">
+          <ErrorState title="Couldn’t load this match" message={(detailQ.error as Error).message} details={detailQ.error} onRetry={() => detailQ.refetch()} />
+        </SectionCard>
+      )}
       {selected && detail && (
         <SectionCard title={detail.match ? `${detail.match.homeTeam} v ${detail.match.awayTeam}` : 'Match'}>
           {/* Result editor */}
