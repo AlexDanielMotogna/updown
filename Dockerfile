@@ -32,6 +32,8 @@ RUN pnpm --filter api db:generate
 COPY packages/ packages/
 COPY apps/ apps/
 COPY scripts/ scripts/
+# Shared root config required by apps/*/next.config.js (security headers / CSP).
+COPY config/ config/
 
 # TradingView Charting Library (private/licensed, gitignored) — fetch into the
 # terminal's public/ at build with a repo-read token. Build still succeeds without
