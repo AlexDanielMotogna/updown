@@ -23,8 +23,6 @@ export interface MarketingAsset {
   images: MarketingImage[];
 }
 
-const CRYPTO_COINS = new Set(['BTC', 'ETH', 'SOL', 'USDC']); // have a /coins/<x>-coin.png asset
-
 type Row = {
   id: string; poolType: string; asset: string; interval: string;
   homeTeam: string | null; awayTeam: string | null;
@@ -47,11 +45,11 @@ function toAsset(p: Row): MarketingAsset {
     subtitle = p.subcategory ?? p.league;
     if (p.homeTeamCrest) images.push({ label: 'Market image', url: p.homeTeamCrest });
   } else {
-    // CRYPTO — the asset logo is a same-origin app icon (/coins/<asset>-coin.png).
+    // CRYPTO — the asset logo is the Pacifica token SVG (same source AssetIcon uses).
     question = `${p.asset} ${p.interval}`;
     subtitle = 'Crypto price';
-    if (CRYPTO_COINS.has((p.asset ?? '').toUpperCase())) {
-      images.push({ label: p.asset, url: `/coins/${p.asset.toLowerCase()}-coin.png` });
+    if (p.asset) {
+      images.push({ label: p.asset, url: `https://app.pacifica.fi/imgs/tokens/${p.asset.toUpperCase()}.svg` });
     }
   }
 

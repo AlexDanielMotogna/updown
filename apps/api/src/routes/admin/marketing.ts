@@ -37,7 +37,9 @@ function hostAllowed(host: string): boolean {
     host.startsWith('polymarket-upload.s3') ||
     host === 'imagedelivery.net' ||
     host.endsWith('.imagedelivery.net') ||
-    host.endsWith('.polymarket.com')
+    host.endsWith('.polymarket.com') ||
+    host === 'app.pacifica.fi' ||
+    host.endsWith('.pacifica.fi')
   );
 }
 const EXT: Record<string, string> = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/webp': '.webp', 'image/gif': '.gif', 'image/svg+xml': '.svg' };
