@@ -250,11 +250,28 @@ export default function AdminPage() {
             >
               {env}
             </Box>
+            {role !== 'super' && (
+              <Box sx={{
+                fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.06em',
+                px: 0.75, py: 0.25, borderRadius: 1,
+                bgcolor: role === 'readonly' ? '#f59e0b22' : '#22d3ee22',
+                color: role === 'readonly' ? '#f59e0b' : '#22d3ee',
+                border: `1px solid ${role === 'readonly' ? '#f59e0b55' : '#22d3ee55'}`,
+              }}>
+                {role === 'readonly' ? 'READ ONLY' : 'MARKETING'}
+              </Box>
+            )}
           </Box>
           <Button size="small" startIcon={<LogoutIcon />} onClick={handleLogout} sx={{ color: 'text.secondary' }}>
             Logout
           </Button>
         </Box>
+
+        {role === 'readonly' && (
+          <Box sx={{ mb: 2, px: 1.5, py: 1, borderRadius: 1, bgcolor: '#f59e0b18', border: '1px solid #f59e0b55', color: '#f59e0b', fontSize: '0.78rem', fontWeight: 600 }}>
+            Read-only access — you can view everything, but actions are disabled.
+          </Box>
+        )}
 
         <Box sx={{ display: 'flex', gap: { xs: 0, md: 3 } }}>
           {/* Desktop sidebar */}

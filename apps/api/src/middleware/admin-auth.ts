@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { timingSafeEqual } from 'crypto';
 
-export type AdminRole = 'super' | 'marketing';
+export type AdminRole = 'super' | 'marketing' | 'readonly';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -126,8 +126,10 @@ function constantTimeEquals(a: string, b: string): boolean {
 function roleForKey(provided: unknown): AdminRole | null {
   if (typeof provided !== 'string') return null;
   const superKey = process.env.ADMIN_API_KEY;
+  const readonlyKey = process.env.READONLY_ADMIN_KEY;
   const marketingKey = process.env.MARKETING_ADMIN_KEY;
   if (superKey && constantTimeEquals(provided, superKey)) return 'super';
+  if (readonlyKey && constantTimeEquals(provided, readonlyKey)) return 'readonly';
   if (marketingKey && constantTimeEquals(provided, marketingKey)) return 'marketing';
   return null;
 }
@@ -186,10 +188,28 @@ export function adminAuth(req: Request, res: Response, next: NextFunction): void
   next();
 }
 
-/** Gate for super-admin-only routes. The marketing role gets a 403. */
-export function requireSuper(req: Request, res: Response, next: NextFunction): void {
-  if (req.adminRole !== 'super') {
-    res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Super admin only' } });
+/**
+ * Gate for the full back-office (everything except the marketing-only tab).
+ * Super admins and read-only admins pass; the marketing role gets a 403.
+ */
+export function requireBackoffice(req: Request, res: Response, next: NextFunction): void {
+  if (req.adminRole === 'marketing') {
+    res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Not authorized for this section' } });
+    return;
+  }
+  next();
+}
+
+const WRITE_SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+/**
+ * Read-only enforcement. The 'readonly' role may load any page (GET) but cannot
+ * perform actions: any write method (POST/PUT/PATCH/DELETE) is refused. Mounted
+ * globally right after adminAuth so it covers every admin route.
+ */
+export function blockReadonlyWrites(req: Request, res: Response, next: NextFunction): void {
+  if (req.adminRole === 'readonly' && !WRITE_SAFE_METHODS.has(req.method)) {
+    res.status(403).json({ success: false, error: { code: 'READ_ONLY', message: 'Read-only admin: actions are disabled' } });
     return;
   }
   next();

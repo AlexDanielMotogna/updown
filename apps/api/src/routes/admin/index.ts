@@ -1,5 +1,5 @@
 import { Router, type Router as RouterType } from 'express';
-import { adminAuth, requireSuper } from '../../middleware/admin-auth';
+import { adminAuth, requireBackoffice, blockReadonlyWrites } from '../../middleware/admin-auth';
 import { adminHealthRouter } from './health';
 import { adminPoolsRouter } from './pools';
 import { adminFinanceRouter } from './finance';
@@ -28,6 +28,9 @@ export const adminRouter: RouterType = Router();
 // All admin routes require API key auth
 adminRouter.use(adminAuth);
 
+// Read-only admins can load any page (GET) but never mutate (POST/PUT/PATCH/DELETE).
+adminRouter.use(blockReadonlyWrites);
+
 // Verify endpoint — returns the caller's role so the UI can gate tabs.
 adminRouter.get('/verify', (req, res) => {
   res.json({ success: true, message: 'Authenticated', role: req.adminRole ?? 'super' });
@@ -36,8 +39,8 @@ adminRouter.get('/verify', (req, res) => {
 // Marketing asset browser: available to BOTH super admins and the marketing role.
 adminRouter.use('/marketing', adminMarketingRouter);
 
-// Everything below this line requires the super-admin key.
-adminRouter.use(requireSuper);
+// Everything below this line is the full back-office (super + read-only admins).
+adminRouter.use(requireBackoffice);
 
 adminRouter.use('/health', adminHealthRouter);
 adminRouter.use('/pools', adminPoolsRouter);
