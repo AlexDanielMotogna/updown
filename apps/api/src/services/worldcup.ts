@@ -82,8 +82,10 @@ function derivePhase(rawStatus: string | null | undefined): MatchPhase {
 // clean label. Group matchdays come as 1-3; anything >=4 or a known code is a knockout round.
 const ROUND_LABELS: Record<string, string> = {
   '32': 'Round of 32',
-  '16': 'Round of 16', '125': 'Round of 16',
-  '8': 'Quarter-final', '150': 'Quarter-final',
+  '16': 'Round of 16',
+  // SDB uses "teams remaining" (32, 16) for the early knockouts, then jumps to
+  // its knockout code 125 for the quarter-finals of this WC (4 matches, not R16).
+  '8': 'Quarter-final', '125': 'Quarter-final', '150': 'Quarter-final',
   '4': 'Semi-final', '160': 'Semi-final',
   '170': 'Third place',
   '200': 'Final',

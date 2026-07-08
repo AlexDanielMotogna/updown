@@ -10,20 +10,20 @@ import { WC_NEON_GREEN } from '@/lib/worldcup';
 import { fetchWorldCupTimeline } from '@/lib/api';
 import type { WorldCupMatch, WorldCupPredictionDto, WorldCupPhase, WorldCupGoal } from '@/lib/api';
 
-// The API returns an English round label (e.g. "Round of 16"); we display it in
-// Spanish (Octavos, Cuartos, ...). Data/sorting stay keyed on the original string.
+// Normalize the API's round label to a clean, consistent English name for display.
+// Data/sorting stay keyed on the original string.
 export function roundDisplay(r: string | null): string {
-  if (!r) return 'Mundial';
+  if (!r) return 'World Cup';
   const s = r.toLowerCase();
-  if (s.includes('round of 32') || s.includes('1/16')) return 'Dieciseisavos';
-  if (s.includes('round of 16') || s.includes('1/8')) return 'Octavos';
-  if (s.includes('quarter')) return 'Cuartos';
-  if (s.includes('semi')) return 'Semifinal';
-  if (s.includes('third') || s.includes('3rd')) return 'Tercer puesto';
+  if (s.includes('round of 32') || s.includes('1/16')) return 'Round of 32';
+  if (s.includes('round of 16') || s.includes('1/8')) return 'Round of 16';
+  if (s.includes('quarter')) return 'Quarter-finals';
+  if (s.includes('semi')) return 'Semi-finals';
+  if (s.includes('third') || s.includes('3rd')) return 'Third place';
   if (s.includes('final')) return 'Final';
-  if (s.includes('group')) return 'Fase de grupos';
+  if (s.includes('group')) return 'Group stage';
   const md = s.match(/matchday\s*(\d+)/);
-  if (md) return `Jornada ${md[1]}`;
+  if (md) return `Matchday ${md[1]}`;
   return r;
 }
 export const roundLabel = (r: string | null) => roundDisplay(r).toUpperCase();
