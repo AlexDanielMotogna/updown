@@ -5,7 +5,7 @@ import { Box, Card, TextField, Typography, InputAdornment, IconButton, Tooltip }
 import LockRoundedIcon from '@mui/icons-material/LockRounded';
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
 import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded';
-import { verifyKeyDetailed } from '../lib/adminApi';
+import { verifyKeyDetailed, setAdminRole } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
 import { ActionButton, ErrorAlert, Body, Meta } from '../ui';
 
@@ -36,6 +36,7 @@ export function AdminLogin({ onLogin }: { onLogin: () => void }) {
     const r = await verifyKeyDetailed(trimmed);
     if (r.kind === 'ok') {
       sessionStorage.setItem('admin-key', trimmed);
+      setAdminRole(r.role);
       onLogin();
       // Note: other tabs see this via the `storage` event and re-verify
       // on their side. We don't need to do anything else here.

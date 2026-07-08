@@ -1,5 +1,5 @@
 import { Router, type Router as RouterType } from 'express';
-import { adminAuth } from '../../middleware/admin-auth';
+import { adminAuth, requireSuper } from '../../middleware/admin-auth';
 import { adminHealthRouter } from './health';
 import { adminPoolsRouter } from './pools';
 import { adminFinanceRouter } from './finance';
@@ -28,10 +28,16 @@ export const adminRouter: RouterType = Router();
 // All admin routes require API key auth
 adminRouter.use(adminAuth);
 
-// Verify endpoint (just returns 200 if auth passes)
-adminRouter.get('/verify', (_req, res) => {
-  res.json({ success: true, message: 'Authenticated' });
+// Verify endpoint — returns the caller's role so the UI can gate tabs.
+adminRouter.get('/verify', (req, res) => {
+  res.json({ success: true, message: 'Authenticated', role: req.adminRole ?? 'super' });
 });
+
+// Marketing asset browser: available to BOTH super admins and the marketing role.
+adminRouter.use('/marketing', adminMarketingRouter);
+
+// Everything below this line requires the super-admin key.
+adminRouter.use(requireSuper);
 
 adminRouter.use('/health', adminHealthRouter);
 adminRouter.use('/pools', adminPoolsRouter);
@@ -54,5 +60,4 @@ adminRouter.use('/pool-creation', adminPoolCreationRouter);
 adminRouter.use('/builder-revenue', adminBuilderRevenueRouter);
 adminRouter.use('/x-poster', adminXPosterRouter);
 adminRouter.use('/worldcup', adminWorldCupRouter);
-adminRouter.use('/marketing', adminMarketingRouter);
 adminRouter.use('/economy', adminEconomyRouter);
