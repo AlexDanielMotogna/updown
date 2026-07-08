@@ -12,7 +12,7 @@ import {
   fetchWorldCupMatches, fetchMyWorldCupPredictions, saveWorldCupPrediction,
   type WorldCupMatch, type WorldCupPredictionDto, type WorldCupPhase, type WorldCupIdentity,
 } from '@/lib/api';
-import { MatchRow } from './MatchRow';
+import { MatchRow, roundDisplay } from './MatchRow';
 import { MyPicksSidebar } from './MyPicksSidebar';
 
 function buildIdentity(user: ReturnType<typeof usePrivy>['user']): WorldCupIdentity {
@@ -263,7 +263,7 @@ export function WorldCupApp() {
             {groups.map((g) => (
               <Box key={g.round} sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
                 <Typography sx={{ fontSize: '0.72rem', fontWeight: 800, color: t.text.secondary, textTransform: 'uppercase', letterSpacing: '0.06em', px: 0.5 }}>
-                  {g.round}
+                  {roundDisplay(g.round)}
                 </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                   {g.matches.map((m) => <MatchRow key={m.matchId} {...rowProps(m)} />)}

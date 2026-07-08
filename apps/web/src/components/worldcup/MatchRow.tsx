@@ -10,8 +10,23 @@ import { WC_NEON_GREEN } from '@/lib/worldcup';
 import { fetchWorldCupTimeline } from '@/lib/api';
 import type { WorldCupMatch, WorldCupPredictionDto, WorldCupPhase, WorldCupGoal } from '@/lib/api';
 
-// The API already returns a normalized round label (e.g. "Round of 16").
-export const roundLabel = (r: string | null) => (r ? r.toUpperCase() : 'WORLD CUP');
+// The API returns an English round label (e.g. "Round of 16"); we display it in
+// Spanish (Octavos, Cuartos, ...). Data/sorting stay keyed on the original string.
+export function roundDisplay(r: string | null): string {
+  if (!r) return 'Mundial';
+  const s = r.toLowerCase();
+  if (s.includes('round of 32') || s.includes('1/16')) return 'Dieciseisavos';
+  if (s.includes('round of 16') || s.includes('1/8')) return 'Octavos';
+  if (s.includes('quarter')) return 'Cuartos';
+  if (s.includes('semi')) return 'Semifinal';
+  if (s.includes('third') || s.includes('3rd')) return 'Tercer puesto';
+  if (s.includes('final')) return 'Final';
+  if (s.includes('group')) return 'Fase de grupos';
+  const md = s.match(/matchday\s*(\d+)/);
+  if (md) return `Jornada ${md[1]}`;
+  return r;
+}
+export const roundLabel = (r: string | null) => roundDisplay(r).toUpperCase();
 const PHASE_OPTS: { value: WorldCupPhase; label: string }[] = [
   { value: 'REGULATION', label: "90'" },
   { value: 'EXTRA_TIME', label: 'Extra time' },
