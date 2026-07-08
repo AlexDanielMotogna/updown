@@ -20,6 +20,7 @@ import { adminPoolCreationRouter } from './pool-creation';
 import { adminBuilderRevenueRouter } from './builder-revenue';
 import { adminXPosterRouter } from './x-poster';
 import { adminWorldCupRouter } from './worldcup';
+import { adminMarketingRouter } from './marketing';
 import { adminEconomyRouter } from './economy';
 
 export const adminRouter: RouterType = Router();
@@ -53,4 +54,5 @@ adminRouter.use('/pool-creation', adminPoolCreationRouter);
 adminRouter.use('/builder-revenue', adminBuilderRevenueRouter);
 adminRouter.use('/x-poster', adminXPosterRouter);
 adminRouter.use('/worldcup', adminWorldCupRouter);
+adminRouter.use('/marketing', adminMarketingRouter);
 adminRouter.use('/economy', adminEconomyRouter);
