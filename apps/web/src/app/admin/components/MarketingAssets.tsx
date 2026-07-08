@@ -17,6 +17,8 @@ interface Asset {
   images: MarketingImage[];
 }
 
+interface Category { code: string; label: string; type: string; badgeUrl: string }
+
 const TYPES: { key: string; label: string }[] = [
   { key: '', label: 'All' },
   { key: 'SPORTS', label: 'Sports' },
@@ -26,6 +28,12 @@ const TYPES: { key: string; label: string }[] = [
 
 async function downloadImage(url: string, name: string) {
   try {
+    // Same-origin app asset (e.g. /coins/btc-coin.png) — download directly, no proxy.
+    if (url.startsWith('/')) {
+      const a = document.createElement('a');
+      a.href = url; a.download = name; a.click();
+      return;
+    }
     const proxy = `${API_BASE}/api/admin/marketing/image?url=${encodeURIComponent(url)}&name=${encodeURIComponent(name)}`;
     const res = await fetch(proxy, { headers: { 'x-admin-key': (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('admin-key')) || '' } });
     if (!res.ok) { console.warn('download failed', res.status); return; }
@@ -88,6 +96,21 @@ function AssetCard({ a }: { a: Asset }) {
   );
 }
 
+function CategoryBadge({ c }: { c: Category }) {
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.75, p: 1.25, borderRadius: 1.5, bgcolor: t.bg.surfaceAlt, border: `1px solid ${t.border.subtle}` }}>
+      <Box onClick={() => downloadImage(c.badgeUrl, c.code)} title={`Download ${c.label}`}
+        sx={{ position: 'relative', width: 64, height: 64, borderRadius: 1, overflow: 'hidden', cursor: 'pointer', bgcolor: t.bg.app, border: `1px solid ${t.border.subtle}`, '&:hover .dl': { opacity: 1 } }}>
+        <Box component="img" src={c.badgeUrl} alt={c.label} sx={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+        <Box className="dl" sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(0,0,0,0.55)', opacity: 0, transition: 'opacity 0.15s' }}>
+          <Download sx={{ fontSize: 20, color: '#fff' }} />
+        </Box>
+      </Box>
+      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: t.text.primary, textAlign: 'center', lineHeight: 1.2 }}>{c.label}</Typography>
+    </Box>
+  );
+}
+
 export function MarketingAssets() {
   const [type, setType] = useState('');
   const [search, setSearch] = useState('');
@@ -103,8 +126,30 @@ export function MarketingAssets() {
   const assets = data?.data.assets ?? [];
   const total = data?.data.total ?? 0;
 
+  const catQ = useQuery({
+    queryKey: ['admin-marketing-cats'],
+    queryFn: () => adminFetch<{ data: Category[] }>('/marketing/categories'),
+  });
+  const cats = catQ.data?.data ?? [];
+
   return (
-    <SectionCard title="Marketing assets">
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+    <SectionCard title="Competition logos">
+      <Typography sx={{ fontSize: '0.78rem', color: t.text.secondary, mb: 2 }}>
+        League & competition badges (Champions League, World Cup, Premier League…). Click a logo to download it.
+      </Typography>
+      {catQ.isLoading ? (
+        <LoadingState variant="block" />
+      ) : cats.length === 0 ? (
+        <EmptyState title="No category badges" />
+      ) : (
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(3, 1fr)', sm: 'repeat(5, 1fr)', md: 'repeat(7, 1fr)', lg: 'repeat(9, 1fr)' }, gap: 1.5 }}>
+          {cats.map((c) => <CategoryBadge key={c.code} c={c} />)}
+        </Box>
+      )}
+    </SectionCard>
+
+    <SectionCard title="Pool topics">
       <Typography sx={{ fontSize: '0.78rem', color: t.text.secondary, mb: 2 }}>
         Every pool topic with its downloadable artwork (sports crests, prediction market images). Search or filter by topic and click an image to download it.
       </Typography>
@@ -140,5 +185,6 @@ export function MarketingAssets() {
         </>
       )}
     </SectionCard>
+    </Box>
   );
 }

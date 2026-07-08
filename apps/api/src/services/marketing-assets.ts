@@ -23,6 +23,8 @@ export interface MarketingAsset {
   images: MarketingImage[];
 }
 
+const CRYPTO_COINS = new Set(['BTC', 'ETH', 'SOL', 'USDC']); // have a /coins/<x>-coin.png asset
+
 type Row = {
   id: string; poolType: string; asset: string; interval: string;
   homeTeam: string | null; awayTeam: string | null;
@@ -45,9 +47,12 @@ function toAsset(p: Row): MarketingAsset {
     subtitle = p.subcategory ?? p.league;
     if (p.homeTeamCrest) images.push({ label: 'Market image', url: p.homeTeamCrest });
   } else {
-    // CRYPTO — no per-pool artwork (asset logo is a static app icon).
+    // CRYPTO — the asset logo is a same-origin app icon (/coins/<asset>-coin.png).
     question = `${p.asset} ${p.interval}`;
     subtitle = 'Crypto price';
+    if (CRYPTO_COINS.has((p.asset ?? '').toUpperCase())) {
+      images.push({ label: p.asset, url: `/coins/${p.asset.toLowerCase()}-coin.png` });
+    }
   }
 
   return {
@@ -94,13 +99,13 @@ export async function getMarketingAssets(opts: {
   return { assets, total };
 }
 
-/** Distinct categories (leagues / PM buckets) for the filter dropdown. */
-export async function getMarketingCategories(): Promise<{ type: string; category: string }[]> {
-  const rows = await prisma.pool.findMany({
-    where: { league: { not: null } },
-    distinct: ['league'],
-    select: { league: true, poolType: true },
-    orderBy: { league: 'asc' },
+/** Category / competition logos (Champions League, World Cup, leagues, PM buckets) with their
+ *  downloadable badge image, so marketing can grab competition artwork too. */
+export async function getMarketingCategories(): Promise<{ code: string; label: string; type: string; badgeUrl: string }[]> {
+  const cats = await prisma.poolCategory.findMany({
+    where: { badgeUrl: { not: null } },
+    orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }],
+    select: { code: true, label: true, type: true, badgeUrl: true },
   });
-  return rows.filter((r) => r.league).map((r) => ({ type: r.poolType, category: r.league as string }));
+  return cats.map((c) => ({ code: c.code, label: c.label, type: c.type, badgeUrl: c.badgeUrl as string }));
 }
