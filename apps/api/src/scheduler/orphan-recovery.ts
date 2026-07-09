@@ -239,7 +239,7 @@ export async function recoverOrphanedPools(
           emit('info', `  Normal close failed, trying force_close...`);
           await delay(RPC_DELAY);
 
-          const forceIx = buildForceClosePoolIx(account.pubkey, deps.wallet.publicKey);
+          const forceIx = buildForceClosePoolIx(account.pubkey, vaultPda, deps.wallet.publicKey);
           const forceSig = await sendAndConfirm(forceIx, deps.wallet, { label: 'force_close' });
 
           const balanceAfterForce = await connection.getBalance(deps.wallet.publicKey);

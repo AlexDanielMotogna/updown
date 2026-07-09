@@ -20,6 +20,7 @@ use crate::Side;
 #[instruction(side: Side)]
 pub struct RefundBettor<'info> {
     #[account(
+        mut,
         constraint = pool.winner.is_none() @ PoolError::AlreadyResolved
     )]
     pub pool: Account<'info, Pool>,
@@ -62,6 +63,8 @@ pub struct RefundBettor<'info> {
 
 pub fn handler(ctx: Context<RefundBettor>, _side: Side) -> Result<()> {
     let amount = ctx.accounts.user_bet.amount;
+    let weight = ctx.accounts.user_bet.weight;
+    let side = ctx.accounts.user_bet.side;
 
     let pool_id = ctx.accounts.pool.pool_id;
     let bump = ctx.accounts.pool.bump;
@@ -82,14 +85,34 @@ pub fn handler(ctx: Context<RefundBettor>, _side: Side) -> Result<()> {
         amount,
     )?;
 
-    let user_bet = &mut ctx.accounts.user_bet;
-    user_bet.claimed = true;
+    ctx.accounts.user_bet.claimed = true;
+
+    // Roll back this bet's contribution to the side totals. A void is usually
+    // all-or-nothing, but if a pool is only partially refunded and then resolved
+    // + claimed, the payout denominators (total_pool − winning_stake, Σ weight)
+    // must exclude the refunded stake. Saturating so a refund can never be blocked
+    // by a totals inconsistency.
+    let pool = &mut ctx.accounts.pool;
+    match side {
+        Side::Up => {
+            pool.total_up = pool.total_up.saturating_sub(amount);
+            pool.weighted_up = pool.weighted_up.saturating_sub(weight);
+        }
+        Side::Down => {
+            pool.total_down = pool.total_down.saturating_sub(amount);
+            pool.weighted_down = pool.weighted_down.saturating_sub(weight);
+        }
+        Side::Draw => {
+            pool.total_draw = pool.total_draw.saturating_sub(amount);
+            pool.weighted_draw = pool.weighted_draw.saturating_sub(weight);
+        }
+    }
 
     emit!(Refunded {
         pool_id,
         user: ctx.accounts.user.key(),
         amount,
-        side: user_bet.side,
+        side,
     });
 
     Ok(())

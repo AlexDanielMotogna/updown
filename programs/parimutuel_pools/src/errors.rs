@@ -47,7 +47,7 @@ pub enum PoolError {
     #[msg("No bets on winning side")]
     NoWinningBets,
 
-    #[msg("Fee basis points must be <= 10000")]
+    #[msg("Fee basis points exceed the maximum allowed")]
     InvalidFeeBps,
 
     #[msg("Vault still has tokens - all claims/refunds must be processed first")]

@@ -6,6 +6,11 @@ use crate::events::PayoutClaimed;
 use crate::state::{Pool, PoolStatus, UserBet};
 use crate::Side;
 
+/// Hard ceiling on the claim fee, in basis points (10% = 1000). The real
+/// level-based schedule tops out at 5% (see apps/api `getFeeBps`); this on-chain
+/// cap stops the authority from ever setting a draining fee at claim time.
+const MAX_FEE_BPS: u16 = 1000;
+
 #[derive(Accounts)]
 #[instruction(fee_bps: u16, side: Side)]
 pub struct Claim<'info> {
@@ -66,7 +71,7 @@ pub struct Claim<'info> {
 }
 
 pub fn handler(ctx: Context<Claim>, fee_bps: u16, _side: Side) -> Result<()> {
-    require!(fee_bps <= 10000, PoolError::InvalidFeeBps);
+    require!(fee_bps <= MAX_FEE_BPS, PoolError::InvalidFeeBps);
 
     let pool = &ctx.accounts.pool;
     let user_bet = &mut ctx.accounts.user_bet;

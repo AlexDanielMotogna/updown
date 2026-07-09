@@ -166,7 +166,7 @@ export async function cancelPmPool(
   //   - either fallback → force_close, then accept "resolved-only" state
   const tryForceClose = async (): Promise<boolean> => {
     try {
-      await sendAndConfirm(buildForceClosePoolIx(poolPda, wallet.publicKey), wallet, { label: 'force_close' });
+      await sendAndConfirm(buildForceClosePoolIx(poolPda, vaultPda, wallet.publicKey), wallet, { label: 'force_close' });
       return true;
     } catch {
       return false;

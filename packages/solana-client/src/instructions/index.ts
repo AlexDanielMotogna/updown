@@ -356,10 +356,14 @@ const FORCE_CLOSE_POOL_DISC = Buffer.from([113, 203, 148, 102, 142, 248, 118, 24
  */
 export function buildForceClosePoolIx(
   pool: PublicKey,
+  vault: PublicKey,
   authority: PublicKey,
 ): TransactionInstruction {
+  // vault is read-only: the program only checks its balance is 0 so force-close
+  // can never strand funds. No token program / signing needed (not closing it).
   const keys = [
     { pubkey: pool, isSigner: false, isWritable: true },
+    { pubkey: vault, isSigner: false, isWritable: false },
     { pubkey: authority, isSigner: true, isWritable: true },
   ];
 
