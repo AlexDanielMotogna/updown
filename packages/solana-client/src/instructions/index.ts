@@ -374,6 +374,7 @@ export function buildForceClosePoolIx(
 
 const INIT_TOURNAMENT_DISC = Buffer.from([75, 218, 86, 80, 49, 127, 155, 186]);
 const REGISTER_PARTICIPANT_DISC = Buffer.from([248, 112, 38, 215, 226, 230, 249, 40]);
+const RESOLVE_TOURNAMENT_DISC = Buffer.from([158, 64, 183, 235, 250, 101, 200, 246]);
 const CLAIM_TOURNAMENT_PRIZE_DISC = Buffer.from([219, 207, 183, 94, 201, 32, 78, 193]);
 const CANCEL_TOURNAMENT_DISC = Buffer.from([249, 227, 133, 5, 9, 142, 29, 122]);
 const REFUND_PARTICIPANT_DISC = Buffer.from([149, 166, 93, 207, 122, 167, 154, 218]);
@@ -428,6 +429,31 @@ export function buildRegisterParticipantIx(
   ];
 
   return new TransactionInstruction({ keys, programId: PROGRAM_ID, data: REGISTER_PARTICIPANT_DISC });
+}
+
+/**
+ * Build `resolve_tournament`: authority sets the winner and marks the
+ * tournament Completed (the state claim_tournament_prize requires). `participant`
+ * is the winner's participant PDA, which proves the winner actually registered.
+ */
+export function buildResolveTournamentIx(
+  tournament: PublicKey,
+  participant: PublicKey,
+  authority: PublicKey,
+  winner: PublicKey,
+): TransactionInstruction {
+  const data = Buffer.concat([
+    RESOLVE_TOURNAMENT_DISC,
+    winner.toBuffer(),                     // Pubkey (32 bytes)
+  ]);
+
+  const keys = [
+    { pubkey: tournament, isSigner: false, isWritable: true },
+    { pubkey: participant, isSigner: false, isWritable: false },
+    { pubkey: authority, isSigner: true, isWritable: false },
+  ];
+
+  return new TransactionInstruction({ keys, programId: PROGRAM_ID, data });
 }
 
 export function buildClaimTournamentPrizeIx(

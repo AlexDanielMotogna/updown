@@ -105,6 +105,12 @@ pub mod parimutuel_pools {
         instructions::register_participant::handler(ctx)
     }
 
+    /// Resolve tournament: authority sets the winner and marks it Completed
+    /// (the transition claim_tournament_prize gates on)
+    pub fn resolve_tournament(ctx: Context<ResolveTournament>, winner: Pubkey) -> Result<()> {
+        instructions::resolve_tournament::handler(ctx, winner)
+    }
+
     /// Winner claims prize from tournament vault (5% fee on-chain)
     pub fn claim_tournament_prize(ctx: Context<ClaimTournamentPrize>) -> Result<()> {
         instructions::claim_tournament_prize::handler(ctx)

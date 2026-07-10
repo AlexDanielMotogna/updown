@@ -69,9 +69,15 @@ export declare function buildClosePoolIx(pool: PublicKey, vault: PublicKey, auth
  * where vault bump is corrupted from struct layout changes.
  * Accounts: pool, authority
  */
-export declare function buildForceClosePoolIx(pool: PublicKey, authority: PublicKey): TransactionInstruction;
+export declare function buildForceClosePoolIx(pool: PublicKey, vault: PublicKey, authority: PublicKey): TransactionInstruction;
 export declare function buildInitializeTournamentIx(tournament: PublicKey, vault: PublicKey, usdcMint: PublicKey, authority: PublicKey, tournamentId: Uint8Array, entryFee: bigint | number, maxParticipants: number): TransactionInstruction;
 export declare function buildRegisterParticipantIx(tournament: PublicKey, participant: PublicKey, vault: PublicKey, userTokenAccount: PublicKey, user: PublicKey): TransactionInstruction;
+/**
+ * Build `resolve_tournament`: authority sets the winner and marks the
+ * tournament Completed (the state claim_tournament_prize requires). `participant`
+ * is the winner's participant PDA, which proves the winner actually registered.
+ */
+export declare function buildResolveTournamentIx(tournament: PublicKey, participant: PublicKey, authority: PublicKey, winner: PublicKey): TransactionInstruction;
 export declare function buildClaimTournamentPrizeIx(tournament: PublicKey, participant: PublicKey, vault: PublicKey, userTokenAccount: PublicKey, user: PublicKey, authority: PublicKey, feeWallet: PublicKey): TransactionInstruction;
 export declare function buildCancelTournamentIx(tournament: PublicKey, authority: PublicKey): TransactionInstruction;
 export declare function buildRefundParticipantIx(tournament: PublicKey, participant: PublicKey, vault: PublicKey, userTokenAccount: PublicKey, user: PublicKey, authority: PublicKey): TransactionInstruction;

@@ -85,6 +85,9 @@ pub enum PoolError {
     #[msg("Tournament vault still has tokens")]
     TournamentVaultNotEmpty,
 
+    #[msg("Tournament already resolved (winner already set)")]
+    TournamentAlreadyResolved,
+
     #[msg("Bet is on the winning side - use claim, not close")]
     IsWinner,
 
