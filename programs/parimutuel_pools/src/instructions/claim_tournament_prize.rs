@@ -63,11 +63,16 @@ pub fn handler(ctx: Context<ClaimTournamentPrize>) -> Result<()> {
     let winner = tournament.winner.ok_or(PoolError::TournamentNotCompleted)?;
     require!(winner == ctx.accounts.user.key(), PoolError::TournamentNotWinner);
 
-    // Calculate fee (5% enforced on-chain)
+    // Calculate fee (5% enforced on-chain). Graceful error instead of a panic on
+    // the (unreachable) overflow: fee = prize_pool * 500 / 10000 <= prize_pool, so
+    // the mul fits u128, the div-by-constant can't fail, and the sub can't underflow.
     let fee = (tournament.prize_pool as u128)
-        .checked_mul(TOURNAMENT_FEE_BPS as u128).unwrap()
-        .checked_div(10000u128).unwrap() as u64;
-    let prize_amount = tournament.prize_pool.checked_sub(fee).unwrap();
+        .checked_mul(TOURNAMENT_FEE_BPS as u128)
+        .and_then(|v| v.checked_div(10000u128))
+        .ok_or(PoolError::Overflow)? as u64;
+    let prize_amount = tournament.prize_pool
+        .checked_sub(fee)
+        .ok_or(PoolError::Overflow)?;
 
     // PDA signer seeds
     let tournament_id = tournament.tournament_id;

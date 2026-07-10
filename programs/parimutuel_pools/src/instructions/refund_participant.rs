@@ -69,10 +69,13 @@ pub fn handler(ctx: Context<RefundParticipant>) -> Result<()> {
         entry_fee,
     )?;
 
-    // Update counters
+    // Update counters. Graceful error instead of a panic: prize_pool is the sum of
+    // entry fees and the `refunded` guard makes each refund happen at most once, so
+    // this can't underflow, but return an error rather than abort with a panic.
     let tournament = &mut ctx.accounts.tournament;
     tournament.prize_pool = tournament.prize_pool
-        .checked_sub(entry_fee).unwrap();
+        .checked_sub(entry_fee)
+        .ok_or(PoolError::Overflow)?;
     tournament.participant_count = tournament.participant_count.saturating_sub(1);
 
     // Mark refunded
