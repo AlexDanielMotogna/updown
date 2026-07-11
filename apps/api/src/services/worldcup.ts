@@ -77,17 +77,17 @@ function derivePhase(rawStatus: string | null | undefined): MatchPhase {
   return 'REGULATION';
 }
 
-// SDB encodes knockout rounds as numeric codes (125 = Round of 16, 150 = QF, ...) and is
-// inconsistent (some FWC events use "16", others "125" for the same round). Normalize to a
-// clean label. Group matchdays come as 1-3; anything >=4 or a known code is a knockout round.
+// SDB (league 4429, FIFA World Cup) encodes the knockout stage as numeric intRound
+// codes. Verified against the complete 2018/2022 editions and the live 2026 feed:
+// the early knockouts come as "teams remaining" (32, 16), then it switches to a fixed
+// code scheme 125/150/160/200. Group matchdays come as 1-3.
+//   125 = Quarter-final, 150 = Semi-final, 160 = Third place, 200 = Final.
 const ROUND_LABELS: Record<string, string> = {
   '32': 'Round of 32',
   '16': 'Round of 16',
-  // SDB uses "teams remaining" (32, 16) for the early knockouts, then jumps to
-  // its knockout code 125 for the quarter-finals of this WC (4 matches, not R16).
-  '8': 'Quarter-final', '125': 'Quarter-final', '150': 'Quarter-final',
-  '4': 'Semi-final', '160': 'Semi-final',
-  '170': 'Third place',
+  '125': 'Quarter-final',
+  '150': 'Semi-final',
+  '160': 'Third place',
   '200': 'Final',
 };
 function normalizeRound(strRound?: string | null, intRound?: string | null): string | null {
