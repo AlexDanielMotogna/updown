@@ -202,9 +202,18 @@ export async function createSportsPool(match: Match, leagueCode: string): Promis
     // (endDate−1h) BEFORE startTime — an inverted, nonsensical window.
     const endDate = kickoff; // cache.kickoff == market.endDate for PM
     const now = new Date();
-    const PM_LOCK_BUFFER_MS = 60 * 60 * 1000; // close betting 1h before the deadline
+    // Duration-aware lock: close betting at 70% of the window so the final,
+    // information-rich 30% is excluded. That final stretch is where a late bettor
+    // can pile onto a near-certain outcome and dilute the early bettors who took
+    // real uncertainty. It's a pure fraction, so it self-scales to any pool length
+    // (3-day or 3-month) with no per-length tuning, and stays fully parimutuel.
+    // Floored at 1h so very short pools keep a sane minimum buffer.
+    const PM_MIN_LOCK_BUFFER_MS = 60 * 60 * 1000;
+    const PM_LOCK_FRACTION = 0.30; // cut the last 30% of the window
+    const windowMs = endDate.getTime() - now.getTime();
+    const lockLeadMs = Math.max(PM_MIN_LOCK_BUFFER_MS, Math.floor(windowMs * PM_LOCK_FRACTION));
     startTime = now;
-    lockTime = new Date(endDate.getTime() - PM_LOCK_BUFFER_MS);
+    lockTime = new Date(endDate.getTime() - lockLeadMs);
     endTime = endDate;
     durationSeconds = Math.max(1, Math.floor((endTime.getTime() - startTime.getTime()) / 1000));
     if (lockTime.getTime() <= now.getTime()) {
