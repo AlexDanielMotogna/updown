@@ -24,6 +24,7 @@ interface Pick {
   homeScore: number; awayScore: number; phase: Phase;
   provider: string | null; xHandle: string | null; email: string | null; displayName: string | null;
   correct: boolean | null; isWinner: boolean;
+  payoutWallet: string | null; claimedAt: string | null; paidTx: string | null;
 }
 interface Detail {
   match: { matchId: string; homeTeam: string; awayTeam: string; round: string | null } | null;
@@ -294,6 +295,7 @@ export function WorldCupAdmin() {
                     <TableCell><Label>Pick</Label></TableCell>
                     <TableCell align="center"><Label>Correct</Label></TableCell>
                     <TableCell align="center"><Label>Winner</Label></TableCell>
+                    <TableCell><Label>Payout wallet</Label></TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -303,6 +305,24 @@ export function WorldCupAdmin() {
                       <TableCell sx={{ fontVariantNumeric: 'tabular-nums', color: t.text.secondary }}>{p.homeScore}-{p.awayScore} {PHASE_TAG[p.phase]}</TableCell>
                       <TableCell align="center">{p.correct == null ? '—' : p.correct ? <CheckCircle sx={{ fontSize: 16, color: t.success }} /> : ''}</TableCell>
                       <TableCell align="center">{p.isWinner ? <EmojiEvents sx={{ fontSize: 16, color: t.gold }} /> : ''}</TableCell>
+                      <TableCell>
+                        {!p.isWinner ? (
+                          <Box component="span" sx={{ color: t.text.tertiary }}>—</Box>
+                        ) : p.paidTx ? (
+                          <Box component="span" sx={{ color: t.success, fontSize: '0.72rem', fontWeight: 700 }}>Paid</Box>
+                        ) : p.payoutWallet ? (
+                          <Box
+                            component="span"
+                            title={`${p.payoutWallet}\nClick to copy`}
+                            onClick={() => navigator.clipboard?.writeText(p.payoutWallet!)}
+                            sx={{ fontFamily: 'monospace', fontSize: '0.72rem', color: t.text.primary, cursor: 'pointer', '&:hover': { color: t.gold } }}
+                          >
+                            {p.payoutWallet.slice(0, 4)}…{p.payoutWallet.slice(-4)}
+                          </Box>
+                        ) : (
+                          <Box component="span" sx={{ color: t.warning, fontSize: '0.72rem' }}>Not submitted</Box>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

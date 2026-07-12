@@ -81,19 +81,26 @@ export async function getWorldCupMatchDetail(matchId: string) {
     prisma.worldCupPrediction.findMany({ where: { matchId }, include: { user: true }, orderBy: { createdAt: 'asc' } }),
     prisma.worldCupWinner.findMany({ where: { matchId } }),
   ]);
-  const winnerIds = new Set(winners.map((w) => w.contestUserId));
+  const winnerBy = new Map(winners.map((w) => [w.contestUserId, w]));
 
-  const graded = predictions.map((p) => ({
-    homeScore: p.homeScore,
-    awayScore: p.awayScore,
-    phase: p.phase,
-    provider: p.user.provider,
-    xHandle: p.user.xHandle,
-    email: p.user.email,
-    displayName: p.user.displayName,
-    correct: result ? p.homeScore === result.homeScore && p.awayScore === result.awayScore && p.phase === result.phase : null,
-    isWinner: winnerIds.has(p.contestUserId),
-  }));
+  const graded = predictions.map((p) => {
+    const win = winnerBy.get(p.contestUserId);
+    return {
+      homeScore: p.homeScore,
+      awayScore: p.awayScore,
+      phase: p.phase,
+      provider: p.user.provider,
+      xHandle: p.user.xHandle,
+      email: p.user.email,
+      displayName: p.user.displayName,
+      correct: result ? p.homeScore === result.homeScore && p.awayScore === result.awayScore && p.phase === result.phase : null,
+      isWinner: win != null,
+      // Prize-claim status (only meaningful for winners)
+      payoutWallet: win?.payoutWallet ?? null,
+      claimedAt: win?.claimedAt ? win.claimedAt.toISOString() : null,
+      paidTx: win?.paidTx ?? null,
+    };
+  });
 
   // SDB suggestion when the match is finished (penalties still need a manual score).
   const suggestion = m && m.status === 'FINISHED' && m.homeScore != null && m.awayScore != null
