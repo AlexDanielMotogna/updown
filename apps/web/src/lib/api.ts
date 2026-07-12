@@ -1338,3 +1338,30 @@ export async function saveWorldCupPrediction(
     body: JSON.stringify(body),
   });
 }
+
+export interface WorldCupWinningDto {
+  matchId: string;
+  homeTeam: string | null;
+  awayTeam: string | null;
+  round: string | null;
+  claimed: boolean;
+  payoutWallet: string | null;
+}
+
+export async function fetchMyWorldCupWinnings(token: string): Promise<ApiResponse<WorldCupWinningDto[]>> {
+  return fetchApi<WorldCupWinningDto[]>('/api/worldcup/my-winnings', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function claimWorldCupWinning(
+  token: string,
+  matchId: string,
+  body: { payoutWallet: string; identity?: WorldCupIdentity },
+): Promise<ApiResponse<{ matchId: string; payoutWallet: string; claimed: boolean }>> {
+  return fetchApi<{ matchId: string; payoutWallet: string; claimed: boolean }>(`/api/worldcup/winnings/${matchId}/claim`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+}

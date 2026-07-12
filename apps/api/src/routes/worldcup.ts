@@ -1,5 +1,6 @@
 import { Router, type Router as RouterType, type Request } from 'express';
 import { z } from 'zod';
+import { PublicKey } from '@solana/web3.js';
 import { prisma } from '../db';
 import { getWorldCupMatches, getWorldCupTimeline } from '../services/worldcup';
 import { verifyPrivyDid, bearerToken } from '../services/worldcup-auth';
@@ -114,5 +115,86 @@ worldcupRouter.post('/predictions', async (req, res) => {
   } catch (error) {
     console.error('[WorldCup] post prediction error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to save prediction' } });
+  }
+});
+
+/**
+ * GET /api/worldcup/my-winnings — raffle prizes the signed-in user has won, with
+ * their claim status. Backs the in-app "you won, enter your wallet" banner.
+ */
+worldcupRouter.get('/my-winnings', async (req, res) => {
+  try {
+    const userId = await resolveContestUser(req);
+    if (!userId) return res.status(401).json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'Sign in to view your prizes' } });
+
+    const wins = await prisma.worldCupWinner.findMany({ where: { contestUserId: userId }, orderBy: { createdAt: 'desc' } });
+    if (wins.length === 0) return res.json({ success: true, data: [] });
+
+    // Match labels (home/away) come from the live fixture list, matched by id.
+    const matches = await getWorldCupMatches();
+    const byId = new Map(matches.map((m) => [m.matchId, m]));
+
+    res.json({
+      success: true,
+      data: wins.map((w) => {
+        const m = byId.get(w.matchId);
+        return {
+          matchId: w.matchId,
+          homeTeam: m?.homeTeam ?? null,
+          awayTeam: m?.awayTeam ?? null,
+          round: m?.round ?? null,
+          claimed: w.claimedAt != null,
+          payoutWallet: w.payoutWallet,
+        };
+      }),
+    });
+  } catch (error) {
+    console.error('[WorldCup] my-winnings error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load prizes' } });
+  }
+});
+
+const claimSchema = z.object({
+  payoutWallet: z.string().trim().min(32).max(50),
+  identity: identitySchema,
+});
+
+/**
+ * POST /api/worldcup/winnings/:matchId/claim — the winner submits the Solana
+ * address to receive their prize. Idempotent: re-submitting updates the wallet as
+ * long as it hasn't been paid out yet (paidTx still null).
+ */
+worldcupRouter.post('/winnings/:matchId/claim', async (req, res) => {
+  try {
+    const parsed = claimSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.errors[0]?.message ?? 'Invalid input' } });
+    }
+    const userId = await resolveContestUser(req);
+    if (!userId) return res.status(401).json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'Sign in to claim' } });
+
+    const { payoutWallet } = parsed.data;
+    // Reject anything that isn't a valid Solana address before we store it.
+    try {
+      // eslint-disable-next-line no-new
+      new PublicKey(payoutWallet);
+    } catch {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_WALLET', message: 'That is not a valid Solana address' } });
+    }
+
+    const win = await prisma.worldCupWinner.findUnique({
+      where: { matchId_contestUserId: { matchId: req.params.matchId, contestUserId: userId } },
+    });
+    if (!win) return res.status(404).json({ success: false, error: { code: 'NOT_A_WINNER', message: 'No prize to claim for this match' } });
+    if (win.paidTx) return res.status(409).json({ success: false, error: { code: 'ALREADY_PAID', message: 'This prize has already been paid out' } });
+
+    await prisma.worldCupWinner.update({
+      where: { id: win.id },
+      data: { payoutWallet, claimedAt: win.claimedAt ?? new Date() },
+    });
+    res.json({ success: true, data: { matchId: req.params.matchId, payoutWallet, claimed: true } });
+  } catch (error) {
+    console.error('[WorldCup] claim error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to submit claim' } });
   }
 });

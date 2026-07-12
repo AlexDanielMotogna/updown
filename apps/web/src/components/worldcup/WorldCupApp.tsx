@@ -10,10 +10,12 @@ import { withAlpha } from '@/lib/theme';
 import { WORLD_CUP, WORLD_CUP_PROMO, WC_NEON_GREEN } from '@/lib/worldcup';
 import {
   fetchWorldCupMatches, fetchMyWorldCupPredictions, saveWorldCupPrediction,
+  fetchMyWorldCupWinnings, claimWorldCupWinning,
   type WorldCupMatch, type WorldCupPredictionDto, type WorldCupPhase, type WorldCupIdentity,
 } from '@/lib/api';
 import { MatchRow, roundDisplay } from './MatchRow';
 import { MyPicksSidebar } from './MyPicksSidebar';
+import { WinnerBanner } from './WinnerBanner';
 
 function buildIdentity(user: ReturnType<typeof usePrivy>['user']): WorldCupIdentity {
   if (!user) return {};
@@ -134,6 +136,21 @@ export function WorldCupApp() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['worldcup-my-predictions'] }),
   });
 
+  const { data: myWinnings } = useQuery({
+    queryKey: ['worldcup-my-winnings'], enabled: authenticated,
+    queryFn: async () => { const token = await getAccessToken(); if (!token) return []; return (await fetchMyWorldCupWinnings(token)).data ?? []; },
+  });
+  const claimMut = useMutation({
+    mutationFn: async (v: { matchId: string; wallet: string }) => {
+      const token = await getAccessToken();
+      if (!token) throw new Error('Please sign in again');
+      const res = await claimWorldCupWinning(token, v.matchId, { payoutWallet: v.wallet, identity: buildIdentity(user) });
+      if (!res.success) throw new Error(res.error?.message ?? 'Could not submit claim');
+      return res.data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['worldcup-my-winnings'] }),
+  });
+
   const list = matches ?? [];
   // Countdown to the next match whose kickoff is still in the future — skip any SCHEDULED match
   // whose (possibly early) SDB kickoff time has already passed, so the timer never sits at zero.
@@ -173,6 +190,14 @@ export function WorldCupApp() {
     <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3, alignItems: { xs: 'stretch', lg: 'flex-start' } }}>
       {/* Main */}
       <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+        {/* Prize claim banner (only if the signed-in user won a raffle) */}
+        {authenticated && myWinnings && myWinnings.length > 0 && (
+          <WinnerBanner
+            winnings={myWinnings}
+            onClaim={(matchId, wallet) => claimMut.mutate({ matchId, wallet })}
+            claimingMatchId={claimMut.isPending ? claimMut.variables?.matchId ?? null : null}
+          />
+        )}
         {/* Hero slider */}
         <Box sx={{
           position: 'relative', overflow: 'hidden', borderRadius: 2.5,

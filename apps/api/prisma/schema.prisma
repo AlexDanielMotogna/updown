@@ -1133,10 +1133,15 @@ model WorldCupPenaltyCache {
 /// Raffle winners for a match (2 random among the correct predictors). Recorded so
 /// re-opening the admin shows the same winners (idempotent per (match, user)).
 model WorldCupWinner {
-  id            String   @id @default(uuid())
-  matchId       String   @map("match_id")
-  contestUserId String   @map("contest_user_id")
-  createdAt     DateTime @default(now()) @map("created_at")
+  id            String    @id @default(uuid())
+  matchId       String    @map("match_id")
+  contestUserId String    @map("contest_user_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  // Prize claim: the winner enters a Solana address in the app to receive the
+  // promo prize (ContestUser has no wallet). paidTx records the payout once sent.
+  payoutWallet  String?   @map("payout_wallet")
+  claimedAt     DateTime? @map("claimed_at")
+  paidTx        String?   @map("paid_tx")
 
   @@unique([matchId, contestUserId])
   @@index([matchId])
