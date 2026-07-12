@@ -16,6 +16,7 @@ import {
 import { MatchRow, roundDisplay } from './MatchRow';
 import { MyPicksSidebar } from './MyPicksSidebar';
 import { WinnerBanner } from './WinnerBanner';
+import { WinnerDialog } from './WinnerDialog';
 
 function buildIdentity(user: ReturnType<typeof usePrivy>['user']): WorldCupIdentity {
   if (!user) return {};
@@ -108,6 +109,8 @@ export function WorldCupApp() {
   const { ready, authenticated, user, getAccessToken, login } = usePrivy();
   const [filter, setFilter] = useState<Filter>('All matches');
   const [slide, setSlide] = useState(0);
+  const [winnerOpen, setWinnerOpen] = useState(false);
+  const [winnerAutoOpened, setWinnerAutoOpened] = useState(false);
   useEffect(() => {
     const id = setTimeout(() => setSlide((s) => (s + 1) % HERO_SLIDE_COUNT), 10_000);
     return () => clearTimeout(id);
@@ -150,6 +153,14 @@ export function WorldCupApp() {
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['worldcup-my-winnings'] }),
   });
+  // Aggressively pop the prize dialog the first time we learn the user has an
+  // unclaimed win (once per page load; they can reopen it from the slim banner).
+  useEffect(() => {
+    if (!winnerAutoOpened && myWinnings && myWinnings.some((w) => !w.claimed)) {
+      setWinnerOpen(true);
+      setWinnerAutoOpened(true);
+    }
+  }, [myWinnings, winnerAutoOpened]);
 
   const list = matches ?? [];
   // Countdown to the next match whose kickoff is still in the future — skip any SCHEDULED match
@@ -190,13 +201,18 @@ export function WorldCupApp() {
     <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3, alignItems: { xs: 'stretch', lg: 'flex-start' } }}>
       {/* Main */}
       <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-        {/* Prize claim banner (only if the signed-in user won a raffle) */}
+        {/* Prize claim: aggressive auto-popup + a slim persistent reminder (winners only) */}
         {authenticated && myWinnings && myWinnings.length > 0 && (
-          <WinnerBanner
-            winnings={myWinnings}
-            onClaim={(matchId, wallet) => claimMut.mutate({ matchId, wallet })}
-            claimingMatchId={claimMut.isPending ? claimMut.variables?.matchId ?? null : null}
-          />
+          <>
+            <WinnerBanner winnings={myWinnings} onOpen={() => setWinnerOpen(true)} />
+            <WinnerDialog
+              open={winnerOpen}
+              onClose={() => setWinnerOpen(false)}
+              winnings={myWinnings}
+              onClaim={(matchId, wallet) => claimMut.mutate({ matchId, wallet })}
+              claimingMatchId={claimMut.isPending ? claimMut.variables?.matchId ?? null : null}
+            />
+          </>
         )}
         {/* Hero slider */}
         <Box sx={{
