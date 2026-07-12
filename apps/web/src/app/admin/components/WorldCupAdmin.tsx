@@ -21,6 +21,7 @@ interface OverviewItem {
   predictionCount: number; result: { homeScore: number; awayScore: number; phase: Phase } | null; correctCount: number | null; winnerCount: number;
 }
 interface Pick {
+  contestUserId: string;
   homeScore: number; awayScore: number; phase: Phase;
   provider: string | null; xHandle: string | null; email: string | null; displayName: string | null;
   correct: boolean | null; isWinner: boolean;
@@ -123,6 +124,23 @@ export function WorldCupAdmin() {
     try {
       const r = await adminFetch<{ data: { winners: Winner[] } }>(`/worldcup/match/${selected}/raffle`, { method: 'POST' });
       setWinners(r.data.winners); await detailQ.refetch(); refetch();
+    } catch (e) { setMsg((e as Error).message); } finally { setBusy(false); }
+  };
+  const setPaid = async (contestUserId: string, paid: boolean) => {
+    if (!selected || busy) return;
+    let paidTx: string | null = null;
+    if (paid) {
+      const tx = window.prompt('Payout tx signature (leave blank if paid manually):', '');
+      if (tx === null) return; // cancelled
+      paidTx = tx.trim() || null;
+    } else if (!window.confirm('Mark this prize as NOT paid?')) {
+      return;
+    }
+    setBusy(true); setMsg(null);
+    try {
+      await adminFetch(`/worldcup/match/${selected}/winner/${contestUserId}/paid`, { method: 'POST', body: JSON.stringify({ paid, paidTx }) });
+      await detailQ.refetch(); refetch();
+      setMsg(paid ? 'Marked as paid.' : 'Marked as unpaid.');
     } catch (e) { setMsg((e as Error).message); } finally { setBusy(false); }
   };
 
@@ -308,19 +326,35 @@ export function WorldCupAdmin() {
                       <TableCell>
                         {!p.isWinner ? (
                           <Box component="span" sx={{ color: t.text.tertiary }}>—</Box>
-                        ) : p.paidTx ? (
-                          <Box component="span" sx={{ color: t.success, fontSize: '0.72rem', fontWeight: 700 }}>Paid</Box>
-                        ) : p.payoutWallet ? (
-                          <Box
-                            component="span"
-                            title={`${p.payoutWallet}\nClick to copy`}
-                            onClick={() => navigator.clipboard?.writeText(p.payoutWallet!)}
-                            sx={{ fontFamily: 'monospace', fontSize: '0.72rem', color: t.text.primary, cursor: 'pointer', '&:hover': { color: t.gold } }}
-                          >
-                            {p.payoutWallet.slice(0, 4)}…{p.payoutWallet.slice(-4)}
-                          </Box>
                         ) : (
-                          <Box component="span" sx={{ color: t.warning, fontSize: '0.72rem' }}>Not submitted</Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {p.payoutWallet ? (
+                              <Box
+                                component="span"
+                                title={`${p.payoutWallet}\nClick to copy`}
+                                onClick={() => navigator.clipboard?.writeText(p.payoutWallet!)}
+                                sx={{ fontFamily: 'monospace', fontSize: '0.72rem', color: t.text.primary, cursor: 'pointer', '&:hover': { color: t.gold } }}
+                              >
+                                {p.payoutWallet.slice(0, 4)}…{p.payoutWallet.slice(-4)}
+                              </Box>
+                            ) : (
+                              <Box component="span" sx={{ color: t.warning, fontSize: '0.72rem' }}>Not submitted</Box>
+                            )}
+                            {p.paidTx ? (
+                              <>
+                                <Box component="span" title={p.paidTx} sx={{ color: t.success, fontSize: '0.72rem', fontWeight: 800 }}>Paid</Box>
+                                <Box component="span" onClick={() => setPaid(p.contestUserId, false)} sx={{ color: t.text.tertiary, fontSize: '0.66rem', cursor: 'pointer', textDecoration: 'underline', '&:hover': { color: t.text.secondary } }}>undo</Box>
+                              </>
+                            ) : (
+                              <Box
+                                component="span"
+                                onClick={() => setPaid(p.contestUserId, true)}
+                                sx={{ ml: 'auto', px: 1, py: 0.3, borderRadius: 0.75, fontSize: '0.68rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', border: `1px solid ${t.border.medium}`, color: t.text.primary, opacity: busy ? 0.5 : 1, '&:hover': { bgcolor: t.bg.surfaceAlt } }}
+                              >
+                                Mark paid
+                              </Box>
+                            )}
+                          </Box>
                         )}
                       </TableCell>
                     </TableRow>

@@ -86,6 +86,7 @@ export async function getWorldCupMatchDetail(matchId: string) {
   const graded = predictions.map((p) => {
     const win = winnerBy.get(p.contestUserId);
     return {
+      contestUserId: p.contestUserId,
       homeScore: p.homeScore,
       awayScore: p.awayScore,
       phase: p.phase,
@@ -136,6 +137,23 @@ export async function askWorldCupResultLlm(matchId: string) {
   if (!m) return { sent: null, model: '', result: null, error: 'Match not found' };
   const date = m.kickoff ? m.kickoff.slice(0, 10) : '';
   return fetchWorldCupResultFromChatGPT({ homeTeam: m.homeTeam, awayTeam: m.awayTeam, date });
+}
+
+/**
+ * Mark (or unmark) a raffle winner's prize as paid. `paid=true` stores the payout
+ * reference in `paidTx` (the tx signature, or 'manual' when paid off-chain);
+ * `paid=false` clears it back to unpaid so a mistaken mark can be undone.
+ */
+export async function setWorldCupWinnerPaid(
+  matchId: string, contestUserId: string, paid: boolean, tx?: string | null,
+): Promise<{ ok: true } | { ok: false; reason: 'NOT_FOUND' }> {
+  const win = await prisma.worldCupWinner.findUnique({
+    where: { matchId_contestUserId: { matchId, contestUserId } },
+  });
+  if (!win) return { ok: false, reason: 'NOT_FOUND' };
+  const paidTx = paid ? (tx?.trim() || 'manual') : null;
+  await prisma.worldCupWinner.update({ where: { id: win.id }, data: { paidTx } });
+  return { ok: true };
 }
 
 export interface RaffleWinner {

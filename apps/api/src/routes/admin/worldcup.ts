@@ -7,6 +7,7 @@ import {
   saveWorldCupResult,
   runWorldCupRaffle,
   askWorldCupResultLlm,
+  setWorldCupWinnerPaid,
 } from '../../services/worldcup-admin';
 
 /** Admin: grade World Cup predictions + raffle winners. */
@@ -73,6 +74,29 @@ adminWorldCupRouter.post('/match/:matchId/ask-llm', async (req, res) => {
   } catch (error) {
     console.error('[Admin WorldCup] ask-llm error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'ChatGPT lookup failed' } });
+  }
+});
+
+const paidSchema = z.object({
+  paid: z.boolean(),
+  paidTx: z.string().max(120).nullish(),
+});
+
+/** POST /api/admin/worldcup/match/:matchId/winner/:contestUserId/paid — mark a winner's prize paid/unpaid. */
+adminWorldCupRouter.post('/match/:matchId/winner/:contestUserId/paid', async (req, res) => {
+  try {
+    const parsed = paidSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.errors[0]?.message ?? 'Invalid input' } });
+    }
+    const result = await setWorldCupWinnerPaid(req.params.matchId, req.params.contestUserId, parsed.data.paid, parsed.data.paidTx);
+    if (!result.ok) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_A_WINNER', message: 'No winner row for this match + user' } });
+    }
+    res.json({ success: true, data: await getWorldCupMatchDetail(req.params.matchId) });
+  } catch (error) {
+    console.error('[Admin WorldCup] mark-paid error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to update payout status' } });
   }
 });
 
