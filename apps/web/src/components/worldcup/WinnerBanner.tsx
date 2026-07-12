@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Typography, Button } from '@mui/material';
-import { EmojiEvents } from '@mui/icons-material';
+import { EmojiEventsOutlined } from '@mui/icons-material';
 import { useThemeTokens } from '@/app/providers';
 import { withAlpha } from '@/lib/theme';
 import { WC_NEON_GREEN } from '@/lib/worldcup';
@@ -30,28 +30,30 @@ export function WinnerBanner({
       sx={{
         display: 'flex', alignItems: 'center', gap: 1.25, cursor: 'pointer',
         borderRadius: 2, px: 2, py: 1.25,
-        border: `1px solid ${withAlpha(WC_NEON_GREEN, 0.5)}`,
-        background: `linear-gradient(180deg, ${withAlpha(WC_NEON_GREEN, 0.14)} 0%, ${withAlpha(WC_NEON_GREEN, 0.04)} 100%)`,
-        transition: 'filter 0.15s',
-        '&:hover': { filter: 'brightness(1.06)' },
+        border: `1px solid ${t.border.subtle}`,
+        borderLeft: `3px solid ${WC_NEON_GREEN}`,
+        bgcolor: withAlpha(WC_NEON_GREEN, 0.06),
+        transition: 'background-color 0.15s',
+        '&:hover': { bgcolor: withAlpha(WC_NEON_GREEN, 0.1) },
       }}
     >
-      <EmojiEvents sx={{ fontSize: 20, color: WC_NEON_GREEN, flexShrink: 0 }} />
-      <Typography sx={{ flex: 1, fontWeight: 700, fontSize: '0.85rem', color: t.text.primary }}>
+      <EmojiEventsOutlined sx={{ fontSize: 20, color: WC_NEON_GREEN, flexShrink: 0 }} />
+      <Typography sx={{ flex: 1, fontWeight: 600, fontSize: '0.85rem', color: t.text.primary }}>
         {anyUnclaimed
-          ? `You won ${winnings.length > 1 ? `${winnings.length} prizes` : 'a prize'}! Claim it now.`
+          ? `You won ${winnings.length > 1 ? `${winnings.length} prizes` : 'a prize'}. Claim your reward.`
           : 'Your prize claim is in. Tap to review.'}
       </Typography>
       <Button
         variant="contained"
         size="small"
+        disableElevation
         onClick={(e) => { e.stopPropagation(); onOpen(); }}
         sx={{
-          flexShrink: 0, bgcolor: WC_NEON_GREEN, color: '#08130b', fontWeight: 800, textTransform: 'none',
-          '&:hover': { bgcolor: WC_NEON_GREEN, filter: 'brightness(1.08)' },
+          flexShrink: 0, bgcolor: WC_NEON_GREEN, color: '#08130b', fontWeight: 700, textTransform: 'none', borderRadius: 1.5,
+          '&:hover': { bgcolor: WC_NEON_GREEN, filter: 'brightness(1.06)' },
         }}
       >
-        {anyUnclaimed ? 'Claim prize' : 'Review'}
+        {anyUnclaimed ? 'Claim' : 'Review'}
       </Button>
     </Box>
   );
