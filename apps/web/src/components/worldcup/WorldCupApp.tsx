@@ -153,14 +153,17 @@ export function WorldCupApp() {
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['worldcup-my-winnings'] }),
   });
+  // Wins that still need the user's attention: not yet paid out. Once the admin
+  // marks a prize paid, it drops out of the banner/popup entirely.
+  const openWinnings = useMemo(() => (myWinnings ?? []).filter((w) => !w.paid), [myWinnings]);
   // Aggressively pop the prize dialog the first time we learn the user has an
-  // unclaimed win (once per page load; they can reopen it from the slim banner).
+  // unpaid + unclaimed win (once per page load; reopenable from the slim banner).
   useEffect(() => {
-    if (!winnerAutoOpened && myWinnings && myWinnings.some((w) => !w.claimed)) {
+    if (!winnerAutoOpened && openWinnings.some((w) => !w.claimed)) {
       setWinnerOpen(true);
       setWinnerAutoOpened(true);
     }
-  }, [myWinnings, winnerAutoOpened]);
+  }, [openWinnings, winnerAutoOpened]);
 
   const list = matches ?? [];
   // Countdown to the next match whose kickoff is still in the future — skip any SCHEDULED match
@@ -201,14 +204,15 @@ export function WorldCupApp() {
     <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3, alignItems: { xs: 'stretch', lg: 'flex-start' } }}>
       {/* Main */}
       <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-        {/* Prize claim: aggressive auto-popup + a slim persistent reminder (winners only) */}
-        {authenticated && myWinnings && myWinnings.length > 0 && (
+        {/* Prize claim: aggressive auto-popup + a slim persistent reminder. Paid
+            prizes are excluded, so nothing shows once the payout is done. */}
+        {authenticated && openWinnings.length > 0 && (
           <>
-            <WinnerBanner winnings={myWinnings} onOpen={() => setWinnerOpen(true)} />
+            <WinnerBanner winnings={openWinnings} onOpen={() => setWinnerOpen(true)} />
             <WinnerDialog
               open={winnerOpen}
               onClose={() => setWinnerOpen(false)}
-              winnings={myWinnings}
+              winnings={openWinnings}
               onClaim={(matchId, wallet) => claimMut.mutate({ matchId, wallet })}
               claimingMatchId={claimMut.isPending ? claimMut.variables?.matchId ?? null : null}
             />

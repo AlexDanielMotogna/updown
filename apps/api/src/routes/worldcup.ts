@@ -144,6 +144,7 @@ worldcupRouter.get('/my-winnings', async (req, res) => {
           awayTeam: m?.awayTeam ?? null,
           round: m?.round ?? null,
           claimed: w.claimedAt != null,
+          paid: w.paidTx != null,
           payoutWallet: w.payoutWallet,
         };
       }),

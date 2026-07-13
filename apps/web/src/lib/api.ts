@@ -1345,6 +1345,7 @@ export interface WorldCupWinningDto {
   awayTeam: string | null;
   round: string | null;
   claimed: boolean;
+  paid: boolean;
   payoutWallet: string | null;
 }
 
