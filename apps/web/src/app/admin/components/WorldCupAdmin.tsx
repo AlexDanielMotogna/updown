@@ -10,6 +10,10 @@ import { useQuery } from '@tanstack/react-query';
 import { adminFetch } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
 import { SectionCard, StatCard, LoadingState, EmptyState, ErrorState, Label, POLL_MEDIUM_MS } from '../ui';
+import { WinnerShareCard, type WinnerCardData } from './WinnerShareCard';
+
+/** Prize paid per raffle winner (promo is "$100 to 2 people"). */
+const WC_PRIZE_PER_WINNER = 50;
 
 const roundLabel = (r: string | null) => r ?? '—';
 const PHASE_TAG: Record<string, string> = { REGULATION: "90'", EXTRA_TIME: 'AET', PENALTIES: 'Penalties' };
@@ -69,6 +73,7 @@ export function WorldCupAdmin() {
   const [busy, setBusy] = useState(false);
   const [winners, setWinners] = useState<Winner[] | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [cardData, setCardData] = useState<WinnerCardData | null>(null);
 
   // The detail panel renders below the (long) matches table, so scroll it into view on Manage.
   const detailRef = useRef<HTMLDivElement>(null);
@@ -90,6 +95,7 @@ export function WorldCupAdmin() {
   if (error) return <ErrorState title="Couldn’t load World Cup admin" message={(error as Error).message} details={error} onRetry={() => refetch()} />;
 
   const matches = data!.data.matches;
+  const selectedMatch = selected ? matches.find((m) => m.matchId === selected) : undefined;
   const contestUsers = data!.data.contestUsers;
   const totalPreds = matches.reduce((s, m) => s + m.predictionCount, 0);
   const graded = matches.filter((m) => m.result).length;
@@ -142,6 +148,23 @@ export function WorldCupAdmin() {
       await detailQ.refetch(); refetch();
       setMsg(paid ? 'Marked as paid.' : 'Marked as unpaid.');
     } catch (e) { setMsg((e as Error).message); } finally { setBusy(false); }
+  };
+
+  const openCard = (p: Pick) => {
+    if (!detail?.match) return;
+    const r = detail.result;
+    setCardData({
+      matchId: detail.match.matchId,
+      handle: p.xHandle,
+      displayName: p.displayName,
+      homeTeam: detail.match.homeTeam,
+      awayTeam: detail.match.awayTeam,
+      round: detail.match.round,
+      kickoff: selectedMatch?.kickoff ?? null,
+      homeScore: r ? r.homeScore : p.homeScore,
+      awayScore: r ? r.awayScore : p.awayScore,
+      prize: WC_PRIZE_PER_WINNER,
+    });
   };
 
   const inputSx = { width: 56, px: 1, py: 0.6, borderRadius: 1, fontSize: '1rem', textAlign: 'center', border: `1px solid ${t.border.medium}`, bgcolor: t.bg.app, color: t.text.primary, fontFamily: 'inherit', outline: 'none' } as const;
@@ -354,6 +377,14 @@ export function WorldCupAdmin() {
                                 Mark paid
                               </Box>
                             )}
+                            <Box
+                              component="span"
+                              onClick={() => openCard(p)}
+                              title="Generate a shareable winner card (PNG) for X"
+                              sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.4, px: 1, py: 0.3, borderRadius: 0.75, fontSize: '0.68rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', border: `1px solid ${t.gold}55`, color: t.gold, '&:hover': { bgcolor: `${t.gold}14` } }}
+                            >
+                              <EmojiEvents sx={{ fontSize: 13 }} /> Card
+                            </Box>
                           </Box>
                         )}
                       </TableCell>
@@ -365,6 +396,8 @@ export function WorldCupAdmin() {
           )}
         </SectionCard>
       )}
+
+      {cardData && <WinnerShareCard data={cardData} onClose={() => setCardData(null)} />}
     </Box>
   );
 }

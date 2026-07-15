@@ -8,6 +8,7 @@ import {
   runWorldCupRaffle,
   askWorldCupResultLlm,
   setWorldCupWinnerPaid,
+  getWorldCupWinnerCardAssets,
 } from '../../services/worldcup-admin';
 
 /** Admin: grade World Cup predictions + raffle winners. */
@@ -40,6 +41,16 @@ adminWorldCupRouter.get('/match/:matchId', async (req, res) => {
   } catch (error) {
     console.error('[Admin WorldCup] detail error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load match' } });
+  }
+});
+
+/** GET /api/admin/worldcup/match/:matchId/card-assets — team crests as same-origin data URIs for the winner card. */
+adminWorldCupRouter.get('/match/:matchId/card-assets', async (req, res) => {
+  try {
+    res.json({ success: true, data: await getWorldCupWinnerCardAssets(req.params.matchId) });
+  } catch (error) {
+    console.error('[Admin WorldCup] card-assets error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load card assets' } });
   }
 });
 

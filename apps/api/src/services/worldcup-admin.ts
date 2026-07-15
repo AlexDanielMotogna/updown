@@ -186,3 +186,43 @@ export async function runWorldCupRaffle(matchId: string): Promise<{ ok: true; wi
     winners: picked.map((p) => ({ provider: p.user.provider, xHandle: p.user.xHandle, email: p.user.email, displayName: p.user.displayName })),
   };
 }
+
+/**
+ * Team crests come from TheSportsDB's CDN, which sends no CORS headers, so drawing
+ * them straight onto a <canvas> would taint it and break the winner-card PNG export.
+ * We proxy them here as same-origin data URIs. Host is allow-listed (no open proxy)
+ * and the response is size-capped.
+ */
+const CREST_HOST_ALLOW = new Set(['r2.thesportsdb.com', 'www.thesportsdb.com', 'thesportsdb.com']);
+const CREST_MAX_BYTES = 1_000_000;
+
+async function crestToDataUri(url: string | null): Promise<string | null> {
+  if (!url) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== 'https:' || !CREST_HOST_ALLOW.has(parsed.hostname)) return null;
+  try {
+    const resp = await fetch(parsed.toString());
+    if (!resp.ok) return null;
+    const type = resp.headers.get('content-type') ?? 'image/png';
+    if (!type.startsWith('image/')) return null;
+    const buf = Buffer.from(await resp.arrayBuffer());
+    if (buf.length === 0 || buf.length > CREST_MAX_BYTES) return null;
+    return `data:${type};base64,${buf.toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Assets for the shareable winner card: team crests inlined as same-origin data URIs. */
+export async function getWorldCupWinnerCardAssets(matchId: string) {
+  const matches = await getWorldCupMatches();
+  const m = matches.find((x) => x.matchId === matchId);
+  if (!m) return { homeCrest: null, awayCrest: null };
+  const [homeCrest, awayCrest] = await Promise.all([crestToDataUri(m.homeCrest), crestToDataUri(m.awayCrest)]);
+  return { homeCrest, awayCrest };
+}
