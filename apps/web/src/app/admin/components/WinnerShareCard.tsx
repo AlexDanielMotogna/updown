@@ -9,7 +9,7 @@ import { adminFetch } from '../lib/adminApi';
 const WC_X_URL = 'updown.my/worldcup';
 /** Brand accent (palette.cyan) — the app's "up" colour. */
 const CYAN = '#5FD8EF';
-const LOGO_SRC = '/updown-logos/Logo_512px_Cyan_Transparent.png';
+const LOGO_SRC = '/updown-logos/Logo_512px.png';
 
 export interface WinnerCardData {
   /** Match id — used to fetch the team crests as same-origin data URIs. */
