@@ -9,7 +9,12 @@ import { adminFetch } from '../lib/adminApi';
 const WC_X_URL = 'updown.my/worldcup';
 /** Brand accent (palette.cyan) — the app's "up" colour. */
 const CYAN = '#5FD8EF';
-const LOGO_SRC = '/updown-logos/Logo_512px.png';
+/** UpDown lockup (cyan hexagon + white "UpDown" wordmark) — an image, not typeset text. */
+const LOGO_SRC = '/updown-logos/Logo_cyan_text_white.png';
+/** The FIFA World Cup fanart the app uses behind its hero, + the trophy badge. Local copies so
+ * the canvas stays same-origin and the PNG export works (SDB's CDN sends no CORS headers). */
+const BG_SRC = '/worldcup/fanart.jpg';
+const WC_BADGE_SRC = '/worldcup/wc-badge.png';
 
 export interface WinnerCardData {
   /** Match id — used to fetch the team crests as same-origin data URIs. */
@@ -30,9 +35,19 @@ export interface WinnerCardData {
 }
 
 interface CardImages {
+  bg: HTMLImageElement | null;
   logo: HTMLImageElement | null;
+  wcBadge: HTMLImageElement | null;
   home: HTMLImageElement | null;
   away: HTMLImageElement | null;
+}
+
+/** Draw an image cover-fit (fills the box, cropping overflow), centered. */
+function coverDraw(ctx: CanvasRenderingContext2D, img: HTMLImageElement, w: number, h: number) {
+  const scale = Math.max(w / img.width, h / img.height);
+  const dw = img.width * scale;
+  const dh = img.height * scale;
+  ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
 }
 
 const FONT = "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
@@ -121,20 +136,28 @@ function drawCard(ctx: CanvasRenderingContext2D, d: WinnerCardData, imgs: CardIm
   const pad = 72;
   const maxW = W - pad * 2;
 
-  // Background: near-black with a faint cyan tint
-  const bg = ctx.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0, '#05080b');
-  bg.addColorStop(0.55, '#070a0e');
-  bg.addColorStop(1, '#05090c');
-  ctx.fillStyle = bg;
+  // Background: the app's World Cup fanart, darkened so the text stays legible
+  ctx.fillStyle = '#05080b';
   ctx.fillRect(0, 0, W, H);
-
-  // Soft cyan glow behind the centre
-  const glow = ctx.createRadialGradient(cx, 250, 40, cx, 250, 560);
-  glow.addColorStop(0, `${CYAN}1f`);
-  glow.addColorStop(1, `${CYAN}00`);
-  ctx.fillStyle = glow;
+  if (imgs.bg) coverDraw(ctx, imgs.bg, W, H);
+  // Dark scrim: heavier on the left (where the copy sits), lighter on the right (trophy peeks through)
+  const scrim = ctx.createLinearGradient(0, 0, W, 0);
+  scrim.addColorStop(0, 'rgba(5,8,11,0.94)');
+  scrim.addColorStop(0.6, 'rgba(5,8,11,0.86)');
+  scrim.addColorStop(1, 'rgba(5,8,11,0.66)');
+  ctx.fillStyle = scrim;
   ctx.fillRect(0, 0, W, H);
+  // Extra top/bottom darkening for the header and footer bands
+  const vT = ctx.createLinearGradient(0, 0, 0, 160);
+  vT.addColorStop(0, 'rgba(5,8,11,0.6)');
+  vT.addColorStop(1, 'rgba(5,8,11,0)');
+  ctx.fillStyle = vT;
+  ctx.fillRect(0, 0, W, 160);
+  const vB = ctx.createLinearGradient(0, H - 150, 0, H);
+  vB.addColorStop(0, 'rgba(5,8,11,0)');
+  vB.addColorStop(1, 'rgba(5,8,11,0.75)');
+  ctx.fillStyle = vB;
+  ctx.fillRect(0, H - 150, W, 150);
 
   // Top accent bar + frame
   ctx.fillStyle = CYAN;
@@ -146,21 +169,21 @@ function drawCard(ctx: CanvasRenderingContext2D, d: WinnerCardData, imgs: CardIm
 
   ctx.textBaseline = 'alphabetic';
 
-  // Header: logo + wordmark left, competition tag right
-  if (imgs.logo) ctx.drawImage(imgs.logo, pad, 60, 40, 40);
-  const wordX = pad + (imgs.logo ? 40 + 14 : 0);
-  ctx.textAlign = 'left';
-  ctx.font = `800 34px ${FONT}`;
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText('Up', wordX, 92);
-  const upW = ctx.measureText('Up').width;
-  ctx.fillStyle = CYAN;
-  ctx.fillText('Down', wordX + upW, 92);
-
-  ctx.textAlign = 'right';
-  ctx.font = `700 22px ${FONT}`;
-  ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  ctx.fillText('FIFA WORLD CUP · SCORE PREDICTIONS', W - pad, 90);
+  // Header: UpDown lockup (image) left, FIFA World Cup badge right
+  if (imgs.logo) {
+    const lh = 44;
+    const lw = (imgs.logo.width / imgs.logo.height) * lh;
+    ctx.drawImage(imgs.logo, pad, 56, lw, lh);
+  }
+  if (imgs.wcBadge) {
+    const bh = 70;
+    const bw = (imgs.wcBadge.width / imgs.wcBadge.height) * bh;
+    ctx.drawImage(imgs.wcBadge, W - pad - bw, 44, bw, bh);
+    ctx.textAlign = 'right';
+    ctx.font = `700 20px ${FONT}`;
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillText('FIFA WORLD CUP', W - pad - bw - 16, 86);
+  }
 
   // "WINNER OF THE DAY" pill (cyan outline)
   ctx.textAlign = 'center';
@@ -189,9 +212,13 @@ function drawCard(ctx: CanvasRenderingContext2D, d: WinnerCardData, imgs: CardIm
   });
   ctx.textAlign = 'center';
 
-  // Handle (auto-shrink)
+  // Handle (auto-shrink), with a soft shadow so it reads over the photo
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.55)';
+  ctx.shadowBlur = 22;
   ctx.fillStyle = '#ffffff';
   fitText(ctx, publicName(d), cx, 332, maxW, 92, 900);
+  ctx.restore();
 
   // "just won $50 predicting the exact score"
   const prize = `$${d.prize}`;
@@ -340,9 +367,11 @@ export function WinnerShareCard({ data, onClose }: { data: WinnerCardData; onClo
     ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
 
     let cancelled = false;
-    Promise.all([loadImage(LOGO_SRC), loadImage(crests.home), loadImage(crests.away)]).then(([logo, home, away]) => {
+    Promise.all([
+      loadImage(BG_SRC), loadImage(LOGO_SRC), loadImage(WC_BADGE_SRC), loadImage(crests.home), loadImage(crests.away),
+    ]).then(([bg, logo, wcBadge, home, away]) => {
       if (cancelled || !canvasRef.current) return;
-      const paint = () => !cancelled && drawCard(ctx, data, { logo, home, away });
+      const paint = () => !cancelled && drawCard(ctx, data, { bg, logo, wcBadge, home, away });
       paint();
       const fonts = (document as Document & { fonts?: FontFaceSet }).fonts;
       if (fonts?.ready) fonts.ready.then(paint).catch(() => {});
