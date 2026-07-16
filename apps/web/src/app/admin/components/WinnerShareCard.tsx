@@ -201,7 +201,7 @@ function drawCard(ctx: CanvasRenderingContext2D, d: WinnerCardData, imgs: CardIm
 
   // "WINNER OF THE DAY" pill (cyan outline)
   ctx.textAlign = 'center';
-  ctx.font = `800 26px ${FONT}`;
+  ctx.font = `700 26px ${FONT}`;
   const eyebrow = 'WINNER OF THE DAY';
   const lsp = 6;
   const chars = eyebrow.split('');
@@ -231,30 +231,30 @@ function drawCard(ctx: CanvasRenderingContext2D, d: WinnerCardData, imgs: CardIm
   ctx.shadowColor = 'rgba(0,0,0,0.55)';
   ctx.shadowBlur = 22;
   ctx.fillStyle = '#ffffff';
-  fitText(ctx, publicName(d), cx, 332, maxW, 92, 900);
+  fitText(ctx, publicName(d), cx, 332, maxW, 90, 700);
   ctx.restore();
 
   // "just won $50 predicting the exact score"
   const prize = `$${d.prize}`;
   const wonPart = 'just won ';
   const tailPart = ' predicting the exact score';
-  ctx.font = `700 40px ${FONT}`;
+  ctx.font = `600 40px ${FONT}`;
   const wWon = ctx.measureText(wonPart).width;
-  ctx.font = `900 40px ${FONT}`;
+  ctx.font = `800 40px ${FONT}`;
   const wPrize = ctx.measureText(prize).width;
-  ctx.font = `700 40px ${FONT}`;
+  ctx.font = `600 40px ${FONT}`;
   const wTail = ctx.measureText(tailPart).width;
   let sx = cx - (wWon + wPrize + wTail) / 2;
   ctx.textAlign = 'left';
-  ctx.font = `700 40px ${FONT}`;
+  ctx.font = `600 40px ${FONT}`;
   ctx.fillStyle = 'rgba(255,255,255,0.82)';
   ctx.fillText(wonPart, sx, 396);
   sx += wWon;
-  ctx.font = `900 40px ${FONT}`;
+  ctx.font = `800 40px ${FONT}`;
   ctx.fillStyle = CYAN;
   ctx.fillText(prize, sx, 396);
   sx += wPrize;
-  ctx.font = `700 40px ${FONT}`;
+  ctx.font = `600 40px ${FONT}`;
   ctx.fillStyle = 'rgba(255,255,255,0.82)';
   ctx.fillText(tailPart, sx, 396);
   ctx.textAlign = 'center';
@@ -270,7 +270,7 @@ function drawCard(ctx: CanvasRenderingContext2D, d: WinnerCardData, imgs: CardIm
     ctx.font = `700 ${teamFs}px ${FONT}`;
     const hW = ctx.measureText(d.homeTeam).width;
     const aW = ctx.measureText(d.awayTeam).width;
-    ctx.font = `900 ${scoreFs}px ${FONT}`;
+    ctx.font = `800 ${scoreFs}px ${FONT}`;
     const sW = ctx.measureText(scoreStr).width;
     return { hW, aW, sW, total: crest + g1 + hW + g2 + sW + g2 + aW + g1 + crest };
   };
@@ -304,7 +304,7 @@ function drawCard(ctx: CanvasRenderingContext2D, d: WinnerCardData, imgs: CardIm
   ctx.fillText(d.homeTeam, x, midY);
   x += mb.hW + g2;
 
-  ctx.font = `900 ${scoreFs}px ${FONT}`;
+  ctx.font = `800 ${scoreFs}px ${FONT}`;
   const hs = String(d.homeScore);
   const dash = '  –  ';
   const as = String(d.awayScore);
