@@ -156,6 +156,7 @@ export function WorldCupAdmin() {
     setCardData({
       matchId: detail.match.matchId,
       handle: p.xHandle,
+      email: p.email,
       displayName: p.displayName,
       homeTeam: detail.match.homeTeam,
       awayTeam: detail.match.awayTeam,

@@ -21,7 +21,9 @@ export interface WinnerCardData {
   matchId: string;
   /** X handle without the @ (preferred), else null. */
   handle: string | null;
-  /** Fallback public name when there is no X handle. Never pass the email here. */
+  /** Winner email — shown MASKED (al***@gmail.com) only when there is no X handle. */
+  email: string | null;
+  /** Fallback public name when there is neither handle nor email. */
   displayName: string | null;
   homeTeam: string;
   awayTeam: string;
@@ -56,9 +58,21 @@ const W = 1200;
 const H = 675;
 const SCALE = 2;
 
-/** Public display name for the card: @handle, else the name, else a generic label. Never an email. */
+/** Mask an email for public display: alejandro.f@gmail.com -> al***@gmail.com. Null if not an email. */
+function maskEmail(email: string): string | null {
+  const at = email.indexOf('@');
+  if (at < 1) return null;
+  const local = email.slice(0, at);
+  const domain = email.slice(at + 1);
+  if (!domain.includes('.')) return null;
+  return `${local.slice(0, Math.min(2, local.length))}***@${domain}`;
+}
+
+/** Public identity for the card: @handle, else a masked email, else the name, else a generic label. */
 function publicName(d: WinnerCardData): string {
   if (d.handle) return `@${d.handle}`;
+  const masked = d.email ? maskEmail(d.email) : null;
+  if (masked) return masked;
   if (d.displayName && !d.displayName.includes('@')) return d.displayName;
   return 'A UpDown player';
 }
@@ -428,7 +442,7 @@ export function WinnerShareCard({ data, onClose }: { data: WinnerCardData; onClo
           <Box component="button" onClick={copyTweet} sx={btn(false)}><ContentCopy sx={{ fontSize: 16 }} /> Copy tweet text</Box>
         </Box>
         <Typography sx={{ mt: 1.5, fontSize: '0.72rem', color: t.text.tertiary }}>
-          1200×675 (16:9) — the size X uses for link/photo cards. Email addresses are never shown.
+          1200×675 (16:9) — the size X uses for link/photo cards. Emails are shown masked (al***@…), never in full.
         </Typography>
       </Box>
       <Snackbar open={!!toast} autoHideDuration={2000} onClose={() => setToast(null)} message={toast} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }} />
