@@ -2,11 +2,22 @@
 
 import { useState, useEffect } from 'react';
 import { Box, Typography } from '@mui/material';
-import { Download, Search } from '@mui/icons-material';
+import { Download, Search, EmojiEvents } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { adminFetch } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
 import { SectionCard, LoadingState, EmptyState } from '../ui';
+import { WinnerShareCard, type WinnerCardData } from './WinnerShareCard';
+
+/** Prize paid per raffle winner (promo is "$100 to 2 people"). */
+const WC_PRIZE_PER_WINNER = 50;
+
+interface WinnerRow {
+  matchId: string; contestUserId: string;
+  homeTeam: string; awayTeam: string; round: string | null; kickoff: string | null;
+  homeScore: number; awayScore: number;
+  handle: string | null; email: string | null; displayName: string | null; paid: boolean;
+}
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
 
@@ -111,6 +122,56 @@ function CategoryBadge({ c }: { c: Category }) {
   );
 }
 
+/** Winners list -> open the shareable card (PNG + tweet text). Uses the marketing crest endpoint. */
+function WorldCupWinnersSection() {
+  const [card, setCard] = useState<WinnerCardData | null>(null);
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin-marketing-wc-winners'],
+    queryFn: () => adminFetch<{ data: WinnerRow[] }>('/marketing/worldcup-winners'),
+  });
+  const winners = data?.data ?? [];
+  const identity = (w: WinnerRow) => (w.handle ? `@${w.handle}` : w.email ?? w.displayName ?? '—');
+
+  return (
+    <SectionCard title="World Cup winners">
+      <Typography sx={{ fontSize: '0.78rem', color: t.text.secondary, mb: 2 }}>
+        Download a ready-to-post winner card (PNG) and copy the tweet text for each raffle winner. Emails are shown masked on the card.
+      </Typography>
+      {isLoading ? (
+        <LoadingState variant="block" />
+      ) : winners.length === 0 ? (
+        <EmptyState title="No winners drawn yet" />
+      ) : (
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 1.5 }}>
+          {winners.map((w) => (
+            <Box key={`${w.matchId}-${w.contestUserId}`} sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, p: 1.5, borderRadius: 1.5, bgcolor: t.bg.surfaceAlt, border: `1px solid ${t.border.subtle}` }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{identity(w)}</Typography>
+                <Box component="span" sx={{ flexShrink: 0, px: 0.7, py: 0.15, borderRadius: '4px', fontSize: '0.6rem', fontWeight: 800, bgcolor: w.paid ? `${t.success}22` : t.hover.light, color: w.paid ? t.success : t.text.tertiary }}>
+                  {w.paid ? 'PAID' : 'UNPAID'}
+                </Box>
+              </Box>
+              <Typography sx={{ fontSize: '0.78rem', color: t.text.secondary }}>
+                {w.homeTeam} {w.homeScore}-{w.awayScore} {w.awayTeam}
+              </Typography>
+              <Typography sx={{ fontSize: '0.68rem', color: t.text.tertiary }}>{w.round ?? '—'}</Typography>
+              <Box component="button" onClick={() => setCard({
+                matchId: w.matchId, handle: w.handle, email: w.email, displayName: w.displayName,
+                homeTeam: w.homeTeam, awayTeam: w.awayTeam, round: w.round, kickoff: w.kickoff,
+                homeScore: w.homeScore, awayScore: w.awayScore, prize: WC_PRIZE_PER_WINNER,
+              })}
+                sx={{ mt: 0.5, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, px: 1, py: 0.6, borderRadius: 1, cursor: 'pointer', border: `1px solid ${t.border.medium}`, bgcolor: 'transparent', color: t.text.primary, fontSize: '0.72rem', fontWeight: 700, '&:hover': { borderColor: t.text.tertiary } }}>
+                <EmojiEvents sx={{ fontSize: 14 }} /> Winner card
+              </Box>
+            </Box>
+          ))}
+        </Box>
+      )}
+      {card && <WinnerShareCard data={card} assetsPath={`/marketing/worldcup-card-assets/${card.matchId}`} onClose={() => setCard(null)} />}
+    </SectionCard>
+  );
+}
+
 export function MarketingAssets() {
   const [type, setType] = useState('');
   const [search, setSearch] = useState('');
@@ -134,6 +195,8 @@ export function MarketingAssets() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+    <WorldCupWinnersSection />
+
     <SectionCard title="Competition logos">
       <Typography sx={{ fontSize: '0.78rem', color: t.text.secondary, mb: 2 }}>
         League & competition badges (Champions League, World Cup, Premier League…). Click a logo to download it.

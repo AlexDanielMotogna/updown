@@ -226,3 +226,42 @@ export async function getWorldCupWinnerCardAssets(matchId: string) {
   const [homeCrest, awayCrest] = await Promise.all([crestToDataUri(m.homeCrest), crestToDataUri(m.awayCrest)]);
   return { homeCrest, awayCrest };
 }
+
+/**
+ * Every raffled winner of a graded match, with the fields the shareable card needs
+ * (team + score + identity). Powers the marketing tab's "download a winner card" list.
+ */
+export async function getWorldCupWinnerCards() {
+  const matches = await getWorldCupMatches();
+  const byId = new Map(matches.map((m) => [m.matchId, m]));
+  const winners = await prisma.worldCupWinner.findMany({ orderBy: { createdAt: 'desc' } });
+  if (winners.length === 0) return [];
+  const matchIds = [...new Set(winners.map((w) => w.matchId))];
+  const userIds = [...new Set(winners.map((w) => w.contestUserId))];
+  const [results, users] = await Promise.all([
+    prisma.worldCupResult.findMany({ where: { matchId: { in: matchIds } } }),
+    prisma.contestUser.findMany({ where: { id: { in: userIds } } }),
+  ]);
+  const resultBy = new Map(results.map((r) => [r.matchId, r]));
+  const userBy = new Map(users.map((u) => [u.id, u]));
+  return winners.flatMap((w) => {
+    const m = byId.get(w.matchId);
+    const r = resultBy.get(w.matchId);
+    const u = userBy.get(w.contestUserId);
+    if (!m || !r || !u) return []; // only winners of a graded match can be carded
+    return [{
+      matchId: w.matchId,
+      contestUserId: w.contestUserId,
+      homeTeam: m.homeTeam,
+      awayTeam: m.awayTeam,
+      round: m.round,
+      kickoff: m.kickoff,
+      homeScore: r.homeScore,
+      awayScore: r.awayScore,
+      handle: u.xHandle,
+      email: u.email,
+      displayName: u.displayName,
+      paid: w.paidTx != null,
+    }];
+  });
+}

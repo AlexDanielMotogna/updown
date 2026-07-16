@@ -347,7 +347,17 @@ function drawCard(ctx: CanvasRenderingContext2D, d: WinnerCardData, imgs: CardIm
   ctx.textAlign = 'center';
 }
 
-export function WinnerShareCard({ data, onClose }: { data: WinnerCardData; onClose: () => void }) {
+export function WinnerShareCard({
+  data,
+  onClose,
+  assetsPath,
+}: {
+  data: WinnerCardData;
+  onClose: () => void;
+  /** Admin API path for the team crests. Defaults to the back-office route; the marketing
+   * tab passes its own (the marketing role can't reach /worldcup). */
+  assetsPath?: string;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [crests, setCrests] = useState<{ home: string | null; away: string | null }>({ home: null, away: null });
@@ -363,13 +373,14 @@ export function WinnerShareCard({ data, onClose }: { data: WinnerCardData; onClo
   }, [data]);
 
   // Fetch team crests as same-origin data URIs (SDB's CDN has no CORS, which would taint the canvas).
+  const crestPath = assetsPath ?? `/worldcup/match/${data.matchId}/card-assets`;
   useEffect(() => {
     let live = true;
-    adminFetch<{ data: { homeCrest: string | null; awayCrest: string | null } }>(`/worldcup/match/${data.matchId}/card-assets`)
+    adminFetch<{ data: { homeCrest: string | null; awayCrest: string | null } }>(crestPath)
       .then((r) => { if (live) setCrests({ home: r.data.homeCrest, away: r.data.awayCrest }); })
       .catch(() => {});
     return () => { live = false; };
-  }, [data.matchId]);
+  }, [crestPath]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

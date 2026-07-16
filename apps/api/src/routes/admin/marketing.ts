@@ -1,8 +1,29 @@
 import { Router, type Router as RouterType } from 'express';
 import { getMarketingAssets, getMarketingCategories } from '../../services/marketing-assets';
+import { getWorldCupWinnerCards, getWorldCupWinnerCardAssets } from '../../services/worldcup-admin';
 
 /** Admin: marketing asset browser (pool topics + downloadable images). */
 export const adminMarketingRouter: RouterType = Router();
+
+/** GET /api/admin/marketing/worldcup-winners — raffled winners with the fields the share card needs. */
+adminMarketingRouter.get('/worldcup-winners', async (_req, res) => {
+  try {
+    res.json({ success: true, data: await getWorldCupWinnerCards() });
+  } catch (error) {
+    console.error('[Admin Marketing] worldcup-winners error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load winners' } });
+  }
+});
+
+/** GET /api/admin/marketing/worldcup-card-assets/:matchId — team crests as same-origin data URIs. */
+adminMarketingRouter.get('/worldcup-card-assets/:matchId', async (req, res) => {
+  try {
+    res.json({ success: true, data: await getWorldCupWinnerCardAssets(req.params.matchId) });
+  } catch (error) {
+    console.error('[Admin Marketing] worldcup-card-assets error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load card assets' } });
+  }
+});
 
 /** GET /api/admin/marketing/pools?type=&q=&category=&limit=&offset= */
 adminMarketingRouter.get('/pools', async (req, res) => {
