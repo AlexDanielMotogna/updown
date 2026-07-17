@@ -124,6 +124,15 @@ export function PayoutManagement() {
     onSettled: () => setRetryingBetId(null),
   });
 
+  const retryAllMut = useMutation({
+    mutationFn: () => adminPost('/payouts/retry-all'),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-payout-failed'] });
+      qc.invalidateQueries({ queryKey: ['admin-payout-stats'] });
+      qc.invalidateQueries({ queryKey: ['admin-payout-queue'] });
+    },
+  });
+
   const previewMut = useMutation({
     mutationFn: (days: number) =>
       adminFetch<{ data: MigrationPreview }>(`/payouts/migration/preview?withinDays=${days}`),
@@ -214,6 +223,21 @@ export function PayoutManagement() {
             Failed payouts
             {failed.length > 0 && <StatusChip status="error" label={String(failed.length)} />}
           </Box>
+        }
+        actions={
+          (stats?.failedOutstanding ?? failed.length) > 0 ? (
+            <ActionButton
+              kind="secondary"
+              label="Retry all"
+              icon={<ReplayIcon sx={{ fontSize: 14 }} />}
+              loading={retryAllMut.isPending}
+              onClick={() => {
+                const n = stats?.failedOutstanding ?? failed.length;
+                if (!window.confirm(`Reset and retry all ${n} failed payout(s)? This clears their failed flag and re-runs auto-claim for every affected pool.`)) return;
+                void feedback.run(retryAllMut, undefined, { success: 'Retry queued for all failed payouts' });
+              }}
+            />
+          ) : undefined
         }
       >
         {failedLoading ? (

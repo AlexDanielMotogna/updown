@@ -184,6 +184,56 @@ adminPayoutsRouter.post('/:betId/retry', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// POST /admin/payouts/retry-all
+// Clears the failed flag on EVERY outstanding failed winning bet, then kicks off
+// auto-claim for each affected pool in the background (sequential, to avoid an RPC
+// storm). Fire-and-forget: the request returns immediately with the counts, and
+// the scheduler's retry sweep drains anything the background pass doesn't reach.
+// ---------------------------------------------------------------------------
+adminPayoutsRouter.post('/retry-all', async (_req, res) => {
+  try {
+    const reset = await prisma.bet.updateMany({
+      where: { claimed: false, payoutFailed: true },
+      data: { payoutFailed: false },
+    });
+
+    const pools = await prisma.pool.findMany({
+      where: {
+        status: 'CLAIMABLE',
+        winner: { not: null },
+        bets: { some: { claimed: false, payoutFailed: false } },
+      },
+      select: { id: true, asset: true, poolType: true, winner: true, homeTeam: true, awayTeam: true },
+    });
+
+    await prisma.eventLog.create({
+      data: {
+        eventType: 'ADMIN_PAYOUT_RETRY_ALL',
+        entityType: 'system',
+        entityId: 'retry-all',
+        payload: {
+          reset: reset.count.toString(),
+          pools: pools.length.toString(),
+        } satisfies Prisma.InputJsonValue,
+      },
+    });
+
+    const deps = buildResolverDeps();
+    void (async () => {
+      for (const pool of pools) {
+        await autoClaimBets(deps, pool).catch(err => console.error('[Admin] retry-all autoClaimBets crashed:', err));
+      }
+      console.log(`[Admin] retry-all done: ${pools.length} pool(s) processed`);
+    })();
+
+    res.json({ success: true, data: { reset: reset.count, pools: pools.length } });
+  } catch (error) {
+    console.error('[Admin] payouts/retry-all error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL', message: 'Failed to retry all payouts' } });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // GET /admin/payouts/migration/preview
 // Dry-run: counts the bets that the migration job would process. Optionally
 // scopes by `withinDays` query param (defaults to 30 days, matching the
