@@ -14,7 +14,7 @@
  */
 
 import { PublicKey, Transaction } from '@solana/web3.js';
-import { getAssociatedTokenAddress, getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
+import { getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
 import {
   getPoolPDA,
   getVaultPDA,
@@ -72,7 +72,18 @@ export async function claimBetOnChain(
     user,
   )).address;
 
-  const feeWallet = await getAssociatedTokenAddress(getUsdcMint(), deps.wallet.publicKey);
+  // Ensure the fee-wallet USDC ATA (authority's own) exists too. The claim ix
+  // sends the platform fee here and the program requires it to be already
+  // initialized (AccountNotInitialized/0xbc4 otherwise). On a fresh environment
+  // this ATA may never have been created, which is exactly what breaks the very
+  // first claim — create it once (authority pays the rent) and every later claim
+  // reuses it.
+  const feeWallet = (await getOrCreateAssociatedTokenAccount(
+    connection,
+    deps.wallet,
+    getUsdcMint(),
+    deps.wallet.publicKey,
+  )).address;
 
   const ix = buildClaimIx(
     poolPda,
