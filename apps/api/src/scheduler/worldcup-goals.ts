@@ -10,17 +10,23 @@
 
 import { prisma } from '../db';
 import { getWorldCupMatches, getWorldCupTimeline, type WorldCupGoal } from '../services/worldcup';
-import { notifyWorldCupGoal } from '../services/worldcup-telegram';
+import { notifyWorldCupGoal, notifyWorldCupLiveScore } from '../services/worldcup-telegram';
 
 const POLL_MS = 60_000;
+const LIVE_DIGEST_MS = 5 * 60_000;
 let running = false;
+let digestRunning = false;
+
+function credsSet(): boolean {
+  return !!process.env.WORLDCUP_TG_BOT_TOKEN?.trim() && !!process.env.WORLDCUP_TG_CHAT_ID?.trim();
+}
 
 function goalsFeedEnabled(): boolean {
-  return (
-    !!process.env.WORLDCUP_TG_BOT_TOKEN?.trim() &&
-    !!process.env.WORLDCUP_TG_CHAT_ID?.trim() &&
-    (process.env.WORLDCUP_TG_GOALS ?? '').toLowerCase() === 'true'
-  );
+  return credsSet() && (process.env.WORLDCUP_TG_GOALS ?? '').toLowerCase() === 'true';
+}
+
+function liveDigestEnabled(): boolean {
+  return credsSet() && (process.env.WORLDCUP_TG_LIVE ?? '').toLowerCase() === 'true';
 }
 
 function goalKey(g: WorldCupGoal): string {
@@ -68,7 +74,28 @@ export async function pollWorldCupGoalsOnce(): Promise<void> {
   }
 }
 
+/** Recurring live-score digest for each LIVE match (every 5 min). Independent of the goals feed. */
+export async function pollWorldCupLiveDigestOnce(): Promise<void> {
+  if (!liveDigestEnabled() || digestRunning) return;
+  digestRunning = true;
+  try {
+    const live = (await getWorldCupMatches()).filter((m) => m.status === 'LIVE');
+    for (const m of live) {
+      const goals = await getWorldCupTimeline(m.matchId).catch(() => [] as WorldCupGoal[]);
+      await notifyWorldCupLiveScore(
+        { homeTeam: m.homeTeam, awayTeam: m.awayTeam, homeScore: m.homeScore ?? 0, awayScore: m.awayScore ?? 0, progress: m.progress },
+        goals,
+      );
+    }
+  } catch (e) {
+    console.warn('[WorldCupGoals] live digest failed:', e instanceof Error ? e.message : e);
+  } finally {
+    digestRunning = false;
+  }
+}
+
 export function startWorldCupGoalsFeed(): void {
   setInterval(() => { void pollWorldCupGoalsOnce(); }, POLL_MS);
-  console.log('[WorldCupGoals] feed poller registered (enable with WORLDCUP_TG_GOALS=true)');
+  setInterval(() => { void pollWorldCupLiveDigestOnce(); }, LIVE_DIGEST_MS);
+  console.log('[WorldCupGoals] feeds registered (goals: WORLDCUP_TG_GOALS=true · live digest: WORLDCUP_TG_LIVE=true)');
 }

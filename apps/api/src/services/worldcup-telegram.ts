@@ -119,3 +119,26 @@ export async function notifyWorldCupGoal(
     `${escapeHtml(match.homeTeam)} <b>${score.home}-${score.away}</b> ${escapeHtml(match.awayTeam)}`;
   await tgSend(creds, text);
 }
+
+/** Recurring live-score digest: current minute + score + scorers grouped by team. */
+export async function notifyWorldCupLiveScore(
+  match: { homeTeam: string; awayTeam: string; homeScore: number; awayScore: number; progress: string | null },
+  goals: TgGoal[],
+): Promise<void> {
+  const creds = tgCreds();
+  if (!creds) return;
+  const line = (g: TgGoal) =>
+    `${g.minute != null ? `${g.minute}' ` : ''}${escapeHtml(g.player)}${g.kind === 'PENALTY' ? ' (pen)' : g.kind === 'OWN_GOAL' ? ' (OG)' : ''}`;
+  const group = (side: 'home' | 'away') =>
+    goals.filter((g) => g.side === side).sort((a, b) => (a.minute ?? 999) - (b.minute ?? 999)).map(line).join(', ');
+  const homeScorers = group('home');
+  const awayScorers = group('away');
+  let body = '';
+  if (homeScorers) body += `\n⚽ ${escapeHtml(match.homeTeam)}: ${homeScorers}`;
+  if (awayScorers) body += `\n⚽ ${escapeHtml(match.awayTeam)}: ${awayScorers}`;
+  const text =
+    `<b>LIVE${match.progress ? ` ${escapeHtml(match.progress)}'` : ''}</b>\n` +
+    `${escapeHtml(match.homeTeam)} <b>${match.homeScore}-${match.awayScore}</b> ${escapeHtml(match.awayTeam)}${body}\n` +
+    `🔮 <a href="https://updown.my/worldcup">updown.my/worldcup</a>`;
+  await tgSend(creds, text);
+}
