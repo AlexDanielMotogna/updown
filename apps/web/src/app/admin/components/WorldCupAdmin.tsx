@@ -39,7 +39,7 @@ interface Detail {
 }
 interface Winner { provider: string | null; xHandle: string | null; email: string | null; displayName: string | null }
 interface LlmResult { homeScore: number | null; awayScore: number | null; phase: Phase | null; homePens: number | null; awayPens: number | null; confident: boolean; note?: string }
-interface ContestUserRow { provider: string | null; xHandle: string | null; email: string | null; displayName: string | null; createdAt: string; predictionCount: number }
+interface ContestUserRow { id: string; provider: string | null; xHandle: string | null; email: string | null; displayName: string | null; signupIp: string | null; banned: boolean; suspicionReasons: string[]; createdAt: string; predictionCount: number }
 
 const contact = (p: { xHandle: string | null; email: string | null; displayName: string | null }) =>
   p.xHandle ? `@${p.xHandle}` : p.email ?? p.displayName ?? '—';
@@ -74,6 +74,17 @@ export function WorldCupAdmin() {
   const [winners, setWinners] = useState<Winner[] | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [cardData, setCardData] = useState<WinnerCardData | null>(null);
+  const [banBusy, setBanBusy] = useState<string | null>(null);
+
+  const toggleBan = async (u: ContestUserRow) => {
+    if (banBusy) return;
+    if (!u.banned && !window.confirm(`Ban ${u.xHandle ? '@' + u.xHandle : u.email ?? 'this account'}? They will be excluded from the raffle.`)) return;
+    setBanBusy(u.id);
+    try {
+      await adminFetch(`/worldcup/contest-user/${u.id}/ban`, { method: 'POST', body: JSON.stringify({ banned: !u.banned }) });
+      await usersQ.refetch();
+    } catch (e) { window.alert((e as Error).message); } finally { setBanBusy(null); }
+  };
 
   // The detail panel renders below the (long) matches table, so scroll it into view on Manage.
   const detailRef = useRef<HTMLDivElement>(null);
@@ -191,7 +202,7 @@ export function WorldCupAdmin() {
         <StatCard label="Winners drawn" value={matches.reduce((s, m) => s + m.winnerCount, 0)} color={t.gold} />
       </Box>
 
-      <SectionCard title={`Contest users (${contestUserRows.length})`}>
+      <SectionCard title={`Contest users (${contestUserRows.length})${contestUserRows.filter((u) => u.suspicionReasons.length > 0 && !u.banned).length ? ` · ${contestUserRows.filter((u) => u.suspicionReasons.length > 0 && !u.banned).length} flagged` : ''}${contestUserRows.filter((u) => u.banned).length ? ` · ${contestUserRows.filter((u) => u.banned).length} banned` : ''}`}>
         {contestUserRows.length > 0 && (
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1.5 }}>
             <Box component="button" onClick={exportCsv} sx={btnSx(false)}>Export CSV</Box>
@@ -210,18 +221,41 @@ export function WorldCupAdmin() {
                   <TableCell><Label>Provider</Label></TableCell>
                   <TableCell><Label>Joined</Label></TableCell>
                   <TableCell align="right"><Label>Picks</Label></TableCell>
+                  <TableCell><Label>Flags</Label></TableCell>
+                  <TableCell align="right"><Label>Action</Label></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {contestUserRows.map((u, i) => (
-                  <TableRow key={i}>
+                {contestUserRows.map((u) => (
+                  <TableRow key={u.id} sx={{ opacity: u.banned ? 0.55 : 1, bgcolor: u.suspicionReasons.length && !u.banned ? `${t.warning}0a` : 'transparent' }}>
                     <TableCell sx={{ color: t.text.primary }}>
                       {u.xHandle ? `@${u.xHandle}` : u.email ?? u.displayName ?? '—'}
                       {u.xHandle && u.email ? <Box component="span" sx={{ color: t.text.tertiary, fontSize: '0.72rem' }}> · {u.email}</Box> : null}
+                      {u.banned && <Box component="span" sx={{ ml: 0.75, px: 0.6, py: 0.15, borderRadius: '4px', fontSize: '0.6rem', fontWeight: 800, bgcolor: `${t.error}22`, color: t.error }}>BANNED</Box>}
                     </TableCell>
                     <TableCell sx={{ color: t.text.secondary }}>{u.provider ?? '—'}</TableCell>
                     <TableCell sx={{ color: t.text.secondary, whiteSpace: 'nowrap' }}>{new Date(u.createdAt).toLocaleString()}</TableCell>
                     <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{u.predictionCount}</TableCell>
+                    <TableCell>
+                      {u.suspicionReasons.length === 0 ? (
+                        <Box component="span" sx={{ color: t.text.tertiary }}>—</Box>
+                      ) : (
+                        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                          {u.suspicionReasons.map((r) => (
+                            <Box key={r} component="span" title={r === 'email-cluster' ? 'Shares an email name-root with other accounts' : r === 'shared-ip' ? `Shares signup IP ${u.signupIp ?? ''} with other accounts` : r}
+                              sx={{ px: 0.6, py: 0.15, borderRadius: '4px', fontSize: '0.6rem', fontWeight: 700, bgcolor: `${t.warning}22`, color: t.warning, whiteSpace: 'nowrap' }}>
+                              {r}
+                            </Box>
+                          ))}
+                        </Box>
+                      )}
+                    </TableCell>
+                    <TableCell align="right">
+                      <Box component="button" disabled={banBusy === u.id} onClick={() => toggleBan(u)}
+                        sx={{ px: 1, py: 0.3, borderRadius: 0.75, fontSize: '0.68rem', fontWeight: 700, cursor: banBusy ? 'default' : 'pointer', whiteSpace: 'nowrap', bgcolor: 'transparent', border: `1px solid ${u.banned ? t.border.medium : `${t.error}55`}`, color: u.banned ? t.text.secondary : t.error, opacity: banBusy === u.id ? 0.5 : 1, '&:hover': { bgcolor: u.banned ? t.bg.surfaceAlt : `${t.error}14` } }}>
+                        {u.banned ? 'Unban' : 'Ban'}
+                      </Box>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -56,20 +56,62 @@ export async function getWorldCupAdminOverview() {
   return { matches: items, contestUsers };
 }
 
-/** All World Cup contest signups (X/Google/email) with when they joined and how many picks. */
+/** First 7 alpha chars of an email local-part — used to spot same-person farm clusters. */
+function emailRoot(email: string | null): string | null {
+  if (!email) return null;
+  const key = email.split('@')[0].toLowerCase().replace(/[^a-z]/g, '').slice(0, 7);
+  return key.length >= 4 ? key : null;
+}
+
+/**
+ * All World Cup contest signups with join date + pick count, PLUS anti-farm signals
+ * (shared email-root, shared signup IP) so an admin can eyeball and manually ban.
+ * Signals are advisory only — nothing is banned automatically.
+ */
 export async function getWorldCupContestUsers() {
   const users = await prisma.contestUser.findMany({
     orderBy: { createdAt: 'desc' },
     include: { _count: { select: { predictions: true } } },
   });
-  return users.map((u) => ({
-    provider: u.provider,
-    xHandle: u.xHandle,
-    email: u.email,
-    displayName: u.displayName,
-    createdAt: u.createdAt.toISOString(),
-    predictionCount: u._count.predictions,
-  }));
+
+  // Count how many accounts share each email-root and each IP.
+  const rootCounts = new Map<string, number>();
+  const ipCounts = new Map<string, number>();
+  for (const u of users) {
+    const r = emailRoot(u.email);
+    if (r) rootCounts.set(r, (rootCounts.get(r) ?? 0) + 1);
+    if (u.signupIp) ipCounts.set(u.signupIp, (ipCounts.get(u.signupIp) ?? 0) + 1);
+  }
+
+  return users.map((u) => {
+    const r = emailRoot(u.email);
+    const reasons: string[] = [];
+    if (r && (rootCounts.get(r) ?? 0) >= 2) reasons.push('email-cluster');
+    if (u.signupIp && (ipCounts.get(u.signupIp) ?? 0) >= 2) reasons.push('shared-ip');
+    return {
+      id: u.id,
+      provider: u.provider,
+      xHandle: u.xHandle,
+      email: u.email,
+      displayName: u.displayName,
+      signupIp: u.signupIp,
+      banned: u.banned,
+      suspicionReasons: reasons,
+      createdAt: u.createdAt.toISOString(),
+      predictionCount: u._count.predictions,
+    };
+  });
+}
+
+/** Ban (or unban) a contest user. Banned users are excluded from the raffle. Manual only. */
+export async function setContestUserBanned(id: string, banned: boolean): Promise<{ ok: boolean }> {
+  const existing = await prisma.contestUser.findUnique({ where: { id }, select: { id: true } });
+  if (!existing) return { ok: false };
+  await prisma.contestUser.update({
+    where: { id },
+    data: { banned, bannedAt: banned ? new Date() : null },
+  });
+  return { ok: true };
 }
 
 export async function getWorldCupMatchDetail(matchId: string) {
@@ -168,7 +210,10 @@ export async function runWorldCupRaffle(matchId: string): Promise<{ ok: true; wi
   if (!result) return { ok: false, reason: 'NO_RESULT' };
 
   const correct = await prisma.worldCupPrediction.findMany({
-    where: { matchId, homeScore: result.homeScore, awayScore: result.awayScore, phase: result.phase },
+    where: {
+      matchId, homeScore: result.homeScore, awayScore: result.awayScore, phase: result.phase,
+      user: { banned: false }, // banned (suspected farm) accounts don't enter the raffle
+    },
     include: { user: true },
   });
   if (correct.length === 0) return { ok: false, reason: 'NO_CORRECT' };

@@ -1066,6 +1066,10 @@ model ContestUser {
   // email login, so one person can farm many emails for extra raffle entries. We
   // cap how many participating accounts share an IP (WORLDCUP_MAX_ACCOUNTS_PER_IP).
   signupIp    String?  @map("signup_ip")
+  // Manual moderation: admin bans a suspected farm account; banned users are
+  // excluded from the raffle. Never auto-set — an admin decides.
+  banned      Boolean  @default(false)
+  bannedAt    DateTime? @map("banned_at")
   createdAt   DateTime @default(now()) @map("created_at")
 
   predictions WorldCupPrediction[]

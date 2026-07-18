@@ -9,6 +9,7 @@ import {
   askWorldCupResultLlm,
   setWorldCupWinnerPaid,
   getWorldCupWinnerCardAssets,
+  setContestUserBanned,
 } from '../../services/worldcup-admin';
 
 /** Admin: grade World Cup predictions + raffle winners. */
@@ -41,6 +42,26 @@ adminWorldCupRouter.get('/match/:matchId', async (req, res) => {
   } catch (error) {
     console.error('[Admin WorldCup] detail error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load match' } });
+  }
+});
+
+const banSchema = z.object({ banned: z.boolean() });
+
+/** POST /api/admin/worldcup/contest-user/:id/ban — manually ban/unban a suspected farm account (excludes from raffle). */
+adminWorldCupRouter.post('/contest-user/:id/ban', async (req, res) => {
+  try {
+    const parsed = banSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Body must include boolean "banned"' } });
+    }
+    const result = await setContestUserBanned(req.params.id, parsed.data.banned);
+    if (!result.ok) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Contest user not found' } });
+    }
+    res.json({ success: true, data: await getWorldCupContestUsers() });
+  } catch (error) {
+    console.error('[Admin WorldCup] ban error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to update ban status' } });
   }
 });
 
