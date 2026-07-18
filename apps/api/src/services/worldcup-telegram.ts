@@ -87,8 +87,9 @@ export async function notifyWorldCupPrediction(
   const who = escapeHtml(publicName(user));
   const round = match.round ? ` <i>(${escapeHtml(match.round)})</i>` : '';
   const text =
-    `🌍 <b>New World Cup prediction</b>\n` +
-    `${who}: <b>${escapeHtml(match.homeTeam)} ${pred.homeScore}-${pred.awayScore} ${escapeHtml(match.awayTeam)}</b>${round}`;
+    `<b>New World Cup prediction</b>\n` +
+    `${who}: <b>${escapeHtml(match.homeTeam)} ${pred.homeScore}-${pred.awayScore} ${escapeHtml(match.awayTeam)}</b>${round}\n` +
+    `🔮 Predict yours: <a href="https://updown.my/worldcup">updown.my/worldcup</a>`;
   await tgSend(cfg, text);
 }
 
