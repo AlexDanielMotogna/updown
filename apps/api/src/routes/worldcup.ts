@@ -4,6 +4,7 @@ import { PublicKey } from '@solana/web3.js';
 import { prisma } from '../db';
 import { getWorldCupMatches, getWorldCupTimeline } from '../services/worldcup';
 import { verifyPrivyDid, bearerToken } from '../services/worldcup-auth';
+import { notifyWorldCupPrediction } from '../services/worldcup-telegram';
 
 /** Public World Cup predictions endpoints (free-to-play). */
 export const worldcupRouter: RouterType = Router();
@@ -139,11 +140,28 @@ worldcupRouter.post('/predictions', async (req, res) => {
       return res.status(429).json({ success: false, error: { code: 'IP_LIMIT', message: 'Too many accounts from your network are already in the contest.' } });
     }
 
+    // Was this the user's FIRST prediction for this match? (only announce new ones,
+    // not edits, so changing a score doesn't re-spam the channel.)
+    const prior = await prisma.worldCupPrediction.findUnique({
+      where: { contestUserId_matchId: { contestUserId: userId, matchId } },
+      select: { contestUserId: true },
+    });
+    const isNew = !prior;
+
     await prisma.worldCupPrediction.upsert({
       where: { contestUserId_matchId: { contestUserId: userId, matchId } },
       update: { homeScore, awayScore, phase },
       create: { contestUserId: userId, matchId, homeScore, awayScore, phase },
     });
+
+    // Fire-and-forget Telegram feed post for new predictions (skips banned accounts).
+    if (isNew) {
+      prisma.contestUser
+        .findUnique({ where: { id: userId }, select: { xHandle: true, email: true, displayName: true, banned: true } })
+        .then((u) => u && notifyWorldCupPrediction(u, { homeTeam: match.homeTeam, awayTeam: match.awayTeam, round: match.round }, { homeScore, awayScore }))
+        .catch(() => { /* best-effort */ });
+    }
+
     res.json({ success: true, data: { matchId, homeScore, awayScore, phase } });
   } catch (error) {
     console.error('[WorldCup] post prediction error:', error);
