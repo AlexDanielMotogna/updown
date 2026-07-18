@@ -242,7 +242,7 @@ export function WorldCupAdmin() {
                       ) : (
                         <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                           {u.suspicionReasons.map((r) => (
-                            <Box key={r} component="span" title={r === 'email-cluster' ? 'Shares an email name-root with other accounts' : r === 'shared-ip' ? `Shares signup IP ${u.signupIp ?? ''} with other accounts` : r}
+                            <Box key={r} component="span" title={r === 'email-cluster' ? 'Shares an email name-root with other accounts' : r === 'shared-ip' ? `Shares signup IP ${u.signupIp ?? ''} with other accounts` : r === 'burst' ? 'Created in a sign-up burst (many accounts within minutes)' : r}
                               sx={{ px: 0.6, py: 0.15, borderRadius: '4px', fontSize: '0.6rem', fontWeight: 700, bgcolor: `${t.warning}22`, color: t.warning, whiteSpace: 'nowrap' }}>
                               {r}
                             </Box>

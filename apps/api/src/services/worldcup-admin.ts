@@ -83,11 +83,19 @@ export async function getWorldCupContestUsers() {
     if (u.signupIp) ipCounts.set(u.signupIp, (ipCounts.get(u.signupIp) ?? 0) + 1);
   }
 
+  // Burst: accounts created in a tight window alongside many others = a farm sign-up
+  // wave (catches throwaway emails that don't cluster by name). Tunable via env.
+  const burstWindowMs = Math.max(1, Number(process.env.WORLDCUP_BURST_WINDOW_MIN ?? 10)) * 60_000;
+  const burstMinNeighbors = Math.max(1, Number(process.env.WORLDCUP_BURST_MIN ?? 4));
+  const times = users.map((u) => u.createdAt.getTime());
+  const burstNeighbors = (t: number) => times.reduce((c, x) => c + (Math.abs(x - t) <= burstWindowMs ? 1 : 0), 0) - 1;
+
   return users.map((u) => {
     const r = emailRoot(u.email);
     const reasons: string[] = [];
     if (r && (rootCounts.get(r) ?? 0) >= 2) reasons.push('email-cluster');
     if (u.signupIp && (ipCounts.get(u.signupIp) ?? 0) >= 2) reasons.push('shared-ip');
+    if (burstNeighbors(u.createdAt.getTime()) >= burstMinNeighbors) reasons.push('burst');
     return {
       id: u.id,
       provider: u.provider,
