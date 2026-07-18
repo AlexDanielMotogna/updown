@@ -28,15 +28,38 @@ function tgConfig(): { token: string; chatId: string } | null {
 }
 
 async function tgSend(creds: { token: string; chatId: string }, text: string): Promise<void> {
+  await tgSendReturningId(creds, text);
+}
+
+/** Send and return the message_id (needed to edit the message later), or null on failure. */
+async function tgSendReturningId(creds: { token: string; chatId: string }, text: string): Promise<number | null> {
   try {
     const resp = await fetch(`${TG_API}/bot${creds.token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: creds.chatId, text, parse_mode: 'HTML', disable_web_page_preview: true }),
     });
-    if (!resp.ok) console.warn('[WorldCupTG] sendMessage HTTP', resp.status, (await resp.text()).slice(0, 200));
+    const j = (await resp.json().catch(() => null)) as { ok?: boolean; result?: { message_id?: number }; description?: string } | null;
+    if (!j?.ok) {
+      console.warn('[WorldCupTG] sendMessage failed:', resp.status, j?.description);
+      return null;
+    }
+    return j.result?.message_id ?? null;
   } catch (e) {
     console.warn('[WorldCupTG] send failed:', e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
+async function tgEditMessage(creds: { token: string; chatId: string }, messageId: number, text: string): Promise<void> {
+  try {
+    await fetch(`${TG_API}/bot${creds.token}/editMessageText`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: creds.chatId, message_id: messageId, text, parse_mode: 'HTML', disable_web_page_preview: true }),
+    });
+  } catch (e) {
+    console.warn('[WorldCupTG] edit failed:', e instanceof Error ? e.message : e);
   }
 }
 
@@ -100,11 +123,32 @@ export interface TgGoal {
   kind: 'GOAL' | 'PENALTY' | 'OWN_GOAL';
 }
 
+function scoreLine(match: { homeTeam: string; awayTeam: string }, score: { home: number; away: number }): string {
+  return `${escapeHtml(match.homeTeam)} <b>${score.home}-${score.away}</b> ${escapeHtml(match.awayTeam)}`;
+}
+
 /**
- * Announce a live goal with the running score below it. Uses the shared credentials
- * (no WORLDCUP_TG_ENABLED gate — the goals poller has its own WORLDCUP_TG_GOALS switch).
+ * Announce a goal the instant the SCORE changes (from the fast live_scores feed),
+ * before SDB's timeline has the scorer. Returns the message_id so we can edit it
+ * once the scorer is known. Scorer shown as "pending".
  */
-export async function notifyWorldCupGoal(
+export async function postScoreGoal(
+  match: { homeTeam: string; awayTeam: string },
+  side: 'home' | 'away',
+  score: { home: number; away: number },
+): Promise<number | null> {
+  const creds = tgCreds();
+  if (!creds) return null;
+  const team = side === 'home' ? match.homeTeam : match.awayTeam;
+  const text =
+    `⚡ <b>GOAL</b> — <b>${escapeHtml(team)}</b> · <i>scorer pending…</i>\n` +
+    scoreLine(match, score);
+  return tgSendReturningId(creds, text);
+}
+
+/** Edit a previously-posted goal message to fill in the scorer once SDB's timeline has it. */
+export async function editScoreGoalScorer(
+  messageId: number,
   match: { homeTeam: string; awayTeam: string },
   goal: TgGoal,
   score: { home: number; away: number },
@@ -115,9 +159,9 @@ export async function notifyWorldCupGoal(
   const min = goal.minute != null ? `${goal.minute}' ` : '';
   const tag = goal.kind === 'PENALTY' ? ' <i>(pen)</i>' : goal.kind === 'OWN_GOAL' ? ' <i>(OG)</i>' : '';
   const text =
-    `⚽ <b>GOAL</b> ${min}— <b>${escapeHtml(goal.player)}</b> (${escapeHtml(team)})${tag}\n` +
-    `${escapeHtml(match.homeTeam)} <b>${score.home}-${score.away}</b> ${escapeHtml(match.awayTeam)}`;
-  await tgSend(creds, text);
+    `⚡ <b>GOAL</b> ${min}— <b>${escapeHtml(goal.player)}</b> (${escapeHtml(team)})${tag}\n` +
+    scoreLine(match, score);
+  await tgEditMessage(creds, messageId, text);
 }
 
 /** Recurring live-score digest: current minute + score + scorers grouped by team. */
