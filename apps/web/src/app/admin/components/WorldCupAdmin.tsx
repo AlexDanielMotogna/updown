@@ -75,6 +75,7 @@ export function WorldCupAdmin() {
   const [msg, setMsg] = useState<string | null>(null);
   const [cardData, setCardData] = useState<WinnerCardData | null>(null);
   const [banBusy, setBanBusy] = useState<string | null>(null);
+  const [pickFilter, setPickFilter] = useState<{ home: string; away: string }>({ home: '', away: '' });
 
   const toggleBan = async (u: ContestUserRow) => {
     if (banBusy) return;
@@ -95,11 +96,14 @@ export function WorldCupAdmin() {
   }, [selected]);
 
   const detail = detailQ.data?.data;
+  const filteredPreds = (detail?.predictions ?? []).filter((p) =>
+    (pickFilter.home === '' || p.homeScore === Number(pickFilter.home)) &&
+    (pickFilter.away === '' || p.awayScore === Number(pickFilter.away)));
   useEffect(() => {
     const r = detail?.result ?? detail?.suggestion;
     if (r) { setHome(r.homeScore); setAway(r.awayScore); setPhase(r.phase); } else { setHome(0); setAway(0); setPhase('REGULATION'); }
     setHomePens(detail?.result?.homePens ?? 0); setAwayPens(detail?.result?.awayPens ?? 0);
-    setWinners(null); setMsg(null);
+    setWinners(null); setMsg(null); setPickFilter({ home: '', away: '' });
   }, [detail]);
 
   if (isLoading) return <LoadingState variant="block" />;
@@ -363,6 +367,25 @@ export function WorldCupAdmin() {
           {detail.predictions.length === 0 ? (
             <EmptyState title="No predictions for this match yet" />
           ) : (
+            <>
+              {/* Filter by pick (e.g. see who picked 2-1) */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
+                <Label>Filter by pick</Label>
+                <Box component="input" type="number" min={0} placeholder="H" value={pickFilter.home}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPickFilter((f) => ({ ...f, home: e.target.value }))}
+                  sx={{ ...inputSx, width: 46 }} />
+                <Typography sx={{ color: t.text.tertiary }}>-</Typography>
+                <Box component="input" type="number" min={0} placeholder="A" value={pickFilter.away}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPickFilter((f) => ({ ...f, away: e.target.value }))}
+                  sx={{ ...inputSx, width: 46 }} />
+                {(pickFilter.home !== '' || pickFilter.away !== '') && (
+                  <Box component="button" onClick={() => setPickFilter({ home: '', away: '' })} sx={{ ...btnSx(false), py: 0.5 }}>Clear</Box>
+                )}
+                <Typography sx={{ fontSize: '0.72rem', color: t.text.tertiary }}>{filteredPreds.length} of {detail.predictions.length}</Typography>
+              </Box>
+            {filteredPreds.length === 0 ? (
+              <EmptyState title="No picks match this score" />
+            ) : (
             <TableContainer>
               <Table size="small">
                 <TableHead>
@@ -375,7 +398,7 @@ export function WorldCupAdmin() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {detail.predictions.map((p, i) => (
+                  {filteredPreds.map((p, i) => (
                     <TableRow key={i} sx={{ bgcolor: p.correct ? `${t.success}0f` : 'transparent' }}>
                       <TableCell sx={{ color: t.text.primary }}>{contact(p)}{p.xHandle && p.email ? <Box component="span" sx={{ color: t.text.tertiary, fontSize: '0.72rem' }}> · {p.email}</Box> : null}</TableCell>
                       <TableCell sx={{ fontVariantNumeric: 'tabular-nums', color: t.text.secondary }}>{p.homeScore}-{p.awayScore} {PHASE_TAG[p.phase]}</TableCell>
@@ -428,6 +451,8 @@ export function WorldCupAdmin() {
                 </TableBody>
               </Table>
             </TableContainer>
+            )}
+            </>
           )}
         </SectionCard>
       )}
