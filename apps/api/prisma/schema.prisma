@@ -1062,10 +1062,15 @@ model ContestUser {
   xHandle     String?  @map("x_handle")
   email       String?
   displayName String?  @map("display_name")
+  // Client IP recorded on signup/first activity. Anti-abuse: the promo is free +
+  // email login, so one person can farm many emails for extra raffle entries. We
+  // cap how many participating accounts share an IP (WORLDCUP_MAX_ACCOUNTS_PER_IP).
+  signupIp    String?  @map("signup_ip")
   createdAt   DateTime @default(now()) @map("created_at")
 
   predictions WorldCupPrediction[]
 
+  @@index([signupIp])
   @@map("contest_users")
 }
 

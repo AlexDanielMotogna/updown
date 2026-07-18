@@ -43,10 +43,16 @@ const identitySchema = z
  * the client — used to contact promo winners; the verified DID is the anti-abuse
  * anchor). Returns the ContestUser id, or null if unauthenticated.
  */
+/** Real client IP (Express `trust proxy` is on, so req.ip is the X-Forwarded-For client). */
+function clientIp(req: Request): string | null {
+  return req.ip ?? null;
+}
+
 async function resolveContestUser(req: Request): Promise<string | null> {
   const did = await verifyPrivyDid(bearerToken(req.headers.authorization));
   if (!did) return null;
   const idn = (req.body?.identity ?? {}) as z.infer<typeof identitySchema> & object;
+  const ip = clientIp(req);
   const user = await prisma.contestUser.upsert({
     where: { privyDid: did },
     update: {
@@ -61,10 +67,32 @@ async function resolveContestUser(req: Request): Promise<string | null> {
       xHandle: idn?.xHandle ?? null,
       email: idn?.email ?? null,
       displayName: idn?.displayName ?? null,
+      signupIp: ip,
     },
-    select: { id: true },
+    select: { id: true, signupIp: true },
   });
+  // Backfill the IP for accounts created before this column existed (or when it
+  // was missing), so the per-IP cap can see them too. Best-effort.
+  if (ip && !user.signupIp) {
+    await prisma.contestUser.update({ where: { id: user.id }, data: { signupIp: ip } }).catch(() => {});
+  }
   return user.id;
+}
+
+/**
+ * Anti-abuse: cap how many DISTINCT participating accounts (accounts with at least
+ * one prediction) may share a single IP. The promo is free + email login, so one
+ * person can otherwise farm many emails for extra raffle entries. Tune with
+ * WORLDCUP_MAX_ACCOUNTS_PER_IP (default 3). Returns true if this user is allowed.
+ */
+const WC_MAX_ACCOUNTS_PER_IP = Math.max(1, Number(process.env.WORLDCUP_MAX_ACCOUNTS_PER_IP ?? 3));
+
+async function ipUnderParticipantCap(ip: string | null, userId: string): Promise<boolean> {
+  if (!ip) return true; // no IP → can't enforce; don't block legitimate users
+  const otherParticipants = await prisma.contestUser.count({
+    where: { signupIp: ip, id: { not: userId }, predictions: { some: {} } },
+  });
+  return otherParticipants < WC_MAX_ACCOUNTS_PER_IP;
 }
 
 /** GET /api/worldcup/predictions — the signed-in user's predictions. */
@@ -105,6 +133,11 @@ worldcupRouter.post('/predictions', async (req, res) => {
     const match = (await getWorldCupMatches()).find((m) => m.matchId === matchId);
     if (!match) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Match not found' } });
     if (match.status !== 'SCHEDULED') return res.status(409).json({ success: false, error: { code: 'LOCKED', message: 'Predictions are closed — the match has started' } });
+
+    // Anti-abuse: block extra accounts farmed from the same IP for more raffle entries.
+    if (!(await ipUnderParticipantCap(clientIp(req), userId))) {
+      return res.status(429).json({ success: false, error: { code: 'IP_LIMIT', message: 'Too many accounts from your network are already in the contest.' } });
+    }
 
     await prisma.worldCupPrediction.upsert({
       where: { contestUserId_matchId: { contestUserId: userId, matchId } },
