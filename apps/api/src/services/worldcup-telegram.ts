@@ -11,12 +11,33 @@
 
 const TG_API = 'https://api.telegram.org';
 
-function tgConfig(): { token: string; chatId: string } | null {
+/** Bot token + chat id — the shared credentials for every feed. */
+function tgCreds(): { token: string; chatId: string } | null {
   const token = process.env.WORLDCUP_TG_BOT_TOKEN?.trim();
   const chatId = process.env.WORLDCUP_TG_CHAT_ID?.trim();
-  const enabled = (process.env.WORLDCUP_TG_ENABLED ?? 'true').toLowerCase() !== 'false';
-  if (!token || !chatId || !enabled) return null;
+  if (!token || !chatId) return null;
   return { token, chatId };
+}
+
+/** Predictions feed = credentials + its own kill switch (WORLDCUP_TG_ENABLED). */
+function tgConfig(): { token: string; chatId: string } | null {
+  const creds = tgCreds();
+  if (!creds) return null;
+  if ((process.env.WORLDCUP_TG_ENABLED ?? 'true').toLowerCase() === 'false') return null;
+  return creds;
+}
+
+async function tgSend(creds: { token: string; chatId: string }, text: string): Promise<void> {
+  try {
+    const resp = await fetch(`${TG_API}/bot${creds.token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: creds.chatId, text, parse_mode: 'HTML', disable_web_page_preview: true }),
+    });
+    if (!resp.ok) console.warn('[WorldCupTG] sendMessage HTTP', resp.status, (await resp.text()).slice(0, 200));
+  } catch (e) {
+    console.warn('[WorldCupTG] send failed:', e instanceof Error ? e.message : e);
+  }
 }
 
 function escapeHtml(s: string): string {
@@ -68,17 +89,32 @@ export async function notifyWorldCupPrediction(
   const text =
     `🌍 <b>New World Cup prediction</b>\n` +
     `${who}: <b>${escapeHtml(match.homeTeam)} ${pred.homeScore}-${pred.awayScore} ${escapeHtml(match.awayTeam)}</b>${round}`;
+  await tgSend(cfg, text);
+}
 
-  try {
-    const resp = await fetch(`${TG_API}/bot${cfg.token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: cfg.chatId, text, parse_mode: 'HTML', disable_web_page_preview: true }),
-    });
-    if (!resp.ok) {
-      console.warn('[WorldCupTG] sendMessage HTTP', resp.status, (await resp.text()).slice(0, 200));
-    }
-  } catch (e) {
-    console.warn('[WorldCupTG] send failed:', e instanceof Error ? e.message : e);
-  }
+export interface TgGoal {
+  side: 'home' | 'away';
+  player: string;
+  minute: number | null;
+  kind: 'GOAL' | 'PENALTY' | 'OWN_GOAL';
+}
+
+/**
+ * Announce a live goal with the running score below it. Uses the shared credentials
+ * (no WORLDCUP_TG_ENABLED gate — the goals poller has its own WORLDCUP_TG_GOALS switch).
+ */
+export async function notifyWorldCupGoal(
+  match: { homeTeam: string; awayTeam: string },
+  goal: TgGoal,
+  score: { home: number; away: number },
+): Promise<void> {
+  const creds = tgCreds();
+  if (!creds) return;
+  const team = goal.side === 'home' ? match.homeTeam : match.awayTeam;
+  const min = goal.minute != null ? `${goal.minute}' ` : '';
+  const tag = goal.kind === 'PENALTY' ? ' <i>(pen)</i>' : goal.kind === 'OWN_GOAL' ? ' <i>(OG)</i>' : '';
+  const text =
+    `⚽ <b>GOAL</b> ${min}— <b>${escapeHtml(goal.player)}</b> (${escapeHtml(team)})${tag}\n` +
+    `${escapeHtml(match.homeTeam)} <b>${score.home}-${score.away}</b> ${escapeHtml(match.awayTeam)}`;
+  await tgSend(creds, text);
 }

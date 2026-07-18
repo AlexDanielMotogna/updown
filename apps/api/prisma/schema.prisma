@@ -1121,6 +1121,8 @@ model WorldCupGoalCache {
   id        String   @id @default(uuid())
   matchId   String   @unique @map("match_id")
   goals     Json
+  // Keys of goals already announced to the Telegram feed (dedup across restarts).
+  tgPostedKeys Json  @default("[]") @map("tg_posted_keys")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("worldcup_goal_cache")

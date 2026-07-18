@@ -23,6 +23,7 @@ import { startTournamentScheduler } from './scheduler/tournament-scheduler';
 import { startSportsScheduler } from './scheduler/sports-scheduler';
 import { startFixtureSyncScheduler } from './scheduler/fixture-sync';
 import { startPolymarketSyncScheduler } from './scheduler/polymarket-sync';
+import { startWorldCupGoalsFeed } from './scheduler/worldcup-goals';
 import { seedCategoriesIfEmpty } from './services/category-config';
 import { startLiveScorePolling } from './services/sports/livescore';
 import { startLiquidityBotScheduler } from './services/liquidity-bot/bot';
@@ -171,6 +172,12 @@ httpServer.listen(PORT, async () => {
     startFixtureSyncScheduler();
   } catch (error) {
     console.error('Failed to start fixture sync scheduler:', error);
+  }
+
+  try {
+    startWorldCupGoalsFeed();
+  } catch (error) {
+    console.error('Failed to start World Cup goals feed:', error);
   }
 
   try {
