@@ -11,9 +11,11 @@ import { adminFetch } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
 import { SectionCard, StatCard, LoadingState, EmptyState, ErrorState, Label, POLL_MEDIUM_MS } from '../ui';
 import { WinnerShareCard, type WinnerCardData } from './WinnerShareCard';
+import { MatchPicksCard, type MatchPicksData } from './MatchPicksCard';
 
 /** Prize paid per raffle winner (promo is "$100 to 2 people"). */
 const WC_PRIZE_PER_WINNER = 50;
+const CYAN_ACCENT = '#5FD8EF';
 
 const roundLabel = (r: string | null) => r ?? '—';
 const PHASE_TAG: Record<string, string> = { REGULATION: "90'", EXTRA_TIME: 'AET', PENALTIES: 'Penalties' };
@@ -28,6 +30,7 @@ interface Pick {
   contestUserId: string;
   homeScore: number; awayScore: number; phase: Phase;
   provider: string | null; xHandle: string | null; email: string | null; displayName: string | null;
+  banned: boolean;
   correct: boolean | null; isWinner: boolean;
   payoutWallet: string | null; claimedAt: string | null; paidTx: string | null;
 }
@@ -76,6 +79,24 @@ export function WorldCupAdmin() {
   const [cardData, setCardData] = useState<WinnerCardData | null>(null);
   const [banBusy, setBanBusy] = useState<string | null>(null);
   const [pickFilter, setPickFilter] = useState<{ home: string; away: string }>({ home: '', away: '' });
+  const [picksCard, setPicksCard] = useState<MatchPicksData | null>(null);
+
+  const openPicksCard = () => {
+    if (!detail?.match) return;
+    const picks = detail.predictions
+      .filter((p) => !p.banned)
+      .slice()
+      .sort((a, b) => a.homeScore - b.homeScore || a.awayScore - b.awayScore)
+      .map((p) => ({ handle: p.xHandle, email: p.email, displayName: p.displayName, homeScore: p.homeScore, awayScore: p.awayScore }));
+    setPicksCard({
+      matchId: detail.match.matchId,
+      homeTeam: detail.match.homeTeam,
+      awayTeam: detail.match.awayTeam,
+      round: detail.match.round,
+      kickoff: selectedMatch?.kickoff ?? null,
+      picks,
+    });
+  };
   const [userSearch, setUserSearch] = useState('');
   const [flaggedOnly, setFlaggedOnly] = useState(false);
   const userQuery = userSearch.trim().toLowerCase();
@@ -403,6 +424,7 @@ export function WorldCupAdmin() {
                   <Box component="button" onClick={() => setPickFilter({ home: '', away: '' })} sx={{ ...btnSx(false), py: 0.5 }}>Clear</Box>
                 )}
                 <Typography sx={{ fontSize: '0.72rem', color: t.text.tertiary }}>{filteredPreds.length} of {detail.predictions.length}</Typography>
+                <Box component="button" onClick={openPicksCard} sx={{ ...btnSx(false), py: 0.5, ml: 'auto', borderColor: `${CYAN_ACCENT}55`, color: CYAN_ACCENT }}>Picks card</Box>
               </Box>
             {filteredPreds.length === 0 ? (
               <EmptyState title="No picks match this score" />
@@ -479,6 +501,7 @@ export function WorldCupAdmin() {
       )}
 
       {cardData && <WinnerShareCard data={cardData} onClose={() => setCardData(null)} />}
+      {picksCard && <MatchPicksCard data={picksCard} onClose={() => setPicksCard(null)} />}
     </Box>
   );
 }

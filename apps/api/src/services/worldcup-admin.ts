@@ -144,6 +144,7 @@ export async function getWorldCupMatchDetail(matchId: string) {
       xHandle: p.user.xHandle,
       email: p.user.email,
       displayName: p.user.displayName,
+      banned: p.user.banned,
       correct: result ? p.homeScore === result.homeScore && p.awayScore === result.awayScore && p.phase === result.phase : null,
       isWinner: win != null,
       // Prize-claim status (only meaningful for winners)
