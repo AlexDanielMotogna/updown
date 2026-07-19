@@ -76,6 +76,15 @@ export function WorldCupAdmin() {
   const [cardData, setCardData] = useState<WinnerCardData | null>(null);
   const [banBusy, setBanBusy] = useState<string | null>(null);
   const [pickFilter, setPickFilter] = useState<{ home: string; away: string }>({ home: '', away: '' });
+  const [userSearch, setUserSearch] = useState('');
+  const [flaggedOnly, setFlaggedOnly] = useState(false);
+  const userQuery = userSearch.trim().toLowerCase();
+  const filteredUsers = contestUserRows.filter((u) =>
+    (!flaggedOnly || u.suspicionReasons.length > 0) &&
+    (userQuery === '' ||
+      (u.email ?? '').toLowerCase().includes(userQuery) ||
+      (u.xHandle ?? '').toLowerCase().includes(userQuery) ||
+      (u.signupIp ?? '').toLowerCase().includes(userQuery)));
 
   const toggleBan = async (u: ContestUserRow) => {
     if (banBusy) return;
@@ -187,8 +196,8 @@ export function WorldCupAdmin() {
   const btnSx = (primary?: boolean) => ({ px: 2, py: 0.8, borderRadius: 1, fontSize: '0.8rem', fontWeight: 800, cursor: busy ? 'default' : 'pointer', border: primary ? 'none' : `1px solid ${t.border.medium}`, bgcolor: primary ? t.success : t.bg.surfaceAlt, color: primary ? '#000' : t.text.primary, opacity: busy ? 0.6 : 1, '&:hover': { filter: 'brightness(1.1)' } } as const);
 
   const exportCsv = () => {
-    const header = ['Handle', 'Email', 'Provider', 'Joined', 'Picks'];
-    const rows = contestUserRows.map((u) => [u.xHandle ? `@${u.xHandle}` : '', u.email ?? '', u.provider ?? '', u.createdAt, String(u.predictionCount)]);
+    const header = ['Handle', 'Email', 'Provider', 'IP', 'Flags', 'Banned', 'Joined', 'Picks'];
+    const rows = filteredUsers.map((u) => [u.xHandle ? `@${u.xHandle}` : '', u.email ?? '', u.provider ?? '', u.signupIp ?? '', u.suspicionReasons.join(' '), u.banned ? 'yes' : '', u.createdAt, String(u.predictionCount)]);
     const csv = [header, ...rows].map((r) => r.map((c) => `"${(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     const a = document.createElement('a');
@@ -208,7 +217,15 @@ export function WorldCupAdmin() {
 
       <SectionCard title={`Contest users (${contestUserRows.length})${contestUserRows.filter((u) => u.suspicionReasons.length > 0 && !u.banned).length ? ` · ${contestUserRows.filter((u) => u.suspicionReasons.length > 0 && !u.banned).length} flagged` : ''}${contestUserRows.filter((u) => u.banned).length ? ` · ${contestUserRows.filter((u) => u.banned).length} banned` : ''}`}>
         {contestUserRows.length > 0 && (
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
+            <Box component="input" value={userSearch} placeholder="Search email, handle or IP…"
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUserSearch(e.target.value)}
+              sx={{ flex: 1, minWidth: 200, px: 1.25, py: 0.6, borderRadius: 1, fontSize: '0.82rem', border: `1px solid ${t.border.medium}`, bgcolor: t.bg.app, color: t.text.primary, fontFamily: 'inherit', outline: 'none', '&::placeholder': { color: t.text.tertiary } }} />
+            <Box component="button" onClick={() => setFlaggedOnly((v) => !v)}
+              sx={{ px: 1.5, py: 0.6, borderRadius: 1, fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', bgcolor: flaggedOnly ? `${t.warning}22` : t.bg.surfaceAlt, border: `1px solid ${flaggedOnly ? `${t.warning}66` : t.border.medium}`, color: flaggedOnly ? t.warning : t.text.secondary }}>
+              Flagged only
+            </Box>
+            <Typography sx={{ fontSize: '0.72rem', color: t.text.tertiary }}>{filteredUsers.length} of {contestUserRows.length}</Typography>
             <Box component="button" onClick={exportCsv} sx={btnSx(false)}>Export CSV</Box>
           </Box>
         )}
@@ -223,6 +240,7 @@ export function WorldCupAdmin() {
                 <TableRow>
                   <TableCell><Label>User</Label></TableCell>
                   <TableCell><Label>Provider</Label></TableCell>
+                  <TableCell><Label>IP</Label></TableCell>
                   <TableCell><Label>Joined</Label></TableCell>
                   <TableCell align="right"><Label>Picks</Label></TableCell>
                   <TableCell><Label>Flags</Label></TableCell>
@@ -230,7 +248,9 @@ export function WorldCupAdmin() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {contestUserRows.map((u) => (
+                {filteredUsers.length === 0 ? (
+                  <TableRow><TableCell colSpan={7} sx={{ color: t.text.tertiary, textAlign: 'center', py: 2 }}>No users match</TableCell></TableRow>
+                ) : filteredUsers.map((u) => (
                   <TableRow key={u.id} sx={{ opacity: u.banned ? 0.55 : 1, bgcolor: u.suspicionReasons.length && !u.banned ? `${t.warning}0a` : 'transparent' }}>
                     <TableCell sx={{ color: t.text.primary }}>
                       {u.xHandle ? `@${u.xHandle}` : u.email ?? u.displayName ?? '—'}
@@ -238,6 +258,7 @@ export function WorldCupAdmin() {
                       {u.banned && <Box component="span" sx={{ ml: 0.75, px: 0.6, py: 0.15, borderRadius: '4px', fontSize: '0.6rem', fontWeight: 800, bgcolor: `${t.error}22`, color: t.error }}>BANNED</Box>}
                     </TableCell>
                     <TableCell sx={{ color: t.text.secondary }}>{u.provider ?? '—'}</TableCell>
+                    <TableCell sx={{ color: t.text.secondary, fontFamily: 'monospace', fontSize: '0.72rem', whiteSpace: 'nowrap' }}>{u.signupIp ?? '—'}</TableCell>
                     <TableCell sx={{ color: t.text.secondary, whiteSpace: 'nowrap' }}>{new Date(u.createdAt).toLocaleString()}</TableCell>
                     <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{u.predictionCount}</TableCell>
                     <TableCell>
