@@ -87,7 +87,7 @@ export function WorldCupAdmin() {
       .filter((p) => !p.banned)
       .slice()
       .sort((a, b) => a.homeScore - b.homeScore || a.awayScore - b.awayScore)
-      .map((p) => ({ handle: p.xHandle, email: p.email, displayName: p.displayName, homeScore: p.homeScore, awayScore: p.awayScore }));
+      .map((p) => ({ handle: p.xHandle, email: p.email, displayName: p.displayName, homeScore: p.homeScore, awayScore: p.awayScore, phase: p.phase }));
     setPicksCard({
       matchId: detail.match.matchId,
       homeTeam: detail.match.homeTeam,

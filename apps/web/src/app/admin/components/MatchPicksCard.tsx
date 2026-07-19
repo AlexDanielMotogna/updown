@@ -26,7 +26,10 @@ export interface MatchPickEntry {
   displayName: string | null;
   homeScore: number;
   awayScore: number;
+  phase: string;
 }
+
+const PHASE_TAG: Record<string, string> = { REGULATION: "90'", EXTRA_TIME: 'AET', PENALTIES: 'PEN' };
 export interface MatchPicksData {
   matchId: string;
   homeTeam: string;
@@ -139,18 +142,30 @@ function drawCard(ctx: CanvasRenderingContext2D, d: MatchPicksData, imgs: Imgs, 
     const row = Math.floor(i / COLS);
     const gx = PAD + col * (colW + colGap);
     const gy = GRID_TOP + row * ROW_H;
+    const midY = gy + (ROW_H - 8) / 2 + 1;
     // row chip
     ctx.fillStyle = 'rgba(255,255,255,0.04)';
     roundedRect(ctx, gx, gy, colW, ROW_H - 8, 8); ctx.fill();
-    // score (right)
+    ctx.textBaseline = 'middle';
+    // phase tag (rightmost, small + muted)
+    const phase = PHASE_TAG[p.phase] ?? '';
+    ctx.font = `600 15px ${FONT}`;
+    const phaseW = phase ? ctx.measureText(phase).width : 0;
+    if (phase) {
+      ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      ctx.fillText(phase, gx + colW - 14, midY + 1);
+    }
+    // score (cyan bold, left of the phase tag)
     const score = `${p.homeScore}-${p.awayScore}`;
     ctx.font = `800 24px ${FONT}`;
     const scoreW = ctx.measureText(score).width;
-    ctx.textAlign = 'right'; ctx.fillStyle = CYAN; ctx.textBaseline = 'middle';
-    ctx.fillText(score, gx + colW - 14, gy + (ROW_H - 8) / 2 + 1);
-    // handle (left, truncated)
+    const scoreRight = gx + colW - 14 - (phaseW ? phaseW + 8 : 0);
+    ctx.textAlign = 'right'; ctx.fillStyle = CYAN;
+    ctx.fillText(score, scoreRight, midY);
+    // handle / masked email (left, truncated to what's left)
     ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = `600 22px ${FONT}`;
-    ctx.fillText(ellipsize(ctx, pickLabel(p), colW - scoreW - 40), gx + 14, gy + (ROW_H - 8) / 2 + 1);
+    const labelMax = colW - 28 - scoreW - (phaseW ? phaseW + 8 : 0) - 10;
+    ctx.fillText(ellipsize(ctx, pickLabel(p), labelMax), gx + 14, midY);
     ctx.textBaseline = 'alphabetic';
   });
 
