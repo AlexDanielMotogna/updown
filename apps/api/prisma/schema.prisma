@@ -223,6 +223,10 @@ model User {
   /// and referral-prize validity. Incremented at normal resolution only.
   settledBets  Int    @default(0) @map("settled_bets")
 
+  /// Crypto Predictions event: set when the user was auto-funded with the
+  /// one-time 1000 test USDC (+SOL) on first login, so it never double-funds.
+  autoFundedAt DateTime? @map("auto_funded_at")
+
   // Streaks
   currentStreak  Int       @default(0) @map("current_streak")
   bestStreak     Int       @default(0) @map("best_streak")

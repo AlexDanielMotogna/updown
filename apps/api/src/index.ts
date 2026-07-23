@@ -18,6 +18,7 @@ import { lineupsRouter } from './routes/lineups';
 import { exchangeRouter } from './routes/exchange';
 import { bridgeRouter } from './routes/bridge';
 import { worldcupRouter } from './routes/worldcup';
+import { cryptoPredictionsRouter } from './routes/crypto-predictions';
 import { getScheduler } from './scheduler';
 import { startTournamentScheduler } from './scheduler/tournament-scheduler';
 import { startSportsScheduler } from './scheduler/sports-scheduler';
@@ -69,6 +70,7 @@ app.use('/api/lineups', lineupsRouter);
 app.use('/api/exchange', exchangeRouter);
 app.use('/api/bridge', bridgeRouter);
 app.use('/api/worldcup', worldcupRouter);
+app.use('/api/crypto-predictions', cryptoPredictionsRouter);
 
 // Scheduler status endpoint
 app.get('/api/scheduler/status', (req, res) => {
