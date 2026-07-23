@@ -1366,3 +1366,26 @@ export async function claimWorldCupWinning(
     body: JSON.stringify(body),
   });
 }
+
+// ── Crypto Predictions event ────────────────────────────────────────────────
+export interface CryptoMe { realizedPnl: string; weeklyPnl: string; rank: number | null; players: number }
+export interface CryptoLeaderRow { rank: number; walletAddress: string; displayName: string | null; avatarUrl: string | null; pnl: string }
+
+/** Ensure the user + one-time auto-fund (1000 test USDC). */
+export async function joinCryptoEvent(token: string, walletAddress: string): Promise<ApiResponse<{ funded: boolean; alreadyFunded: boolean }>> {
+  return fetchApi<{ funded: boolean; alreadyFunded: boolean }>(`/api/crypto-predictions/join`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ walletAddress }),
+  });
+}
+
+export async function fetchCryptoMe(token: string, wallet: string): Promise<ApiResponse<CryptoMe>> {
+  return fetchApi<CryptoMe>(`/api/crypto-predictions/me?wallet=${encodeURIComponent(wallet)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function fetchCryptoLeaderboard(window: 'week' | 'all' = 'week'): Promise<ApiResponse<CryptoLeaderRow[]>> {
+  return fetchApi<CryptoLeaderRow[]>(`/api/crypto-predictions/leaderboard?window=${window}`);
+}
