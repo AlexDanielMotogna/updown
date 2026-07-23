@@ -147,6 +147,10 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
   const displayPayout = weightedProjection ? weightedProjection.payout : potentialPayout;
   const displayOdds = weightedProjection ? weightedProjection.odds : potentialOdds;
 
+  // Floor the time-weight decays to at close (×0.10 by default). Shown next to the
+  // current multiplier so the early-entry advantage is visible without hovering.
+  const weightFloor = weighting?.config?.floor ?? 0.1;
+
   const sideColor = selectedSide === 'UP' ? t.up : t.down;
   const intervalLabel = INTERVAL_LABELS[pool.interval] || pool.interval;
 
@@ -225,10 +229,10 @@ export function PlaceBetCard({ pool, selectedSide, onSelectSide, onBet, txState,
         />
         {weighting && (
           <BetStatRow
-            label="Time-weight now"
-            value={`×${weighting.currentMultiplier.toFixed(2)}`}
+            label="Time-weight (now → close)"
+            value={`×${weighting.currentMultiplier.toFixed(2)} → ×${weightFloor.toFixed(2)}`}
             valueColor={sideColor}
-            labelTooltip={`Bet early, win bigger. The sooner you bet in a round, the larger your share of the losing side's pool. Your bet locks in this ×${weighting.currentMultiplier.toFixed(2)} multiplier right now — it's highest at the round's start and eases toward ×1 by close, so waiting costs you. It's enforced on-chain when you claim.`}
+            labelTooltip={`Bet early, win bigger. Your bet locks in a time-weight multiplier that sets your share of the losing side's pool. It's highest (×1.00) at the round's start and decays to a ×${weightFloor.toFixed(2)} floor by close, so the longer you wait the smaller your share. You'd lock in ×${weighting.currentMultiplier.toFixed(2)} by betting right now. Enforced on-chain when you claim.`}
           />
         )}
       </BetPayoutBox>

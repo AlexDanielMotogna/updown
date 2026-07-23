@@ -272,11 +272,11 @@ export function Providers({ children, initialTheme = 'dark' }: { children: React
           // detected browser extension (Phantom/Solflare) can NEVER connect or be
           // picked as the signer. Every user is embedded-only → gasless silent flow.
         },
-        // Email + Google (both free, no external wallet): every user signs up
-        // WITHOUT an external wallet, so Privy always creates the embedded
-        // wallets → gasless silent betting (no SOL, no popup) and one clean
-        // identity. (X login is deferred — its OAuth may need a paid X API tier.)
-        loginMethods: ['email', 'google'],
+        // X + Google + email. X is first because the World Cup promo traffic comes
+        // from Twitter and we want the @handle to tag/DM winners. X is Privy-managed
+        // (same as Google — no extra dashboard/API-tier setup needed). No external
+        // wallet: every user is embedded-only → gasless silent flow + one identity.
+        loginMethods: ['twitter', 'google', 'email'],
         embeddedWallets: {
           // One email login provisions BOTH embedded wallets: Solana (the app /
           // gasless betting identity) AND Ethereum (the HyperLiquid trading

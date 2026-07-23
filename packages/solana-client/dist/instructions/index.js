@@ -13,6 +13,7 @@ exports.buildClosePoolIx = buildClosePoolIx;
 exports.buildForceClosePoolIx = buildForceClosePoolIx;
 exports.buildInitializeTournamentIx = buildInitializeTournamentIx;
 exports.buildRegisterParticipantIx = buildRegisterParticipantIx;
+exports.buildResolveTournamentIx = buildResolveTournamentIx;
 exports.buildClaimTournamentPrizeIx = buildClaimTournamentPrizeIx;
 exports.buildCancelTournamentIx = buildCancelTournamentIx;
 exports.buildRefundParticipantIx = buildRefundParticipantIx;
@@ -261,9 +262,12 @@ const FORCE_CLOSE_POOL_DISC = Buffer.from([113, 203, 148, 102, 142, 248, 118, 24
  * where vault bump is corrupted from struct layout changes.
  * Accounts: pool, authority
  */
-function buildForceClosePoolIx(pool, authority) {
+function buildForceClosePoolIx(pool, vault, authority) {
+    // vault is read-only: the program only checks its balance is 0 so force-close
+    // can never strand funds. No token program / signing needed (not closing it).
     const keys = [
         { pubkey: pool, isSigner: false, isWritable: true },
+        { pubkey: vault, isSigner: false, isWritable: false },
         { pubkey: authority, isSigner: true, isWritable: true },
     ];
     return new web3_js_1.TransactionInstruction({ keys, programId: accounts_1.PROGRAM_ID, data: FORCE_CLOSE_POOL_DISC });
@@ -271,6 +275,7 @@ function buildForceClosePoolIx(pool, authority) {
 // ── Tournament instruction discriminators ──────────────────────────────────
 const INIT_TOURNAMENT_DISC = Buffer.from([75, 218, 86, 80, 49, 127, 155, 186]);
 const REGISTER_PARTICIPANT_DISC = Buffer.from([248, 112, 38, 215, 226, 230, 249, 40]);
+const RESOLVE_TOURNAMENT_DISC = Buffer.from([158, 64, 183, 235, 250, 101, 200, 246]);
 const CLAIM_TOURNAMENT_PRIZE_DISC = Buffer.from([219, 207, 183, 94, 201, 32, 78, 193]);
 const CANCEL_TOURNAMENT_DISC = Buffer.from([249, 227, 133, 5, 9, 142, 29, 122]);
 const REFUND_PARTICIPANT_DISC = Buffer.from([149, 166, 93, 207, 122, 167, 154, 218]);
@@ -305,6 +310,23 @@ function buildRegisterParticipantIx(tournament, participant, vault, userTokenAcc
         { pubkey: web3_js_1.SystemProgram.programId, isSigner: false, isWritable: false },
     ];
     return new web3_js_1.TransactionInstruction({ keys, programId: accounts_1.PROGRAM_ID, data: REGISTER_PARTICIPANT_DISC });
+}
+/**
+ * Build `resolve_tournament`: authority sets the winner and marks the
+ * tournament Completed (the state claim_tournament_prize requires). `participant`
+ * is the winner's participant PDA, which proves the winner actually registered.
+ */
+function buildResolveTournamentIx(tournament, participant, authority, winner) {
+    const data = Buffer.concat([
+        RESOLVE_TOURNAMENT_DISC,
+        winner.toBuffer(), // Pubkey (32 bytes)
+    ]);
+    const keys = [
+        { pubkey: tournament, isSigner: false, isWritable: true },
+        { pubkey: participant, isSigner: false, isWritable: false },
+        { pubkey: authority, isSigner: true, isWritable: false },
+    ];
+    return new web3_js_1.TransactionInstruction({ keys, programId: accounts_1.PROGRAM_ID, data });
 }
 function buildClaimTournamentPrizeIx(tournament, participant, vault, userTokenAccount, user, authority, feeWallet) {
     const keys = [

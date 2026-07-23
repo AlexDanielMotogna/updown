@@ -47,7 +47,7 @@ pub enum PoolError {
     #[msg("No bets on winning side")]
     NoWinningBets,
 
-    #[msg("Fee basis points must be <= 10000")]
+    #[msg("Fee basis points exceed the maximum allowed")]
     InvalidFeeBps,
 
     #[msg("Vault still has tokens - all claims/refunds must be processed first")]
@@ -84,6 +84,9 @@ pub enum PoolError {
 
     #[msg("Tournament vault still has tokens")]
     TournamentVaultNotEmpty,
+
+    #[msg("Tournament already resolved (winner already set)")]
+    TournamentAlreadyResolved,
 
     #[msg("Bet is on the winning side - use claim, not close")]
     IsWinner,

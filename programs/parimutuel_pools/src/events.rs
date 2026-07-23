@@ -86,6 +86,12 @@ pub struct ParticipantRegistered {
 }
 
 #[event]
+pub struct TournamentResolved {
+    pub tournament_id: [u8; 32],
+    pub winner: Pubkey,
+}
+
+#[event]
 pub struct TournamentPrizeClaimed {
     pub tournament_id: [u8; 32],
     pub winner: Pubkey,

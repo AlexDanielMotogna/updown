@@ -105,6 +105,36 @@ export async function createTournament(data: {
   return tournament;
 }
 
+/**
+ * Push a completed tournament's winner on-chain via `resolve_tournament`, which
+ * flips the Tournament PDA to Completed and sets `winner` — the state the
+ * program requires before `claim_tournament_prize` will pay out. Without this
+ * the PDA vault is unclaimable. No-op for legacy (non-PDA) tournaments. Safe to
+ * call more than once: a re-run hits the program's already-resolved guard and
+ * is caught here.
+ */
+export async function resolveTournamentOnChain(tournamentId: string): Promise<void> {
+  const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
+  if (!tournament?.onChainPda || !tournament.winnerWallet) return;
+
+  try {
+    const { PublicKey } = await import('@solana/web3.js');
+    const { getTournamentParticipantPDA, buildResolveTournamentIx } = await import('solana-client');
+
+    const authority = getAuthorityKeypair();
+    const tournamentPda = new PublicKey(tournament.onChainPda);
+    const winnerPubkey = new PublicKey(tournament.winnerWallet);
+    const [participantPda] = getTournamentParticipantPDA(tournamentPda, winnerPubkey);
+
+    const ix = buildResolveTournamentIx(tournamentPda, participantPda, authority.publicKey, winnerPubkey);
+    await sendAndConfirm(ix, authority, { label: 'resolve_tournament' });
+
+    console.log(`[Tournament] On-chain resolved: ${tournamentPda.toBase58()} winner=${tournament.winnerWallet.slice(0, 8)}`);
+  } catch (err) {
+    console.error(`[Tournament] Failed to resolve on-chain (tournament ${tournamentId}):`, err instanceof Error ? err.message : err);
+  }
+}
+
 // ─── 2. Register Participant ─────────────────────────────────────────────────
 
 export async function registerParticipant(

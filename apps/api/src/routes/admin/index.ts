@@ -1,5 +1,5 @@
 import { Router, type Router as RouterType } from 'express';
-import { adminAuth } from '../../middleware/admin-auth';
+import { adminAuth, requireBackoffice, blockReadonlyWrites } from '../../middleware/admin-auth';
 import { adminHealthRouter } from './health';
 import { adminPoolsRouter } from './pools';
 import { adminFinanceRouter } from './finance';
@@ -19,16 +19,28 @@ import { adminLiquidityBotRouter } from './liquidity-bot';
 import { adminPoolCreationRouter } from './pool-creation';
 import { adminBuilderRevenueRouter } from './builder-revenue';
 import { adminXPosterRouter } from './x-poster';
+import { adminWorldCupRouter } from './worldcup';
+import { adminMarketingRouter } from './marketing';
+import { adminEconomyRouter } from './economy';
 
 export const adminRouter: RouterType = Router();
 
 // All admin routes require API key auth
 adminRouter.use(adminAuth);
 
-// Verify endpoint (just returns 200 if auth passes)
-adminRouter.get('/verify', (_req, res) => {
-  res.json({ success: true, message: 'Authenticated' });
+// Read-only admins can load any page (GET) but never mutate (POST/PUT/PATCH/DELETE).
+adminRouter.use(blockReadonlyWrites);
+
+// Verify endpoint — returns the caller's role so the UI can gate tabs.
+adminRouter.get('/verify', (req, res) => {
+  res.json({ success: true, message: 'Authenticated', role: req.adminRole ?? 'super' });
 });
+
+// Marketing asset browser: available to BOTH super admins and the marketing role.
+adminRouter.use('/marketing', adminMarketingRouter);
+
+// Everything below this line is the full back-office (super + read-only admins).
+adminRouter.use(requireBackoffice);
 
 adminRouter.use('/health', adminHealthRouter);
 adminRouter.use('/pools', adminPoolsRouter);
@@ -50,3 +62,5 @@ adminRouter.use('/liquidity-bot', adminLiquidityBotRouter);
 adminRouter.use('/pool-creation', adminPoolCreationRouter);
 adminRouter.use('/builder-revenue', adminBuilderRevenueRouter);
 adminRouter.use('/x-poster', adminXPosterRouter);
+adminRouter.use('/worldcup', adminWorldCupRouter);
+adminRouter.use('/economy', adminEconomyRouter);

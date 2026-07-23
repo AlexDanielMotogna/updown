@@ -3,6 +3,9 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../db';
 import { registerUser } from '../services/rewards';
+import { buyStreakSaver } from '../services/streak-saver';
+import { getCosmeticCatalog, buyCosmetic, equipCosmetic, getEquippedCosmetics } from '../services/cosmetics';
+import { getBoostState, buyBoost } from '../services/boosts';
 import { getLevelTitle } from '../utils/levels';
 import { serializeUserProfile } from '../utils/serializers';
 
@@ -80,6 +83,197 @@ usersRouter.post('/register', async (req, res) => {
   }
 });
 
+const streakSaverSchema = z.object({
+  walletAddress: z.string().min(32).max(44),
+  quantity: z.coerce.number().int().min(1).max(10).default(1),
+  /** Optional client key so a retried tap doesn't double-charge. */
+  idempotencyKey: z.string().min(1).max(100).optional(),
+});
+
+/**
+ * POST /api/users/streak-saver
+ * Buy streak-saver consumables with UP Coins (burned). The walletAddress in the
+ * body authorises the call (same convention as /register, /profile). A streak-saver
+ * protects the current streak on a loss instead of resetting it.
+ */
+usersRouter.post('/streak-saver', async (req, res) => {
+  try {
+    const parsed = streakSaverSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: parsed.error.errors[0]?.message ?? 'Invalid input' },
+      });
+    }
+    const { walletAddress, quantity, idempotencyKey } = parsed.data;
+    const result = await buyStreakSaver(walletAddress, quantity, idempotencyKey);
+
+    if (!result.ok) {
+      const map = {
+        INSUFFICIENT_FUNDS: [402, 'Not enough UP Coins'],
+        AT_MAX: [409, 'You already hold the maximum number of streak-savers'],
+        DUPLICATE: [409, 'This purchase was already processed'],
+      } as const;
+      const [status, message] = map[result.reason];
+      return res.status(status).json({ success: false, error: { code: result.reason, message } });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        streakSavers: result.streakSavers,
+        coinsBalance: result.balance.toString(),
+        spent: result.spent.toString(),
+      },
+    });
+  } catch (error) {
+    console.error('[Users] streak-saver error:', error);
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to buy streak saver' },
+    });
+  }
+});
+
+const cosmeticBuySchema = z.object({
+  walletAddress: z.string().min(32).max(44),
+  sku: z.string().min(1).max(64),
+  idempotencyKey: z.string().min(1).max(100).optional(),
+});
+
+const cosmeticEquipSchema = z.object({
+  walletAddress: z.string().min(32).max(44),
+  cosmeticId: z.string().uuid(),
+  equipped: z.boolean(),
+});
+
+/**
+ * GET /api/users/cosmetics?wallet=
+ * Cosmetics store: every active cosmetic + this wallet's owned/equipped flags.
+ */
+usersRouter.get('/cosmetics', async (req, res) => {
+  try {
+    const wallet = typeof req.query.wallet === 'string' ? req.query.wallet : undefined;
+    const catalog = await getCosmeticCatalog(wallet);
+    res.json({ success: true, data: catalog });
+  } catch (error) {
+    console.error('[Users] cosmetics catalog error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch cosmetics' } });
+  }
+});
+
+/**
+ * POST /api/users/cosmetics
+ * Buy a cosmetic (burns UP Coins). walletAddress in the body authorises the call.
+ */
+usersRouter.post('/cosmetics', async (req, res) => {
+  try {
+    const parsed = cosmeticBuySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: parsed.error.errors[0]?.message ?? 'Invalid input' },
+      });
+    }
+    const { walletAddress, sku, idempotencyKey } = parsed.data;
+    const result = await buyCosmetic(walletAddress, sku, idempotencyKey);
+
+    if (!result.ok) {
+      const map = {
+        NOT_FOUND: [404, 'That cosmetic does not exist'],
+        ALREADY_OWNED: [409, 'You already own this cosmetic'],
+        INSUFFICIENT_FUNDS: [402, 'Not enough UP Coins'],
+        DUPLICATE: [409, 'This purchase was already processed'],
+      } as const;
+      const [status, message] = map[result.reason];
+      return res.status(status).json({ success: false, error: { code: result.reason, message } });
+    }
+    res.json({ success: true, data: { cosmeticId: result.cosmeticId, coinsBalance: result.balance.toString() } });
+  } catch (error) {
+    console.error('[Users] cosmetics buy error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to buy cosmetic' } });
+  }
+});
+
+/**
+ * PATCH /api/users/cosmetics/equip
+ * Equip / unequip an owned cosmetic (one active per kind).
+ */
+usersRouter.patch('/cosmetics/equip', async (req, res) => {
+  try {
+    const parsed = cosmeticEquipSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: parsed.error.errors[0]?.message ?? 'Invalid input' },
+      });
+    }
+    const { walletAddress, cosmeticId, equipped } = parsed.data;
+    const result = await equipCosmetic(walletAddress, cosmeticId, equipped);
+    if (!result.ok) {
+      return res.status(409).json({ success: false, error: { code: result.reason, message: 'You do not own this cosmetic' } });
+    }
+    res.json({ success: true, data: { equipped } });
+  } catch (error) {
+    console.error('[Users] cosmetics equip error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to equip cosmetic' } });
+  }
+});
+
+const boostBuySchema = z.object({
+  walletAddress: z.string().min(32).max(44),
+  sku: z.string().min(1).max(64),
+  idempotencyKey: z.string().min(1).max(100).optional(),
+});
+
+/**
+ * GET /api/users/boosts?wallet=
+ * Boost store: catalog + this wallet's currently-active boosts.
+ */
+usersRouter.get('/boosts', async (req, res) => {
+  try {
+    const wallet = typeof req.query.wallet === 'string' ? req.query.wallet : undefined;
+    const state = await getBoostState(wallet);
+    res.json({ success: true, data: state });
+  } catch (error) {
+    console.error('[Users] boosts state error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch boosts' } });
+  }
+});
+
+/**
+ * POST /api/users/boosts
+ * Buy a time-limited XP/COINS boost (burns UP Coins). walletAddress authorises.
+ */
+usersRouter.post('/boosts', async (req, res) => {
+  try {
+    const parsed = boostBuySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: parsed.error.errors[0]?.message ?? 'Invalid input' },
+      });
+    }
+    const { walletAddress, sku, idempotencyKey } = parsed.data;
+    const result = await buyBoost(walletAddress, sku, idempotencyKey);
+
+    if (!result.ok) {
+      const map = {
+        NOT_FOUND: [404, 'That boost does not exist'],
+        ALREADY_ACTIVE: [409, 'You already have an active boost of this type'],
+        INSUFFICIENT_FUNDS: [402, 'Not enough UP Coins'],
+        DUPLICATE: [409, 'This purchase was already processed'],
+      } as const;
+      const [status, message] = map[result.reason];
+      return res.status(status).json({ success: false, error: { code: result.reason, message } });
+    }
+    res.json({ success: true, data: { kind: result.kind, expiresAt: result.expiresAt, coinsBalance: result.balance.toString() } });
+  } catch (error) {
+    console.error('[Users] boosts buy error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to buy boost' } });
+  }
+});
+
 /**
  * GET /api/users/profile?wallet=
  * Return full user profile.
@@ -109,7 +303,7 @@ usersRouter.get('/profile', async (req, res) => {
     // the user's rank by XP, and refunded-bet count (used to drop refunds
     // out of the Win Rate denominator - they didn't lose, they got their
     // stake back).
-    const [wonAgg, higherXpCount, totalUsers, refundedRows, realizedRows] = await Promise.all([
+    const [wonAgg, higherXpCount, totalUsers, refundedRows, realizedRows, equippedCosmetics] = await Promise.all([
       prisma.bet.aggregate({
         _sum: { payoutAmount: true },
         where: { walletAddress: user.walletAddress, payoutAmount: { not: null } },
@@ -155,6 +349,7 @@ usersRouter.get('/profile', async (req, res) => {
             OR (p.winner IS NOT NULL AND p.winner <> b.side)
           )
       `,
+      getEquippedCosmetics(user.walletAddress),
     ]);
     const totalRefunded = Number(refundedRows[0]?.count ?? 0n);
     const refundedStake = refundedRows[0]?.stake ?? 0n;
@@ -171,6 +366,7 @@ usersRouter.get('/profile', async (req, res) => {
         refundedStake,
         realizedStaked,
         realizedWon,
+        equippedCosmetics,
       }),
     });
   } catch (error) {

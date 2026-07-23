@@ -1,0 +1,211 @@
+<!doctype html><html><head><meta charset='utf-8'><style>
+@page { size: A4; margin: 18mm 16mm; }
+* { box-sizing: border-box; }
+body { font-family: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; color:#1a1a2e;
+  font-size: 11px; line-height: 1.5; max-width: 800px; margin: 0 auto; }
+h1 { font-size: 22px; color:#0a2540; border-bottom: 3px solid #06b6d4; padding-bottom:6px; }
+h2 { font-size: 16px; color:#0a2540; margin-top: 22px; border-bottom:1px solid #e2e8f0; padding-bottom:3px; }
+h3 { font-size: 13px; color:#0e7490; margin-top:16px; }
+table { border-collapse: collapse; width:100%; margin: 10px 0; font-size: 10px; }
+th, td { border:1px solid #cbd5e1; padding:5px 7px; text-align:left; vertical-align:top; }
+th { background:#0a2540; color:#fff; }
+tr:nth-child(even) td { background:#f1f5f9; }
+code { background:#f1f5f9; padding:1px 4px; border-radius:3px; font-family:'Consolas',monospace; font-size:10px; color:#be123c; }
+pre { background:#0f172a; color:#e2e8f0; padding:10px 12px; border-radius:6px; overflow-x:auto; }
+pre code { background:transparent; color:#e2e8f0; padding:0; }
+blockquote { border-left:4px solid #06b6d4; margin:10px 0; padding:4px 12px; background:#ecfeff; color:#155e63; }
+strong { color:#0a2540; }
+a { color:#0e7490; }
+hr { border:none; border-top:1px solid #e2e8f0; margin:18px 0; }
+</style></head><body><h1 id="updown-smart-contract-audit-scope-certik">UpDown — Smart-Contract Audit Scope (CertiK)</h1>
+<p>Prepared for scoping a security audit prior to a public launch. It defines what
+is in scope, what is explicitly out of scope, and where the trust/centralization
+surface lives.</p>
+<hr />
+<h2 id="tldr">TL;DR</h2>
+<ul>
+<li><strong>Primary audit target (must):</strong> the Solana Anchor program <code>parimutuel_pools</code> —
+  the only production contract that custodies user funds. Program id
+  <code>9H7k26HvHHnB4T6ErU7n2wVSFJhS1aigqFQGwvQyVuNG</code>. ~2,125 LOC Rust, 18 instructions.</li>
+<li><strong>Solana only.</strong> No EVM migration is planned; the Arbitrum Solidity port has been
+  archived to a side branch and is explicitly <strong>out of scope</strong>.</li>
+<li><strong>Not yet code (future audit):</strong> UP token (SPL mint), Streamflow vesting/staking,
+  Squads multisig, presale/claim contract, buyback. All documentation-only today.</li>
+<li><strong>Out of scope (do not pay to audit):</strong> HyperLiquid, Pacifica, Privy custody,
+  LI.FI bridge — third-party contracts. The Node/Next backend is a web pentest,
+  not a contract audit.</li>
+<li><strong>Design review CertiK should include:</strong> a single off-chain authority key
+  resolves outcomes and drives all payouts, with no on-chain oracle. This is the
+  core centralization risk and should be documented in the report.</li>
+</ul>
+<hr />
+<h2 id="1-in-scope-primary-solana-parimutuel_pools-anchor-rust">1. In scope — PRIMARY: Solana <code>parimutuel_pools</code> (Anchor / Rust)</h2>
+<p>Path: <code>programs/parimutuel_pools/src/</code> (<code>lib.rs</code>, <code>state.rs</code>, <code>errors.rs</code>,
+<code>events.rs</code>, <code>constants.rs</code>, <code>instructions/*.rs</code>, <code>tests/money_math.rs</code>).
+Model: USDC (6-decimal SPL) escrowed in per-pool / per-tournament PDA vaults; a
+single <code>authority</code> (the backend scheduler) resolves and drives payouts. Supports
+2-way (crypto up/down) and 3-way (sports home/draw/away) pools via <code>num_sides</code>.</p>
+<h3 id="instructions-18">Instructions (18)</h3>
+<p><strong>Pool lifecycle</strong>
+<code>initialize_pool</code> · <code>deposit</code> (only user-authored money-in) · <code>resolve</code> (crypto,
+price-based) · <code>resolve_with_winner</code> (sports/PM, explicit winner) · <code>claim</code>
+(payout + <code>fee_bps</code>) · <code>refund</code> · <code>refund_bettor</code> (void / principal-only) ·
+<code>close_losing_bet</code> · <code>sweep_vault_dust</code> · <code>close_pool</code> · <code>force_close_pool</code>.</p>
+<p><strong>Tournament escrow</strong>
+<code>initialize_tournament</code> · <code>register_participant</code> · <code>resolve_tournament</code> (authority
+sets winner + Completed) · <code>claim_tournament_prize</code> (prize − 5%) ·
+<code>cancel_tournament</code> · <code>refund_participant</code> · <code>close_tournament</code>.</p>
+<h3 id="state-pdas">State / PDAs</h3>
+<ul>
+<li>Pool <code>["pool", pool_id]</code>, Vault <code>["vault", pool_id]</code> (token authority = pool PDA).</li>
+<li>UserBet <code>["bet", pool, user, side]</code> (per-side, allows hedging).</li>
+<li>Tournament <code>["tournament", id]</code>, Vault <code>["tournament_vault", id]</code>,
+  Participant <code>["participant", tournament, user]</code>.</li>
+<li>Funds live only in the pool and tournament <code>vault</code> PDAs.</li>
+</ul>
+<h3 id="payout-math-single-source-of-truth-poolwinnings_for">Payout math (single source of truth: <code>Pool::winnings_for</code>)</h3>
+<p><code>winnings = bet_weight × (total_pool − winning_side_stake) / total_weighted_winning</code>
+(u128 intermediate, integer floor). <code>gross = principal + winnings</code>,
+<code>fee = gross × fee_bps / 10000</code>, <code>net = gross − fee</code>. Time-weighting at deposit:
+<code>multiplier = max(10% floor, (lock − now)/window)</code> linear decay (early bettors
+weighted higher). Rounding dust is cleared by <code>sweep_vault_dust</code> (≤ 0.001 USDC).</p>
+<h3 id="highest-risk-areas-to-focus-on">Highest-risk areas to focus on</h3>
+<blockquote>
+<p><strong>Note (pre-audit hardening).</strong> Findings 2, 4, 5, 6 and 8 below were hardened in
+the repo before this scope was frozen; each is annotated <strong>Addressed</strong> with the
+commit. We ask CertiK to <strong>verify the fixes</strong> rather than assume them. Findings 1,
+3, 7 and 9 are review/design items with no code change requested.</p>
+</blockquote>
+<ol>
+<li><strong>Fund conservation</strong> — prove <code>Σ(net payouts + fees + dust) ≤ vault</code> for the
+   weighted formula with many winners, hedged/multiple deposits, and a Draw winner;
+   confirm rounding can never overpay (last claimer must not fail).</li>
+<li><strong><code>force_close_pool</code></strong> — previously closed the pool account without checking the
+   vault was empty, so misuse could strand USDC in an orphan vault.
+   <strong>Addressed</strong> (<code>7e78c6c</code>): the instruction now takes the vault account and
+   requires <code>vault.amount == 0</code> (<code>VaultNotEmpty</code>), reading it by <code>pool.vault</code> so it
+   still works on legacy corrupted-bump vaults. Verify the guard can't be bypassed.</li>
+<li><strong>Authority = oracle + payer</strong> — <code>resolve</code> / <code>resolve_with_winner</code> set the winner
+   with no on-chain oracle and no timestamp guard (the <code>end_time</code> check was removed).
+   Whoever holds the key decides every outcome and payout recipient.</li>
+<li><strong>Refund / double-settle interaction</strong> — <code>claim</code>, <code>refund</code>, <code>refund_bettor</code>,
+   <code>close_losing_bet</code> all key off the same <code>UserBet</code> and set <code>claimed</code> / close it.
+   Confirm no bet can be settled twice. <code>refund_bettor</code> previously did <strong>not</strong>
+   decrement <code>pool.total_*</code> / <code>weighted_*</code>, leaving inflated denominators after a
+   partial refund. <strong>Addressed</strong> (<code>7e78c6c</code>): it now rolls back the refunded stake's
+   <code>total_*</code> / <code>weighted_*</code> (saturating). Verify the payout denominators stay correct
+   across partial-refund-then-claim.</li>
+<li><strong>Tournament completion gap</strong> — no instruction set tournament <code>status = Completed</code>
+   or <code>winner</code>, yet <code>claim_tournament_prize</code> required both, so the prize vault was
+   unclaimable. <strong>Addressed</strong> (<code>b028b47</code>): added <code>resolve_tournament(winner)</code> —
+   authority-signed, Registering/Active → Completed, sets <code>winner</code>, guarded against
+   re-resolve and against Cancelled, and proves the winner is a registered
+   participant via their participant PDA. Verify only a real participant can win and
+   that it can't be double-resolved.</li>
+<li><strong><code>fee_bps</code> bound</strong> — <code>fee_bps</code> is a caller-supplied argument on <code>claim</code>.
+   <strong>Addressed</strong> (<code>7e78c6c</code>): bounded on-chain to <code>MAX_FEE_BPS = 1000</code> (10%); the
+   real schedule tops out at 500. Verify the ceiling holds.</li>
+<li><strong><code>sweep_vault_dust</code> bound</strong> — the ≤ 1000 µUSDC (0.001) cap is enforced on-chain
+   (<code>DUST_THRESHOLD = 1000</code>, <code>amount &lt;= DUST_THRESHOLD</code>). Confirm the comparison is
+   tight and can't be used to drain more than dust.</li>
+<li><strong>Arithmetic</strong> — deposits/claims use <code>checked_*</code> (good); tournament <code>claim/refund</code>
+   previously used <code>.unwrap()</code> (panic on overflow). <strong>Addressed</strong> (<code>e9baa26</code>): those
+   now return <code>PoolError::Overflow</code> via <code>.ok_or(...)?</code>. Confirm no remaining panic
+   paths in the money instructions.</li>
+<li><strong>PDA/seeds &amp; bumps</strong> — caller-supplied 32-byte ids; verify uniqueness and that
+   <code>sweep</code>/<code>close</code> re-derive the vault via stored bump (historical "corrupted bump"
+   pools are why <code>force_close_pool</code> exists).</li>
+</ol>
+<hr />
+<h2 id="2-trust-centralization-model-design-review-to-include-in-the-report">2. Trust / centralization model (design review to include in the report)</h2>
+<ul>
+<li><strong>One hot authority key controls all settlement.</strong> <code>AUTHORITY_SECRET_KEY</code> (a
+  plaintext JSON keypair in an env var, loaded into a long-running Node process) is
+  the program authority and signs every state-changing instruction except the
+  user's own <code>deposit</code>: resolve, claim, refund, close, force-close, dust-sweep, and
+  tournament payout. No multisig / HSM / threshold signing.</li>
+<li><strong>Outcomes are decided off-chain with no on-chain proof.</strong> The backend computes
+  the winning side in TypeScript from external feeds (crypto price buffer,
+  TheSportsDB, Polymarket/UMA-CTF, LLM fallback) and pushes it via <code>resolve*</code>. The
+  program trusts whatever side the authority asserts. Synthetic prices are already
+  used deliberately for refund logic, proving the price args are fully
+  authority-controlled.</li>
+<li><strong>The authority is also the fee wallet</strong>, and <code>fee_bps</code> is a runtime argument.</li>
+<li><strong>Same authority key across localhost / Railway-dev / Railway-prod</strong> — a leak in
+  the weakest environment compromises production funds. (Recommendation: separate
+  keys per environment + move prod settlement to a multisig / hardened signer.)</li>
+<li><strong>Gasless deposit relayer</strong> (<code>POST /prepare-gasless-deposit</code>): the authority is
+  the tx fee-payer and pays SOL/rent for user deposits — a SOL-drain / griefing
+  vector without rate-limiting.</li>
+</ul>
+<p>On-chain double-spend protection is real (a re-resolved pool / re-claimed bet
+reverts), but resolution/payout idempotency across retries is enforced off-chain
+(DB optimistic locks). The auditor should confirm the on-chain "already-settled"
+checks are sufficient on their own.</p>
+<hr />
+<h2 id="3-not-built-yet-future-audit-targets-documentation-only-today">3. NOT built yet — future audit targets (documentation-only today)</h2>
+<p>Per <code>docs/UP-UTILITY-SPEC.md</code>, <code>docs/TOKENOMICS-PRESALE.md</code>,
+<code>docs/LAUNCH-CHECKLIST.md</code> — none of this is code:</p>
+<ul>
+<li><strong>UP Token</strong> — planned Solana SPL token (10B supply), mint authority to be revoked.</li>
+<li><strong>Vesting / locks</strong> — Streamflow (team cliff+vest, presale rounds, liquidity).</li>
+<li><strong>Multisig</strong> — Squads (treasury, mint authority, sale proceeds).</li>
+<li><strong>Presale sale / claim contract</strong> — the launch checklist flags "any funds-holding
+  sale/vesting contract" as the audit hard-gate; none written yet.</li>
+<li><strong>Staking</strong> and <strong>buyback &amp; burn</strong> — planned, not built.</li>
+</ul>
+<p>The earn-by-using <strong>"UP Coins" emission is 100% off-chain</strong> (Postgres ledger:
+<code>coinsBalance</code> / <code>EmissionConfig</code> / <code>CoinSpend</code>), converting to the on-chain token
+only at TGE. Nothing to audit on-chain until these contracts are written.</p>
+<hr />
+<h2 id="4-out-of-scope-for-a-smart-contract-audit">4. OUT of scope for a smart-contract audit</h2>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Why it's out of scope</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>HyperLiquid</strong></td>
+<td>External exchange. UpDown deploys no HL contract; it signs orders against HL via an agent-wallet (agent key AES-encrypted, server-side signing). HL's contracts are HL's to audit.</td>
+</tr>
+<tr>
+<td><strong>Pacifica</strong></td>
+<td>External Solana perp DEX. Trading is off-chain signed REST; the only on-chain touch is a deposit into <strong>Pacifica's own</strong> program (<code>PCFA5iYgmqK6…</code>), which is not UpDown's.</td>
+</tr>
+<tr>
+<td><strong>Privy embedded wallets</strong></td>
+<td>User key custody is handled by Privy (third-party MPC/TEE). No UpDown contract governs it.</td>
+</tr>
+<tr>
+<td><strong>LI.FI bridge</strong></td>
+<td>Quote/status only against LI.FI's API; execution deferred. No UpDown bridge contract exists.</td>
+</tr>
+<tr>
+<td><strong>Backend / web app</strong></td>
+<td><code>apps/api</code> (Express), <code>apps/web</code> / <code>apps/terminal</code> (Next.js), <code>packages/exchange-*</code> adapters — off-chain TypeScript, no bytecode.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-recommended-separate-web-infra-pentest-not-a-contract-audit">5. Recommended SEPARATE web / infra pentest (not a contract audit)</h2>
+<ul>
+<li>Agent-key custody at rest (<code>EXCHANGE_KEY_ENCRYPTION_SECRET</code>, AES scheme) and the
+  server-side order-signing path — a compromise here risks user funds on HL.</li>
+<li>Admin panel authenticated only by an <code>x-admin-key</code> header in <code>sessionStorage</code>
+  (now role-gated: super / read-only / marketing).</li>
+<li>Privy SSO cross-subdomain cookie/session handling.</li>
+<li>Withdrawal / order-routing endpoints, rate-limiting, anti-farming / re-linking.</li>
+<li>Pacifica server keypair storage; CSP / security-headers rollout.</li>
+</ul>
+<hr />
+<h2 id="6-deliverables-to-hand-certik">6. Deliverables to hand CertiK</h2>
+<ol>
+<li>Repo access to <code>programs/parimutuel_pools/</code> (Rust) + <code>Anchor.toml</code> + build.</li>
+<li>The compiled <strong>IDL</strong> and the deployed <strong>program id(s)</strong> per cluster.</li>
+<li>This scope doc + a functional spec: pool/bet/resolution/payout/refund/tournament
+   flows and the authority model (§3).</li>
+<li>The existing test suite (<code>tests/money_math.rs</code>) and any integration tests.</li>
+</ol></body></html>

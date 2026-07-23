@@ -131,18 +131,34 @@ export async function verifyKey(key: string): Promise<boolean> {
  * login form can distinguish 'server unreachable' from '401 invalid' and
  * 'rate limited'. Phase 6 polish - Plan §Phase 6.
  */
+export type AdminRole = 'super' | 'marketing' | 'readonly';
+
 export type VerifyResult =
-  | { kind: 'ok' }
+  | { kind: 'ok'; role: AdminRole }
   | { kind: 'invalid'; message: string }
   | { kind: 'rate-limited'; message: string }
   | { kind: 'unreachable'; message: string };
+
+/** Role of the currently authenticated admin (defaults to 'super' for older sessions). */
+export function getAdminRole(): AdminRole {
+  if (typeof sessionStorage === 'undefined') return 'super';
+  const r = sessionStorage.getItem('admin-role');
+  return r === 'marketing' || r === 'readonly' ? r : 'super';
+}
+export function setAdminRole(role: AdminRole): void {
+  try { sessionStorage.setItem('admin-role', role); } catch { /* best effort */ }
+}
 
 export async function verifyKeyDetailed(key: string): Promise<VerifyResult> {
   try {
     const res = await fetch(`${API_BASE}/api/admin/verify`, {
       headers: { 'x-admin-key': key },
     });
-    if (res.ok) return { kind: 'ok' };
+    if (res.ok) {
+      let role: AdminRole = 'super';
+      try { const j = await res.json(); if (j?.role === 'marketing' || j?.role === 'readonly') role = j.role; } catch { /* default super */ }
+      return { kind: 'ok', role };
+    }
     if (res.status === 429) {
       return { kind: 'rate-limited', message: 'Too many attempts - wait a minute and try again.' };
     }

@@ -1,7 +1,7 @@
 import cron from 'node-cron';
 import { PacificaProvider } from 'market-data';
 import { prisma } from '../db';
-import { checkAndAdvanceRound } from '../services/tournament';
+import { checkAndAdvanceRound, resolveTournamentOnChain } from '../services/tournament';
 import { emitTournamentMatchResult } from '../websocket';
 import { processSportsTournament } from './tournament-sports-resolver';
 import { assignMatchdayToRound } from '../services/tournament-sports';
@@ -28,7 +28,8 @@ async function processTournaments(): Promise<void> {
       // Delegate sports tournaments to dedicated resolver
       if (tournament.tournamentType === 'SPORTS') {
         await processSportsTournament(tournament);
-        await checkAndAdvanceRound(tournament.id);
+        const sportsAdv = await checkAndAdvanceRound(tournament.id);
+        if (sportsAdv?.completed) await resolveTournamentOnChain(tournament.id);
         continue;
       }
 
@@ -186,6 +187,7 @@ async function processTournaments(): Promise<void> {
 
       // ── 3. Advance round ───────────────────────────────────────────────
       const advResult = await checkAndAdvanceRound(tournament.id);
+      if (advResult?.completed) await resolveTournamentOnChain(tournament.id);
       if (advResult?.advanced && !advResult.completed && advResult.tournamentType === 'SPORTS' && advResult.league) {
         await assignMatchdayToRound(tournament.id, advResult.nextRound!, advResult.league, advResult.sport || tournament.sport || 'FOOTBALL').catch(err =>
           console.error(`[Tournament] Failed to assign matchday to round ${advResult.nextRound}:`, err)

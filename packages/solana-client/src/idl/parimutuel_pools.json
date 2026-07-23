@@ -457,6 +457,9 @@
           "writable": true
         },
         {
+          "name": "vault"
+        },
+        {
           "name": "authority",
           "writable": true,
           "signer": true,
@@ -772,7 +775,8 @@
       ],
       "accounts": [
         {
-          "name": "pool"
+          "name": "pool",
+          "writable": true
         },
         {
           "name": "user_bet",
@@ -996,6 +1000,78 @@
         {
           "name": "final_price",
           "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "resolve_tournament",
+      "docs": [
+        "Resolve tournament: authority sets the winner and marks it Completed",
+        "(the transition claim_tournament_prize gates on)"
+      ],
+      "discriminator": [
+        158,
+        64,
+        183,
+        235,
+        250,
+        101,
+        200,
+        246
+      ],
+      "accounts": [
+        {
+          "name": "tournament",
+          "writable": true
+        },
+        {
+          "name": "participant",
+          "docs": [
+            "The winner's participant PDA. Its address is derived from `winner`, so a",
+            "valid account here proves the winner actually registered for this",
+            "tournament."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  97,
+                  114,
+                  116,
+                  105,
+                  99,
+                  105,
+                  112,
+                  97,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "tournament"
+              },
+              {
+                "kind": "arg",
+                "path": "winner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "tournament"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "winner",
+          "type": "pubkey"
         }
       ]
     },
@@ -1304,6 +1380,19 @@
         196,
         101
       ]
+    },
+    {
+      "name": "TournamentResolved",
+      "discriminator": [
+        170,
+        41,
+        121,
+        25,
+        196,
+        58,
+        62,
+        234
+      ]
     }
   ],
   "errors": [
@@ -1385,7 +1474,7 @@
     {
       "code": 6015,
       "name": "InvalidFeeBps",
-      "msg": "Fee basis points must be <= 10000"
+      "msg": "Fee basis points exceed the maximum allowed"
     },
     {
       "code": 6016,
@@ -1444,11 +1533,16 @@
     },
     {
       "code": 6027,
+      "name": "TournamentAlreadyResolved",
+      "msg": "Tournament already resolved (winner already set)"
+    },
+    {
+      "code": 6028,
       "name": "IsWinner",
       "msg": "Bet is on the winning side - use claim, not close"
     },
     {
-      "code": 6028,
+      "code": 6029,
       "name": "AlreadyResolved",
       "msg": "Pool already has a winner - cannot void-refund a resolved pool"
     }
@@ -2216,6 +2310,27 @@
           {
             "name": "fee",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TournamentResolved",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "tournament_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "winner",
+            "type": "pubkey"
           }
         ]
       }

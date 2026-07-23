@@ -7,15 +7,22 @@
  * to extra time, by definition the score at 90 minutes was a draw.
  *
  * Status strings the major APIs emit when a match went beyond regulation:
- *   - TheSportsDB:        'AET', 'After Extra Time', 'PEN', 'After Penalties', 'AP'
+ *   - TheSportsDB:        'ET' (extra time, in progress or transiently at finish),
+ *                         'AET', 'After Extra Time', 'PEN', 'After Penalties', 'AP'
  *   - football-data.org:  'EXTRA_TIME', 'PENALTY_SHOOTOUT'
  *   - The Odds API:       (no AET indicator - relies on score, won't trigger)
+ *
+ * SDB is eventually consistent: a match that went to extra time can be reported
+ * as 'ET' (still playing ET) and briefly as a bare finished status before settling
+ * on 'AET'/'PEN'. 'ET' is included so any path that computes a winner from it
+ * collapses to DRAW (if a game reached extra time, the 90' score was a draw).
  *
  * Pools are settled by `winner` rather than the raw final score, so calling
  * this helper at every WRITE path that persists a winner is sufficient.
  */
 
 const EXTRA_TIME_TOKENS = new Set([
+  'et',
   'aet',
   'ap',
   'pen',
@@ -64,4 +71,32 @@ export function regulationWinner(
   if (homeScore > awayScore) return 'HOME';
   if (awayScore > homeScore) return 'AWAY';
   return 'DRAW';
+}
+
+/** Plain final-score winner, no regulation-time collapse. */
+function scoreWinner(homeScore: number, awayScore: number): 'HOME' | 'AWAY' | 'DRAW' {
+  if (homeScore > awayScore) return 'HOME';
+  if (awayScore > homeScore) return 'AWAY';
+  return 'DRAW';
+}
+
+/**
+ * Winner for a FINISHED match, applying the 90-minute (regulation) rule ONLY for
+ * football/soccer — where a "who wins?" pool settles on the score at 90', so a
+ * match decided in extra time or penalties is a DRAW for that bet.
+ *
+ * For every other sport the final-score winner stands: an NHL shootout ('AP') or
+ * an NBA/MLB overtime result IS the real winner, not a draw. This is why callers
+ * that handle mixed sports (e.g. the live_scores fallback) must NOT apply
+ * `regulationWinner` blindly. `sport` is the source's sport name ('Soccer',
+ * 'Ice Hockey', …).
+ */
+export function finishedWinner(
+  sport: string | null | undefined,
+  homeScore: number,
+  awayScore: number,
+  rawStatus: string | null | undefined,
+): 'HOME' | 'AWAY' | 'DRAW' {
+  const isSoccer = (sport || '').trim().toLowerCase() === 'soccer';
+  return isSoccer ? regulationWinner(homeScore, awayScore, rawStatus) : scoreWinner(homeScore, awayScore);
 }

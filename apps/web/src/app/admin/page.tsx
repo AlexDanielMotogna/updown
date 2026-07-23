@@ -8,7 +8,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import { darkTokens as t } from '@/lib/theme';
 import { AdminSidebar } from './components/AdminSidebar';
 import { AdminLogin } from './components/AdminLogin';
-import { ADMIN_AUTH_EXPIRED_EVENT, verifyKey } from './lib/adminApi';
+import { ADMIN_AUTH_EXPIRED_EVENT, verifyKeyDetailed, getAdminRole, setAdminRole, type AdminRole } from './lib/adminApi';
 import { ToastProvider, LoadingState } from './ui';
 import { SystemHealth } from './components/SystemHealth';
 import { NeedsAttention } from './components/NeedsAttention';
@@ -36,6 +36,9 @@ import { ResolutionInspector } from './components/ResolutionInspector';
 import { ResolutionSuggestions } from './components/ResolutionSuggestions';
 import { LiquidityBot } from './components/LiquidityBot';
 import { XPoster } from './components/XPoster';
+import { WorldCupAdmin } from './components/WorldCupAdmin';
+import { MarketingAssets } from './components/MarketingAssets';
+import { UpEconomy } from './components/UpEconomy';
 import { PoolCreation } from './components/PoolCreation';
 
 // Grouped navigation (Phase 1 of PLAN-ADMIN-RESTRUCTURE): the flat 17-tab bar
@@ -68,15 +71,20 @@ const NAV_GROUPS: { group: string; items: NavEntry[] }[] = [
     { id: 'actions', label: 'Actions', Component: ManualActions },
   ] },
   { group: 'Economy', items: [
+    { id: 'up-economy', label: 'UP Economy', Component: UpEconomy },
     { id: 'growth', label: 'Growth', Component: GrowthOverview },
     { id: 'trading', label: 'Trading', Component: BuilderRevenue },
     { id: 'liquidity', label: 'Liquidity', Component: LiquidityBot },
     { id: 'x-poster', label: 'X Poster', Component: XPoster },
+    { id: 'worldcup', label: 'World Cup', Component: WorldCupAdmin },
+    { id: 'marketing', label: 'Marketing', Component: MarketingAssets },
   ] },
 ];
 
 const ALL_ITEMS = NAV_GROUPS.flatMap(g => g.items);
-const SIDEBAR_GROUPS = NAV_GROUPS.map(g => ({ group: g.group, items: g.items.map(({ id, label }) => ({ id, label })) }));
+
+// The marketing role only ever sees these tab ids; super admins see everything.
+const MARKETING_ALLOWED = new Set(['marketing']);
 const ACTIVE_TAB_KEY = 'admin-active-tab';
 
 // Detect which environment the admin is pointing at, so a single misclick
@@ -108,6 +116,7 @@ export default function AdminPage() {
   // - the previous behaviour left admins staring at error toasts in every
   // tab after a key rotation. See PLAN-ADMIN-REFACTOR.md Phase 1 #16.
   const [authed, setAuthed] = useState<boolean | null>(null);
+  const [role, setRole] = useState<AdminRole>('super');
   const [activeId, setActiveId] = useState<string>('health');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const env = useMemo<EnvKind>(() => detectEnv(), []);
@@ -133,12 +142,14 @@ export default function AdminPage() {
       return;
     }
     let cancelled = false;
-    verifyKey(cached).then(ok => {
+    verifyKeyDetailed(cached).then(r => {
       if (cancelled) return;
-      if (!ok) {
+      if (r.kind !== 'ok') {
         sessionStorage.removeItem('admin-key');
         setAuthed(false);
       } else {
+        setAdminRole(r.role);
+        setRole(r.role);
         setAuthed(true);
       }
     });
@@ -175,9 +186,11 @@ export default function AdminPage() {
       }
       // Other tab logged in - re-verify the new value before adopting.
       const next = e.newValue;
-      void verifyKey(next).then(ok => {
-        if (!ok) return;
+      void verifyKeyDetailed(next).then(r => {
+        if (r.kind !== 'ok') return;
         try { sessionStorage.setItem('admin-key', next); } catch { /* read-only */ }
+        setAdminRole(r.role);
+        setRole(r.role);
         setAuthed(true);
       });
     };
@@ -192,7 +205,7 @@ export default function AdminPage() {
   }
 
   if (!authed) {
-    return <AdminLogin onLogin={() => setAuthed(true)} />;
+    return <AdminLogin onLogin={() => { setRole(getAdminRole()); setAuthed(true); }} />;
   }
 
   const handleLogout = () => {
@@ -200,7 +213,14 @@ export default function AdminPage() {
     setAuthed(false);
   };
 
-  const ActiveComponent = (ALL_ITEMS.find(i => i.id === activeId) ?? ALL_ITEMS[0]).Component;
+  // Role-gated navigation: the marketing role only sees the Marketing tab.
+  const visibleGroups = role === 'marketing'
+    ? NAV_GROUPS.map(g => ({ group: g.group, items: g.items.filter(i => MARKETING_ALLOWED.has(i.id)) })).filter(g => g.items.length > 0)
+    : NAV_GROUPS;
+  const visibleItems = visibleGroups.flatMap(g => g.items);
+  const sidebarGroups = visibleGroups.map(g => ({ group: g.group, items: g.items.map(({ id, label }) => ({ id, label })) }));
+  const effectiveActiveId = visibleItems.some(i => i.id === activeId) ? activeId : (visibleItems[0]?.id ?? activeId);
+  const ActiveComponent = (visibleItems.find(i => i.id === effectiveActiveId) ?? visibleItems[0]).Component;
 
   return (
     // ToastProvider is part of Phase 2's primitives module - wraps the
@@ -230,11 +250,28 @@ export default function AdminPage() {
             >
               {env}
             </Box>
+            {role !== 'super' && (
+              <Box sx={{
+                fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.06em',
+                px: 0.75, py: 0.25, borderRadius: 1,
+                bgcolor: role === 'readonly' ? '#f59e0b22' : '#22d3ee22',
+                color: role === 'readonly' ? '#f59e0b' : '#22d3ee',
+                border: `1px solid ${role === 'readonly' ? '#f59e0b55' : '#22d3ee55'}`,
+              }}>
+                {role === 'readonly' ? 'READ ONLY' : 'MARKETING'}
+              </Box>
+            )}
           </Box>
           <Button size="small" startIcon={<LogoutIcon />} onClick={handleLogout} sx={{ color: 'text.secondary' }}>
             Logout
           </Button>
         </Box>
+
+        {role === 'readonly' && (
+          <Box sx={{ mb: 2, px: 1.5, py: 1, borderRadius: 1, bgcolor: '#f59e0b18', border: '1px solid #f59e0b55', color: '#f59e0b', fontSize: '0.78rem', fontWeight: 600 }}>
+            Read-only access — you can view everything, but actions are disabled.
+          </Box>
+        )}
 
         <Box sx={{ display: 'flex', gap: { xs: 0, md: 3 } }}>
           {/* Desktop sidebar */}
@@ -248,7 +285,7 @@ export default function AdminPage() {
               maxHeight: 'calc(100vh - 90px)', overflowY: 'auto',
             }}
           >
-            <AdminSidebar groups={SIDEBAR_GROUPS} activeId={activeId} onSelect={selectTab} />
+            <AdminSidebar groups={sidebarGroups} activeId={effectiveActiveId} onSelect={selectTab} />
           </Box>
 
           {/* Mobile drawer */}
@@ -259,7 +296,7 @@ export default function AdminPage() {
             PaperProps={{ sx: { bgcolor: t.bg.surface, width: 250, borderRight: `1px solid ${t.border.medium}` } }}
           >
             <Box sx={{ px: 1.5, pt: 1.5, fontSize: '0.8rem', fontWeight: 700, color: t.text.secondary }}>Navigation</Box>
-            <AdminSidebar groups={SIDEBAR_GROUPS} activeId={activeId} onSelect={selectTab} />
+            <AdminSidebar groups={sidebarGroups} activeId={effectiveActiveId} onSelect={selectTab} />
           </Drawer>
 
           {/* Active section */}

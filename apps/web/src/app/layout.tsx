@@ -34,6 +34,12 @@ export const metadata: Metadata = {
     statusBarStyle: 'black-translucent',
     title: 'UpDown',
   },
+  // Standard replacement for the now-deprecated apple-mobile-web-app-capable.
+  // Keep both: apple-* still needed for older iOS Safari, this silences the
+  // Chrome/Android deprecation warning.
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
 };
 
 export default async function RootLayout({

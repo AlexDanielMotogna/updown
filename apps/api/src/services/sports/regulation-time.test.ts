@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { regulationWinner, wentBeyondRegulation } from './regulation-time';
+import { regulationWinner, wentBeyondRegulation, finishedWinner } from './regulation-time';
 
 // regulation-time decides WHO GETS PAID in a sports pool: it maps a final
 // score (+ raw status) to HOME / AWAY / DRAW. A bug here settles the pool to
@@ -15,7 +15,7 @@ describe('wentBeyondRegulation', () => {
   it('recognizes every extra-time / penalties token the upstream APIs emit', () => {
     // TheSportsDB, football-data.org and The Odds API variants.
     const tokens = [
-      'AET', 'AP', 'PEN',
+      'ET', 'AET', 'AP', 'PEN',
       'After Extra Time', 'After Penalties',
       'Penalty Shootout', 'Penalties',
       'EXTRA_TIME', 'Extra Time', 'PENALTY_SHOOTOUT',
@@ -23,6 +23,13 @@ describe('wentBeyondRegulation', () => {
     for (const t of tokens) {
       expect(wentBeyondRegulation(t), `${t} should count as beyond regulation`).toBe(true);
     }
+  });
+
+  it('recognizes SDB\'s in-progress extra-time code "ET"', () => {
+    // SDB reports a match still in / just past extra time as "ET"; if a game
+    // reached ET at all, the 90-minute score was a draw.
+    expect(wentBeyondRegulation('ET')).toBe(true);
+    expect(wentBeyondRegulation('et')).toBe(true);
   });
 
   it('is case-insensitive and trims surrounding whitespace', () => {
@@ -63,5 +70,28 @@ describe('regulationWinner', () => {
     expect(regulationWinner(1, 2, 'PEN')).toBe('DRAW');
     expect(regulationWinner(5, 4, 'After Penalties')).toBe('DRAW');
     expect(regulationWinner(0, 1, 'PENALTY_SHOOTOUT')).toBe('DRAW');
+  });
+});
+
+describe('finishedWinner (sport-aware)', () => {
+  it('applies the 90-minute rule for soccer: extra-time / penalty wins → DRAW', () => {
+    // Regression: FIFA World Cup Argentina 3-2 Cape Verde, decided in extra time,
+    // was wrongly resolved to Argentina. At 90 minutes it was a draw.
+    expect(finishedWinner('Soccer', 3, 2, 'AET')).toBe('DRAW');
+    expect(finishedWinner('Soccer', 3, 2, 'ET')).toBe('DRAW'); // SDB's transient ET code
+    expect(finishedWinner('Soccer', 1, 2, 'PEN')).toBe('DRAW');
+  });
+
+  it('keeps the final-score winner for soccer in normal (regulation) full-time', () => {
+    expect(finishedWinner('Soccer', 2, 1, 'FT')).toBe('HOME');
+    expect(finishedWinner('Soccer', 0, 3, 'Match Finished')).toBe('AWAY');
+    expect(finishedWinner('Soccer', 1, 1, 'FT')).toBe('DRAW');
+  });
+
+  it('does NOT collapse overtime/shootout wins for non-soccer sports', () => {
+    // A hockey shootout ('AP') or an OT result IS the real winner — not a draw.
+    expect(finishedWinner('Ice Hockey', 2, 1, 'AP')).toBe('HOME');
+    expect(finishedWinner('Ice Hockey', 3, 4, 'AOT')).toBe('AWAY');
+    expect(finishedWinner('Basketball', 110, 108, 'AOT')).toBe('HOME');
   });
 });

@@ -7,8 +7,9 @@ import {
   buildInitializePoolIx, buildDepositIx, buildResolveIx, buildResolveWithWinnerIx,
   buildClaimIx, buildRefundIx, buildRefundBettorIx, buildCloseLosingBetIx,
   buildSweepVaultDustIx, buildClosePoolIx, buildForceClosePoolIx,
-  buildInitializeTournamentIx, buildRegisterParticipantIx, buildClaimTournamentPrizeIx,
-  buildCancelTournamentIx, buildRefundParticipantIx, buildCloseTournamentIx,
+  buildInitializeTournamentIx, buildRegisterParticipantIx, buildResolveTournamentIx,
+  buildClaimTournamentPrizeIx, buildCancelTournamentIx, buildRefundParticipantIx,
+  buildCloseTournamentIx,
 } from 'solana-client';
 
 // solana-client hand-writes each instruction's 8-byte discriminator
@@ -39,9 +40,10 @@ const CASES: Array<[string, TransactionInstruction]> = [
   ['close_losing_bet', buildCloseLosingBetIx(P, P, P, P, 0)],
   ['sweep_vault_dust', buildSweepVaultDustIx(P, P, P, P)],
   ['close_pool', buildClosePoolIx(P, P, P)],
-  ['force_close_pool', buildForceClosePoolIx(P, P)],
+  ['force_close_pool', buildForceClosePoolIx(P, P, P)],
   ['initialize_tournament', buildInitializeTournamentIx(P, P, P, P, SEED, 0n, 0)],
   ['register_participant', buildRegisterParticipantIx(P, P, P, P, P)],
+  ['resolve_tournament', buildResolveTournamentIx(P, P, P, P)],
   ['claim_tournament_prize', buildClaimTournamentPrizeIx(P, P, P, P, P, P, P)],
   ['cancel_tournament', buildCancelTournamentIx(P, P)],
   ['refund_participant', buildRefundParticipantIx(P, P, P, P, P, P)],

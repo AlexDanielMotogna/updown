@@ -1,5 +1,6 @@
 import { Router, type Router as RouterType } from 'express';
 import { prisma } from '../db';
+import { pushEnabled } from '../services/webpush';
 
 export const notificationsRouter: RouterType = Router();
 
@@ -49,5 +50,62 @@ notificationsRouter.post('/read-all', async (req, res) => {
     res.json({ success: true });
   } catch {
     res.status(500).json({ success: false, error: 'Failed to mark notifications as read' });
+  }
+});
+
+// ── Web Push ─────────────────────────────────────────────────────────────────
+
+// GET /api/notifications/vapid-key - public VAPID key + whether push is enabled.
+// The client needs the key to call pushManager.subscribe().
+notificationsRouter.get('/vapid-key', (_req, res) => {
+  res.json({
+    success: true,
+    data: { publicKey: process.env.VAPID_PUBLIC_KEY ?? null, enabled: pushEnabled() },
+  });
+});
+
+// POST /api/notifications/subscribe - upsert a browser push subscription.
+// Body: { wallet, subscription: { endpoint, keys: { p256dh, auth } }, userAgent? }
+notificationsRouter.post('/subscribe', async (req, res) => {
+  try {
+    const { wallet, subscription, userAgent } = req.body as {
+      wallet?: string;
+      subscription?: { endpoint?: string; keys?: { p256dh?: string; auth?: string } };
+      userAgent?: string;
+    };
+
+    const endpoint = subscription?.endpoint;
+    const p256dh = subscription?.keys?.p256dh;
+    const auth = subscription?.keys?.auth;
+
+    if (!wallet || !endpoint || !p256dh || !auth) {
+      return res.status(400).json({ success: false, error: 'wallet + full subscription required' });
+    }
+
+    // Keyed by endpoint (unique). Re-subscribing on the same device updates the
+    // wallet/keys instead of creating a duplicate (e.g. after wallet switch).
+    await prisma.pushSubscription.upsert({
+      where: { endpoint },
+      create: { walletAddress: wallet, endpoint, p256dh, auth, userAgent: userAgent ?? null },
+      update: { walletAddress: wallet, p256dh, auth, userAgent: userAgent ?? null },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Notifications] subscribe failed:', (error as Error).message);
+    res.status(500).json({ success: false, error: 'Failed to save subscription' });
+  }
+});
+
+// POST /api/notifications/unsubscribe - remove a subscription by endpoint.
+notificationsRouter.post('/unsubscribe', async (req, res) => {
+  try {
+    const endpoint = req.body.endpoint as string;
+    if (!endpoint) return res.status(400).json({ success: false, error: 'endpoint required' });
+
+    await prisma.pushSubscription.deleteMany({ where: { endpoint } });
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ success: false, error: 'Failed to remove subscription' });
   }
 });

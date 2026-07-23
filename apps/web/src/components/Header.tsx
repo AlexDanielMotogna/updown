@@ -11,9 +11,11 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import { UP_COINS_DIVISOR } from '@/lib/constants';
 import { UserLevelBadge } from './UserLevelBadge';
 import { MarketSearch } from './header/MarketSearch';
+import { BoostBadges } from './header/BoostBadges';
 import { NotificationPanel } from './header/NotificationPanel';
 import { MobileBottomNav } from './header/MobileBottomNav';
 import { useThemeTokens, useThemeMode } from '@/app/providers';
+import { STORE_UI_ENABLED } from '@/lib/features';
 
 // Top-bar nav links. Kept small (3 entries) so the row never wraps and
 // the search field on the right still has room. The rest of the routes
@@ -30,6 +32,7 @@ const HEADER_NAV = [
   { label: 'Markets', href: '/' },
   { label: 'Trade', href: TERMINAL_URL },
   // 'Live' moved into the MarketFilter tabs (first tab, before Trending).
+  { label: 'Store', href: '/store' },
   { label: 'Profile', href: '/profile' },
   { label: 'Leaderboard', href: '/leaderboard' },
 ] as const;
@@ -93,7 +96,7 @@ export function Header() {
               gap: { md: 0.5, lg: 1 },
             }}
           >
-            {HEADER_NAV.map(item => {
+            {HEADER_NAV.filter(item => STORE_UI_ENABLED || item.href !== '/store').map(item => {
               const external = item.href.startsWith('http');
               const active = !external && isActive(item.href);
               const LinkEl = external ? 'a' : Link;
@@ -230,6 +233,9 @@ export function Header() {
           )}
         </Box>
       </Box>
+
+      {/* Floating active-boost indicator (pinned to a corner, out of the navbar) */}
+      {STORE_UI_ENABLED && <BoostBadges />}
 
       {/* Mobile bottom nav */}
       <MobileBottomNav />

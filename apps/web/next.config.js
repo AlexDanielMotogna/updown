@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const { buildSecurityHeaders } = require('../../config/security-headers');
+
 // Bake the deploy's git SHA into the client so VersionGate can detect stale
 // bundles after a deploy. Railway exposes RAILWAY_GIT_COMMIT_SHA at build time.
 const BUILD_ID = process.env.RAILWAY_GIT_COMMIT_SHA || process.env.NEXT_PUBLIC_BUILD_ID || 'dev';
@@ -16,6 +18,11 @@ const nextConfig = {
       { source: '/squads', destination: '/', permanent: false },
       { source: '/squads/:path*', destination: '/', permanent: false },
     ];
+  },
+  // Security headers (Privy "Secure your app"). CSP is env-derived + Report-Only
+  // until CSP_ENFORCE=true. See config/security-headers.js.
+  async headers() {
+    return [{ source: '/:path*', headers: buildSecurityHeaders() }];
   },
   webpack: (config) => {
     config.resolve.fallback = {

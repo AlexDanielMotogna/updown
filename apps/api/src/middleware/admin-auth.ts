@@ -1,6 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
 import { timingSafeEqual } from 'crypto';
 
+export type AdminRole = 'super' | 'marketing' | 'readonly';
+
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace Express {
+    interface Request {
+      adminRole?: AdminRole;
+    }
+  }
+}
+
 /**
  * Admin auth middleware. Verifies the `x-admin-key` header against
  * `process.env.ADMIN_API_KEY` using a constant-time comparison to avoid
@@ -107,6 +118,22 @@ function constantTimeEquals(a: string, b: string): boolean {
   return timingSafeEqual(aBuf, bBuf);
 }
 
+/**
+ * Resolve the role for a provided key using constant-time comparisons.
+ * `ADMIN_API_KEY` = super admin (everything). `MARKETING_ADMIN_KEY` = marketing
+ * (only the marketing tab). Returns null when the key matches neither.
+ */
+function roleForKey(provided: unknown): AdminRole | null {
+  if (typeof provided !== 'string') return null;
+  const superKey = process.env.ADMIN_API_KEY;
+  const readonlyKey = process.env.READONLY_ADMIN_KEY;
+  const marketingKey = process.env.MARKETING_ADMIN_KEY;
+  if (superKey && constantTimeEquals(provided, superKey)) return 'super';
+  if (readonlyKey && constantTimeEquals(provided, readonlyKey)) return 'readonly';
+  if (marketingKey && constantTimeEquals(provided, marketingKey)) return 'marketing';
+  return null;
+}
+
 export function adminAuth(req: Request, res: Response, next: NextFunction): void {
   if (RATE_LIMIT_ENABLED) ensurePruneTimer();
 
@@ -117,6 +144,7 @@ export function adminAuth(req: Request, res: Response, next: NextFunction): void
   }
 
   const ip = req.ip || req.socket?.remoteAddress || 'unknown';
+  const provided = req.headers['x-admin-key'];
 
   // Rate-limit gate. Skipped entirely when disabled (dev/test default).
   if (RATE_LIMIT_ENABLED) {
@@ -128,8 +156,8 @@ export function adminAuth(req: Request, res: Response, next: NextFunction): void
     }
     bucket.total++;
 
-    const provided = req.headers['x-admin-key'];
-    if (typeof provided !== 'string' || !constantTimeEquals(provided, adminKey)) {
+    const role = roleForKey(provided);
+    if (!role) {
       bucket.fails++;
       // Separate sub-limit on FAILS so a legit operator who mis-pastes once
       // doesn't get locked out by their own scripted health checks.
@@ -143,16 +171,45 @@ export function adminAuth(req: Request, res: Response, next: NextFunction): void
       return;
     }
 
+    req.adminRole = role;
     next();
     return;
   }
 
   // Rate limiter off — still constant-time compare and log failed attempts
   // so the cryptographic surface and observability are unchanged.
-  const provided = req.headers['x-admin-key'];
-  if (typeof provided !== 'string' || !constantTimeEquals(provided, adminKey)) {
+  const role = roleForKey(provided);
+  if (!role) {
     console.warn(`[admin-auth] FAILED auth  ip=${ip}  ua="${req.headers['user-agent'] ?? ''}"  path=${req.path}  (rate-limit off)`);
     res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+    return;
+  }
+  req.adminRole = role;
+  next();
+}
+
+/**
+ * Gate for the full back-office (everything except the marketing-only tab).
+ * Super admins and read-only admins pass; the marketing role gets a 403.
+ */
+export function requireBackoffice(req: Request, res: Response, next: NextFunction): void {
+  if (req.adminRole === 'marketing') {
+    res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Not authorized for this section' } });
+    return;
+  }
+  next();
+}
+
+const WRITE_SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+/**
+ * Read-only enforcement. The 'readonly' role may load any page (GET) but cannot
+ * perform actions: any write method (POST/PUT/PATCH/DELETE) is refused. Mounted
+ * globally right after adminAuth so it covers every admin route.
+ */
+export function blockReadonlyWrites(req: Request, res: Response, next: NextFunction): void {
+  if (req.adminRole === 'readonly' && !WRITE_SAFE_METHODS.has(req.method)) {
+    res.status(403).json({ success: false, error: { code: 'READ_ONLY', message: 'Read-only admin: actions are disabled' } });
     return;
   }
   next();

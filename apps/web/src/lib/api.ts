@@ -286,6 +286,29 @@ export async function markAllNotificationsRead(wallet: string): Promise<ApiRespo
   });
 }
 
+// Web Push endpoints
+export async function fetchVapidKey(): Promise<ApiResponse<{ publicKey: string | null; enabled: boolean }>> {
+  return fetchApi<{ publicKey: string | null; enabled: boolean }>('/api/notifications/vapid-key');
+}
+
+export async function subscribePush(
+  wallet: string,
+  subscription: PushSubscriptionJSON,
+  userAgent?: string,
+): Promise<ApiResponse<void>> {
+  return fetchApi<void>('/api/notifications/subscribe', {
+    method: 'POST',
+    body: JSON.stringify({ wallet, subscription, userAgent }),
+  });
+}
+
+export async function unsubscribePush(endpoint: string): Promise<ApiResponse<void>> {
+  return fetchApi<void>('/api/notifications/unsubscribe', {
+    method: 'POST',
+    body: JSON.stringify({ endpoint }),
+  });
+}
+
 // Transaction endpoints
 export async function prepareDeposit(params: {
   poolId: string;
@@ -396,6 +419,10 @@ export interface UserProfile {
   coinsBalance: string;
   coinsLifetime: string;
   coinsRedeemed: string;
+  /** Streak-saver inventory (consumable that protects the streak on a loss). */
+  streakSavers: number;
+  /** Currently-equipped cosmetics (at most one per kind). */
+  equippedCosmetics: EquippedCosmetic[];
   feeBps: number;
   feePercent: string;
   coinMultiplier: number;
@@ -590,6 +617,97 @@ export async function updateUserProfile(
 ): Promise<ApiResponse<UserProfile>> {
   return fetchApi<UserProfile>('/api/users/profile', {
     method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export interface StreakSaverResult {
+  streakSavers: number;
+  coinsBalance: string;
+  spent: string;
+}
+
+export type CosmeticKind = 'BADGE' | 'FRAME' | 'TITLE' | 'NAME_COLOR';
+
+export interface CosmeticEntry {
+  id: string;
+  sku: string;
+  kind: CosmeticKind;
+  name: string;
+  price: string; // stored units (display = /100)
+  value: string; // hex color / icon / title text, interpreted per kind
+  owned: boolean;
+  equipped: boolean;
+}
+
+export interface EquippedCosmetic {
+  sku: string;
+  kind: CosmeticKind;
+  name: string;
+  value: string;
+}
+
+/** Cosmetics store: catalog + this wallet's owned/equipped flags. */
+export async function fetchCosmetics(wallet: string): Promise<ApiResponse<CosmeticEntry[]>> {
+  return fetchApi<CosmeticEntry[]>(`/api/users/cosmetics?wallet=${wallet}`);
+}
+
+/** Buy a cosmetic (burns UP Coins). */
+export async function buyCosmetic(
+  body: { walletAddress: string; sku: string; idempotencyKey?: string },
+): Promise<ApiResponse<{ cosmeticId: string; coinsBalance: string }>> {
+  return fetchApi('/api/users/cosmetics', { method: 'POST', body: JSON.stringify(body) });
+}
+
+/** Equip / unequip an owned cosmetic (one active per kind). */
+export async function equipCosmetic(
+  body: { walletAddress: string; cosmeticId: string; equipped: boolean },
+): Promise<ApiResponse<{ equipped: boolean }>> {
+  return fetchApi('/api/users/cosmetics/equip', { method: 'PATCH', body: JSON.stringify(body) });
+}
+
+export type BoostKind = 'XP' | 'COINS';
+
+export interface BoostProductEntry {
+  sku: string;
+  kind: BoostKind;
+  multiplierBps: number;
+  durationHours: number;
+  price: string; // stored units
+  label: string;
+}
+
+export interface ActiveBoostEntry {
+  kind: BoostKind;
+  sku: string;
+  multiplierBps: number;
+  expiresAt: string;
+}
+
+export interface BoostStateResponse {
+  products: BoostProductEntry[];
+  active: ActiveBoostEntry[];
+}
+
+/** Boost store: catalog + this wallet's currently-active boosts. */
+export async function fetchBoosts(wallet: string): Promise<ApiResponse<BoostStateResponse>> {
+  return fetchApi<BoostStateResponse>(`/api/users/boosts?wallet=${wallet}`);
+}
+
+/** Buy a time-limited XP/COINS boost (burns UP Coins). */
+export async function buyBoost(
+  body: { walletAddress: string; sku: string; idempotencyKey?: string },
+): Promise<ApiResponse<{ kind: BoostKind; expiresAt: string; coinsBalance: string }>> {
+  return fetchApi('/api/users/boosts', { method: 'POST', body: JSON.stringify(body) });
+}
+
+/** Buy streak-saver consumables with UP Coins. `walletAddress` in the body is the
+ *  auth signal (same convention as the other /api/users routes). */
+export async function buyStreakSaver(
+  body: { walletAddress: string; quantity?: number; idempotencyKey?: string },
+): Promise<ApiResponse<StreakSaverResult>> {
+  return fetchApi<StreakSaverResult>('/api/users/streak-saver', {
+    method: 'POST',
     body: JSON.stringify(body),
   });
 }
@@ -1154,4 +1272,120 @@ export async function claimTournamentPrize(tournamentId: string, walletAddress: 
     method: 'POST',
     body: JSON.stringify({ walletAddress }),
   });
+}
+
+// ── World Cup predictions (free-to-play) ──
+export type WorldCupStatus = 'SCHEDULED' | 'LIVE' | 'FINISHED';
+export type WorldCupPhase = 'REGULATION' | 'EXTRA_TIME' | 'PENALTIES';
+
+export interface WorldCupMatch {
+  matchId: string;
+  round: string | null;
+  homeTeam: string;
+  awayTeam: string;
+  homeCrest: string | null;
+  awayCrest: string | null;
+  kickoff: string | null;
+  status: WorldCupStatus;
+  homeScore: number | null;
+  awayScore: number | null;
+  progress: string | null;
+  phase: WorldCupPhase | null;
+  homePens: number | null;
+  awayPens: number | null;
+}
+
+export async function fetchWorldCupMatches(): Promise<ApiResponse<WorldCupMatch[]>> {
+  return fetchApi<WorldCupMatch[]>('/api/worldcup/matches');
+}
+
+export interface WorldCupGoal {
+  side: 'home' | 'away';
+  player: string;
+  minute: number | null;
+  kind: 'GOAL' | 'PENALTY' | 'OWN_GOAL';
+}
+export async function fetchWorldCupTimeline(matchId: string): Promise<ApiResponse<WorldCupGoal[]>> {
+  return fetchApi<WorldCupGoal[]>(`/api/worldcup/match/${matchId}/timeline`);
+}
+
+export interface WorldCupPredictionDto {
+  matchId: string;
+  homeScore: number;
+  awayScore: number;
+  phase: WorldCupPhase;
+}
+export interface WorldCupIdentity {
+  provider?: string;
+  xHandle?: string;
+  email?: string;
+  displayName?: string;
+}
+
+export async function fetchMyWorldCupPredictions(token: string): Promise<ApiResponse<WorldCupPredictionDto[]>> {
+  return fetchApi<WorldCupPredictionDto[]>('/api/worldcup/predictions', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function saveWorldCupPrediction(
+  token: string,
+  body: { matchId: string; homeScore: number; awayScore: number; phase: WorldCupPhase; identity?: WorldCupIdentity },
+): Promise<ApiResponse<WorldCupPredictionDto>> {
+  return fetchApi<WorldCupPredictionDto>('/api/worldcup/predictions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+}
+
+export interface WorldCupWinningDto {
+  matchId: string;
+  homeTeam: string | null;
+  awayTeam: string | null;
+  round: string | null;
+  claimed: boolean;
+  paid: boolean;
+  payoutWallet: string | null;
+}
+
+export async function fetchMyWorldCupWinnings(token: string): Promise<ApiResponse<WorldCupWinningDto[]>> {
+  return fetchApi<WorldCupWinningDto[]>('/api/worldcup/my-winnings', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function claimWorldCupWinning(
+  token: string,
+  matchId: string,
+  body: { payoutWallet: string; identity?: WorldCupIdentity },
+): Promise<ApiResponse<{ matchId: string; payoutWallet: string; claimed: boolean }>> {
+  return fetchApi<{ matchId: string; payoutWallet: string; claimed: boolean }>(`/api/worldcup/winnings/${matchId}/claim`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+}
+
+// ── Crypto Predictions event ────────────────────────────────────────────────
+export interface CryptoMe { realizedPnl: string; weeklyPnl: string; rank: number | null; players: number }
+export interface CryptoLeaderRow { rank: number; walletAddress: string; displayName: string | null; avatarUrl: string | null; pnl: string }
+
+/** Ensure the user + one-time auto-fund (1000 test USDC). */
+export async function joinCryptoEvent(token: string, walletAddress: string): Promise<ApiResponse<{ funded: boolean; alreadyFunded: boolean }>> {
+  return fetchApi<{ funded: boolean; alreadyFunded: boolean }>(`/api/crypto-predictions/join`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ walletAddress }),
+  });
+}
+
+export async function fetchCryptoMe(token: string, wallet: string): Promise<ApiResponse<CryptoMe>> {
+  return fetchApi<CryptoMe>(`/api/crypto-predictions/me?wallet=${encodeURIComponent(wallet)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function fetchCryptoLeaderboard(window: 'week' | 'all' = 'week'): Promise<ApiResponse<CryptoLeaderRow[]>> {
+  return fetchApi<CryptoLeaderRow[]>(`/api/crypto-predictions/leaderboard?window=${window}`);
 }
