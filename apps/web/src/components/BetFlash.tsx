@@ -29,7 +29,7 @@ import { USDC_DIVISOR } from '@/lib/format';
 import { YES_ICON, NO_ICON, UP_ICON, DOWN_ICON } from '@/lib/predictionIcons';
 import type { BetFlash } from '@/hooks/useBetFlash';
 
-type Variant = 'card' | 'chart-left' | 'chart-bottom-right';
+type Variant = 'card' | 'chart-left' | 'chart-bottom-right' | 'chart-bottom-left';
 type SideKey = 'UP' | 'DOWN' | 'DRAW';
 
 interface BetFlashProps {
@@ -70,8 +70,11 @@ export function BetFlash({ flashes, variant = 'card', prediction = false, sideIc
         ? // Bottom-right of the chart, Kalshi/Polymarket "live tape" — newest
           // at the bottom, older bets stacking upward (column-reverse).
           { ...base, bottom: 10, right: 12, alignItems: 'flex-end' as const, flexDirection: 'column-reverse' as const }
-        : // chart-left: top-left, clear of the right price axis + top legend.
-          { ...base, top: 10, left: 10, alignItems: 'flex-start' as const };
+        : variant === 'chart-bottom-left'
+          ? // Bottom-left "live tape" — newest at the bottom, older stacking up.
+            { ...base, bottom: 10, left: 12, alignItems: 'flex-start' as const, flexDirection: 'column-reverse' as const }
+          : // chart-left: top-left, clear of the right price axis + top legend.
+            { ...base, top: 10, left: 10, alignItems: 'flex-start' as const };
 
   return (
     <Box sx={containerSx}>
