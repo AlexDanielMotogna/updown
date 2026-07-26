@@ -15,6 +15,9 @@ export interface TourStep {
   selector: string;
   title: string;
   body: string;
+  /** When true, render the tooltip only (no dim/spotlight) so an opened panel/sheet
+   *  stays fully visible. Used by the mobile predict step that opens the bet sheet. */
+  bare?: boolean;
 }
 
 /**
@@ -22,7 +25,7 @@ export interface TourStep {
  * current target element and anchors a tooltip card to it, with Back/Next/Skip.
  * No external deps: the "hole" is a box-shadow spread over the target rect.
  */
-export function CryptoTour({ run, steps, onClose }: { run: boolean; steps: TourStep[]; onClose: () => void }) {
+export function CryptoTour({ run, steps, onClose, onStepChange }: { run: boolean; steps: TourStep[]; onClose: () => void; onStepChange?: (step: TourStep, index: number) => void }) {
   const t = useThemeTokens();
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
@@ -31,31 +34,51 @@ export function CryptoTour({ run, steps, onClose }: { run: boolean; steps: TourS
 
   const step = steps[index];
 
+  // Let the host react to the active step (e.g. open the mobile bet sheet).
+  useEffect(() => { if (run && step) onStepChange?.(step, index); }, [run, index, step, onStepChange]);
+
+  // The same data-tour selector can match both a desktop and a mobile element
+  // (one hidden per breakpoint). Pick the first that's actually rendered.
+  const findEl = useCallback((selector: string): HTMLElement | null => {
+    if (typeof document === 'undefined') return null;
+    const els = document.querySelectorAll<HTMLElement>(selector);
+    for (const el of Array.from(els)) {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) return el;
+    }
+    return null;
+  }, []);
+
   const measure = useCallback(() => {
-    if (typeof document === 'undefined' || !step) return;
-    const el = document.querySelector(step.selector) as HTMLElement | null;
+    if (!step) return;
+    const el = findEl(step.selector);
     setRect(el ? el.getBoundingClientRect() : null);
-  }, [step]);
+  }, [step, findEl]);
 
   useEffect(() => {
     if (!run || !step) return;
-    const el = typeof document !== 'undefined' ? (document.querySelector(step.selector) as HTMLElement | null) : null;
+    const el = findEl(step.selector);
     if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
     measure();
     const t1 = setTimeout(measure, 340); // after smooth scroll settles
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);
     return () => { clearTimeout(t1); window.removeEventListener('resize', measure); window.removeEventListener('scroll', measure, true); };
-  }, [run, index, step, measure]);
+  }, [run, index, step, measure, findEl]);
 
   if (!run || !step) return null;
 
   const last = index === steps.length - 1;
+  const bare = !!step.bare;
 
-  // Tooltip position: below the target if it fits, else above; centered when no target.
+  // Tooltip position: below the target if it fits, else above; centered when no
+  // target; pinned to the top for bare steps (so an opened sheet stays visible).
   let top: number;
   let left: number;
-  if (rect) {
+  if (bare) {
+    top = 14;
+    left = typeof window !== 'undefined' ? window.innerWidth / 2 - CARD_W / 2 : 40;
+  } else if (rect) {
     const placeBelow = rect.bottom + CARD_H + 16 < window.innerHeight;
     top = placeBelow ? rect.bottom + 12 : Math.max(12, rect.top - CARD_H - 12);
     left = Math.min(Math.max(12, rect.left + rect.width / 2 - CARD_W / 2), window.innerWidth - CARD_W - 12);
@@ -66,15 +89,14 @@ export function CryptoTour({ run, steps, onClose }: { run: boolean; steps: TourS
 
   return (
     <>
-      {/* Click blocker (transparent) */}
-      <Box onClick={(e) => e.stopPropagation()} sx={{ position: 'fixed', inset: 0, zIndex: 2000 }} />
+      {/* Click blocker + dim/spotlight — skipped on bare steps so the opened sheet shows */}
+      {!bare && <Box onClick={(e) => e.stopPropagation()} sx={{ position: 'fixed', inset: 0, zIndex: 2000 }} />}
 
-      {/* Spotlight hole (visual only) or full dim when target missing */}
-      {rect ? (
+      {!bare && (rect ? (
         <Box sx={{ position: 'fixed', top: rect.top - PAD, left: rect.left - PAD, width: rect.width + PAD * 2, height: rect.height + PAD * 2, borderRadius: '10px', boxShadow: `0 0 0 9999px rgba(3,8,14,0.74), 0 0 0 2px ${CYAN}`, transition: 'all 0.22s ease', pointerEvents: 'none', zIndex: 2001 }} />
       ) : (
         <Box sx={{ position: 'fixed', inset: 0, bgcolor: 'rgba(3,8,14,0.74)', pointerEvents: 'none', zIndex: 2001 }} />
-      )}
+      ))}
 
       {/* Tooltip card */}
       <Box sx={{ position: 'fixed', top, left, width: CARD_W, maxWidth: 'calc(100vw - 24px)', zIndex: 2002, bgcolor: t.bg.surface, border: `1px solid ${CYAN}44`, borderRadius: 1.5, boxShadow: '0 12px 40px rgba(0,0,0,0.5)', p: 2 }}>

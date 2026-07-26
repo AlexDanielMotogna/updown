@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Box, Typography, Drawer, IconButton } from '@mui/material';
 import { Close, ShowChart, AccessTime, EmojiEvents, InfoOutlined } from '@mui/icons-material';
 import { AssetIcon } from '@/components/AssetIcon';
@@ -26,30 +26,36 @@ const NAV = [
  * prediction is one tap away) over a section nav row. Tapping a side opens a
  * bottom sheet with the full bet form (reuses CryptoBetPanel), side preselected.
  */
-export function MobilePredictBar({ asset }: { asset: string }) {
+export function MobilePredictBar({ asset, tourOpen = false }: { asset: string; tourOpen?: boolean }) {
   const t = useThemeTokens();
   const { data } = usePools({ type: 'CRYPTO', asset, interval: '5m', status: 'JOINING' }, { refetchInterval: 3_000, staleTime: 2_000 });
   const pool: Pool | undefined = data?.data?.[0];
   const [sheet, setSheet] = useState<'UP' | 'DOWN' | null>(null);
+
+  // The tutorial can open/close the sheet to demo the bet form (only on step change).
+  useEffect(() => { setSheet(tourOpen ? 'UP' : null); }, [tourOpen]);
 
   const strikeStr = pool?.strikePrice ? fmtUsd(Number(pool.strikePrice) / USDC_DIVISOR) : '—';
   const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   const half = (s: 'UP' | 'DOWN') => {
     const up = s === 'UP';
-    // Diagonal seam: UP is wider at the top, DOWN wider at the bottom.
-    const clip = up ? 'polygon(0 0, 100% 0, calc(100% - 18px) 100%, 0 100%)' : 'polygon(18px 0, 100% 0, 100% 100%, 0 100%)';
+    // Absolute, overlapping halves whose diagonal edges coincide → a crisp
+    // diagonal split with no dark wedge between them. Content sits in the
+    // outer (unclipped) half so it never touches the seam.
+    const clip = up ? 'polygon(0 0, 100% 0, calc(100% - 16px) 100%, 0 100%)' : 'polygon(16px 0, 100% 0, 100% 100%, 0 100%)';
     return (
       <Box
         component="button"
         onClick={() => pool && setSheet(s)}
         disabled={!pool}
         sx={{
-          flex: 1, border: 'none', cursor: pool ? 'pointer' : 'default', clipPath: clip, bgcolor: up ? t.up : t.down,
+          position: 'absolute', top: 0, bottom: 0, [up ? 'left' : 'right']: 0, width: 'calc(50% + 8px)',
+          border: 'none', cursor: pool ? 'pointer' : 'default', clipPath: clip, bgcolor: up ? t.up : t.down,
           // Darken the app hue slightly so white text stays legible on the light cyan-green.
           backgroundImage: 'linear-gradient(rgba(0,0,0,0.34), rgba(0,0,0,0.34))',
           color: '#fff', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          py: 1, opacity: pool ? 1 : 0.55, transition: 'filter 0.15s', '&:active': { filter: 'brightness(1.15)' },
+          opacity: pool ? 1 : 0.55, transition: 'filter 0.15s', '&:active': { filter: 'brightness(1.15)' },
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
@@ -66,9 +72,11 @@ export function MobilePredictBar({ asset }: { asset: string }) {
     <>
       <Box sx={{ display: { xs: 'block', lg: 'none' }, position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 96, bgcolor: t.bg.app, boxShadow: '0 -6px 20px rgba(0,0,0,0.4)' }}>
         {/* Diagonal UP / DOWN place-order bar */}
-        <Box sx={{ display: 'flex', gap: '3px', px: 1, pt: 1, pb: 0.75 }}>
-          {half('UP')}
-          {half('DOWN')}
+        <Box sx={{ px: 1, pt: 1, pb: 0.75 }}>
+          <Box data-tour="predict" sx={{ position: 'relative', height: 66, borderRadius: '5px', overflow: 'hidden' }}>
+            {half('UP')}
+            {half('DOWN')}
+          </Box>
         </Box>
         {/* Section nav */}
         <Box sx={{ display: 'flex', height: 46, borderTop: `1px solid ${t.border.subtle}` }}>
