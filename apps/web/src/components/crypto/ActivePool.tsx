@@ -56,9 +56,9 @@ export function ActivePool({ asset }: { asset: string }) {
       </Box>
 
       {/* Chart */}
-      <Box sx={{ mb: 2.5, borderRadius: 2, overflow: 'hidden', border: `1px solid ${t.border.subtle}` }}>
+      <Box sx={{ mb: 2.5, borderRadius: 2, overflow: 'hidden' }}>
         {pool ? (
-          <InlineChart asset={asset} livePrice={live} strikePrice={pool.strikePrice} height={{ xs: 220, md: 280 }} staticChart />
+          <InlineChart asset={asset} livePrice={live} strikePrice={pool.strikePrice} height={{ xs: 220, md: 280 }} staticChart background={t.bg.surface} />
         ) : (
           <Box sx={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Skeleton variant="rounded" width="95%" height="85%" sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} /></Box>
         )}
