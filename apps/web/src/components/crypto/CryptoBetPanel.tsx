@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, Tooltip } from '@mui/material';
 import { Bolt } from '@mui/icons-material';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -45,6 +45,11 @@ export function CryptoBetPanel({ pool }: { pool: Pool }) {
   const odds = weighted ? weighted.odds : (amountNum > 0 ? (grossPayout * (1 - feePercent)) / amountNum : 0);
 
   const isSubmitting = txState.status !== 'idle' && txState.status !== 'success' && txState.status !== 'error';
+  // Battery-style fill: the button charges left→right as the tx advances through
+  // its stages. Confirming is the longest, so it eases slowly toward full.
+  const PLACE_PROGRESS: Record<string, number> = { preparing: 22, signing: 52, confirming: 94, success: 100 };
+  const placeProgress = PLACE_PROGRESS[txState.status] ?? 0;
+  const placeSlow = txState.status === 'confirming';
   const canBet = connected && pool.status === 'JOINING' && amountNum > 0 && !isSubmitting;
   const bal = balance?.uiAmount ?? 0;
 
@@ -54,8 +59,8 @@ export function CryptoBetPanel({ pool }: { pool: Pool }) {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-      <Typography sx={{ textAlign: 'center', fontWeight: 700, fontSize: '0.95rem', color: t.text.primary }}>
+    <Box data-tour="predict" sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+      <Typography sx={{ display: { xs: 'none', md: 'block' }, textAlign: 'center', fontWeight: 700, fontSize: '0.95rem', color: t.text.primary }}>
         How will {pool.asset} price close in 5 minutes?
       </Typography>
 
@@ -65,12 +70,12 @@ export function CryptoBetPanel({ pool }: { pool: Pool }) {
           const up = s === 'UP';
           const col = up ? t.up : t.down;
           return (
-            <Box key={s} onClick={() => setSide(s)} sx={{ cursor: 'pointer', borderRadius: 1, p: 1.25, textAlign: 'center', border: `1.5px solid ${active ? col : t.border.subtle}`, bgcolor: active ? `${col}14` : t.bg.surface, transition: 'all 0.15s' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.75 }}>
-                <Box component="img" src={up ? '/assets/up-icon-64x64.png' : '/assets/down-icon-64x64.png'} alt={s} sx={{ width: 24, height: 24 }} />
-                <Typography sx={{ fontWeight: 800, fontSize: '1.2rem', color: col }}>{s}</Typography>
+            <Box key={s} onClick={() => setSide(s)} sx={{ cursor: 'pointer', borderRadius: 1, p: { xs: 1, md: 1.25 }, textAlign: 'center', border: `1.5px solid ${active ? col : t.border.subtle}`, bgcolor: active ? `${col}14` : t.bg.surface, transition: 'all 0.15s' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.6 }}>
+                <Box component="img" src={up ? '/assets/up-icon-64x64.png' : '/assets/down-icon-64x64.png'} alt={s} sx={{ width: { xs: 15, md: 17 }, height: { xs: 15, md: 17 } }} />
+                <Typography sx={{ fontWeight: 800, fontSize: { xs: '0.82rem', md: '0.9rem' }, color: col }}>{s}</Typography>
               </Box>
-              <Typography sx={{ fontSize: '0.72rem', color: t.text.secondary, mt: 0.25 }}>{up ? 'Higher' : 'Lower'} than {strikeStr}</Typography>
+              <Typography sx={{ fontSize: { xs: '0.68rem', md: '0.72rem' }, color: t.text.secondary, mt: 0.25 }}>{up ? 'Higher' : 'Lower'} than {strikeStr}</Typography>
             </Box>
           );
         })}
@@ -82,16 +87,18 @@ export function CryptoBetPanel({ pool }: { pool: Pool }) {
         return (
           <Box sx={{ p: 1, borderRadius: 1, bgcolor: t.bg.surface }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.6 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Bolt sx={{ fontSize: 15, color: CYAN }} />
-                <Typography sx={{ fontSize: '0.74rem', fontWeight: 700, color: t.text.primary }}>Early bird bonus</Typography>
-              </Box>
+              <Tooltip arrow title="Your prediction earns a weight that decays as the round runs. Predict earlier and you take a bigger share of the losing pool if you win.">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'help' }}>
+                  <Bolt sx={{ fontSize: 15, color: CYAN }} />
+                  <Typography sx={{ fontSize: '0.74rem', fontWeight: 700, color: t.text.primary, borderBottom: `1px dotted ${t.border.medium}` }}>Early bird bonus</Typography>
+                </Box>
+              </Tooltip>
               <Typography sx={{ fontSize: '0.78rem', fontWeight: 800, color: CYAN, fontVariantNumeric: 'tabular-nums' }}>{pct}%</Typography>
             </Box>
             <Box sx={{ height: 5, borderRadius: 3, bgcolor: t.hover.medium, overflow: 'hidden' }}>
               <Box sx={{ height: '100%', width: `${pct}%`, bgcolor: CYAN, transition: 'width 0.5s ease' }} />
             </Box>
-            <Typography sx={{ fontSize: '0.66rem', color: t.text.tertiary, mt: 0.5, lineHeight: 1.4 }}>
+            <Typography sx={{ display: { xs: 'none', md: 'block' }, fontSize: '0.66rem', color: t.text.tertiary, mt: 0.5, lineHeight: 1.4 }}>
               Predict earlier in the round to earn a bigger share of the pool. This drops as the round runs.
             </Typography>
           </Box>
@@ -105,29 +112,38 @@ export function CryptoBetPanel({ pool }: { pool: Pool }) {
         </Box>
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 1 }}>
           {PRESETS.map((p) => (
-            <Box key={p} onClick={() => setAmount(String(p))} sx={{ py: 0.85, textAlign: 'center', borderRadius: 1, cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, border: `1px solid ${amount === String(p) ? CYAN : t.border.subtle}`, color: amount === String(p) ? CYAN : t.text.primary, bgcolor: t.bg.surface }}>${p}</Box>
+            <Box key={p} onClick={() => setAmount(String(p))} sx={{ py: 0.85, textAlign: 'center', borderRadius: 1, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 500, border: `1px solid ${amount === String(p) ? CYAN : t.border.subtle}`, color: amount === String(p) ? CYAN : t.text.primary, bgcolor: t.bg.surface }}>${p}</Box>
           ))}
           <Box component="input" value={amount} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { const v = e.target.value; if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) setAmount(v); }}
-            placeholder="Custom" sx={{ py: 0.85, textAlign: 'center', borderRadius: 1, border: `1px solid ${t.border.subtle}`, bgcolor: t.bg.surface, color: t.text.primary, fontSize: '0.85rem', fontWeight: 700, fontFamily: 'inherit', outline: 'none', minWidth: 0, '&::placeholder': { color: t.text.tertiary } }} />
+            placeholder="Custom" sx={{ py: 0.85, textAlign: 'center', borderRadius: 1, border: `1px solid ${t.border.subtle}`, bgcolor: t.bg.surface, color: t.text.primary, fontSize: '0.72rem', fontWeight: 500, fontFamily: 'inherit', outline: 'none', minWidth: 0, '&::placeholder': { color: t.text.tertiary } }} />
         </Box>
       </Box>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-        <Box sx={{ p: 1.5, borderRadius: 1, border: `1px solid ${t.border.subtle}`, bgcolor: t.bg.surface, textAlign: 'center' }}>
-          <Typography sx={{ fontSize: '0.72rem', color: t.text.tertiary }}>Potential Payout</Typography>
-          <Typography sx={{ fontWeight: 900, fontSize: '1.3rem', color: t.gain, lineHeight: 1.3 }}>{fmtUsd(payout)}</Typography>
+        <Box sx={{ p: { xs: 1.1, md: 1.5 }, borderRadius: 1, border: `1px solid ${t.border.subtle}`, bgcolor: t.bg.surface, textAlign: 'center' }}>
+          <Tooltip arrow title="What you'd receive if your prediction wins right now: your stake back plus your share of the losing pool, after fees. Updates live as bets come in.">
+            <Typography sx={{ fontSize: { xs: '0.68rem', md: '0.72rem' }, color: t.text.tertiary, cursor: 'help', display: 'inline-block', borderBottom: `1px dotted ${t.border.medium}` }}>Potential Payout</Typography>
+          </Tooltip>
+          <Typography sx={{ fontWeight: 600, fontSize: { xs: '0.92rem', md: '1.05rem' }, color: t.gain, lineHeight: 1.35, fontVariantNumeric: 'tabular-nums' }}>{fmtUsd(payout)}</Typography>
           <Typography sx={{ fontSize: '0.68rem', color: t.text.tertiary }}>{odds.toFixed(2)}x your amount</Typography>
         </Box>
-        <Box sx={{ p: 1.5, borderRadius: 1, border: `1px solid ${t.border.subtle}`, bgcolor: t.bg.surface, textAlign: 'center' }}>
-          <Typography sx={{ fontSize: '0.72rem', color: t.text.tertiary }}>Odds</Typography>
-          <Typography sx={{ fontWeight: 900, fontSize: '1.3rem', color: CYAN, lineHeight: 1.3 }}>{odds.toFixed(2)}x</Typography>
+        <Box sx={{ p: { xs: 1.1, md: 1.5 }, borderRadius: 1, border: `1px solid ${t.border.subtle}`, bgcolor: t.bg.surface, textAlign: 'center' }}>
+          <Tooltip arrow title="How many times your stake you'd get back if you win. A parimutuel estimate that moves with the pool.">
+            <Typography sx={{ fontSize: { xs: '0.68rem', md: '0.72rem' }, color: t.text.tertiary, cursor: 'help', display: 'inline-block', borderBottom: `1px dotted ${t.border.medium}` }}>Odds</Typography>
+          </Tooltip>
+          <Typography sx={{ fontWeight: 600, fontSize: { xs: '0.92rem', md: '1.05rem' }, color: CYAN, lineHeight: 1.35, fontVariantNumeric: 'tabular-nums' }}>{odds.toFixed(2)}x</Typography>
           <Typography sx={{ fontSize: '0.68rem', color: t.text.tertiary }}>Updated in real time</Typography>
         </Box>
       </Box>
 
       <Box sx={{ display: 'flex', gap: 1.5 }}>
-        <Box component="button" onClick={submit} disabled={isSubmitting} sx={{ flex: 1, py: 1.25, borderRadius: 1, border: 'none', cursor: 'pointer', bgcolor: CYAN, color: '#04121a', fontWeight: 900, fontSize: '0.95rem', letterSpacing: '0.03em', opacity: isSubmitting ? 0.6 : 1, '&:hover': { filter: 'brightness(1.05)' } }}>
-          {!connected ? 'SIGN IN TO PREDICT' : isSubmitting ? 'PLACING…' : 'PLACE PREDICTION'}
+        <Box component="button" onClick={submit} disabled={isSubmitting} sx={{ position: 'relative', overflow: 'hidden', flex: 1, py: 1.25, borderRadius: 1, border: 'none', cursor: isSubmitting ? 'default' : 'pointer', bgcolor: isSubmitting ? `${CYAN}2e` : CYAN, color: '#04121a', fontFamily: 'inherit', fontWeight: 800, fontSize: '0.9rem', letterSpacing: '0.03em', '&:hover': { filter: isSubmitting ? 'none' : 'brightness(1.05)' } }}>
+          {isSubmitting && (
+            <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${placeProgress}%`, bgcolor: CYAN, transition: `width ${placeSlow ? '3.2s' : '0.45s'} ease-out`, zIndex: 0 }} />
+          )}
+          <Box component="span" sx={{ position: 'relative', zIndex: 1 }}>
+            {!connected ? 'SIGN IN TO PREDICT' : isSubmitting ? 'PLACING PREDICTION…' : 'PLACE PREDICTION'}
+          </Box>
         </Box>
         <Box component="button" onClick={submit} disabled={!canBet} sx={{ width: 52, borderRadius: 1, border: `1px solid ${CYAN}66`, bgcolor: 'transparent', color: CYAN, cursor: canBet ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: canBet ? 1 : 0.5 }}>
           <Bolt sx={{ fontSize: 20 }} />

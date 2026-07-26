@@ -8,7 +8,7 @@ import { useThemeTokens } from '@/app/providers';
 const CYAN = '#5FD8EF';
 
 /** Live mm:ss countdown to when the pool round ends (bets close). */
-export function PoolCountdown({ endTime, big = false }: { endTime: string; big?: boolean }) {
+export function PoolCountdown({ endTime, big = false, plain = false }: { endTime: string; big?: boolean; plain?: boolean }) {
   const t = useThemeTokens();
   const target = new Date(endTime).getTime();
   const [now, setNow] = useState(() => Date.now());
@@ -24,9 +24,18 @@ export function PoolCountdown({ endTime, big = false }: { endTime: string; big?:
   const closed = ms <= 0;
   const label = closed ? 'Locked' : `${mm.toString().padStart(2, '0')}:${ss.toString().padStart(2, '0')}`;
 
+  if (plain) {
+    // Matches the Current/Strike price stat value so the three line up on mobile.
+    return (
+      <Typography sx={{ fontWeight: 600, fontSize: '0.9rem', color: closed ? t.text.tertiary : ms < 30_000 ? t.error : CYAN, fontVariantNumeric: 'tabular-nums' }}>
+        {label}
+      </Typography>
+    );
+  }
+
   if (big) {
     return (
-      <Typography sx={{ fontWeight: 600, fontSize: { xs: '1.5rem', md: '1.8rem' }, lineHeight: 1, letterSpacing: '0.01em', color: closed ? t.text.tertiary : CYAN, fontVariantNumeric: 'tabular-nums' }}>
+      <Typography sx={{ fontWeight: 600, fontSize: { xs: '1.25rem', md: '1.8rem' }, lineHeight: 1, letterSpacing: '0.01em', color: closed ? t.text.tertiary : CYAN, fontVariantNumeric: 'tabular-nums' }}>
         {label}
       </Typography>
     );

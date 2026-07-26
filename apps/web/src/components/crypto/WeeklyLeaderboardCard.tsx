@@ -46,7 +46,7 @@ export function WeeklyLeaderboardCard() {
   const mePinned = me && !top.some((r) => r.walletAddress === walletAddress); // ranked but outside the top window
 
   return (
-    <Box sx={{ borderRadius: 1, bgcolor: t.bg.surface, overflow: 'hidden' }}>
+    <Box data-tour="leaderboard" sx={{ borderRadius: 1, bgcolor: t.bg.surface, overflow: 'hidden' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 2, py: 1.5, borderBottom: `1px solid ${t.border.subtle}` }}>
         <EmojiEvents sx={{ fontSize: 18, color: t.gold }} />
         <Box>
