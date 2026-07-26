@@ -80,7 +80,7 @@ export function CryptoBetPanel({ pool }: { pool: Pool }) {
       {weighting && pool.status === 'JOINING' && (() => {
         const pct = Math.max(0, Math.min(100, Math.round(weighting.currentMultiplier * 100)));
         return (
-          <Box sx={{ p: 1, borderRadius: 1, border: `1px solid ${t.border.subtle}`, bgcolor: t.bg.surface }}>
+          <Box sx={{ p: 1, borderRadius: 1, bgcolor: t.bg.surface }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.6 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <Bolt sx={{ fontSize: 15, color: CYAN }} />

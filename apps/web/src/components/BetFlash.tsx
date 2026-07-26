@@ -29,7 +29,7 @@ import { USDC_DIVISOR } from '@/lib/format';
 import { YES_ICON, NO_ICON, UP_ICON, DOWN_ICON } from '@/lib/predictionIcons';
 import type { BetFlash } from '@/hooks/useBetFlash';
 
-type Variant = 'card' | 'chart-left';
+type Variant = 'card' | 'chart-left' | 'chart-bottom-right';
 type SideKey = 'UP' | 'DOWN' | 'DRAW';
 
 interface BetFlashProps {
@@ -58,39 +58,20 @@ export function BetFlash({ flashes, variant = 'card', prediction = false, sideIc
   const t = useThemeTokens();
   if (flashes.length === 0) return null;
 
-  const containerSx = variant === 'card'
-    ? {
-        // Centred along the bottom edge of the card so it sits BELOW
-        // every meaningful content row (title, odds, score) and never
-        // blocks a click. Polymarket-style 'live tape' position.
-        position: 'absolute' as const,
-        left: 0,
-        right: 0,
-        bottom: 8,
-        pointerEvents: 'none' as const,
-        // Bumped over the LWC canvas (default z-index 0) + the chart
-        // tooltip layer (~2) so the flash never gets hidden behind a
-        // hover overlay or the price axis.
-        zIndex: 10,
-        display: 'flex' as const,
-        flexDirection: 'column' as const,
-        alignItems: 'center' as const,
-        gap: 0.4,
-      }
-    : {
-        position: 'absolute' as const,
-        top: 10,
-        left: 10,
-        pointerEvents: 'none' as const,
-        // Bumped over the LWC canvas (default z-index 0) + the chart
-        // tooltip layer (~2) so the flash never gets hidden behind a
-        // hover overlay or the price axis.
-        zIndex: 10,
-        display: 'flex' as const,
-        flexDirection: 'column' as const,
-        alignItems: 'flex-start' as const,
-        gap: 0.4,
-      };
+  // Bumped over the LWC canvas (z-index 0) + tooltip layer (~2) so the
+  // flash never hides behind a hover overlay or the price axis.
+  const base = { position: 'absolute' as const, pointerEvents: 'none' as const, zIndex: 10, display: 'flex' as const, flexDirection: 'column' as const, gap: 0.4 };
+  const containerSx =
+    variant === 'card'
+      ? // Centred along the bottom edge of the card so it sits BELOW
+        // every meaningful content row and never blocks a click.
+        { ...base, left: 0, right: 0, bottom: 8, alignItems: 'center' as const }
+      : variant === 'chart-bottom-right'
+        ? // Bottom-right of the chart, Kalshi/Polymarket "live tape" — newest
+          // at the bottom, older bets stacking upward (column-reverse).
+          { ...base, bottom: 10, right: 12, alignItems: 'flex-end' as const, flexDirection: 'column-reverse' as const }
+        : // chart-left: top-left, clear of the right price axis + top legend.
+          { ...base, top: 10, left: 10, alignItems: 'flex-start' as const };
 
   return (
     <Box sx={containerSx}>

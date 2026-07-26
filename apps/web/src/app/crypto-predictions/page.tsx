@@ -70,8 +70,8 @@ export default function CryptoPredictionsPage() {
 
       {/* Body: 3 columns */}
       <Box sx={{ width: '100%', maxWidth: 1400, mx: 'auto', flex: 1, px: { xs: 1.5, md: 3 }, py: { xs: 2, md: 3 } }}>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '260px minmax(0, 1fr) 300px' }, gap: { xs: 2, lg: 2.5 }, alignItems: 'start' }}>
-          <Box sx={{ order: { xs: 2, lg: 0 }, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '260px minmax(0, 1fr) 300px' }, gap: '5px', alignItems: 'start' }}>
+          <Box sx={{ order: { xs: 2, lg: 0 }, display: 'flex', flexDirection: 'column', gap: '5px' }}>
             <WeeklyLeaderboardCard />
             <MarketsCard active={asset} onSelect={setAsset} />
           </Box>
@@ -80,7 +80,7 @@ export default function CryptoPredictionsPage() {
               <ActivePool asset={asset} />
             </HideTermsContext.Provider>
           </Box>
-          <Box sx={{ order: { xs: 1, lg: 0 }, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box sx={{ order: { xs: 1, lg: 0 }, display: 'flex', flexDirection: 'column', gap: '5px' }}>
             <EventInfoCard />
             <AboutEventCard />
             <LiveActivityCard />

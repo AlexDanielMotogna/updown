@@ -11,7 +11,7 @@ const CYAN = '#5FD8EF';
 
 function Card({ icon, title, children, tokens: t }: { icon: React.ReactNode; title: string; children: React.ReactNode; tokens: ReturnType<typeof useThemeTokens> }) {
   return (
-    <Box sx={{ borderRadius: 1, border: `1px solid ${t.border.subtle}`, bgcolor: t.bg.surface, overflow: 'hidden' }}>
+    <Box sx={{ borderRadius: 1, bgcolor: t.bg.surface, overflow: 'hidden' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 2, py: 1.5, borderBottom: `1px solid ${t.border.subtle}`, color: CYAN }}>
         {icon}
         <Typography sx={{ fontWeight: 800, fontSize: '0.8rem', letterSpacing: '0.05em', color: t.text.primary }}>{title}</Typography>
@@ -85,7 +85,7 @@ export function AboutEventCard() {
   );
 }
 
-const short = (w: string) => `${w.slice(0, 6)}…${w.slice(-4)}`;
+const short = (w: string) => `${w.slice(0, 4)}…${w.slice(-4)}`;
 function ago(iso: string, now: number): string {
   const s = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 1000));
   if (s < 60) return `${s}s ago`;
@@ -116,9 +116,7 @@ export function LiveActivityCard() {
                 <Box component="img" src={up ? '/assets/up-icon-64x64.png' : '/assets/down-icon-64x64.png'} alt={r.side} sx={{ width: 22, height: 22, flexShrink: 0 }} />
 
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography sx={{ fontSize: '0.75rem', color: t.text.secondary }}>
-                    <Box component="span" sx={{ fontFamily: 'monospace', color: t.text.primary }}>{short(r.walletAddress)}</Box>
-                  </Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: t.text.primary }}>{short(r.walletAddress)}</Typography>
                   <Typography sx={{ fontSize: '0.74rem', color: t.text.secondary }}>
                     Predicts <Box component="span" sx={{ color: col, fontWeight: 700 }}>{r.side}</Box> on {r.asset} · {amt}
                   </Typography>

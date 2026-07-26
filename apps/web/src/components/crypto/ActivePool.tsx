@@ -4,9 +4,11 @@ import { Box, Skeleton, Typography } from '@mui/material';
 import { InfoOutlined } from '@mui/icons-material';
 import { AssetIcon } from '@/components/AssetIcon';
 import { InlineChart } from '@/components/pool/InlineChart';
+import { BetFlash } from '@/components/BetFlash';
 import { CryptoBetPanel } from './CryptoBetPanel';
 import { PoolCountdown } from './PoolCountdown';
 import { usePools } from '@/hooks/usePools';
+import { useBetFlash } from '@/hooks/useBetFlash';
 import { usePriceStream } from '@/hooks/usePriceStream';
 import { useThemeTokens } from '@/app/providers';
 import { USDC_DIVISOR } from '@/lib/format';
@@ -22,6 +24,7 @@ export function ActivePool({ asset }: { asset: string }) {
   const { data } = usePools({ type: 'CRYPTO', asset, interval: '5m', status: 'JOINING' }, { refetchInterval: 3_000, staleTime: 2_000 });
   const pool: Pool | undefined = data?.data?.[0];
   const { getPrice } = usePriceStream([asset]);
+  const betFlashes = useBetFlash(pool?.id);
   const live = getPrice(asset);
   const liveNum = live ? Number(live) : null;
   const strike = pool?.strikePrice ? Number(pool.strikePrice) / USDC_DIVISOR : null;
@@ -34,7 +37,7 @@ export function ActivePool({ asset }: { asset: string }) {
   );
 
   return (
-    <Box sx={{ borderRadius: 1.25, border: `1px solid ${t.border.subtle}`, bgcolor: t.bg.surface, p: { xs: 2, md: 3 } }}>
+    <Box sx={{ borderRadius: 1.25, bgcolor: t.bg.surface, p: { xs: 2, md: 3 } }}>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, mb: 2, flexWrap: 'wrap' }}>
         <Box>
@@ -56,9 +59,12 @@ export function ActivePool({ asset }: { asset: string }) {
       </Box>
 
       {/* Chart */}
-      <Box sx={{ mb: 2.5, borderRadius: 1, overflow: 'hidden' }}>
+      <Box sx={{ position: 'relative', mb: 2.5, borderRadius: 1, overflow: 'hidden' }}>
         {pool ? (
-          <InlineChart asset={asset} livePrice={live} strikePrice={pool.strikePrice} height={{ xs: 220, md: 280 }} staticChart background={t.bg.surface} />
+          <>
+            <InlineChart asset={asset} livePrice={live} strikePrice={pool.strikePrice} height={{ xs: 220, md: 280 }} staticChart background={t.bg.surface} />
+            <BetFlash flashes={betFlashes} variant="chart-bottom-right" />
+          </>
         ) : (
           <Box sx={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Skeleton variant="rounded" width="95%" height="85%" sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} /></Box>
         )}
