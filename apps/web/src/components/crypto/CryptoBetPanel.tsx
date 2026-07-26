@@ -44,6 +44,20 @@ export function CryptoBetPanel({ pool }: { pool: Pool }) {
   const payout = weighted ? weighted.payout : grossPayout * (1 - feePercent);
   const odds = weighted ? weighted.odds : (amountNum > 0 ? (grossPayout * (1 - feePercent)) / amountNum : 0);
 
+  // Time-weight preview: your entry weight now vs one minute later. Parimutuel
+  // payout is relative, so the headline number only moves when others sit on
+  // your side — but your weight always decays, so we surface the "cost of
+  // waiting" here to make the time-weight tangible.
+  const HORIZON_MS = 60_000;
+  const weightNow = weighting ? Math.round(weighting.currentMultiplier * 100) : null;
+  let weightLater: number | null = null;
+  if (weighting && weighting.windowMs > 0) {
+    const later = Math.max(0, weighting.msUntilLock - HORIZON_MS);
+    const raw = later / weighting.windowMs;
+    weightLater = Math.round(Math.max(weighting.config.floor, Math.pow(raw, weighting.config.exponent)) * 100);
+  }
+  const withinLastMinute = !!weighting && weighting.msUntilLock <= HORIZON_MS;
+
   const isSubmitting = txState.status !== 'idle' && txState.status !== 'success' && txState.status !== 'error';
   const canBet = connected && pool.status === 'JOINING' && amountNum > 0 && !isSubmitting;
   const bal = balance?.uiAmount ?? 0;
@@ -76,28 +90,6 @@ export function CryptoBetPanel({ pool }: { pool: Pool }) {
         })}
       </Box>
 
-      {/* Time-weight: earlier bets carry more weight, so a bigger share of the pool. */}
-      {weighting && pool.status === 'JOINING' && (() => {
-        const pct = Math.max(0, Math.min(100, Math.round(weighting.currentMultiplier * 100)));
-        return (
-          <Box sx={{ p: 1, borderRadius: 1, border: `1px solid ${t.border.subtle}`, bgcolor: t.bg.surface }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.6 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Bolt sx={{ fontSize: 15, color: CYAN }} />
-                <Typography sx={{ fontSize: '0.74rem', fontWeight: 700, color: t.text.primary }}>Early bird bonus</Typography>
-              </Box>
-              <Typography sx={{ fontSize: '0.78rem', fontWeight: 800, color: CYAN, fontVariantNumeric: 'tabular-nums' }}>{pct}%</Typography>
-            </Box>
-            <Box sx={{ height: 5, borderRadius: 3, bgcolor: t.hover.medium, overflow: 'hidden' }}>
-              <Box sx={{ height: '100%', width: `${pct}%`, bgcolor: CYAN, transition: 'width 0.5s ease' }} />
-            </Box>
-            <Typography sx={{ fontSize: '0.66rem', color: t.text.tertiary, mt: 0.5, lineHeight: 1.4 }}>
-              Predict earlier in the round to earn a bigger share of the pool. This drops as the round runs.
-            </Typography>
-          </Box>
-        );
-      })()}
-
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
           <Typography sx={{ fontSize: '0.8rem', color: t.text.secondary }}>Amount (USDC)</Typography>
@@ -124,6 +116,20 @@ export function CryptoBetPanel({ pool }: { pool: Pool }) {
           <Typography sx={{ fontSize: '0.68rem', color: t.text.tertiary }}>Updated in real time</Typography>
         </Box>
       </Box>
+
+      {/* Cost of waiting: entry weight now vs later. Makes the time-weight tangible. */}
+      {weighting && pool.status === 'JOINING' && weightNow != null && weightLater != null && weightNow !== weightLater && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1, py: 0.75, borderRadius: 1, bgcolor: `${CYAN}0d`, border: `1px solid ${CYAN}33` }}>
+          <Bolt sx={{ fontSize: 15, color: CYAN, flexShrink: 0 }} />
+          <Typography sx={{ fontSize: '0.72rem', color: t.text.secondary, lineHeight: 1.35 }}>
+            {withinLastMinute ? 'Predict now vs at lock' : 'Predict now vs in 1 min'}: your entry weight{' '}
+            <Box component="span" sx={{ fontWeight: 800, color: CYAN }}>{weightNow}%</Box>
+            {' → '}
+            <Box component="span" sx={{ fontWeight: 800, color: t.text.tertiary }}>{weightLater}%</Box>
+            . Earlier means a bigger share of the pool.
+          </Typography>
+        </Box>
+      )}
 
       <Box sx={{ display: 'flex', gap: 1.5 }}>
         <Box component="button" onClick={submit} disabled={isSubmitting} sx={{ flex: 1, py: 1.25, borderRadius: 1, border: 'none', cursor: 'pointer', bgcolor: CYAN, color: '#04121a', fontWeight: 900, fontSize: '0.95rem', letterSpacing: '0.03em', opacity: isSubmitting ? 0.6 : 1, '&:hover': { filter: 'brightness(1.05)' } }}>
