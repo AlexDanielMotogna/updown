@@ -14,7 +14,7 @@ export interface PoolFilters {
   limit?: number;
 }
 
-export function usePools(filters?: PoolFilters) {
+export function usePools(filters?: PoolFilters, options?: { refetchInterval?: number; staleTime?: number }) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -44,9 +44,11 @@ export function usePools(filters?: PoolFilters) {
   return useQuery({
     queryKey: ['pools', filters],
     queryFn: () => fetchPools(filters),
-    // No polling - WebSocket listeners above invalidate on pools:new / pool:status.
-    refetchInterval: false,
-    staleTime: 30_000,
+    // No polling by default - WebSocket listeners above invalidate on pools:new /
+    // pool:status. Callers that need the card to advance to the next round on its
+    // own (e.g. the standalone Crypto Predictions event) can pass a refetchInterval.
+    refetchInterval: options?.refetchInterval ?? false,
+    staleTime: options?.staleTime ?? 30_000,
   });
 }
 

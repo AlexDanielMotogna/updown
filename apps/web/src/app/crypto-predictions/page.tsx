@@ -12,6 +12,7 @@ import { joinCryptoEvent, fetchCryptoMe } from '@/lib/api';
 import { CryptoLeaderboard } from '@/components/crypto/CryptoLeaderboard';
 import { CryptoPoolColumn } from '@/components/crypto/CryptoPoolColumn';
 import { InfoBanners } from '@/components/crypto/InfoBanners';
+import { HideTermsContext } from '@/components/pool/ResolutionCards';
 
 const ASSETS = ['BTC', 'ETH', 'SOL'];
 
@@ -89,7 +90,13 @@ export default function CryptoPredictionsPage() {
           ) : authenticated ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, md: 1.5 } }}>
               {stat('PNL (7D)', weeklyPnl != null ? fmtPnl(weeklyPnl) : '—', weeklyPnl != null ? (Number(weeklyPnl) >= 0 ? t.gain : t.error) : undefined)}
-              {stat('BALANCE', balance ? `$${balance.uiAmount.toFixed(2)}` : '—')}
+              <Box sx={{ textAlign: 'right', px: { xs: 0.75, md: 1.25 } }}>
+                <Typography sx={{ fontSize: '0.58rem', fontWeight: 700, color: t.text.tertiary, letterSpacing: '0.05em', lineHeight: 1 }}>BALANCE</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.4 }}>
+                  <Box component="img" src="/coins/usdc-coin.png" alt="USDC" sx={{ width: 15, height: 15 }} />
+                  <Typography sx={{ fontSize: { xs: '0.78rem', md: '0.88rem' }, fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums', lineHeight: 1.3 }}>{balance ? balance.uiAmount.toFixed(2) : '—'}</Typography>
+                </Box>
+              </Box>
               <Box onClick={(e) => setAnchor(e.currentTarget)} sx={{ display: 'flex', alignItems: 'center', gap: 0.75, height: 36, px: 1, borderRadius: '4px', cursor: 'pointer', bgcolor: t.hover.medium, '&:hover': { bgcolor: t.hover.strong } }}>
                 <Avatar src={avatarSrc} sx={{ width: 22, height: 22, fontSize: '0.72rem', fontWeight: 700, bgcolor: t.hover.strong, color: t.text.secondary }}>{initial}</Avatar>
                 <Typography sx={{ display: { xs: 'none', sm: 'block' }, fontSize: '0.8rem', fontWeight: 600, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{who ?? 'Account'}</Typography>
@@ -131,7 +138,9 @@ export default function CryptoPredictionsPage() {
                 <Button onClick={login} sx={{ px: 3, py: 1, fontWeight: 700, textTransform: 'none', bgcolor: t.hover.strong, borderRadius: 1.5, color: t.text.primary, '&:hover': { bgcolor: t.hover.emphasis } }}>Sign in to play</Button>
               </Box>
             )}
-            {ASSETS.map((a) => <CryptoPoolColumn key={a} asset={a} />)}
+            <HideTermsContext.Provider value={true}>
+              {ASSETS.map((a) => <CryptoPoolColumn key={a} asset={a} />)}
+            </HideTermsContext.Provider>
           </Box>
           {/* Right — info banners */}
           <Box sx={{ order: { xs: 1, lg: 0 } }}><InfoBanners /></Box>
