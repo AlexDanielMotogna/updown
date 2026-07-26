@@ -8,11 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useThemeTokens } from '@/app/providers';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
-import { useUserProfile } from '@/hooks/useUserProfile';
-import { UP_COINS_DIVISOR } from '@/lib/constants';
-import { ConnectWalletButton } from '@/components/ConnectWalletButton';
-import { NotificationPanel } from '@/components/header/NotificationPanel';
-import { UserLevelBadge } from '@/components/UserLevelBadge';
+import { EventWalletButton } from '@/components/crypto/EventWalletButton';
 import { joinCryptoEvent, fetchCryptoMe } from '@/lib/api';
 import { WeeklyLeaderboardCard } from '@/components/crypto/WeeklyLeaderboardCard';
 import { MarketsCard } from '@/components/crypto/MarketsCard';
@@ -24,17 +20,12 @@ const fmtPnl = (raw: string) => {
   const n = Number(raw) / 1_000_000;
   return `${n >= 0 ? '+' : '−'}$${Math.abs(n).toFixed(2)}`;
 };
-const fmtCoins = (raw: bigint | string | number) => {
-  const num = Number(raw) / UP_COINS_DIVISOR;
-  return num >= 1_000_000 ? `${(num / 1_000_000).toFixed(1)}M` : num >= 1_000 ? `${(num / 1_000).toFixed(1)}K` : num.toFixed(1);
-};
 
 export default function CryptoPredictionsPage() {
   const t = useThemeTokens();
   const { authenticated, getAccessToken } = usePrivy();
   const { connected, walletAddress } = useWalletBridge();
   const { data: balance } = useUsdcBalance();
-  const { data: userProfile } = useUserProfile();
   const [asset, setAsset] = useState('BTC');
 
   // One-time auto-fund on first authenticated load.
@@ -67,22 +58,12 @@ export default function CryptoPredictionsPage() {
               <Typography sx={{ fontSize: { xs: '0.82rem', md: '0.92rem' }, fontWeight: 800, color: Number(weeklyPnl) >= 0 ? t.gain : t.error, fontVariantNumeric: 'tabular-nums' }}>{fmtPnl(weeklyPnl)}</Typography>
             )}
             {connected && (
-              <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: t.hover.default, borderRadius: '6px', height: { xs: 34, sm: 38 }, overflow: 'hidden' }}>
-                <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', px: { sm: 1 }, height: '100%', borderRight: `1px solid ${t.border.default}` }}>
-                  {userProfile ? <UserLevelBadge level={userProfile.level} title={userProfile.title} size="sm" variant="icon-only" /> : <Skeleton variant="circular" width={22} height={22} sx={{ bgcolor: t.border.default }} />}
-                </Box>
-                <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 0.5, px: { sm: 1.25 }, height: '100%', borderRight: `1px solid ${t.border.default}` }}>
-                  <Box component="img" src="/token/Token_16px_Gold.png" alt="UP Coin" sx={{ width: 14, height: 14 }} />
-                  {userProfile ? <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>{fmtCoins(userProfile.coinsBalance)}</Typography> : <Skeleton variant="text" width={30} height={16} sx={{ bgcolor: t.border.default }} />}
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: { xs: 0.75, sm: 1.25 }, height: '100%' }}>
-                  <AttachMoney sx={{ fontSize: 14, color: t.gain }} />
-                  {balance ? <Typography sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem' }, fontWeight: 600, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>{balance.uiAmount.toFixed(2)}</Typography> : <Skeleton variant="text" width={36} height={16} sx={{ bgcolor: t.border.default }} />}
-                </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: t.hover.default, borderRadius: '6px', height: { xs: 34, sm: 38 }, px: { xs: 1, sm: 1.25 } }}>
+                <AttachMoney sx={{ fontSize: 14, color: t.gain }} />
+                {balance ? <Typography sx={{ fontSize: { xs: '0.72rem', sm: '0.8rem' }, fontWeight: 600, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>{balance.uiAmount.toFixed(2)}</Typography> : <Skeleton variant="text" width={36} height={16} sx={{ bgcolor: t.border.default }} />}
               </Box>
             )}
-            {connected && <NotificationPanel />}
-            <ConnectWalletButton variant="header" />
+            <EventWalletButton />
           </Box>
         </Box>
       </Box>
