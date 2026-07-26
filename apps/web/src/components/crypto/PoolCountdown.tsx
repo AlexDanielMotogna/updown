@@ -26,7 +26,7 @@ export function PoolCountdown({ endTime, big = false }: { endTime: string; big?:
 
   if (big) {
     return (
-      <Typography sx={{ fontWeight: 900, fontSize: { xs: '1.6rem', md: '2rem' }, lineHeight: 1, letterSpacing: '0.02em', color: closed ? t.text.tertiary : CYAN, fontVariantNumeric: 'tabular-nums' }}>
+      <Typography sx={{ fontWeight: 600, fontSize: { xs: '1.5rem', md: '1.8rem' }, lineHeight: 1, letterSpacing: '0.01em', color: closed ? t.text.tertiary : CYAN, fontVariantNumeric: 'tabular-nums' }}>
         {label}
       </Typography>
     );
