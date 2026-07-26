@@ -31,9 +31,11 @@ interface InlineChartProps {
   height?: { xs: number; md: number } | number;
   /** Disable pan/zoom so the chart is a fixed, non-scrollable view. */
   staticChart?: boolean;
+  /** Override the canvas background so it blends with the surrounding section. */
+  background?: string;
 }
 
-export function InlineChart({ asset, livePrice: livePriceStr, strikePrice: strikePriceStr, height, staticChart = false }: InlineChartProps) {
+export function InlineChart({ asset, livePrice: livePriceStr, strikePrice: strikePriceStr, height, staticChart = false, background }: InlineChartProps) {
   const t = useThemeTokens();
   const livePriceNum = livePriceStr ? Number(livePriceStr) : null;
   const strikePriceNum = strikePriceStr ? Number(strikePriceStr) / USDC_DIVISOR : null;
@@ -53,7 +55,7 @@ export function InlineChart({ asset, livePrice: livePriceStr, strikePrice: strik
         display: 'flex',
         flexDirection: 'column',
         height: height ?? { xs: 280, md: 460 },
-        bgcolor: t.bg.app,
+        bgcolor: background ?? t.bg.app,
         borderRadius: { xs: 0, md: 2 },
         overflow: 'hidden',
       }}
