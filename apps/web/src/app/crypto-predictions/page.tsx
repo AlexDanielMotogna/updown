@@ -15,7 +15,7 @@ import { joinCryptoEvent, fetchCryptoMe } from '@/lib/api';
 import { WeeklyLeaderboardCard } from '@/components/crypto/WeeklyLeaderboardCard';
 import { MarketsCard } from '@/components/crypto/MarketsCard';
 import { MarketTabs } from '@/components/crypto/MarketTabs';
-import { MobileSectionNav } from '@/components/crypto/MobileSectionNav';
+import { MobilePredictBar } from '@/components/crypto/MobilePredictBar';
 import { ActivePool } from '@/components/crypto/ActivePool';
 import { EventInfoCard, AboutEventCard, LiveActivityCard } from '@/components/crypto/EventSidebar';
 import { HideTermsContext } from '@/components/pool/ResolutionCards';
@@ -131,7 +131,7 @@ export default function CryptoPredictionsPage() {
       </Box>
 
       {/* Body: 3 columns */}
-      <Box sx={{ width: '100%', maxWidth: 1400, mx: 'auto', flex: 1, px: { xs: 0.75, md: 3 }, pt: { xs: 2, md: 3 }, pb: { xs: 9, md: 3 } }}>
+      <Box sx={{ width: '100%', maxWidth: 1400, mx: 'auto', flex: 1, px: { xs: 0.75, md: 3 }, pt: { xs: 2, md: 3 }, pb: { xs: 16, md: 3 } }}>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '260px minmax(0, 1fr) 300px' }, gap: '5px', alignItems: 'start' }}>
           <Box sx={{ order: { xs: 2, lg: 0 }, display: 'flex', flexDirection: 'column', gap: '5px' }}>
             <Box id="sec-leaderboard" sx={{ scrollMarginTop: '112px' }}><WeeklyLeaderboardCard /></Box>
@@ -153,7 +153,7 @@ export default function CryptoPredictionsPage() {
         </Box>
       </Box>
 
-      <MobileSectionNav />
+      <MobilePredictBar asset={asset} />
 
       <WelcomeFundModal
         open={fund.open}
