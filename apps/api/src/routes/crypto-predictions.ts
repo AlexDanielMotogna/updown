@@ -191,6 +191,31 @@ cryptoPredictionsRouter.get('/leaderboard', async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// GET /activity — recent bets across the crypto pools (Live Activity feed).
+// ---------------------------------------------------------------------------
+cryptoPredictionsRouter.get('/activity', async (_req, res) => {
+  try {
+    const rows = await prisma.bet.findMany({
+      where: { pool: { poolType: 'CRYPTO' } },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      select: { walletAddress: true, side: true, amount: true, createdAt: true, pool: { select: { asset: true } } },
+    });
+    const data = rows.map((b) => ({
+      walletAddress: b.walletAddress,
+      side: b.side,
+      asset: b.pool.asset,
+      amount: b.amount.toString(),
+      createdAt: b.createdAt,
+    }));
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('[CryptoPredictions] activity error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load activity' } });
+  }
+});
+
 cryptoPredictionsRouter.get('/health', (_req, res) => {
   res.json({ success: true, event: 'crypto-predictions' });
 });

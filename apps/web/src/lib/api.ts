@@ -1389,3 +1389,8 @@ export async function fetchCryptoMe(token: string, wallet: string): Promise<ApiR
 export async function fetchCryptoLeaderboard(window: 'week' | 'all' = 'week'): Promise<ApiResponse<CryptoLeaderRow[]>> {
   return fetchApi<CryptoLeaderRow[]>(`/api/crypto-predictions/leaderboard?window=${window}`);
 }
+
+export interface CryptoActivityRow { walletAddress: string; side: 'UP' | 'DOWN' | 'DRAW'; asset: string; amount: string; createdAt: string }
+export async function fetchCryptoActivity(): Promise<ApiResponse<CryptoActivityRow[]>> {
+  return fetchApi<CryptoActivityRow[]>(`/api/crypto-predictions/activity`);
+}
