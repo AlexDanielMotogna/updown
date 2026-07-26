@@ -24,14 +24,21 @@
  * for sports).
  */
 
+import { createContext, useContext } from 'react';
 import { Box, CircularProgress, Tooltip, Typography } from '@mui/material';
 import { CheckCircle, ReplayCircleFilled } from '@mui/icons-material';
 import { useThemeTokens } from '@/app/providers';
 
 // ─── Terms of Use footer (shared) ────────────────────────────────────────────
 
+/** Hide the "Terms of Use" footer for surfaces that need it gone (e.g. the
+ *  devnet Crypto Predictions event, which is fake money). Wrap in a Provider
+ *  with value={true}. Defaults to showing it, so the main app is unaffected. */
+export const HideTermsContext = createContext(false);
+
 export function TermsFooter() {
   const t = useThemeTokens();
+  if (useContext(HideTermsContext)) return null;
   return (
     <Tooltip
       title="By trading, you agree to the Terms of Use, including that you are not (i) a U.S. person and (ii) located in the United States, France or other restricted territory."
