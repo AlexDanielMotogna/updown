@@ -80,8 +80,8 @@ export function ActivePool({ asset }: { asset: string }) {
         )}
       </Box>
 
-      {/* Bet panel */}
-      <Box sx={{ order: 2 }}>
+      {/* Bet panel — desktop only; on mobile the fixed dock + bottom sheet handle betting */}
+      <Box sx={{ order: 2, display: { xs: 'none', lg: 'block' } }}>
         {pool ? (
           <CryptoBetPanel pool={pool} />
         ) : (

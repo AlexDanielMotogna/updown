@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Box, Typography, Tooltip } from '@mui/material';
 import { Bolt } from '@mui/icons-material';
+import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { usePoolWeighting, projectWeightedPayout } from '@/hooks/usePoolWeighting';
@@ -18,13 +19,13 @@ const CYAN = '#5FD8EF';
 const fmtUsd = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /** The spacious bet panel from the mockup, wired to the real on-chain engine. */
-export function CryptoBetPanel({ pool }: { pool: Pool }) {
+export function CryptoBetPanel({ pool, initialSide = 'UP' }: { pool: Pool; initialSide?: 'UP' | 'DOWN' }) {
   const t = useThemeTokens();
   const { connected, login } = useWalletBridge();
   const { data: userProfile } = useUserProfile();
   const { data: balance } = useUsdcBalance();
   const { deposit, state: txState } = useDeposit();
-  const [side, setSide] = useState<'UP' | 'DOWN'>('UP');
+  const [side, setSide] = useState<'UP' | 'DOWN'>(initialSide);
   const [amount, setAmount] = useState('50');
   const { data: weighting } = usePoolWeighting(pool.id, pool.status === 'JOINING');
 
@@ -64,21 +65,20 @@ export function CryptoBetPanel({ pool }: { pool: Pool }) {
         How will {pool.asset} price close in 5 minutes?
       </Typography>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
-        {(['UP', 'DOWN'] as const).map((s) => {
-          const active = side === s;
-          const up = s === 'UP';
-          const col = up ? t.up : t.down;
-          return (
-            <Box key={s} onClick={() => setSide(s)} sx={{ cursor: 'pointer', borderRadius: 1, p: { xs: 1, md: 1.25 }, textAlign: 'center', border: `1.5px solid ${active ? col : t.border.subtle}`, bgcolor: active ? `${col}14` : t.bg.surface, transition: 'all 0.15s' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.6 }}>
-                <Box component="img" src={up ? '/assets/up-icon-64x64.png' : '/assets/down-icon-64x64.png'} alt={s} sx={{ width: { xs: 15, md: 17 }, height: { xs: 15, md: 17 } }} />
-                <Typography sx={{ fontWeight: 800, fontSize: { xs: '0.82rem', md: '0.9rem' }, color: col }}>{s}</Typography>
-              </Box>
-              <Typography sx={{ fontSize: { xs: '0.68rem', md: '0.72rem' }, color: t.text.secondary, mt: 0.25 }}>{up ? 'Higher' : 'Lower'} than {strikeStr}</Typography>
-            </Box>
-          );
-        })}
+      <Box>
+        <SegmentedToggle
+          fullWidth
+          value={side}
+          onChange={(v) => setSide(v)}
+          accent={side === 'UP' ? t.up : t.down}
+          options={[
+            { value: 'UP', label: <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.4 }}><Box component="img" src="/assets/up-icon-64x64.png" alt="" sx={{ width: 16, height: 16 }} />UP</Box> },
+            { value: 'DOWN', label: <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.4 }}><Box component="img" src="/assets/down-icon-64x64.png" alt="" sx={{ width: 16, height: 16 }} />DOWN</Box> },
+          ]}
+        />
+        <Typography sx={{ textAlign: 'center', fontSize: '0.72rem', color: t.text.secondary, mt: 0.75 }}>
+          {side === 'UP' ? 'Higher' : 'Lower'} than {strikeStr}
+        </Typography>
       </Box>
 
       {/* Time-weight: earlier bets carry more weight, so a bigger share of the pool. */}
