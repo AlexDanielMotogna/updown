@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Box, Typography } from '@mui/material';
-import { CalendarMonth, RocketLaunch, Bolt, EmojiEvents, CheckCircle, ArrowUpward, ArrowDownward } from '@mui/icons-material';
+import { CalendarMonth, RocketLaunch, Bolt, EmojiEvents, CheckCircle } from '@mui/icons-material';
 import { fetchCryptoLeaderboard, fetchCryptoActivity, type CryptoActivityRow } from '@/lib/api';
 import { useThemeTokens } from '@/app/providers';
 
@@ -113,9 +113,8 @@ export function LiveActivityCard() {
             const amt = `$${(Number(r.amount) / 1_000_000).toFixed(2)}`;
             return (
               <Box key={`${r.walletAddress}-${r.createdAt}-${i}`} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box sx={{ width: 26, height: 26, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: `${col}1f`, color: col, flexShrink: 0 }}>
-                  {up ? <ArrowUpward sx={{ fontSize: 15 }} /> : <ArrowDownward sx={{ fontSize: 15 }} />}
-                </Box>
+                <Box component="img" src={up ? '/assets/up-icon-64x64.png' : '/assets/down-icon-64x64.png'} alt={r.side} sx={{ width: 22, height: 22, flexShrink: 0 }} />
+
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography sx={{ fontSize: '0.75rem', color: t.text.secondary }}>
                     <Box component="span" sx={{ fontFamily: 'monospace', color: t.text.primary }}>{short(r.walletAddress)}</Box>

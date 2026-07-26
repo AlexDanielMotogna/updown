@@ -1,13 +1,18 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Box, Typography, Button, Skeleton, Menu, MenuItem, ListItemIcon, Avatar } from '@mui/material';
-import { KeyboardArrowDown, Logout, AttachMoney } from '@mui/icons-material';
+import { Box, Typography, Skeleton } from '@mui/material';
+import { AttachMoney } from '@mui/icons-material';
 import { usePrivy } from '@privy-io/react-auth';
 import { useQuery } from '@tanstack/react-query';
 import { useThemeTokens } from '@/app/providers';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { UP_COINS_DIVISOR } from '@/lib/constants';
+import { ConnectWalletButton } from '@/components/ConnectWalletButton';
+import { NotificationPanel } from '@/components/header/NotificationPanel';
+import { UserLevelBadge } from '@/components/UserLevelBadge';
 import { joinCryptoEvent, fetchCryptoMe } from '@/lib/api';
 import { WeeklyLeaderboardCard } from '@/components/crypto/WeeklyLeaderboardCard';
 import { MarketsCard } from '@/components/crypto/MarketsCard';
@@ -15,27 +20,22 @@ import { ActivePool } from '@/components/crypto/ActivePool';
 import { EventInfoCard, AboutEventCard, LiveActivityCard } from '@/components/crypto/EventSidebar';
 import { HideTermsContext } from '@/components/pool/ResolutionCards';
 
-function identityLabel(user: ReturnType<typeof usePrivy>['user']): string | null {
-  if (!user) return null;
-  return user.twitter?.username ? `@${user.twitter.username}` : (user.google?.email ?? user.email?.address ?? null);
-}
 const fmtPnl = (raw: string) => {
   const n = Number(raw) / 1_000_000;
   return `${n >= 0 ? '+' : '−'}$${Math.abs(n).toFixed(2)}`;
 };
+const fmtCoins = (raw: bigint | string | number) => {
+  const num = Number(raw) / UP_COINS_DIVISOR;
+  return num >= 1_000_000 ? `${(num / 1_000_000).toFixed(1)}M` : num >= 1_000 ? `${(num / 1_000).toFixed(1)}K` : num.toFixed(1);
+};
 
 export default function CryptoPredictionsPage() {
   const t = useThemeTokens();
-  const { ready, authenticated, user, login, logout, getAccessToken } = usePrivy();
-  const { walletAddress } = useWalletBridge();
+  const { authenticated, getAccessToken } = usePrivy();
+  const { connected, walletAddress } = useWalletBridge();
   const { data: balance } = useUsdcBalance();
-  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const { data: userProfile } = useUserProfile();
   const [asset, setAsset] = useState('BTC');
-
-  const who = identityLabel(user);
-  const pfp = user?.twitter?.profilePictureUrl;
-  const avatarSrc = pfp ? pfp.replace('_normal', '_400x400') : undefined;
-  const initial = (who ?? 'U').replace('@', '').charAt(0).toUpperCase();
 
   // One-time auto-fund on first authenticated load.
   const joinedRef = useRef<string | null>(null);
@@ -57,47 +57,33 @@ export default function CryptoPredictionsPage() {
 
   return (
     <Box sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', bgcolor: t.bg.app, color: t.text.primary, overflowX: 'hidden' }}>
-      {/* Navbar */}
+      {/* Navbar — mirrors the app header cluster (level · coins · $ balance · bell · wallet) */}
       <Box component="header" sx={{ position: 'sticky', top: 0, zIndex: 100, bgcolor: t.bg.app, borderBottom: `1px solid ${t.border.subtle}` }}>
         <Box sx={{ width: '100%', maxWidth: 1680, mx: 'auto', px: { xs: 1.5, md: 3 }, height: { xs: 54, md: 64 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
           <Box component="img" src="/updown-logos/Logo_cyan_text_white.png" alt="UpDown" sx={{ height: { xs: 22, md: 30 } }} />
 
-          {!ready ? (
-            <Skeleton variant="rounded" sx={{ width: 200, height: 36, borderRadius: '4px', bgcolor: 'rgba(255,255,255,0.06)' }} />
-          ) : authenticated ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, md: 2 } }}>
-              {weeklyPnl != null && (
-                <Typography sx={{ fontSize: { xs: '0.82rem', md: '0.95rem' }, fontWeight: 800, color: Number(weeklyPnl) >= 0 ? t.gain : t.error, fontVariantNumeric: 'tabular-nums' }}>{fmtPnl(weeklyPnl)}</Typography>
-              )}
-              <Box sx={{ textAlign: 'right' }}>
-                <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: t.text.tertiary, letterSpacing: '0.05em', lineHeight: 1 }}>Balance</Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                  <AttachMoney sx={{ fontSize: 16, color: t.gain, ml: -0.4 }} />
-                  <Typography sx={{ fontSize: { xs: '0.85rem', md: '0.95rem' }, fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums', lineHeight: 1.3 }}>{balance ? balance.uiAmount.toFixed(2) : '—'}</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, md: 1.25 } }}>
+            {connected && weeklyPnl != null && (
+              <Typography sx={{ fontSize: { xs: '0.82rem', md: '0.92rem' }, fontWeight: 800, color: Number(weeklyPnl) >= 0 ? t.gain : t.error, fontVariantNumeric: 'tabular-nums' }}>{fmtPnl(weeklyPnl)}</Typography>
+            )}
+            {connected && (
+              <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: t.hover.default, borderRadius: '6px', height: { xs: 34, sm: 38 }, overflow: 'hidden' }}>
+                <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', px: { sm: 1 }, height: '100%', borderRight: `1px solid ${t.border.default}` }}>
+                  {userProfile ? <UserLevelBadge level={userProfile.level} title={userProfile.title} size="sm" variant="icon-only" /> : <Skeleton variant="circular" width={22} height={22} sx={{ bgcolor: t.border.default }} />}
+                </Box>
+                <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 0.5, px: { sm: 1.25 }, height: '100%', borderRight: `1px solid ${t.border.default}` }}>
+                  <Box component="img" src="/token/Token_16px_Gold.png" alt="UP Coin" sx={{ width: 14, height: 14 }} />
+                  {userProfile ? <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>{fmtCoins(userProfile.coinsBalance)}</Typography> : <Skeleton variant="text" width={30} height={16} sx={{ bgcolor: t.border.default }} />}
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: { xs: 0.75, sm: 1.25 }, height: '100%' }}>
+                  <AttachMoney sx={{ fontSize: 14, color: t.gain }} />
+                  {balance ? <Typography sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem' }, fontWeight: 600, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>{balance.uiAmount.toFixed(2)}</Typography> : <Skeleton variant="text" width={36} height={16} sx={{ bgcolor: t.border.default }} />}
                 </Box>
               </Box>
-              <Box onClick={(e) => setAnchor(e.currentTarget)} sx={{ display: 'flex', alignItems: 'center', gap: 0.75, height: 38, px: 1, borderRadius: '4px', cursor: 'pointer', bgcolor: t.hover.medium, '&:hover': { bgcolor: t.hover.strong } }}>
-                <Avatar src={avatarSrc} sx={{ width: 24, height: 24, fontSize: '0.72rem', fontWeight: 700, bgcolor: t.hover.strong, color: t.text.secondary }}>{initial}</Avatar>
-                <Typography sx={{ display: { xs: 'none', sm: 'block' }, fontSize: '0.82rem', fontWeight: 600, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{who ?? 'Account'}</Typography>
-                <KeyboardArrowDown sx={{ fontSize: 18, color: t.text.tertiary }} />
-              </Box>
-              <Menu anchorEl={anchor} open={Boolean(anchor)} onClose={() => setAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                slotProps={{ paper: { sx: { bgcolor: t.bg.surface, border: `1px solid ${t.border.medium}`, mt: 0.5, minWidth: 200 } } }}>
-                {walletAddress && (
-                  <Box sx={{ px: 2, py: 1, borderBottom: `1px solid ${t.border.subtle}` }}>
-                    <Typography sx={{ fontSize: '0.62rem', color: t.text.tertiary }}>Wallet</Typography>
-                    <Typography sx={{ fontFamily: 'monospace', fontSize: '0.72rem', color: t.text.secondary }}>{walletAddress.slice(0, 6)}…{walletAddress.slice(-6)}</Typography>
-                  </Box>
-                )}
-                <MenuItem onClick={() => { setAnchor(null); logout(); }} sx={{ fontSize: '0.85rem', gap: 1 }}>
-                  <ListItemIcon sx={{ minWidth: 'auto !important', color: t.text.secondary }}><Logout sx={{ fontSize: 17 }} /></ListItemIcon>
-                  Sign out
-                </MenuItem>
-              </Menu>
-            </Box>
-          ) : (
-            <Button onClick={login} sx={{ height: 38, px: { xs: 1.5, sm: 2.5 }, fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 500, backgroundColor: t.hover.medium, borderRadius: '4px', color: t.text.primary, textTransform: 'none', '&:hover': { backgroundColor: t.hover.strong } }}>Sign in</Button>
-          )}
+            )}
+            {connected && <NotificationPanel />}
+            <ConnectWalletButton variant="header" />
+          </Box>
         </Box>
       </Box>
 
