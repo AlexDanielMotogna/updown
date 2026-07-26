@@ -1,26 +1,23 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Box, Typography, Button, Skeleton, Menu, MenuItem, ListItemIcon, Avatar, Tooltip } from '@mui/material';
-import { KeyboardArrowDown, Logout, InfoOutlined } from '@mui/icons-material';
+import { Box, Typography, Button, Skeleton, Menu, MenuItem, ListItemIcon, Avatar } from '@mui/material';
+import { KeyboardArrowDown, Logout, AttachMoney } from '@mui/icons-material';
 import { usePrivy } from '@privy-io/react-auth';
 import { useQuery } from '@tanstack/react-query';
 import { useThemeTokens } from '@/app/providers';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { joinCryptoEvent, fetchCryptoMe } from '@/lib/api';
-import { CryptoLeaderboard } from '@/components/crypto/CryptoLeaderboard';
-import { CryptoPoolColumn } from '@/components/crypto/CryptoPoolColumn';
-import { InfoBanners } from '@/components/crypto/InfoBanners';
+import { WeeklyLeaderboardCard } from '@/components/crypto/WeeklyLeaderboardCard';
+import { MarketsCard } from '@/components/crypto/MarketsCard';
+import { ActivePool } from '@/components/crypto/ActivePool';
+import { EventInfoCard, AboutEventCard, LiveActivityCard } from '@/components/crypto/EventSidebar';
 import { HideTermsContext } from '@/components/pool/ResolutionCards';
-
-const ASSETS = ['BTC', 'ETH', 'SOL'];
 
 function identityLabel(user: ReturnType<typeof usePrivy>['user']): string | null {
   if (!user) return null;
-  const twitter = user.twitter?.username;
-  if (twitter) return `@${twitter}`;
-  return user.google?.email ?? user.email?.address ?? null;
+  return user.twitter?.username ? `@${user.twitter.username}` : (user.google?.email ?? user.email?.address ?? null);
 }
 const fmtPnl = (raw: string) => {
   const n = Number(raw) / 1_000_000;
@@ -33,73 +30,55 @@ export default function CryptoPredictionsPage() {
   const { walletAddress } = useWalletBridge();
   const { data: balance } = useUsdcBalance();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const [asset, setAsset] = useState('BTC');
 
   const who = identityLabel(user);
   const pfp = user?.twitter?.profilePictureUrl;
   const avatarSrc = pfp ? pfp.replace('_normal', '_400x400') : undefined;
   const initial = (who ?? 'U').replace('@', '').charAt(0).toUpperCase();
 
-  // One-time auto-fund on first authenticated load (once per wallet in this session).
+  // One-time auto-fund on first authenticated load.
   const joinedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!authenticated || !walletAddress || joinedRef.current === walletAddress) return;
     joinedRef.current = walletAddress;
     (async () => {
-      try {
-        const token = await getAccessToken();
-        if (token) await joinCryptoEvent(token, walletAddress);
-      } catch { /* best-effort; retried next load */ }
+      try { const token = await getAccessToken(); if (token) await joinCryptoEvent(token, walletAddress); } catch { /* retried next load */ }
     })();
   }, [authenticated, walletAddress, getAccessToken]);
 
-  // Live PNL (weekly = the leaderboard metric).
   const { data: me } = useQuery({
     queryKey: ['crypto-me', walletAddress],
-    queryFn: async () => {
-      const token = await getAccessToken();
-      if (!token || !walletAddress) return null;
-      return fetchCryptoMe(token, walletAddress);
-    },
+    queryFn: async () => { const token = await getAccessToken(); if (!token || !walletAddress) return null; return fetchCryptoMe(token, walletAddress); },
     enabled: authenticated && !!walletAddress,
     refetchInterval: 10_000,
   });
   const weeklyPnl = me?.data?.weeklyPnl ?? null;
 
-  const stat = (label: string, value: React.ReactNode, color?: string) => (
-    <Box sx={{ textAlign: 'right', px: { xs: 0.75, md: 1.25 } }}>
-      <Typography sx={{ fontSize: '0.58rem', fontWeight: 700, color: t.text.tertiary, letterSpacing: '0.05em', lineHeight: 1 }}>{label}</Typography>
-      <Typography sx={{ fontSize: { xs: '0.78rem', md: '0.88rem' }, fontWeight: 800, color: color ?? t.text.primary, fontVariantNumeric: 'tabular-nums', lineHeight: 1.3 }}>{value}</Typography>
-    </Box>
-  );
-
   return (
     <Box sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', bgcolor: t.bg.app, color: t.text.primary, overflowX: 'hidden' }}>
       {/* Navbar */}
       <Box component="header" sx={{ position: 'sticky', top: 0, zIndex: 100, bgcolor: t.bg.app, borderBottom: `1px solid ${t.border.subtle}` }}>
-        <Box sx={{ width: '100%', maxWidth: 1600, mx: 'auto', px: { xs: 1.5, md: 3 }, height: { xs: 54, md: 62 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
-            <Box component="img" src="/updown-logos/Logo_cyan_text_white.png" alt="UpDown" sx={{ height: { xs: 22, md: 28 } }} />
-            <Tooltip arrow title="UpDown is under development — play crypto predictions with test funds while we build towards launch."
-              slotProps={{ tooltip: { sx: { bgcolor: t.bg.tooltip, border: `1px solid ${t.border.strong}`, fontSize: '0.75rem', maxWidth: 240 } }, arrow: { sx: { color: t.bg.tooltip } } }}>
-              <InfoOutlined sx={{ fontSize: 16, color: t.text.tertiary, cursor: 'help' }} />
-            </Tooltip>
-          </Box>
+        <Box sx={{ width: '100%', maxWidth: 1680, mx: 'auto', px: { xs: 1.5, md: 3 }, height: { xs: 54, md: 64 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+          <Box component="img" src="/updown-logos/Logo_cyan_text_white.png" alt="UpDown" sx={{ height: { xs: 22, md: 30 } }} />
 
           {!ready ? (
             <Skeleton variant="rounded" sx={{ width: 200, height: 36, borderRadius: '4px', bgcolor: 'rgba(255,255,255,0.06)' }} />
           ) : authenticated ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, md: 1.5 } }}>
-              {stat('PNL (7D)', weeklyPnl != null ? fmtPnl(weeklyPnl) : '—', weeklyPnl != null ? (Number(weeklyPnl) >= 0 ? t.gain : t.error) : undefined)}
-              <Box sx={{ textAlign: 'right', px: { xs: 0.75, md: 1.25 } }}>
-                <Typography sx={{ fontSize: '0.58rem', fontWeight: 700, color: t.text.tertiary, letterSpacing: '0.05em', lineHeight: 1 }}>BALANCE</Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.4 }}>
-                  <Box component="img" src="/coins/usdc-coin.png" alt="USDC" sx={{ width: 15, height: 15 }} />
-                  <Typography sx={{ fontSize: { xs: '0.78rem', md: '0.88rem' }, fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums', lineHeight: 1.3 }}>{balance ? balance.uiAmount.toFixed(2) : '—'}</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, md: 2 } }}>
+              {weeklyPnl != null && (
+                <Typography sx={{ fontSize: { xs: '0.82rem', md: '0.95rem' }, fontWeight: 800, color: Number(weeklyPnl) >= 0 ? t.gain : t.error, fontVariantNumeric: 'tabular-nums' }}>{fmtPnl(weeklyPnl)}</Typography>
+              )}
+              <Box sx={{ textAlign: 'right' }}>
+                <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: t.text.tertiary, letterSpacing: '0.05em', lineHeight: 1 }}>Balance</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                  <AttachMoney sx={{ fontSize: 16, color: t.gain, ml: -0.4 }} />
+                  <Typography sx={{ fontSize: { xs: '0.85rem', md: '0.95rem' }, fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums', lineHeight: 1.3 }}>{balance ? balance.uiAmount.toFixed(2) : '—'}</Typography>
                 </Box>
               </Box>
-              <Box onClick={(e) => setAnchor(e.currentTarget)} sx={{ display: 'flex', alignItems: 'center', gap: 0.75, height: 36, px: 1, borderRadius: '4px', cursor: 'pointer', bgcolor: t.hover.medium, '&:hover': { bgcolor: t.hover.strong } }}>
-                <Avatar src={avatarSrc} sx={{ width: 22, height: 22, fontSize: '0.72rem', fontWeight: 700, bgcolor: t.hover.strong, color: t.text.secondary }}>{initial}</Avatar>
-                <Typography sx={{ display: { xs: 'none', sm: 'block' }, fontSize: '0.8rem', fontWeight: 600, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{who ?? 'Account'}</Typography>
+              <Box onClick={(e) => setAnchor(e.currentTarget)} sx={{ display: 'flex', alignItems: 'center', gap: 0.75, height: 38, px: 1, borderRadius: '4px', cursor: 'pointer', bgcolor: t.hover.medium, '&:hover': { bgcolor: t.hover.strong } }}>
+                <Avatar src={avatarSrc} sx={{ width: 24, height: 24, fontSize: '0.72rem', fontWeight: 700, bgcolor: t.hover.strong, color: t.text.secondary }}>{initial}</Avatar>
+                <Typography sx={{ display: { xs: 'none', sm: 'block' }, fontSize: '0.82rem', fontWeight: 600, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{who ?? 'Account'}</Typography>
                 <KeyboardArrowDown sx={{ fontSize: 18, color: t.text.tertiary }} />
               </Box>
               <Menu anchorEl={anchor} open={Boolean(anchor)} onClose={() => setAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}
@@ -117,33 +96,28 @@ export default function CryptoPredictionsPage() {
               </Menu>
             </Box>
           ) : (
-            <Button onClick={login} sx={{ height: 36, px: { xs: 1.5, sm: 2.5 }, fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 500, backgroundColor: t.hover.medium, borderRadius: '4px', color: t.text.primary, textTransform: 'none', '&:hover': { backgroundColor: t.hover.strong } }}>
-              Sign in
-            </Button>
+            <Button onClick={login} sx={{ height: 38, px: { xs: 1.5, sm: 2.5 }, fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 500, backgroundColor: t.hover.medium, borderRadius: '4px', color: t.text.primary, textTransform: 'none', '&:hover': { backgroundColor: t.hover.strong } }}>Sign in</Button>
           )}
         </Box>
       </Box>
 
       {/* Body: 3 columns */}
-      <Box sx={{ width: '100%', maxWidth: 1600, mx: 'auto', flex: 1, px: { xs: 1.5, md: 3 }, py: { xs: 2, md: 3 } }}>
+      <Box sx={{ width: '100%', maxWidth: 1680, mx: 'auto', flex: 1, px: { xs: 1.5, md: 3 }, py: { xs: 2, md: 3 } }}>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '260px minmax(0, 1fr) 300px' }, gap: { xs: 2, lg: 2.5 }, alignItems: 'start' }}>
-          {/* Left — leaderboard */}
-          <Box sx={{ order: { xs: 2, lg: 0 } }}><CryptoLeaderboard /></Box>
-          {/* Center — 3 pool cards + charts */}
-          <Box sx={{ order: { xs: 0, lg: 0 }, display: 'flex', flexDirection: 'column', gap: 2.5, minWidth: 0 }}>
-            {!authenticated && ready && (
-              <Box sx={{ borderRadius: 2, border: `1px solid ${t.border.subtle}`, bgcolor: t.bg.surface, p: 2.5, textAlign: 'center' }}>
-                <Typography sx={{ fontWeight: 800, fontSize: '1.05rem', mb: 0.5 }}>Predict BTC, ETH & SOL</Typography>
-                <Typography sx={{ color: t.text.secondary, fontSize: '0.85rem', mb: 1.5 }}>Sign in to get 1,000 to trade and call the 5-minute moves.</Typography>
-                <Button onClick={login} sx={{ px: 3, py: 1, fontWeight: 700, textTransform: 'none', bgcolor: t.hover.strong, borderRadius: 1.5, color: t.text.primary, '&:hover': { bgcolor: t.hover.emphasis } }}>Sign in to play</Button>
-              </Box>
-            )}
+          <Box sx={{ order: { xs: 2, lg: 0 }, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <WeeklyLeaderboardCard />
+            <MarketsCard active={asset} onSelect={setAsset} />
+          </Box>
+          <Box sx={{ order: { xs: 0, lg: 0 }, minWidth: 0 }}>
             <HideTermsContext.Provider value={true}>
-              {ASSETS.map((a) => <CryptoPoolColumn key={a} asset={a} />)}
+              <ActivePool asset={asset} />
             </HideTermsContext.Provider>
           </Box>
-          {/* Right — info banners */}
-          <Box sx={{ order: { xs: 1, lg: 0 } }}><InfoBanners /></Box>
+          <Box sx={{ order: { xs: 1, lg: 0 }, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <EventInfoCard />
+            <AboutEventCard />
+            <LiveActivityCard />
+          </Box>
         </Box>
       </Box>
     </Box>
