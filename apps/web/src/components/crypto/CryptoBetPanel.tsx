@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Box, Typography } from '@mui/material';
-import { ArrowUpward, ArrowDownward, Bolt } from '@mui/icons-material';
+import { Bolt } from '@mui/icons-material';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { usePoolWeighting, projectWeightedPayout } from '@/hooks/usePoolWeighting';
@@ -67,10 +67,8 @@ export function CryptoBetPanel({ pool }: { pool: Pool }) {
           return (
             <Box key={s} onClick={() => setSide(s)} sx={{ cursor: 'pointer', borderRadius: 2, p: 1.25, textAlign: 'center', border: `1.5px solid ${active ? col : t.border.subtle}`, bgcolor: active ? `${col}14` : t.bg.surface, transition: 'all 0.15s' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.75 }}>
-                <Box sx={{ width: 26, height: 26, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: `${col}22` }}>
-                  {up ? <ArrowUpward sx={{ color: col, fontSize: 18 }} /> : <ArrowDownward sx={{ color: col, fontSize: 18 }} />}
-                </Box>
-                <Typography sx={{ fontWeight: 900, fontSize: '1.2rem', color: col }}>{s}</Typography>
+                <Box component="img" src={up ? '/assets/up-icon-64x64.png' : '/assets/down-icon-64x64.png'} alt={s} sx={{ width: 24, height: 24 }} />
+                <Typography sx={{ fontWeight: 800, fontSize: '1.2rem', color: col }}>{s}</Typography>
               </Box>
               <Typography sx={{ fontSize: '0.72rem', color: t.text.secondary, mt: 0.25 }}>{up ? 'Higher' : 'Lower'} than {strikeStr}</Typography>
             </Box>

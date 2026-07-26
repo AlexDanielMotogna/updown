@@ -27,9 +27,13 @@ interface InlineChartProps {
   asset: string;
   livePrice?: string | null;
   strikePrice?: string | null;
+  /** Override the default responsive height (e.g. a shorter chart on the event page). */
+  height?: { xs: number; md: number } | number;
+  /** Disable pan/zoom so the chart is a fixed, non-scrollable view. */
+  staticChart?: boolean;
 }
 
-export function InlineChart({ asset, livePrice: livePriceStr, strikePrice: strikePriceStr }: InlineChartProps) {
+export function InlineChart({ asset, livePrice: livePriceStr, strikePrice: strikePriceStr, height, staticChart = false }: InlineChartProps) {
   const t = useThemeTokens();
   const livePriceNum = livePriceStr ? Number(livePriceStr) : null;
   const strikePriceNum = strikePriceStr ? Number(strikePriceStr) / USDC_DIVISOR : null;
@@ -48,7 +52,7 @@ export function InlineChart({ asset, livePrice: livePriceStr, strikePrice: strik
       sx={{
         display: 'flex',
         flexDirection: 'column',
-        height: { xs: 280, md: 460 },
+        height: height ?? { xs: 280, md: 460 },
         bgcolor: t.bg.app,
         borderRadius: { xs: 0, md: 2 },
         overflow: 'hidden',
@@ -103,6 +107,7 @@ export function InlineChart({ asset, livePrice: livePriceStr, strikePrice: strik
             mode={chartType}
             livePrice={livePriceNum}
             strikePrice={strikePriceNum}
+            staticView={staticChart}
           />
         )}
         {!loading && !error && candles.length === 0 && (

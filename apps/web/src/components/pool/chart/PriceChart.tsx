@@ -51,12 +51,14 @@ interface PriceChartProps {
   /** Strike line for resolution-style pools (USDC scale already applied
    *  by the caller - InlineChart divides by USDC_DIVISOR before passing). */
   strikePrice: number | null;
+  /** When true, disable pan/zoom so the chart is a fixed, non-scrollable view. */
+  staticView?: boolean;
 }
 
 // LWC takes second-based UTC timestamps for the time axis.
 const toUtc = (ms: number): UTCTimestamp => Math.floor(ms / 1000) as UTCTimestamp;
 
-export function PriceChart({ candles, mode, livePrice, strikePrice }: PriceChartProps) {
+export function PriceChart({ candles, mode, livePrice, strikePrice, staticView = false }: PriceChartProps) {
   const t = useThemeTokens();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -96,6 +98,8 @@ export function PriceChart({ candles, mode, livePrice, strikePrice }: PriceChart
         // OddsChart, parity for the crypto candle/area view.
         attributionLogo: false,
       },
+      // Static view: no drag-pan / wheel-zoom, so the chart can't be scrolled.
+      ...(staticView ? { handleScroll: false, handleScale: false } : {}),
       // Crosshair label (the time pill that follows the cursor) renders
       // in the user's locale; tickMarkFormatter below mirrors that on the
       // bottom axis so both surfaces agree.

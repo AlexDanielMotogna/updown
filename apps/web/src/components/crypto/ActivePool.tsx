@@ -29,7 +29,7 @@ export function ActivePool({ asset }: { asset: string }) {
   const priceStat = (label: string, value: string, color: string) => (
     <Box>
       <Typography sx={{ fontSize: '0.72rem', color: t.text.tertiary }}>{label}</Typography>
-      <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color, fontVariantNumeric: 'tabular-nums' }}>{value}</Typography>
+      <Typography sx={{ fontWeight: 600, fontSize: '1.05rem', color, fontVariantNumeric: 'tabular-nums' }}>{value}</Typography>
     </Box>
   );
 
@@ -40,7 +40,7 @@ export function ActivePool({ asset }: { asset: string }) {
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <AssetIcon asset={asset} size={30} />
-            <Typography sx={{ fontWeight: 900, fontSize: { xs: '1.15rem', md: '1.35rem' }, color: t.text.primary }}>{PAIR[asset] ?? asset}</Typography>
+            <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.1rem', md: '1.25rem' }, color: t.text.primary }}>{PAIR[asset] ?? asset}</Typography>
             <Box sx={{ px: 1, py: 0.3, borderRadius: 1, bgcolor: t.hover.medium }}><Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: t.text.secondary }}>Rapid 5m</Typography></Box>
             <InfoOutlined sx={{ fontSize: 16, color: t.text.tertiary }} />
           </Box>
@@ -58,9 +58,9 @@ export function ActivePool({ asset }: { asset: string }) {
       {/* Chart */}
       <Box sx={{ mb: 2.5, borderRadius: 2, overflow: 'hidden', border: `1px solid ${t.border.subtle}` }}>
         {pool ? (
-          <InlineChart asset={asset} livePrice={live} strikePrice={pool.strikePrice} />
+          <InlineChart asset={asset} livePrice={live} strikePrice={pool.strikePrice} height={{ xs: 220, md: 280 }} staticChart />
         ) : (
-          <Box sx={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Skeleton variant="rounded" width="95%" height="85%" sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} /></Box>
+          <Box sx={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Skeleton variant="rounded" width="95%" height="85%" sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} /></Box>
         )}
       </Box>
 
