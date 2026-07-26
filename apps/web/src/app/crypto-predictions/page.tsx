@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Box, Typography, Skeleton, Tooltip, IconButton } from '@mui/material';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Box, Typography, Skeleton, Tooltip, IconButton, useMediaQuery } from '@mui/material';
 import { AttachMoney, HelpOutline } from '@mui/icons-material';
 import { usePrivy } from '@privy-io/react-auth';
 import { useQuery } from '@tanstack/react-query';
@@ -39,7 +39,15 @@ export default function CryptoPredictionsPage() {
   const { authenticated, getAccessToken } = usePrivy();
   const { connected, walletAddress } = useWalletBridge();
   const { data: balance, refetch: refetchBalance } = useUsdcBalance();
+  const isMobile = useMediaQuery('(max-width:1199px)');
   const [asset, setAsset] = useState('BTC');
+  const [tourSheet, setTourSheet] = useState(false); // tour opens the mobile bet sheet on the predict step
+
+  // On mobile the predict step opens the bet sheet, so it renders tooltip-only (bare).
+  const tourSteps = useMemo(
+    () => TOUR_STEPS.map((s) => (s.selector === '[data-tour="predict"]' ? { ...s, bare: isMobile } : s)),
+    [isMobile],
+  );
   const [fund, setFund] = useState<{ open: boolean; status: FundStatus }>({ open: false, status: 'funding' });
   const [tutorialOpen, setTutorialOpen] = useState(false);
 
@@ -50,6 +58,7 @@ export default function CryptoPredictionsPage() {
   }, []);
   const closeTutorial = useCallback(() => {
     setTutorialOpen(false);
+    setTourSheet(false);
     try { localStorage.setItem('crypto-tutorial-seen', '1'); } catch { /* private mode */ }
   }, []);
 
@@ -153,7 +162,7 @@ export default function CryptoPredictionsPage() {
         </Box>
       </Box>
 
-      <MobilePredictBar asset={asset} />
+      <MobilePredictBar asset={asset} tourOpen={tourSheet} />
 
       <WelcomeFundModal
         open={fund.open}
@@ -166,7 +175,7 @@ export default function CryptoPredictionsPage() {
         onRetry={() => runJoin(true)}
       />
 
-      <CryptoTour run={tutorialOpen} steps={TOUR_STEPS} onClose={closeTutorial} />
+      <CryptoTour run={tutorialOpen} steps={tourSteps} onClose={closeTutorial} onStepChange={(step) => setTourSheet(!!step.bare)} />
     </Box>
   );
 }

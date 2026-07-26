@@ -18,7 +18,7 @@ export function MarketTabs({ active, onSelect }: { active: string; onSelect: (a:
   const { getPrice } = usePriceStream(ASSETS);
 
   return (
-    <Box sx={{ display: 'flex', gap: '6px' }}>
+    <Box data-tour="markets" sx={{ display: 'flex', gap: '6px' }}>
       {ASSETS.map((a) => {
         const p = getPrice(a);
         const price = p ? Number(p) : null;
