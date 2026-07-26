@@ -34,7 +34,7 @@ export function ActivePool({ asset }: { asset: string }) {
   );
 
   return (
-    <Box sx={{ borderRadius: 2.5, border: `1px solid ${t.border.subtle}`, bgcolor: t.bg.surface, p: { xs: 2, md: 3 } }}>
+    <Box sx={{ borderRadius: 1.25, border: `1px solid ${t.border.subtle}`, bgcolor: t.bg.surface, p: { xs: 2, md: 3 } }}>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, mb: 2, flexWrap: 'wrap' }}>
         <Box>
@@ -56,7 +56,7 @@ export function ActivePool({ asset }: { asset: string }) {
       </Box>
 
       {/* Chart */}
-      <Box sx={{ mb: 2.5, borderRadius: 2, overflow: 'hidden' }}>
+      <Box sx={{ mb: 2.5, borderRadius: 1, overflow: 'hidden' }}>
         {pool ? (
           <InlineChart asset={asset} livePrice={live} strikePrice={pool.strikePrice} height={{ xs: 220, md: 280 }} staticChart background={t.bg.surface} />
         ) : (
