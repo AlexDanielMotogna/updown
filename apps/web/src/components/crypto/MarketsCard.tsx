@@ -17,7 +17,7 @@ export function MarketsCard({ active, onSelect }: { active: string; onSelect: (a
   const { getPrice } = usePriceStream(ASSETS);
 
   return (
-    <Box sx={{ borderRadius: 2, border: `1px solid ${t.border.subtle}`, bgcolor: t.bg.surface, overflow: 'hidden' }}>
+    <Box sx={{ borderRadius: 1, border: `1px solid ${t.border.subtle}`, bgcolor: t.bg.surface, overflow: 'hidden' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 2, py: 1.5, borderBottom: `1px solid ${t.border.subtle}`, color: CYAN }}>
         <ShowChart sx={{ fontSize: 18 }} />
         <Typography sx={{ fontWeight: 800, fontSize: '0.82rem', letterSpacing: '0.05em', color: t.text.primary }}>MARKETS</Typography>

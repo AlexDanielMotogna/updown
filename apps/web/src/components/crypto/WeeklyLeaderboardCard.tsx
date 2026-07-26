@@ -37,7 +37,7 @@ export function WeeklyLeaderboardCard() {
   const rows = data?.data ?? [];
 
   return (
-    <Box sx={{ borderRadius: 2, border: `1px solid ${t.border.subtle}`, bgcolor: t.bg.surface, overflow: 'hidden' }}>
+    <Box sx={{ borderRadius: 1, border: `1px solid ${t.border.subtle}`, bgcolor: t.bg.surface, overflow: 'hidden' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 2, py: 1.5, borderBottom: `1px solid ${t.border.subtle}` }}>
         <EmojiEvents sx={{ fontSize: 18, color: t.gold }} />
         <Box>
@@ -55,12 +55,12 @@ export function WeeklyLeaderboardCard() {
       )}
 
       <Box sx={{ p: 1.5 }}>
-        <Box component="button" onClick={() => setOpen(true)} sx={{ width: '100%', py: 0.9, borderRadius: 1.5, border: `1px solid ${t.border.medium}`, bgcolor: 'transparent', color: t.text.secondary, fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', '&:hover': { color: t.text.primary, borderColor: t.text.tertiary } }}>
+        <Box component="button" onClick={() => setOpen(true)} sx={{ width: '100%', py: 0.9, borderRadius: 1, border: `1px solid ${t.border.medium}`, bgcolor: 'transparent', color: t.text.secondary, fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', '&:hover': { color: t.text.primary, borderColor: t.text.tertiary } }}>
           View full leaderboard
         </Box>
       </Box>
 
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { bgcolor: t.bg.surface, border: `1px solid ${t.border.subtle}`, borderRadius: 2.5 } }}>
+      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { bgcolor: t.bg.surface, border: `1px solid ${t.border.subtle}`, borderRadius: 1.5 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.5, borderBottom: `1px solid ${t.border.subtle}` }}>
           <Typography sx={{ fontWeight: 800, fontSize: '0.9rem', color: t.text.primary }}>Weekly Leaderboard</Typography>
           <IconButton onClick={() => setOpen(false)} size="small" sx={{ color: t.text.tertiary }}><Close sx={{ fontSize: 18 }} /></IconButton>

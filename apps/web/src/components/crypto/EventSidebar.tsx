@@ -11,7 +11,7 @@ const CYAN = '#5FD8EF';
 
 function Card({ icon, title, children, tokens: t }: { icon: React.ReactNode; title: string; children: React.ReactNode; tokens: ReturnType<typeof useThemeTokens> }) {
   return (
-    <Box sx={{ borderRadius: 2, border: `1px solid ${t.border.subtle}`, bgcolor: t.bg.surface, overflow: 'hidden' }}>
+    <Box sx={{ borderRadius: 1, border: `1px solid ${t.border.subtle}`, bgcolor: t.bg.surface, overflow: 'hidden' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 2, py: 1.5, borderBottom: `1px solid ${t.border.subtle}`, color: CYAN }}>
         {icon}
         <Typography sx={{ fontWeight: 800, fontSize: '0.8rem', letterSpacing: '0.05em', color: t.text.primary }}>{title}</Typography>
