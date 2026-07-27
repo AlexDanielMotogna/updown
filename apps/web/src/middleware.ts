@@ -1,14 +1,23 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { PROD_LOCKDOWN } from '@/lib/features';
 
 /**
- * Production lockdown: while the app is under development, prod serves ONLY the
- * Crypto Predictions event page. Every other route (including the old /worldcup)
- * redirects to /crypto-predictions, except the admin panel (key-protected). In dev
- * (PROD_LOCKDOWN false) this is a no-op and the full app is reachable.
+ * Production lockdown: while the app is under development, the PRODUCTION domain
+ * (updown.my) serves ONLY the Crypto Predictions event page. Every other route
+ * (including the old /worldcup) redirects to /crypto-predictions, except the
+ * admin panel (key-protected).
+ *
+ * The gate is the request HOST, not a build-time env flag, so every non-prod
+ * environment — dev on Railway, previews, localhost — always gets the FULL app,
+ * letting the team work normally. NEXT_PUBLIC_PROD_LOCKDOWN can still force the
+ * lockdown ('true') or disable it ('false') anywhere for testing.
  */
+const PROD_HOSTS = new Set(['updown.my', 'www.updown.my']);
+
 export function middleware(req: NextRequest) {
-  if (!PROD_LOCKDOWN) return NextResponse.next();
+  const host = (req.headers.get('host') || '').toLowerCase().split(':')[0];
+  const override = process.env.NEXT_PUBLIC_PROD_LOCKDOWN;
+  const lock = override === 'true' ? true : override === 'false' ? false : PROD_HOSTS.has(host);
+  if (!lock) return NextResponse.next();
 
   const { pathname } = req.nextUrl;
   // Let static asset requests (they carry a file extension) through.
