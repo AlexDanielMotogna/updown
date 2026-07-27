@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { Box, Typography, Tooltip } from '@mui/material';
 import { Bolt } from '@mui/icons-material';
-import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { usePoolWeighting, projectWeightedPayout } from '@/hooks/usePoolWeighting';
@@ -66,16 +65,33 @@ export function CryptoBetPanel({ pool, initialSide = 'UP' }: { pool: Pool; initi
       </Typography>
 
       <Box>
-        <SegmentedToggle
-          fullWidth
-          value={side}
-          onChange={(v) => setSide(v)}
-          accent={side === 'UP' ? t.up : t.down}
-          options={[
-            { value: 'UP', label: <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.4 }}><Box component="img" src="/assets/up-icon-64x64.png" alt="" sx={{ width: 16, height: 16 }} />UP</Box> },
-            { value: 'DOWN', label: <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.4 }}><Box component="img" src="/assets/down-icon-64x64.png" alt="" sx={{ width: 16, height: 16 }} />DOWN</Box> },
-          ]}
-        />
+        {/* Diagonal toggle: the active side expands to cover most of the row. Widths
+            always sum to 100% + 14px so the diagonal edges coincide (no dark wedge). */}
+        <Box sx={{ position: 'relative', height: 46, borderRadius: 1, overflow: 'hidden' }}>
+          {(['UP', 'DOWN'] as const).map((s) => {
+            const up = s === 'UP';
+            const active = side === s;
+            const clip = up ? 'polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%)' : 'polygon(14px 0, 100% 0, 100% 100%, 0 100%)';
+            const width = active ? 'calc(72% + 7px)' : 'calc(28% + 7px)';
+            return (
+              <Box
+                key={s}
+                component="button"
+                onClick={() => setSide(s)}
+                sx={{
+                  position: 'absolute', top: 0, bottom: 0, [up ? 'left' : 'right']: 0, width, zIndex: active ? 1 : 0,
+                  clipPath: clip, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                  bgcolor: up ? t.up : t.down, backgroundImage: 'linear-gradient(rgba(0,0,0,0.34), rgba(0,0,0,0.34))',
+                  color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5,
+                  opacity: active ? 1 : 0.82, transition: 'width 0.25s ease, opacity 0.2s', '&:active': { filter: 'brightness(1.12)' },
+                }}
+              >
+                <Box component="img" src={up ? '/assets/up-icon-64x64.png' : '/assets/down-icon-64x64.png'} alt="" sx={{ width: 16, height: 16 }} />
+                <Typography sx={{ fontWeight: 800, fontSize: '0.9rem' }}>{s}</Typography>
+              </Box>
+            );
+          })}
+        </Box>
         <Typography sx={{ textAlign: 'center', fontSize: '0.72rem', color: t.text.secondary, mt: 0.75 }}>
           {side === 'UP' ? 'Higher' : 'Lower'} than {strikeStr}
         </Typography>

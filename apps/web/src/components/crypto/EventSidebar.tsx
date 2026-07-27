@@ -85,12 +85,17 @@ export function AboutEventCard() {
   );
 }
 
+const short = (w: string) => `${w.slice(0, 4)}…${w.slice(-4)}`;
 function ago(iso: string, now: number): string {
   const s = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 1000));
-  if (s < 60) return `${s}s ago`;
+  if (s < 60) return `${s}s`;
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  return `${Math.floor(m / 60)}h ago`;
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d`;
+  return `${Math.floor(d / 7)}w`;
 }
 
 export function LiveActivityCard() {
@@ -112,10 +117,12 @@ export function LiveActivityCard() {
             const amt = `$${(Number(r.amount) / 1_000_000).toFixed(2)}`;
             return (
               <Box key={`${r.walletAddress}-${r.createdAt}-${i}`} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box component="img" src={up ? '/assets/up-icon-64x64.png' : '/assets/down-icon-64x64.png'} alt={r.side} sx={{ width: 20, height: 20, flexShrink: 0 }} />
-                <Typography sx={{ flex: 1, minWidth: 0, fontSize: '0.78rem', color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  <Box component="span" sx={{ color: col, fontWeight: 700 }}>{r.side}</Box> on {r.asset} · {amt}
-                </Typography>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography sx={{ fontSize: '0.76rem', color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{short(r.walletAddress)}</Typography>
+                  <Typography sx={{ fontSize: '0.72rem', color: t.text.secondary, whiteSpace: 'nowrap' }}>
+                    <Box component="span" sx={{ color: col, fontWeight: 700 }}>{r.side}</Box> on {r.asset} · {amt}
+                  </Typography>
+                </Box>
                 <Typography sx={{ fontSize: '0.66rem', color: t.text.tertiary, whiteSpace: 'nowrap' }}>{ago(r.createdAt, now)}</Typography>
               </Box>
             );
