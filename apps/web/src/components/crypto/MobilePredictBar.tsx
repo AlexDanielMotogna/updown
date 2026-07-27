@@ -31,6 +31,7 @@ export function MobilePredictBar({ asset, tourOpen = false }: { asset: string; t
   const { data } = usePools({ type: 'CRYPTO', asset, interval: '5m', status: 'JOINING' }, { refetchInterval: 3_000, staleTime: 2_000 });
   const pool: Pool | undefined = data?.data?.[0];
   const [sheet, setSheet] = useState<'UP' | 'DOWN' | null>(null);
+  const [sel, setSel] = useState<'UP' | 'DOWN'>('UP'); // toggle: the active side covers most of the bar
 
   // The tutorial can open/close the sheet to demo the bet form (only on step change).
   useEffect(() => { setSheet(tourOpen ? 'UP' : null); }, [tourOpen]);
@@ -40,30 +41,37 @@ export function MobilePredictBar({ asset, tourOpen = false }: { asset: string; t
 
   const half = (s: 'UP' | 'DOWN') => {
     const up = s === 'UP';
-    // Absolute, overlapping halves whose diagonal edges coincide → a crisp
-    // diagonal split with no dark wedge between them. Content sits in the
-    // outer (unclipped) half so it never touches the seam.
+    const active = sel === s;
+    // Absolute, overlapping halves whose diagonal edges coincide (widths always
+    // sum to 100% + 16px) → a crisp diagonal split with no dark wedge. The active
+    // side expands to cover most of the bar; tapping it places, tapping the other
+    // just switches the selection.
     const clip = up ? 'polygon(0 0, 100% 0, calc(100% - 16px) 100%, 0 100%)' : 'polygon(16px 0, 100% 0, 100% 100%, 0 100%)';
+    const width = active ? 'calc(72% + 8px)' : 'calc(28% + 8px)';
     return (
       <Box
         component="button"
-        onClick={() => pool && setSheet(s)}
+        onClick={() => { if (!pool) return; if (active) setSheet(s); else setSel(s); }}
         disabled={!pool}
         sx={{
-          position: 'absolute', top: 0, bottom: 0, [up ? 'left' : 'right']: 0, width: 'calc(50% + 8px)',
+          position: 'absolute', top: 0, bottom: 0, [up ? 'left' : 'right']: 0, width, zIndex: active ? 1 : 0,
           border: 'none', cursor: pool ? 'pointer' : 'default', clipPath: clip, bgcolor: up ? t.up : t.down,
           // Darken the app hue slightly so white text stays legible on the light cyan-green.
           backgroundImage: 'linear-gradient(rgba(0,0,0,0.34), rgba(0,0,0,0.34))',
           color: '#fff', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          opacity: pool ? 1 : 0.55, transition: 'filter 0.15s', '&:active': { filter: 'brightness(1.15)' },
+          opacity: pool ? (active ? 1 : 0.9) : 0.55, transition: 'width 0.25s ease, filter 0.15s', '&:active': { filter: 'brightness(1.15)' },
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
           <Box component="img" src={up ? '/assets/up-icon-64x64.png' : '/assets/down-icon-64x64.png'} alt="" sx={{ width: 18, height: 18 }} />
           <Typography sx={{ fontWeight: 800, fontSize: '0.95rem', letterSpacing: '0.02em' }}>{s}</Typography>
         </Box>
-        <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, mt: 0.1 }}>Place order</Typography>
-        <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.78)', mt: 0.1, fontVariantNumeric: 'tabular-nums' }}>Strike {strikeStr}</Typography>
+        {active && (
+          <>
+            <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, mt: 0.1 }}>Place order</Typography>
+            <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.78)', mt: 0.1, fontVariantNumeric: 'tabular-nums' }}>Strike {strikeStr}</Typography>
+          </>
+        )}
       </Box>
     );
   };
