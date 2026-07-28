@@ -2,7 +2,10 @@
  * Fire-and-forget Telegram announcement for the Crypto Predictions weekly winner.
  * Reuses the WorldCup bot credentials; the chat can be overridden with
  * CRYPTO_TG_CHAT_ID (else falls back to WORLDCUP_TG_CHAT_ID). Off unless configured.
- * The message carries the full email + wallet so ops can pay the winner manually.
+ *
+ * PRIVACY: never expose the winner's full email/wallet here — the chat may be
+ * public. The message masks the email and shortens the wallet; the full contact
+ * details for the manual payout live only in the (key-protected) admin panel.
  */
 
 const TG_API = 'https://api.telegram.org';
@@ -21,6 +24,17 @@ function esc(s: string): string {
 
 const fmtUsd = (raw: bigint) => `${raw >= 0n ? '+' : '−'}$${(Math.abs(Number(raw)) / 1_000_000).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+/** Mask an email for public display: alejandro.f@gmail.com -> al***@gmail.com. */
+function maskEmail(email: string | null): string {
+  if (!email) return '—';
+  const at = email.indexOf('@');
+  if (at < 1 || !email.slice(at + 1).includes('.')) return '—';
+  return `${email.slice(0, Math.min(2, at))}***@${email.slice(at + 1)}`;
+}
+
+/** Shorten a wallet: 9GN5xxxx...GDSs. Never post the full address publicly. */
+const shortWallet = (w: string) => (w.length > 12 ? `${w.slice(0, 4)}…${w.slice(-4)}` : w);
+
 /** Announce the weekly winner to the ops Telegram chat. Never throws. */
 export async function notifyCryptoWinner(w: {
   walletAddress: string;
@@ -32,16 +46,16 @@ export async function notifyCryptoWinner(w: {
   const c = creds();
   if (!c) return;
   const week = w.weekStart.toISOString().slice(0, 10);
+  const who = w.displayName && !w.displayName.includes('@') ? w.displayName : maskEmail(w.email);
   const lines = [
     '🏆 <b>Crypto Predictions — Weekly Winner</b>',
     `Week of <b>${week}</b> (Mon 00:00 UTC)`,
     '',
+    `Winner: <b>${esc(who)}</b>`,
+    `Wallet: <code>${esc(shortWallet(w.walletAddress))}</code>`,
     `PNL: <b>${esc(fmtUsd(w.pnl))}</b>`,
-    w.displayName ? `Name: ${esc(w.displayName)}` : null,
-    `Email: <code>${esc(w.email ?? '—')}</code>`,
-    `Wallet: <code>${esc(w.walletAddress)}</code>`,
     '',
-    'Prize: <b>$100</b> — pay manually, then mark as paid in the admin.',
+    'Prize: <b>$100</b> — full contact details are in the admin panel.',
   ].filter(Boolean).join('\n');
   try {
     await fetch(`${TG_API}/bot${c.token}/sendMessage`, {
