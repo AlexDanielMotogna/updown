@@ -10,12 +10,14 @@
 
 const TG_API = 'https://api.telegram.org';
 
-function creds(): { token: string; chatId: string } | null {
+function creds(): { token: string; chatId: string; threadId?: number } | null {
   const token = process.env.WORLDCUP_TG_BOT_TOKEN?.trim();
   const chatId = (process.env.CRYPTO_TG_CHAT_ID || process.env.WORLDCUP_TG_CHAT_ID)?.trim();
   if (!token || !chatId) return null;
   if ((process.env.CRYPTO_TG_ENABLED ?? 'true').toLowerCase() === 'false') return null;
-  return { token, chatId };
+  // Optional forum topic (the group is a forum; without a thread id posts go to General).
+  const thread = Number(process.env.CRYPTO_TG_THREAD_ID);
+  return { token, chatId, threadId: Number.isFinite(thread) && thread > 0 ? thread : undefined };
 }
 
 function esc(s: string): string {
@@ -61,7 +63,7 @@ export async function notifyCryptoWinner(w: {
     await fetch(`${TG_API}/bot${c.token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: c.chatId, text: lines, parse_mode: 'HTML', disable_web_page_preview: true }),
+      body: JSON.stringify({ chat_id: c.chatId, ...(c.threadId ? { message_thread_id: c.threadId } : {}), text: lines, parse_mode: 'HTML', disable_web_page_preview: true }),
     });
   } catch (e) {
     console.warn('[CryptoTG] winner announce failed:', e instanceof Error ? e.message : e);
