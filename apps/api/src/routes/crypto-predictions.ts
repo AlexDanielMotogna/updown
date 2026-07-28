@@ -20,13 +20,21 @@ const INTERVAL = '5m';
 const BETTABLE = ['JOINING', 'ACTIVE'] as const;
 const SETTLED = ['RESOLVED', 'CLAIMABLE', 'CANCELLED'];
 
+/** Anti-abuse: max funded accounts allowed per signup IP (extras register but aren't funded). */
+const MAX_FUNDED_PER_IP = Math.max(1, Number(process.env.CRYPTO_MAX_ACCOUNTS_PER_IP ?? 3));
+
+/** Real client IP (Express `trust proxy` is on, so req.ip is the X-Forwarded-For client). */
+function clientIp(req: Request): string | null {
+  return req.ip ?? null;
+}
+
 /** Verify the Privy token → the user's DID (auth anchor). Null if unauthenticated. */
 export async function resolveEventDid(req: Request): Promise<string | null> {
   return verifyPrivyDid(bearerToken(req.headers.authorization));
 }
 
 /** Start of the current week (Monday 00:00 UTC) — the weekly leaderboard window. */
-function weekStartUtc(now = new Date()): Date {
+export function weekStartUtc(now = new Date()): Date {
   const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const dow = d.getUTCDay(); // 0=Sun..6=Sat
   d.setUTCDate(d.getUTCDate() - (dow === 0 ? 6 : dow - 1));
@@ -37,13 +45,14 @@ function weekStartUtc(now = new Date()): Date {
  * Realized PNL (Σ payout − stake) over settled CRYPTO pools. Optional week window
  * (`since` = pool end_time) and wallet scope. Mirrors routes/users.ts realizedProfitMap.
  */
-async function cryptoProfitMap(opts: { since?: Date; wallets?: string[] } = {}): Promise<Map<string, bigint>> {
+export async function cryptoProfitMap(opts: { since?: Date; until?: Date; wallets?: string[] } = {}): Promise<Map<string, bigint>> {
   if (opts.wallets && opts.wallets.length === 0) return new Map();
   const conds: Prisma.Sql[] = [
     Prisma.sql`p.status::text IN (${Prisma.join(SETTLED)})`,
     Prisma.sql`p.pool_type = 'CRYPTO'`,
   ];
   if (opts.since) conds.push(Prisma.sql`p.end_time >= ${opts.since}`);
+  if (opts.until) conds.push(Prisma.sql`p.end_time < ${opts.until}`);
   if (opts.wallets) conds.push(Prisma.sql`b.wallet_address IN (${Prisma.join(opts.wallets)})`);
   const where = Prisma.join(conds, ' AND ');
   const rows = await prisma.$queryRaw<{ wallet: string; profit: string }[]>`
@@ -62,7 +71,10 @@ function sortedBoard(map: Map<string, bigint>): [string, bigint][] {
 // ---------------------------------------------------------------------------
 // POST /join — ensure the user + one-time auto-fund (1000 test USDC + SOL).
 // ---------------------------------------------------------------------------
-const joinSchema = z.object({ walletAddress: z.string().min(32).max(64) });
+const joinSchema = z.object({
+  walletAddress: z.string().min(32).max(64),
+  email: z.string().email().max(200).optional(),
+});
 
 cryptoPredictionsRouter.post('/join', async (req, res) => {
   try {
@@ -70,34 +82,50 @@ cryptoPredictionsRouter.post('/join', async (req, res) => {
     if (!did) return res.status(401).json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'Sign in to play' } });
     const parsed = joinSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'walletAddress required' } });
-    const { walletAddress } = parsed.data;
+    const { walletAddress, email } = parsed.data;
     try {
       if (!PublicKey.isOnCurve(new PublicKey(walletAddress))) throw new Error();
     } catch {
       return res.status(400).json({ success: false, error: { code: 'BAD_WALLET', message: 'Invalid Solana wallet address' } });
     }
 
-    const user = await registerUser(walletAddress);
-    let funded = false;
+    await registerUser(walletAddress);
+    const ip = clientIp(req);
 
-    // Optimistic lock: only the writer that flips autoFundedAt from null wins the mint,
-    // so concurrent /join calls never double-fund.
-    const lock = await prisma.user.updateMany({
-      where: { walletAddress, autoFundedAt: null },
-      data: { autoFundedAt: new Date() },
-    });
-    if (lock.count === 1) {
-      try {
-        await mintTestFunds(walletAddress);
-        funded = true;
-      } catch (e) {
-        // Roll back the marker so the next load can retry.
-        await prisma.user.updateMany({ where: { walletAddress }, data: { autoFundedAt: null } }).catch(() => {});
-        console.error('[CryptoPredictions] auto-fund failed:', e instanceof Error ? e.message : e);
+    // Current anti-abuse state + record signup IP / contact email on first sight.
+    const u = await prisma.user.findUnique({ where: { walletAddress }, select: { banned: true, signupIp: true, email: true, autoFundedAt: true } });
+    if (u?.banned) return res.status(403).json({ success: false, error: { code: 'BANNED', message: 'This account is banned from the event.' } });
+
+    const patch: { signupIp?: string; email?: string } = {};
+    if (ip && !u?.signupIp) patch.signupIp = ip;
+    if (email && !u?.email) patch.email = email;
+    if (Object.keys(patch).length) await prisma.user.update({ where: { walletAddress }, data: patch }).catch(() => {});
+
+    // Per-IP funding cap: extra accounts from the same network register but don't get funded.
+    let accountsFromIp = 0;
+    let blockedByIp = false;
+    if (ip) {
+      accountsFromIp = await prisma.user.count({ where: { signupIp: ip, walletAddress: { not: walletAddress }, autoFundedAt: { not: null } } });
+      blockedByIp = accountsFromIp >= MAX_FUNDED_PER_IP;
+    }
+
+    let funded = false;
+    if (!blockedByIp) {
+      // Optimistic lock: only the writer that flips autoFundedAt from null wins the mint,
+      // so concurrent /join calls never double-fund.
+      const lock = await prisma.user.updateMany({ where: { walletAddress, autoFundedAt: null }, data: { autoFundedAt: new Date() } });
+      if (lock.count === 1) {
+        try {
+          await mintTestFunds(walletAddress);
+          funded = true;
+        } catch (e) {
+          await prisma.user.updateMany({ where: { walletAddress }, data: { autoFundedAt: null } }).catch(() => {});
+          console.error('[CryptoPredictions] auto-fund failed:', e instanceof Error ? e.message : e);
+        }
       }
     }
 
-    res.json({ success: true, data: { funded, alreadyFunded: user.autoFundedAt != null } });
+    res.json({ success: true, data: { funded, alreadyFunded: u?.autoFundedAt != null, blockedByIp, accountsFromIp } });
   } catch (error) {
     console.error('[CryptoPredictions] join error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to join' } });
@@ -115,9 +143,11 @@ cryptoPredictionsRouter.get('/me', async (req, res) => {
     if (!wallet) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'wallet required' } });
 
     const ws = weekStartUtc();
-    const [allTime, weeklyBoard] = await Promise.all([
+    const [allTime, weeklyBoard, self, win] = await Promise.all([
       cryptoProfitMap({ wallets: [wallet] }),
       cryptoProfitMap({ since: ws }),
+      prisma.user.findUnique({ where: { walletAddress: wallet }, select: { banned: true } }),
+      prisma.cryptoEventWinner.findFirst({ where: { walletAddress: wallet }, orderBy: { weekStart: 'desc' } }),
     ]);
     const ranked = sortedBoard(weeklyBoard);
     const idx = ranked.findIndex(([w]) => w === wallet);
@@ -129,6 +159,9 @@ cryptoPredictionsRouter.get('/me', async (req, res) => {
         weeklyPnl: (weeklyBoard.get(wallet) ?? 0n).toString(),
         rank: idx >= 0 ? idx + 1 : null,
         players: ranked.length,
+        banned: self?.banned ?? false,
+        // Surface the most recent win for the in-app winner banner (hidden once paid).
+        win: win ? { weekStart: win.weekStart.toISOString(), pnl: win.pnl.toString(), paid: win.paid } : null,
       },
     });
   } catch (error) {

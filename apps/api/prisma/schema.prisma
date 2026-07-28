@@ -227,6 +227,16 @@ model User {
   /// one-time 1000 test USDC (+SOL) on first login, so it never double-funds.
   autoFundedAt DateTime? @map("auto_funded_at")
 
+  /// Crypto Predictions event anti-abuse: client IP captured at first event join
+  /// (per-IP funding cap + shared-IP/burst flags), and a manual ban flag. Ban is
+  /// global (blocks the account) — set from the crypto admin tab.
+  signupIp String?   @map("signup_ip")
+  banned   Boolean   @default(false)
+  bannedAt DateTime? @map("banned_at")
+  /// Best-effort contact email captured from Privy at event join, used to reach
+  /// weekly prize winners (with the wallet). Not unique — several logins can share.
+  email    String?   @map("email")
+
   // Streaks
   currentStreak  Int       @default(0) @map("current_streak")
   bestStreak     Int       @default(0) @map("best_streak")
@@ -258,7 +268,29 @@ model User {
   @@index([level])
   @@index([coinsLifetime])
   @@index([totalXp])
+  @@index([signupIp])
   @@map("users")
+}
+
+/// Crypto Predictions weekly prize winner (top-1 realized PNL). Snapshotted from
+/// the admin, announced in-app + Telegram, and paid out manually (mark paid + tx).
+model CryptoEventWinner {
+  id            String    @id @default(uuid())
+  /// Monday 00:00 UTC of the winning week (unique — one winner per week).
+  weekStart     DateTime  @map("week_start")
+  walletAddress String    @map("wallet_address")
+  displayName   String?   @map("display_name")
+  email         String?   @map("email")
+  /// Winning realized weekly PNL in micro-USDC.
+  pnl           BigInt    @default(0)
+  paid          Boolean   @default(false)
+  paidAt        DateTime? @map("paid_at")
+  paidTx        String?   @map("paid_tx")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@unique([weekStart])
+  @@index([walletAddress])
+  @@map("crypto_event_winners")
 }
 
 /// Per-user link to a trading exchange (HyperLiquid first). Stores the user's
