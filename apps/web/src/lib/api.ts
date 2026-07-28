@@ -1368,15 +1368,18 @@ export async function claimWorldCupWinning(
 }
 
 // ── Crypto Predictions event ────────────────────────────────────────────────
-export interface CryptoMe { realizedPnl: string; weeklyPnl: string; rank: number | null; players: number }
+export interface CryptoWin { weekStart: string; pnl: string; paid: boolean }
+export interface CryptoMe { realizedPnl: string; weeklyPnl: string; rank: number | null; players: number; banned: boolean; win: CryptoWin | null }
 export interface CryptoLeaderRow { rank: number; walletAddress: string; displayName: string | null; avatarUrl: string | null; pnl: string }
 
-/** Ensure the user + one-time auto-fund (1000 test USDC). */
-export async function joinCryptoEvent(token: string, walletAddress: string): Promise<ApiResponse<{ funded: boolean; alreadyFunded: boolean }>> {
-  return fetchApi<{ funded: boolean; alreadyFunded: boolean }>(`/api/crypto-predictions/join`, {
+export interface CryptoJoinResult { funded: boolean; alreadyFunded: boolean; blockedByIp: boolean; accountsFromIp: number }
+
+/** Ensure the user + one-time auto-fund (1000 test USDC). Optional email is stored to reach winners. */
+export async function joinCryptoEvent(token: string, walletAddress: string, email?: string | null): Promise<ApiResponse<CryptoJoinResult>> {
+  return fetchApi<CryptoJoinResult>(`/api/crypto-predictions/join`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ walletAddress }),
+    body: JSON.stringify({ walletAddress, ...(email ? { email } : {}) }),
   });
 }
 

@@ -1,11 +1,11 @@
 'use client';
 
 import { Box, Typography, Dialog, CircularProgress } from '@mui/material';
-import { CheckCircle, ErrorOutline } from '@mui/icons-material';
+import { CheckCircle, ErrorOutline, Groups } from '@mui/icons-material';
 import { useThemeTokens } from '@/app/providers';
 
 const CYAN = '#5FD8EF';
-export type FundStatus = 'funding' | 'funded' | 'error';
+export type FundStatus = 'funding' | 'funded' | 'error' | 'blocked';
 
 /**
  * First-load welcome + auto-fund feedback for the Crypto Predictions event.
@@ -56,6 +56,19 @@ export function WelcomeFundModal({ open, status, amount = 1000, onClose, onRetry
             </Typography>
             <Box component="button" onClick={onClose} sx={{ width: '100%', py: 1.25, borderRadius: 1, border: 'none', cursor: 'pointer', bgcolor: CYAN, color: '#04121a', fontWeight: 900, fontSize: '0.9rem', letterSpacing: '0.03em', '&:hover': { filter: 'brightness(1.05)' } }}>
               START PREDICTING
+            </Box>
+          </>
+        )}
+
+        {status === 'blocked' && (
+          <>
+            <Groups sx={{ fontSize: 42, color: t.gold, mb: 1.5 }} />
+            <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: t.text.primary, mb: 0.75 }}>One account per person</Typography>
+            <Typography sx={{ fontSize: '0.82rem', color: t.text.secondary, lineHeight: 1.5, mb: 2.5 }}>
+              We already funded accounts from your network, so this one won&apos;t receive test funds. The event is one account per person. You can still look around.
+            </Typography>
+            <Box component="button" onClick={onClose} sx={{ width: '100%', py: 1.25, borderRadius: 1, border: 'none', cursor: 'pointer', bgcolor: CYAN, color: '#04121a', fontWeight: 800, fontSize: '0.9rem' }}>
+              Got it
             </Box>
           </>
         )}

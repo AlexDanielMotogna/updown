@@ -11,6 +11,7 @@ import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { EventWalletButton } from '@/components/crypto/EventWalletButton';
 import { WelcomeFundModal, type FundStatus } from '@/components/crypto/WelcomeFundModal';
 import { CryptoTour, type TourStep } from '@/components/crypto/CryptoTour';
+import { WinnerDialog, BannedOverlay } from '@/components/crypto/EventNotices';
 import { joinCryptoEvent, fetchCryptoMe } from '@/lib/api';
 import { WeeklyLeaderboardCard } from '@/components/crypto/WeeklyLeaderboardCard';
 import { MarketsCard } from '@/components/crypto/MarketsCard';
@@ -37,7 +38,7 @@ const TOUR_STEPS: TourStep[] = [
 
 export default function CryptoPredictionsPage() {
   const t = useThemeTokens();
-  const { authenticated, getAccessToken } = usePrivy();
+  const { authenticated, getAccessToken, user } = usePrivy();
   const { connected, walletAddress } = useWalletBridge();
   const { data: balance, refetch: refetchBalance } = useUsdcBalance();
   const isMobile = useMediaQuery('(max-width:1199px)');
@@ -72,17 +73,20 @@ export default function CryptoPredictionsPage() {
     try {
       const token = await getAccessToken();
       if (!token) { setFund((f) => (f.open ? { ...f, open: false } : f)); return; }
-      const res = await joinCryptoEvent(token, walletAddress);
+      const email = (user?.email?.address ?? (user?.google?.email as string | undefined)) ?? null;
+      const res = await joinCryptoEvent(token, walletAddress, email);
       if (res?.data?.funded) {
         setFund({ open: true, status: 'funded' });
         refetchBalance();
+      } else if (res?.data?.blockedByIp) {
+        setFund({ open: true, status: 'blocked' }); // extra account from the same network
       } else {
         setFund((f) => (f.open ? { ...f, open: false } : f)); // already funded, nothing minted
       }
     } catch {
       setFund((f) => (f.open ? { open: true, status: 'error' } : f));
     }
-  }, [walletAddress, getAccessToken, refetchBalance]);
+  }, [walletAddress, getAccessToken, refetchBalance, user]);
 
   const joinedRef = useRef<string | null>(null);
   useEffect(() => {
@@ -120,6 +124,17 @@ export default function CryptoPredictionsPage() {
     refetchInterval: 10_000,
   });
   const weeklyPnl = me?.data?.weeklyPnl ?? null;
+  const banned = me?.data?.banned ?? false;
+  const win = me?.data?.win ?? null;
+
+  // Auto-pop the winner celebration once per visit while the prize is unpaid.
+  const [winnerOpen, setWinnerOpen] = useState(false);
+  const winnerShownRef = useRef(false);
+  useEffect(() => {
+    if (winnerShownRef.current || !win || win.paid || fund.open) return;
+    winnerShownRef.current = true;
+    setWinnerOpen(true);
+  }, [win, fund.open]);
 
   return (
     <Box sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', bgcolor: t.bg.app, color: t.text.primary, overflowX: 'hidden' }}>
@@ -190,6 +205,9 @@ export default function CryptoPredictionsPage() {
       />
 
       <CryptoTour run={tutorialOpen} steps={tourSteps} onClose={closeTutorial} onStepChange={(step) => setTourSheet(!!step.bare)} />
+
+      {win && !win.paid && <WinnerDialog open={winnerOpen} pnl={win.pnl} onClose={() => setWinnerOpen(false)} />}
+      {banned && <BannedOverlay />}
     </Box>
   );
 }
