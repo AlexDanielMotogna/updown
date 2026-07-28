@@ -17,7 +17,8 @@ import { MarketsCard } from '@/components/crypto/MarketsCard';
 import { MarketTabs } from '@/components/crypto/MarketTabs';
 import { MobilePredictBar } from '@/components/crypto/MobilePredictBar';
 import { ActivePool } from '@/components/crypto/ActivePool';
-import { EventInfoCard, AboutEventCard, LiveActivityCard } from '@/components/crypto/EventSidebar';
+import { AboutEventCard, LiveActivityCard } from '@/components/crypto/EventSidebar';
+import { ComingSoonSlider } from '@/components/crypto/ComingSoon';
 import { HideTermsContext } from '@/components/pool/ResolutionCards';
 
 const CYAN = '#5FD8EF';
@@ -42,6 +43,7 @@ export default function CryptoPredictionsPage() {
   const isMobile = useMediaQuery('(max-width:1199px)');
   const [asset, setAsset] = useState('BTC');
   const [tourSheet, setTourSheet] = useState(false); // tour opens the mobile bet sheet on the predict step
+  const [marketingOpen, setMarketingOpen] = useState(false); // "coming to UpDown" popup, auto-shown each visit
 
   // On mobile the predict step opens the bet sheet, so it renders tooltip-only (bare).
   const tourSteps = useMemo(
@@ -89,6 +91,18 @@ export default function CryptoPredictionsPage() {
     const likelyNew = !balance || balance.uiAmount === 0; // no funds yet → show the funding modal
     runJoin(likelyNew);
   }, [authenticated, walletAddress, balance, runJoin]);
+
+  // Marketing popup: fire once per visit, after the funding modal + tutorial are done
+  // (armed after a short delay so the funding modal has time to claim the screen first).
+  const marketingShownRef = useRef(false);
+  const [marketArmed, setMarketArmed] = useState(false);
+  useEffect(() => { const id = setTimeout(() => setMarketArmed(true), 1500); return () => clearTimeout(id); }, []);
+  useEffect(() => {
+    if (marketingShownRef.current || !marketArmed) return;
+    if (fund.open || tutorialOpen) return; // wait for other popups to close
+    marketingShownRef.current = true;
+    setMarketingOpen(true);
+  }, [marketArmed, fund.open, tutorialOpen]);
 
   // Existing (already-funded) users: offer the tutorial once, once no funding modal is up.
   useEffect(() => {
@@ -141,7 +155,7 @@ export default function CryptoPredictionsPage() {
 
       {/* Body: 3 columns */}
       <Box sx={{ width: '100%', maxWidth: 1400, mx: 'auto', flex: 1, px: { xs: 0.75, md: 3 }, pt: { xs: 2, md: 3 }, pb: { xs: 16, md: 3 } }}>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '260px minmax(0, 1fr) 300px' }, gap: '5px', alignItems: 'start' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '250px minmax(0, 1fr) 360px' }, gap: '5px', alignItems: 'start' }}>
           <Box sx={{ order: { xs: 2, lg: 0 }, display: 'flex', flexDirection: 'column', gap: '5px' }}>
             <Box id="sec-leaderboard" sx={{ scrollMarginTop: '112px' }}><WeeklyLeaderboardCard /></Box>
             {/* Full Markets list only on desktop; mobile uses the sticky MarketTabs above */}
@@ -155,8 +169,8 @@ export default function CryptoPredictionsPage() {
             </HideTermsContext.Provider>
           </Box>
           <Box sx={{ order: { xs: 1, lg: 0 }, display: 'flex', flexDirection: 'column', gap: '5px' }}>
-            <Box id="sec-info" sx={{ scrollMarginTop: '112px' }}><EventInfoCard /></Box>
-            <AboutEventCard />
+            <ComingSoonSlider autoOpen={marketingOpen} />
+            <Box id="sec-info" sx={{ scrollMarginTop: '112px' }}><AboutEventCard /></Box>
             <Box id="sec-activity" sx={{ scrollMarginTop: '112px' }}><LiveActivityCard /></Box>
           </Box>
         </Box>

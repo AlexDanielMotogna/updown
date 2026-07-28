@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Box, Typography } from '@mui/material';
-import { CalendarMonth, RocketLaunch, Bolt, EmojiEvents, CheckCircle } from '@mui/icons-material';
+import { RocketLaunch, Bolt, EmojiEvents, CheckCircle } from '@mui/icons-material';
 import { fetchCryptoLeaderboard, fetchCryptoActivity, type CryptoActivityRow } from '@/lib/api';
 import { useThemeTokens } from '@/app/providers';
 
@@ -35,8 +35,9 @@ function timeToWeeklyReset(now: number): string {
   return `${dd}d ${hh}h ${mm}m`;
 }
 
-export function EventInfoCard() {
+export function AboutEventCard() {
   const t = useThemeTokens();
+  const items = ['5-minute prediction window', 'UP or DOWN', 'Instant results', 'Real payouts'];
   const { data } = useQuery({ queryKey: ['crypto-leaderboard', 'week'], queryFn: () => fetchCryptoLeaderboard('week'), refetchInterval: 20_000 });
   const participants = data?.data?.length ?? 0;
   const [now, setNow] = useState(() => Date.now());
@@ -50,25 +51,6 @@ export function EventInfoCard() {
   );
 
   return (
-    <Card icon={<CalendarMonth sx={{ fontSize: 18 }} />} title="EVENT INFO" tokens={t}>
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1.5 }}>
-        <EmojiEvents sx={{ fontSize: 18, color: t.gold, mt: '2px' }} />
-        <Box>
-          <Typography sx={{ fontWeight: 800, fontSize: '0.85rem', color: t.text.primary }}>Weekly $100 Prize</Typography>
-          <Typography sx={{ fontSize: '0.76rem', color: t.text.secondary, lineHeight: 1.45 }}>Top the weekly PNL leaderboard and win $100. Resets every Monday.</Typography>
-        </Box>
-      </Box>
-      {stat('Prize Pool', '$100.00', t.gain)}
-      {stat('Time Left', timeToWeeklyReset(now))}
-      {stat('Participants', participants.toLocaleString())}
-    </Card>
-  );
-}
-
-export function AboutEventCard() {
-  const t = useThemeTokens();
-  const items = ['5-minute prediction window', 'UP or DOWN', 'Instant results', 'Real payouts'];
-  return (
     <Card icon={<RocketLaunch sx={{ fontSize: 18 }} />} title="ABOUT THIS EVENT" tokens={t}>
       <Typography sx={{ fontSize: '0.8rem', color: t.text.secondary, lineHeight: 1.55, mb: 1.5 }}>
         Make UP or DOWN predictions on crypto prices in 5-minute intervals. Fast. Simple. Transparent.
@@ -80,6 +62,20 @@ export function AboutEventCard() {
             <Typography sx={{ fontSize: '0.8rem', color: t.text.primary }}>{it}</Typography>
           </Box>
         ))}
+      </Box>
+
+      {/* Prize + weekly stats (merged from the old Event Info card) */}
+      <Box sx={{ mt: 2, pt: 2, borderTop: `1px solid ${t.border.subtle}` }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1.5 }}>
+          <EmojiEvents sx={{ fontSize: 18, color: t.gold, mt: '2px' }} />
+          <Box>
+            <Typography sx={{ fontWeight: 800, fontSize: '0.85rem', color: t.text.primary }}>Weekly $100 Prize</Typography>
+            <Typography sx={{ fontSize: '0.76rem', color: t.text.secondary, lineHeight: 1.45 }}>Top the weekly PNL leaderboard and win $100. Resets every Monday.</Typography>
+          </Box>
+        </Box>
+        {stat('Prize Pool', '$100.00', t.gain)}
+        {stat('Time Left', timeToWeeklyReset(now))}
+        {stat('Participants', participants.toLocaleString())}
       </Box>
     </Card>
   );
