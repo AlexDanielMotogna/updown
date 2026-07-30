@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Box, Typography, Drawer, IconButton } from '@mui/material';
-import { Close, ShowChart, AccessTime, EmojiEvents, InfoOutlined } from '@mui/icons-material';
+import { Close, ShowChart, ReceiptLongOutlined, EmojiEvents, InfoOutlined } from '@mui/icons-material';
 import { AssetIcon } from '@/components/AssetIcon';
 import { CryptoBetPanel } from './CryptoBetPanel';
 import { PoolCountdown } from './PoolCountdown';
@@ -16,7 +16,7 @@ const fmtUsd = (n: number) => n.toLocaleString(undefined, { minimumFractionDigit
 
 const NAV = [
   { id: 'sec-predict', label: 'Chart', Icon: ShowChart },
-  { id: 'sec-activity', label: 'Activity', Icon: AccessTime },
+  { id: 'sec-activity', label: 'My bets', Icon: ReceiptLongOutlined },
   { id: 'sec-leaderboard', label: 'Ranking', Icon: EmojiEvents },
   { id: 'sec-info', label: 'Info', Icon: InfoOutlined },
 ];
@@ -26,7 +26,7 @@ const NAV = [
  * prediction is one tap away) over a section nav row. Tapping a side opens a
  * bottom sheet with the full bet form (reuses CryptoBetPanel), side preselected.
  */
-export function MobilePredictBar({ asset, tourOpen = false }: { asset: string; tourOpen?: boolean }) {
+export function MobilePredictBar({ asset, tourOpen = false, onActivity }: { asset: string; tourOpen?: boolean; onActivity?: () => void }) {
   const t = useThemeTokens();
   const { data } = usePools({ type: 'CRYPTO', asset, interval: '5m', status: 'JOINING' }, { refetchInterval: 3_000, staleTime: 2_000 });
   const pool: Pool | undefined = data?.data?.[0];
@@ -80,7 +80,7 @@ export function MobilePredictBar({ asset, tourOpen = false }: { asset: string; t
         {/* Section nav */}
         <Box sx={{ display: 'flex', height: 46, borderTop: `1px solid ${t.border.subtle}` }}>
           {NAV.map(({ id, label, Icon }) => (
-            <Box key={id} onClick={() => go(id)} sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 0.15, cursor: 'pointer', color: t.text.secondary, '&:active': { color: '#5FD8EF' } }}>
+            <Box key={id} onClick={() => (id === 'sec-activity' && onActivity ? onActivity() : go(id))} sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 0.15, cursor: 'pointer', color: t.text.secondary, '&:active': { color: '#5FD8EF' } }}>
               <Icon sx={{ fontSize: 18 }} />
               <Typography sx={{ fontSize: '0.58rem', fontWeight: 600 }}>{label}</Typography>
             </Box>

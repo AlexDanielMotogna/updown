@@ -12,6 +12,7 @@ import { EventWalletButton } from '@/components/crypto/EventWalletButton';
 import { WelcomeFundModal, type FundStatus } from '@/components/crypto/WelcomeFundModal';
 import { CryptoTour, type TourStep } from '@/components/crypto/CryptoTour';
 import { WinnerDialog, BannedOverlay } from '@/components/crypto/EventNotices';
+import { MyActivityModal } from '@/components/crypto/MyActivityModal';
 import { joinCryptoEvent, fetchCryptoMe } from '@/lib/api';
 import { WeeklyLeaderboardCard } from '@/components/crypto/WeeklyLeaderboardCard';
 import { MarketsCard } from '@/components/crypto/MarketsCard';
@@ -45,6 +46,7 @@ export default function CryptoPredictionsPage() {
   const [asset, setAsset] = useState('BTC');
   const [tourSheet, setTourSheet] = useState(false); // tour opens the mobile bet sheet on the predict step
   const [marketingOpen, setMarketingOpen] = useState(false); // "coming to UpDown" popup, auto-shown each visit
+  const [activityOpen, setActivityOpen] = useState(false); // "my activity" modal (own predictions)
 
   // On mobile the predict step opens the bet sheet, so it renders tooltip-only (bare).
   const tourSteps = useMemo(
@@ -161,7 +163,7 @@ export default function CryptoPredictionsPage() {
                 <HelpOutline sx={{ fontSize: 20 }} />
               </IconButton>
             </Tooltip>
-            <EventWalletButton />
+            <EventWalletButton onActivity={() => setActivityOpen(true)} />
           </Box>
         </Box>
       </Box>
@@ -194,7 +196,7 @@ export default function CryptoPredictionsPage() {
         </Box>
       </Box>
 
-      <MobilePredictBar asset={asset} tourOpen={tourSheet} />
+      <MobilePredictBar asset={asset} tourOpen={tourSheet} onActivity={() => setActivityOpen(true)} />
 
       <WelcomeFundModal
         open={fund.open}
@@ -209,6 +211,7 @@ export default function CryptoPredictionsPage() {
 
       <CryptoTour run={tutorialOpen} steps={tourSteps} onClose={closeTutorial} onStepChange={(step) => setTourSheet(!!step.bare)} />
 
+      <MyActivityModal open={activityOpen} onClose={() => setActivityOpen(false)} wallet={walletAddress} />
       {win && !win.paid && <WinnerDialog open={winnerOpen} pnl={win.pnl} onClose={() => setWinnerOpen(false)} />}
       {banned && <BannedOverlay />}
     </Box>
