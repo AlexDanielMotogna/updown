@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { Avatar, Button, Box, Typography, ClickAwayListener, Popper, Fade } from '@mui/material';
-import { ContentCopy, Logout, CheckCircle } from '@mui/icons-material';
+import { ContentCopy, Logout, CheckCircle, ReceiptLongOutlined } from '@mui/icons-material';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { getDisplayName, getDisplayAvatar } from '@/lib/userDisplay';
@@ -17,7 +17,7 @@ const truncate = (a: string) => `${a.slice(0, 4)}...${a.slice(-4)}`;
  * disconnect, with no NAV_ITEMS, UP coins, level, or XP. The event is a sealed
  * page, so the header must not offer any route back into the rest of the app.
  */
-export function EventWalletButton() {
+export function EventWalletButton({ onActivity }: { onActivity?: () => void } = {}) {
   const t = useThemeTokens();
   const { connected, walletAddress, login, logout } = useWalletBridge();
   const { data: userProfile } = useUserProfile();
@@ -104,6 +104,18 @@ export function EventWalletButton() {
                     {copied ? <CheckCircle sx={{ fontSize: 16 }} /> : <ContentCopy sx={{ fontSize: 16 }} />}
                   </Button>
                 </Box>
+
+                {/* My activity */}
+                {onActivity && (
+                  <Button
+                    fullWidth
+                    onClick={() => { setOpen(false); onActivity(); }}
+                    startIcon={<ReceiptLongOutlined sx={{ fontSize: 16 }} />}
+                    sx={{ justifyContent: 'flex-start', px: 2, py: 1.5, fontSize: '0.8rem', fontWeight: 500, color: 'text.secondary', textTransform: 'none', borderRadius: 0, borderBottom: `1px solid ${t.border.default}`, '&:hover': { bgcolor: t.border.subtle, color: t.text.primary } }}
+                  >
+                    My activity
+                  </Button>
+                )}
 
                 {/* Disconnect */}
                 <Button
