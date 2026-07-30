@@ -408,6 +408,7 @@ export interface UserProfile {
   displayName: string | null;
   avatarUrl: string | null;
   bannerUrl: string | null;
+  email: string | null;
   referralCode: string | null;
   level: number;
   title: string;

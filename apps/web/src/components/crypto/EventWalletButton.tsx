@@ -89,6 +89,11 @@ export function EventWalletButton() {
                     <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: t.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {identity ? getDisplayName(identity) : ''}
                     </Typography>
+                    {userProfile?.email && (
+                      <Typography sx={{ fontSize: '0.68rem', color: t.text.tertiary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', mt: 0.25 }}>
+                        {userProfile.email}
+                      </Typography>
+                    )}
                     {userProfile?.displayName && walletAddress && (
                       <Typography sx={{ fontSize: '0.68rem', color: t.text.tertiary, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', mt: 0.25 }}>
                         {truncate(walletAddress)}

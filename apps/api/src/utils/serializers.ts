@@ -265,6 +265,7 @@ export function serializeUserProfile(user: {
   bestStreak: number;
   streakSavers: number;
   referralCode: string | null;
+  email: string | null;
   createdAt: Date;
 }, extras: UserProfileExtras = {}) {
   // Derive level from totalXp (the source of truth) instead of trusting the
@@ -278,6 +279,7 @@ export function serializeUserProfile(user: {
     displayName: user.displayName,
     avatarUrl: user.avatarUrl,
     bannerUrl: user.bannerUrl,
+    email: user.email,
     referralCode: user.referralCode,
     level,
     title: getLevelTitle(level),
