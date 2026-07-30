@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Typography, Skeleton, Tooltip, IconButton, useMediaQuery } from '@mui/material';
-import { AttachMoney, HelpOutline } from '@mui/icons-material';
+import { AttachMoney, HelpOutline, TrendingUp, TrendingDown } from '@mui/icons-material';
 import { usePrivy } from '@privy-io/react-auth';
 import { useQuery } from '@tanstack/react-query';
 import { useThemeTokens } from '@/app/providers';
@@ -145,7 +145,10 @@ export default function CryptoPredictionsPage() {
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, md: 1.25 } }}>
             {connected && weeklyPnl != null && (
-              <Typography sx={{ fontSize: { xs: '0.82rem', md: '0.92rem' }, fontWeight: 800, color: Number(weeklyPnl) >= 0 ? t.gain : t.error, fontVariantNumeric: 'tabular-nums' }}>{fmtPnl(weeklyPnl)}</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: t.hover.default, borderRadius: '6px', height: { xs: 34, sm: 38 }, px: { xs: 1, sm: 1.25 } }}>
+                {Number(weeklyPnl) >= 0 ? <TrendingUp sx={{ fontSize: 14, color: t.gain }} /> : <TrendingDown sx={{ fontSize: 14, color: t.error }} />}
+                <Typography sx={{ fontSize: { xs: '0.72rem', sm: '0.8rem' }, fontWeight: 600, color: Number(weeklyPnl) >= 0 ? t.gain : t.error, fontVariantNumeric: 'tabular-nums' }}>{fmtPnl(weeklyPnl)}</Typography>
+              </Box>
             )}
             {connected && (
               <Box data-tour="balance" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: t.hover.default, borderRadius: '6px', height: { xs: 34, sm: 38 }, px: { xs: 1, sm: 1.25 } }}>
