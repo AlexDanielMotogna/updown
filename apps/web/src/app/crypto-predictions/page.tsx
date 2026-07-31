@@ -93,9 +93,12 @@ export default function CryptoPredictionsPage() {
   const joinedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!authenticated || !walletAddress || joinedRef.current === walletAddress) return;
+    // Wait for the balance to load before deciding: otherwise on every refresh it's
+    // undefined and an already-funded user would flash the funding modal. Only a
+    // wallet with 0 balance is genuinely new → show the funding modal.
+    if (balance === undefined) return;
     joinedRef.current = walletAddress;
-    const likelyNew = !balance || balance.uiAmount === 0; // no funds yet → show the funding modal
-    runJoin(likelyNew);
+    runJoin(balance.uiAmount === 0);
   }, [authenticated, walletAddress, balance, runJoin]);
 
   // Marketing popup: fire once per visit, after the funding modal + tutorial are done
