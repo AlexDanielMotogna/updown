@@ -31,6 +31,8 @@ export interface PoolWeighting {
   /** Time-weighted sums per side (same units). Used to project a
    *  winner's bonus given the current side mix. */
   weighted: { up: string; down: string; draw: string };
+  /** Total number of bets placed on the pool. */
+  betsCount: number;
 }
 
 const POLL_MS = 3000;
