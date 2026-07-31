@@ -772,6 +772,7 @@ poolsRouter.get('/:id/weighting', async (req, res) => {
           down: weightedDown.toString(),
           draw: weightedDraw.toString(),
         },
+        betsCount: bets.length,
       },
     });
   } catch (e) {

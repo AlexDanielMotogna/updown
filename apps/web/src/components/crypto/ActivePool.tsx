@@ -9,10 +9,13 @@ import { CryptoBetPanel } from './CryptoBetPanel';
 import { PoolCountdown } from './PoolCountdown';
 import { usePools } from '@/hooks/usePools';
 import { useBetFlash } from '@/hooks/useBetFlash';
+import { usePoolWeighting } from '@/hooks/usePoolWeighting';
 import { usePriceStream } from '@/hooks/usePriceStream';
+import { useWalletBridge } from '@/hooks/useWalletBridge';
+import { useQuery } from '@tanstack/react-query';
 import { useThemeTokens } from '@/app/providers';
 import { USDC_DIVISOR } from '@/lib/format';
-import type { Pool } from '@/lib/api';
+import { fetchBets, type Pool } from '@/lib/api';
 
 const CYAN = '#5FD8EF';
 const NAME: Record<string, string> = { BTC: 'Bitcoin', ETH: 'Ethereum', SOL: 'Solana' };
@@ -24,10 +27,26 @@ export function ActivePool({ asset }: { asset: string }) {
   const { data } = usePools({ type: 'CRYPTO', asset, interval: '5m', status: 'JOINING' }, { refetchInterval: 3_000, staleTime: 2_000 });
   const pool: Pool | undefined = data?.data?.[0];
   const { getPrice } = usePriceStream([asset]);
+  const { walletAddress } = useWalletBridge();
   const betFlashes = useBetFlash(pool?.id);
+  const { data: weighting } = usePoolWeighting(pool?.id, pool?.status === 'JOINING');
+  const { data: myBets } = useQuery({
+    queryKey: ['crypto-pool-mybets', pool?.id, walletAddress],
+    queryFn: () => fetchBets(walletAddress!, { limit: 30 }),
+    enabled: !!pool && !!walletAddress,
+    refetchInterval: 5_000,
+    select: (r) => r.data,
+  });
   const live = getPrice(asset);
   const liveNum = live ? Number(live) : null;
   const strike = pool?.strikePrice ? Number(pool.strikePrice) / USDC_DIVISOR : null;
+
+  // Pool depth + volume + bets, and the user's own position on this pool.
+  const totalVol = pool ? (Number(pool.totalUp) + Number(pool.totalDown)) / USDC_DIVISOR : 0;
+  const betsCount = weighting?.betsCount ?? 0;
+  const mine = (myBets ?? []).filter((b) => b.poolId === pool?.id);
+  const myUp = mine.filter((b) => b.side === 'UP').reduce((s, b) => s + Number(b.amount), 0) / USDC_DIVISOR;
+  const myDown = mine.filter((b) => b.side === 'DOWN').reduce((s, b) => s + Number(b.amount), 0) / USDC_DIVISOR;
 
   const priceStat = (label: string, value: string, color: string, tip: string) => (
     <Box>
@@ -80,8 +99,34 @@ export function ActivePool({ asset }: { asset: string }) {
         )}
       </Box>
 
+      {/* Pool stats (Kalshi/Polymarket style): total volume + predictions + your position */}
+      {pool && (
+        <Box sx={{ order: 2, mb: { xs: 0, lg: 2 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            <Box>
+              <Typography sx={{ fontSize: '0.6rem', color: t.text.tertiary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Volume</Typography>
+              <Typography sx={{ fontSize: '0.95rem', fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>{fmtUsd(totalVol)}</Typography>
+            </Box>
+            <Box>
+              <Typography sx={{ fontSize: '0.6rem', color: t.text.tertiary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Predictions</Typography>
+              <Typography sx={{ fontSize: '0.95rem', fontWeight: 800, color: t.text.primary, fontVariantNumeric: 'tabular-nums' }}>{betsCount}</Typography>
+            </Box>
+          </Box>
+          {(myUp > 0 || myDown > 0) && (
+            <Box sx={{ textAlign: 'right' }}>
+              <Typography sx={{ fontSize: '0.6rem', color: t.text.tertiary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Your position</Typography>
+              <Typography sx={{ fontSize: '0.85rem', fontWeight: 700 }}>
+                {myUp > 0 && <Box component="span" sx={{ color: t.up }}>UP {fmtUsd(myUp)}</Box>}
+                {myUp > 0 && myDown > 0 && <Box component="span" sx={{ color: t.text.tertiary }}> · </Box>}
+                {myDown > 0 && <Box component="span" sx={{ color: t.down }}>DOWN {fmtUsd(myDown)}</Box>}
+              </Typography>
+            </Box>
+          )}
+        </Box>
+      )}
+
       {/* Bet panel — desktop only; on mobile the fixed dock + bottom sheet handle betting */}
-      <Box sx={{ order: 2, display: { xs: 'none', lg: 'block' } }}>
+      <Box sx={{ order: 3, display: { xs: 'none', lg: 'block' } }}>
         {pool ? (
           <CryptoBetPanel pool={pool} />
         ) : (
