@@ -193,6 +193,19 @@ export function getLiquidityBotKeypairs(): Keypair[] {
   } catch { return []; }
 }
 
+/** Event-bot wallets (Crypto Predictions event only). EVENT_BOT_KEYS is a JSON
+ *  array of secret-key arrays, same format as LIQUIDITY_BOT_KEYS. Kept separate so
+ *  event-bot exposure/PNL is isolated from the general liquidity bot. */
+export function getEventBotKeypairs(): Keypair[] {
+  const raw = process.env.EVENT_BOT_KEYS;
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr.map((sk: number[]) => Keypair.fromSecretKey(Uint8Array.from(sk)));
+  } catch { return []; }
+}
+
 /** Derive deterministic 32-byte seed from a pool UUID via SHA-256. */
 export function derivePoolSeed(poolUuid: string): Buffer {
   const crypto = require('crypto');

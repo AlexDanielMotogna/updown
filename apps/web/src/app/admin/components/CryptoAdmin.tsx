@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { adminFetch } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
 import { SectionCard, StatCard, LoadingState, EmptyState, ErrorState, Paginator, POLL_MEDIUM_MS } from '../ui';
+import { EventBots } from './EventBots';
 
 const CYAN = '#5FD8EF';
 const PAGE = 50;
@@ -87,6 +88,9 @@ export function CryptoAdmin() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {/* Event bots */}
+      <EventBots />
+
       {/* Stats */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(5, 1fr)' }, gap: 1.5 }}>
         <StatCard label="Participants" value={ov?.users ?? 0} />
