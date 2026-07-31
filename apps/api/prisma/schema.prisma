@@ -1018,6 +1018,29 @@ model LiquidityBotConfig {
   @@map("liquidity_bot_config")
 }
 
+/// Event Bots — bots that actively place predictions ONLY on the Crypto Predictions
+/// event pools (poolType=CRYPTO, interval=5m, BTC/ETH/SOL). Separate wallets
+/// (EVENT_BOT_KEYS) and caps from the general liquidity bot. Single row id="default".
+model EventBotConfig {
+  id                 String   @id @default("default")
+  enabled            Boolean  @default(false)            // master on/off (kill switch)
+  perPoolCap         BigInt   @default(5000000)          // max bot stake per pool (5 USDC)
+  perPoolVariancePct Int      @default(50)               // 0-100 per-pool volume variance
+  perCycleCap        BigInt   @default(20000000)         // max bot stake per cycle (20 USDC)
+  maxTotalExposure   BigInt   @default(200000000)        // max open bot stake across pools (200 USDC)
+  treasuryFloor      BigInt   @default(25000000)         // stop below this funder balance (mainnet)
+  betMin             BigInt   @default(500000)           // min single bet (0.5 USDC)
+  betMax             BigInt   @default(3000000)          // max single bet (3 USDC)
+  intervalSeconds    Int      @default(30)               // job cadence
+  lockMarginSeconds  Int      @default(15)               // skip pools locking within this window
+  walletUsdcTopup    BigInt   @default(50000000)         // top a bot wallet up to this USDC (50 USDC)
+  walletSolTopup     Int      @default(50000000)         // SOL lamports to keep a bot wallet funded (0.05 SOL)
+  updatedAt          DateTime @updatedAt
+  createdAt          DateTime @default(now())
+
+  @@map("event_bot_config")
+}
+
 /// Single-row config for the X (Twitter) auto-poster. Tweets newly-created pools
 /// as plain text ("JUST IN: {title}" + link), like Kalshi/Polymarket. Dedup is on
 /// Pool.xPostedAt. Kill switch = `enabled`. API keys live in env, not here.

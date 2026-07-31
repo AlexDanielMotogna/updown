@@ -28,6 +28,7 @@ import { startWorldCupGoalsFeed } from './scheduler/worldcup-goals';
 import { seedCategoriesIfEmpty } from './services/category-config';
 import { startLiveScorePolling } from './services/sports/livescore';
 import { startLiquidityBotScheduler } from './services/liquidity-bot/bot';
+import { startEventBotScheduler } from './services/event-bot/bot';
 import { startXPoster } from './services/x-poster/poster';
 import { startTradingXpPoller } from './services/trading-xp/poller';
 import { initWebSocket, shutdownWebSocket, ensurePriceStreams } from './websocket';
@@ -204,6 +205,12 @@ httpServer.listen(PORT, async () => {
     startLiquidityBotScheduler();
   } catch (error) {
     console.error('Failed to start liquidity bot scheduler:', error);
+  }
+
+  try {
+    startEventBotScheduler();
+  } catch (error) {
+    console.error('Failed to start event bot scheduler:', error);
   }
 
   try {
