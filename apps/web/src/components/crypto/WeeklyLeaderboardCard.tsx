@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Box, Typography, Dialog, IconButton } from '@mui/material';
 import { EmojiEvents, Close } from '@mui/icons-material';
@@ -16,6 +16,35 @@ const fmtPnl = (raw: string) => {
   return `${n >= 0 ? '+' : '−'}$${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 const short = (w: string) => `${w.slice(0, 4)}…${w.slice(-4)}`;
+
+/** Next Monday 00:00 UTC — when the weekly window rolls over. */
+function nextMondayUtc(now: Date): Date {
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const dow = d.getUTCDay(); // 0=Sun..6=Sat
+  const daysUntilMon = dow === 0 ? 1 : dow === 1 ? 7 : 8 - dow; // always the NEXT Monday, never today
+  d.setUTCDate(d.getUTCDate() + daysUntilMon);
+  return d;
+}
+
+/** Live "Resets in Xd Yh Zm" label. Null until mounted (avoids SSR hydration mismatch). */
+function useResetCountdown(): string | null {
+  const [label, setLabel] = useState<string | null>(null);
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      let ms = nextMondayUtc(now).getTime() - now.getTime();
+      if (ms < 0) ms = 0;
+      const d = Math.floor(ms / 86_400_000);
+      const h = Math.floor((ms % 86_400_000) / 3_600_000);
+      const m = Math.floor((ms % 3_600_000) / 60_000);
+      setLabel(`Resets in ${d > 0 ? `${d}d ` : ''}${d > 0 || h > 0 ? `${h}h ` : ''}${m}m`);
+    };
+    tick();
+    const id = setInterval(tick, 30_000);
+    return () => clearInterval(id);
+  }, []);
+  return label;
+}
 
 function Row({ r, me, tokens: t }: { r: CryptoLeaderRow; me: boolean; tokens: ReturnType<typeof useThemeTokens> }) {
   const positive = Number(r.pnl) >= 0;
@@ -38,6 +67,7 @@ export function WeeklyLeaderboardCard() {
   const t = useThemeTokens();
   const { walletAddress } = useWalletBridge();
   const [open, setOpen] = useState(false);
+  const resetLabel = useResetCountdown();
   const { data, isLoading } = useQuery({ queryKey: ['crypto-leaderboard', 'week'], queryFn: () => fetchCryptoLeaderboard('week'), refetchInterval: 20_000 });
   const rows = data?.data ?? [];
 
@@ -51,7 +81,7 @@ export function WeeklyLeaderboardCard() {
         <EmojiEvents sx={{ fontSize: 18, color: t.gold }} />
         <Box>
           <Typography sx={{ fontWeight: 800, fontSize: '0.82rem', letterSpacing: '0.05em', color: t.text.primary }}>WEEKLY LEADERBOARD</Typography>
-          <Typography sx={{ fontSize: '0.66rem', color: t.text.tertiary }}>Resets Monday</Typography>
+          <Typography suppressHydrationWarning sx={{ fontSize: '0.66rem', color: t.text.tertiary }}>{resetLabel ?? 'Resets Monday 00:00 UTC'} · UTC</Typography>
         </Box>
       </Box>
 
