@@ -161,12 +161,41 @@ cryptoPredictionsRouter.get('/me', async (req, res) => {
         players: ranked.length,
         banned: self?.banned ?? false,
         // Surface the most recent win for the in-app winner banner (hidden once paid).
-        win: win ? { weekStart: win.weekStart.toISOString(), pnl: win.pnl.toString(), paid: win.paid } : null,
+        win: win ? { weekStart: win.weekStart.toISOString(), pnl: win.pnl.toString(), paid: win.paid, payoutWallet: win.payoutWallet } : null,
       },
     });
   } catch (error) {
     console.error('[CryptoPredictions] me error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load' } });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /claim — winner submits the wallet where they want the $100 prize sent.
+// ---------------------------------------------------------------------------
+const claimSchema = z.object({ walletAddress: z.string().min(32).max(64), payoutWallet: z.string().min(32).max(64) });
+
+cryptoPredictionsRouter.post('/claim', async (req, res) => {
+  try {
+    const did = await resolveEventDid(req);
+    if (!did) return res.status(401).json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'Sign in' } });
+    const parsed = claimSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'walletAddress + payoutWallet required' } });
+    const { walletAddress, payoutWallet } = parsed.data;
+    try {
+      if (!PublicKey.isOnCurve(new PublicKey(payoutWallet))) throw new Error();
+    } catch {
+      return res.status(400).json({ success: false, error: { code: 'BAD_WALLET', message: 'Invalid Solana wallet address' } });
+    }
+
+    // Attach the payout wallet to this player's most recent unpaid win.
+    const win = await prisma.cryptoEventWinner.findFirst({ where: { walletAddress, paid: false }, orderBy: { weekStart: 'desc' } });
+    if (!win) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'No prize to claim' } });
+    await prisma.cryptoEventWinner.update({ where: { id: win.id }, data: { payoutWallet } });
+    res.json({ success: true, data: { payoutWallet } });
+  } catch (error) {
+    console.error('[CryptoPredictions] claim error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to submit wallet' } });
   }
 });
 

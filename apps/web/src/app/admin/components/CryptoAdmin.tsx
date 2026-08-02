@@ -12,7 +12,7 @@ const CYAN = '#5FD8EF';
 const PAGE = 50;
 
 interface CUser { walletAddress: string; displayName: string | null; email: string | null; signupIp: string | null; banned: boolean; funded: boolean; createdAt: string; bets: number; flags: string[] }
-interface Winner { id: string; weekStart: string; walletAddress: string; displayName: string | null; email: string | null; pnl: string; paid: boolean; paidAt: string | null; paidTx: string | null }
+interface Winner { id: string; weekStart: string; walletAddress: string; displayName: string | null; email: string | null; payoutWallet: string | null; pnl: string; paid: boolean; paidAt: string | null; paidTx: string | null }
 interface Overview { users: number; funded: number; banned: number; bets: number; weeklyParticipants: number }
 
 const short = (w: string) => `${w.slice(0, 4)}…${w.slice(-4)}`;
@@ -108,7 +108,7 @@ export function CryptoAdmin() {
           <TableContainer>
             <Table size="small">
               <TableHead><TableRow>
-                {['Week', 'Winner', 'Email', 'PNL', 'Paid', ''].map((h) => <TableCell key={h} sx={th}>{h}</TableCell>)}
+                {['Week', 'Winner', 'Email', 'Payout wallet', 'PNL', 'Paid', ''].map((h) => <TableCell key={h} sx={th}>{h}</TableCell>)}
               </TableRow></TableHead>
               <TableBody>
                 {winners.map((w) => (
@@ -116,6 +116,11 @@ export function CryptoAdmin() {
                     <TableCell sx={td}>{w.weekStart.slice(0, 10)}</TableCell>
                     <TableCell sx={{ ...td, fontFamily: 'monospace' }}>{w.displayName || short(w.walletAddress)}</TableCell>
                     <TableCell sx={td}>{w.email ?? '—'}</TableCell>
+                    <TableCell sx={td}>
+                      {w.payoutWallet ? (
+                        <Box component="span" title={`${w.payoutWallet} (click to copy)`} onClick={() => navigator.clipboard?.writeText(w.payoutWallet!)} sx={{ fontFamily: 'monospace', cursor: 'pointer', color: t.text.primary, '&:hover': { color: t.gold } }}>{short(w.payoutWallet)}</Box>
+                      ) : <Box component="span" sx={{ color: t.warning }}>not submitted</Box>}
+                    </TableCell>
                     <TableCell sx={{ ...td, color: t.success, fontWeight: 700 }}>{fmtPnl(w.pnl)}</TableCell>
                     <TableCell sx={td}>{w.paid ? <Box component="span" sx={{ color: t.success, fontWeight: 700 }}>Paid</Box> : <Box component="span" sx={{ color: t.warning }}>Pending</Box>}</TableCell>
                     <TableCell sx={td}>{btn(w.paid ? 'Undo' : 'Mark paid', () => setPaid(w), { disabled: busy === w.id, primary: !w.paid })}</TableCell>
