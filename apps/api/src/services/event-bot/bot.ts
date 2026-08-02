@@ -94,12 +94,26 @@ export async function runEventBotCycle(): Promise<{ placed: number; spent: bigin
     orderBy: { createdAt: 'desc' },
     take: 30,
   });
-  diag.poolsConsidered = pools.length;
+
+  // Skip orphan pools: a DB row can exist without the on-chain pool PDA ever being
+  // initialized (creation rollback / RPC hiccup). Depositing to those fails with
+  // AccountNotInitialized (0xbc4), so filter them out in one batched RPC call.
+  const conn = getConnection();
+  const poolPdas = pools.map((p) => getPoolPDA(derivePoolSeed(p.id))[0]);
+  const infos = poolPdas.length > 0 ? await conn.getMultipleAccountsInfo(poolPdas) : [];
+  const livePools = pools.filter((_, i) => infos[i] != null);
+  const orphans = pools.length - livePools.length;
+  if (orphans > 0) console.warn(`[EventBot] skipped ${orphans} orphan pool(s) not initialized on-chain`);
+  diag.poolsConsidered = livePools.length;
+  if (livePools.length === 0) {
+    diag.reason = pools.length > 0 ? `all ${pools.length} open pools are orphans (not on-chain)` : 'no open CRYPTO 5m pools';
+    return { placed: 0, spent: 0n };
+  }
 
   let cycleSpent = 0n;
   let placed = 0;
 
-  for (const pool of pools) {
+  for (const pool of livePools) {
     if (cycleSpent >= cfg.perCycleCap || exposure >= cfg.maxTotalExposure) break;
 
     const poolBets = await prisma.bet.findMany({ where: { poolId: pool.id, walletAddress: { in: botAddrs } }, select: { amount: true, side: true, walletAddress: true } });
