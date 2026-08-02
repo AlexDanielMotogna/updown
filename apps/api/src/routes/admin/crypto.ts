@@ -2,7 +2,7 @@ import { Router, type Router as RouterType } from 'express';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { cryptoProfitMap, weekStartUtc } from '../crypto-predictions';
-import { notifyCryptoWinner } from '../../services/crypto-event-telegram';
+import { drawCryptoWeek } from '../../services/crypto-weekly';
 
 /**
  * Crypto Predictions event admin — /api/admin/crypto (x-admin-key, back-office).
@@ -13,7 +13,6 @@ export const adminCryptoRouter: RouterType = Router();
 
 const BURST_MIN = Math.max(2, Number(process.env.CRYPTO_BURST_MIN ?? 4));
 const BURST_WINDOW_MS = Math.max(1, Number(process.env.CRYPTO_BURST_WINDOW_MIN ?? 10)) * 60_000;
-const WEEK_MS = 7 * 86_400_000;
 
 /** Event participants = anyone who joined the event (has a signup IP or was funded). */
 async function eventUsers() {
@@ -118,7 +117,7 @@ adminCryptoRouter.post('/user/:wallet/ban', async (req, res) => {
 adminCryptoRouter.get('/winners', async (_req, res) => {
   try {
     const rows = await prisma.cryptoEventWinner.findMany({ orderBy: { weekStart: 'desc' }, take: 52 });
-    res.json({ success: true, data: rows.map((w) => ({ id: w.id, weekStart: w.weekStart.toISOString(), walletAddress: w.walletAddress, displayName: w.displayName, email: w.email, pnl: w.pnl.toString(), paid: w.paid, paidAt: w.paidAt?.toISOString() ?? null, paidTx: w.paidTx })) });
+    res.json({ success: true, data: rows.map((w) => ({ id: w.id, weekStart: w.weekStart.toISOString(), walletAddress: w.walletAddress, displayName: w.displayName, email: w.email, payoutWallet: w.payoutWallet, pnl: w.pnl.toString(), paid: w.paid, paidAt: w.paidAt?.toISOString() ?? null, paidTx: w.paidTx })) });
   } catch (e) {
     console.error('[AdminCrypto] winners error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load winners' } });
@@ -131,26 +130,11 @@ adminCryptoRouter.post('/draw', async (req, res) => {
   try {
     const parsed = drawSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid input' } });
-    const ws = parsed.data.weekStart ? weekStartUtc(new Date(parsed.data.weekStart)) : weekStartUtc();
+    const ws = parsed.data.weekStart ? new Date(parsed.data.weekStart) : new Date();
     if (Number.isNaN(ws.getTime())) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid weekStart' } });
 
-    const existing = await prisma.cryptoEventWinner.findUnique({ where: { weekStart: ws } });
-    if (existing?.paid) return res.json({ success: true, data: { winner: existing, note: 'already paid — not re-drawn' } });
-
-    const map = await cryptoProfitMap({ since: ws, until: new Date(ws.getTime() + WEEK_MS) });
-    const top = [...map.entries()].sort((a, b) => (b[1] > a[1] ? 1 : b[1] < a[1] ? -1 : 0))[0];
-    if (!top || top[1] <= 0n) return res.json({ success: true, data: { winner: null, note: 'no positive PNL winner for this week' } });
-
-    const [wallet, pnl] = top;
-    const u = await prisma.user.findUnique({ where: { walletAddress: wallet }, select: { displayName: true, email: true } });
-    const winner = await prisma.cryptoEventWinner.upsert({
-      where: { weekStart: ws },
-      update: { walletAddress: wallet, displayName: u?.displayName ?? null, email: u?.email ?? null, pnl },
-      create: { weekStart: ws, walletAddress: wallet, displayName: u?.displayName ?? null, email: u?.email ?? null, pnl },
-    });
-    notifyCryptoWinner({ walletAddress: wallet, email: u?.email ?? null, displayName: u?.displayName ?? null, pnl, weekStart: ws }).catch(() => {});
-
-    res.json({ success: true, data: { winner: { ...winner, pnl: winner.pnl.toString(), weekStart: winner.weekStart.toISOString() } } });
+    const { winner, note } = await drawCryptoWeek(ws);
+    res.json({ success: true, data: { winner, note } });
   } catch (e) {
     console.error('[AdminCrypto] draw error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to draw winner' } });

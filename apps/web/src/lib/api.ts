@@ -1369,7 +1369,7 @@ export async function claimWorldCupWinning(
 }
 
 // ── Crypto Predictions event ────────────────────────────────────────────────
-export interface CryptoWin { weekStart: string; pnl: string; paid: boolean }
+export interface CryptoWin { weekStart: string; pnl: string; paid: boolean; payoutWallet: string | null }
 export interface CryptoMe { realizedPnl: string; weeklyPnl: string; rank: number | null; players: number; banned: boolean; win: CryptoWin | null }
 export interface CryptoLeaderRow { rank: number; walletAddress: string; displayName: string | null; avatarUrl: string | null; pnl: string }
 
@@ -1387,6 +1387,15 @@ export async function joinCryptoEvent(token: string, walletAddress: string, emai
 export async function fetchCryptoMe(token: string, wallet: string): Promise<ApiResponse<CryptoMe>> {
   return fetchApi<CryptoMe>(`/api/crypto-predictions/me?wallet=${encodeURIComponent(wallet)}`, {
     headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+/** Winner submits the wallet where they want the prize sent. */
+export async function submitCryptoPayoutWallet(token: string, walletAddress: string, payoutWallet: string): Promise<ApiResponse<{ payoutWallet: string }>> {
+  return fetchApi('/api/crypto-predictions/claim', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ walletAddress, payoutWallet }),
   });
 }
 

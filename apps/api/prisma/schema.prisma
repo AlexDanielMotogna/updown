@@ -281,6 +281,8 @@ model CryptoEventWinner {
   walletAddress String    @map("wallet_address")
   displayName   String?   @map("display_name")
   email         String?   @map("email")
+  /// Wallet the winner submitted to receive the prize (like the WorldCup claim).
+  payoutWallet  String?   @map("payout_wallet")
   /// Winning realized weekly PNL in micro-USDC.
   pnl           BigInt    @default(0)
   paid          Boolean   @default(false)

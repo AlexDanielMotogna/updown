@@ -10,11 +10,11 @@ const CYAN = '#5FD8EF';
 /** "Coming to UpDown" showcase items. Images are wide banners (~2000×760) with the
  *  copy baked in; drop new ones in /public/event_popups and add them here. */
 const ITEMS = [
-  { id: 'market', image: '/event_popups/Market%20Banner.jpg', alt: 'Markets' },
-  { id: 'trading', image: '/event_popups/Trading%20Banner.jpg', alt: 'Trading' },
-  { id: 'leaderboard', image: '/event_popups/Leaderboard%20Banner.jpg', alt: 'Leaderboard' },
-  { id: 'referral', image: '/event_popups/Referral%20System.jpg', alt: 'Referral system' },
-  { id: 'profile', image: '/event_popups/Profile%20%26%20Progress%20Banner.jpg', alt: 'Profile & progress' },
+  { id: 'market', image: '/event_popups/market.jpg', alt: 'Markets' },
+  { id: 'trading', image: '/event_popups/trading.jpg', alt: 'Trading' },
+  { id: 'leaderboard', image: '/event_popups/leaderboard.jpg', alt: 'Leaderboard' },
+  { id: 'referral', image: '/event_popups/referral.jpg', alt: 'Referral system' },
+  { id: 'profile', image: '/event_popups/profile-progress.jpg', alt: 'Profile & progress' },
 ];
 
 const RATIO = '2 / 1';

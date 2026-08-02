@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Typography, Skeleton, Tooltip, IconButton, useMediaQuery } from '@mui/material';
 import { AttachMoney, HelpOutline, TrendingUp, TrendingDown } from '@mui/icons-material';
 import { usePrivy } from '@privy-io/react-auth';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useThemeTokens } from '@/app/providers';
 import { useWalletBridge } from '@/hooks/useWalletBridge';
 import { useUsdcBalance } from '@/hooks/useUsdcBalance';
@@ -13,7 +13,7 @@ import { WelcomeFundModal, type FundStatus } from '@/components/crypto/WelcomeFu
 import { CryptoTour, type TourStep } from '@/components/crypto/CryptoTour';
 import { WinnerDialog, BannedOverlay } from '@/components/crypto/EventNotices';
 import { MyActivityModal } from '@/components/crypto/MyActivityModal';
-import { joinCryptoEvent, fetchCryptoMe } from '@/lib/api';
+import { joinCryptoEvent, fetchCryptoMe, submitCryptoPayoutWallet } from '@/lib/api';
 import { WeeklyLeaderboardCard } from '@/components/crypto/WeeklyLeaderboardCard';
 import { MarketsCard } from '@/components/crypto/MarketsCard';
 import { MarketTabs } from '@/components/crypto/MarketTabs';
@@ -41,6 +41,7 @@ export default function CryptoPredictionsPage() {
   const t = useThemeTokens();
   const { authenticated, getAccessToken, user } = usePrivy();
   const { connected, walletAddress } = useWalletBridge();
+  const queryClient = useQueryClient();
   const { data: balance, refetch: refetchBalance } = useUsdcBalance();
   const isMobile = useMediaQuery('(max-width:1199px)');
   const [asset, setAsset] = useState('BTC');
@@ -141,6 +142,17 @@ export default function CryptoPredictionsPage() {
     setWinnerOpen(true);
   }, [win, fund.open]);
 
+  // Submit the payout wallet for the weekly prize (WorldCup-style claim).
+  const submitPayoutWallet = useCallback(async (payoutWallet: string): Promise<string | null> => {
+    if (!walletAddress) return 'Wallet not connected';
+    const token = await getAccessToken();
+    if (!token) return 'Session expired, please refresh';
+    const res = await submitCryptoPayoutWallet(token, walletAddress, payoutWallet);
+    if (!res.success) return res.error?.message ?? 'Could not save wallet';
+    queryClient.invalidateQueries({ queryKey: ['crypto-me', walletAddress] });
+    return null;
+  }, [walletAddress, getAccessToken, queryClient]);
+
   return (
     <Box sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', bgcolor: t.bg.app, color: t.text.primary, overflowX: 'hidden' }}>
       {/* Navbar — event-scoped: PNL · $ balance · tutorial · wallet (no route back into the app) */}
@@ -215,7 +227,7 @@ export default function CryptoPredictionsPage() {
       <CryptoTour run={tutorialOpen} steps={tourSteps} onClose={closeTutorial} onStepChange={(step) => setTourSheet(!!step.bare)} />
 
       <MyActivityModal open={activityOpen} onClose={() => setActivityOpen(false)} wallet={walletAddress} />
-      {win && !win.paid && <WinnerDialog open={winnerOpen} pnl={win.pnl} onClose={() => setWinnerOpen(false)} />}
+      {win && !win.paid && <WinnerDialog open={winnerOpen} pnl={win.pnl} payoutWallet={win.payoutWallet} onClose={() => setWinnerOpen(false)} onSubmit={submitPayoutWallet} />}
       {banned && <BannedOverlay />}
     </Box>
   );

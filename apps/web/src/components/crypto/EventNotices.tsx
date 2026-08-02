@@ -1,7 +1,8 @@
 'use client';
 
-import { Box, Typography, Dialog } from '@mui/material';
-import { EmojiEvents, Block } from '@mui/icons-material';
+import { useState } from 'react';
+import { Box, Typography, Dialog, CircularProgress } from '@mui/material';
+import { EmojiEvents, Block, CheckCircle } from '@mui/icons-material';
 import { useThemeTokens } from '@/app/providers';
 
 const CYAN = '#5FD8EF';
@@ -9,22 +10,66 @@ const fmtUsd = (raw: string) => {
   const n = Number(raw) / 1_000_000;
   return `${n >= 0 ? '+' : '−'}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
+const short = (w: string) => `${w.slice(0, 4)}…${w.slice(-4)}`;
 
-/** Celebratory popup for the weekly prize winner (auto-opened by the page). */
-export function WinnerDialog({ open, pnl, onClose }: { open: boolean; pnl: string; onClose: () => void }) {
+/** Celebratory popup for the weekly prize winner + payout-wallet claim (like WorldCup). */
+export function WinnerDialog({ open, pnl, payoutWallet, onClose, onSubmit }: {
+  open: boolean;
+  pnl: string;
+  payoutWallet: string | null;
+  onClose: () => void;
+  /** Submit the payout wallet; resolves to an error message, or null on success. */
+  onSubmit: (wallet: string) => Promise<string | null>;
+}) {
   const t = useThemeTokens();
+  const [wallet, setWallet] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [justDone, setJustDone] = useState(false);
+  const submitted = justDone || !!payoutWallet;
+
+  const submit = async () => {
+    const w = wallet.trim();
+    if (!w || busy) return;
+    setBusy(true); setErr(null);
+    const e = await onSubmit(w);
+    setBusy(false);
+    if (e) setErr(e); else setJustDone(true);
+  };
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth PaperProps={{ sx: { bgcolor: t.bg.surface, borderRadius: 1.5, border: `1px solid ${t.gold}55`, overflow: 'hidden', backgroundImage: 'none' } }}>
       <Box sx={{ p: 3, textAlign: 'center' }}>
         <EmojiEvents sx={{ fontSize: 52, color: t.gold, mb: 1 }} />
         <Typography sx={{ fontWeight: 900, fontSize: '1.2rem', color: t.text.primary, mb: 0.5 }}>You won the weekly prize!</Typography>
         <Typography sx={{ fontSize: '1.5rem', fontWeight: 900, color: t.gold, mb: 0.75 }}>$100</Typography>
-        <Typography sx={{ fontSize: '0.82rem', color: t.text.secondary, lineHeight: 1.5, mb: 2.5 }}>
-          You topped the weekly PNL leaderboard with <b style={{ color: t.gain }}>{fmtUsd(pnl)}</b>. We&apos;ll reach out to pay your $100 prize manually — keep an eye on your email / Telegram.
+        <Typography sx={{ fontSize: '0.82rem', color: t.text.secondary, lineHeight: 1.5, mb: 2 }}>
+          You topped the weekly PNL leaderboard with <b style={{ color: t.gain }}>{fmtUsd(pnl)}</b>.
         </Typography>
-        <Box component="button" onClick={onClose} sx={{ width: '100%', py: 1.25, borderRadius: 1, border: 'none', cursor: 'pointer', bgcolor: CYAN, color: '#04121a', fontWeight: 900, fontSize: '0.9rem' }}>
-          Awesome
-        </Box>
+
+        {submitted ? (
+          <>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.75, mb: 2, px: 1.5, py: 1, borderRadius: 1, bgcolor: `${t.gain}14`, border: `1px solid ${t.gain}44` }}>
+              <CheckCircle sx={{ fontSize: 18, color: t.gain }} />
+              <Typography sx={{ fontSize: '0.82rem', color: t.text.primary }}>
+                Wallet saved: <Box component="span" sx={{ fontFamily: 'monospace', fontWeight: 700 }}>{short(payoutWallet || wallet)}</Box>
+              </Typography>
+            </Box>
+            <Typography sx={{ fontSize: '0.76rem', color: t.text.tertiary, mb: 2 }}>We&apos;ll send your $100 there. You may be contacted by email / Telegram to confirm.</Typography>
+            <Box component="button" onClick={onClose} sx={{ width: '100%', py: 1.25, borderRadius: 1, border: 'none', cursor: 'pointer', bgcolor: CYAN, color: '#04121a', fontWeight: 900, fontSize: '0.9rem' }}>Done</Box>
+          </>
+        ) : (
+          <>
+            <Typography sx={{ fontSize: '0.8rem', color: t.text.secondary, mb: 1, textAlign: 'left' }}>Enter the Solana wallet where you want your prize sent:</Typography>
+            <Box component="input" value={wallet} placeholder="Your Solana wallet address" onChange={(e: React.ChangeEvent<HTMLInputElement>) => setWallet(e.target.value)}
+              sx={{ width: '100%', px: 1.25, py: 1, mb: 1, borderRadius: 1, border: `1px solid ${err ? t.error : t.border.medium}`, bgcolor: t.bg.app, color: t.text.primary, fontFamily: 'monospace', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }} />
+            {err && <Typography sx={{ fontSize: '0.74rem', color: t.error, mb: 1, textAlign: 'left' }}>{err}</Typography>}
+            <Box component="button" onClick={submit} disabled={busy || !wallet.trim()} sx={{ width: '100%', py: 1.25, borderRadius: 1, border: 'none', cursor: busy || !wallet.trim() ? 'default' : 'pointer', bgcolor: CYAN, color: '#04121a', fontWeight: 900, fontSize: '0.9rem', opacity: busy || !wallet.trim() ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+              {busy ? <CircularProgress size={16} sx={{ color: '#04121a' }} /> : 'Claim my $100'}
+            </Box>
+            <Typography component="button" onClick={onClose} sx={{ mt: 1.5, background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', color: t.text.tertiary, fontFamily: 'inherit' }}>I&apos;ll do it later</Typography>
+          </>
+        )}
       </Box>
     </Dialog>
   );
