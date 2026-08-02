@@ -10,7 +10,6 @@ const CYAN = '#5FD8EF';
 /** "Coming to UpDown" showcase items. Images are wide banners (~2000×760) with the
  *  copy baked in; drop new ones in /public/event_popups and add them here. */
 const ITEMS = [
-  { id: 'store', image: '/event_popups/Store.png', alt: 'Store — spend UP Coins on boosts and cosmetics' },
   { id: 'market', image: '/event_popups/Market%20Banner.jpg', alt: 'Markets' },
   { id: 'trading', image: '/event_popups/Trading%20Banner.jpg', alt: 'Trading' },
   { id: 'leaderboard', image: '/event_popups/Leaderboard%20Banner.jpg', alt: 'Leaderboard' },
