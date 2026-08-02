@@ -11,9 +11,14 @@ const CYAN = '#5FD8EF';
  *  copy baked in; drop new ones in /public/event_popups and add them here. */
 const ITEMS = [
   { id: 'store', image: '/event_popups/Store.png', alt: 'Store — spend UP Coins on boosts and cosmetics' },
+  { id: 'market', image: '/event_popups/Market%20Banner.jpg', alt: 'Markets' },
+  { id: 'trading', image: '/event_popups/Trading%20Banner.jpg', alt: 'Trading' },
+  { id: 'leaderboard', image: '/event_popups/Leaderboard%20Banner.jpg', alt: 'Leaderboard' },
+  { id: 'referral', image: '/event_popups/Referral%20System.jpg', alt: 'Referral system' },
+  { id: 'profile', image: '/event_popups/Profile%20%26%20Progress%20Banner.jpg', alt: 'Profile & progress' },
 ];
 
-const RATIO = '2000 / 760';
+const RATIO = '2 / 1';
 
 /**
  * Teaser of upcoming UpDown features. Desktop: an inline auto-rotating slider in
@@ -32,7 +37,7 @@ export function ComingSoonSlider({ autoOpen = false }: { autoOpen?: boolean }) {
 
   useEffect(() => {
     if (n < 2) return;
-    const id = setInterval(() => setI((v) => (v + 1) % n), 5000);
+    const id = setInterval(() => setI((v) => (v + 1) % n), 4000);
     return () => clearInterval(id);
   }, [n]);
 
