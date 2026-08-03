@@ -13,6 +13,8 @@ interface Cfg {
   enabled: boolean; perPoolCap: string; perPoolVariancePct: number; perCycleCap: string;
   maxTotalExposure: string; treasuryFloor: string; betMin: string; betMax: string;
   intervalSeconds: number; lockMarginSeconds: number; walletUsdcTopup: string; walletSolTopup: number;
+  closingBetEnabled: boolean; closingWindowSeconds: number; closingSafetySeconds: number;
+  closingPerPoolCap: string; closingBetMin: string; closingBetMax: string;
 }
 interface Status {
   cluster: string; funder: { pubkey: string; usdc: string; sol: number } | null; funderConfigured: boolean;
@@ -37,6 +39,12 @@ const FIELDS: [keyof Cfg, string, 'usdc' | 'sol' | 'int'][] = [
   ['intervalSeconds', 'Interval (seconds)', 'int'],
   ['lockMarginSeconds', 'Lock margin (seconds)', 'int'],
   ['walletSolTopup', 'Wallet SOL top-up', 'sol'],
+  // Closing play (late winning-side bets vs a last-second whale)
+  ['closingWindowSeconds', 'Closing window (seconds)', 'int'],
+  ['closingSafetySeconds', 'Closing safety (seconds)', 'int'],
+  ['closingPerPoolCap', 'Closing per-pool cap (USDC)', 'usdc'],
+  ['closingBetMin', 'Closing bet min (USDC)', 'usdc'],
+  ['closingBetMax', 'Closing bet max (USDC)', 'usdc'],
 ];
 
 const toDisplay = (v: string | number, unit: 'usdc' | 'sol' | 'int') =>
@@ -123,6 +131,13 @@ export function EventBots() {
       {status?.diagnostics.reason && (
         <Typography sx={{ fontSize: '0.74rem', color: t.text.tertiary, mb: 1.5 }}>Last cycle: {status.diagnostics.reason}{status.diagnostics.lastError ? ` — ${status.diagnostics.lastError}` : ''}</Typography>
       )}
+
+      {/* Closing play toggle */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+        <Box component="input" type="checkbox" checked={cfg?.closingBetEnabled ?? true}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => { const v = e.target.checked; adminFetch('/event-bot', { method: 'PUT', body: JSON.stringify({ closingBetEnabled: v }) }).then(() => cfgQ.refetch()); }} />
+        <Typography sx={{ fontSize: '0.78rem', color: t.text.primary }}>Closing play <Box component="span" sx={{ color: t.text.tertiary }}>— seconds before lock, bots pile the price-implied winning side (3 UP / 3 DOWN, no hedging) to blunt a last-second whale</Box></Typography>
+      </Box>
 
       {/* Config form */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 1.25, mb: 1.5 }}>

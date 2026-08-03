@@ -24,6 +24,12 @@ function serializeConfig(c: Awaited<ReturnType<typeof getEventBotConfig>>) {
     lockMarginSeconds: c.lockMarginSeconds,
     walletUsdcTopup: c.walletUsdcTopup.toString(),
     walletSolTopup: c.walletSolTopup,
+    closingBetEnabled: c.closingBetEnabled,
+    closingWindowSeconds: c.closingWindowSeconds,
+    closingSafetySeconds: c.closingSafetySeconds,
+    closingPerPoolCap: c.closingPerPoolCap.toString(),
+    closingBetMin: c.closingBetMin.toString(),
+    closingBetMax: c.closingBetMax.toString(),
   };
 }
 
@@ -42,17 +48,18 @@ adminEventBotRouter.put('/', async (req, res) => {
   try {
     const b = req.body ?? {};
     const data: Record<string, bigint | number | boolean> = {};
-    const bigFields = ['perPoolCap', 'perCycleCap', 'maxTotalExposure', 'treasuryFloor', 'betMin', 'betMax', 'walletUsdcTopup'];
+    const bigFields = ['perPoolCap', 'perCycleCap', 'maxTotalExposure', 'treasuryFloor', 'betMin', 'betMax', 'walletUsdcTopup', 'closingPerPoolCap', 'closingBetMin', 'closingBetMax'];
     for (const f of bigFields) {
       if (b[f] != null && b[f] !== '') {
         try { data[f] = BigInt(b[f]); } catch { return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: `${f} must be an integer (micro-USDC)` } }); }
       }
     }
-    for (const f of ['intervalSeconds', 'lockMarginSeconds', 'walletSolTopup']) {
+    for (const f of ['intervalSeconds', 'lockMarginSeconds', 'walletSolTopup', 'closingWindowSeconds', 'closingSafetySeconds']) {
       if (b[f] != null && b[f] !== '') data[f] = Number(b[f]);
     }
     if (b.perPoolVariancePct != null && b.perPoolVariancePct !== '') data.perPoolVariancePct = Math.max(0, Math.min(100, Math.round(Number(b.perPoolVariancePct))));
     if (typeof b.enabled === 'boolean') data.enabled = b.enabled;
+    if (typeof b.closingBetEnabled === 'boolean') data.closingBetEnabled = b.closingBetEnabled;
 
     await getEventBotConfig();
     const updated = await prisma.eventBotConfig.update({ where: { id: 'default' }, data: data as Prisma.EventBotConfigUpdateInput });
