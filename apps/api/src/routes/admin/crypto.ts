@@ -1,7 +1,7 @@
 import { Router, type Router as RouterType } from 'express';
 import { z } from 'zod';
 import { prisma } from '../../db';
-import { cryptoProfitMap, weekStartUtc } from '../crypto-predictions';
+import { cryptoProfitMap, weekWindowStart } from '../crypto-predictions';
 import { drawCryptoWeek } from '../../services/crypto-weekly';
 
 /**
@@ -53,7 +53,7 @@ adminCryptoRouter.get('/', async (_req, res) => {
       prisma.user.count({ where: { banned: true } }),
       prisma.bet.count({ where: { pool: { poolType: 'CRYPTO' } } }),
     ]);
-    const weekly = (await cryptoProfitMap({ since: weekStartUtc() })).size;
+    const weekly = (await cryptoProfitMap({ since: weekWindowStart() })).size;
     res.json({ success: true, data: { users, funded, banned, bets, weeklyParticipants: weekly } });
   } catch (e) {
     console.error('[AdminCrypto] overview error:', e);

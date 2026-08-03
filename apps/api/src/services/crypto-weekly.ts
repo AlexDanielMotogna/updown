@@ -1,5 +1,5 @@
 import { prisma } from '../db';
-import { cryptoProfitMap, weekStartUtc } from '../routes/crypto-predictions';
+import { cryptoProfitMap, weekStartUtc, CRYPTO_LAUNCH_EPOCH } from '../routes/crypto-predictions';
 import { notifyCryptoWinner } from './crypto-event-telegram';
 
 /**
@@ -18,7 +18,12 @@ export async function drawCryptoWeek(weekAnchor: Date): Promise<{ winner: unknow
   const existing = await prisma.cryptoEventWinner.findUnique({ where: { weekStart: ws } });
   if (existing?.paid) return { winner: existing, note: 'already paid — not re-drawn' };
 
-  const map = await cryptoProfitMap({ since: ws, until: new Date(ws.getTime() + WEEK_MS) });
+  // On the launch week, start the winner window at the launch epoch too (matches the
+  // board). Only when the epoch actually falls inside this week — past/future weeks
+  // keep their normal Monday-to-Monday window.
+  const weekEnd = new Date(ws.getTime() + WEEK_MS);
+  const since = CRYPTO_LAUNCH_EPOCH > ws && CRYPTO_LAUNCH_EPOCH < weekEnd ? CRYPTO_LAUNCH_EPOCH : ws;
+  const map = await cryptoProfitMap({ since, until: weekEnd });
   const top = [...map.entries()].sort((a, b) => (b[1] > a[1] ? 1 : b[1] < a[1] ? -1 : 0))[0];
   if (!top || top[1] <= 0n) return { winner: null, note: 'no positive PNL winner for this week' };
 

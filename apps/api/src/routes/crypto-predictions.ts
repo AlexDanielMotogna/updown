@@ -42,6 +42,21 @@ export function weekStartUtc(now = new Date()): Date {
 }
 
 /**
+ * Event launch epoch. On the launch week the leaderboard starts here instead of
+ * the Monday 00:00 UTC boundary, so pre-launch bot/test activity doesn't seed the
+ * board with PNL. It only affects the week that contains the epoch; every later
+ * week uses the normal Monday boundary (max() below picks the Monday). Overridable
+ * via CRYPTO_LAUNCH_EPOCH; default is the crypto event's public launch moment.
+ */
+export const CRYPTO_LAUNCH_EPOCH = new Date(process.env.CRYPTO_LAUNCH_EPOCH ?? '2026-08-03T08:00:00.000Z');
+
+/** Lower bound of the weekly window: the later of this week's Monday and the launch epoch. */
+export function weekWindowStart(now = new Date()): Date {
+  const ws = weekStartUtc(now);
+  return CRYPTO_LAUNCH_EPOCH > ws ? CRYPTO_LAUNCH_EPOCH : ws;
+}
+
+/**
  * Realized PNL (Σ payout − stake) over settled CRYPTO pools. Optional week window
  * (`since` = pool end_time) and wallet scope. Mirrors routes/users.ts realizedProfitMap.
  */
@@ -142,7 +157,7 @@ cryptoPredictionsRouter.get('/me', async (req, res) => {
     const wallet = typeof req.query.wallet === 'string' ? req.query.wallet : '';
     if (!wallet) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'wallet required' } });
 
-    const ws = weekStartUtc();
+    const ws = weekWindowStart();
     const [allTime, weeklyBoard, self, win] = await Promise.all([
       cryptoProfitMap({ wallets: [wallet] }),
       cryptoProfitMap({ since: ws }),
@@ -232,7 +247,7 @@ cryptoPredictionsRouter.get('/pools', async (_req, res) => {
 // ---------------------------------------------------------------------------
 cryptoPredictionsRouter.get('/leaderboard', async (req, res) => {
   try {
-    const since = req.query.window === 'all' ? undefined : weekStartUtc();
+    const since = req.query.window === 'all' ? undefined : weekWindowStart();
     const board = sortedBoard(await cryptoProfitMap({ since })).slice(0, 100);
     const wallets = board.map(([w]) => w);
     const users = wallets.length
