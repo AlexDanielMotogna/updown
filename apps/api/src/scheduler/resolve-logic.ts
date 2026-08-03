@@ -9,6 +9,7 @@ import { resolvePoolOnChain, autoRefundBets } from './onchain-tx';
 import { getDistinctBettorWallets } from '../utils/bets';
 import { getPriceAtOrBefore } from '../services/price-history';
 import { calculateWeightedPayout, resolveFeeBps } from '../utils/payout';
+import { getBotWalletAddresses } from '../utils/solana';
 
 /**
  * The crypto pool winner rule: UP wins when finalPrice > strikePrice, otherwise
@@ -546,6 +547,14 @@ async function postCryptoPoolResultFeed(
     select: { walletAddress: true, side: true, amount: true, weight: true },
   });
   if (bets.length === 0) return;
+
+  // Keep all-bot pools out of the public feed: only post when at least one real
+  // (non-bot) wallet took part. Toggle with CRYPTO_TG_RESULTS_INCLUDE_BOTS=true.
+  if ((process.env.CRYPTO_TG_RESULTS_INCLUDE_BOTS ?? 'false').toLowerCase() !== 'true') {
+    const botAddrs = getBotWalletAddresses();
+    const hasRealPlayer = bets.some((b) => !botAddrs.has(b.walletAddress));
+    if (!hasRealPlayer) return;
+  }
 
   const winningWeightSum = bets
     .filter((b) => b.side === winner)
