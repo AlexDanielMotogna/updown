@@ -4,9 +4,11 @@ import { resetStreak, awardBetResolution } from '../services/rewards';
 import { recordReferralCommissions } from '../services/referrals';
 import { ResolverDeps, logEvent, handleRpcError } from './resolver-types';
 import { notifyPoolResolved } from '../services/notifications';
+import { notifyCryptoPoolResult } from '../services/crypto-event-telegram';
 import { resolvePoolOnChain, autoRefundBets } from './onchain-tx';
 import { getDistinctBettorWallets } from '../utils/bets';
 import { getPriceAtOrBefore } from '../services/price-history';
+import { calculateWeightedPayout, resolveFeeBps } from '../utils/payout';
 
 /**
  * The crypto pool winner rule: UP wins when finalPrice > strikePrice, otherwise
@@ -507,6 +509,11 @@ export async function resolvePool(
     // Persist notifications for all bettors
     notifyPoolResolved({ id: pool.id, asset: pool.asset, poolType: 'CRYPTO', winner }).catch(() => {});
 
+    // Public predictions feed: post participants + each one's net PNL (thread 638).
+    postCryptoPoolResultFeed(deps, pool.id, pool.asset, winner, strikePrice, finalPrice).catch(
+      (e) => console.warn('[Resolver] result feed post failed:', e instanceof Error ? e.message : e),
+    );
+
     console.log(`[Scheduler] Pool ${pool.id} → RESOLVED: winner=${winner}, strike=${strikePrice}, final=${finalPrice}`);
   } catch (error) {
     handleRpcError(error);
@@ -516,4 +523,76 @@ export async function resolvePool(
       data: { status: PoolStatus.JOINING },
     }).catch(e => console.warn('[Resolver] rollback failed:', e instanceof Error ? e.message : e));
   }
+}
+
+/**
+ * Compute every participant's net PNL for a just-resolved two-sided crypto pool
+ * and post it to the public predictions feed. PNL is derived from the same
+ * time-weighted formula the contract enforces (via calculateWeightedPayout), so
+ * it matches what each user sees in-app without waiting for the on-chain claims:
+ *   winner bet PNL = weightedPayout − stake ;  loser bet PNL = −stake.
+ * Aggregated per wallet (a wallet hedging both sides nets out). Fire-and-forget.
+ */
+async function postCryptoPoolResultFeed(
+  deps: ResolverDeps,
+  poolId: string,
+  asset: string,
+  winner: Side,
+  strikePrice: bigint,
+  finalPrice: bigint,
+): Promise<void> {
+  const bets = await deps.prisma.bet.findMany({
+    where: { poolId },
+    select: { walletAddress: true, side: true, amount: true, weight: true },
+  });
+  if (bets.length === 0) return;
+
+  const winningWeightSum = bets
+    .filter((b) => b.side === winner)
+    .reduce((s, b) => s + (b.weight ?? b.amount), 0n);
+  const losingStakeTotal = bets
+    .filter((b) => b.side !== winner)
+    .reduce((s, b) => s + b.amount, 0n);
+  const distinctWallets = new Set(bets.map((b) => b.walletAddress)).size;
+
+  // Fee is per-wallet (level-based). Resolve once per wallet.
+  const feeCache = new Map<string, number>();
+  const feeFor = async (wallet: string): Promise<number> => {
+    const cached = feeCache.get(wallet);
+    if (cached !== undefined) return cached;
+    const bps = await resolveFeeBps(deps.prisma, wallet);
+    feeCache.set(wallet, bps);
+    return bps;
+  };
+
+  const agg = new Map<string, { pnl: bigint; sides: Set<string> }>();
+  for (const b of bets) {
+    let pnl: bigint;
+    if (b.side === winner) {
+      const feeBps = await feeFor(b.walletAddress);
+      const { payout } = calculateWeightedPayout({
+        betAmount: b.amount,
+        betWeight: b.weight ?? b.amount,
+        winningWeightSum,
+        losingStakeTotal,
+        betCount: distinctWallets,
+        feeBps,
+      });
+      pnl = payout - b.amount;
+    } else {
+      pnl = -b.amount;
+    }
+    const cur = agg.get(b.walletAddress) ?? { pnl: 0n, sides: new Set<string>() };
+    cur.pnl += pnl;
+    cur.sides.add(b.side);
+    agg.set(b.walletAddress, cur);
+  }
+
+  const participants = [...agg.entries()].map(([wallet, v]) => ({
+    wallet,
+    side: v.sides.size > 1 ? 'MIX' : [...v.sides][0],
+    pnl: v.pnl,
+  }));
+
+  await notifyCryptoPoolResult({ asset, winner, strikePrice, finalPrice, participants });
 }

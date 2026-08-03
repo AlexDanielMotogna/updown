@@ -37,6 +37,62 @@ function maskEmail(email: string | null): string {
 /** Shorten a wallet: 9GN5xxxx...GDSs. Never post the full address publicly. */
 const shortWallet = (w: string) => (w.length > 12 ? `${w.slice(0, 4)}…${w.slice(-4)}` : w);
 
+/** Forum topic for the public "predictions feed" result posts (default thread 638). */
+function resultsThread(): number | undefined {
+  const t = Number(process.env.CRYPTO_TG_RESULTS_THREAD_ID ?? 638);
+  return Number.isFinite(t) && t > 0 ? t : undefined;
+}
+
+const fmtPrice = (raw: bigint) => `$${(Number(raw) / 1_000_000).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const SIDE_EMOJI: Record<string, string> = { UP: '📈', DOWN: '📉', DRAW: '➖', MIX: '🔀' };
+
+/**
+ * Post a finished crypto pool's result to the public predictions feed (thread 638):
+ * winner, strike→final, and every participant with their net PNL. Never throws.
+ * PRIVACY: wallets are shortened; no emails ever reach this public channel.
+ * Gate with CRYPTO_TG_RESULTS_ENABLED=false; thread via CRYPTO_TG_RESULTS_THREAD_ID.
+ */
+export async function notifyCryptoPoolResult(p: {
+  asset: string;
+  winner: 'UP' | 'DOWN' | 'DRAW';
+  strikePrice: bigint;
+  finalPrice: bigint;
+  participants: { wallet: string; side: string; pnl: bigint }[];
+}): Promise<void> {
+  const c = creds();
+  if (!c) return;
+  if ((process.env.CRYPTO_TG_RESULTS_ENABLED ?? 'true').toLowerCase() === 'false') return;
+  // Skip trivial pools to keep the feed meaningful (default: needs ≥2 players).
+  const minPlayers = Math.max(1, Number(process.env.CRYPTO_TG_RESULTS_MIN_PLAYERS ?? 2));
+  if (p.participants.length < minPlayers) return;
+
+  const rows = [...p.participants].sort((a, b) => (b.pnl > a.pnl ? 1 : b.pnl < a.pnl ? -1 : 0));
+  const MAX = 25;
+  const shown = rows.slice(0, MAX);
+  const dir = p.finalPrice >= p.strikePrice ? '▲' : '▼';
+  const body = shown.map((r) =>
+    `${r.pnl >= 0n ? '🟢' : '🔴'} <code>${esc(shortWallet(r.wallet))}</code>  ${SIDE_EMOJI[r.side] ?? ''} ${esc(r.side)}  <b>${esc(fmtUsd(r.pnl))}</b>`
+  );
+  const lines = [
+    `📊 <b>${esc(p.asset)} 5-min pool settled</b>`,
+    `${fmtPrice(p.strikePrice)} → ${fmtPrice(p.finalPrice)} ${dir} · Winner: <b>${esc(p.winner)}</b> ${SIDE_EMOJI[p.winner] ?? ''}`,
+    '',
+    `<b>${rows.length}</b> player${rows.length === 1 ? '' : 's'}`,
+    ...body,
+    rows.length > MAX ? `… and ${rows.length - MAX} more` : '',
+  ].filter(Boolean).join('\n');
+
+  try {
+    await fetch(`${TG_API}/bot${c.token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: c.chatId, ...(resultsThread() ? { message_thread_id: resultsThread() } : {}), text: lines, parse_mode: 'HTML', disable_web_page_preview: true }),
+    });
+  } catch (e) {
+    console.warn('[CryptoTG] pool result post failed:', e instanceof Error ? e.message : e);
+  }
+}
+
 /** Announce the weekly winner to the ops Telegram chat. Never throws. */
 export async function notifyCryptoWinner(w: {
   walletAddress: string;
