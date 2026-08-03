@@ -206,6 +206,20 @@ export function getEventBotKeypairs(): Keypair[] {
   } catch { return []; }
 }
 
+/** Base58 addresses of every configured bot wallet (event + liquidity). Used to
+ *  tell real participants from bots (e.g. to keep all-bot pools out of the public
+ *  results feed). Cached: env keys are static for the process lifetime. */
+let _botAddrCache: Set<string> | null = null;
+export function getBotWalletAddresses(): Set<string> {
+  if (_botAddrCache) return _botAddrCache;
+  const set = new Set<string>();
+  for (const kp of [...getEventBotKeypairs(), ...getLiquidityBotKeypairs()]) {
+    set.add(kp.publicKey.toBase58());
+  }
+  _botAddrCache = set;
+  return set;
+}
+
 /** Derive deterministic 32-byte seed from a pool UUID via SHA-256. */
 export function derivePoolSeed(poolUuid: string): Buffer {
   const crypto = require('crypto');
