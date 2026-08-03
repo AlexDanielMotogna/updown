@@ -1037,6 +1037,15 @@ model EventBotConfig {
   lockMarginSeconds  Int      @default(15)               // skip pools locking within this window
   walletUsdcTopup    BigInt   @default(50000000)         // top a bot wallet up to this USDC (50 USDC)
   walletSolTopup     Int      @default(50000000)         // SOL lamports to keep a bot wallet funded (0.05 SOL)
+  // Closing play: seconds before lock, pile the price-implied winning side to
+  // counter a lone user who snipes big at the end. Bots are split one-per-side
+  // (no hedging), so only the winning side's bots add here (stay single-sided).
+  closingBetEnabled    Boolean @default(true)            // enable the late winning-side play
+  closingWindowSeconds Int     @default(25)              // closing phase = last N s before lock
+  closingSafetySeconds Int     @default(6)               // don't place if < N s to lock (tx safety)
+  closingPerPoolCap    BigInt  @default(12000000)        // target winning-side bot stake in closing (12 USDC)
+  closingBetMin        BigInt  @default(1000000)         // min closing bet (1 USDC)
+  closingBetMax        BigInt  @default(4000000)         // max closing bet (4 USDC)
   updatedAt          DateTime @updatedAt
   createdAt          DateTime @default(now())
 
