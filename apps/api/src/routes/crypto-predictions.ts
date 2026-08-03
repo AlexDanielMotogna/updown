@@ -65,6 +65,13 @@ export async function cryptoProfitMap(opts: { since?: Date; until?: Date; wallet
   const conds: Prisma.Sql[] = [
     Prisma.sql`p.status::text IN (${Prisma.join(SETTLED)})`,
     Prisma.sql`p.pool_type = 'CRYPTO'`,
+    // Exclude pools mid-settlement: a RESOLVED/CLAIMABLE pool becomes "settled"
+    // the instant it resolves, but the winners' payout_amount is stamped a few
+    // seconds later by the async auto-claim. In that gap winners read as a full
+    // stake loss, so the board flickers through a wrong "everyone lost" state.
+    // Only count a pool once every winning-side bet is paid (or permanently
+    // failed) — the pool then appears atomically with correct PNL.
+    Prisma.sql`NOT EXISTS (SELECT 1 FROM bets w WHERE w.pool_id = p.id AND w.side = p.winner AND w.claimed = false AND w.payout_failed = false)`,
   ];
   if (opts.since) conds.push(Prisma.sql`p.end_time >= ${opts.since}`);
   if (opts.until) conds.push(Prisma.sql`p.end_time < ${opts.until}`);
