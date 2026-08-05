@@ -13,6 +13,7 @@ const PAGE = 50;
 
 interface CUser { walletAddress: string; displayName: string | null; email: string | null; signupIp: string | null; banned: boolean; funded: boolean; createdAt: string; bets: number; flags: string[] }
 interface Winner { id: string; weekStart: string; walletAddress: string; displayName: string | null; email: string | null; payoutWallet: string | null; pnl: string; paid: boolean; paidAt: string | null; paidTx: string | null }
+interface RefWinner { id: string; weekStart: string; walletAddress: string; displayName: string | null; email: string | null; payoutWallet: string | null; validReferrals: number; paid: boolean; paidAt: string | null; paidTx: string | null }
 interface Overview { users: number; funded: number; banned: number; bets: number; weeklyParticipants: number }
 
 const short = (w: string) => `${w.slice(0, 4)}…${w.slice(-4)}`;
@@ -31,12 +32,31 @@ export function CryptoAdmin() {
     queryFn: () => adminFetch<{ data: CUser[]; total: number }>(`/crypto/users?offset=${page * PAGE}&limit=${PAGE}&search=${encodeURIComponent(q)}&flaggedOnly=${flaggedOnly}`),
   });
   const winnersQ = useQuery({ queryKey: ['crypto-admin-winners'], queryFn: () => adminFetch<{ data: Winner[] }>('/crypto/winners'), refetchInterval: POLL_MEDIUM_MS });
+  const refWinnersQ = useQuery({ queryKey: ['crypto-admin-referral-winners'], queryFn: () => adminFetch<{ data: RefWinner[] }>('/crypto/referral-winners'), refetchInterval: POLL_MEDIUM_MS });
 
   const ov = overviewQ.data?.data;
   const rows = usersQ.data?.data ?? [];
   const total = usersQ.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE));
   const winners = winnersQ.data?.data ?? [];
+  const refWinners = refWinnersQ.data?.data ?? [];
+
+  const drawRefWinner = async () => {
+    if (busy) return;
+    if (!window.confirm('Draw the top-1 referrer for the current week and announce on Telegram?')) return;
+    setBusy('ref-draw');
+    try { const r = await adminFetch<{ data: { winner: RefWinner | null; note?: string } }>('/crypto/referral-draw', { method: 'POST', body: JSON.stringify({}) }); await refWinnersQ.refetch(); if (!r.data.winner) window.alert(r.data.note ?? 'No winner.'); }
+    catch (e) { window.alert((e as Error).message); } finally { setBusy(null); }
+  };
+  const setRefPaid = async (w: RefWinner) => {
+    if (busy) return;
+    let tx: string | undefined;
+    if (!w.paid) { const p = window.prompt('Payout tx signature / reference (optional):', ''); if (p === null) return; tx = p.trim() || undefined; }
+    else if (!window.confirm('Mark this prize as NOT paid?')) return;
+    setBusy(w.id);
+    try { await adminFetch(`/crypto/referral-winner/${w.id}/paid`, { method: 'POST', body: JSON.stringify({ paid: !w.paid, ...(tx ? { tx } : {}) }) }); await refWinnersQ.refetch(); }
+    catch (e) { window.alert((e as Error).message); } finally { setBusy(null); }
+  };
 
   const toggleBan = async (u: CUser) => {
     if (busy) return;
@@ -124,6 +144,38 @@ export function CryptoAdmin() {
                     <TableCell sx={{ ...td, color: t.success, fontWeight: 700 }}>{fmtPnl(w.pnl)}</TableCell>
                     <TableCell sx={td}>{w.paid ? <Box component="span" sx={{ color: t.success, fontWeight: 700 }}>Paid</Box> : <Box component="span" sx={{ color: t.warning }}>Pending</Box>}</TableCell>
                     <TableCell sx={td}>{btn(w.paid ? 'Undo' : 'Mark paid', () => setPaid(w), { disabled: busy === w.id, primary: !w.paid })}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </SectionCard>
+
+      {/* Weekly referral winners */}
+      <SectionCard title="Weekly referral winner" accentColor={t.gold} actions={btn('Draw current week', drawRefWinner, { primary: true, disabled: busy === 'ref-draw' })}>
+        {refWinnersQ.isLoading ? <LoadingState variant="inline" /> : refWinners.length === 0 ? (
+          <EmptyState title="No referral winners drawn yet" hint="Draw the current week to snapshot the top referrer (most valid referrals)." />
+        ) : (
+          <TableContainer>
+            <Table size="small">
+              <TableHead><TableRow>
+                {['Week', 'Referrer', 'Email', 'Payout wallet', 'Valid refs', 'Paid', ''].map((h) => <TableCell key={h} sx={th}>{h}</TableCell>)}
+              </TableRow></TableHead>
+              <TableBody>
+                {refWinners.map((w) => (
+                  <TableRow key={w.id}>
+                    <TableCell sx={td}>{w.weekStart.slice(0, 10)}</TableCell>
+                    <TableCell sx={{ ...td, fontFamily: 'monospace' }}>{w.displayName || short(w.walletAddress)}</TableCell>
+                    <TableCell sx={td}>{w.email ?? '—'}</TableCell>
+                    <TableCell sx={td}>
+                      {w.payoutWallet ? (
+                        <Box component="span" title={`${w.payoutWallet} (click to copy)`} onClick={() => navigator.clipboard?.writeText(w.payoutWallet!)} sx={{ fontFamily: 'monospace', cursor: 'pointer', color: t.text.primary, '&:hover': { color: t.gold } }}>{short(w.payoutWallet)}</Box>
+                      ) : <Box component="span" sx={{ color: t.warning }}>not submitted</Box>}
+                    </TableCell>
+                    <TableCell sx={{ ...td, fontWeight: 700 }}>{w.validReferrals}</TableCell>
+                    <TableCell sx={td}>{w.paid ? <Box component="span" sx={{ color: t.success, fontWeight: 700 }}>Paid</Box> : <Box component="span" sx={{ color: t.warning }}>Pending</Box>}</TableCell>
+                    <TableCell sx={td}>{btn(w.paid ? 'Undo' : 'Mark paid', () => setRefPaid(w), { disabled: busy === w.id, primary: !w.paid })}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -295,6 +295,29 @@ model CryptoEventWinner {
   @@map("crypto_event_winners")
 }
 
+/// Crypto Predictions weekly REFERRAL prize winner (top-1 valid referrals that
+/// week). Event-native: rewards a real cash prize, independent of UP/levels.
+model CryptoReferralWinner {
+  id             String    @id @default(uuid())
+  /// Monday 00:00 UTC of the winning week (unique — one winner per week).
+  weekStart      DateTime  @map("week_start")
+  walletAddress  String    @map("wallet_address")
+  displayName    String?   @map("display_name")
+  email          String?   @map("email")
+  /// Wallet the winner submitted to receive the prize.
+  payoutWallet   String?   @map("payout_wallet")
+  /// Count of valid referrals in the winning week.
+  validReferrals Int       @default(0) @map("valid_referrals")
+  paid           Boolean   @default(false)
+  paidAt         DateTime? @map("paid_at")
+  paidTx         String?   @map("paid_tx")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@unique([weekStart])
+  @@index([walletAddress])
+  @@map("crypto_referral_winners")
+}
+
 /// Per-user link to a trading exchange (HyperLiquid first). Stores the user's
 /// REAL account address (used for ALL reads) plus a delegated *agent wallet*
 /// whose private key is AES-256-GCM encrypted at rest (never plaintext). See

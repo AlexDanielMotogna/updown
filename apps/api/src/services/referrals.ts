@@ -22,8 +22,12 @@ export interface ReferralRank {
  * and the referral not flagged suspect). Shared by the public leaderboard and
  * the admin prize distribution so both agree.
  */
-export async function getReferralLeaderboard(): Promise<ReferralRank[]> {
+export async function getReferralLeaderboard(opts?: { since?: Date; until?: Date }): Promise<ReferralRank[]> {
+  const createdAt = opts?.since || opts?.until
+    ? { ...(opts.since ? { gte: opts.since } : {}), ...(opts.until ? { lt: opts.until } : {}) }
+    : undefined;
   const referrals = await prisma.referral.findMany({
+    where: createdAt ? { createdAt } : undefined,
     select: { referrerWallet: true, referredWallet: true, suspect: true },
   });
   const referredWallets = Array.from(new Set(referrals.map(r => r.referredWallet)));
@@ -118,7 +122,12 @@ export async function acceptReferral(
   referredWallet: string,
   referralCode: string,
   signals?: { ip?: string | null; deviceFingerprint?: string | null },
+  opts?: { grantRewards?: boolean },
 ): Promise<{ success: boolean; error?: string }> {
+  // The Crypto event is a lean, free-funded promo: it links the referral (for the
+  // event's own referral leaderboard + cash prize) but must NOT mint UP/XP, which
+  // would let a free-funded, sybil-prone environment farm the pre-launch token.
+  const grantRewards = opts?.grantRewards ?? true;
   const referrer = await prisma.user.findFirst({
     where: { referralCode: referralCode },
     select: { walletAddress: true },
@@ -175,10 +184,10 @@ export async function acceptReferral(
       data: { referredBy: referrer.walletAddress },
     });
 
-    // Award XP + Coins to referrer
-    const referrerUser = await tx.user.findUnique({
-      where: { walletAddress: referrer.walletAddress },
-    });
+    // Award XP + Coins to referrer (skipped for the event — see grantRewards).
+    const referrerUser = grantRewards
+      ? await tx.user.findUnique({ where: { walletAddress: referrer.walletAddress } })
+      : null;
     if (referrerUser) {
       const newTotalXp = referrerUser.totalXp + REFERRAL_XP_REWARD;
       let newLevel = getLevelForXp(newTotalXp);

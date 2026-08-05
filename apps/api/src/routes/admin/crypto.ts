@@ -2,7 +2,7 @@ import { Router, type Router as RouterType } from 'express';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { cryptoProfitMap, weekWindowStart } from '../crypto-predictions';
-import { drawCryptoWeek } from '../../services/crypto-weekly';
+import { drawCryptoWeek, drawCryptoReferralWeek } from '../../services/crypto-weekly';
 
 /**
  * Crypto Predictions event admin — /api/admin/crypto (x-admin-key, back-office).
@@ -156,6 +156,52 @@ adminCryptoRouter.post('/winner/:id/paid', async (req, res) => {
     res.json({ success: true, data: { id: updated.id, paid: updated.paid } });
   } catch (e) {
     console.error('[AdminCrypto] paid error:', e);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to update' } });
+  }
+});
+
+// --- Referral prize (event-native) -----------------------------------------
+
+// GET /referral-winners — weekly referral winners, newest first.
+adminCryptoRouter.get('/referral-winners', async (_req, res) => {
+  try {
+    const rows = await prisma.cryptoReferralWinner.findMany({ orderBy: { weekStart: 'desc' }, take: 52 });
+    res.json({ success: true, data: rows.map((w) => ({ id: w.id, weekStart: w.weekStart.toISOString(), walletAddress: w.walletAddress, displayName: w.displayName, email: w.email, payoutWallet: w.payoutWallet, validReferrals: w.validReferrals, paid: w.paid, paidAt: w.paidAt?.toISOString() ?? null, paidTx: w.paidTx })) });
+  } catch (e) {
+    console.error('[AdminCrypto] referral-winners error:', e);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load referral winners' } });
+  }
+});
+
+// POST /referral-draw — snapshot the top-1 referrer for a week (default current).
+adminCryptoRouter.post('/referral-draw', async (req, res) => {
+  try {
+    const parsed = drawSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid input' } });
+    const ws = parsed.data.weekStart ? new Date(parsed.data.weekStart) : new Date();
+    if (Number.isNaN(ws.getTime())) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid weekStart' } });
+    const { winner, note } = await drawCryptoReferralWeek(ws);
+    res.json({ success: true, data: { winner, note } });
+  } catch (e) {
+    console.error('[AdminCrypto] referral-draw error:', e);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to draw referral winner' } });
+  }
+});
+
+// POST /referral-winner/:id/paid — mark a referral winner paid/unpaid.
+adminCryptoRouter.post('/referral-winner/:id/paid', async (req, res) => {
+  try {
+    const parsed = paidSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid input' } });
+    const { paid, tx } = parsed.data;
+    const updated = await prisma.cryptoReferralWinner.update({
+      where: { id: req.params.id },
+      data: { paid, paidAt: paid ? new Date() : null, paidTx: paid ? (tx ?? null) : null },
+    }).catch(() => null);
+    if (!updated) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Winner not found' } });
+    res.json({ success: true, data: { id: updated.id, paid: updated.paid } });
+  } catch (e) {
+    console.error('[AdminCrypto] referral paid error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to update' } });
   }
 });

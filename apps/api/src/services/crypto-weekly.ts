@@ -1,6 +1,7 @@
 import { prisma } from '../db';
 import { cryptoProfitMap, weekStartUtc, CRYPTO_LAUNCH_EPOCH } from '../routes/crypto-predictions';
-import { notifyCryptoWinner } from './crypto-event-telegram';
+import { getReferralLeaderboard } from './referrals';
+import { notifyCryptoWinner, notifyCryptoReferralWinner } from './crypto-event-telegram';
 
 /**
  * Crypto Predictions weekly prize: snapshot the top-1 realized-PNL winner for a
@@ -38,17 +39,42 @@ export async function drawCryptoWeek(weekAnchor: Date): Promise<{ winner: unknow
   return { winner };
 }
 
-/** Finalize the previous completed week's winner if it hasn't been drawn yet. */
+/** Draw/refresh the top-1 referral winner for a week. Idempotent; never overwrites
+ *  a paid winner. Announces on Telegram on create/update. */
+export async function drawCryptoReferralWeek(weekAnchor: Date): Promise<{ winner: unknown; note?: string }> {
+  const ws = weekStartUtc(weekAnchor);
+  const existing = await prisma.cryptoReferralWinner.findUnique({ where: { weekStart: ws } });
+  if (existing?.paid) return { winner: existing, note: 'already paid — not re-drawn' };
+
+  const weekEnd = new Date(ws.getTime() + WEEK_MS);
+  const since = CRYPTO_LAUNCH_EPOCH > ws && CRYPTO_LAUNCH_EPOCH < weekEnd ? CRYPTO_LAUNCH_EPOCH : ws;
+  const board = await getReferralLeaderboard({ since, until: weekEnd });
+  const top = board[0];
+  if (!top || top.validReferrals <= 0) return { winner: null, note: 'no valid referrals this week' };
+
+  const u = await prisma.user.findUnique({ where: { walletAddress: top.walletAddress }, select: { displayName: true, email: true } });
+  const winner = await prisma.cryptoReferralWinner.upsert({
+    where: { weekStart: ws },
+    update: { walletAddress: top.walletAddress, displayName: u?.displayName ?? null, email: u?.email ?? null, validReferrals: top.validReferrals },
+    create: { weekStart: ws, walletAddress: top.walletAddress, displayName: u?.displayName ?? null, email: u?.email ?? null, validReferrals: top.validReferrals },
+  });
+  notifyCryptoReferralWinner({ walletAddress: top.walletAddress, email: u?.email ?? null, displayName: u?.displayName ?? null, validReferrals: top.validReferrals, weekStart: ws }).catch(() => {});
+  return { winner };
+}
+
+/** Finalize the previous completed week's winners (PNL + referral) if not drawn yet. */
 export async function maybeDrawPreviousWeek(): Promise<void> {
   const prevWeek = new Date(weekStartUtc().getTime() - WEEK_MS);
   const existing = await prisma.cryptoEventWinner.findUnique({ where: { weekStart: prevWeek } });
-  if (existing) return;
-  await drawCryptoWeek(prevWeek).catch((e) => console.warn('[CryptoWeekly] auto-draw failed:', e instanceof Error ? e.message : e));
+  if (!existing) await drawCryptoWeek(prevWeek).catch((e) => console.warn('[CryptoWeekly] auto-draw failed:', e instanceof Error ? e.message : e));
+
+  const existingRef = await prisma.cryptoReferralWinner.findUnique({ where: { weekStart: prevWeek } });
+  if (!existingRef) await drawCryptoReferralWeek(prevWeek).catch((e) => console.warn('[CryptoWeekly] referral auto-draw failed:', e instanceof Error ? e.message : e));
 }
 
 let timer: NodeJS.Timeout | null = null;
 
-/** Hourly check that finalizes last week's winner once the week rolls over. */
+/** Hourly check that finalizes last week's winners once the week rolls over. */
 export function startCryptoWeeklyScheduler(): void {
   const loop = async () => {
     try { await maybeDrawPreviousWeek(); } catch (e) { console.error('[CryptoWeekly] loop error:', e instanceof Error ? e.message : e); }
