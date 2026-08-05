@@ -6,6 +6,7 @@ import { Close, ShowChart, ReceiptLongOutlined, EmojiEvents, InfoOutlined } from
 import { AssetIcon } from '@/components/AssetIcon';
 import { CryptoBetPanel } from './CryptoBetPanel';
 import { PoolCountdown } from './PoolCountdown';
+import { AboutDialog } from './EventSidebar';
 import { usePools } from '@/hooks/usePools';
 import { useThemeTokens } from '@/app/providers';
 import { USDC_DIVISOR } from '@/lib/format';
@@ -31,6 +32,7 @@ export function MobilePredictBar({ asset, tourOpen = false, onActivity }: { asse
   const { data } = usePools({ type: 'CRYPTO', asset, interval: '5m', status: 'JOINING' }, { refetchInterval: 3_000, staleTime: 2_000 });
   const pool: Pool | undefined = data?.data?.[0];
   const [sheet, setSheet] = useState<'UP' | 'DOWN' | null>(null);
+  const [infoOpen, setInfoOpen] = useState(false);
 
   // The tutorial can open/close the sheet to demo the bet form (only on step change).
   useEffect(() => { setSheet(tourOpen ? 'UP' : null); }, [tourOpen]);
@@ -80,7 +82,7 @@ export function MobilePredictBar({ asset, tourOpen = false, onActivity }: { asse
         {/* Section nav */}
         <Box sx={{ display: 'flex', height: 46, borderTop: `1px solid ${t.border.subtle}` }}>
           {NAV.map(({ id, label, Icon }) => (
-            <Box key={id} onClick={() => (id === 'sec-activity' && onActivity ? onActivity() : go(id))} sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 0.15, cursor: 'pointer', color: t.text.secondary, '&:active': { color: '#5FD8EF' } }}>
+            <Box key={id} onClick={() => (id === 'sec-activity' && onActivity ? onActivity() : id === 'sec-info' ? setInfoOpen(true) : go(id))} sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 0.15, cursor: 'pointer', color: t.text.secondary, '&:active': { color: '#5FD8EF' } }}>
               <Icon sx={{ fontSize: 18 }} />
               <Typography sx={{ fontSize: '0.58rem', fontWeight: 600 }}>{label}</Typography>
             </Box>
@@ -112,6 +114,8 @@ export function MobilePredictBar({ asset, tourOpen = false, onActivity }: { asse
           </Box>
         )}
       </Drawer>
+
+      <AboutDialog open={infoOpen} onClose={() => setInfoOpen(false)} />
     </>
   );
 }
