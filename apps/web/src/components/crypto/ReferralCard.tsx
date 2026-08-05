@@ -41,12 +41,12 @@ export function ReferralCard() {
 
   return (
     <Box sx={{ borderRadius: 1, bgcolor: t.bg.surface, overflow: 'hidden' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 2, py: 1.5, borderBottom: `1px solid ${t.border.subtle}`, color: CYAN }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: { xs: 1.5, sm: 2 }, py: 1.5, borderBottom: `1px solid ${t.border.subtle}`, color: CYAN }}>
         <Groups sx={{ fontSize: 18 }} />
         <Typography sx={{ fontWeight: 800, fontSize: '0.8rem', letterSpacing: '0.05em', color: t.text.primary }}>INVITE &amp; EARN</Typography>
       </Box>
 
-      <Box sx={{ p: 2 }}>
+      <Box sx={{ p: { xs: 1.5, sm: 2 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1.25, px: 1.25, py: 1, borderRadius: 1, bgcolor: `${t.gold}14`, border: `1px solid ${t.gold}40` }}>
           <EmojiEvents sx={{ fontSize: 18, color: t.gold }} />
           <Typography sx={{ fontSize: '0.8rem', color: t.text.primary, lineHeight: 1.4 }}>
