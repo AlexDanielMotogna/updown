@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Box, Typography } from '@mui/material';
-import { RocketLaunch, Bolt, EmojiEvents, CheckCircle } from '@mui/icons-material';
+import { Box, Typography, Dialog, IconButton } from '@mui/material';
+import { RocketLaunch, Bolt, AttachMoney, CheckCircle, Close } from '@mui/icons-material';
 import { fetchCryptoLeaderboard, fetchCryptoActivity, type CryptoActivityRow } from '@/lib/api';
 import { useThemeTokens } from '@/app/providers';
 
@@ -35,47 +35,58 @@ function timeToWeeklyReset(now: number): string {
   return `${dd}d ${hh}h ${mm}m`;
 }
 
-export function AboutEventCard() {
-  const t = useThemeTokens();
-  const items = ['5-minute prediction window', 'UP or DOWN', 'Instant results', 'Real payouts'];
+const ABOUT_ITEMS = ['5-minute prediction window', 'UP or DOWN', 'Instant results', 'Real payouts'];
 
+/** About-the-event content, shown from the secondary header's "Read more" (and the mobile Info tab). */
+export function AboutDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useThemeTokens();
   return (
-    <Card icon={<RocketLaunch sx={{ fontSize: 18 }} />} title="ABOUT THIS EVENT" tokens={t}>
-      <Typography sx={{ fontSize: '0.8rem', color: t.text.secondary, lineHeight: 1.55, mb: 1.5 }}>
-        Make UP or DOWN predictions on crypto prices in 5-minute intervals. Fast. Simple. Transparent.
-      </Typography>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        {items.map((it) => (
-          <Box key={it} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <CheckCircle sx={{ fontSize: 16, color: CYAN }} />
-            <Typography sx={{ fontSize: '0.8rem', color: t.text.primary }}>{it}</Typography>
-          </Box>
-        ))}
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth PaperProps={{ sx: { bgcolor: t.bg.surface, borderRadius: 1.5, border: `1px solid ${t.border.subtle}`, backgroundImage: 'none' } }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.5, borderBottom: `1px solid ${t.border.subtle}` }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, color: CYAN }}>
+          <RocketLaunch sx={{ fontSize: 18 }} />
+          <Typography sx={{ fontWeight: 800, fontSize: '0.85rem', color: t.text.primary }}>About this event</Typography>
+        </Box>
+        <IconButton onClick={onClose} size="small" sx={{ color: t.text.tertiary }}><Close sx={{ fontSize: 18 }} /></IconButton>
       </Box>
-    </Card>
+      <Box sx={{ p: 2 }}>
+        <Typography sx={{ fontSize: '0.82rem', color: t.text.secondary, lineHeight: 1.55, mb: 1.5 }}>
+          Make UP or DOWN predictions on crypto prices in 5-minute intervals. Fast. Simple. Transparent.
+        </Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {ABOUT_ITEMS.map((it) => (
+            <Box key={it} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <CheckCircle sx={{ fontSize: 16, color: CYAN }} />
+              <Typography sx={{ fontSize: '0.82rem', color: t.text.primary }}>{it}</Typography>
+            </Box>
+          ))}
+        </Box>
+      </Box>
+    </Dialog>
   );
 }
 
 /**
- * Minimalist secondary header: the weekly $100 prize showcase as a slim strip
- * under the navbar (moved out of the About card). One line, quiet styling.
+ * Minimalist secondary header: the weekly $100 prize showcase as a slim dark
+ * strip under the navbar, with a "Read more" that opens the About dialog.
  */
 export function PrizeHeader() {
   const t = useThemeTokens();
   const { data } = useQuery({ queryKey: ['crypto-leaderboard', 'week'], queryFn: () => fetchCryptoLeaderboard('week'), refetchInterval: 20_000 });
   const participants = data?.data?.length ?? 0;
   const [now, setNow] = useState(() => Date.now());
+  const [aboutOpen, setAboutOpen] = useState(false);
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 60_000); return () => clearInterval(id); }, []);
 
   const Dot = () => <Box component="span" sx={{ color: t.border.medium, mx: { xs: 0.75, sm: 1.25 } }}>·</Box>;
 
   return (
-    <Box sx={{ borderBottom: `1px solid ${t.border.subtle}`, bgcolor: `${t.gold}0d` }}>
+    <Box sx={{ borderBottom: `1px solid ${t.border.subtle}`, bgcolor: t.bg.surface }}>
       <Box sx={{ width: '100%', maxWidth: 1400, mx: 'auto', px: { xs: 1.5, md: 3 }, py: 0.85, display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 0.5 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
-          <EmojiEvents sx={{ fontSize: 15, color: t.gold }} />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
+          <AttachMoney sx={{ fontSize: 15, color: t.text.secondary }} />
           <Typography component="span" sx={{ fontSize: { xs: '0.72rem', sm: '0.78rem' }, fontWeight: 800, color: t.text.primary }}>
-            Weekly <Box component="span" sx={{ color: t.gold }}>$100</Box> Prize
+            Weekly $100 Prize
           </Typography>
         </Box>
         <Dot />
@@ -86,7 +97,12 @@ export function PrizeHeader() {
         <Typography component="span" sx={{ fontSize: { xs: '0.72rem', sm: '0.78rem' }, color: t.text.secondary }}>
           <Box component="span" sx={{ color: t.text.primary, fontWeight: 600 }}>{participants.toLocaleString()}</Box> {participants === 1 ? 'player' : 'players'}
         </Typography>
+        <Dot />
+        <Typography component="button" onClick={() => setAboutOpen(true)} sx={{ background: 'none', border: 'none', p: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: { xs: '0.72rem', sm: '0.78rem' }, fontWeight: 600, color: CYAN, '&:hover': { textDecoration: 'underline' } }}>
+          Read more
+        </Typography>
       </Box>
+      <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
     </Box>
   );
 }

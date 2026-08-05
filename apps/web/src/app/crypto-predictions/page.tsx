@@ -19,7 +19,7 @@ import { MarketsCard } from '@/components/crypto/MarketsCard';
 import { MarketTabs } from '@/components/crypto/MarketTabs';
 import { MobilePredictBar } from '@/components/crypto/MobilePredictBar';
 import { ActivePool } from '@/components/crypto/ActivePool';
-import { AboutEventCard, LiveActivityCard, PrizeHeader } from '@/components/crypto/EventSidebar';
+import { LiveActivityCard, PrizeHeader } from '@/components/crypto/EventSidebar';
 import { ComingSoonSlider } from '@/components/crypto/ComingSoon';
 import { ReferralCard } from '@/components/crypto/ReferralCard';
 import { HideTermsContext } from '@/components/pool/ResolutionCards';
@@ -219,7 +219,6 @@ export default function CryptoPredictionsPage() {
           <Box sx={{ order: { xs: 1, lg: 0 }, display: 'flex', flexDirection: 'column', gap: '5px' }}>
             <ComingSoonSlider autoOpen={marketingOpen} />
             <ReferralCard />
-            <Box id="sec-info" sx={{ scrollMarginTop: '112px' }}><AboutEventCard /></Box>
             <Box id="sec-activity" sx={{ scrollMarginTop: '112px' }}><LiveActivityCard /></Box>
           </Box>
         </Box>
