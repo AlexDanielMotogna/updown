@@ -204,7 +204,7 @@ export default function CryptoPredictionsPage() {
       {/* Body: 3 columns */}
       <Box sx={{ width: '100%', maxWidth: 1400, mx: 'auto', flex: 1, px: { xs: 0.75, md: 3 }, pt: { xs: 2, md: 3 }, pb: { xs: 16, md: 3 } }}>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '250px minmax(0, 1fr) 360px' }, gap: '5px', alignItems: 'start' }}>
-          <Box sx={{ order: { xs: 2, lg: 0 }, display: 'flex', flexDirection: 'column', gap: '5px' }}>
+          <Box sx={{ order: { xs: 2, lg: 0 }, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '5px' }}>
             <Box id="sec-leaderboard" sx={{ scrollMarginTop: '112px' }}><WeeklyLeaderboardCard /></Box>
             {/* Full Markets list only on desktop; mobile uses the sticky MarketTabs above */}
             <Box sx={{ display: { xs: 'none', lg: 'block' } }}>
@@ -216,7 +216,7 @@ export default function CryptoPredictionsPage() {
               <ActivePool asset={asset} />
             </HideTermsContext.Provider>
           </Box>
-          <Box sx={{ order: { xs: 1, lg: 0 }, display: 'flex', flexDirection: 'column', gap: '5px' }}>
+          <Box sx={{ order: { xs: 1, lg: 0 }, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '5px' }}>
             <ComingSoonSlider autoOpen={marketingOpen} />
             <ReferralCard />
             <Box id="sec-activity" sx={{ scrollMarginTop: '112px' }}><LiveActivityCard /></Box>
