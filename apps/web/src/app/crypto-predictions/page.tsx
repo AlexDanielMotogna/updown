@@ -19,7 +19,7 @@ import { MarketsCard } from '@/components/crypto/MarketsCard';
 import { MarketTabs } from '@/components/crypto/MarketTabs';
 import { MobilePredictBar } from '@/components/crypto/MobilePredictBar';
 import { ActivePool } from '@/components/crypto/ActivePool';
-import { AboutEventCard, LiveActivityCard } from '@/components/crypto/EventSidebar';
+import { AboutEventCard, LiveActivityCard, PrizeHeader } from '@/components/crypto/EventSidebar';
 import { ComingSoonSlider } from '@/components/crypto/ComingSoon';
 import { ReferralCard } from '@/components/crypto/ReferralCard';
 import { HideTermsContext } from '@/components/pool/ResolutionCards';
@@ -192,6 +192,9 @@ export default function CryptoPredictionsPage() {
           </Box>
         </Box>
       </Box>
+
+      {/* Secondary header — minimalist weekly-prize showcase */}
+      <PrizeHeader />
 
       {/* Mobile market switcher — sticky under the navbar so it's always 1 tap away */}
       <Box sx={{ display: { xs: 'block', lg: 'none' }, position: 'sticky', top: { xs: 54, md: 64 }, zIndex: 90, bgcolor: t.bg.app, px: 0.75, py: 1, borderBottom: `1px solid ${t.border.subtle}` }}>
