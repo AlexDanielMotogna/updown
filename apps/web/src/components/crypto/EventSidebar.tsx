@@ -78,29 +78,44 @@ export function PrizeHeader() {
   const [aboutOpen, setAboutOpen] = useState(false);
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 60_000); return () => clearInterval(id); }, []);
 
-  const Dot = () => <Box component="span" sx={{ color: t.border.medium, mx: { xs: 0.75, sm: 1.25 } }}>·</Box>;
+  // Dot separator between meta items (inline). Hidden on the very first item.
+  const Dot = () => <Box component="span" sx={{ color: t.border.medium, mx: { xs: 0.75, sm: 1 } }}>·</Box>;
+  const fs = { xs: '0.7rem', sm: '0.78rem' };
 
   return (
     <Box sx={{ borderBottom: `1px solid ${t.border.subtle}`, bgcolor: t.bg.surface }}>
-      <Box sx={{ width: '100%', maxWidth: 1400, mx: 'auto', px: { xs: 1.5, md: 3 }, py: 0.85, display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 0.5 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
-          <AttachMoney sx={{ fontSize: 15, color: t.text.secondary }} />
-          <Typography component="span" sx={{ fontSize: { xs: '0.72rem', sm: '0.78rem' }, fontWeight: 800, color: t.text.primary }}>
+      <Box
+        sx={{
+          width: '100%', maxWidth: 1400, mx: 'auto', px: { xs: 1.5, md: 3 }, py: { xs: 0.7, sm: 0.85 },
+          // xs: two tidy centered lines (prize, then meta). sm+: single row with a divider dot.
+          display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', justifyContent: 'center',
+          columnGap: 1, rowGap: 0.15,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.35 }}>
+          <AttachMoney sx={{ fontSize: { xs: 14, sm: 15 }, color: t.text.secondary }} />
+          <Typography component="span" sx={{ fontSize: fs, fontWeight: 800, color: t.text.primary, whiteSpace: 'nowrap' }}>
             Weekly $100 Prize
           </Typography>
         </Box>
-        <Dot />
-        <Typography component="span" sx={{ fontSize: { xs: '0.72rem', sm: '0.78rem' }, color: t.text.secondary }}>
-          Resets in <Box component="span" sx={{ color: t.text.primary, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{timeToWeeklyReset(now)}</Box>
-        </Typography>
-        <Dot />
-        <Typography component="span" sx={{ fontSize: { xs: '0.72rem', sm: '0.78rem' }, color: t.text.secondary }}>
-          <Box component="span" sx={{ color: t.text.primary, fontWeight: 600 }}>{participants.toLocaleString()}</Box> {participants === 1 ? 'player' : 'players'}
-        </Typography>
-        <Dot />
-        <Typography component="button" onClick={() => setAboutOpen(true)} sx={{ background: 'none', border: 'none', p: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: { xs: '0.72rem', sm: '0.78rem' }, fontWeight: 600, color: CYAN, '&:hover': { textDecoration: 'underline' } }}>
-          Read more
-        </Typography>
+
+        {/* Divider between prize and meta (desktop row only) */}
+        <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' }, color: t.border.medium }}>·</Box>
+
+        {/* Meta line: resets · players · read more */}
+        <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <Typography component="span" sx={{ fontSize: fs, color: t.text.secondary, whiteSpace: 'nowrap' }}>
+            Resets in <Box component="span" sx={{ color: t.text.primary, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{timeToWeeklyReset(now)}</Box>
+          </Typography>
+          <Dot />
+          <Typography component="span" sx={{ fontSize: fs, color: t.text.secondary, whiteSpace: 'nowrap' }}>
+            <Box component="span" sx={{ color: t.text.primary, fontWeight: 600 }}>{participants.toLocaleString()}</Box> {participants === 1 ? 'player' : 'players'}
+          </Typography>
+          <Dot />
+          <Typography component="button" onClick={() => setAboutOpen(true)} sx={{ background: 'none', border: 'none', p: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: fs, fontWeight: 600, color: CYAN, whiteSpace: 'nowrap', '&:hover': { textDecoration: 'underline' } }}>
+            Read more
+          </Typography>
+        </Box>
       </Box>
       <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
     </Box>
