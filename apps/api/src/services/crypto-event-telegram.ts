@@ -93,6 +93,61 @@ export async function notifyCryptoPoolResult(p: {
   }
 }
 
+/** Optional forum topic for the nightly leaderboard post (default: General = none). */
+function leaderboardThread(): number | undefined {
+  const t = Number(process.env.CRYPTO_TG_LEADERBOARD_THREAD_ID);
+  return Number.isFinite(t) && t > 0 ? t : undefined;
+}
+
+const MEDALS = ['🥇', '🥈', '🥉'];
+
+/**
+ * Post the weekly PNL leaderboard to the public group (default General topic).
+ * Fired nightly by the scheduler. Never throws. PRIVACY: wallets shortened, no
+ * emails. Gate with CRYPTO_TG_LEADERBOARD_ENABLED=false.
+ */
+export async function notifyDailyLeaderboard(p: {
+  rows: { wallet: string; displayName: string | null; pnl: bigint }[];
+  players: number;
+  resetLabel: string;
+}): Promise<void> {
+  const c = creds();
+  if (!c) return;
+  if ((process.env.CRYPTO_TG_LEADERBOARD_ENABLED ?? 'true').toLowerCase() === 'false') return;
+  if (p.rows.length === 0) return;
+
+  const body = p.rows.map((r, i) => {
+    const rank = MEDALS[i] ?? `<b>${i + 1}.</b>`;
+    const who = r.displayName && !r.displayName.includes('@') ? r.displayName : shortWallet(r.wallet);
+    return `${rank} ${esc(who)}  <b>${esc(fmtUsd(r.pnl))}</b>`;
+  });
+  const lines = [
+    '🏆 <b>Crypto Predictions — Weekly Leaderboard</b>',
+    `Top players this week · resets in ${esc(p.resetLabel)}`,
+    '',
+    ...body,
+    '',
+    `<b>${p.players}</b> player${p.players === 1 ? '' : 's'} competing. Think you can top it?`,
+  ].join('\n');
+
+  try {
+    await fetch(`${TG_API}/bot${c.token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: c.chatId,
+        ...(leaderboardThread() ? { message_thread_id: leaderboardThread() } : {}),
+        text: lines,
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+        reply_markup: { inline_keyboard: [[{ text: '🎮 Play now', url: 'https://updown.my' }]] },
+      }),
+    });
+  } catch (e) {
+    console.warn('[CryptoTG] daily leaderboard post failed:', e instanceof Error ? e.message : e);
+  }
+}
+
 /** Announce the weekly winner to the ops Telegram chat. Never throws. */
 export async function notifyCryptoWinner(w: {
   walletAddress: string;

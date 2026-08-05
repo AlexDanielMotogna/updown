@@ -30,6 +30,7 @@ import { startLiveScorePolling } from './services/sports/livescore';
 import { startLiquidityBotScheduler } from './services/liquidity-bot/bot';
 import { startEventBotScheduler } from './services/event-bot/bot';
 import { startCryptoWeeklyScheduler } from './services/crypto-weekly';
+import { startDailyLeaderboardScheduler } from './services/crypto-leaderboard-daily';
 import { startXPoster } from './services/x-poster/poster';
 import { startTradingXpPoller } from './services/trading-xp/poller';
 import { initWebSocket, shutdownWebSocket, ensurePriceStreams } from './websocket';
@@ -218,6 +219,12 @@ httpServer.listen(PORT, async () => {
     startCryptoWeeklyScheduler();
   } catch (error) {
     console.error('Failed to start crypto weekly scheduler:', error);
+  }
+
+  try {
+    startDailyLeaderboardScheduler();
+  } catch (error) {
+    console.error('Failed to start daily leaderboard scheduler:', error);
   }
 
   try {
