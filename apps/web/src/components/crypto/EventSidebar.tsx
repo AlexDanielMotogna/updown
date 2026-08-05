@@ -38,17 +38,6 @@ function timeToWeeklyReset(now: number): string {
 export function AboutEventCard() {
   const t = useThemeTokens();
   const items = ['5-minute prediction window', 'UP or DOWN', 'Instant results', 'Real payouts'];
-  const { data } = useQuery({ queryKey: ['crypto-leaderboard', 'week'], queryFn: () => fetchCryptoLeaderboard('week'), refetchInterval: 20_000 });
-  const participants = data?.data?.length ?? 0;
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => { const id = setInterval(() => setNow(Date.now()), 60_000); return () => clearInterval(id); }, []);
-
-  const stat = (label: string, value: string, color?: string) => (
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.6 }}>
-      <Typography sx={{ fontSize: '0.8rem', color: t.text.secondary }}>{label}</Typography>
-      <Typography sx={{ fontSize: '0.82rem', fontWeight: 800, color: color ?? t.text.primary }}>{value}</Typography>
-    </Box>
-  );
 
   return (
     <Card icon={<RocketLaunch sx={{ fontSize: 18 }} />} title="ABOUT THIS EVENT" tokens={t}>
@@ -63,21 +52,42 @@ export function AboutEventCard() {
           </Box>
         ))}
       </Box>
-
-      {/* Prize + weekly stats (merged from the old Event Info card) */}
-      <Box sx={{ mt: 2, pt: 2, borderTop: `1px solid ${t.border.subtle}` }}>
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1.5 }}>
-          <EmojiEvents sx={{ fontSize: 18, color: t.gold, mt: '2px' }} />
-          <Box>
-            <Typography sx={{ fontWeight: 800, fontSize: '0.85rem', color: t.text.primary }}>Weekly $100 Prize</Typography>
-            <Typography sx={{ fontSize: '0.76rem', color: t.text.secondary, lineHeight: 1.45 }}>Top the weekly PNL leaderboard and win $100. Resets every Monday.</Typography>
-          </Box>
-        </Box>
-        {stat('Prize Pool', '$100.00', t.gain)}
-        {stat('Time Left', timeToWeeklyReset(now))}
-        {stat('Participants', participants.toLocaleString())}
-      </Box>
     </Card>
+  );
+}
+
+/**
+ * Minimalist secondary header: the weekly $100 prize showcase as a slim strip
+ * under the navbar (moved out of the About card). One line, quiet styling.
+ */
+export function PrizeHeader() {
+  const t = useThemeTokens();
+  const { data } = useQuery({ queryKey: ['crypto-leaderboard', 'week'], queryFn: () => fetchCryptoLeaderboard('week'), refetchInterval: 20_000 });
+  const participants = data?.data?.length ?? 0;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const id = setInterval(() => setNow(Date.now()), 60_000); return () => clearInterval(id); }, []);
+
+  const Dot = () => <Box component="span" sx={{ color: t.border.medium, mx: { xs: 0.75, sm: 1.25 } }}>·</Box>;
+
+  return (
+    <Box sx={{ borderBottom: `1px solid ${t.border.subtle}`, bgcolor: `${t.gold}0d` }}>
+      <Box sx={{ width: '100%', maxWidth: 1400, mx: 'auto', px: { xs: 1.5, md: 3 }, py: 0.85, display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 0.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
+          <EmojiEvents sx={{ fontSize: 15, color: t.gold }} />
+          <Typography component="span" sx={{ fontSize: { xs: '0.72rem', sm: '0.78rem' }, fontWeight: 800, color: t.text.primary }}>
+            Weekly <Box component="span" sx={{ color: t.gold }}>$100</Box> Prize
+          </Typography>
+        </Box>
+        <Dot />
+        <Typography component="span" sx={{ fontSize: { xs: '0.72rem', sm: '0.78rem' }, color: t.text.secondary }}>
+          Resets in <Box component="span" sx={{ color: t.text.primary, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{timeToWeeklyReset(now)}</Box>
+        </Typography>
+        <Dot />
+        <Typography component="span" sx={{ fontSize: { xs: '0.72rem', sm: '0.78rem' }, color: t.text.secondary }}>
+          <Box component="span" sx={{ color: t.text.primary, fontWeight: 600 }}>{participants.toLocaleString()}</Box> {participants === 1 ? 'player' : 'players'}
+        </Typography>
+      </Box>
+    </Box>
   );
 }
 
