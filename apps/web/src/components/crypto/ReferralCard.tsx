@@ -40,7 +40,7 @@ export function ReferralCard() {
   const threshold = r?.activeThreshold ?? 20;
 
   return (
-    <Box sx={{ borderRadius: 1, bgcolor: t.bg.surface, overflow: 'hidden' }}>
+    <Box sx={{ borderRadius: 1, bgcolor: t.bg.surface, overflow: 'hidden', minWidth: 0 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: { xs: 1.5, sm: 2 }, py: 1.5, borderBottom: `1px solid ${t.border.subtle}`, color: CYAN }}>
         <Groups sx={{ fontSize: 18 }} />
         <Typography sx={{ fontWeight: 800, fontSize: '0.8rem', letterSpacing: '0.05em', color: t.text.primary }}>INVITE &amp; EARN</Typography>
@@ -55,13 +55,13 @@ export function ReferralCard() {
         </Box>
 
         {/* Invite link + copy/share */}
-        <Box sx={{ display: 'flex', gap: 0.75, mb: 1 }}>
-          <Box sx={{ flex: 1, minWidth: 0, px: 1.25, py: 0.9, borderRadius: 1, bgcolor: t.bg.app, border: `1px solid ${t.border.medium}`, display: 'flex', alignItems: 'center' }}>
-            <Typography sx={{ fontSize: '0.75rem', color: t.text.secondary, fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <Box sx={{ display: 'flex', gap: 0.75, mb: 1, minWidth: 0 }}>
+          <Box sx={{ flex: 1, minWidth: 0, px: 1.25, py: 0.9, borderRadius: 1, bgcolor: t.bg.app, border: `1px solid ${t.border.medium}`, overflow: 'hidden' }}>
+            <Typography noWrap sx={{ fontSize: '0.75rem', color: t.text.secondary, fontFamily: 'monospace' }}>
               {r?.link ? r.link.replace(/^https?:\/\//, '') : 'Loading…'}
             </Typography>
           </Box>
-          <Box component="button" onClick={copy} disabled={!r?.link} sx={{ flex: 'none', px: 1.5, borderRadius: 1, border: 'none', cursor: r?.link ? 'pointer' : 'default', bgcolor: CYAN, color: '#04121a', fontWeight: 800, fontSize: '0.76rem', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Box component="button" onClick={copy} disabled={!r?.link} sx={{ flex: 'none', whiteSpace: 'nowrap', px: 1.5, py: 0.9, borderRadius: 1, border: 'none', cursor: r?.link ? 'pointer' : 'default', bgcolor: CYAN, color: '#04121a', fontWeight: 800, fontSize: '0.76rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
             {copied ? <Check sx={{ fontSize: 16 }} /> : <ContentCopy sx={{ fontSize: 15 }} />}
             {copied ? 'Copied' : 'Share'}
           </Box>
