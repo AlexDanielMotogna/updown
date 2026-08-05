@@ -6,6 +6,8 @@ import { prisma } from '../db';
 import { verifyPrivyDid, bearerToken } from '../services/worldcup-auth';
 import { registerUser } from '../services/rewards';
 import { mintTestFunds } from '../services/test-funds';
+import { acceptReferral, ensureReferralCode, getReferralLeaderboard } from '../services/referrals';
+import { ACTIVE_BET_THRESHOLD } from '../utils/testing';
 
 /**
  * Crypto Predictions event — public API (Privy-authed), /api/crypto-predictions.
@@ -96,6 +98,7 @@ function sortedBoard(map: Map<string, bigint>): [string, bigint][] {
 const joinSchema = z.object({
   walletAddress: z.string().min(32).max(64),
   email: z.string().email().max(200).optional(),
+  ref: z.string().min(4).max(32).optional(), // referral code from ?ref= on the invite link
 });
 
 cryptoPredictionsRouter.post('/join', async (req, res) => {
@@ -104,7 +107,7 @@ cryptoPredictionsRouter.post('/join', async (req, res) => {
     if (!did) return res.status(401).json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'Sign in to play' } });
     const parsed = joinSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'walletAddress required' } });
-    const { walletAddress, email } = parsed.data;
+    const { walletAddress, email, ref } = parsed.data;
     try {
       if (!PublicKey.isOnCurve(new PublicKey(walletAddress))) throw new Error();
     } catch {
@@ -122,6 +125,13 @@ cryptoPredictionsRouter.post('/join', async (req, res) => {
     if (ip && !u?.signupIp) patch.signupIp = ip;
     if (email && !u?.email) patch.email = email;
     if (Object.keys(patch).length) await prisma.user.update({ where: { walletAddress }, data: patch }).catch(() => {});
+
+    // Link the referral (event-native: NO UP/XP granted — grantRewards:false). The
+    // referred user only counts once funded + active, and the anti-cheat still flags
+    // shared IP/device. Best-effort: a bad code never blocks joining.
+    if (ref) {
+      await acceptReferral(walletAddress, ref, { ip, deviceFingerprint: null }, { grantRewards: false }).catch(() => {});
+    }
 
     // Per-IP funding cap: extra accounts from the same network register but don't get funded.
     let accountsFromIp = 0;
@@ -272,6 +282,45 @@ cryptoPredictionsRouter.get('/leaderboard', async (req, res) => {
   } catch (error) {
     console.error('[CryptoPredictions] leaderboard error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load leaderboard' } });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /referrals?wallet= — event-native referral: my invite link + weekly board.
+// ---------------------------------------------------------------------------
+const REFERRAL_PRIZE_LABEL = process.env.CRYPTO_REFERRAL_PRIZE_LABEL ?? '$50';
+const EVENT_URL = process.env.CRYPTO_EVENT_URL ?? 'https://updown.my/crypto-predictions';
+
+cryptoPredictionsRouter.get('/referrals', async (req, res) => {
+  try {
+    const did = await resolveEventDid(req);
+    if (!did) return res.status(401).json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'Sign in' } });
+    const wallet = typeof req.query.wallet === 'string' ? req.query.wallet : '';
+    if (!wallet) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'wallet required' } });
+
+    const [code, board] = await Promise.all([
+      ensureReferralCode(wallet),
+      getReferralLeaderboard({ since: weekWindowStart() }),
+    ]);
+    const top = board.slice(0, 20).map((r) => ({ rank: r.rank, walletAddress: r.walletAddress, displayName: r.displayName, validReferrals: r.validReferrals }));
+    const mine = board.find((r) => r.walletAddress === wallet);
+
+    res.json({
+      success: true,
+      data: {
+        code,
+        link: `${EVENT_URL}?ref=${code}`,
+        prizeLabel: REFERRAL_PRIZE_LABEL,
+        activeThreshold: ACTIVE_BET_THRESHOLD, // referred user needs this many bets to count
+        myValidReferrals: mine?.validReferrals ?? 0,
+        myTotalReferrals: mine?.totalReferrals ?? 0,
+        myRank: mine?.rank ?? null,
+        board: top,
+      },
+    });
+  } catch (error) {
+    console.error('[CryptoPredictions] referrals error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load referrals' } });
   }
 });
 

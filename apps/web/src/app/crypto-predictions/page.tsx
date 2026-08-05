@@ -21,6 +21,7 @@ import { MobilePredictBar } from '@/components/crypto/MobilePredictBar';
 import { ActivePool } from '@/components/crypto/ActivePool';
 import { AboutEventCard, LiveActivityCard } from '@/components/crypto/EventSidebar';
 import { ComingSoonSlider } from '@/components/crypto/ComingSoon';
+import { ReferralCard } from '@/components/crypto/ReferralCard';
 import { HideTermsContext } from '@/components/pool/ResolutionCards';
 
 const CYAN = '#5FD8EF';
@@ -77,7 +78,16 @@ export default function CryptoPredictionsPage() {
       const token = await getAccessToken();
       if (!token) { setFund((f) => (f.open ? { ...f, open: false } : f)); return; }
       const email = (user?.email?.address ?? (user?.google?.email as string | undefined)) ?? null;
-      const res = await joinCryptoEvent(token, walletAddress, email);
+      // Referral code from the invite link (?ref=). Persist across the Privy login
+      // round-trip via sessionStorage so it survives the redirect back.
+      let ref: string | null = null;
+      try {
+        const u = new URL(window.location.href);
+        ref = u.searchParams.get('ref');
+        if (ref) sessionStorage.setItem('updown_ref', ref);
+        else ref = sessionStorage.getItem('updown_ref');
+      } catch { /* ignore */ }
+      const res = await joinCryptoEvent(token, walletAddress, email, ref);
       if (res?.data?.funded) {
         setFund({ open: true, status: 'funded' });
         refetchBalance();
@@ -205,6 +215,7 @@ export default function CryptoPredictionsPage() {
           </Box>
           <Box sx={{ order: { xs: 1, lg: 0 }, display: 'flex', flexDirection: 'column', gap: '5px' }}>
             <ComingSoonSlider autoOpen={marketingOpen} />
+            <ReferralCard />
             <Box id="sec-info" sx={{ scrollMarginTop: '112px' }}><AboutEventCard /></Box>
             <Box id="sec-activity" sx={{ scrollMarginTop: '112px' }}><LiveActivityCard /></Box>
           </Box>

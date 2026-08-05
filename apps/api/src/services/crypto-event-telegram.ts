@@ -180,3 +180,37 @@ export async function notifyCryptoWinner(w: {
     console.warn('[CryptoTG] winner announce failed:', e instanceof Error ? e.message : e);
   }
 }
+
+/** Announce the weekly REFERRAL winner. Never throws. */
+export async function notifyCryptoReferralWinner(w: {
+  walletAddress: string;
+  email: string | null;
+  displayName: string | null;
+  validReferrals: number;
+  weekStart: Date;
+}): Promise<void> {
+  const c = creds();
+  if (!c) return;
+  const prize = process.env.CRYPTO_REFERRAL_PRIZE_LABEL ?? '$50';
+  const week = w.weekStart.toISOString().slice(0, 10);
+  const who = w.displayName && !w.displayName.includes('@') ? w.displayName : maskEmail(w.email);
+  const lines = [
+    '🤝 <b>Crypto Predictions — Weekly Referral Winner</b>',
+    `Week of <b>${week}</b> (Mon 00:00 UTC)`,
+    '',
+    `Top referrer: <b>${esc(who)}</b>`,
+    `Wallet: <code>${esc(shortWallet(w.walletAddress))}</code>`,
+    `Valid referrals: <b>${w.validReferrals}</b>`,
+    '',
+    `Prize: <b>${esc(prize)}</b> — full contact details are in the admin panel.`,
+  ].filter(Boolean).join('\n');
+  try {
+    await fetch(`${TG_API}/bot${c.token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: c.chatId, ...(c.threadId ? { message_thread_id: c.threadId } : {}), text: lines, parse_mode: 'HTML', disable_web_page_preview: true }),
+    });
+  } catch (e) {
+    console.warn('[CryptoTG] referral winner announce failed:', e instanceof Error ? e.message : e);
+  }
+}

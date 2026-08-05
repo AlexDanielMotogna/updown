@@ -1375,12 +1375,26 @@ export interface CryptoLeaderRow { rank: number; walletAddress: string; displayN
 
 export interface CryptoJoinResult { funded: boolean; alreadyFunded: boolean; blockedByIp: boolean; accountsFromIp: number }
 
-/** Ensure the user + one-time auto-fund (1000 test USDC). Optional email is stored to reach winners. */
-export async function joinCryptoEvent(token: string, walletAddress: string, email?: string | null): Promise<ApiResponse<CryptoJoinResult>> {
+/** Ensure the user + one-time auto-fund (1000 test USDC). Optional email is stored to reach winners; ref = invite code. */
+export async function joinCryptoEvent(token: string, walletAddress: string, email?: string | null, ref?: string | null): Promise<ApiResponse<CryptoJoinResult>> {
   return fetchApi<CryptoJoinResult>(`/api/crypto-predictions/join`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ walletAddress, ...(email ? { email } : {}) }),
+    body: JSON.stringify({ walletAddress, ...(email ? { email } : {}), ...(ref ? { ref } : {}) }),
+  });
+}
+
+export interface CryptoReferralRow { rank: number; walletAddress: string; displayName: string | null; validReferrals: number }
+export interface CryptoReferrals {
+  code: string; link: string; prizeLabel: string; activeThreshold: number;
+  myValidReferrals: number; myTotalReferrals: number; myRank: number | null;
+  board: CryptoReferralRow[];
+}
+
+/** Event-native referral: my invite link + weekly referral leaderboard. */
+export async function fetchCryptoReferrals(token: string, wallet: string): Promise<ApiResponse<CryptoReferrals>> {
+  return fetchApi<CryptoReferrals>(`/api/crypto-predictions/referrals?wallet=${encodeURIComponent(wallet)}`, {
+    headers: { Authorization: `Bearer ${token}` },
   });
 }
 
