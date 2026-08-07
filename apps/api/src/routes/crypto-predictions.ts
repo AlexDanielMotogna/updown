@@ -5,7 +5,7 @@ import { PublicKey } from '@solana/web3.js';
 import { prisma } from '../db';
 import { verifyPrivyDid, bearerToken } from '../services/worldcup-auth';
 import { registerUser } from '../services/rewards';
-import { mintTestFunds } from '../services/test-funds';
+import { mintTestFunds, TestFundsCapError } from '../services/test-funds';
 import { acceptReferral, ensureReferralCode, getReferralLeaderboard } from '../services/referrals';
 import { ACTIVE_BET_THRESHOLD } from '../utils/testing';
 
@@ -143,15 +143,15 @@ cryptoPredictionsRouter.post('/join', async (req, res) => {
 
     let funded = false;
     if (!blockedByIp) {
-      // Optimistic lock: only the writer that flips autoFundedAt from null wins the mint,
-      // so concurrent /join calls never double-fund.
-      const lock = await prisma.user.updateMany({ where: { walletAddress, autoFundedAt: null }, data: { autoFundedAt: new Date() } });
-      if (lock.count === 1) {
-        try {
-          await mintTestFunds(walletAddress);
-          funded = true;
-        } catch (e) {
-          await prisma.user.updateMany({ where: { walletAddress }, data: { autoFundedAt: null } }).catch(() => {});
+      // mintTestFunds enforces the hard one-time 1000 cap internally (atomic claim +
+      // on-chain balance guard), so concurrent /join calls never double-fund and a
+      // wallet can never mint more than 1000. A TestFundsCapError just means it was
+      // already funded — not an error worth logging.
+      try {
+        await mintTestFunds(walletAddress);
+        funded = true;
+      } catch (e) {
+        if (!(e instanceof TestFundsCapError)) {
           console.error('[CryptoPredictions] auto-fund failed:', e instanceof Error ? e.message : e);
         }
       }
