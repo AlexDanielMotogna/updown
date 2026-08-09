@@ -74,6 +74,8 @@ export async function cryptoProfitMap(opts: { since?: Date; until?: Date; wallet
     // Only count a pool once every winning-side bet is paid (or permanently
     // failed) — the pool then appears atomically with correct PNL.
     Prisma.sql`NOT EXISTS (SELECT 1 FROM bets w WHERE w.pool_id = p.id AND w.side = p.winner AND w.claimed = false AND w.payout_failed = false)`,
+    // Banned accounts never appear on the board or get drawn as winners.
+    Prisma.sql`NOT EXISTS (SELECT 1 FROM users u WHERE u.wallet_address = b.wallet_address AND u.banned = true)`,
   ];
   if (opts.since) conds.push(Prisma.sql`p.end_time >= ${opts.since}`);
   if (opts.until) conds.push(Prisma.sql`p.end_time < ${opts.until}`);
