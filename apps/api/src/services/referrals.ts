@@ -37,11 +37,20 @@ export async function getReferralLeaderboard(opts?: { since?: Date; until?: Date
   });
   const activeSet = new Set(activeRows.map(u => u.walletAddress));
 
+  // Banned accounts are excluded: a banned referred user never counts as valid,
+  // and banned referrers never appear on the board (nor get drawn as winners).
+  const involved = Array.from(new Set(referrals.flatMap(r => [r.referrerWallet, r.referredWallet])));
+  const bannedRows = involved.length
+    ? await prisma.user.findMany({ where: { walletAddress: { in: involved }, banned: true }, select: { walletAddress: true } })
+    : [];
+  const bannedSet = new Set(bannedRows.map(u => u.walletAddress));
+
   const counts = new Map<string, { valid: number; total: number }>();
   for (const r of referrals) {
+    if (bannedSet.has(r.referrerWallet)) continue; // banned referrer: off the board entirely
     const e = counts.get(r.referrerWallet) ?? { valid: 0, total: 0 };
     e.total += 1;
-    if (!r.suspect && activeSet.has(r.referredWallet)) e.valid += 1;
+    if (!r.suspect && !bannedSet.has(r.referredWallet) && activeSet.has(r.referredWallet)) e.valid += 1;
     counts.set(r.referrerWallet, e);
   }
 
