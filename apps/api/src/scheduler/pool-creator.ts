@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { PrismaClient, PoolStatus, Prisma } from '@prisma/client';
 import { Connection, Keypair, PublicKey, Transaction } from '@solana/web3.js';
-import { PacificaProvider } from 'market-data';
+import { type IMarketDataProvider } from 'market-data';
 import { getPoolPDA, getVaultPDA, buildInitializePoolIx } from 'solana-client';
 import { PoolTemplate } from './config';
 import { emitNewPool, ensurePriceStreams } from '../websocket';
@@ -13,7 +13,7 @@ export interface CreatorDeps {
   prisma: PrismaClient;
   connection: Connection;
   wallet: Keypair;
-  priceProvider: PacificaProvider;
+  priceProvider: IMarketDataProvider;
 }
 
 /**

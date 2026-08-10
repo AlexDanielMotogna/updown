@@ -1,7 +1,7 @@
 import cron from 'node-cron';
 import { PrismaClient, PoolStatus } from '@prisma/client';
 import { Keypair } from '@solana/web3.js';
-import { PacificaProvider } from 'market-data';
+import { type IMarketDataProvider, getMarketDataProvider } from 'market-data';
 import { getSchedulerConfig } from './config';
 import { PoolCreator } from './pool-creator';
 import { PoolResolver } from './pool-resolver';
@@ -25,7 +25,7 @@ export interface JobHealth {
 }
 
 export class PoolScheduler {
-  private priceProvider: PacificaProvider;
+  private priceProvider: IMarketDataProvider;
   private wallet: Keypair;
   private jobs: cron.ScheduledTask[] = [];
   private isRunning = false;
@@ -35,7 +35,7 @@ export class PoolScheduler {
   private resolver: PoolResolver;
 
   constructor() {
-    this.priceProvider = new PacificaProvider();
+    this.priceProvider = getMarketDataProvider();
 
     this.wallet = getAuthorityKeypair();
 

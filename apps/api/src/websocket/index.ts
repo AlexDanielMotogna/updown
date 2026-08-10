@@ -1,13 +1,13 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
-import { PacificaProvider } from 'market-data';
+import { type IMarketDataProvider, getMarketDataProvider } from 'market-data';
 import { recordTick } from '../services/price-history';
 import { createNotification } from '../services/notifications';
 
 const UP_COINS_DIVISOR = 100;
 
 let io: Server | null = null;
-let priceProvider: PacificaProvider | null = null;
+let priceProvider: IMarketDataProvider | null = null;
 
 // Track active subscriptions per room
 const roomSubscriptions = new Map<string, number>();
@@ -33,8 +33,9 @@ export function initWebSocket(httpServer: HttpServer): Server {
 
   console.log('[WS] WebSocket server configured with CORS:', process.env.CORS_ORIGIN || 'localhost:3000');
 
-  // Initialize Pacifica provider for price streaming
-  priceProvider = new PacificaProvider();
+  // Initialize the configured price provider (MARKET_DATA_PROVIDER; default pacifica)
+  priceProvider = getMarketDataProvider();
+  console.log(`[WS] Price provider: ${priceProvider.getName()}`);
 
   io.on('connection', (socket: Socket) => {
     console.log(`[WS] Client connected: ${socket.id}`);
@@ -438,7 +439,7 @@ export function shutdownWebSocket(): void {
 
   // Disconnect provider
   if (priceProvider) {
-    priceProvider.disconnect();
+    priceProvider.disconnect?.();
   }
 
   // Close socket server

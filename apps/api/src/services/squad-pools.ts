@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { PoolStatus } from '@prisma/client';
 import { PublicKey, Transaction } from '@solana/web3.js';
-import { PacificaProvider } from 'market-data';
+import { type IMarketDataProvider, getMarketDataProvider } from 'market-data';
 import { getPoolPDA, getVaultPDA, buildInitializePoolIx, buildResolveIx, buildClosePoolIx } from 'solana-client';
 import { prisma } from '../db';
 import { getUsdcMint, getAuthorityKeypair, derivePoolSeed, getConnection, rotateConnection } from '../utils/solana';
@@ -9,10 +9,10 @@ import { sendAndConfirm } from '../utils/onchain';
 import { emitNewPool } from '../websocket';
 
 // Lazy singleton for price provider
-let _priceProvider: PacificaProvider | null = null;
-function getPriceProvider(): PacificaProvider {
+let _priceProvider: IMarketDataProvider | null = null;
+function getPriceProvider(): IMarketDataProvider {
   if (!_priceProvider) {
-    _priceProvider = new PacificaProvider();
+    _priceProvider = getMarketDataProvider();
   }
   return _priceProvider;
 }

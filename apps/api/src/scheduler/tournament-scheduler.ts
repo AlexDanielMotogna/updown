@@ -1,5 +1,5 @@
 import cron from 'node-cron';
-import { PacificaProvider } from 'market-data';
+import { getMarketDataProvider } from 'market-data';
 import { prisma } from '../db';
 import { checkAndAdvanceRound, resolveTournamentOnChain } from '../services/tournament';
 import { emitTournamentMatchResult } from '../websocket';
@@ -7,7 +7,7 @@ import { processSportsTournament } from './tournament-sports-resolver';
 import { assignMatchdayToRound } from '../services/tournament-sports';
 import { getPriceAtOrBefore } from '../services/price-history';
 
-const priceProvider = new PacificaProvider();
+const priceProvider = getMarketDataProvider();
 
 /** BigInt absolute value. */
 function absBI(n: bigint): bigint {

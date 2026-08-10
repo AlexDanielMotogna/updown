@@ -34,17 +34,21 @@ vi.mock('@prisma/client', () => ({
 }));
 
 // Mock environment
+const mockProvider = () => ({
+  isHealthy: vi.fn().mockResolvedValue(true),
+  getName: vi.fn().mockReturnValue('mock'),
+  getSpotPrice: vi.fn().mockResolvedValue({
+    symbol: 'BTC',
+    price: BigInt(50000_000_000), // $50,000 with 6 decimals
+    timestamp: new Date(),
+    source: 'mock',
+    rawHash: 'abc123',
+  }),
+});
 vi.mock('market-data', () => ({
-  PacificaProvider: vi.fn().mockImplementation(() => ({
-    isHealthy: vi.fn().mockResolvedValue(true),
-    getSpotPrice: vi.fn().mockResolvedValue({
-      symbol: 'BTC',
-      price: BigInt(50000_000_000), // $50,000 with 6 decimals
-      timestamp: new Date(),
-      source: 'pacifica',
-      rawHash: 'abc123',
-    }),
-  })),
+  PacificaProvider: vi.fn().mockImplementation(mockProvider),
+  HyperliquidProvider: vi.fn().mockImplementation(mockProvider),
+  getMarketDataProvider: vi.fn().mockImplementation(mockProvider),
 }));
 
 describe('Scheduler Config', () => {
