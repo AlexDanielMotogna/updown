@@ -1,5 +1,5 @@
 import { prisma } from '../db';
-import { cryptoProfitMap, weekStartUtc, CRYPTO_LAUNCH_EPOCH, REFERRAL_MIN_REFERRERS } from '../routes/crypto-predictions';
+import { cryptoProfitMap, weekStartUtc, CRYPTO_LAUNCH_EPOCH, REFERRAL_MIN_REFERRERS, PREDICTION_MIN_PLAYERS } from '../routes/crypto-predictions';
 import { getReferralLeaderboard } from './referrals';
 import { notifyCryptoWinner, notifyCryptoReferralWinner } from './crypto-event-telegram';
 
@@ -25,6 +25,10 @@ export async function drawCryptoWeek(weekAnchor: Date): Promise<{ winner: unknow
   const weekEnd = new Date(ws.getTime() + WEEK_MS);
   const since = CRYPTO_LAUNCH_EPOCH > ws && CRYPTO_LAUNCH_EPOCH < weekEnd ? CRYPTO_LAUNCH_EPOCH : ws;
   const map = await cryptoProfitMap({ since, until: weekEnd });
+  // Rule: only award once at least PREDICTION_MIN_PLAYERS distinct players competed.
+  if (map.size < PREDICTION_MIN_PLAYERS) {
+    return { winner: null, note: `not enough players yet (${map.size}/${PREDICTION_MIN_PLAYERS})` };
+  }
   const top = [...map.entries()].sort((a, b) => (b[1] > a[1] ? 1 : b[1] < a[1] ? -1 : 0))[0];
   if (!top || top[1] <= 0n) return { winner: null, note: 'no positive PNL winner for this week' };
 

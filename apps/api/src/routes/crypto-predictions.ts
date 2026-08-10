@@ -35,6 +35,10 @@ const usdFromLabel = (s: string) => Number(s.replace(/[^0-9.]/g, '')) || 0;
  *  winner on trivial participation. Overridable via env. */
 export const REFERRAL_MIN_REFERRERS = Math.max(1, Number(process.env.CRYPTO_REFERRAL_MIN_REFERRERS ?? 10));
 
+/** The weekly PNL prize is only awarded once at least this many distinct players
+ *  are on the board that week. Overridable via env. */
+export const PREDICTION_MIN_PLAYERS = Math.max(1, Number(process.env.CRYPTO_PREDICTION_MIN_PLAYERS ?? 50));
+
 /** Real client IP (Express `trust proxy` is on, so req.ip is the X-Forwarded-For client). */
 function clientIp(req: Request): string | null {
   return req.ip ?? null;
@@ -316,7 +320,14 @@ cryptoPredictionsRouter.get('/leaderboard', async (req, res) => {
       avatarUrl: byWallet.get(wallet)?.avatarUrl ?? null,
       pnl: pnl.toString(),
     }));
-    res.json({ success: true, data, window: since ? 'week' : 'all' });
+    res.json({
+      success: true,
+      data,
+      window: since ? 'week' : 'all',
+      players: board.length,
+      minPlayers: PREDICTION_MIN_PLAYERS,
+      prizeActive: board.length >= PREDICTION_MIN_PLAYERS,
+    });
   } catch (error) {
     console.error('[CryptoPredictions] leaderboard error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load leaderboard' } });

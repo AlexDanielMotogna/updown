@@ -74,6 +74,8 @@ export function PrizeHeader() {
   const t = useThemeTokens();
   const { data } = useQuery({ queryKey: ['crypto-leaderboard', 'week'], queryFn: () => fetchCryptoLeaderboard('week'), refetchInterval: 20_000 });
   const participants = data?.data?.length ?? 0;
+  const minPlayers = data?.minPlayers ?? 0;
+  const prizeActive = data?.prizeActive ?? true;
   const [now, setNow] = useState(() => Date.now());
   const [aboutOpen, setAboutOpen] = useState(false);
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 60_000); return () => clearInterval(id); }, []);
@@ -108,8 +110,9 @@ export function PrizeHeader() {
             Resets in <Box component="span" sx={{ color: t.text.primary, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{timeToWeeklyReset(now)}</Box>
           </Typography>
           <Dot />
-          <Typography component="span" sx={{ fontSize: fs, color: t.text.secondary, whiteSpace: 'nowrap' }}>
-            <Box component="span" sx={{ color: t.text.primary, fontWeight: 600 }}>{participants.toLocaleString()}</Box> {participants === 1 ? 'player' : 'players'}
+          <Typography component="span" sx={{ fontSize: fs, color: t.text.secondary, whiteSpace: 'nowrap' }} title={!prizeActive ? `Prize activates at ${minPlayers} players` : undefined}>
+            <Box component="span" sx={{ color: t.text.primary, fontWeight: 600 }}>{participants.toLocaleString()}</Box>
+            {!prizeActive && minPlayers > 0 ? <Box component="span" sx={{ color: t.text.tertiary }}>/{minPlayers}</Box> : null} {participants === 1 ? 'player' : 'players'}
           </Typography>
           <Dot />
           <Typography component="button" onClick={() => setAboutOpen(true)} sx={{ background: 'none', border: 'none', p: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: fs, fontWeight: 600, color: CYAN, whiteSpace: 'nowrap', '&:hover': { textDecoration: 'underline' } }}>
