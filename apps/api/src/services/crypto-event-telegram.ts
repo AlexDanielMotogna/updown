@@ -148,6 +148,31 @@ export async function notifyDailyLeaderboard(p: {
   }
 }
 
+/**
+ * Post a winner banner (PNG, base64) to the group with a caption. Used by the
+ * admin "Post to Telegram" button. thread defaults to the announcement topic.
+ * Caption is plain text (no parse_mode) to keep user-supplied names safe.
+ */
+export async function postCryptoWinnerPhoto(imageBase64: string, caption: string, thread?: number): Promise<{ ok: boolean; error?: string }> {
+  const c = creds();
+  if (!c) return { ok: false, error: 'Telegram not configured' };
+  const b64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+  const buf = Buffer.from(b64, 'base64');
+  const th = thread ?? c.threadId;
+  const form = new FormData();
+  form.append('chat_id', c.chatId);
+  if (th) form.append('message_thread_id', String(th));
+  if (caption) form.append('caption', caption.slice(0, 1024));
+  form.append('photo', new Blob([buf], { type: 'image/png' }), 'winner.png');
+  try {
+    const r = await fetch(`${TG_API}/bot${c.token}/sendPhoto`, { method: 'POST', body: form });
+    const j = (await r.json()) as { ok: boolean; description?: string };
+    return j.ok ? { ok: true } : { ok: false, error: j.description ?? 'Telegram error' };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 /** Announce the weekly winner to the ops Telegram chat. Never throws. */
 export async function notifyCryptoWinner(w: {
   walletAddress: string;

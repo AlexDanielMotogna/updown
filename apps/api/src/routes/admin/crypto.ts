@@ -4,6 +4,7 @@ import { prisma } from '../../db';
 import { cryptoProfitMap, weekWindowStart } from '../crypto-predictions';
 import { drawCryptoWeek, drawCryptoReferralWeek } from '../../services/crypto-weekly';
 import { ACTIVE_BET_THRESHOLD } from '../../utils/testing';
+import { postCryptoWinnerPhoto } from '../../services/crypto-event-telegram';
 
 /**
  * Crypto Predictions event admin — /api/admin/crypto (x-admin-key, back-office).
@@ -158,6 +159,23 @@ adminCryptoRouter.post('/winner/:id/paid', async (req, res) => {
   } catch (e) {
     console.error('[AdminCrypto] paid error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to update' } });
+  }
+});
+
+// POST /winner-image — post a winner banner (base64 PNG) + caption to Telegram.
+// thread: omit → Announcement (default); 0 → General; >0 → that topic.
+const winnerImageSchema = z.object({ imageBase64: z.string().min(100), caption: z.string().max(1024).optional(), thread: z.number().int().min(0).optional() });
+adminCryptoRouter.post('/winner-image', async (req, res) => {
+  try {
+    const parsed = winnerImageSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'imageBase64 required' } });
+    const { imageBase64, caption, thread } = parsed.data;
+    const r = await postCryptoWinnerPhoto(imageBase64, caption ?? '', thread);
+    if (!r.ok) return res.status(502).json({ success: false, error: { code: 'TELEGRAM_ERROR', message: r.error ?? 'Failed to post' } });
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[AdminCrypto] winner-image error:', e);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to post image' } });
   }
 });
 

@@ -7,6 +7,7 @@ import { adminFetch } from '../lib/adminApi';
 import { darkTokens as t } from '@/lib/theme';
 import { SectionCard, StatCard, LoadingState, EmptyState, ErrorState, Paginator, POLL_MEDIUM_MS } from '../ui';
 import { EventBots } from './EventBots';
+import { CryptoWinnerShareCard, type CryptoWinnerCardData } from './CryptoWinnerShareCard';
 
 const CYAN = '#5FD8EF';
 const PAGE = 50;
@@ -26,6 +27,7 @@ export function CryptoAdmin() {
   const [flaggedOnly, setFlaggedOnly] = useState(false);
   const [page, setPage] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
+  const [shareCard, setShareCard] = useState<CryptoWinnerCardData | null>(null);
 
   const q = search.trim().toLowerCase();
   const overviewQ = useQuery({ queryKey: ['crypto-admin-overview'], queryFn: () => adminFetch<{ data: Overview }>('/crypto'), refetchInterval: POLL_MEDIUM_MS });
@@ -147,7 +149,12 @@ export function CryptoAdmin() {
                     </TableCell>
                     <TableCell sx={{ ...td, color: t.success, fontWeight: 700 }}>{fmtPnl(w.pnl)}</TableCell>
                     <TableCell sx={td}>{w.paid ? <Box component="span" sx={{ color: t.success, fontWeight: 700 }}>Paid</Box> : <Box component="span" sx={{ color: t.warning }}>Pending</Box>}</TableCell>
-                    <TableCell sx={td}>{btn(w.paid ? 'Undo' : 'Mark paid', () => setPaid(w), { disabled: busy === w.id, primary: !w.paid })}</TableCell>
+                    <TableCell sx={td}>
+                      <Box sx={{ display: 'flex', gap: 0.75 }}>
+                        {btn('Share', () => setShareCard({ kind: 'prediction', displayName: w.displayName, email: w.email, walletAddress: w.walletAddress, prize: 100, weekStart: w.weekStart, pnl: w.pnl }))}
+                        {btn(w.paid ? 'Undo' : 'Mark paid', () => setPaid(w), { disabled: busy === w.id, primary: !w.paid })}
+                      </Box>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -179,7 +186,12 @@ export function CryptoAdmin() {
                     </TableCell>
                     <TableCell sx={{ ...td, fontWeight: 700 }}>{w.validReferrals}</TableCell>
                     <TableCell sx={td}>{w.paid ? <Box component="span" sx={{ color: t.success, fontWeight: 700 }}>Paid</Box> : <Box component="span" sx={{ color: t.warning }}>Pending</Box>}</TableCell>
-                    <TableCell sx={td}>{btn(w.paid ? 'Undo' : 'Mark paid', () => setRefPaid(w), { disabled: busy === w.id, primary: !w.paid })}</TableCell>
+                    <TableCell sx={td}>
+                      <Box sx={{ display: 'flex', gap: 0.75 }}>
+                        {btn('Share', () => setShareCard({ kind: 'referral', displayName: w.displayName, email: w.email, walletAddress: w.walletAddress, prize: 50, weekStart: w.weekStart, validReferrals: w.validReferrals }))}
+                        {btn(w.paid ? 'Undo' : 'Mark paid', () => setRefPaid(w), { disabled: busy === w.id, primary: !w.paid })}
+                      </Box>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -275,6 +287,8 @@ export function CryptoAdmin() {
           </>
         )}
       </SectionCard>
+
+      {shareCard && <CryptoWinnerShareCard data={shareCard} onClose={() => setShareCard(null)} />}
     </Box>
   );
 }
