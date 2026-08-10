@@ -14,6 +14,8 @@ const PAGE = 50;
 interface CUser { walletAddress: string; displayName: string | null; email: string | null; signupIp: string | null; banned: boolean; funded: boolean; createdAt: string; bets: number; flags: string[] }
 interface Winner { id: string; weekStart: string; walletAddress: string; displayName: string | null; email: string | null; payoutWallet: string | null; pnl: string; paid: boolean; paidAt: string | null; paidTx: string | null }
 interface RefWinner { id: string; weekStart: string; walletAddress: string; displayName: string | null; email: string | null; payoutWallet: string | null; validReferrals: number; paid: boolean; paidAt: string | null; paidTx: string | null }
+interface RefEntry { walletAddress: string; displayName: string | null; email: string | null; joinedAt: string; bets: number; suspect: boolean; suspectReason: string | null; banned: boolean; active: boolean; valid: boolean }
+interface RefGroup { referrer: { walletAddress: string; displayName: string | null; email: string | null; banned: boolean }; total: number; valid: number; referred: RefEntry[] }
 interface Overview { users: number; funded: number; banned: number; bets: number; weeklyParticipants: number }
 
 const short = (w: string) => `${w.slice(0, 4)}…${w.slice(-4)}`;
@@ -33,6 +35,7 @@ export function CryptoAdmin() {
   });
   const winnersQ = useQuery({ queryKey: ['crypto-admin-winners'], queryFn: () => adminFetch<{ data: Winner[] }>('/crypto/winners'), refetchInterval: POLL_MEDIUM_MS });
   const refWinnersQ = useQuery({ queryKey: ['crypto-admin-referral-winners'], queryFn: () => adminFetch<{ data: RefWinner[] }>('/crypto/referral-winners'), refetchInterval: POLL_MEDIUM_MS });
+  const refTreeQ = useQuery({ queryKey: ['crypto-admin-referrals'], queryFn: () => adminFetch<{ data: RefGroup[] }>('/crypto/referrals'), refetchInterval: POLL_MEDIUM_MS });
 
   const ov = overviewQ.data?.data;
   const rows = usersQ.data?.data ?? [];
@@ -40,6 +43,7 @@ export function CryptoAdmin() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE));
   const winners = winnersQ.data?.data ?? [];
   const refWinners = refWinnersQ.data?.data ?? [];
+  const refTree = refTreeQ.data?.data ?? [];
 
   const drawRefWinner = async () => {
     if (busy) return;
@@ -181,6 +185,51 @@ export function CryptoAdmin() {
               </TableBody>
             </Table>
           </TableContainer>
+        )}
+      </SectionCard>
+
+      {/* Who referred whom */}
+      <SectionCard title="Referrals" subtitle="Who referred whom (event participants)">
+        {refTreeQ.isLoading ? <LoadingState variant="inline" /> : refTree.length === 0 ? (
+          <EmptyState title="No referrals yet" hint="Referrals appear here once users share their invite link and friends join." />
+        ) : (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            {refTree.map((g) => (
+              <Box key={g.referrer.walletAddress} sx={{ border: `1px solid ${t.border.subtle}`, borderRadius: 1, overflow: 'hidden' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, px: 1.25, py: 0.9, bgcolor: `${t.text.primary}08` }}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Box component="span" sx={{ fontSize: '0.8rem', fontWeight: 700, color: t.text.primary, fontFamily: 'monospace' }}>{g.referrer.displayName || short(g.referrer.walletAddress)}</Box>
+                    {g.referrer.banned && <Box component="span" sx={{ ml: 0.75, color: t.error, fontSize: '0.6rem', fontWeight: 800 }}>BANNED</Box>}
+                    {g.referrer.email && <Box component="span" sx={{ ml: 0.75, color: t.text.tertiary, fontSize: '0.72rem' }}>{g.referrer.email}</Box>}
+                  </Box>
+                  <Box component="span" sx={{ flex: 'none', fontSize: '0.72rem', color: t.text.secondary }}>
+                    <Box component="span" sx={{ color: t.success, fontWeight: 800 }}>{g.valid}</Box> valid / {g.total} total
+                  </Box>
+                </Box>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead><TableRow>{['Referred', 'Email', 'Joined', 'Bets', 'Status'].map((h) => <TableCell key={h} sx={th}>{h}</TableCell>)}</TableRow></TableHead>
+                    <TableBody>
+                      {g.referred.map((rf) => (
+                        <TableRow key={rf.walletAddress}>
+                          <TableCell sx={{ ...td, fontFamily: 'monospace' }}>{rf.displayName || short(rf.walletAddress)}</TableCell>
+                          <TableCell sx={td}>{rf.email ?? '—'}</TableCell>
+                          <TableCell sx={td}>{new Date(rf.joinedAt).toLocaleDateString()}</TableCell>
+                          <TableCell sx={{ ...td, fontVariantNumeric: 'tabular-nums' }}>{rf.bets}</TableCell>
+                          <TableCell sx={td}>
+                            {rf.banned ? <Box component="span" sx={{ color: t.error, fontWeight: 700 }}>Banned</Box>
+                              : rf.suspect ? <Box component="span" sx={{ color: t.warning, fontWeight: 700 }} title={rf.suspectReason ?? undefined}>Suspect</Box>
+                              : rf.valid ? <Box component="span" sx={{ color: t.success, fontWeight: 700 }}>Valid</Box>
+                              : <Box component="span" sx={{ color: t.text.tertiary }}>{rf.active ? 'Pending' : `${rf.bets}/20 bets`}</Box>}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            ))}
+          </Box>
         )}
       </SectionCard>
 

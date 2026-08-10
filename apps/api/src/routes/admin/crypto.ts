@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../db';
 import { cryptoProfitMap, weekWindowStart } from '../crypto-predictions';
 import { drawCryptoWeek, drawCryptoReferralWeek } from '../../services/crypto-weekly';
+import { ACTIVE_BET_THRESHOLD } from '../../utils/testing';
 
 /**
  * Crypto Predictions event admin — /api/admin/crypto (x-admin-key, back-office).
@@ -157,6 +158,69 @@ adminCryptoRouter.post('/winner/:id/paid', async (req, res) => {
   } catch (e) {
     console.error('[AdminCrypto] paid error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to update' } });
+  }
+});
+
+// GET /referrals — who referred whom (event), grouped by referrer with status.
+adminCryptoRouter.get('/referrals', async (_req, res) => {
+  try {
+    const referrals = await prisma.referral.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: { referrerWallet: true, referredWallet: true, createdAt: true, suspect: true, suspectReason: true },
+      take: 2000,
+    });
+    if (referrals.length === 0) return res.json({ success: true, data: [] });
+
+    const wallets = [...new Set(referrals.flatMap((r) => [r.referrerWallet, r.referredWallet]))];
+    const users = await prisma.user.findMany({
+      where: { walletAddress: { in: wallets } },
+      select: { walletAddress: true, displayName: true, email: true, banned: true, settledBets: true, autoFundedAt: true, signupIp: true },
+    });
+    const byWallet = new Map(users.map((u) => [u.walletAddress, u]));
+
+    // Group by referrer; only keep referrals whose referred user is an event participant.
+    const groups = new Map<string, { referred: unknown[]; total: number; valid: number }>();
+    for (const r of referrals) {
+      const rd = byWallet.get(r.referredWallet);
+      const isEventUser = rd && (rd.autoFundedAt != null || rd.signupIp != null);
+      if (!isEventUser) continue;
+      const rr = byWallet.get(r.referrerWallet);
+      const active = (rd?.settledBets ?? 0) >= ACTIVE_BET_THRESHOLD;
+      const valid = !r.suspect && !rd?.banned && !rr?.banned && active;
+      const g = groups.get(r.referrerWallet) ?? { referred: [], total: 0, valid: 0 };
+      g.total += 1;
+      if (valid) g.valid += 1;
+      g.referred.push({
+        walletAddress: r.referredWallet,
+        displayName: rd?.displayName ?? null,
+        email: rd?.email ?? null,
+        joinedAt: r.createdAt.toISOString(),
+        bets: rd?.settledBets ?? 0,
+        suspect: r.suspect,
+        suspectReason: r.suspectReason,
+        banned: rd?.banned ?? false,
+        active,
+        valid,
+      });
+      groups.set(r.referrerWallet, g);
+    }
+
+    const data = [...groups.entries()]
+      .map(([wallet, g]) => {
+        const rr = byWallet.get(wallet);
+        return {
+          referrer: { walletAddress: wallet, displayName: rr?.displayName ?? null, email: rr?.email ?? null, banned: rr?.banned ?? false },
+          total: g.total,
+          valid: g.valid,
+          referred: g.referred,
+        };
+      })
+      .sort((a, b) => (b.valid - a.valid) || (b.total - a.total));
+
+    res.json({ success: true, data });
+  } catch (e) {
+    console.error('[AdminCrypto] referrals error:', e);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load referrals' } });
   }
 });
 
