@@ -240,7 +240,7 @@ export default function CryptoPredictionsPage() {
       <CryptoTour run={tutorialOpen} steps={tourSteps} onClose={closeTutorial} onStepChange={(step) => setTourSheet(!!step.bare)} />
 
       <MyActivityModal open={activityOpen} onClose={() => setActivityOpen(false)} wallet={walletAddress} />
-      {win && !win.paid && <WinnerDialog open={winnerOpen} pnl={win.pnl} payoutWallet={win.payoutWallet} onClose={() => setWinnerOpen(false)} onSubmit={submitPayoutWallet} />}
+      {win && !win.paid && <WinnerDialog open={winnerOpen} prizes={win.prizes} totalLabel={win.totalLabel} payoutWallet={win.payoutWallet} onClose={() => setWinnerOpen(false)} onSubmit={submitPayoutWallet} />}
       {banned && <BannedOverlay />}
     </Box>
   );

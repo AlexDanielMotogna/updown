@@ -12,10 +12,14 @@ const fmtUsd = (raw: string) => {
 };
 const short = (w: string) => `${w.slice(0, 4)}…${w.slice(-4)}`;
 
-/** Celebratory popup for the weekly prize winner + payout-wallet claim (like WorldCup). */
-export function WinnerDialog({ open, pnl, payoutWallet, onClose, onSubmit }: {
+export interface WinnerPrize { kind: 'prediction' | 'referral'; label: string; pnl?: string; validReferrals?: number }
+
+/** Celebratory popup for any weekly prize winner (prediction and/or referral) +
+ *  payout-wallet claim (like WorldCup). The SAME dialog serves both prize types. */
+export function WinnerDialog({ open, prizes, totalLabel, payoutWallet, onClose, onSubmit }: {
   open: boolean;
-  pnl: string;
+  prizes: WinnerPrize[];
+  totalLabel: string;
   payoutWallet: string | null;
   onClose: () => void;
   /** Submit the payout wallet; resolves to an error message, or null on success. */
@@ -41,11 +45,20 @@ export function WinnerDialog({ open, pnl, payoutWallet, onClose, onSubmit }: {
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth PaperProps={{ sx: { bgcolor: t.bg.surface, borderRadius: 1.5, border: `1px solid ${t.gold}55`, overflow: 'hidden', backgroundImage: 'none' } }}>
       <Box sx={{ p: 3, textAlign: 'center' }}>
         <EmojiEvents sx={{ fontSize: 52, color: t.gold, mb: 1 }} />
-        <Typography sx={{ fontWeight: 900, fontSize: '1.2rem', color: t.text.primary, mb: 0.5 }}>You won the weekly prize!</Typography>
-        <Typography sx={{ fontSize: '1.5rem', fontWeight: 900, color: t.gold, mb: 0.75 }}>$100</Typography>
-        <Typography sx={{ fontSize: '0.82rem', color: t.text.secondary, lineHeight: 1.5, mb: 2 }}>
-          You topped the weekly PNL leaderboard with <b style={{ color: t.gain }}>{fmtUsd(pnl)}</b>.
-        </Typography>
+        <Typography sx={{ fontWeight: 900, fontSize: '1.2rem', color: t.text.primary, mb: 0.5 }}>You won the weekly prize{prizes.length > 1 ? 's' : ''}!</Typography>
+        <Typography sx={{ fontSize: '1.5rem', fontWeight: 900, color: t.gold, mb: 1 }}>{totalLabel}</Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 2 }}>
+          {prizes.map((p) => (
+            <Box key={p.kind} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, px: 1.25, py: 0.75, borderRadius: 1, bgcolor: `${t.gold}12`, border: `1px solid ${t.gold}33` }}>
+              <Typography sx={{ fontSize: '0.78rem', color: t.text.primary, textAlign: 'left' }}>
+                {p.kind === 'prediction' ? 'Top the weekly PNL leaderboard' : 'Top referrer of the week'}
+                {p.kind === 'prediction' && p.pnl ? <Box component="span" sx={{ color: t.gain, ml: 0.5 }}>({fmtUsd(p.pnl)})</Box> : null}
+                {p.kind === 'referral' && p.validReferrals != null ? <Box component="span" sx={{ color: t.text.tertiary, ml: 0.5 }}>({p.validReferrals} referrals)</Box> : null}
+              </Typography>
+              <Typography sx={{ fontSize: '0.82rem', fontWeight: 800, color: t.gold, flex: 'none' }}>{p.label}</Typography>
+            </Box>
+          ))}
+        </Box>
 
         {submitted ? (
           <>
@@ -55,7 +68,7 @@ export function WinnerDialog({ open, pnl, payoutWallet, onClose, onSubmit }: {
                 Wallet saved: <Box component="span" sx={{ fontFamily: 'monospace', fontWeight: 700 }}>{short(payoutWallet || wallet)}</Box>
               </Typography>
             </Box>
-            <Typography sx={{ fontSize: '0.76rem', color: t.text.tertiary, mb: 2 }}>We&apos;ll send your $100 there. You may be contacted by email / Telegram to confirm.</Typography>
+            <Typography sx={{ fontSize: '0.76rem', color: t.text.tertiary, mb: 2 }}>We&apos;ll send your {totalLabel} there. You may be contacted by email / Telegram to confirm.</Typography>
             <Box component="button" onClick={onClose} sx={{ width: '100%', py: 1.25, borderRadius: 1, border: 'none', cursor: 'pointer', bgcolor: CYAN, color: '#04121a', fontWeight: 900, fontSize: '0.9rem' }}>Done</Box>
           </>
         ) : (

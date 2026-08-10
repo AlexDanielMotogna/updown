@@ -1369,7 +1369,8 @@ export async function claimWorldCupWinning(
 }
 
 // ── Crypto Predictions event ────────────────────────────────────────────────
-export interface CryptoWin { weekStart: string; pnl: string; paid: boolean; payoutWallet: string | null }
+export interface CryptoPrize { kind: 'prediction' | 'referral'; label: string; amountUsd: number; pnl?: string; validReferrals?: number }
+export interface CryptoWin { weekStart: string; paid: boolean; payoutWallet: string | null; pnl: string; prizes: CryptoPrize[]; totalUsd: number; totalLabel: string }
 export interface CryptoMe { realizedPnl: string; weeklyPnl: string; rank: number | null; players: number; banned: boolean; win: CryptoWin | null }
 export interface CryptoLeaderRow { rank: number; walletAddress: string; displayName: string | null; avatarUrl: string | null; pnl: string }
 
