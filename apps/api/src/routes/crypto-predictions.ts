@@ -25,6 +25,11 @@ const SETTLED = ['RESOLVED', 'CLAIMABLE', 'CANCELLED'];
 /** Anti-abuse: max funded accounts allowed per signup IP (extras register but aren't funded). */
 const MAX_FUNDED_PER_IP = Math.max(1, Number(process.env.CRYPTO_MAX_ACCOUNTS_PER_IP ?? 3));
 
+/** Weekly prize labels (shared by the winner popup + Telegram). Overridable via env. */
+const PREDICTION_PRIZE_LABEL = process.env.CRYPTO_PREDICTION_PRIZE_LABEL ?? '$100';
+const REFERRAL_PRIZE_LABEL = process.env.CRYPTO_REFERRAL_PRIZE_LABEL ?? '$50';
+const usdFromLabel = (s: string) => Number(s.replace(/[^0-9.]/g, '')) || 0;
+
 /** Real client IP (Express `trust proxy` is on, so req.ip is the X-Forwarded-For client). */
 function clientIp(req: Request): string | null {
   return req.ip ?? null;
@@ -177,14 +182,33 @@ cryptoPredictionsRouter.get('/me', async (req, res) => {
     if (!wallet) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'wallet required' } });
 
     const ws = weekWindowStart();
-    const [allTime, weeklyBoard, self, win] = await Promise.all([
+    const [allTime, weeklyBoard, self, predWin, refWin] = await Promise.all([
       cryptoProfitMap({ wallets: [wallet] }),
       cryptoProfitMap({ since: ws }),
       prisma.user.findUnique({ where: { walletAddress: wallet }, select: { banned: true } }),
-      prisma.cryptoEventWinner.findFirst({ where: { walletAddress: wallet }, orderBy: { weekStart: 'desc' } }),
+      prisma.cryptoEventWinner.findFirst({ where: { walletAddress: wallet, paid: false }, orderBy: { weekStart: 'desc' } }),
+      prisma.cryptoReferralWinner.findFirst({ where: { walletAddress: wallet, paid: false }, orderBy: { weekStart: 'desc' } }),
     ]);
     const ranked = sortedBoard(weeklyBoard);
     const idx = ranked.findIndex(([w]) => w === wallet);
+
+    // Unified winner popup: any unpaid prize (prediction and/or referral) makes the
+    // user submit a payout wallet through the SAME dialog — like the WorldCup claim.
+    const prizes: Array<Record<string, unknown>> = [];
+    if (predWin) prizes.push({ kind: 'prediction', label: PREDICTION_PRIZE_LABEL, amountUsd: usdFromLabel(PREDICTION_PRIZE_LABEL), pnl: predWin.pnl.toString() });
+    if (refWin) prizes.push({ kind: 'referral', label: REFERRAL_PRIZE_LABEL, amountUsd: usdFromLabel(REFERRAL_PRIZE_LABEL), validReferrals: refWin.validReferrals });
+    const totalUsd = prizes.reduce((s, p) => s + (p.amountUsd as number), 0);
+    const win = prizes.length > 0
+      ? {
+          weekStart: (predWin ?? refWin)!.weekStart.toISOString(),
+          paid: false,
+          payoutWallet: predWin?.payoutWallet ?? refWin?.payoutWallet ?? null,
+          pnl: predWin?.pnl.toString() ?? '0', // back-compat
+          prizes,
+          totalUsd,
+          totalLabel: `$${totalUsd}`,
+        }
+      : null;
 
     res.json({
       success: true,
@@ -194,8 +218,7 @@ cryptoPredictionsRouter.get('/me', async (req, res) => {
         rank: idx >= 0 ? idx + 1 : null,
         players: ranked.length,
         banned: self?.banned ?? false,
-        // Surface the most recent win for the in-app winner banner (hidden once paid).
-        win: win ? { weekStart: win.weekStart.toISOString(), pnl: win.pnl.toString(), paid: win.paid, payoutWallet: win.payoutWallet } : null,
+        win,
       },
     });
   } catch (error) {
@@ -222,10 +245,18 @@ cryptoPredictionsRouter.post('/claim', async (req, res) => {
       return res.status(400).json({ success: false, error: { code: 'BAD_WALLET', message: 'Invalid Solana wallet address' } });
     }
 
-    // Attach the payout wallet to this player's most recent unpaid win.
-    const win = await prisma.cryptoEventWinner.findFirst({ where: { walletAddress, paid: false }, orderBy: { weekStart: 'desc' } });
-    if (!win) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'No prize to claim' } });
-    await prisma.cryptoEventWinner.update({ where: { id: win.id }, data: { payoutWallet } });
+    // Attach the payout wallet to this player's most recent unpaid prize(s) — both
+    // the prediction ($100) and the referral ($50) winner, so one submission covers
+    // whichever they won that week.
+    const [predWin, refWin] = await Promise.all([
+      prisma.cryptoEventWinner.findFirst({ where: { walletAddress, paid: false }, orderBy: { weekStart: 'desc' } }),
+      prisma.cryptoReferralWinner.findFirst({ where: { walletAddress, paid: false }, orderBy: { weekStart: 'desc' } }),
+    ]);
+    if (!predWin && !refWin) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'No prize to claim' } });
+    await Promise.all([
+      predWin ? prisma.cryptoEventWinner.update({ where: { id: predWin.id }, data: { payoutWallet } }) : null,
+      refWin ? prisma.cryptoReferralWinner.update({ where: { id: refWin.id }, data: { payoutWallet } }) : null,
+    ]);
     res.json({ success: true, data: { payoutWallet } });
   } catch (error) {
     console.error('[CryptoPredictions] claim error:', error);
@@ -290,7 +321,6 @@ cryptoPredictionsRouter.get('/leaderboard', async (req, res) => {
 // ---------------------------------------------------------------------------
 // GET /referrals?wallet= — event-native referral: my invite link + weekly board.
 // ---------------------------------------------------------------------------
-const REFERRAL_PRIZE_LABEL = process.env.CRYPTO_REFERRAL_PRIZE_LABEL ?? '$50';
 const EVENT_URL = process.env.CRYPTO_EVENT_URL ?? 'https://updown.my/crypto-predictions';
 
 cryptoPredictionsRouter.get('/referrals', async (req, res) => {
