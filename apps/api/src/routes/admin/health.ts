@@ -3,7 +3,7 @@ import { PublicKey } from '@solana/web3.js';
 import { prisma } from '../../db';
 import { getScheduler } from '../../scheduler/pool-scheduler';
 import { getConnection } from '../../utils/solana';
-import { PacificaProvider } from 'market-data';
+import { getMarketDataProvider } from 'market-data';
 import { getLivescoreMetrics } from '../../services/sports/livescore';
 
 // Per Phase 1 #9: a job that has never run is not unhealthy — it's pending.
@@ -38,7 +38,7 @@ adminHealthRouter.get('/overview', async (_req, res) => {
       // Price provider health
       (async () => {
         try {
-          const provider = new PacificaProvider();
+          const provider = getMarketDataProvider();
           return await provider.isHealthy();
         } catch {
           return false;

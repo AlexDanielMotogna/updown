@@ -21,7 +21,7 @@ import { getConnection, getAuthorityKeypair, getUsdcMint } from '../../utils/sol
 import { getAssociatedTokenAddress, getAccount } from '@solana/spl-token';
 import { autoClaimBets } from '../../scheduler/auto-claim';
 import { rotateConnection } from '../../utils/solana';
-import { PacificaProvider } from 'market-data';
+import { getMarketDataProvider } from 'market-data';
 import { ResolverDeps } from '../../scheduler/resolver-types';
 
 export const adminPayoutsRouter: RouterType = Router();
@@ -34,7 +34,7 @@ function buildResolverDeps(): ResolverDeps {
     prisma,
     connection: getConnection(),
     wallet: getAuthorityKeypair(),
-    priceProvider: new PacificaProvider(),
+    priceProvider: getMarketDataProvider(),
   };
 }
 

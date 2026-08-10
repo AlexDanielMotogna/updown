@@ -1,13 +1,13 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { Connection, Keypair } from '@solana/web3.js';
-import { PacificaProvider } from 'market-data';
+import { type IMarketDataProvider } from 'market-data';
 import { rotateConnection } from '../utils/solana';
 
 /**
  * Dependencies for the on-chain settlement helpers (resolve / refund / close).
  * None of these need a price feed — they act on already-decided outcomes — so
  * callers on the void/refund path (e.g. cancelled sports pools) can build this
- * without a PacificaProvider instead of passing `null as any`.
+ * without a price provider instead of passing `null as any`.
  */
 export interface OnChainDeps {
   prisma: PrismaClient;
@@ -17,7 +17,7 @@ export interface OnChainDeps {
 
 /** OnChainDeps plus the price feed, for the crypto resolver that reads spot. */
 export interface ResolverDeps extends OnChainDeps {
-  priceProvider: PacificaProvider;
+  priceProvider: IMarketDataProvider;
 }
 
 export const REFUND_MAX_RETRIES = 3;
