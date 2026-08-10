@@ -1415,8 +1415,9 @@ export async function submitCryptoPayoutWallet(token: string, walletAddress: str
   });
 }
 
-export async function fetchCryptoLeaderboard(window: 'week' | 'all' = 'week'): Promise<ApiResponse<CryptoLeaderRow[]>> {
-  return fetchApi<CryptoLeaderRow[]>(`/api/crypto-predictions/leaderboard?window=${window}`);
+export type CryptoLeaderboardResp = ApiResponse<CryptoLeaderRow[]> & { players?: number; minPlayers?: number; prizeActive?: boolean };
+export async function fetchCryptoLeaderboard(window: 'week' | 'all' = 'week'): Promise<CryptoLeaderboardResp> {
+  return fetchApi<CryptoLeaderRow[]>(`/api/crypto-predictions/leaderboard?window=${window}`) as Promise<CryptoLeaderboardResp>;
 }
 
 export interface CryptoActivityRow { walletAddress: string; side: 'UP' | 'DOWN' | 'DRAW'; asset: string; amount: string; createdAt: string }
