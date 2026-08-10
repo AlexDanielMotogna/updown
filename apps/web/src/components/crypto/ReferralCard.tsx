@@ -49,9 +49,16 @@ export function ReferralCard() {
       <Box sx={{ p: { xs: 1.5, sm: 2 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1.25, px: 1.25, py: 1, borderRadius: 1, bgcolor: `${t.gold}14`, border: `1px solid ${t.gold}40` }}>
           <EmojiEvents sx={{ fontSize: 18, color: t.gold }} />
-          <Typography sx={{ fontSize: '0.8rem', color: t.text.primary, lineHeight: 1.4 }}>
-            Top referrer of the week wins <b style={{ color: t.gold }}>{prize}</b>
-          </Typography>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography sx={{ fontSize: '0.8rem', color: t.text.primary, lineHeight: 1.4 }}>
+              Top referrer of the week wins <b style={{ color: t.gold }}>{prize}</b>
+            </Typography>
+            {r && !r.prizeActive && (
+              <Typography sx={{ fontSize: '0.68rem', color: t.text.tertiary, lineHeight: 1.35, mt: 0.25 }}>
+                Prize activates once <b>{r.minReferrers}</b> people refer players ({r.activeReferrers}/{r.minReferrers}).
+              </Typography>
+            )}
+          </Box>
         </Box>
 
         {/* Invite link + copy/share */}

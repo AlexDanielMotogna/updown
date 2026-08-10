@@ -30,6 +30,11 @@ const PREDICTION_PRIZE_LABEL = process.env.CRYPTO_PREDICTION_PRIZE_LABEL ?? '$10
 const REFERRAL_PRIZE_LABEL = process.env.CRYPTO_REFERRAL_PRIZE_LABEL ?? '$50';
 const usdFromLabel = (s: string) => Number(s.replace(/[^0-9.]/g, '')) || 0;
 
+/** The referral prize is only awarded once at least this many DISTINCT referrers
+ *  have referred real players (valid referrals) that week. Prevents crowning a
+ *  winner on trivial participation. Overridable via env. */
+export const REFERRAL_MIN_REFERRERS = Math.max(1, Number(process.env.CRYPTO_REFERRAL_MIN_REFERRERS ?? 10));
+
 /** Real client IP (Express `trust proxy` is on, so req.ip is the X-Forwarded-For client). */
 function clientIp(req: Request): string | null {
   return req.ip ?? null;
@@ -336,6 +341,8 @@ cryptoPredictionsRouter.get('/referrals', async (req, res) => {
     ]);
     const top = board.slice(0, 20).map((r) => ({ rank: r.rank, walletAddress: r.walletAddress, displayName: r.displayName, validReferrals: r.validReferrals }));
     const mine = board.find((r) => r.walletAddress === wallet);
+    // Prize only activates once ≥ REFERRAL_MIN_REFERRERS distinct referrers have valid referrals.
+    const activeReferrers = board.filter((r) => r.validReferrals > 0).length;
 
     res.json({
       success: true,
@@ -348,6 +355,9 @@ cryptoPredictionsRouter.get('/referrals', async (req, res) => {
         myTotalReferrals: mine?.totalReferrals ?? 0,
         myRank: mine?.rank ?? null,
         board: top,
+        minReferrers: REFERRAL_MIN_REFERRERS,
+        activeReferrers,
+        prizeActive: activeReferrers >= REFERRAL_MIN_REFERRERS,
       },
     });
   } catch (error) {
