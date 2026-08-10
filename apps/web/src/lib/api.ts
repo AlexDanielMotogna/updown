@@ -1390,6 +1390,7 @@ export interface CryptoReferrals {
   code: string; link: string; prizeLabel: string; activeThreshold: number;
   myValidReferrals: number; myTotalReferrals: number; myRank: number | null;
   board: CryptoReferralRow[];
+  minReferrers: number; activeReferrers: number; prizeActive: boolean;
 }
 
 /** Event-native referral: my invite link + weekly referral leaderboard. */

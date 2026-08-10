@@ -1,5 +1,5 @@
 import { prisma } from '../db';
-import { cryptoProfitMap, weekStartUtc, CRYPTO_LAUNCH_EPOCH } from '../routes/crypto-predictions';
+import { cryptoProfitMap, weekStartUtc, CRYPTO_LAUNCH_EPOCH, REFERRAL_MIN_REFERRERS } from '../routes/crypto-predictions';
 import { getReferralLeaderboard } from './referrals';
 import { notifyCryptoWinner, notifyCryptoReferralWinner } from './crypto-event-telegram';
 
@@ -49,6 +49,12 @@ export async function drawCryptoReferralWeek(weekAnchor: Date): Promise<{ winner
   const weekEnd = new Date(ws.getTime() + WEEK_MS);
   const since = CRYPTO_LAUNCH_EPOCH > ws && CRYPTO_LAUNCH_EPOCH < weekEnd ? CRYPTO_LAUNCH_EPOCH : ws;
   const board = await getReferralLeaderboard({ since, until: weekEnd });
+  // Rule: only award once ≥ REFERRAL_MIN_REFERRERS distinct referrers have referred
+  // real players (valid referrals) this week.
+  const activeReferrers = board.filter((b) => b.validReferrals > 0).length;
+  if (activeReferrers < REFERRAL_MIN_REFERRERS) {
+    return { winner: null, note: `not enough referrers yet (${activeReferrers}/${REFERRAL_MIN_REFERRERS} distinct)` };
+  }
   const top = board[0];
   if (!top || top.validReferrals <= 0) return { winner: null, note: 'no valid referrals this week' };
 
