@@ -5,6 +5,7 @@ import { cryptoProfitMap, weekWindowStart } from '../crypto-predictions';
 import { drawCryptoWeek, drawCryptoReferralWeek } from '../../services/crypto-weekly';
 import { ACTIVE_BET_THRESHOLD } from '../../utils/testing';
 import { postCryptoWinnerPhoto } from '../../services/crypto-event-telegram';
+import { renderWinnerCard, winnerCaption, type WinnerCardData } from '../../services/winner-card';
 
 /**
  * Crypto Predictions event admin — /api/admin/crypto (x-admin-key, back-office).
@@ -162,20 +163,51 @@ adminCryptoRouter.post('/winner/:id/paid', async (req, res) => {
   }
 });
 
-// POST /winner-image — post a winner banner (base64 PNG) + caption to Telegram.
-// thread: omit → Announcement (default); 0 → General; >0 → that topic.
-const winnerImageSchema = z.object({ imageBase64: z.string().min(100), caption: z.string().max(1024).optional(), thread: z.number().int().min(0).optional() });
-adminCryptoRouter.post('/winner-image', async (req, res) => {
+// Winner banner is rendered SERVER-SIDE (no browser canvas). thread: omit →
+// Announcement (default); 0 → General; >0 → that topic.
+const cardDataSchema = z.object({
+  kind: z.enum(['prediction', 'referral']),
+  displayName: z.string().nullable().optional(),
+  email: z.string().nullable().optional(),
+  walletAddress: z.string().min(32).max(64),
+  prize: z.number().int().positive(),
+  weekStart: z.string(),
+  pnl: z.string().optional(),
+  validReferrals: z.number().int().optional(),
+});
+const toCardData = (p: z.infer<typeof cardDataSchema>): WinnerCardData => ({
+  kind: p.kind, walletAddress: p.walletAddress, prize: p.prize, weekStart: p.weekStart,
+  displayName: p.displayName ?? null, email: p.email ?? null, pnl: p.pnl, validReferrals: p.validReferrals,
+});
+
+// POST /winner-card — render the banner, return it as a data URI (+ suggested caption).
+adminCryptoRouter.post('/winner-card', async (req, res) => {
   try {
-    const parsed = winnerImageSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'imageBase64 required' } });
-    const { imageBase64, caption, thread } = parsed.data;
-    const r = await postCryptoWinnerPhoto(imageBase64, caption ?? '', thread);
+    const parsed = cardDataSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid card data' } });
+    const data = toCardData(parsed.data);
+    const buf = await renderWinnerCard(data);
+    res.json({ success: true, data: { image: `data:image/png;base64,${buf.toString('base64')}`, caption: winnerCaption(data) } });
+  } catch (e) {
+    console.error('[AdminCrypto] winner-card error:', e);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to render card' } });
+  }
+});
+
+// POST /winner-card/post — render the banner and post it (photo + caption) to Telegram.
+const cardPostSchema = cardDataSchema.extend({ thread: z.number().int().min(0).optional() });
+adminCryptoRouter.post('/winner-card/post', async (req, res) => {
+  try {
+    const parsed = cardPostSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid card data' } });
+    const data = toCardData(parsed.data);
+    const buf = await renderWinnerCard(data);
+    const r = await postCryptoWinnerPhoto(buf.toString('base64'), winnerCaption(data), parsed.data.thread);
     if (!r.ok) return res.status(502).json({ success: false, error: { code: 'TELEGRAM_ERROR', message: r.error ?? 'Failed to post' } });
     res.json({ success: true });
   } catch (e) {
-    console.error('[AdminCrypto] winner-image error:', e);
-    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to post image' } });
+    console.error('[AdminCrypto] winner-card post error:', e);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to post card' } });
   }
 });
 

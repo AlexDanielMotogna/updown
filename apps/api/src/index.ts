@@ -54,7 +54,7 @@ app.use(cors({
   origin: corsOrigin,
   credentials: true,
 }));
-app.use(express.json({ limit: '6mb' })); // 6mb: admin winner-card PNGs are posted as base64
+app.use(express.json());
 
 // Routes
 app.use('/api/health', healthRouter);
