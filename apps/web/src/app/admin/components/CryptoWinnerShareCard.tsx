@@ -252,13 +252,14 @@ export function CryptoWinnerShareCard({ data, onClose }: { data: CryptoWinnerCar
     if (!ctx) return;
     ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
     let cancelled = false;
-    loadImage(LOGO_SRC).then((logo) => {
-      if (cancelled) return;
-      const paint = () => !cancelled && drawCard(ctx, data, logo);
-      paint();
-      const fonts = (document as Document & { fonts?: FontFaceSet }).fonts;
-      if (fonts?.ready) fonts.ready.then(paint).catch(() => {});
-    });
+    let logoImg: HTMLImageElement | null = null;
+    // Paint immediately so the card always appears, even if the logo request or
+    // webfonts hang; re-paint (keeping the latest logo) as they resolve.
+    const paint = () => { if (!cancelled) drawCard(ctx, data, logoImg); };
+    paint();
+    loadImage(LOGO_SRC).then((logo) => { logoImg = logo; paint(); });
+    const fonts = (document as Document & { fonts?: FontFaceSet }).fonts;
+    if (fonts?.ready) fonts.ready.then(paint).catch(() => {});
     return () => { cancelled = true; };
   }, [data]);
 
