@@ -310,7 +310,7 @@ export function CryptoWinnerShareCard({ data, onClose }: { data: CryptoWinnerCar
         </Box>
 
         <Box sx={{ borderRadius: 2, overflow: 'hidden', border: `1px solid ${t.border.subtle}`, lineHeight: 0 }}>
-          <canvas ref={canvasRef} style={{ width: '100%', height: 'auto', display: 'block' }} />
+          <canvas ref={canvasRef} width={W * SCALE} height={H * SCALE} style={{ width: '100%', height: 'auto', display: 'block', aspectRatio: `${W} / ${H}` }} />
         </Box>
 
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mt: 2 }}>
