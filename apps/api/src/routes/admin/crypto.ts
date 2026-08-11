@@ -116,18 +116,18 @@ adminCryptoRouter.post('/user/:wallet/ban', async (req, res) => {
   }
 });
 
-// GET /winners — weekly winners, newest first.
+// GET /winners — weekly podium winners, newest week first then by rank.
 adminCryptoRouter.get('/winners', async (_req, res) => {
   try {
-    const rows = await prisma.cryptoEventWinner.findMany({ orderBy: { weekStart: 'desc' }, take: 52 });
-    res.json({ success: true, data: rows.map((w) => ({ id: w.id, weekStart: w.weekStart.toISOString(), walletAddress: w.walletAddress, displayName: w.displayName, email: w.email, payoutWallet: w.payoutWallet, pnl: w.pnl.toString(), paid: w.paid, paidAt: w.paidAt?.toISOString() ?? null, paidTx: w.paidTx })) });
+    const rows = await prisma.cryptoEventWinner.findMany({ orderBy: [{ weekStart: 'desc' }, { rank: 'asc' }], take: 104 });
+    res.json({ success: true, data: rows.map((w) => ({ id: w.id, weekStart: w.weekStart.toISOString(), rank: w.rank, prize: w.prize, walletAddress: w.walletAddress, displayName: w.displayName, email: w.email, payoutWallet: w.payoutWallet, pnl: w.pnl.toString(), paid: w.paid, paidAt: w.paidAt?.toISOString() ?? null, paidTx: w.paidTx })) });
   } catch (e) {
     console.error('[AdminCrypto] winners error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load winners' } });
   }
 });
 
-// POST /draw — snapshot the top-1 winner for a week (default current) + announce.
+// POST /draw — snapshot the PNL podium for a week (default current) + announce.
 const drawSchema = z.object({ weekStart: z.string().optional() });
 adminCryptoRouter.post('/draw', async (req, res) => {
   try {
@@ -136,8 +136,8 @@ adminCryptoRouter.post('/draw', async (req, res) => {
     const ws = parsed.data.weekStart ? new Date(parsed.data.weekStart) : new Date();
     if (Number.isNaN(ws.getTime())) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid weekStart' } });
 
-    const { winner, note } = await drawCryptoWeek(ws);
-    res.json({ success: true, data: { winner, note } });
+    const { winners, note } = await drawCryptoWeek(ws);
+    res.json({ success: true, data: { winners, count: winners.length, note } });
   } catch (e) {
     console.error('[AdminCrypto] draw error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to draw winner' } });
@@ -167,6 +167,7 @@ adminCryptoRouter.post('/winner/:id/paid', async (req, res) => {
 // Announcement (default); 0 → General; >0 → that topic.
 const cardDataSchema = z.object({
   kind: z.enum(['prediction', 'referral']),
+  rank: z.number().int().positive().optional(),
   displayName: z.string().nullable().optional(),
   email: z.string().nullable().optional(),
   walletAddress: z.string().min(32).max(64),
@@ -176,7 +177,7 @@ const cardDataSchema = z.object({
   validReferrals: z.number().int().optional(),
 });
 const toCardData = (p: z.infer<typeof cardDataSchema>): WinnerCardData => ({
-  kind: p.kind, walletAddress: p.walletAddress, prize: p.prize, weekStart: p.weekStart,
+  kind: p.kind, rank: p.rank ?? 1, walletAddress: p.walletAddress, prize: p.prize, weekStart: p.weekStart,
   displayName: p.displayName ?? null, email: p.email ?? null, pnl: p.pnl, validReferrals: p.validReferrals,
 });
 
@@ -276,26 +277,26 @@ adminCryptoRouter.get('/referrals', async (_req, res) => {
 
 // --- Referral prize (event-native) -----------------------------------------
 
-// GET /referral-winners — weekly referral winners, newest first.
+// GET /referral-winners — weekly referral podium, newest week first then by rank.
 adminCryptoRouter.get('/referral-winners', async (_req, res) => {
   try {
-    const rows = await prisma.cryptoReferralWinner.findMany({ orderBy: { weekStart: 'desc' }, take: 52 });
-    res.json({ success: true, data: rows.map((w) => ({ id: w.id, weekStart: w.weekStart.toISOString(), walletAddress: w.walletAddress, displayName: w.displayName, email: w.email, payoutWallet: w.payoutWallet, validReferrals: w.validReferrals, paid: w.paid, paidAt: w.paidAt?.toISOString() ?? null, paidTx: w.paidTx })) });
+    const rows = await prisma.cryptoReferralWinner.findMany({ orderBy: [{ weekStart: 'desc' }, { rank: 'asc' }], take: 104 });
+    res.json({ success: true, data: rows.map((w) => ({ id: w.id, weekStart: w.weekStart.toISOString(), rank: w.rank, prize: w.prize, walletAddress: w.walletAddress, displayName: w.displayName, email: w.email, payoutWallet: w.payoutWallet, validReferrals: w.validReferrals, paid: w.paid, paidAt: w.paidAt?.toISOString() ?? null, paidTx: w.paidTx })) });
   } catch (e) {
     console.error('[AdminCrypto] referral-winners error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to load referral winners' } });
   }
 });
 
-// POST /referral-draw — snapshot the top-1 referrer for a week (default current).
+// POST /referral-draw — snapshot the referral podium for a week (default current).
 adminCryptoRouter.post('/referral-draw', async (req, res) => {
   try {
     const parsed = drawSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid input' } });
     const ws = parsed.data.weekStart ? new Date(parsed.data.weekStart) : new Date();
     if (Number.isNaN(ws.getTime())) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid weekStart' } });
-    const { winner, note } = await drawCryptoReferralWeek(ws);
-    res.json({ success: true, data: { winner, note } });
+    const { winners, note } = await drawCryptoReferralWeek(ws);
+    res.json({ success: true, data: { winners, count: winners.length, note } });
   } catch (e) {
     console.error('[AdminCrypto] referral-draw error:', e);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to draw referral winner' } });

@@ -1369,7 +1369,7 @@ export async function claimWorldCupWinning(
 }
 
 // ── Crypto Predictions event ────────────────────────────────────────────────
-export interface CryptoPrize { kind: 'prediction' | 'referral'; label: string; amountUsd: number; pnl?: string; validReferrals?: number }
+export interface CryptoPrize { kind: 'prediction' | 'referral'; rank?: number; label: string; amountUsd: number; pnl?: string; validReferrals?: number }
 export interface CryptoWin { weekStart: string; paid: boolean; payoutWallet: string | null; pnl: string; prizes: CryptoPrize[]; totalUsd: number; totalLabel: string }
 export interface CryptoMe { realizedPnl: string; weeklyPnl: string; rank: number | null; players: number; banned: boolean; win: CryptoWin | null }
 export interface CryptoLeaderRow { rank: number; walletAddress: string; displayName: string | null; avatarUrl: string | null; pnl: string }
@@ -1387,7 +1387,7 @@ export async function joinCryptoEvent(token: string, walletAddress: string, emai
 
 export interface CryptoReferralRow { rank: number; walletAddress: string; displayName: string | null; validReferrals: number }
 export interface CryptoReferrals {
-  code: string; link: string; prizeLabel: string; activeThreshold: number;
+  code: string; link: string; prizeLabel: string; prizes: number[]; activeThreshold: number;
   myValidReferrals: number; myTotalReferrals: number; myRank: number | null;
   board: CryptoReferralRow[];
   minReferrers: number; activeReferrers: number; prizeActive: boolean;

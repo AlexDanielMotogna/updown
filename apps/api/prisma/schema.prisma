@@ -276,8 +276,12 @@ model User {
 /// the admin, announced in-app + Telegram, and paid out manually (mark paid + tx).
 model CryptoEventWinner {
   id            String    @id @default(uuid())
-  /// Monday 00:00 UTC of the winning week (unique — one winner per week).
+  /// Monday 00:00 UTC of the winning week (one row per rank — a podium).
   weekStart     DateTime  @map("week_start")
+  /// Podium position (1 = top). Prize tiers, e.g. $40/$30/$20/$10.
+  rank          Int       @default(1)
+  /// Prize in USD for this rank.
+  prize         Int       @default(0)
   walletAddress String    @map("wallet_address")
   displayName   String?   @map("display_name")
   email         String?   @map("email")
@@ -290,7 +294,7 @@ model CryptoEventWinner {
   paidTx        String?   @map("paid_tx")
   createdAt     DateTime  @default(now()) @map("created_at")
 
-  @@unique([weekStart])
+  @@unique([weekStart, rank])
   @@index([walletAddress])
   @@map("crypto_event_winners")
 }
@@ -299,8 +303,12 @@ model CryptoEventWinner {
 /// week). Event-native: rewards a real cash prize, independent of UP/levels.
 model CryptoReferralWinner {
   id             String    @id @default(uuid())
-  /// Monday 00:00 UTC of the winning week (unique — one winner per week).
+  /// Monday 00:00 UTC of the winning week (one row per rank — a podium).
   weekStart      DateTime  @map("week_start")
+  /// Podium position (1 = top). Prize tiers, e.g. $30/$20/$10.
+  rank           Int       @default(1)
+  /// Prize in USD for this rank.
+  prize          Int       @default(0)
   walletAddress  String    @map("wallet_address")
   displayName    String?   @map("display_name")
   email          String?   @map("email")
@@ -313,7 +321,7 @@ model CryptoReferralWinner {
   paidTx         String?   @map("paid_tx")
   createdAt      DateTime  @default(now()) @map("created_at")
 
-  @@unique([weekStart])
+  @@unique([weekStart, rank])
   @@index([walletAddress])
   @@map("crypto_referral_winners")
 }

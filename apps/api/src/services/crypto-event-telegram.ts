@@ -173,6 +173,33 @@ export async function postCryptoWinnerPhoto(imageBase64: string, caption: string
   }
 }
 
+/** Announce a full weekly PODIUM (top-N with tiered prizes). Never throws. */
+export async function notifyCryptoPodium(p: {
+  kind: 'prediction' | 'referral';
+  weekStart: Date;
+  entries: Array<{ rank: number; prize: number; walletAddress: string; email: string | null; displayName: string | null; pnl?: bigint; validReferrals?: number }>;
+}): Promise<void> {
+  const c = creds();
+  if (!c || p.entries.length === 0) return;
+  const week = p.weekStart.toISOString().slice(0, 10);
+  const title = p.kind === 'prediction' ? '🏆 <b>Crypto Predictions — Weekly Winners</b>' : '🤝 <b>Crypto Predictions — Weekly Referral Winners</b>';
+  const rows = p.entries.map((e) => {
+    const badge = MEDALS[e.rank - 1] ?? `<b>${e.rank}.</b>`;
+    const who = e.displayName && !e.displayName.includes('@') ? e.displayName : maskEmail(e.email);
+    const stat = p.kind === 'prediction' ? esc(fmtUsd(e.pnl ?? 0n)) : `${e.validReferrals ?? 0} referrals`;
+    return `${badge} <b>${esc(who)}</b> — <b>$${e.prize}</b> <i>(${stat})</i>`;
+  });
+  const lines = [title, `Week of <b>${week}</b> (Mon 00:00 UTC)`, '', ...rows, '', 'Prizes are paid manually — full contact details are in the admin panel.'].join('\n');
+  try {
+    await fetch(`${TG_API}/bot${c.token}/sendMessage`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: c.chatId, ...(c.threadId ? { message_thread_id: c.threadId } : {}), text: lines, parse_mode: 'HTML', disable_web_page_preview: true }),
+    });
+  } catch (e) {
+    console.warn('[CryptoTG] podium announce failed:', e instanceof Error ? e.message : e);
+  }
+}
+
 /** Announce the weekly winner to the ops Telegram chat. Never throws. */
 export async function notifyCryptoWinner(w: {
   walletAddress: string;

@@ -31,6 +31,7 @@ function getLogo(): Promise<Image | null> {
 
 export interface WinnerCardData {
   kind: 'prediction' | 'referral';
+  rank?: number;
   displayName: string | null;
   email: string | null;
   walletAddress: string;
@@ -38,6 +39,13 @@ export interface WinnerCardData {
   weekStart: string;
   pnl?: string;
   validReferrals?: number;
+}
+
+/** Eyebrow label by podium place. */
+function eyebrowFor(kind: 'prediction' | 'referral', rank: number): string {
+  if (rank <= 1) return kind === 'prediction' ? 'WINNER OF THE WEEK' : 'TOP REFERRER OF THE WEEK';
+  const ord = rank === 2 ? '2ND' : rank === 3 ? '3RD' : `${rank}TH`;
+  return `${ord} PLACE`;
 }
 
 function maskEmail(email: string): string | null {
@@ -141,7 +149,7 @@ function drawCard(ctx: SKRSContext2D, d: WinnerCardData, logo: Image | null) {
 
   ctx.textAlign = 'center';
   ctx.font = `700 26px ${FONT}`;
-  const eyebrow = isPred ? 'WINNER OF THE WEEK' : 'TOP REFERRER OF THE WEEK';
+  const eyebrow = eyebrowFor(d.kind, d.rank ?? 1);
   const lsp = 5;
   const chars = eyebrow.split('');
   const textW = chars.reduce((s, c) => s + ctx.measureText(c).width + lsp, -lsp);

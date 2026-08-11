@@ -12,7 +12,8 @@ const fmtUsd = (raw: string) => {
 };
 const short = (w: string) => `${w.slice(0, 4)}…${w.slice(-4)}`;
 
-export interface WinnerPrize { kind: 'prediction' | 'referral'; label: string; pnl?: string; validReferrals?: number }
+export interface WinnerPrize { kind: 'prediction' | 'referral'; rank?: number; label: string; pnl?: string; validReferrals?: number }
+const ordinal = (n: number) => (n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`);
 
 /** Celebratory popup for any weekly prize winner (prediction and/or referral) +
  *  payout-wallet claim (like WorldCup). The SAME dialog serves both prize types. */
@@ -51,7 +52,7 @@ export function WinnerDialog({ open, prizes, totalLabel, payoutWallet, onClose, 
           {prizes.map((p) => (
             <Box key={p.kind} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, px: 1.25, py: 0.75, borderRadius: 1, bgcolor: `${t.gold}12`, border: `1px solid ${t.gold}33` }}>
               <Typography sx={{ fontSize: '0.78rem', color: t.text.primary, textAlign: 'left' }}>
-                {p.kind === 'prediction' ? 'Top the weekly PNL leaderboard' : 'Top referrer of the week'}
+                <b>{ordinal(p.rank ?? 1)}</b> · {p.kind === 'prediction' ? 'Weekly PNL leaderboard' : 'Weekly referrals'}
                 {p.kind === 'prediction' && p.pnl ? <Box component="span" sx={{ color: t.gain, ml: 0.5 }}>({fmtUsd(p.pnl)})</Box> : null}
                 {p.kind === 'referral' && p.validReferrals != null ? <Box component="span" sx={{ color: t.text.tertiary, ml: 0.5 }}>({p.validReferrals} referrals)</Box> : null}
               </Typography>

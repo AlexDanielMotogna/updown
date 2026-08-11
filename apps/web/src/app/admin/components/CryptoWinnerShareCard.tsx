@@ -10,6 +10,7 @@ const CYAN = '#5FD8EF';
 
 export interface CryptoWinnerCardData {
   kind: 'prediction' | 'referral';
+  rank?: number;
   displayName: string | null;
   email: string | null;
   walletAddress: string;

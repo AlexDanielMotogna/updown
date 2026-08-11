@@ -13,8 +13,8 @@ const CYAN = '#5FD8EF';
 const PAGE = 50;
 
 interface CUser { walletAddress: string; displayName: string | null; email: string | null; signupIp: string | null; banned: boolean; funded: boolean; createdAt: string; bets: number; flags: string[] }
-interface Winner { id: string; weekStart: string; walletAddress: string; displayName: string | null; email: string | null; payoutWallet: string | null; pnl: string; paid: boolean; paidAt: string | null; paidTx: string | null }
-interface RefWinner { id: string; weekStart: string; walletAddress: string; displayName: string | null; email: string | null; payoutWallet: string | null; validReferrals: number; paid: boolean; paidAt: string | null; paidTx: string | null }
+interface Winner { id: string; weekStart: string; rank: number; prize: number; walletAddress: string; displayName: string | null; email: string | null; payoutWallet: string | null; pnl: string; paid: boolean; paidAt: string | null; paidTx: string | null }
+interface RefWinner { id: string; weekStart: string; rank: number; prize: number; walletAddress: string; displayName: string | null; email: string | null; payoutWallet: string | null; validReferrals: number; paid: boolean; paidAt: string | null; paidTx: string | null }
 interface RefEntry { walletAddress: string; displayName: string | null; email: string | null; joinedAt: string; bets: number; suspect: boolean; suspectReason: string | null; banned: boolean; active: boolean; valid: boolean }
 interface RefGroup { referrer: { walletAddress: string; displayName: string | null; email: string | null; banned: boolean }; total: number; valid: number; referred: RefEntry[] }
 interface Overview { users: number; funded: number; banned: number; bets: number; weeklyParticipants: number }
@@ -134,12 +134,14 @@ export function CryptoAdmin() {
           <TableContainer>
             <Table size="small">
               <TableHead><TableRow>
-                {['Week', 'Winner', 'Email', 'Payout wallet', 'PNL', 'Paid', ''].map((h) => <TableCell key={h} sx={th}>{h}</TableCell>)}
+                {['Week', '#', 'Prize', 'Winner', 'Email', 'Payout wallet', 'PNL', 'Paid', ''].map((h) => <TableCell key={h} sx={th}>{h}</TableCell>)}
               </TableRow></TableHead>
               <TableBody>
                 {winners.map((w) => (
                   <TableRow key={w.id}>
                     <TableCell sx={td}>{w.weekStart.slice(0, 10)}</TableCell>
+                    <TableCell sx={{ ...td, fontWeight: 800, color: w.rank <= 3 ? t.gold : t.text.secondary }}>{w.rank}</TableCell>
+                    <TableCell sx={{ ...td, fontWeight: 700 }}>${w.prize}</TableCell>
                     <TableCell sx={{ ...td, fontFamily: 'monospace' }}>{w.displayName || short(w.walletAddress)}</TableCell>
                     <TableCell sx={td}>{w.email ?? '—'}</TableCell>
                     <TableCell sx={td}>
@@ -151,7 +153,7 @@ export function CryptoAdmin() {
                     <TableCell sx={td}>{w.paid ? <Box component="span" sx={{ color: t.success, fontWeight: 700 }}>Paid</Box> : <Box component="span" sx={{ color: t.warning }}>Pending</Box>}</TableCell>
                     <TableCell sx={td}>
                       <Box sx={{ display: 'flex', gap: 0.75 }}>
-                        {btn('Share', () => setShareCard({ kind: 'prediction', displayName: w.displayName, email: w.email, walletAddress: w.walletAddress, prize: 100, weekStart: w.weekStart, pnl: w.pnl }))}
+                        {btn('Share', () => setShareCard({ kind: 'prediction', rank: w.rank, displayName: w.displayName, email: w.email, walletAddress: w.walletAddress, prize: w.prize, weekStart: w.weekStart, pnl: w.pnl }))}
                         {btn(w.paid ? 'Undo' : 'Mark paid', () => setPaid(w), { disabled: busy === w.id, primary: !w.paid })}
                       </Box>
                     </TableCell>
@@ -171,12 +173,14 @@ export function CryptoAdmin() {
           <TableContainer>
             <Table size="small">
               <TableHead><TableRow>
-                {['Week', 'Referrer', 'Email', 'Payout wallet', 'Valid refs', 'Paid', ''].map((h) => <TableCell key={h} sx={th}>{h}</TableCell>)}
+                {['Week', '#', 'Prize', 'Referrer', 'Email', 'Payout wallet', 'Valid refs', 'Paid', ''].map((h) => <TableCell key={h} sx={th}>{h}</TableCell>)}
               </TableRow></TableHead>
               <TableBody>
                 {refWinners.map((w) => (
                   <TableRow key={w.id}>
                     <TableCell sx={td}>{w.weekStart.slice(0, 10)}</TableCell>
+                    <TableCell sx={{ ...td, fontWeight: 800, color: w.rank <= 3 ? t.gold : t.text.secondary }}>{w.rank}</TableCell>
+                    <TableCell sx={{ ...td, fontWeight: 700 }}>${w.prize}</TableCell>
                     <TableCell sx={{ ...td, fontFamily: 'monospace' }}>{w.displayName || short(w.walletAddress)}</TableCell>
                     <TableCell sx={td}>{w.email ?? '—'}</TableCell>
                     <TableCell sx={td}>
@@ -188,7 +192,7 @@ export function CryptoAdmin() {
                     <TableCell sx={td}>{w.paid ? <Box component="span" sx={{ color: t.success, fontWeight: 700 }}>Paid</Box> : <Box component="span" sx={{ color: t.warning }}>Pending</Box>}</TableCell>
                     <TableCell sx={td}>
                       <Box sx={{ display: 'flex', gap: 0.75 }}>
-                        {btn('Share', () => setShareCard({ kind: 'referral', displayName: w.displayName, email: w.email, walletAddress: w.walletAddress, prize: 50, weekStart: w.weekStart, validReferrals: w.validReferrals }))}
+                        {btn('Share', () => setShareCard({ kind: 'referral', rank: w.rank, displayName: w.displayName, email: w.email, walletAddress: w.walletAddress, prize: w.prize, weekStart: w.weekStart, validReferrals: w.validReferrals }))}
                         {btn(w.paid ? 'Undo' : 'Mark paid', () => setRefPaid(w), { disabled: busy === w.id, primary: !w.paid })}
                       </Box>
                     </TableCell>

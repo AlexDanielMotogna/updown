@@ -36,7 +36,7 @@ export function ReferralCard() {
     } catch { /* user cancelled share / clipboard blocked */ }
   };
 
-  const prize = r?.prizeLabel ?? '$50';
+  const prize = r?.prizeLabel ?? '$30 / $20 / $10';
   const threshold = r?.activeThreshold ?? 20;
 
   return (
@@ -51,7 +51,7 @@ export function ReferralCard() {
           <EmojiEvents sx={{ fontSize: 18, color: t.gold }} />
           <Box sx={{ minWidth: 0 }}>
             <Typography sx={{ fontSize: '0.8rem', color: t.text.primary, lineHeight: 1.4 }}>
-              Top referrer of the week wins <b style={{ color: t.gold }}>{prize}</b>
+              Top {r?.prizes?.length ?? 3} referrers win <b style={{ color: t.gold }}>{prize}</b>
             </Typography>
             {r && !r.prizeActive && (
               <Typography sx={{ fontSize: '0.68rem', color: t.text.tertiary, lineHeight: 1.35, mt: 0.25 }}>
