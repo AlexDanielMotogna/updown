@@ -223,14 +223,31 @@ depositsRouter.post('/prepare-gasless-deposit', async (req, res) => {
       ixs.push(createAssociatedTokenAccountInstruction(authority.publicKey, userTokenAccount, user, usdcMint));
     }
 
-    // (b) Fund the exact UserBet rent in this same tx when the PDA is new, so the
+    // (b) Fund the UserBet rent in this same tx when the PDA is new, so the
     // deposit's `payer = user` can cover it without the user holding any SOL.
     // UserBet = 8 (disc) + 91 (InitSpace) ; +16 bytes headroom for safety.
+    //
+    // Sending JUST that rent is not enough: we quote a bigger space than Anchor
+    // actually allocates, so the difference stays in the user's wallet as change.
+    // For a wallet starting at 0 SOL that leaves it above zero but below the
+    // rent-exempt minimum, and the runtime kills the WHOLE tx with
+    // InsufficientFundsForRent (account_index 1 = the user). So we top the wallet
+    // up to `rent + rent-exempt minimum`: whatever change is left keeps the wallet
+    // itself rent-exempt, whichever space Anchor ends up allocating. Only the
+    // missing part is sent, so wallets that already hold SOL cost the authority
+    // nothing.
     const userBetInfo = await connection.getAccountInfo(userBet);
     if (!userBetInfo) {
       const USER_BET_SPACE = 8 + 91 + 16;
-      const rent = await connection.getMinimumBalanceForRentExemption(USER_BET_SPACE);
-      ixs.push(SystemProgram.transfer({ fromPubkey: authority.publicKey, toPubkey: user, lamports: rent }));
+      const [betRent, walletMinimum, userLamports] = await Promise.all([
+        connection.getMinimumBalanceForRentExemption(USER_BET_SPACE),
+        connection.getMinimumBalanceForRentExemption(0),
+        connection.getBalance(user),
+      ]);
+      const needed = betRent + walletMinimum;
+      if (userLamports < needed) {
+        ixs.push(SystemProgram.transfer({ fromPubkey: authority.publicKey, toPubkey: user, lamports: needed - userLamports }));
+      }
     }
 
     // (c) The deposit itself — user is a required signer (co-signs silently).
