@@ -23,8 +23,14 @@ export class HyperliquidProvider implements IMarketDataProvider {
   private subscriptions: Map<string, (tick: NormalizedPriceTick) => void> = new Map();
   private priceCache: Map<string, string> = new Map(); // symbol -> mid (string)
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
+  /** Backoff ceiling; attempts are unbounded while subscriptions exist. */
+  private maxReconnectDelay = 30_000;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastMessageAt = 0;
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private heartbeatIntervalMs = 15_000;
+  private silenceTimeoutMs = 45_000;
 
   constructor(baseUrl?: string, wsUrl?: string) {
     this.baseUrl = baseUrl || process.env.HYPERLIQUID_API_URL || 'https://api.hyperliquid.xyz';
@@ -101,9 +107,16 @@ export class HyperliquidProvider implements IMarketDataProvider {
 
   unsubscribe(symbol: string): void {
     this.subscriptions.delete(symbol);
-    if (this.subscriptions.size === 0 && this.ws) {
-      this.ws.close();
-      this.ws = null;
+    if (this.subscriptions.size === 0) {
+      this.stopHeartbeat();
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+      if (this.ws) {
+        this.ws.close();
+        this.ws = null;
+      }
     }
   }
 
@@ -116,10 +129,13 @@ export class HyperliquidProvider implements IMarketDataProvider {
     this.ws.on('open', () => {
       console.log('[Hyperliquid] WebSocket connected');
       this.reconnectAttempts = 0;
+      this.lastMessageAt = Date.now();
+      this.startHeartbeat();
       this.ws?.send(JSON.stringify({ method: 'subscribe', subscription: { type: 'allMids' } }));
     });
 
     this.ws.on('message', (data: WebSocket.Data) => {
+      this.lastMessageAt = Date.now();
       try {
         const message = JSON.parse(data.toString());
         if (message?.channel === 'allMids' && message?.data?.mids && typeof message.data.mids === 'object') {
@@ -148,16 +164,54 @@ export class HyperliquidProvider implements IMarketDataProvider {
     }
   }
 
+  /** Silence watchdog — allMids streams continuously, so quiet means dead. */
+  private startHeartbeat(): void {
+    this.stopHeartbeat();
+    this.heartbeatTimer = setInterval(() => {
+      if (this.subscriptions.size === 0) return;
+      const silentFor = Date.now() - this.lastMessageAt;
+      if (silentFor > this.silenceTimeoutMs) {
+        console.warn(`[Hyperliquid] no messages for ${silentFor}ms — forcing reconnect`);
+        this.stopHeartbeat();
+        try { this.ws?.terminate(); } catch { /* already gone */ }
+        this.ws = null;
+        this.attemptReconnect();
+      } else {
+        try { this.ws?.ping(); } catch { /* not open yet */ }
+      }
+    }, this.heartbeatIntervalMs);
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer = null;
+  }
+
+  /**
+   * Unbounded reconnect with capped backoff. It used to give up after 5 attempts,
+   * which silently ends the price feed for the rest of the process's life — the
+   * failure mode that froze resolution for 15 hours on the Pacifica provider.
+   */
   private attemptReconnect(): void {
     if (this.subscriptions.size === 0) return;
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('[Hyperliquid] Max reconnect attempts reached');
-      return;
-    }
+    if (this.reconnectTimer) return;
     this.reconnectAttempts++;
-    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-    console.log(`[Hyperliquid] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
-    setTimeout(() => this.connectWebSocket(), delay);
+    const delay = Math.min(
+      this.reconnectDelay * Math.pow(2, Math.min(this.reconnectAttempts - 1, 10)),
+      this.maxReconnectDelay,
+    );
+    if (this.reconnectAttempts <= 5 || this.reconnectAttempts % 20 === 0) {
+      console.log(`[Hyperliquid] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+    }
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.connectWebSocket();
+    }, delay);
+  }
+
+  /** ms epoch of the last message on the price socket (0 = never). */
+  getLastMessageAt(): number {
+    return this.lastMessageAt;
   }
 
   /** Normalize a mid price string to the shared 6-decimal micro-USD tick. */

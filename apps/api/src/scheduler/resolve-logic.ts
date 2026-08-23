@@ -340,17 +340,26 @@ export async function resolvePool(
 
   // Atomic claim: only one scheduler tick can resolve this pool
   // Try JOINING first (new flow), fall back to ACTIVE (backward compat)
+  let claimedFrom: PoolStatus = PoolStatus.JOINING;
   let claimed = await deps.prisma.pool.updateMany({
     where: { id: pool.id, status: PoolStatus.JOINING },
     data: { status: PoolStatus.RESOLVED },
   });
   if (claimed.count === 0) {
+    claimedFrom = PoolStatus.ACTIVE;
     claimed = await deps.prisma.pool.updateMany({
       where: { id: pool.id, status: PoolStatus.ACTIVE },
       data: { status: PoolStatus.RESOLVED },
     });
   }
   if (claimed.count === 0) return;
+
+  /** Give the pool back so a later tick can retry once we have a trustworthy price. */
+  const releaseClaim = async () => {
+    await deps.prisma.pool
+      .updateMany({ where: { id: pool.id, status: PoolStatus.RESOLVED }, data: { status: claimedFrom } })
+      .catch(() => {});
+  };
 
   try {
     // Final-price capture: pull the tick at-or-just-before pool.endTime
@@ -359,7 +368,24 @@ export async function resolvePool(
     // yet) — that path keeps the legacy behaviour so resolution never
     // blocks, but logs a warning so operations can spot the gap.
     const endMs = pool.endTime.getTime();
-    const buffered = getPriceAtOrBefore(pool.asset, endMs);
+    const bufferedRaw = getPriceAtOrBefore(pool.asset, endMs);
+
+    // STALENESS GUARD. `getPriceAtOrBefore` returns the newest tick at-or-before
+    // endTime with no notion of age, so a dead WS feed keeps serving its last tick
+    // forever and every pool resolves against a price from hours ago (2026-08-23:
+    // 15 h of frozen ticks, 531 pools all resolved DOWN). A tick older than
+    // MAX_PRICE_DRIFT_MS relative to endTime is not "the price at endTime", it is a
+    // fossil — drop it and use live spot instead.
+    const MAX_PRICE_DRIFT_MS = Math.max(5_000, Number(process.env.MAX_PRICE_DRIFT_MS ?? 120_000));
+    const bufferedAgeMs = bufferedRaw ? endMs - bufferedRaw.timestamp : Infinity;
+    const buffered = bufferedRaw && bufferedAgeMs <= MAX_PRICE_DRIFT_MS ? bufferedRaw : null;
+    if (bufferedRaw && !buffered) {
+      console.error(
+        `[Scheduler] STALE price buffer for ${pool.asset}: newest tick is ${Math.round(bufferedAgeMs / 1000)}s before endTime ` +
+        `(max ${Math.round(MAX_PRICE_DRIFT_MS / 1000)}s) — the price feed is probably dead. Falling back to live spot.`,
+      );
+    }
+
     let finalPrice: bigint;
     let finalTimestamp: Date;
     let finalSource: string;
@@ -376,9 +402,26 @@ export async function resolvePool(
       driftMs = endMs - buffered.timestamp;
     } else {
       console.warn(
-        `[Scheduler] Pool ${pool.id} price-history buffer empty for ${pool.asset} at endTime=${pool.endTime.toISOString()} — falling back to current spot price (resolution drift risk).`,
+        `[Scheduler] Pool ${pool.id} price-history buffer empty or stale for ${pool.asset} at endTime=${pool.endTime.toISOString()} — falling back to current spot price (resolution drift risk).`,
       );
-      const tick = await deps.priceProvider.getSpotPrice(pool.asset);
+      // No usable buffer AND no usable spot means we simply do not know the price.
+      // Resolving anyway is how a pool gets settled against a wrong number, which is
+      // unrecoverable once the payouts land. Release the claim and let a later tick
+      // retry: a late pool is a nuisance, a wrongly-settled pool is lost money.
+      let tick: Awaited<ReturnType<typeof deps.priceProvider.getSpotPrice>>;
+      try {
+        tick = await deps.priceProvider.getSpotPrice(pool.asset);
+      } catch (e) {
+        console.error(`[Scheduler] Pool ${pool.id} spot price unavailable (${e instanceof Error ? e.message : e}) — deferring resolution.`);
+        await releaseClaim();
+        return;
+      }
+      const spotAgeMs = Date.now() - tick.timestamp.getTime();
+      if (spotAgeMs > MAX_PRICE_DRIFT_MS) {
+        console.error(`[Scheduler] Pool ${pool.id} spot price is ${Math.round(spotAgeMs / 1000)}s old — deferring resolution.`);
+        await releaseClaim();
+        return;
+      }
       finalPrice = tick.price;
       finalTimestamp = tick.timestamp;
       finalSource = tick.source;
