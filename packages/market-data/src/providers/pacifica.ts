@@ -43,8 +43,15 @@ export class PacificaProvider implements IMarketDataProvider {
   private subscriptions: Map<string, (tick: NormalizedPriceTick) => void> = new Map();
   private priceCache: Map<string, PacificaPriceData> = new Map();
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
+  /** Backoff ceiling. We retry FOREVER while subscriptions exist (see attemptReconnect). */
+  private maxReconnectDelay = 30_000;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Liveness: ms epoch of the last message from the socket, and the watchdog timer. */
+  private lastMessageAt = 0;
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private heartbeatIntervalMs = 15_000;
+  private silenceTimeoutMs = 45_000;
 
   constructor(baseUrl?: string, wsUrl?: string) {
     this.baseUrl = baseUrl || process.env.PACIFICA_API_URL || 'https://api.pacifica.fi';
@@ -160,10 +167,25 @@ export class PacificaProvider implements IMarketDataProvider {
     this.subscriptions.delete(symbol);
 
     // Close WebSocket if no more subscriptions
-    if (this.subscriptions.size === 0 && this.ws) {
-      this.ws.close();
-      this.ws = null;
+    if (this.subscriptions.size === 0) {
+      this.stopHeartbeat();
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+      if (this.ws) {
+        this.ws.close();
+        this.ws = null;
+      }
     }
+  }
+
+  /**
+   * ms epoch of the last message received on the price socket (0 = never). Lets
+   * callers tell "feed alive" from "feed silent" without reaching into the socket.
+   */
+  getLastMessageAt(): number {
+    return this.lastMessageAt;
   }
 
   /**
@@ -180,6 +202,8 @@ export class PacificaProvider implements IMarketDataProvider {
     this.ws.on('open', () => {
       console.log('[Pacifica] WebSocket connected');
       this.reconnectAttempts = 0;
+      this.lastMessageAt = Date.now();
+      this.startHeartbeat();
 
       // Subscribe to prices channel
       this.ws?.send(JSON.stringify({
@@ -191,6 +215,7 @@ export class PacificaProvider implements IMarketDataProvider {
     });
 
     this.ws.on('message', (data: WebSocket.Data) => {
+      this.lastMessageAt = Date.now();
       try {
         const message: PacificaWsMessage = JSON.parse(data.toString());
 
@@ -230,24 +255,62 @@ export class PacificaProvider implements IMarketDataProvider {
   }
 
   /**
-   * Attempt to reconnect WebSocket with exponential backoff
+   * Liveness watchdog. Pacifica pushes prices continuously, so silence means the
+   * socket is dead even when no 'close' event ever fires (half-open connection
+   * behind a proxy/NAT drop). Without this, the feed goes quiet, no reconnect is
+   * ever attempted, and the resolver keeps reading a frozen tick buffer.
+   */
+  private startHeartbeat(): void {
+    this.stopHeartbeat();
+    this.heartbeatTimer = setInterval(() => {
+      if (this.subscriptions.size === 0) return;
+      const silentFor = Date.now() - this.lastMessageAt;
+      if (silentFor > this.silenceTimeoutMs) {
+        console.warn(`[Pacifica] no messages for ${silentFor}ms — forcing reconnect`);
+        this.stopHeartbeat();
+        try { this.ws?.terminate(); } catch { /* already gone */ }
+        this.ws = null;
+        this.attemptReconnect();
+      } else {
+        // Cheap keepalive so idle proxies don't drop us in the first place.
+        try { this.ws?.ping(); } catch { /* not open yet */ }
+      }
+    }, this.heartbeatIntervalMs);
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer = null;
+  }
+
+  /**
+   * Reconnect with exponential backoff, capped and UNBOUNDED in attempts.
+   *
+   * This used to give up permanently after 5 tries (~31 s of total backoff), which
+   * meant any Pacifica outage longer than half a minute killed the price feed until
+   * someone restarted the API. On 2026-08-23 that stranded the tick buffer for 15
+   * hours and every crypto pool resolved against a stale price. A price feed must
+   * keep trying for as long as anything is subscribed.
    */
   private attemptReconnect(): void {
     if (this.subscriptions.size === 0) {
       return; // No active subscriptions, don't reconnect
     }
-
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('[Pacifica] Max reconnect attempts reached');
-      return;
-    }
+    if (this.reconnectTimer) return; // one pending attempt at a time
 
     this.reconnectAttempts++;
-    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
+    const delay = Math.min(
+      this.reconnectDelay * Math.pow(2, Math.min(this.reconnectAttempts - 1, 10)),
+      this.maxReconnectDelay,
+    );
 
-    console.log(`[Pacifica] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+    // Loud once, then quiet: a long outage shouldn't flood the logs every 30 s.
+    if (this.reconnectAttempts <= 5 || this.reconnectAttempts % 20 === 0) {
+      console.log(`[Pacifica] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+    }
 
-    setTimeout(() => {
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
       this.connectWebSocket();
     }, delay);
   }
