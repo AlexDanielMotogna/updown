@@ -31,6 +31,7 @@ import { startLiquidityBotScheduler } from './services/liquidity-bot/bot';
 import { startEventBotScheduler } from './services/event-bot/bot';
 import { startCryptoWeeklyScheduler } from './services/crypto-weekly';
 import { startDailyLeaderboardScheduler } from './services/crypto-leaderboard-daily';
+import { startAuthorityWatch } from './services/authority-watch';
 import { startXPoster } from './services/x-poster/poster';
 import { startTradingXpPoller } from './services/trading-xp/poller';
 import { initWebSocket, shutdownWebSocket, ensurePriceStreams } from './websocket';
@@ -225,6 +226,15 @@ httpServer.listen(PORT, async () => {
     startDailyLeaderboardScheduler();
   } catch (error) {
     console.error('Failed to start daily leaderboard scheduler:', error);
+  }
+
+  // Watchdog for the authority's SOL. Everything on-chain (pool creation, payouts,
+  // gasless deposits, new-user funding) dies quietly when it runs dry, and the
+  // health check stays green while it happens.
+  try {
+    startAuthorityWatch();
+  } catch (error) {
+    console.error('Failed to start authority watch:', error);
   }
 
   try {
