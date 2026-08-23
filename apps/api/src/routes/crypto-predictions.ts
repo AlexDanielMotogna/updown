@@ -8,7 +8,6 @@ import { registerUser } from '../services/rewards';
 import { mintTestFunds, TestFundsCapError } from '../services/test-funds';
 import { acceptReferral, ensureReferralCode, getReferralLeaderboard } from '../services/referrals';
 import { ACTIVE_BET_THRESHOLD } from '../utils/testing';
-import { getBotWalletAddresses } from '../utils/solana';
 
 /**
  * Crypto Predictions event — public API (Privy-authed), /api/crypto-predictions.
@@ -99,11 +98,6 @@ export async function cryptoProfitMap(opts: { since?: Date; until?: Date; wallet
     // Banned accounts never appear on the board or get drawn as winners.
     Prisma.sql`NOT EXISTS (SELECT 1 FROM users u WHERE u.wallet_address = b.wallet_address AND u.banned = true)`,
   ];
-  // Bots (event + liquidity wallets) are liquidity, not players: they never show
-  // on the board, never count toward the min-players prize threshold and can
-  // never be drawn as a weekly winner.
-  const botWallets = [...getBotWalletAddresses()];
-  if (botWallets.length) conds.push(Prisma.sql`b.wallet_address NOT IN (${Prisma.join(botWallets)})`);
   if (opts.since) conds.push(Prisma.sql`p.end_time >= ${opts.since}`);
   if (opts.until) conds.push(Prisma.sql`p.end_time < ${opts.until}`);
   if (opts.wallets) conds.push(Prisma.sql`b.wallet_address IN (${Prisma.join(opts.wallets)})`);
