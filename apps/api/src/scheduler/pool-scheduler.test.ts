@@ -68,7 +68,6 @@ describe('Scheduler Config', () => {
       const config = getSchedulerConfig();
 
       expect(config.enabled).toBe(true);
-      expect(config.priceSource).toBe('pacifica');
       expect(config.templates).toHaveLength(12); // 3 assets x 4 intervals
       expect(config.templates[0].asset).toBe('BTC');
       expect(config.templates[0].intervalKey).toBe('3m');

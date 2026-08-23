@@ -15,7 +15,6 @@ export interface PoolTemplate {
 export interface SchedulerConfig {
   enabled: boolean;
   templates: PoolTemplate[];
-  priceSource: string;
 }
 
 /**
@@ -73,10 +72,14 @@ export function getSchedulerConfig(): SchedulerConfig {
     );
   }
 
+  // NOTE: there is no price-source knob here. The provider is chosen in
+  // packages/market-data/src/factory.ts from MARKET_DATA_PROVIDER. A `priceSource`
+  // field used to be read from a PRICE_SOURCE env var that nothing consumed, so
+  // the config advertised a switch that did nothing while production ran a
+  // different provider than the value suggested.
   return {
     enabled,
     templates,
-    priceSource: process.env.PRICE_SOURCE || 'pacifica',
   };
 }
 

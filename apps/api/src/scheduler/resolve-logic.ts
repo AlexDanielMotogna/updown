@@ -397,7 +397,12 @@ export async function resolvePool(
       // BigInt micro-USD format as getSpotPrice (price * 1_000_000).
       finalPrice = BigInt(Math.round(parseFloat(buffered.price) * 1_000_000));
       finalTimestamp = new Date(buffered.timestamp);
-      finalSource = 'pacifica-ws-buffer';
+      // Name the provider that actually fed the buffer. This used to be the string
+      // 'pacifica-ws-buffer' regardless of configuration, so every FINAL snapshot in
+      // price_snapshots claimed Pacifica while production was running Hyperliquid —
+      // a stored field asserting an origin it never checked, which is worse than no
+      // field at all when you are reconstructing a bad resolution after the fact.
+      finalSource = `${deps.priceProvider.getName()}-ws-buffer`;
       priceSource = 'buffer';
       driftMs = endMs - buffered.timestamp;
     } else {
