@@ -47,11 +47,43 @@ export function CryptoAdmin() {
   const refWinners = refWinnersQ.data?.data ?? [];
   const refTree = refTreeQ.data?.data ?? [];
 
+  // Weeks run Monday 00:00 UTC → Monday 00:00 UTC, the same boundary the API uses
+  // (weekStartUtc). The picker defaults to the last CLOSED week: closing the week
+  // that just ended is what this button is for, and drawing the one in progress
+  // only snapshots a partial board.
+  const weekOptions = useMemo(() => {
+    const mondayUtc = (d: Date) => {
+      const x = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+      const dow = x.getUTCDay(); // 0=Sun..6=Sat
+      x.setUTCDate(x.getUTCDate() - (dow === 0 ? 6 : dow - 1));
+      return x;
+    };
+    const current = mondayUtc(new Date());
+    return Array.from({ length: 8 }, (_, i) => {
+      const ws = new Date(current.getTime() - i * 7 * 86_400_000);
+      const end = new Date(ws.getTime() + 6 * 86_400_000);
+      return {
+        value: ws.toISOString(),
+        label: `${ws.toISOString().slice(0, 10)} → ${end.toISOString().slice(0, 10)}${i === 0 ? ' (in progress)' : ''}`,
+      };
+    });
+  }, []);
+  const [weekStart, setWeekStart] = useState(() => {
+    const mondayUtc = (d: Date) => {
+      const x = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+      const dow = x.getUTCDay();
+      x.setUTCDate(x.getUTCDate() - (dow === 0 ? 6 : dow - 1));
+      return x;
+    };
+    return new Date(mondayUtc(new Date()).getTime() - 7 * 86_400_000).toISOString();
+  });
+  const weekLabel = weekOptions.find((w) => w.value === weekStart)?.label ?? weekStart.slice(0, 10);
+
   const drawRefWinner = async () => {
     if (busy) return;
-    if (!window.confirm('Draw the top-1 referrer for the current week and announce on Telegram?')) return;
+    if (!window.confirm(`Draw the referral podium for week ${weekLabel} and announce on Telegram?`)) return;
     setBusy('ref-draw');
-    try { const r = await adminFetch<{ data: { winner: RefWinner | null; note?: string } }>('/crypto/referral-draw', { method: 'POST', body: JSON.stringify({}) }); await refWinnersQ.refetch(); if (!r.data.winner) window.alert(r.data.note ?? 'No winner.'); }
+    try { const r = await adminFetch<{ data: { count: number; note?: string } }>('/crypto/referral-draw', { method: 'POST', body: JSON.stringify({ weekStart }) }); await refWinnersQ.refetch(); if (!r.data.count) window.alert(r.data.note ?? 'No referral winner for that week.'); }
     catch (e) { window.alert((e as Error).message); } finally { setBusy(null); }
   };
   const setRefPaid = async (w: RefWinner) => {
@@ -74,9 +106,12 @@ export function CryptoAdmin() {
 
   const drawWinner = async () => {
     if (busy) return;
-    if (!window.confirm('Draw the top-1 winner for the current week and announce on Telegram?')) return;
+    if (!window.confirm(`Draw the PNL podium for week ${weekLabel} and announce on Telegram?`)) return;
     setBusy('draw');
-    try { const r = await adminFetch<{ data: { winner: Winner | null; note?: string } }>('/crypto/draw', { method: 'POST', body: JSON.stringify({}) }); await winnersQ.refetch(); if (!r.data.winner) window.alert(r.data.note ?? 'No winner.'); }
+    // The endpoint returns { winners, count, note } — read `count`. Reading a
+    // `winner` field that stopped existing when the podium became tiered made it
+    // report "No winner" on every successful draw.
+    try { const r = await adminFetch<{ data: { count: number; note?: string } }>('/crypto/draw', { method: 'POST', body: JSON.stringify({ weekStart }) }); await winnersQ.refetch(); if (!r.data.count) window.alert(r.data.note ?? 'No winner for that week.'); }
     catch (e) { window.alert((e as Error).message); } finally { setBusy(null); }
   };
 
@@ -106,6 +141,24 @@ export function CryptoAdmin() {
   );
 
   const inputSx = { px: 1, py: 0.5, borderRadius: 1, fontSize: '0.8rem', border: `1px solid ${t.border.medium}`, bgcolor: t.bg.app, color: t.text.primary, fontFamily: 'inherit', outline: 'none' } as const;
+
+  /** Week selector shared by both podium draws. */
+  const weekPicker = (
+    <Box
+      component="select"
+      value={weekStart}
+      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setWeekStart(e.target.value)}
+      sx={{ ...inputSx, fontSize: '0.72rem', cursor: 'pointer' }}
+    >
+      {weekOptions.map((w) => <option key={w.value} value={w.value}>{w.label}</option>)}
+    </Box>
+  );
+  const drawActions = (onDraw: () => void, busyKey: string) => (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      {weekPicker}
+      {btn('Draw week', onDraw, { primary: true, disabled: busy === busyKey })}
+    </Box>
+  );
   const th = { color: t.text.tertiary, fontSize: '0.68rem', fontWeight: 700, borderColor: t.border.subtle, py: 1 } as const;
   const td = { color: t.text.primary, fontSize: '0.78rem', borderColor: t.border.subtle, py: 0.75 } as const;
 
@@ -127,9 +180,9 @@ export function CryptoAdmin() {
       </Box>
 
       {/* Weekly winners */}
-      <SectionCard title="Weekly $100 winner" accentColor={t.gold} actions={btn('Draw current week', drawWinner, { primary: true, disabled: busy === 'draw' })}>
+      <SectionCard title="Weekly $100 winner" accentColor={t.gold} actions={drawActions(drawWinner, 'draw')}>
         {winnersQ.isLoading ? <LoadingState variant="inline" /> : winners.length === 0 ? (
-          <EmptyState title="No winners drawn yet" hint="Draw the current week once it's over to snapshot the top-1 PNL." />
+          <EmptyState title="No winners drawn yet" hint="Pick a finished week and draw it to snapshot the PNL podium." />
         ) : (
           <TableContainer>
             <Table size="small">
@@ -166,7 +219,7 @@ export function CryptoAdmin() {
       </SectionCard>
 
       {/* Weekly referral winners */}
-      <SectionCard title="Weekly referral winner" accentColor={t.gold} actions={btn('Draw current week', drawRefWinner, { primary: true, disabled: busy === 'ref-draw' })}>
+      <SectionCard title="Weekly referral winner" accentColor={t.gold} actions={drawActions(drawRefWinner, 'ref-draw')}>
         {refWinnersQ.isLoading ? <LoadingState variant="inline" /> : refWinners.length === 0 ? (
           <EmptyState title="No referral winners drawn yet" hint="Draw the current week to snapshot the top referrer (most valid referrals)." />
         ) : (
