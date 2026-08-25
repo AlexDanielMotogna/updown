@@ -1,20 +1,26 @@
 import type { Metadata } from 'next';
+import { LaunchCountdown } from './LaunchCountdown';
 
 /**
- * Deployment notice. This is what the production host serves while the app is
- * being moved to a development environment — see middleware.ts, which redirects
- * every route here except /admin and /api.
+ * Launch notice. This is what the production host serves until UpDown goes live
+ * on devnet — see middleware.ts, which redirects every route here except /admin
+ * and /api.
  *
  * Deliberately dumb: a server component with inline styles, no providers, no
- * Privy, no data fetching. The page has to render even when everything behind it
- * is down, which is exactly when it is needed.
+ * Privy, no data fetching. The only client code is the countdown. The page has to
+ * render even when everything behind it is down, which is exactly when it is
+ * needed.
  */
 export const metadata: Metadata = {
-  title: 'UpDown — Moving to development',
-  description: 'UpDown is being redeployed to a development environment.',
+  title: 'UpDown — Devnet launch',
+  description: 'UpDown goes live on devnet on Thursday 27 August, 20:00 CET.',
 };
 
 const CYAN = '#5FD8EF';
+
+/** 20:00 Europe/Madrid on Thursday 27 August 2026. August is CEST (UTC+2). */
+const LAUNCH_ISO = '2026-08-27T18:00:00.000Z';
+const LAUNCH_LABEL = 'Thursday 27 August, 20:00 CET';
 
 /**
  * The official channels, the only way back in while the app is down. Same links,
@@ -65,17 +71,18 @@ export default function SoonPage() {
 
       <div style={{ maxWidth: 560, display: 'flex', flexDirection: 'column', gap: 16 }}>
         <h1 style={{ margin: 0, fontSize: 'clamp(1.5rem, 4vw, 2.1rem)', fontWeight: 800, letterSpacing: '-0.02em' }}>
-          We are moving to a development environment
+          UpDown goes live on devnet
         </h1>
         <p style={{ margin: 0, fontSize: '1rem', lineHeight: 1.6, color: '#9FB0C0' }}>
-          UpDown will be redeployed within the next <strong style={{ color: CYAN }}>24 hours</strong>. The app is
-          offline while we migrate.
+          <strong style={{ color: '#E8EEF5' }}>Update:</strong> our previous notice announced a 24 hour window. The
+          redeploy requires additional time, so we are confirming a fixed date instead.
         </p>
-        <p style={{ margin: 0, fontSize: '0.95rem', lineHeight: 1.6, color: '#9FB0C0' }}>
-          The Crypto Predictions event has ended. Thanks to everyone who played. Weekly prizes are settled from the
-          final leaderboard and paid out manually.
+        <p style={{ margin: 0, fontSize: '1rem', lineHeight: 1.6, color: '#9FB0C0' }}>
+          <strong style={{ color: CYAN }}>{LAUNCH_LABEL}</strong>. The platform returns in full, on devnet.
         </p>
       </div>
+
+      <LaunchCountdown targetIso={LAUNCH_ISO} />
 
       <div
         style={{
@@ -92,7 +99,7 @@ export default function SoonPage() {
         }}
       >
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: CYAN, display: 'inline-block' }} />
-        Deployment in progress
+        Updated launch date
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
