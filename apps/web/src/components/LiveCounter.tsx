@@ -14,8 +14,16 @@ import { useOnlineCount } from '@/hooks/useOnlineCount';
  * Counts CONNECTIONS, not people (one user with three tabs counts three), which
  * is why the label says "live" rather than "users".
  *
- * Sits bottom-left, lifted above the mobile bottom nav (AppShell reserves 72px
- * plus the safe-area inset on xs) so it never covers a nav item.
+ * Position: bottom-RIGHT, stacked directly above the AI analyzer FAB.
+ * Bottom-left is taken by BoostBadges (`header/BoostBadges.tsx:55`), and the
+ * bottom-right corner itself is taken by the AI bot bubble
+ * (`AiAnalyzerBot.tsx:217`, 56px desktop / 48px mobile) plus the notification
+ * toasts (`NotificationToasts.tsx:231`), so we sit one row up from the bubble
+ * and align to its right edge.
+ *
+ * The bubble is draggable (`useDraggablePosition('bot-drag-pos')`), so a user
+ * who drags it can park it over this pill. That is only ever cosmetic: the pill
+ * is `pointerEvents: 'none'`, so it can never swallow a click meant for the FAB.
  */
 export function LiveCounter() {
   const t = useThemeTokens();
@@ -28,8 +36,12 @@ export function LiveCounter() {
       aria-live="polite"
       sx={{
         position: 'fixed',
-        left: { xs: 12, lg: 16 },
-        bottom: { xs: 'calc(84px + env(safe-area-inset-bottom, 0px))', lg: 16 },
+        // Right edge, aligned with the AI bot bubble below it (16 mobile / 24 desktop).
+        right: { xs: 16, lg: 24 },
+        // One row above that bubble: its own offset + its height + a small gap.
+        // Mobile: 80 (bubble offset) + 48 (bubble) + 10 = 138, plus the safe area.
+        // Desktop: 24 + 56 + 12 = 92.
+        bottom: { xs: 'calc(138px + env(safe-area-inset-bottom, 0px))', lg: 92 },
         zIndex: 1200,
         display: 'flex',
         alignItems: 'center',
