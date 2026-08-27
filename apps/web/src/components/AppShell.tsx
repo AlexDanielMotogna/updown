@@ -6,6 +6,7 @@ import { Header } from './Header';
 import { MarketSidebar } from './sidebar/MarketSidebar';
 import { MarketsRightRail } from './sidebar/MarketsRightRail';
 import { RewardPopup } from './RewardPopup';
+import { LiveCounter } from './LiveCounter';
 import { useThemeTokens } from '@/app/providers';
 
 function Footer() {
@@ -138,6 +139,7 @@ export function AppShell({ children, centered = false, topBar }: { children: Rea
     >
       <Header />
       <RewardPopup />
+      <LiveCounter />
       {/* Top filter bar (e.g. Markets tabs) - sticky just under the header, full
           width above the sidebar+content row so the sidebars start below it. */}
       {topBar && (

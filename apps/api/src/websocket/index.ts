@@ -15,6 +15,28 @@ const roomSubscriptions = new Map<string, number>();
 // Price cache for immediate delivery to new subscribers
 const priceCache = new Map<string, { price: string; timestamp: number }>();
 
+// ── Live presence ───────────────────────────────────────────────────────────
+// Broadcast the connected-client count so the UI can show a "LIVE · n" pill.
+// Counts CONNECTIONS, not people (one user with three tabs counts three) — it's
+// a liveness signal, not an analytics metric.
+//
+// Throttled on the trailing edge: a deploy or a flaky mobile network produces a
+// burst of connects/disconnects, and without this each one would fan out an
+// emit to every socket. One emit per second is plenty for a counter, and the
+// delay makes the number MORE accurate on disconnect (engine.clientsCount has
+// settled by the time it fires).
+const PRESENCE_THROTTLE_MS = 1000;
+let presenceTimer: NodeJS.Timeout | null = null;
+
+function broadcastPresence(): void {
+  if (!io || presenceTimer) return;
+  presenceTimer = setTimeout(() => {
+    presenceTimer = null;
+    if (io) io.emit('presence', { online: io.engine.clientsCount });
+  }, PRESENCE_THROTTLE_MS);
+  presenceTimer.unref?.(); // never hold the event loop open on shutdown
+}
+
 /**
  * Initialize Socket.io server
  */
@@ -39,6 +61,12 @@ export function initWebSocket(httpServer: HttpServer): Server {
 
   io.on('connection', (socket: Socket) => {
     console.log(`[WS] Client connected: ${socket.id}`);
+
+    // Send the current count straight to this socket, then let everyone else
+    // know it moved. Without the direct emit a fresh client would render no
+    // counter until the next connect/disconnect happened somewhere on the server.
+    socket.emit('presence', { online: io?.engine.clientsCount ?? 0 });
+    broadcastPresence();
 
     // Handle price subscriptions
     socket.on('subscribe:prices', async (data: { assets: string[] }) => {
@@ -119,6 +147,7 @@ export function initWebSocket(httpServer: HttpServer): Server {
     // Handle disconnect
     socket.on('disconnect', () => {
       console.log(`[WS] Client disconnected: ${socket.id}`);
+      broadcastPresence();
     });
   });
 
@@ -436,6 +465,11 @@ export function getIO(): Server | null {
  */
 export function shutdownWebSocket(): void {
   activeAssets.clear();
+
+  if (presenceTimer) {
+    clearTimeout(presenceTimer);
+    presenceTimer = null;
+  }
 
   // Disconnect provider
   if (priceProvider) {
