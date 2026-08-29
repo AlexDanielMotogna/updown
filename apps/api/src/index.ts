@@ -4,6 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { publicLimiter, moneyLimiter, faucetLimiter } from './middleware/rate-limit';
+import { serverIsTestnet } from './services/exchange-connection';
 import { poolsRouter } from './routes/pools';
 import { betsRouter } from './routes/bets';
 import { healthRouter, startUptimeCron } from './routes/health';
@@ -139,6 +140,20 @@ initPriceHistoryPersistence(prisma);
 // Start server and scheduler
 httpServer.listen(PORT, async () => {
   console.log(`API server running on port ${PORT}`);
+
+  // Which HyperLiquid network this process SIGNS on. Worth a boot line because
+  // reads and signatures take different paths: the browser reads HL over
+  // NEXT_PUBLIC_HYPERLIQUID_API_URL while the server signs over the values
+  // below. When those disagree, HL answers "User or API Wallet 0x... does not
+  // exist" on the first action, which reads like a broken agent rather than a
+  // config mismatch. Printing it at startup makes the mismatch visible before
+  // anyone trades.
+  console.log(
+    `[Exchange] HyperLiquid signing network: ${serverIsTestnet() ? 'TESTNET' : 'MAINNET'} ` +
+    `(HYPERLIQUID_NETWORK=${process.env.HYPERLIQUID_NETWORK || 'unset'}, ` +
+    `HYPERLIQUID_API_URL=${process.env.HYPERLIQUID_API_URL || 'unset'}). ` +
+    'The terminal must read the SAME network via NEXT_PUBLIC_HYPERLIQUID_API_URL.',
+  );
 
   // Cold-start: hydrate the price-history ring buffer with the last
   // hour of ticks BEFORE the scheduler comes up. Without this, any
