@@ -1,7 +1,9 @@
 import express, { type Express } from 'express';
 import { createServer } from 'http';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
+import { publicLimiter, moneyLimiter, faucetLimiter } from './middleware/rate-limit';
 import { poolsRouter } from './routes/pools';
 import { betsRouter } from './routes/bets';
 import { healthRouter, startUptimeCron } from './routes/health';
@@ -43,7 +45,15 @@ dotenv.config();
 const app: Express = express();
 // Behind Railway's proxy — trust X-Forwarded-For so req.ip is the real client
 // IP (needed for referral anti-cheat / activity signals), not the LB address.
-app.set('trust proxy', true);
+//
+// `1`, not `true`. `true` trusts the WHOLE forwarded chain, so req.ip becomes the
+// leftmost entry, which the client writes. One header then forged every IP-based
+// control we have: the admin brute-force buckets (middleware/admin-auth.ts), the
+// crypto-predictions funded-account cap on a real-cash event
+// (routes/crypto-predictions.ts), the World Cup participant cap
+// (routes/worldcup.ts) and referral anti-cheat (routes/referrals.ts). With `1`
+// only the last proxy (Railway's) is trusted, which is the hop we actually have.
+app.set('trust proxy', 1);
 const httpServer = createServer(app);
 const PORT = process.env.PORT || 3002;
 
@@ -51,11 +61,32 @@ const PORT = process.env.PORT || 3002;
 const corsOrigin = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
   : 'http://localhost:3000';
+// Security headers. This API serves only JSON to browsers on OTHER origins
+// (the web app and the terminal), which shapes two of the defaults:
+//  - CORP must be cross-origin, or the default same-origin blocks those reads.
+//  - CSP is off: it governs how a document loads subresources, and we never
+//    serve a document. config/security-headers.js covers the Next apps.
+// The rest (nosniff, frameguard, HSTS, referrer policy) applies as-is, and
+// helmet also removes the x-powered-by banner.
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: false,
+}));
+
 app.use(cors({
   origin: corsOrigin,
   credentials: true,
 }));
-app.use(express.json());
+// Explicit body cap. 100kb was already the express default, but leaving it
+// implicit meant nobody could see what the limit was.
+app.use(express.json({ limit: '100kb' }));
+
+// Per-IP limits. Money and faucet routes get their own tighter buckets, mounted
+// before the routers so they run first. See middleware/rate-limit.ts.
+app.use('/api', publicLimiter);
+app.use('/api/transactions/faucet', faucetLimiter);
+app.use('/api/transactions', moneyLimiter);
+app.use('/api/exchange', moneyLimiter);
 
 // Routes
 app.use('/api/health', healthRouter);
