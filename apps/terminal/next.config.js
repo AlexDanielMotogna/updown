@@ -24,7 +24,11 @@ const nextConfig = {
         source: '/:path*',
         headers: buildSecurityHeaders({
           connect: ['https://www.tradingview.com', 'https://s3.tradingview.com'],
-          frame: ['https://www.tradingview.com'],
+          // `blob:` because the TradingView charting library renders its chart
+          // into iframes it creates from blob URLs. Without it the CSP reports a
+          // frame-src violation on every chart load, and the chart would break
+          // outright the moment CSP_ENFORCE=true.
+          frame: ['https://www.tradingview.com', 'blob:'],
         }),
       },
     ];
