@@ -32,6 +32,46 @@ interface ChatRequestBody {
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 
+// ── Abuse limits ────────────────────────────────────────────────────────────
+// This route spends the project's Anthropic credits and the bot is usable
+// without logging in, so it cannot be gated behind auth without killing the
+// feature. Instead: bound what one caller can spend. `max_tokens` only caps the
+// OUTPUT; input tokens were unbounded, so a loop posting a megabyte of `history`
+// billed us with no ceiling. The attacker also controls the whole message array
+// (including fake assistant turns), so treat every field as hostile.
+const MAX_MESSAGE_CHARS = 2_000;
+const MAX_HISTORY_MESSAGES = 10;
+const MAX_HISTORY_CHARS = 8_000;
+const MAX_SYSTEM_CHARS = 4_000;
+
+const RATE_WINDOW_MS = 10 * 60_000;
+const RATE_MAX_REQUESTS = 20;
+
+const hits = new Map<string, { count: number; windowStartedAt: number }>();
+
+/** True when this caller is over budget. Single web instance, so in-memory is fine. */
+function rateLimited(ip: string): boolean {
+  const now = Date.now();
+  const bucket = hits.get(ip);
+  if (!bucket || now - bucket.windowStartedAt > RATE_WINDOW_MS) {
+    hits.set(ip, { count: 1, windowStartedAt: now });
+    // Opportunistic prune so a bot cycling IPs cannot grow this map forever.
+    if (hits.size > 5_000) {
+      for (const [k, v] of hits) {
+        if (now - v.windowStartedAt > RATE_WINDOW_MS) hits.delete(k);
+      }
+    }
+    return false;
+  }
+  bucket.count += 1;
+  return bucket.count > RATE_MAX_REQUESTS;
+}
+
+function clientIp(request: NextRequest): string {
+  const fwd = request.headers.get('x-forwarded-for');
+  return fwd ? fwd.split(',')[0].trim() : 'unknown';
+}
+
 function buildSystemPrompt(body: ChatRequestBody): string {
   const { asset, poolStatus, analysis, timeframe, priceData } = body;
 
@@ -58,7 +98,7 @@ ${indicatorLines}
 - Summary: ${analysis.explanation}`;
   }
 
-  return `You are PACIFICA-BOT, a robotic AI trading analyst embedded in a parimutuel prediction platform. You analyze crypto markets using technical indicators.
+  const prompt = `You are PACIFICA-BOT, a robotic AI trading analyst embedded in a parimutuel prediction platform. You analyze crypto markets using technical indicators.
 
 PERSONALITY:
 - You speak like a robot: use "BEEP BOOP", "BZZT", "PROCESSING...", "[MODULE]" prefixes
@@ -97,6 +137,12 @@ RULES:
 - Keep the robotic persona consistent  every message should feel like it comes from a bot
 - Reference specific numbers from the analysis  don't be vague
 - When market intelligence is available, weave it into your analysis: mention funding direction, OI trends, volume context, and mark/oracle spread when relevant`;
+
+  // The caller supplies `analysis` (free-text explanation, an unbounded
+  // indicators array) and `priceData`, all of which land in this string. Capping
+  // the finished prompt bounds every one of those fields at once, so they cannot
+  // be used to smuggle in the payload the history cap already rejects.
+  return prompt.slice(0, MAX_SYSTEM_CHARS);
 }
 
 export async function POST(request: NextRequest) {
@@ -120,21 +166,41 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Message is required' }, { status: 400 });
   }
 
-  // Build conversation: include recent history (last 10 messages) + new message
+  if (rateLimited(clientIp(request))) {
+    return NextResponse.json(
+      { error: 'Rate limited', reply: 'BZZT... Too many requests. Give my circuits a minute.' },
+      { status: 429 },
+    );
+  }
+
+  const message = body.message.slice(0, MAX_MESSAGE_CHARS);
+
+  // Build conversation: recent history + the new message. Every entry is
+  // attacker-controlled, so the role is whitelisted (anything that is not
+  // 'assistant' becomes 'user') and the running total is capped. Oldest entries
+  // are dropped first so the most recent context survives.
   const messages: { role: 'user' | 'assistant'; content: string }[] = [];
 
-  if (body.history?.length) {
-    const recent = body.history.slice(-10);
-    for (const msg of recent) {
-      messages.push({ role: msg.role, content: msg.content });
+  if (Array.isArray(body.history) && body.history.length) {
+    const recent = body.history.slice(-MAX_HISTORY_MESSAGES);
+    let budget = MAX_HISTORY_CHARS;
+    const trimmed: { role: 'user' | 'assistant'; content: string }[] = [];
+    for (let i = recent.length - 1; i >= 0; i--) {
+      const entry = recent[i];
+      if (typeof entry?.content !== 'string') continue;
+      const content = entry.content.slice(0, MAX_MESSAGE_CHARS);
+      if (content.length > budget) break;
+      budget -= content.length;
+      trimmed.unshift({ role: entry.role === 'assistant' ? 'assistant' : 'user', content });
     }
+    messages.push(...trimmed);
   }
 
   // Ensure last message is the new user message
   // (avoid duplicate if history already includes it)
   const lastMsg = messages[messages.length - 1];
-  if (!lastMsg || lastMsg.role !== 'user' || lastMsg.content !== body.message) {
-    messages.push({ role: 'user', content: body.message });
+  if (!lastMsg || lastMsg.role !== 'user' || lastMsg.content !== message) {
+    messages.push({ role: 'user', content: message });
   }
 
   try {
