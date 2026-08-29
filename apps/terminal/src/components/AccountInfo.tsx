@@ -2,6 +2,7 @@
 
 import { useAccountStream } from '@/hooks/useAccountStream';
 import { useAccountState } from '@/lib/accountStore';
+import { sharesOneBalance } from '@/lib/hlBalances';
 
 const usd = (n: number) => `$${(Number.isFinite(n) ? n : 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 const signedUsd = (n: number) => `${n >= 0 ? '+' : '-'}$${Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
@@ -14,7 +15,7 @@ export function AccountInfo({ evmAddress, spot: spotKind = false }: { evmAddress
   const restingValue = orders.reduce((s, o) => s + Number(o.price) * Number(o.remaining), 0);
   // Spot value / USDC / fees from the shared account store (one poll for navbar +
   // overview + order panel). spotUsdc = USDC total balance.
-  const { spotValue, usdcTotal: spotUsdc, fees } = useAccountState(evmAddress);
+  const { spotValue, usdcTotal: spotUsdc, fees, abstraction } = useAccountState(evmAddress);
 
   const meta = (acct?.metadata ?? {}) as { totalNtlPos?: string; crossMaintenanceMarginUsed?: string };
   const equity = Number(acct?.accountEquity ?? 0); // perps account value (incl. uPnL)
@@ -29,7 +30,9 @@ export function AccountInfo({ evmAddress, spot: spotKind = false }: { evmAddress
   // which would double-count the margin). Matches the navbar chip (useAccountValue).
   const spotEquity = spotValue ?? spotUsdc; // USDC + tokens (USDC-only until loaded)
   const holdingsValue = spotValue != null && spotUsdc != null ? Math.max(0, spotValue - spotUsdc) : null;
-  const total = (spotEquity ?? 0) + upnl;
+  // Same rule as the navbar chip (useAccountValue), kept in one helper so the two
+  // cannot drift: add perps equity only when spot and perps are SEPARATE wallets.
+  const total = sharesOneBalance(abstraction) ? (spotEquity ?? 0) + upnl : (spotEquity ?? 0) + equity;
   const feeMaker = fees ? (spotKind ? fees.spotMaker : fees.maker) : null;
   const feeTaker = fees ? (spotKind ? fees.spotTaker : fees.taker) : null;
 

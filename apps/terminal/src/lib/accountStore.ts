@@ -1,8 +1,13 @@
 'use client';
 
 import { useCallback, useSyncExternalStore } from 'react';
-import { fetchSpotSummary, fetchUserFees } from './hlBalances';
+import { fetchSpotSummary, fetchUserFees, fetchAbstraction, sharesOneBalance, type AbstractionMode } from './hlBalances';
+import { unifyAccount } from './api';
 import { pollWhileVisible } from './poll';
+
+/** Accounts we already asked the server to migrate, so a failure is not retried
+ *  on every slow poll. Module-level: survives store teardown on remount. */
+const unifyAttempted = new Set<string>();
 
 /**
  * Shared HyperLiquid account-state store. The navbar chip, the account overview and
@@ -18,9 +23,11 @@ export interface AccountSnapshot {
   usdcTotal: number | null;
   usdcAvailable: number | null;
   fees: { maker: number; taker: number; spotMaker: number; spotTaker: number } | null;
+  /** Whether spot and perps share one balance. Decides how account value totals. */
+  abstraction: AbstractionMode | null;
 }
 
-const EMPTY: AccountSnapshot = { loaded: false, spotValue: null, usdcTotal: null, usdcAvailable: null, fees: null };
+const EMPTY: AccountSnapshot = { loaded: false, spotValue: null, usdcTotal: null, usdcAvailable: null, fees: null, abstraction: null };
 
 const SUMMARY_MS = 10_000;
 const FEES_MS = 60_000;
@@ -56,13 +63,48 @@ class Store {
     const f = await fetchUserFees(this.user);
     if (f) this.set({ fees: f });
   }
+  /** Rides the slow loop: the mode only changes when the account is migrated. */
+  private async loadAbstraction() {
+    const m = await fetchAbstraction(this.user);
+    if (!m) return;
+    this.set({ abstraction: m });
+    if (!sharesOneBalance(m)) void this.migrateToUnified();
+  }
+
+  /**
+   * HL creates accounts with spot and perps SPLIT, and this UI deliberately has
+   * no Spot->Perps transfer. An account funded on the perps side is therefore
+   * stuck: the balance is not available to trade, so the user cannot act, so the
+   * server never builds a signer, so the existing ensureUnified backfill (which
+   * only runs on an order/cancel/leverage) never fires. Detecting the split here
+   * and asking the server to migrate is what breaks that loop.
+   *
+   * Agent-signed server-side, so no wallet popup. Once per account per page
+   * load: a failure (no active connection yet, HL hiccup) must not turn the slow
+   * poll into a retry storm.
+   */
+  private async migrateToUnified() {
+    if (unifyAttempted.has(this.user)) return;
+    unifyAttempted.add(this.user);
+    try {
+      const r = await unifyAccount();
+      if (r.success && r.data?.changed) {
+        // Balances move clearinghouse, so re-read rather than wait for the poll.
+        await Promise.all([this.loadSummary(), (async () => {
+          const m = await fetchAbstraction(this.user);
+          if (m) this.set({ abstraction: m });
+        })()]);
+      }
+    } catch { /* stays split; the value shown just falls back to the split total */ }
+  }
 
   private start() {
     void this.loadSummary();
     void this.loadFees();
+    void this.loadAbstraction();
     // Visibility-aware: stop polling HL while the tab is hidden, refresh on return.
     this.stopSummary = pollWhileVisible(() => { void this.loadSummary(); }, SUMMARY_MS);
-    this.stopFees = pollWhileVisible(() => { void this.loadFees(); }, FEES_MS);
+    this.stopFees = pollWhileVisible(() => { void this.loadFees(); void this.loadAbstraction(); }, FEES_MS);
     if (typeof window !== 'undefined') window.addEventListener('updown:spot-traded', this.onTraded);
   }
   private stop() {

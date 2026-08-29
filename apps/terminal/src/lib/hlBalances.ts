@@ -25,6 +25,36 @@ export async function fetchPerpsWithdrawable(user: string): Promise<number> {
   return Number(s?.withdrawable ?? 0);
 }
 
+/**
+ * How this account's spot and perps balances relate.
+ *
+ * `unifiedAccount` (and portfolioMargin) share ONE balance, held in the spot
+ * clearinghouse and already covering perp margin. The legacy modes
+ * (`default` / `dexAbstraction` / `disabled`) keep two separate wallets.
+ *
+ * This decides how account value is totalled: with a shared balance, adding
+ * perps equity double-counts the margin; with split wallets, NOT adding it hides
+ * money the user actually has. Assuming unified is what made the navbar read
+ * $0.00 for an account whose funds sat in perps.
+ */
+export type AbstractionMode =
+  | 'unifiedAccount'
+  | 'portfolioMargin'
+  | 'disabled'
+  | 'default'
+  | 'dexAbstraction';
+
+export async function fetchAbstraction(user: string): Promise<AbstractionMode | null> {
+  return info<AbstractionMode>({ type: 'userAbstraction', user });
+}
+
+/** True when spot and perps share one balance, so perps equity must NOT be added. */
+export function sharesOneBalance(mode: AbstractionMode | null): boolean {
+  // Unknown counts as shared: under-reporting is safer than showing a total the
+  // user cannot actually spend.
+  return mode == null || mode === 'unifiedAccount' || mode === 'portfolioMargin';
+}
+
 /** The user's maker/taker fee rates (decimals, e.g. 0.00015 = 0.015%). HL charges
  * different rates for perps vs spot (spot is higher: 0.04%/0.07% base vs
  * 0.015%/0.045%), so return both. */

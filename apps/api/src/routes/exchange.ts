@@ -249,6 +249,35 @@ exchangeRouter.post('/agent/confirm', async (req, res) => {
   }
 });
 
+/**
+ * Put the account on HL Unified Account, on demand.
+ *
+ * ensureUnified already runs at /agent/confirm and as a backfill inside
+ * buildHyperliquidSigner, but a signer is only built when the user ACTS (order,
+ * cancel, leverage). HL creates accounts with spot and perps split, and our UI
+ * has no Spot->Perps transfer, so an account funded on the perps side and never
+ * traded is stuck: the balance does not show as available, so the user cannot
+ * trade, so no signer is built, so the account is never migrated. This endpoint
+ * is the way out of that loop, and it is idempotent.
+ */
+exchangeRouter.post('/unify', async (req, res) => {
+  try {
+    const userId = req.authUser!.id;
+    const conn = await getConnection(userId, 'hyperliquid', serverIsTestnet());
+    if (!conn || !conn.active || !conn.accountAddress) {
+      return res.status(409).json({ success: false, error: { code: 'NO_ACTIVE_CONNECTION', message: 'Connect and approve an agent first' } });
+    }
+
+    const signer = await buildHyperliquidSigner(userId, { isTestnet: serverIsTestnet() });
+    const r = await signer.ensureUnified(conn.accountAddress);
+    console.log(`[Exchange] /unify ${conn.accountAddress}: ${r.mode}${r.changed ? ' (set to unifiedAccount)' : ' (already unified)'}`);
+    res.json({ success: true, data: r });
+  } catch (error) {
+    console.error('[Exchange] unify error:', error);
+    res.status(500).json({ success: false, error: { code: 'UNIFY_FAILED', message: (error as Error).message || 'Failed to unify account' } });
+  }
+});
+
 /** Connection status (never returns the encrypted key). */
 exchangeRouter.get('/connection', async (req, res) => {
   try {

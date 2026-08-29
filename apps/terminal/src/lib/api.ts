@@ -336,6 +336,15 @@ export function registerUser(walletAddress: string) {
   return post<unknown>('/api/users/register', { walletAddress });
 }
 
+/**
+ * Move the HL account onto Unified Account (one balance across spot + perps).
+ * Idempotent. Needed because HL creates accounts split and this UI has no
+ * Spot->Perps transfer, so funds on the perps side are otherwise unusable.
+ */
+export function unifyAccount() {
+  return post<{ changed: boolean; mode: string }>('/api/exchange/unify', {});
+}
+
 /** Link an EVM wallet to a Solana identity (needs the Solana walletAddress). */
 export function linkEvm(walletAddress: string, evmAddress: string, source?: string) {
   return post<{ chain: string; address: string }>('/api/exchange/link', {
