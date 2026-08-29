@@ -19,6 +19,7 @@ export function useAccountValue(evmAddress?: string) {
 
   const upnl = account ? Number(account.unrealizedPnl ?? 0) : 0;
   const perpsEquity = account ? Number(account.accountEquity ?? 0) : 0;
+  const perpsAvailable = account ? Number(account.availableToSpend ?? 0) : 0;
 
   // The formula depends on how the account holds its money, which is why this
   // used to be wrong. Under a UNIFIED account there is one balance, kept in the
@@ -32,10 +33,20 @@ export function useAccountValue(evmAddress?: string) {
   const total = sharesOneBalance(abstraction)
     ? (spotValue ?? 0) + upnl
     : (spotValue ?? 0) + perpsEquity;
+  /**
+   * Buying power for a PERPS order, which side holds it depends on the mode.
+   * Under a unified account the free USDC sits in the (spot) unified balance and
+   * the perps clearinghouse reads ~0, so spot is the right source. Under the
+   * legacy split it is exactly inverted: spot is 0 and the money is the perps
+   * availableToSpend. Reading only spot is what left "Available to Trade $0" and
+   * "Max $0" on an account holding $6 in perps, so it could not trade at all.
+   */
+  const availableToTrade = sharesOneBalance(abstraction) ? (usdcAvailable ?? 0) : perpsAvailable;
+
   // Ready once either source has reported, so the chip doesn't flash $0.00 forever.
   const ready = !!account || spotValue != null;
   // Loaded = both spot fields resolved (gate funding/needs-deposit so a half-loaded
   // state can't flash "Deposit to start trading" on a funded account).
   const loaded = spotValue != null && usdcAvailable != null;
-  return { total, upnl, spotValue, usdcAvailable, ready, loaded };
+  return { total, upnl, spotValue, usdcAvailable, availableToTrade, ready, loaded };
 }

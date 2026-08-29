@@ -83,11 +83,14 @@ export function OrderEntry({
   const [mark, setMark] = useState(0);
   const [maxLev, setMaxLev] = useState(50);
   const { positions, ready: accountReady } = useAccountStream(evmAddress);
-  // Buying power under Unified Account = free USDC in the (unified) balance — the
-  // perps clearinghouse equity reads ~0 there, so don't use it. total drives the
-  // "needs funding" gate; usdcAvailable is "Available to Trade".
-  const { total: unifiedValue, usdcAvailable, loaded: balanceLoaded } = useAccountValue(evmAddress);
-  const available = usdcAvailable ?? 0;
+  // Buying power depends on how the account holds its money, so useAccountValue
+  // resolves it: under Unified Account it is the free USDC in the (spot) unified
+  // balance, because the perps clearinghouse reads ~0 there; under the legacy
+  // split it is the perps availableToSpend, because spot is the side that reads
+  // 0. Reading spot unconditionally showed "Available to Trade $0" on an account
+  // funded on the perps side. `total` drives the "needs funding" gate.
+  const { total: unifiedValue, availableToTrade, loaded: balanceLoaded } = useAccountValue(evmAddress);
+  const available = availableToTrade;
   const { enabled: tradingEnabled, busy: enabling, enableTrading, approveBuilder, checked } = useTrading(walletAddress, evmAddress);
   const { ready: privyReady, authenticated, login, connectWallet } = usePrivy();
   const toast = useToast();

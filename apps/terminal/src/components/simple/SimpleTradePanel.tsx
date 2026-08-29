@@ -47,9 +47,11 @@ export function SimpleTradePanel({
   const toast = useToast();
   const { positions, ready: accountReady } = useAccountStream(evmAddress);
   const { enabled: tradingEnabled, busy: enabling, enableTrading, approveBuilder, checked } = useTrading(walletAddress, evmAddress);
-  // Buying power under Unified Account = free USDC (shared store), NOT perps equity
-  // (which reads ~0 there). total drives the deposit gate.
-  const { total: unifiedValue, usdcAvailable, loaded: balanceLoaded } = useAccountValue(evmAddress);
+  // Buying power comes from whichever side actually holds it: free USDC under a
+  // unified account (perps equity reads ~0 there), perps availableToSpend under
+  // the legacy split (spot is the side that reads 0). useAccountValue picks.
+  // total drives the deposit gate.
+  const { total: unifiedValue, availableToTrade, loaded: balanceLoaded } = useAccountValue(evmAddress);
 
   const [tab, setTab] = useState<'OPEN' | 'CLOSE'>('OPEN');
   const [side, setSide] = useState<OrderSide>(initialSide ?? 'BUY');
@@ -70,7 +72,7 @@ export function SimpleTradePanel({
   const pos = useMemo(() => positions.find((p) => p.symbol === symbol), [positions, symbol]);
   const leverage = pos?.leverage && pos.leverage > 0 ? pos.leverage : readLeverage(symbol);
   const marginMode = (pos?.metadata?.leverageType as 'cross' | 'isolated' | undefined) ?? 'cross';
-  const available = usdcAvailable ?? 0;
+  const available = availableToTrade;
 
   const math = useTradeMath({ side, leverage, mark, available, amountUsd });
 
