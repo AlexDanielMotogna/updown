@@ -9,6 +9,12 @@ vi.mock('../db', () => ({
     bet: {
       findMany: vi.fn(),
       count: vi.fn(),
+      // Per-side aggregation for the positions view.
+      groupBy: vi.fn().mockResolvedValue([]),
+    },
+    // resolveFeeBps reads the user's level to price the payout preview.
+    user: {
+      findUnique: vi.fn().mockResolvedValue(null),
     },
   },
 }));

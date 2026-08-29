@@ -9,10 +9,22 @@ vi.mock('../db', () => ({
     pool: {
       findMany: vi.fn(),
       findFirst: vi.fn(),
+      findUnique: vi.fn().mockResolvedValue(null),
       count: vi.fn(),
     },
     bet: {
       groupBy: vi.fn().mockResolvedValue([]),
+      findMany: vi.fn().mockResolvedValue([]),
+      aggregate: vi.fn().mockResolvedValue({ _sum: {}, _count: 0 }),
+    },
+    eventLog: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+    sportsFixtureCache: {
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
+    user: {
+      findMany: vi.fn().mockResolvedValue([]),
     },
   },
 }));
@@ -97,9 +109,12 @@ describe('Pools API', () => {
 
       await request(app).get('/api/pools?asset=btc');
 
+      // `squadId: null` is part of the contract, not noise: public markets
+      // deliberately exclude squad pools. `asset` is upper-cased by the route,
+      // which is why the lowercase `btc` in the query still matches here.
       expect(prisma.pool.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { asset: 'BTC' },
+          where: { squadId: null, asset: 'BTC' },
         })
       );
     });
@@ -110,9 +125,11 @@ describe('Pools API', () => {
 
       await request(app).get('/api/pools?status=ACTIVE');
 
+      // A single status stays a scalar; only a comma-separated list becomes
+      // `{ in: [...] }` (see the status branch in routes/pools.ts).
       expect(prisma.pool.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { status: 'ACTIVE' },
+          where: { squadId: null, status: 'ACTIVE' },
         })
       );
     });

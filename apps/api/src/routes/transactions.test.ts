@@ -12,9 +12,22 @@ vi.mock('../db', () => ({
     },
     bet: {
       findUnique: vi.fn(),
+      // Idempotency lookup in confirm-deposit (by tx signature).
+      findFirst: vi.fn().mockResolvedValue(null),
+      // getDistinctBettorWallets (utils/bets.ts) — participant count for the
+      // fee waiver and the payout preview.
+      findMany: vi.fn().mockResolvedValue([]),
       create: vi.fn(),
       update: vi.fn(),
+      // Conditional claim write in confirm-claim.
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       count: vi.fn(),
+    },
+    // resolveFeeBps (utils/payout.ts) reads the user's level; confirm-claim
+    // credits totalWon.
+    user: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      update: vi.fn().mockResolvedValue({}),
     },
     eventLog: {
       create: vi.fn(),
@@ -32,6 +45,11 @@ vi.mock('@solana/web3.js', async () => {
         meta: { err: null, logMessages: [] },
       }),
       getAccountInfo: vi.fn().mockResolvedValue(null),
+      // prepare-claim builds a transaction, so it needs a blockhash.
+      getLatestBlockhash: vi.fn().mockResolvedValue({
+        blockhash: '11111111111111111111111111111111',
+        lastValidBlockHeight: 1,
+      }),
     })),
   };
 });
@@ -135,34 +153,10 @@ describe('Transactions API', () => {
       expect(res.body.error.code).toBe('INVALID_POOL_STATUS');
     });
 
-    it('should return 400 if user already has a bet', async () => {
-      vi.mocked(prisma.pool.findUnique).mockResolvedValue(mockPool);
-      vi.mocked(prisma.bet.findUnique).mockResolvedValue({
-        id: VALID_BET_ID,
-        poolId: VALID_POOL_ID,
-        walletAddress: VALID_WALLET,
-        side: 'UP',
-        amount: BigInt(100_000000),
-        depositTx: 'tx123',
-        claimed: false,
-        claimTx: null,
-        payoutAmount: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
-      const res = await request(app)
-        .post('/api/transactions/deposit')
-        .send({
-          poolId: VALID_POOL_ID,
-          walletAddress: VALID_WALLET,
-          side: 'UP',
-          amount: 100_000000,
-        });
-
-      expect(res.status).toBe(400);
-      expect(res.body.error.code).toBe('BET_EXISTS');
-    });
+    // The old "should return 400 if user already has a bet" case was deleted,
+    // not repaired: betting BOTH sides is deliberately allowed now (one Bet row
+    // per pool+wallet+side, see the "Both-sides allowed: no side-lock" note in
+    // deposits.ts), so BET_EXISTS no longer exists anywhere in the route.
 
     it('should return account addresses for valid deposit request', async () => {
       vi.mocked(prisma.pool.findUnique).mockResolvedValue(mockPool);
@@ -237,7 +231,9 @@ describe('Transactions API', () => {
 
     it('should return success if bet already exists with same tx', async () => {
       vi.mocked(prisma.pool.findUnique).mockResolvedValue(mockPool);
-      vi.mocked(prisma.bet.findUnique).mockResolvedValue({
+      // findFirst, not findUnique: the route keys idempotency off the tx
+      // signature (poolId + wallet + depositTx), which is not a unique index.
+      vi.mocked(prisma.bet.findFirst).mockResolvedValue({
         id: VALID_BET_ID,
         poolId: VALID_POOL_ID,
         walletAddress: VALID_WALLET,
@@ -311,36 +307,14 @@ describe('Transactions API', () => {
       expect(res.body.error.code).toBe('POOL_NOT_FOUND');
     });
 
-    it('should return 404 if no bet exists', async () => {
+    // This used to be two cases: "no bet at all" expecting 404 BET_NOT_FOUND,
+    // and "bet on the losing side" expecting 400 NOT_WINNER. They are the SAME
+    // path now — the route looks the bet up by the compound key with
+    // `side: pool.winner`, so a wallet holding only a losing-side bet finds no
+    // row and is simply not a winner. One scenario, one code.
+    it('returns NOT_WINNER when the wallet has no bet on the winning side', async () => {
       vi.mocked(prisma.pool.findUnique).mockResolvedValue(mockPool);
       vi.mocked(prisma.bet.findUnique).mockResolvedValue(null);
-
-      const res = await request(app)
-        .post('/api/transactions/claim')
-        .send({
-          poolId: VALID_POOL_ID,
-          walletAddress: VALID_WALLET,
-        });
-
-      expect(res.status).toBe(404);
-      expect(res.body.error.code).toBe('BET_NOT_FOUND');
-    });
-
-    it('should return 400 if bet is not a winner', async () => {
-      vi.mocked(prisma.pool.findUnique).mockResolvedValue(mockPool);
-      vi.mocked(prisma.bet.findUnique).mockResolvedValue({
-        id: VALID_BET_ID,
-        poolId: VALID_POOL_ID,
-        walletAddress: VALID_WALLET,
-        side: 'DOWN', // Lost
-        amount: BigInt(100_000000),
-        depositTx: 'tx123',
-        claimed: false,
-        claimTx: null,
-        payoutAmount: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
 
       const res = await request(app)
         .post('/api/transactions/claim')
@@ -380,7 +354,7 @@ describe('Transactions API', () => {
       expect(res.body.error.code).toBe('ALREADY_CLAIMED');
     });
 
-    it('should return account addresses for valid claim request', async () => {
+    it('returns a partially-signed claim transaction for a winning bet', async () => {
       vi.mocked(prisma.pool.findUnique).mockResolvedValue(mockPool);
       vi.mocked(prisma.bet.findUnique).mockResolvedValue({
         id: VALID_BET_ID,
@@ -396,6 +370,13 @@ describe('Transactions API', () => {
         updatedAt: new Date(),
       });
       vi.mocked(prisma.bet.count).mockResolvedValue(3);
+      // Three distinct participants, so the single-bettor fee waiver does not
+      // kick in and the payout preview is computed normally.
+      vi.mocked(prisma.bet.findMany).mockResolvedValue([
+        { walletAddress: VALID_WALLET },
+        { walletAddress: 'D1oGyLcVJHNVpapVvB6JHcHzYNJRqLbfKQmTMwLLcCyk' },
+        { walletAddress: 'BPFLoaderUpgradeab1e11111111111111111111111' },
+      ] as never);
 
       const res = await request(app)
         .post('/api/transactions/claim')
@@ -406,7 +387,11 @@ describe('Transactions API', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.data.accounts).toBeDefined();
+      // `data.accounts` is gone: the route no longer hands back raw account
+      // addresses for the client to assemble. It returns a transaction already
+      // co-signed by the authority (that co-signature is what enforces the fee),
+      // which the frontend just co-signs and sends.
+      expect(res.body.data.transaction).toBeDefined();
       expect(res.body.data.bet.expectedPayout).toBeDefined();
     });
   });
