@@ -34,14 +34,21 @@ export function useAccountValue(evmAddress?: string) {
     ? (spotValue ?? 0) + upnl
     : (spotValue ?? 0) + perpsEquity;
   /**
-   * Buying power for a PERPS order, which side holds it depends on the mode.
-   * Under a unified account the free USDC sits in the (spot) unified balance and
-   * the perps clearinghouse reads ~0, so spot is the right source. Under the
-   * legacy split it is exactly inverted: spot is 0 and the money is the perps
-   * availableToSpend. Reading only spot is what left "Available to Trade $0" and
-   * "Max $0" on an account holding $6 in perps, so it could not trade at all.
+   * Buying power for a PERPS order: whichever side reports the money, MAX not
+   * sum.
+   *
+   * Under a unified account both sides describe the SAME balance, so max is that
+   * balance and nothing is double-counted. Under the legacy split exactly one of
+   * them is non-zero, and max finds it. Reading spot alone left "Available to
+   * Trade $0" and "Max $0" on an account holding $6 in perps, which also killed
+   * the 25/50/75/100% buttons (they bail on `!maxUsd`).
+   *
+   * Deliberately NOT keyed on the abstraction mode any more. That needed the
+   * mode to be fetched, correct and current before a number could be trusted,
+   * and any hiccup in that chain came out as an unusable $0. Max needs none of
+   * it, and cannot invent money it has not seen.
    */
-  const availableToTrade = sharesOneBalance(abstraction) ? (usdcAvailable ?? 0) : perpsAvailable;
+  const availableToTrade = Math.max(usdcAvailable ?? 0, perpsAvailable);
 
   // Ready once either source has reported, so the chip doesn't flash $0.00 forever.
   const ready = !!account || spotValue != null;
