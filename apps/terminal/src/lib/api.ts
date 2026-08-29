@@ -54,11 +54,34 @@ export interface ApiResult<T> {
   error?: { code: string; message: string };
 }
 
+// ── Auth token ──────────────────────────────────────────────────────────────
+// The API no longer takes the acting identity from the request body; it derives
+// it from a verified Privy access token. getAccessToken() only exists inside
+// React context, so the provider registers it here once and these plain fetch
+// helpers can reach it without every call site threading a token through.
+let tokenProvider: (() => Promise<string | null>) | null = null;
+
+export function setAuthTokenProvider(fn: (() => Promise<string | null>) | null): void {
+  tokenProvider = fn;
+}
+
+/** Bearer header, or {} when signed out. Never throws: a failed token refresh
+ *  should surface as the API's 401, not as a thrown fetch. */
+async function authHeaders(): Promise<Record<string, string>> {
+  if (!tokenProvider) return {};
+  try {
+    const token = await tokenProvider();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
+}
+
 async function post<T>(path: string, body: unknown): Promise<ApiResult<T>> {
   try {
     const res = await fetch(`${API_BASE}${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
       body: JSON.stringify(body),
     });
     return (await res.json()) as ApiResult<T>;
@@ -89,7 +112,7 @@ export interface SpotBalanceRow {
  * Solana wallet). The client never needs its own EVM address. */
 export async function fetchSpotBalances(walletAddress: string): Promise<ApiResult<SpotBalanceRow[]>> {
   try {
-    const res = await fetch(`${API_BASE}/api/exchange/spot-balances?wallet=${encodeURIComponent(walletAddress)}&isTestnet=${IS_TESTNET}`, { cache: 'no-store' });
+    const res = await fetch(`${API_BASE}/api/exchange/spot-balances?wallet=${encodeURIComponent(walletAddress)}&isTestnet=${IS_TESTNET}`, { cache: 'no-store', headers: await authHeaders() });
     return (await res.json()) as ApiResult<SpotBalanceRow[]>;
   } catch (e) {
     return { success: false, error: { code: 'NETWORK', message: (e as Error).message } };
@@ -217,7 +240,7 @@ export async function resolveIdentity(evmAddress: string): Promise<string | null
   try {
     const res = await fetch(
       `${API_BASE}/api/exchange/resolve?chain=evm&address=${encodeURIComponent(evmAddress)}`,
-      { cache: 'no-store' }
+      { cache: 'no-store', headers: await authHeaders() }
     );
     const json = (await res.json()) as ApiResult<{ walletAddress: string } | null>;
     return json.success ? (json.data?.walletAddress ?? null) : null;
@@ -238,7 +261,7 @@ export async function getConnection(walletAddress: string): Promise<ConnectionSt
   try {
     const res = await fetch(
       `${API_BASE}/api/exchange/connection?wallet=${encodeURIComponent(walletAddress)}&isTestnet=${IS_TESTNET}`,
-      { cache: 'no-store' }
+      { cache: 'no-store', headers: await authHeaders() }
     );
     const json = (await res.json()) as ApiResult<ConnectionStatus | null>;
     return json.success ? (json.data ?? null) : null;

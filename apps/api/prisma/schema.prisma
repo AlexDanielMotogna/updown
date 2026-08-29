@@ -195,6 +195,13 @@ model User {
   id            String @id @default(uuid())
   walletAddress String @unique @map("wallet_address")
 
+  /// Privy DID (the `sub` of a verified Privy access token). This is what lets a
+  /// money route derive the acting wallet from a signed token instead of
+  /// trusting a `walletAddress` field in the request body. Nullable: accounts
+  /// predate token auth, so it is bound on the first authenticated request.
+  /// Unique, so one Privy account can never claim two UpDown identities.
+  privyDid      String? @unique @map("privy_did")
+
   // Optional self-edited profile fields. displayName is unique so we can
   // surface it in the leaderboard / activity feed without ambiguity; the
   // wallet address stays the immutable identity.

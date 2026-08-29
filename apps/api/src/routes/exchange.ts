@@ -26,11 +26,17 @@ import {
   serverIsTestnet,
 } from '../services/exchange-connection';
 import { linkWallet, resolveUserByWallet } from '../services/wallet-link';
+import { requirePrivyUser } from '../middleware/privy-auth';
 import { creditConnectionFills } from '../services/trading-xp/poller';
 import { HyperliquidReadAdapter, MAINNET, TESTNET } from 'exchange-hyperliquid';
 import type { OrderParams } from 'exchange-core';
 
 export const exchangeRouter: RouterType = Router();
+
+// Everything below moves money or rotates agent keys. Identity comes from a
+// verified Privy token (req.authUser), never from a wallet address in the body:
+// wallet addresses are public, so the old scheme let anyone act as anyone.
+exchangeRouter.use(requirePrivyUser);
 
 const solanaWallet = z.string().min(32).max(44);
 const evmAddress = z.string().regex(/^0x[0-9a-fA-F]{40}$/, 'Invalid EVM address');
@@ -128,10 +134,9 @@ function badRequest(res: Parameters<Parameters<typeof exchangeRouter.post>[1]>[1
   return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message } });
 }
 
-async function resolveUserId(walletAddress: string): Promise<string | null> {
-  const user = await prisma.user.findUnique({ where: { walletAddress }, select: { id: true } });
-  return user?.id ?? null;
-}
+// resolveUserId(walletAddress) used to live here. It is gone on purpose: looking
+// the user up by a wallet address taken from the request WAS the vulnerability.
+// The acting user now arrives as req.authUser, resolved from a verified token.
 
 /** Link an EVM (or other) wallet to a Solana-identity user (ADR-003). */
 exchangeRouter.post('/link', async (req, res) => {
@@ -139,7 +144,7 @@ exchangeRouter.post('/link', async (req, res) => {
     const parsed = linkSchema.safeParse(req.body);
     if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid body');
 
-    const userId = await resolveUserId(parsed.data.walletAddress);
+    const userId = req.authUser!.id;
     if (!userId) {
       return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Unknown wallet' } });
     }
@@ -184,7 +189,7 @@ exchangeRouter.post('/agent/generate', async (req, res) => {
     const parsed = generateSchema.safeParse(req.body);
     if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid body');
 
-    const userId = await resolveUserId(parsed.data.walletAddress);
+    const userId = req.authUser!.id;
     if (!userId) {
       return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Unknown wallet' } });
     }
@@ -212,7 +217,7 @@ exchangeRouter.post('/agent/confirm', async (req, res) => {
     const parsed = confirmSchema.safeParse(req.body);
     if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid body');
 
-    const userId = await resolveUserId(parsed.data.walletAddress);
+    const userId = req.authUser!.id;
     if (!userId) {
       return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Unknown wallet' } });
     }
@@ -250,7 +255,7 @@ exchangeRouter.get('/connection', async (req, res) => {
     const parsed = statusQuerySchema.safeParse(req.query);
     if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid query');
 
-    const userId = await resolveUserId(parsed.data.wallet);
+    const userId = req.authUser!.id;
     if (!userId) return res.json({ success: true, data: null });
 
     const conn = await getConnection(userId, 'hyperliquid', serverIsTestnet());
@@ -267,7 +272,7 @@ exchangeRouter.delete('/connection', async (req, res) => {
     const parsed = confirmSchema.safeParse(req.body);
     if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid body');
 
-    const userId = await resolveUserId(parsed.data.walletAddress);
+    const userId = req.authUser!.id;
     if (!userId) {
       return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Unknown wallet' } });
     }
@@ -292,7 +297,7 @@ exchangeRouter.post('/order', async (req, res) => {
     // orderParams, then discarded: the server decides the network.
     const { walletAddress, isTestnet: _bodyNetwork, ...orderParams } = parsed.data;
     const isTestnet = serverIsTestnet();
-    const userId = await resolveUserId(walletAddress);
+    const userId = req.authUser!.id;
     if (!userId) {
       return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Unknown wallet' } });
     }
@@ -325,7 +330,7 @@ exchangeRouter.post('/order/tpsl', async (req, res) => {
 
     const { walletAddress, isTestnet: _bodyNetwork, symbol, side, amount, tpTriggerPrice, slTriggerPrice, maxSlippagePct } = parsed.data;
     const isTestnet = serverIsTestnet();
-    const userId = await resolveUserId(walletAddress);
+    const userId = req.authUser!.id;
     if (!userId) {
       return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Unknown wallet' } });
     }
@@ -365,7 +370,7 @@ exchangeRouter.post('/credit-fills', async (req, res) => {
     const { walletAddress, isTestnet } = parsed.data;
     if (isTestnet) return res.json({ success: true, data: { newFills: 0, xpAwarded: 0, coinsAwarded: 0 } });
 
-    const userId = await resolveUserId(walletAddress);
+    const userId = req.authUser!.id;
     if (!userId) return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Unknown wallet' } });
 
     const conn = await getConnection(userId, 'hyperliquid', false);
@@ -389,7 +394,7 @@ exchangeRouter.post('/leverage', async (req, res) => {
 
     const { walletAddress, isTestnet: _bodyNetwork, symbol, leverage, isCross } = parsed.data;
     const isTestnet = serverIsTestnet();
-    const userId = await resolveUserId(walletAddress);
+    const userId = req.authUser!.id;
     if (!userId) {
       return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Unknown wallet' } });
     }
@@ -414,7 +419,7 @@ exchangeRouter.post('/order/cancel', async (req, res) => {
     const parsed = cancelSchema.safeParse(req.body);
     if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid body');
 
-    const userId = await resolveUserId(parsed.data.walletAddress);
+    const userId = req.authUser!.id;
     if (!userId) {
       return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Unknown wallet' } });
     }
@@ -487,7 +492,7 @@ exchangeRouter.get('/positions', async (req, res) => {
   try {
     const parsed = statusQuerySchema.safeParse(req.query);
     if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid query');
-    const userId = await resolveUserId(parsed.data.wallet);
+    const userId = req.authUser!.id;
     if (!userId) return res.json({ success: true, data: [] });
     const conn = await getConnection(userId, 'hyperliquid', serverIsTestnet());
     if (!conn?.accountAddress) return res.json({ success: true, data: [] });
@@ -507,7 +512,7 @@ exchangeRouter.get('/spot-balances', async (req, res) => {
   try {
     const parsed = statusQuerySchema.safeParse(req.query);
     if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid query');
-    const userId = await resolveUserId(parsed.data.wallet);
+    const userId = req.authUser!.id;
     if (!userId) return res.json({ success: true, data: [] });
     const conn = await getConnection(userId, 'hyperliquid', serverIsTestnet());
     if (!conn?.accountAddress) return res.json({ success: true, data: [] });

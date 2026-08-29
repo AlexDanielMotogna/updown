@@ -1,8 +1,10 @@
 'use client';
 
-import { type ReactNode } from 'react';
-import { PrivyProvider } from '@privy-io/react-auth';
+import { type ReactNode, useEffect } from 'react';
+import { PrivyProvider, usePrivy } from '@privy-io/react-auth';
 import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
+
+import { setAuthTokenProvider } from '@/lib/api';
 
 /**
  * Terminal auth = Privy with BOTH Solana (the UpDown identity) and Ethereum
@@ -12,6 +14,21 @@ import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
  * isn't configured, render children directly so market data still works.
  */
 const solanaConnectors = toSolanaWalletConnectors({ shouldAutoConnect: true });
+
+/**
+ * Hands lib/api.ts a way to fetch the current Privy access token. The API
+ * derives the acting identity from that token instead of trusting a wallet
+ * address in the request body, so every money call needs one, and
+ * getAccessToken() only exists inside Privy's React context. Renders nothing.
+ */
+function AuthTokenBridge() {
+  const { getAccessToken } = usePrivy();
+  useEffect(() => {
+    setAuthTokenProvider(() => getAccessToken());
+    return () => setAuthTokenProvider(null);
+  }, [getAccessToken]);
+  return null;
+}
 
 export function Providers({ children }: { children: ReactNode }) {
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
@@ -48,6 +65,7 @@ export function Providers({ children }: { children: ReactNode }) {
         solanaClusters: [{ name: 'devnet', rpcUrl: solanaRpc }],
       }}
     >
+      <AuthTokenBridge />
       {children}
     </PrivyProvider>
   );
