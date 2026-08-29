@@ -3,7 +3,7 @@
 import { ReactNode, createContext, useContext, useMemo, useState, useCallback, useEffect } from 'react';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { PrivyProvider } from '@privy-io/react-auth';
+import { PrivyProvider, usePrivy } from '@privy-io/react-auth';
 import { Connection, clusterApiUrl } from '@solana/web3.js';
 import { createSolanaRpc, createSolanaRpcSubscriptions } from '@solana/kit';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -14,6 +14,22 @@ import { VersionGate } from '@/components/VersionGate';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useReferral } from '@/hooks/useReferral';
 import { darkTokens, lightTokens, type ThemeTokens } from '@/lib/theme';
+import { setAuthTokenProvider } from '@/lib/api';
+
+/**
+ * Hands lib/api.ts a way to fetch the current Privy access token. The profile's
+ * Trading tab reads /api/exchange/*, which now derives identity from a verified
+ * token instead of a wallet address in the query, so those calls need one.
+ * Without it they answer 401 and the tab renders empty. Renders nothing.
+ */
+function AuthTokenBridge() {
+  const { getAccessToken } = usePrivy();
+  useEffect(() => {
+    setAuthTokenProvider(() => getAccessToken());
+    return () => setAuthTokenProvider(null);
+  }, [getAccessToken]);
+  return null;
+}
 
 function NotificationLayer({ children }: { children: ReactNode }) {
   useNotifications();
@@ -298,6 +314,7 @@ export function Providers({ children, initialTheme = 'dark' }: { children: React
             <ThemeProvider theme={muiTheme}>
               <CssBaseline />
               <VersionGate />
+              <AuthTokenBridge />
               <ErrorBoundary>
                 <NotificationLayer>
                   <ReferralLayer>

@@ -170,6 +170,29 @@ export interface ClaimResponse {
   };
 }
 
+// ── Auth token ──────────────────────────────────────────────────────────────
+// /api/exchange/* derives the acting identity from a verified Privy token rather
+// than trusting a wallet address in the query, so the profile's Trading tab has
+// to send one. getAccessToken() only exists inside Privy's React context, so the
+// provider registers it here once and fetchApi can reach it.
+let tokenProvider: (() => Promise<string | null>) | null = null;
+
+export function setAuthTokenProvider(fn: (() => Promise<string | null>) | null): void {
+  tokenProvider = fn;
+}
+
+/** Bearer header, or {} when signed out. Never throws: a failed refresh should
+ *  surface as the API's 401, not as a thrown fetch that blanks the page. */
+async function authHeaders(): Promise<Record<string, string>> {
+  if (!tokenProvider) return {};
+  try {
+    const token = await tokenProvider();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
+}
+
 async function fetchApi<T>(
   endpoint: string,
   options?: RequestInit
@@ -180,6 +203,7 @@ async function fetchApi<T>(
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(await authHeaders()),
       ...options?.headers,
     },
   });

@@ -421,8 +421,11 @@ exchangeRouter.post('/credit-fills', async (req, res) => {
   try {
     const parsed = creditFillsSchema.safeParse(req.body);
     if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid body');
-    const { walletAddress, isTestnet } = parsed.data;
-    if (isTestnet) return res.json({ success: true, data: { newFills: 0, xpAwarded: 0, coinsAwarded: 0 } });
+    // Network from the server, not the body: this was the one destructuring site
+    // the isTestnet lockdown missed. Trading XP is mainnet-only, so a testnet
+    // deployment credits nothing.
+    const { walletAddress: _bodyWallet } = parsed.data;
+    if (serverIsTestnet()) return res.json({ success: true, data: { newFills: 0, xpAwarded: 0, coinsAwarded: 0 } });
 
     const userId = req.authUser!.id;
     if (!userId) return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Unknown wallet' } });
