@@ -285,8 +285,21 @@ exchangeRouter.post('/unify', async (req, res) => {
     console.log(`[Exchange] /unify ${conn.accountAddress}: ${r.mode}${r.changed ? ' (set to unifiedAccount)' : ' (already unified)'}`);
     res.json({ success: true, data: r });
   } catch (error) {
-    console.error('[Exchange] unify error:', error);
-    res.status(500).json({ success: false, error: { code: 'UNIFY_FAILED', message: (error as Error).message || 'Failed to unify account' } });
+    const msg = (error as Error).message || 'Failed to unify account';
+    const net = serverIsTestnet() ? 'testnet' : 'mainnet';
+    // "API Wallet ... does not exist" almost always means the agent was approved
+    // on the OTHER network: the browser reads HL over NEXT_PUBLIC_HYPERLIQUID_API_URL
+    // while the server signs over HYPERLIQUID_NETWORK / HYPERLIQUID_API_URL. Naming
+    // the network we signed on turns a confusing HL error into an obvious one.
+    console.error(`[Exchange] unify error (server signing on ${net}): ${msg}`);
+    if (/does not exist/i.test(msg)) {
+      console.error(
+        `[Exchange] the agent is unknown on ${net}. Check that the api service's ` +
+        'HYPERLIQUID_NETWORK / HYPERLIQUID_API_URL match the network the terminal ' +
+        'reads (NEXT_PUBLIC_HYPERLIQUID_API_URL), or re-approve the agent there.',
+      );
+    }
+    res.status(500).json({ success: false, error: { code: 'UNIFY_FAILED', message: msg } });
   }
 });
 
