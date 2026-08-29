@@ -24,6 +24,7 @@ import {
   getConnection,
   serializeConnection,
   serverIsTestnet,
+  unifiedAccountEnabled,
 } from '../services/exchange-connection';
 import { linkWallet, resolveUserByWallet } from '../services/wallet-link';
 import { requirePrivyUser } from '../middleware/privy-auth';
@@ -232,7 +233,7 @@ exchangeRouter.post('/agent/confirm', async (req, res) => {
     // Put the account on HL Unified Account so spot + perps share one balance (no
     // Spot↔Perps transfers). Agent-signed, idempotent, never blocks confirm.
     // On by default; set HL_FORCE_UNIFIED=off to disable.
-    if (process.env.HL_FORCE_UNIFIED !== 'off' && conn.accountAddress) {
+    if (unifiedAccountEnabled() && conn.accountAddress) {
       try {
         const signer = await buildHyperliquidSigner(userId, { isTestnet: serverIsTestnet() });
         const r = await signer.ensureUnified(conn.accountAddress);
@@ -262,6 +263,17 @@ exchangeRouter.post('/agent/confirm', async (req, res) => {
  */
 exchangeRouter.post('/unify', async (req, res) => {
   try {
+    // Respects the same kill switch as the two automatic paths. The client
+    // triggers this on its own when it detects a split account, so it is closer
+    // to those than to a deliberate user action: if an operator turns migration
+    // off, all three must obey.
+    if (!unifiedAccountEnabled()) {
+      return res.status(409).json({
+        success: false,
+        error: { code: 'UNIFY_DISABLED', message: 'Account migration is disabled (HL_FORCE_UNIFIED=off)' },
+      });
+    }
+
     const userId = req.authUser!.id;
     const conn = await getConnection(userId, 'hyperliquid', serverIsTestnet());
     if (!conn || !conn.active || !conn.accountAddress) {

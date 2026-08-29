@@ -56,6 +56,20 @@ function hlEndpoint(isTestnet: boolean): HlEndpoint {
  * (mainnet), which is exactly the old `isTestnet ?? false` default, so an
  * unconfigured server keeps behaving as it did.
  */
+/**
+ * Whether we may move accounts onto HL Unified Account.
+ *
+ * A KILL SWITCH, not an enable switch: on unless the value is exactly `off`, so
+ * an absent or empty variable keeps it on. Setting it to `on` is allowed and
+ * makes the knob visible in the dashboard, but changes nothing.
+ *
+ * Lives here so the three callers (agent/confirm, the buildHyperliquidSigner
+ * backfill, and the on-demand /unify route) cannot drift apart on the literal.
+ */
+export function unifiedAccountEnabled(): boolean {
+  return (process.env.HL_FORCE_UNIFIED || '').trim().toLowerCase() !== 'off';
+}
+
 export function serverIsTestnet(): boolean {
   const explicit = (process.env.HYPERLIQUID_NETWORK || '').trim().toLowerCase();
   if (explicit === 'testnet') return true;
@@ -238,7 +252,7 @@ export async function buildHyperliquidSigner(
   // once per process. Fire-and-forget so it never delays the order/action.
   // On by default; HL_FORCE_UNIFIED=off disables.
   const acct = conn.accountAddress?.toLowerCase();
-  if (process.env.HL_FORCE_UNIFIED !== 'off' && acct && !ensuredUnified.has(acct)) {
+  if (unifiedAccountEnabled() && acct && !ensuredUnified.has(acct)) {
     ensuredUnified.add(acct);
     signer
       .ensureUnified(conn.accountAddress!)
