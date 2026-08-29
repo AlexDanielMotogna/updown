@@ -6,3 +6,21 @@ node_modules
 **/.turbo
 *.png
 *.log
+
+# Secrets. `COPY apps/ apps/` would otherwise bake a developer's local
+# apps/api/.env into the image, and index.ts runs dotenv.config() at boot, so any
+# variable not set in Railway would silently fall back to that baked value. That
+# file holds the Solana authority key, the production Postgres URL, the admin key
+# and the exchange key-encryption secret. Gitignored is not enough: .dockerignore
+# is a separate list.
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+*.key
+keypair.json
+*-keypair.json
+*-authority.json
+
+# Local security audit output (see .git/info/exclude).
+docs/security/
