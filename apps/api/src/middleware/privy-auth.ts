@@ -92,9 +92,12 @@ async function privyWalletsFor(did: string): Promise<string[] | null> {
       return null;
     }
     const body = (await res.json()) as { linked_accounts?: PrivyLinkedAccount[] };
+    // Addresses are returned AS-IS. Do not lowercase here: Solana addresses are
+    // base58 and case-sensitive, so a lowercased one matches nothing. EVM
+    // casing is handled by adding a lowercased variant at query time.
     return (body.linked_accounts ?? [])
       .filter((a) => a.type === 'wallet' && typeof a.address === 'string')
-      .map((a) => a.address!.toLowerCase());
+      .map((a) => a.address!);
   } catch (e) {
     console.warn('[privy-auth] user lookup threw:', e instanceof Error ? e.message : e);
     return null;
@@ -116,21 +119,37 @@ async function resolveAuthUser(did: string): Promise<AuthUser | null> {
   // user behind any of them: the Solana wallet IS the identity, and an EVM one
   // reaches the same user through wallet_links.
   const owned = await privyWalletsFor(did);
-  if (!owned || owned.length === 0) return null;
+  if (!owned || owned.length === 0) {
+    console.warn(`[privy-auth] Privy returned no wallets for ${did} (or the lookup failed)`);
+    return null;
+  }
+
+  // Match on the exact address AND a lowercased variant. Solana identities are
+  // stored in their original base58 casing, EVM links are stored lowercased, and
+  // Prisma's `mode: 'insensitive'` does NOT apply to `in` (only to equals /
+  // contains / startsWith / endsWith), so the case has to be covered explicitly.
+  // Getting this wrong is what made every Solana login fail to bind.
+  const candidates = [...new Set(owned.flatMap((a) => [a, a.toLowerCase()]))];
 
   const candidate =
     (await prisma.user.findFirst({
-      where: { walletAddress: { in: owned, mode: 'insensitive' } },
+      where: { walletAddress: { in: candidates } },
       select: { id: true, walletAddress: true, privyDid: true },
     })) ??
     (await prisma.walletLink
       .findFirst({
-        where: { address: { in: owned, mode: 'insensitive' } },
+        where: { address: { in: candidates } },
         select: { user: { select: { id: true, walletAddress: true, privyDid: true } } },
       })
       .then((l) => l?.user ?? null));
 
-  if (!candidate) return null;
+  if (!candidate) {
+    // Privy knows this DID's wallets but none of them is an UpDown account yet.
+    // Legitimate for a brand-new login (the client registers first, then links),
+    // so log the addresses to tell that apart from a matching bug.
+    console.warn(`[privy-auth] no UpDown user for ${did}; Privy wallets: ${owned.join(', ')}`);
+    return null;
+  }
   // Already claimed by a different Privy account: refuse rather than re-point it.
   if (candidate.privyDid && candidate.privyDid !== did) {
     console.warn(`[privy-auth] user ${candidate.id} is already bound to another DID`);
