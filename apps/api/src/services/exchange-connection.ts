@@ -41,6 +41,28 @@ function hlEndpoint(isTestnet: boolean): HlEndpoint {
   return isTestnet ? TESTNET : MAINNET;
 }
 
+/**
+ * Which HyperLiquid network THIS SERVER talks to.
+ *
+ * The network used to be chosen by an `isTestnet` field in the request body, so
+ * a caller could send `false` and have us sign against MAINNET using that user's
+ * stored mainnet agent key, no matter what the frontend was configured for.
+ * Pointing the terminal at testnet did not close that: the flag travelled with
+ * the request, not with the deployment. The network a deployment trades on is a
+ * property of the server, so the server decides and the body field is ignored.
+ *
+ * HYPERLIQUID_NETWORK ('mainnet' | 'testnet') wins when set. Otherwise it is
+ * inferred from HYPERLIQUID_API_URL. With neither set it returns false
+ * (mainnet), which is exactly the old `isTestnet ?? false` default, so an
+ * unconfigured server keeps behaving as it did.
+ */
+export function serverIsTestnet(): boolean {
+  const explicit = (process.env.HYPERLIQUID_NETWORK || '').trim().toLowerCase();
+  if (explicit === 'testnet') return true;
+  if (explicit === 'mainnet') return false;
+  return (process.env.HYPERLIQUID_API_URL || '').toLowerCase().includes('testnet');
+}
+
 /** Builder code from env, or undefined if not configured. */
 function builderConfig(): { address: `0x${string}`; feeTenthsBps: number } | undefined {
   const address = process.env.HYPERLIQUID_BUILDER_ADDRESS as `0x${string}` | undefined;

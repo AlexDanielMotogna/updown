@@ -23,6 +23,7 @@ import {
   createPendingAgentConnection,
   getConnection,
   serializeConnection,
+  serverIsTestnet,
 } from '../services/exchange-connection';
 import { linkWallet, resolveUserByWallet } from '../services/wallet-link';
 import { creditConnectionFills } from '../services/trading-xp/poller';
@@ -192,10 +193,10 @@ exchangeRouter.post('/agent/generate', async (req, res) => {
       userId,
       accountAddress: parsed.data.accountAddress,
       agentName: parsed.data.agentName,
-      isTestnet: parsed.data.isTestnet,
+      isTestnet: serverIsTestnet(),
     });
 
-    res.json({ success: true, data: { agentAddress, isTestnet: parsed.data.isTestnet } });
+    res.json({ success: true, data: { agentAddress, isTestnet: serverIsTestnet() } });
   } catch (error) {
     if (error instanceof AccountLinkedElsewhereError) {
       return res.status(409).json({ success: false, error: { code: 'ACCOUNT_LINKED_ELSEWHERE', message: error.message } });
@@ -216,19 +217,19 @@ exchangeRouter.post('/agent/confirm', async (req, res) => {
       return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Unknown wallet' } });
     }
 
-    const existing = await getConnection(userId, 'hyperliquid', parsed.data.isTestnet);
+    const existing = await getConnection(userId, 'hyperliquid', serverIsTestnet());
     if (!existing) {
       return res.status(404).json({ success: false, error: { code: 'NO_PENDING_CONNECTION', message: 'Generate an agent first' } });
     }
 
-    const conn = await activateConnection(userId, 'hyperliquid', parsed.data.isTestnet);
+    const conn = await activateConnection(userId, 'hyperliquid', serverIsTestnet());
 
     // Put the account on HL Unified Account so spot + perps share one balance (no
     // Spot↔Perps transfers). Agent-signed, idempotent, never blocks confirm.
     // On by default; set HL_FORCE_UNIFIED=off to disable.
     if (process.env.HL_FORCE_UNIFIED !== 'off' && conn.accountAddress) {
       try {
-        const signer = await buildHyperliquidSigner(userId, { isTestnet: parsed.data.isTestnet });
+        const signer = await buildHyperliquidSigner(userId, { isTestnet: serverIsTestnet() });
         const r = await signer.ensureUnified(conn.accountAddress);
         console.log(`[Exchange] abstraction for ${conn.accountAddress}: ${r.mode}${r.changed ? ' (set to unifiedAccount)' : ''}`);
       } catch (e) {
@@ -252,7 +253,7 @@ exchangeRouter.get('/connection', async (req, res) => {
     const userId = await resolveUserId(parsed.data.wallet);
     if (!userId) return res.json({ success: true, data: null });
 
-    const conn = await getConnection(userId, 'hyperliquid', parsed.data.isTestnet);
+    const conn = await getConnection(userId, 'hyperliquid', serverIsTestnet());
     res.json({ success: true, data: conn ? serializeConnection(conn) : null });
   } catch (error) {
     console.error('[Exchange] connection status error:', error);
@@ -272,7 +273,7 @@ exchangeRouter.delete('/connection', async (req, res) => {
     }
 
     await prisma.exchangeConnection.deleteMany({
-      where: { userId, exchange: 'hyperliquid', isTestnet: parsed.data.isTestnet },
+      where: { userId, exchange: 'hyperliquid', isTestnet: serverIsTestnet() },
     });
     res.json({ success: true, data: { removed: true } });
   } catch (error) {
@@ -287,7 +288,10 @@ exchangeRouter.post('/order', async (req, res) => {
     const parsed = orderSchema.safeParse(req.body);
     if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid body');
 
-    const { walletAddress, isTestnet, ...orderParams } = parsed.data;
+    // The body's network flag is destructured only to keep it out of
+    // orderParams, then discarded: the server decides the network.
+    const { walletAddress, isTestnet: _bodyNetwork, ...orderParams } = parsed.data;
+    const isTestnet = serverIsTestnet();
     const userId = await resolveUserId(walletAddress);
     if (!userId) {
       return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Unknown wallet' } });
@@ -319,7 +323,8 @@ exchangeRouter.post('/order/tpsl', async (req, res) => {
     const parsed = tpslSchema.safeParse(req.body);
     if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid body');
 
-    const { walletAddress, isTestnet, symbol, side, amount, tpTriggerPrice, slTriggerPrice, maxSlippagePct } = parsed.data;
+    const { walletAddress, isTestnet: _bodyNetwork, symbol, side, amount, tpTriggerPrice, slTriggerPrice, maxSlippagePct } = parsed.data;
+    const isTestnet = serverIsTestnet();
     const userId = await resolveUserId(walletAddress);
     if (!userId) {
       return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Unknown wallet' } });
@@ -382,7 +387,8 @@ exchangeRouter.post('/leverage', async (req, res) => {
     const parsed = leverageSchema.safeParse(req.body);
     if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid body');
 
-    const { walletAddress, isTestnet, symbol, leverage, isCross } = parsed.data;
+    const { walletAddress, isTestnet: _bodyNetwork, symbol, leverage, isCross } = parsed.data;
+    const isTestnet = serverIsTestnet();
     const userId = await resolveUserId(walletAddress);
     if (!userId) {
       return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Unknown wallet' } });
@@ -413,7 +419,7 @@ exchangeRouter.post('/order/cancel', async (req, res) => {
       return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Unknown wallet' } });
     }
 
-    const signer = await buildHyperliquidSigner(userId, { isTestnet: parsed.data.isTestnet });
+    const signer = await buildHyperliquidSigner(userId, { isTestnet: serverIsTestnet() });
     const result = await signer.cancel({ symbol: parsed.data.symbol, orderId: parsed.data.orderId });
     res.json({ success: true, data: result });
   } catch (error) {
@@ -483,9 +489,9 @@ exchangeRouter.get('/positions', async (req, res) => {
     if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid query');
     const userId = await resolveUserId(parsed.data.wallet);
     if (!userId) return res.json({ success: true, data: [] });
-    const conn = await getConnection(userId, 'hyperliquid', parsed.data.isTestnet);
+    const conn = await getConnection(userId, 'hyperliquid', serverIsTestnet());
     if (!conn?.accountAddress) return res.json({ success: true, data: [] });
-    const adapter = new HyperliquidReadAdapter({ endpoint: parsed.data.isTestnet ? TESTNET : MAINNET });
+    const adapter = new HyperliquidReadAdapter({ endpoint: serverIsTestnet() ? TESTNET : MAINNET });
     const positions = await adapter.getPositions(conn.accountAddress);
     res.json({ success: true, data: positions });
   } catch (error) {
@@ -503,9 +509,9 @@ exchangeRouter.get('/spot-balances', async (req, res) => {
     if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? 'Invalid query');
     const userId = await resolveUserId(parsed.data.wallet);
     if (!userId) return res.json({ success: true, data: [] });
-    const conn = await getConnection(userId, 'hyperliquid', parsed.data.isTestnet);
+    const conn = await getConnection(userId, 'hyperliquid', serverIsTestnet());
     if (!conn?.accountAddress) return res.json({ success: true, data: [] });
-    const adapter = new HyperliquidReadAdapter({ endpoint: parsed.data.isTestnet ? TESTNET : MAINNET });
+    const adapter = new HyperliquidReadAdapter({ endpoint: serverIsTestnet() ? TESTNET : MAINNET });
     const balances = adapter.getSpotBalances ? await adapter.getSpotBalances(conn.accountAddress) : [];
     res.json({ success: true, data: balances });
   } catch (error) {
