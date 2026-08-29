@@ -50,6 +50,20 @@ function appCreds(): { appId: string; appSecret: string } | null {
   return { appId, appSecret };
 }
 
+/** Exactly which credential is missing, so the log says what to go and set. */
+function missingCreds(): string[] {
+  const missing: string[] = [];
+  if (!(process.env.PRIVY_APP_ID || process.env.NEXT_PUBLIC_PRIVY_APP_ID || '').trim()) {
+    missing.push('PRIVY_APP_ID');
+  }
+  if (!(process.env.PRIVY_APP_SECRET || '').trim()) missing.push('PRIVY_APP_SECRET');
+  return missing;
+}
+
+// The misconfiguration warning is per-process, not per-request: it used to fire
+// on every call, which buried the rest of the log under identical lines.
+let warnedMissing = false;
+
 interface PrivyLinkedAccount {
   type?: string;
   address?: string;
@@ -135,7 +149,14 @@ async function resolveAuthUser(did: string): Promise<AuthUser | null> {
 
 export async function requirePrivyUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   if (!appCreds()) {
-    console.error('[privy-auth] PRIVY_APP_ID / PRIVY_APP_SECRET not configured — refusing money requests');
+    if (!warnedMissing) {
+      warnedMissing = true;
+      console.error(
+        `[privy-auth] MISSING ${missingCreds().join(' and ')} on the api service. ` +
+        'Every /api/exchange request is refused (503) until it is set. ' +
+        'Note an empty value counts as missing.',
+      );
+    }
     res.status(503).json({
       success: false,
       error: { code: 'AUTH_NOT_CONFIGURED', message: 'Authentication is not configured' },
