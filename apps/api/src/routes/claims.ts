@@ -278,57 +278,102 @@ claimsRouter.post('/confirm-claim', async (req, res) => {
       });
     }
 
-    // Read actual on-chain payout from the user's token balance change
+    // ── Bind the transaction to THIS bet ─────────────────────────────────────
+    // Previously this endpoint accepted ANY successful signature for ANY betId.
+    // Bet ids are readable from the unauthenticated GET /api/bets?wallet=…, so
+    // anyone could pass a victim's betId plus an arbitrary confirmed signature
+    // and flip `claimed`. That permanently removes the bet from the auto-payout
+    // queue (scheduler/auto-claim.ts filters on claimed:false), so the winner is
+    // never paid, and it also inflates users.totalWon, which feeds the Profit
+    // leaderboard. Mirrors the BUG-17 signer guard in deposits.ts.
     const pool = bet.pool;
-    const userATA = await getAssociatedTokenAddress(getUsdcMint(), new PublicKey(bet.walletAddress));
-    const userATAStr = userATA.toBase58();
-
-    const preBalances = tx.meta?.preTokenBalances || [];
-    const postBalances = tx.meta?.postTokenBalances || [];
     const accountKeys = tx.transaction.message.getAccountKeys();
 
-    let payout = BigInt(0);
-    for (const postBalance of postBalances) {
-      if (postBalance.mint !== getUsdcMint().toBase58()) continue;
-      const accountKey = accountKeys.get(postBalance.accountIndex);
-      if (!accountKey || accountKey.toBase58() !== userATAStr) continue;
-
-      const preBalance = preBalances.find(
-        (pre) => pre.accountIndex === postBalance.accountIndex
-      );
-      const preAmount = BigInt(preBalance?.uiTokenAmount?.amount || '0');
-      const postAmount = BigInt(postBalance.uiTokenAmount.amount);
-      if (postAmount > preAmount) {
-        payout = postAmount - preAmount;
+    // 1. The bet owner must have signed the transaction.
+    const numSigners = tx.transaction.message.header.numRequiredSignatures;
+    let ownerIsSigner = false;
+    for (let i = 0; i < numSigners; i++) {
+      const key = accountKeys.get(i);
+      if (key && key.toBase58() === bet.walletAddress) {
+        ownerIsSigner = true;
+        break;
       }
-      break;
     }
-
-    // Fallback: if we can't read on-chain payout, use server-calculated value
-    if (payout === BigInt(0)) {
-      const bettorCount = (await getDistinctBettorWallets(pool.id)).length;
-      const feeBps = await resolveFeeBps(prisma, bet.walletAddress);
-      const calc = calculatePayout({
-        betAmount: bet.amount,
-        totalUp: pool.totalUp,
-        totalDown: pool.totalDown,
-        totalDraw: pool.totalDraw,
-        side: bet.side as 'UP' | 'DOWN' | 'DRAW',
-        betCount: bettorCount,
-        feeBps,
+    if (!ownerIsSigner) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_SIGNER',
+          message: 'Bet owner is not a signer of this transaction',
+        },
       });
-      payout = calc.payout;
     }
 
-    // Update bet as claimed
-    await prisma.bet.update({
-      where: { id: bet.id },
+    const mintStr = getUsdcMint().toBase58();
+    const preBalances = tx.meta?.preTokenBalances || [];
+    const postBalances = tx.meta?.postTokenBalances || [];
+
+    /** Signed USDC balance delta for a token account, or null if absent from the tx. */
+    const deltaFor = (tokenAccount: string): bigint | null => {
+      for (const post of postBalances) {
+        if (post.mint !== mintStr) continue;
+        const key = accountKeys.get(post.accountIndex);
+        if (!key || key.toBase58() !== tokenAccount) continue;
+        const pre = preBalances.find((p) => p.accountIndex === post.accountIndex);
+        return BigInt(post.uiTokenAmount.amount) - BigInt(pre?.uiTokenAmount?.amount || '0');
+      }
+      return null;
+    };
+
+    // 2. The money must have come out of THIS pool's vault. Without this a real
+    //    claim tx from pool A could be replayed to settle a bet in pool B.
+    const [vaultPDA] = getVaultPDA(derivePoolSeed(pool.id));
+    const vaultDelta = deltaFor(vaultPDA.toBase58());
+    if (vaultDelta === null || vaultDelta >= BigInt(0)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'WRONG_POOL',
+          message: 'Transaction does not withdraw from this pool vault',
+        },
+      });
+    }
+
+    // 3. The payout is whatever actually landed in the owner's ATA. There is no
+    //    server-calculated fallback on purpose: a claim we cannot prove on-chain
+    //    must fail and be retried, never be credited on trust.
+    const userATA = await getAssociatedTokenAddress(getUsdcMint(), new PublicKey(bet.walletAddress));
+    const payout = deltaFor(userATA.toBase58());
+    if (payout === null || payout <= BigInt(0)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'NO_PAYOUT_FOUND',
+          message: 'No USDC payout to the bet owner found in this transaction',
+        },
+      });
+    }
+
+    // Claim the bet atomically. The `bet.claimed` read above is only a fast
+    // path; this conditional write is what actually stops two concurrent
+    // confirmations from both crediting totalWon. Same guard as
+    // scheduler/auto-claim.ts:224.
+    const claimed = await prisma.bet.updateMany({
+      where: { id: bet.id, claimed: false },
       data: {
         claimed: true,
         claimTx: txSignature,
         payoutAmount: payout,
       },
     });
+
+    if (claimed.count === 0) {
+      // A concurrent request won the race and already credited this bet.
+      return res.json({
+        success: true,
+        data: { betId: bet.id, status: 'already_confirmed' },
+      });
+    }
 
     // Lifetime payout total for the leaderboard Profit board
     // (profit = totalWon − totalWagered). Refunds net to zero since the
