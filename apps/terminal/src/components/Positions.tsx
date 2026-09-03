@@ -303,7 +303,47 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
       case 'pnl': return Number(x.pnl);
     }
   };
-  const tradeRows: AggFill[] = (tradeAgg ? aggregateFills(trades) : trades.map((f) => ({ ...f, fills: 1 })))
+  /**
+   * Trade History merges the REST route with the WS feed, preferring whichever
+   * has each fill.
+   *
+   * `/api/trades` runs on OUR server and calls HL's `userFills` from a datacenter
+   * IP, where HL truncates the response: for an account with 7 fills it returned
+   * exactly 1 (the oldest), while the same query from a normal connection
+   * returned all 7. `/api/funding` from the same process was fully up to date, so
+   * this is specific to `userFills`, not a dead cache or the wrong network. It is
+   * the same class of problem as `frontendOpenOrders` (see mappers.ts:354), and
+   * the same fix: the WS subscription runs in the USER'S BROWSER, so it is not
+   * subject to it.
+   *
+   * We merge rather than replace because the WS keeps only the last 200 fills
+   * from when the socket connected, so REST still contributes older history.
+   */
+  const wsFills: Fill[] = ws.fills.map((f) => {
+    const m = (f.metadata ?? {}) as { dir?: string; hash?: string };
+    return {
+      id: f.historyId,
+      oid: Number(f.orderId) || 0,
+      coin: f.symbol.replace('-USD', ''),
+      symbol: f.symbol,
+      direction: m.dir ?? (f.side === 'BUY' ? 'Buy' : 'Sell'),
+      price: f.price,
+      size: f.amount,
+      tradeValue: String(Number(f.price) * Number(f.amount)),
+      fee: f.fee,
+      pnl: f.pnl ?? '0',
+      time: f.executedAt,
+      hash: m.hash ?? '',
+    };
+  });
+  const allTrades: Fill[] = (() => {
+    const byId = new Map<string, Fill>();
+    for (const f of trades) byId.set(f.id, f);
+    for (const f of wsFills) byId.set(f.id, f); // WS wins on conflict: it is fresher
+    return [...byId.values()].sort((a, b) => b.time - a.time);
+  })();
+
+  const tradeRows: AggFill[] = (tradeAgg ? aggregateFills(allTrades) : allTrades.map((f) => ({ ...f, fills: 1 })))
     .filter((r) => !tradeFilter || r.coin.toLowerCase().includes(tradeFilter.toLowerCase()))
     .sort((a, b) => (tradeVal(a) - tradeVal(b)) * (tradeSort.dir === 'asc' ? 1 : -1));
   const toggleTradeSort = (col: typeof tradeSort.col) =>
@@ -426,7 +466,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
     orders: orders.length,
     // Non-dust spot balances (same filter the table uses) — pre-loaded via useSpotHoldings.
     holdings: holdings.balances.filter((b) => Number(b.total) > 0 && (b.asset === 'USDC' || Number(b.total) >= Math.pow(10, -(b.metadata?.szDecimals ?? 0)))).length,
-    trades: trades.length,
+    trades: allTrades.length,
     funding: funding.length,
     orderhistory: orderHist.length,
   };
@@ -640,7 +680,7 @@ export function Positions({ address, walletAddress }: { address?: string; wallet
             </>
           )
         ) : tab === 'trades' ? (
-          trades.length === 0 ? <Empty>No trades executed yet.</Empty> : (
+          allTrades.length === 0 ? <Empty>No trades executed yet.</Empty> : (
             <>
               <div className="flex items-center gap-2 px-3 py-2 text-xs">
                 <button
