@@ -17,6 +17,13 @@ test-ledger/
 .env
 .env.local
 .env.*.local
+# The three above are the ones we always remembered. These are the ones a
+# `git add -A` on a bad day would have picked up (audit 2026-08-26, Step 0.3).
+.env.production
+.env.prod
+.env.staging
+.env.test
+.env.development
 
 # IDE
 .idea/
@@ -49,6 +56,17 @@ keypair.json
 *-keypair.json
 *-authority.json
 programs/parimutuel_pools-LOCAL-authority.json
+# Bare wallet/keypair filenames. `Anchor.toml` points the provider at
+# `~/.config/solana/id.json`, so `id.json` is the exact name a copied wallet
+# lands under.
+id.json
+authority.json
+wallet.json
+treasury.json
+secrets.json
+# Credential files for other tools that live at the repo root.
+.npmrc
+.pgpass
 
 # TradingView Charting Library (private/licensed — NOT for this public repo).
 # Install locally/CI with scripts/install-charting-library.sh (needs repo access).
