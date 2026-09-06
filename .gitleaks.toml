@@ -1,0 +1,106 @@
+# gitleaks configuration for UpDown.
+#
+# Why this exists: `.gitignore` matches on FILENAME. It cannot see a credential
+# pasted inline into a source file, and this is a public repository, so a
+# mistake of that shape is published the moment it is pushed. Filename rules
+# were never going to catch it. Content scanning is.
+#
+# Run manually:  gitleaks protect --staged --config .gitleaks.toml --redact
+# Full history:  gitleaks detect --config .gitleaks.toml --redact
+
+title = "UpDown secret scanning"
+
+[extend]
+# Keep the ~170 upstream provider rules (AWS, GitHub, Stripe, Slack, generic
+# high-entropy assignments...) and add the repo-specific ones below.
+useDefault = true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Solana and EVM key material. The upstream ruleset is built around provider
+# API keys and does not model these shapes.
+# ─────────────────────────────────────────────────────────────────────────────
+
+[[rules]]
+id = "solana-secret-key-byte-array"
+description = "Ed25519/Solana secret key as a raw integer array"
+# 32 or more comma-separated integers, every one of them in 0-255. A Solana
+# keypair serialises to exactly 64; a seed to 32. Nothing else in a normal
+# source file looks like this.
+regex = '''\[\s*(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\s*,\s*(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){31,}\s*\]'''
+tags = ["solana", "private-key"]
+
+[[rules]]
+id = "solana-secret-key-base58"
+description = "Solana secret key exported as base58 (Phantom/Backpack export format)"
+regex = '''(?i)(?:secret|private|priv)[_-]?key["'\s:=]{1,12}["']?[1-9A-HJ-NP-Za-km-z]{85,90}'''
+tags = ["solana", "private-key"]
+
+[[rules]]
+id = "evm-private-key-hex"
+description = "EVM private key (32 bytes hex)"
+regex = '''(?i)(?:private[_-]?key|privkey|deployer[_-]?key|relayer[_-]?key)["'\s:=]{1,12}["']?(?:0x)?[a-f0-9]{64}\b'''
+tags = ["evm", "private-key"]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Credentials whose scope is not limited to a test network, and which therefore
+# matter regardless of which chain the app currently points at.
+# ─────────────────────────────────────────────────────────────────────────────
+
+[[rules]]
+id = "postgres-url-with-password"
+description = "Postgres connection string carrying a password"
+regex = '''postgres(?:ql)?://[^:@\s/'"]+:[^@\s/'"]{6,}@[^\s/'"]+'''
+tags = ["database"]
+
+[[rules]]
+id = "rpc-provider-url-with-key"
+description = "RPC endpoint with the API key embedded in the URL"
+regex = '''https://[a-zA-Z0-9._-]*\.(?:helius-rpc\.com|g\.alchemy\.com|quiknode\.pro)/[^\s'"]*[A-Za-z0-9_-]{20,}'''
+tags = ["rpc", "billing"]
+
+[[rules]]
+id = "anthropic-api-key"
+description = "Anthropic API key"
+regex = '''sk-ant-(?:api|admin)[0-9]{2}-[A-Za-z0-9_-]{80,120}'''
+tags = ["llm", "billing"]
+
+[[rules]]
+id = "telegram-bot-token"
+description = "Telegram bot token"
+regex = '''\b[0-9]{8,12}:[A-Za-z0-9_-]{35}\b'''
+tags = ["telegram"]
+
+[[rules]]
+id = "privy-app-secret"
+description = "Privy app secret"
+regex = '''(?i)privy[_-]?app[_-]?secret["'\s:=]{1,12}["']?[A-Za-z0-9]{40,}'''
+tags = ["auth"]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Global allowlist. Keep this SHORT: every entry here is a place a real key can
+# hide. Add a path only when it produces recurring false positives.
+# ─────────────────────────────────────────────────────────────────────────────
+
+[allowlist]
+description = "Generated, vendored and public-by-design files"
+paths = [
+  '''(^|/)node_modules/''',
+  '''(^|/)pnpm-lock\.yaml$''',
+  '''(^|/)package-lock\.json$''',
+  '''(^|/)Cargo\.lock$''',
+  '''(^|/)\.next/''',
+  '''(^|/)dist/''',
+  '''(^|/)target/''',
+  # Anchor IDL: generated, published on-chain, and full of long integer arrays
+  # (discriminators) that trip the byte-array rule.
+  '''(^|/)idl/.*\.json$''',
+  '''(^|/)parimutuel_pools\.json$''',
+  # This file: the rules themselves contain key-shaped regexes.
+  '''(^|/)\.gitleaks\.toml$''',
+]
+regexes = [
+  # Obvious placeholders in docs and examples.
+  '''postgres(?:ql)?://(?:user|username|postgres|USER):(?:pass|password|PASSWORD|changeme|xxx+)@''',
+  '''(?i)(?:your|my|the)[_-]?(?:secret|private|api)[_-]?key[_-]?here''',
+  '''<[A-Za-z0-9_-]{0,40}(?:KEY|SECRET|TOKEN|PASSWORD)>''',
+]
