@@ -4,7 +4,7 @@
   "private": true,
   "description": "Solana parimutuel pool betting platform",
   "scripts": {
-    "prepare": "node scripts/setup-git-hooks.mjs",
+    "prepare": "node scripts/setup-git-hooks.mjs || exit 0",
     "secrets:scan": "gitleaks detect --config .gitleaks.toml --redact --no-banner",
     "secrets:staged": "gitleaks protect --staged --config .gitleaks.toml --redact --no-banner",
     "dev": "turbo dev",

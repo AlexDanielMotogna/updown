@@ -24,6 +24,13 @@ COPY packages/bridge-lifi/package.json packages/bridge-lifi/package.json
 # Copy prisma schema for generate
 COPY apps/api/prisma apps/api/prisma
 
+# The root `prepare` script runs during `pnpm install`, so its file has to be
+# here before that line, not with the rest of scripts/ further down. It is a
+# git-hook setup helper that exits 0 when there is no .git directory, which is
+# always the case in a build. Copied on its own so a change anywhere else in
+# scripts/ does not invalidate the dependency cache.
+COPY scripts/setup-git-hooks.mjs scripts/setup-git-hooks.mjs
+
 # Install dependencies and generate Prisma client
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter api db:generate
