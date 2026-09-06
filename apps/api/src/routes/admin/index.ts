@@ -1,5 +1,6 @@
 import { Router, type Router as RouterType } from 'express';
 import { adminAuth, requireBackoffice, blockReadonlyWrites } from '../../middleware/admin-auth';
+import { auditAdminActions } from '../../middleware/admin-audit';
 import { adminHealthRouter } from './health';
 import { adminPoolsRouter } from './pools';
 import { adminFinanceRouter } from './finance';
@@ -26,6 +27,11 @@ import { adminMarketingRouter } from './marketing';
 import { adminEconomyRouter } from './economy';
 
 export const adminRouter: RouterType = Router();
+
+// Audit goes FIRST, ahead of auth, so rejected attempts are recorded too — a
+// credential under attack produces mostly 401s, and those are the rows an
+// investigation needs most. It records writes only, and never blocks.
+adminRouter.use(auditAdminActions);
 
 // All admin routes require API key auth
 adminRouter.use(adminAuth);

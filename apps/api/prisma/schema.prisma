@@ -614,6 +614,57 @@ model EventLog {
   @@map("event_log")
 }
 
+/// Who did what through the admin panel.
+///
+/// Separate from EventLog on purpose. EventLog carries pool-lifecycle events
+/// and is pruned by the schedulers as pools close (8 `eventLog.deleteMany`
+/// call sites, all scoped to `entityType: 'pool'`), so it cannot be made
+/// append-only without breaking that retention. This table has one writer
+/// (the auditAdminActions middleware) and no deleter, which is what makes the
+/// answer to "was this us or an attacker?" trustworthy.
+///
+/// Intended to be append-only at the DATABASE ROLE level too: revoke DELETE
+/// and UPDATE on admin_actions from the application role. Without that, a
+/// compromised ADMIN_API_KEY that also reaches the DB can erase its own trail.
+model AdminAction {
+  id String @id @default(uuid())
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  /// Role the presented key resolved to: super | marketing | readonly.
+  /// Null when the request never authenticated (recorded anyway — a burst of
+  /// nulls from one IP is exactly the signal we want).
+  role String?
+
+  /// SHA-256 of the presented key, truncated. Identifies WHICH credential was
+  /// used across a rotation without ever storing the credential.
+  keyFingerprint String? @map("key_fingerprint")
+
+  ip        String
+  userAgent String? @map("user_agent")
+
+  method     String
+  path       String
+  statusCode Int    @map("status_code")
+
+  /// Request body, with credential-shaped fields redacted and the whole thing
+  /// size-capped. This is the "what was asked for" half.
+  requestBody Json? @map("request_body")
+
+  /// Outcome: success flag, error code, and the short message. Not the full
+  /// response body, which for admin list endpoints can be megabytes.
+  outcome Json?
+
+  /// Wall time in ms. A force-resolve that took 40s reads differently from one
+  /// that took 40ms.
+  durationMs Int @map("duration_ms")
+
+  @@index([createdAt])
+  @@index([keyFingerprint, createdAt])
+  @@index([path, createdAt])
+  @@map("admin_actions")
+}
+
 model UptimeCheck {
   id        String   @id @default(uuid())
   status    String // operational, degraded, partial_outage
