@@ -81,14 +81,60 @@ const COMMISSION_BPS = 100; // 1% of bet amount
 const REFERRAL_XP_REWARD = 500n;
 const REFERRAL_COINS_REWARD = 5000n; // 50 UP in base units (100 base = 1 UP display)
 
+// Development-only salt. Deliberately named so that a code derived from it is
+// obviously not a production code if one ever turns up somewhere it shouldn't.
+const DEV_SALT = 'dev-only-not-for-production';
+
+/**
+ * The salt that referral codes are derived from.
+ *
+ * There used to be a literal fallback here, and since REFERRAL_SALT was set in
+ * no environment, that literal was what actually ran everywhere. A salt that
+ * ships in the source of a public repository is not a salt: anyone can derive
+ * the code for any wallet offline, which is enumeration and forged attribution
+ * against the anti-cheat logic.
+ *
+ * Fails closed in production, and only there, so a missing value breaks
+ * referral codes rather than the whole API. That is deliberate: an unset salt
+ * should be loud and contained, not a boot failure that takes trading and
+ * settlement down with it. The startup warning below is what makes it visible
+ * at deploy time instead of at the first user who tries to refer someone.
+ */
+function referralSalt(): string {
+  const salt = (process.env.REFERRAL_SALT || '').trim();
+  if (salt) return salt;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      '[referrals] REFERRAL_SALT is not set on this service. Referral codes are ' +
+        'derived from it, so there is no safe default. Set it and redeploy.'
+    );
+  }
+  return DEV_SALT;
+}
+
+// Say it once, at startup, so it shows up in the deploy log rather than in a
+// user-facing error hours later.
+if (!(process.env.REFERRAL_SALT || '').trim()) {
+  const where = process.env.NODE_ENV === 'production' ? 'PRODUCTION' : 'dev/test';
+  console.warn(
+    `[referrals] REFERRAL_SALT is not set (${where}). ` +
+      (process.env.NODE_ENV === 'production'
+        ? 'Referral code generation will throw until it is set.'
+        : 'Using the development salt; codes will not match production.')
+  );
+}
+
 /**
  * Generate a deterministic referral code from a wallet address.
  * SHA256(wallet + salt) truncated to 10 hex chars.
+ *
+ * Existing codes are unaffected by a salt change: they are stored on the user
+ * row and looked up from there, never re-derived. Rotating the salt changes
+ * what NEW users get and leaves every link already in circulation working.
  */
 export function generateReferralCode(walletAddress: string): string {
-  const salt = process.env.REFERRAL_SALT || 'updown-referrals-v1';
   return createHash('sha256')
-    .update(walletAddress + salt)
+    .update(walletAddress + referralSalt())
     .digest('hex')
     .slice(0, 10);
 }

@@ -3,17 +3,13 @@
  * Run with: npx tsx src/scripts/backfill-referral-codes.ts
  */
 import { PrismaClient } from '@prisma/client';
-import { createHash } from 'crypto';
+// Imported, not reimplemented. This file used to carry its own copy of the
+// derivation, literal salt included, so fixing the service alone would have
+// left the old salt live here and the two would have drifted apart the moment
+// either changed.
+import { generateReferralCode } from '../services/referrals';
 
 const prisma = new PrismaClient();
-
-function generateReferralCode(walletAddress: string): string {
-  const salt = process.env.REFERRAL_SALT || 'updown-referrals-v1';
-  return createHash('sha256')
-    .update(walletAddress + salt)
-    .digest('hex')
-    .slice(0, 10);
-}
 
 async function main() {
   const users = await prisma.user.findMany({
