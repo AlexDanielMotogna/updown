@@ -47,7 +47,12 @@ STAGED=$(git diff --cached --name-only --diff-filter=ACM)
 # ── Layer 1a: filenames that must never be committed ────────────────────────
 # .gitignore already covers these, but a `git add -f` or a rule that gets
 # edited later shouldn't be the only thing standing between us and a wallet.
-BAD_NAMES=$(printf '%s\n' "$STAGED" | grep -E '(^|/)(id|authority|wallet|treasury|secrets|keypair)\.json$|(^|/)\.env($|\.)|(^|/)\.pgpass$|(^|/)\.npmrc$|-keypair\.json$|-authority\.json$|\.pem$' || true)
+# `.env($|\.)` deliberately covers .env.local, .env.production and friends, but
+# that also catches .env.example, which is documentation and is meant to be
+# committed. Subtract the documented variants rather than loosening the match.
+BAD_NAMES=$(printf '%s\n' "$STAGED" \
+  | grep -E '(^|/)(id|authority|wallet|treasury|secrets|keypair)\.json$|(^|/)\.env($|\.)|(^|/)\.pgpass$|(^|/)\.npmrc$|-keypair\.json$|-authority\.json$|\.pem$' \
+  | grep -vE '\.(example|sample|template)$' || true)
 if [ -n "$BAD_NAMES" ]; then
   fail "these staged files hold credentials by convention:"
   printf '%s\n' "$BAD_NAMES" >&2
